@@ -178,7 +178,9 @@ export function FullPatternsReportScreen({
                 <motion.div
                   className="absolute inset-[-14px] rounded-full"
                   style={{
-                    background: 'radial-gradient(circle, rgba(141, 161, 143, 0.13) 0%, rgba(141, 161, 143, 0.02) 40%, transparent 70%)',
+                    background: isDark 
+                      ? 'radial-gradient(circle, rgba(168, 179, 154, 0.15) 0%, rgba(168, 179, 154, 0.03) 40%, transparent 70%)'
+                      : 'radial-gradient(circle, rgba(141, 161, 143, 0.13) 0%, rgba(141, 161, 143, 0.02) 40%, transparent 70%)',
                     filter: 'blur(12px)',
                   }}
                   animate={{
@@ -196,8 +198,10 @@ export function FullPatternsReportScreen({
                 <div
                   className="absolute inset-0 rounded-full"
                   style={{
-                    background: 'radial-gradient(circle at 40% 30%, rgba(215, 205, 191, 0.73) 0%, rgba(141, 161, 143, 0.43) 50%, rgba(106, 88, 75, 0.23) 100%)',
-                    boxShadow: '0 8px 32px rgba(106, 88, 75, 0.15)',
+                    background: isDark 
+                      ? 'radial-gradient(circle at 40% 30%, rgba(180, 175, 165, 0.6) 0%, rgba(168, 179, 154, 0.35) 50%, rgba(80, 85, 75, 0.25) 100%)'
+                      : 'radial-gradient(circle at 40% 30%, rgba(215, 205, 191, 0.73) 0%, rgba(141, 161, 143, 0.43) 50%, rgba(106, 88, 75, 0.23) 100%)',
+                    boxShadow: isDark ? '0 8px 32px rgba(0, 0, 0, 0.2)' : '0 8px 32px rgba(106, 88, 75, 0.15)',
                   }}
                 />
 
