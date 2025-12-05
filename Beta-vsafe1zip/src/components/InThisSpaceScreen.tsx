@@ -108,9 +108,36 @@ export function InThisSpaceScreen({
                 letterSpacing: '0.03em',
                 color: 'var(--text-secondary)',
                 fontStyle: 'italic',
+                marginBottom: '16px',
               }}
             >
               What TRACE is here for.
+            </p>
+            <p
+              style={{
+                fontFamily: 'Georgia, serif',
+                fontSize: '13px',
+                fontWeight: 300,
+                letterSpacing: '0.02em',
+                color: 'var(--text-primary)',
+                lineHeight: '1.6',
+                marginBottom: '8px',
+              }}
+            >
+              TRACE offers emotional support, reflection, grounding, and gentle companionship.
+            </p>
+            <p
+              style={{
+                fontFamily: 'Georgia, serif',
+                fontSize: '13px',
+                fontWeight: 300,
+                letterSpacing: '0.02em',
+                color: 'var(--text-secondary)',
+                lineHeight: '1.6',
+                opacity: 0.85,
+              }}
+            >
+              TRACE does not diagnose, prescribe, or replace therapy or emergency services.
             </p>
           </motion.div>
 
