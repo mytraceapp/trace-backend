@@ -597,21 +597,6 @@ export function ProfileScreen({
                     </span>
                   </button>
                 </div>
-                <p
-                  className="mt-2"
-                  style={{
-                    fontFamily: 'Georgia, serif',
-                    color: 'var(--text-primary)',
-                    fontSize: '11px',
-                    fontWeight: 300,
-                    letterSpacing: '0.01em',
-                    opacity: 0.65,
-                  }}
-                >
-                  {theme === 'day' 
-                    ? 'A light, soft palette designed to feel open, fresh, and steady.'
-                    : 'A dimmed, grounding palette that reduces eye strain and supports evening reflection.'}
-                </p>
               </div>
             </div>
           </motion.div>
