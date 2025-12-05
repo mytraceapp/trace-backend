@@ -34,7 +34,7 @@ export default function App() {
   const [ambientAudioStarted, setAmbientAudioStarted] = React.useState(false);
   const userName = profile?.name || 'there';
 
-  const screensWithOwnAudio = ['home', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding'];
+  const screensWithOwnAudio = ['home', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding', 'maze'];
   const shouldPlayAmbient = ambientAudioStarted && !screensWithOwnAudio.includes(currentScreen);
 
   React.useEffect(() => {
