@@ -414,7 +414,7 @@ export function ProfileScreen({
                       fontSize: '12px',
                       fontWeight: 300,
                       letterSpacing: '0.01em',
-                      opacity: 0.7,
+                      opacity: 0.55,
                     }}
                   >
                     Refer someone and get 3 months free TRACE Studio access
