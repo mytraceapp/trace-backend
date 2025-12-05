@@ -18,7 +18,7 @@ export function AmbientAudioPlayer({
   volume = 0.4,
   fadeInDuration = 7000,
   startDelay = 100,
-  playbackRate = 0.91,
+  playbackRate = 0.90,
   onReady,
 }: AmbientAudioPlayerProps) {
   const { play, pause, isPlaying, isLoaded } = useAmbientAudio({

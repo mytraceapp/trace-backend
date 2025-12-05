@@ -45,11 +45,15 @@ export function EtherealTone({ trigger }: EtherealToneProps) {
         osc.stop(now + startTime + duration + 0.5);
       };
       
-      createSoftPad(130.81, 0, 8, 0.055);
-      createSoftPad(196.00, 0, 8, 0.05);
-      createSoftPad(261.63, 0, 8, 0.045);
-      createSoftPad(329.63, 0.1, 7.5, 0.04);
-      createSoftPad(392.00, 0.1, 7.5, 0.035);
+      createSoftPad(110.00, 0, 11, 0.045);
+      createSoftPad(130.81, 0, 10.8, 0.05);
+      createSoftPad(164.81, 0.1, 10.5, 0.045);
+      createSoftPad(196.00, 0.3, 10.2, 0.042);
+      createSoftPad(220.00, 0.6, 9.8, 0.04);
+      createSoftPad(261.63, 1.0, 9.4, 0.038);
+      createSoftPad(293.66, 1.5, 8.9, 0.035);
+      createSoftPad(329.63, 2.0, 8.4, 0.033);
+      createSoftPad(392.00, 2.6, 7.8, 0.03);
     };
 
     playAwakeningTone();
@@ -57,7 +61,7 @@ export function EtherealTone({ trigger }: EtherealToneProps) {
     return () => {
       setTimeout(() => {
         audioContext.close();
-      }, 10000);
+      }, 14000);
     };
   }, [trigger]);
 
