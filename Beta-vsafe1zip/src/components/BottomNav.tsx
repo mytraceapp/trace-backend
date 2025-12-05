@@ -10,6 +10,7 @@ interface BottomNavProps {
   onNavigateProfile?: () => void;
   onNavigateHelp?: () => void;
   variant?: 'sage' | 'neutral'; // sage for chat screen, neutral for other screens
+  disableAnimation?: boolean; // disable entrance animation when parent handles it
 }
 
 export function BottomNav({ 
@@ -19,7 +20,8 @@ export function BottomNav({
   onNavigateJournal, 
   onNavigateProfile,
   onNavigateHelp,
-  variant = 'sage'
+  variant = 'sage',
+  disableAnimation = false
 }: BottomNavProps) {
   const { theme } = useTheme();
   const isSage = variant === 'sage';
@@ -50,12 +52,12 @@ export function BottomNav({
   return (
     <motion.div
       className="sticky bottom-0 left-0 right-0 z-30"
-      initial={{ y: 100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ 
+      initial={disableAnimation ? false : { y: 100, opacity: 0 }}
+      animate={disableAnimation ? {} : { y: 0, opacity: 1 }}
+      transition={disableAnimation ? {} : { 
         delay: 0.2, 
         duration: 1.2, 
-        ease: [0.16, 1, 0.3, 1] // Smooth expo-out curve
+        ease: [0.16, 1, 0.3, 1]
       }}
     >
       <div
