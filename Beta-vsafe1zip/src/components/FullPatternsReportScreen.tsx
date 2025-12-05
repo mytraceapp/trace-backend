@@ -301,21 +301,6 @@ export function FullPatternsReportScreen({
 
               {/* Graph */}
               <div className="relative h-[180px] mb-3">
-                {/* Background grid */}
-                <svg className="absolute inset-0 w-full h-full">
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <line
-                      key={i}
-                      x1="0"
-                      y1={i * 45}
-                      x2="100%"
-                      y2={i * 45}
-                      stroke={isDark ? "rgba(255, 255, 255, 0.06)" : "rgba(106, 88, 75, 0.08)"}
-                      strokeWidth="1"
-                    />
-                  ))}
-                </svg>
-
                 {/* Line graph */}
                 <svg className="absolute inset-0 w-full h-full overflow-visible" style={{ padding: '10px 5px' }}>
                   {/* Path connecting the dots (tail) */}
