@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion, AnimatePresence, useAnimationControls } from 'motion/react';
-import { Footprints } from 'lucide-react';
+import { Footprints, Volume2, VolumeX } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
+import { WalkingAmbientSound } from './WalkingAmbientSound';
 
 interface WalkingResetScreenProps {
   onFinish: () => void;
@@ -26,6 +27,8 @@ export function WalkingResetScreen({
   const [currentStep, setCurrentStep] = React.useState(0);
   const [currentAffirmation, setCurrentAffirmation] = React.useState(0);
   const [isComplete, setIsComplete] = React.useState(false);
+  const [ambientEnabled, setAmbientEnabled] = React.useState(true);
+  const [stepTrigger, setStepTrigger] = React.useState(0);
   const hasSavedRef = React.useRef(false);
   const TOTAL_TIME = 120; // 2 minutes in seconds
   const STEP_RHYTHM = 1.5; // seconds per step (gentle walking pace)
@@ -45,7 +48,7 @@ export function WalkingResetScreen({
     "Breathe and walk.",
   ];
 
-  // Metronome sound using Web Audio API
+  // Metronome sound using Web Audio API (minimized volume)
   const playMetronome = React.useCallback(() => {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
@@ -54,17 +57,20 @@ export function WalkingResetScreen({
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
     
-    // Soft, warm metronome tone
-    oscillator.frequency.value = 440; // A4 note
+    // Soft, warm metronome tone - very subtle
+    oscillator.frequency.value = 420; // Slightly lower, warmer
     oscillator.type = 'sine';
     
-    // Gentle envelope
+    // Gentle envelope - minimized volume
     gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.08, audioContext.currentTime + 0.02);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+    gainNode.gain.linearRampToValueAtTime(0.015, audioContext.currentTime + 0.02);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.12);
     
     oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.15);
+    oscillator.stop(audioContext.currentTime + 0.12);
+    
+    // Trigger ambient footstep sound
+    setStepTrigger(prev => prev + 1);
 
     // Trigger orb reaction animations - bounce and move
     orbControls.start({
@@ -433,6 +439,31 @@ export function WalkingResetScreen({
   return (
     <div className="relative w-full h-full flex flex-col" style={{ backgroundColor: '#9AB09C' }}>
       
+      {/* Ambient Walking Sound */}
+      <WalkingAmbientSound isPlaying={ambientEnabled && !isComplete} stepTrigger={stepTrigger} />
+
+      {/* Ambient Sound Toggle */}
+      <motion.button
+        className="absolute z-30 p-3 rounded-full"
+        style={{ 
+          top: '7%', 
+          right: '6%',
+          background: 'rgba(237, 232, 219, 0.15)',
+          backdropFilter: 'blur(8px)',
+        }}
+        onClick={() => setAmbientEnabled(!ambientEnabled)}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1, duration: 0.8 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        {ambientEnabled ? (
+          <Volume2 size={18} color="#EDE8DB" strokeWidth={1.5} style={{ opacity: 0.8 }} />
+        ) : (
+          <VolumeX size={18} color="#EDE8DB" strokeWidth={1.5} style={{ opacity: 0.5 }} />
+        )}
+      </motion.button>
+
       {/* Background gradient texture */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
