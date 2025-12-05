@@ -7,6 +7,7 @@ interface UseAmbientAudioOptions {
   fadeOutDuration?: number;
   loop?: boolean;
   startDelay?: number;
+  playbackRate?: number;
 }
 
 export function useAmbientAudio({
@@ -16,6 +17,7 @@ export function useAmbientAudio({
   fadeOutDuration = 2000,
   loop = true,
   startDelay = 0,
+  playbackRate = 1.0,
 }: UseAmbientAudioOptions) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeIntervalRef = useRef<number | null>(null);
@@ -27,6 +29,8 @@ export function useAmbientAudio({
     audio.loop = loop;
     audio.volume = 0;
     audio.preload = 'auto';
+    audio.playbackRate = playbackRate;
+    audio.preservesPitch = true;
     
     audio.addEventListener('canplaythrough', () => {
       setIsLoaded(true);
@@ -47,7 +51,7 @@ export function useAmbientAudio({
       audio.pause();
       audio.src = '';
     };
-  }, [src, loop]);
+  }, [src, loop, playbackRate]);
 
   const fadeIn = useCallback(() => {
     const audio = audioRef.current;
