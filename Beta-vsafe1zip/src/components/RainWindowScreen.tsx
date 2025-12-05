@@ -254,7 +254,7 @@ export function RainWindowScreen({
               fontFamily: 'Georgia, serif',
               fontSize: '14px',
               fontWeight: 300,
-              color: 'rgba(255, 255, 255, 0.41)',
+              color: 'rgba(255, 255, 255, 0.31)',
               letterSpacing: '0.05em',
             }}
           >
@@ -276,7 +276,7 @@ export function RainWindowScreen({
             >
               <motion.div
                 style={{
-                  marginBottom: '20px',
+                  marginBottom: '12px',
                   display: 'flex',
                   justifyContent: 'center',
                   width: '100%',
@@ -309,7 +309,7 @@ export function RainWindowScreen({
                   color: 'rgba(255, 255, 255, 0.75)',
                   fontSize: '22px',
                   fontWeight: 300,
-                  marginBottom: '18px',
+                  marginBottom: '10px',
                   letterSpacing: '0.35em',
                   textShadow: '0 2px 20px rgba(0, 0, 0, 0.4)',
                   paddingLeft: '0.35em',
@@ -327,7 +327,7 @@ export function RainWindowScreen({
                   color: 'rgba(255, 255, 255, 0.55)',
                   fontSize: '14px',
                   fontWeight: 300,
-                  lineHeight: 1.7,
+                  lineHeight: 1.6,
                   maxWidth: '260px',
                   margin: '0 auto',
                   textShadow: '0 1px 10px rgba(0, 0, 0, 0.4)',
