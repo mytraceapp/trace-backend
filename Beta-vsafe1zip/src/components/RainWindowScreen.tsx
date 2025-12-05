@@ -26,97 +26,42 @@ export function RainWindowScreen({
   const timerRef = useRef<number | null>(null);
   const introTimeoutRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
   const { addEntry } = useEntries();
 
   const ACTIVITY_DURATION = 180;
 
+  // Use the video's natural rain audio - fade in/out handled via video element
   const startRainAudio = useCallback(() => {
-    if (audioContextRef.current) return;
-
-    const ctx = new AudioContext();
-    audioContextRef.current = ctx;
-
-    const masterGain = ctx.createGain();
-    masterGain.gain.value = 0;
-    masterGain.connect(ctx.destination);
-    gainNodeRef.current = masterGain;
-
-    const createNoiseBuffer = () => {
-      const bufferSize = 2 * ctx.sampleRate;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const output = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        output[i] = Math.random() * 2 - 1;
-      }
-      return buffer;
-    };
-
-    const noiseBuffer = createNoiseBuffer();
-
-    // Layer 1: Soft rain backdrop (low frequencies)
-    const softRain = ctx.createBufferSource();
-    softRain.buffer = noiseBuffer;
-    softRain.loop = true;
-    const softLowpass = ctx.createBiquadFilter();
-    softLowpass.type = 'lowpass';
-    softLowpass.frequency.value = 800;
-    softLowpass.Q.value = 0.3;
-    const softGain = ctx.createGain();
-    softGain.gain.value = 0.08;
-    softRain.connect(softLowpass);
-    softLowpass.connect(softGain);
-    softGain.connect(masterGain);
-    softRain.start();
-
-    // Layer 2: Mid-range patter (raindrops on surface)
-    const midRain = ctx.createBufferSource();
-    midRain.buffer = noiseBuffer;
-    midRain.loop = true;
-    const midBandpass = ctx.createBiquadFilter();
-    midBandpass.type = 'bandpass';
-    midBandpass.frequency.value = 2500;
-    midBandpass.Q.value = 0.8;
-    const midGain = ctx.createGain();
-    midGain.gain.value = 0.04;
-    midRain.connect(midBandpass);
-    midBandpass.connect(midGain);
-    midGain.connect(masterGain);
-    midRain.start();
-
-    // Layer 3: High sparkle (light droplets on glass)
-    const highRain = ctx.createBufferSource();
-    highRain.buffer = noiseBuffer;
-    highRain.loop = true;
-    const highpass = ctx.createBiquadFilter();
-    highpass.type = 'highpass';
-    highpass.frequency.value = 4000;
-    highpass.Q.value = 0.5;
-    const highGain = ctx.createGain();
-    highGain.gain.value = 0.015;
-    highRain.connect(highpass);
-    highpass.connect(highGain);
-    highGain.connect(masterGain);
-    highRain.start();
-
-    // Gentle fade in
-    masterGain.gain.setValueAtTime(0, ctx.currentTime);
-    masterGain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 4);
+    const video = videoRef.current;
+    if (video) {
+      video.muted = false;
+      video.volume = 0;
+      // Gentle fade in over 3 seconds
+      let vol = 0;
+      const fadeIn = setInterval(() => {
+        vol += 0.02;
+        if (vol >= 0.6) {
+          vol = 0.6;
+          clearInterval(fadeIn);
+        }
+        video.volume = vol;
+      }, 60);
+    }
   }, []);
 
   const stopRainAudio = useCallback(() => {
-    if (gainNodeRef.current && audioContextRef.current) {
-      const ctx = audioContextRef.current;
-      gainNodeRef.current.gain.linearRampToValueAtTime(0, ctx.currentTime + 2);
-      
-      setTimeout(() => {
-        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-          audioContextRef.current.close().catch(() => {});
+    const video = videoRef.current;
+    if (video) {
+      // Gentle fade out over 2 seconds
+      const fadeOut = setInterval(() => {
+        if (video.volume > 0.02) {
+          video.volume -= 0.02;
+        } else {
+          video.volume = 0;
+          video.muted = true;
+          clearInterval(fadeOut);
         }
-        audioContextRef.current = null;
-        gainNodeRef.current = null;
-      }, 2000);
+      }, 40);
     }
   }, []);
 
