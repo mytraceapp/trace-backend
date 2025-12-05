@@ -40,7 +40,7 @@ export function RainWindowScreen({
       const audio = new Audio('/audio/rain-ambient.mp3');
       audio.loop = true;
       audio.volume = 0;
-      audio.playbackRate = 0.5; // 50% speed for slow, dreamy rain
+      audio.playbackRate = 0.575; // 57.5% speed (50% + 15%)
       audio.preservesPitch = false; // Allow pitch to lower with speed
       audioRef.current = audio;
     }
