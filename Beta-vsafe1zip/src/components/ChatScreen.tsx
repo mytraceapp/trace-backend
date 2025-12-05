@@ -265,6 +265,8 @@ export function ChatScreen({
     }
   };
 
+  const isDark = theme === 'night';
+
   // Generate liquid light swirls with sage, pearl, and pale aqua (same as Home)
   const generateLiquidSwirls = () => {
     const swirls = [];
@@ -303,7 +305,9 @@ export function ChatScreen({
       
       const colorIndex = i % colors.length;
       const color = colors[colorIndex];
-      const opacity = 0.18 + (i % 10) * 0.02;
+      // Reduce opacity by 2.5% in dark mode
+      const baseOpacity = 0.18 + (i % 10) * 0.02;
+      const opacity = isDark ? baseOpacity - 0.025 : baseOpacity;
       
       const strokeWidth = 5 + (i % 10) * 3;
       const blur = 3 + (i % 5) * 1.5;
@@ -380,8 +384,6 @@ export function ChatScreen({
     
     return particles;
   };
-
-  const isDark = theme === 'night';
 
   return (
     <div 
