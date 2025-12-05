@@ -199,8 +199,8 @@ export function MazeScreen({
   return (
     <div className="relative w-full h-full flex flex-col" style={{ backgroundColor: '#9AB09C' }}>
       
-      {/* Focus ambient tone - plays while on maze */}
-      <MazeFocusTone isPlaying={!isCompleted} volume={0.32} />
+      {/* Focus ambient tone - plays entire time on maze page */}
+      <MazeFocusTone isPlaying={true} volume={0.32} />
       
       {/* TRACE Brand Name at top */}
       <motion.div
