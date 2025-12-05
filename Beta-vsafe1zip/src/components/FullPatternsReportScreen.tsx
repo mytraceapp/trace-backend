@@ -57,12 +57,24 @@ export function FullPatternsReportScreen({
 
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: 'transparent' }}>
-      {/* Math notebook grid overlay - only visible in day mode */}
+      {/* Math notebook grid overlay - day mode */}
       {!isDark && (
         <div 
           className="fixed inset-0 pointer-events-none opacity-[0.25]"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%238DA18F' stroke-width='1'/%3E%3C/svg%3E")`,
+            backgroundSize: '24px 24px',
+            backgroundRepeat: 'repeat',
+          }}
+        />
+      )}
+      
+      {/* Math notebook grid overlay - night mode with super light green */}
+      {isDark && (
+        <div 
+          className="fixed inset-0 pointer-events-none opacity-[0.08]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%23A8BFA0' stroke-width='0.5'/%3E%3C/svg%3E")`,
             backgroundSize: '24px 24px',
             backgroundRepeat: 'repeat',
           }}
@@ -188,7 +200,7 @@ export function FullPatternsReportScreen({
                       filter: 'blur(18px)',
                     }}
                     animate={{
-                      opacity: [0.5, 0.85, 0.5],
+                      opacity: [0.5, 0.93, 0.5],
                       scale: [0.9, 1.15, 0.9],
                     }}
                     transition={{
