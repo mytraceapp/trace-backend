@@ -2,8 +2,14 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { Entry, EntryType, createEntry } from '../models/entries';
 
 const STORAGE_KEY = 'trace_entries';
+const CLEAR_FLAG = 'trace_entries_cleared_v1';
 
 function loadEntriesFromStorage(): Entry[] {
+  if (!localStorage.getItem(CLEAR_FLAG)) {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.setItem(CLEAR_FLAG, 'true');
+    return [];
+  }
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
