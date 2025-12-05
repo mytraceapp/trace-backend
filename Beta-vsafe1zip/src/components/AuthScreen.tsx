@@ -179,7 +179,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
           </button>
 
           {/* Divider */}
-          <div className="flex items-center w-[85%] my-2">
+          <div className="flex items-center w-[85%] mt-1 mb-1">
             <div className="flex-1 h-px bg-[#E8E2D4]/20" />
             <span 
               className="px-4 text-[#E8E2D4]/50"
@@ -197,7 +197,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
 
           {/* Face ID / Biometric Login */}
           <button
-            className="flex items-center justify-center gap-3 w-[85%] py-4 px-6 rounded-full bg-[#E8E2D4]/10 border border-[#E8E2D4]/30 text-[#E8E2D4] transition-all duration-300 hover:bg-[#E8E2D4]/20 hover:scale-[1.02]"
+            className="flex items-center justify-center gap-3 w-[85%] py-4 px-6 rounded-full bg-[#E8E2D4]/10 border border-[#E8E2D4]/30 text-[#E8E2D4] transition-all duration-300 hover:bg-[#E8E2D4]/20 hover:scale-[1.02] -mt-1"
             style={{
               fontFamily: 'Georgia, serif',
               letterSpacing: '0.05em',
