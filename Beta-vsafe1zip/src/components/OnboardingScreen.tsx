@@ -144,20 +144,11 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         background: 'linear-gradient(to bottom, #8DA18F 0%, #7D9180 100%)',
       }}
     >
-      {/* Soft vignette overlay */}
+      {/* Soft vignette overlay - adjusted to avoid bottom band */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(circle at center, transparent 0%, rgba(75, 75, 75, 0.12) 100%)',
-        }}
-      />
-
-      {/* Smooth bottom darkening - uses same hue as background bottom (#7D9180) */}
-      <div
-        className="absolute bottom-0 left-0 right-0 pointer-events-none"
-        style={{
-          height: '50%',
-          background: 'linear-gradient(to bottom, transparent 0%, rgba(125, 145, 128, 0.0) 20%, rgba(115, 135, 118, 0.12) 50%, rgba(105, 125, 108, 0.22) 80%, rgba(95, 115, 98, 0.32) 100%)',
+          background: 'radial-gradient(ellipse 120% 100% at 50% 40%, transparent 0%, rgba(75, 75, 75, 0.08) 70%, rgba(75, 75, 75, 0.08) 100%)',
         }}
       />
 
