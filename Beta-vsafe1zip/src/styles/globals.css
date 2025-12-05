@@ -51,41 +51,41 @@
 }
 
 html.theme-day, :root.theme-day {
-  --bg: var(--day-bg) !important;
-  --bg-soft: var(--day-bg-soft) !important;
-  --card: var(--day-card) !important;
-  --card-elevated: var(--day-card-elevated) !important;
-  --card-alt: var(--day-card-alt) !important;
-  --border: var(--day-border) !important;
-  --text-primary: var(--day-text-primary) !important;
-  --text-secondary: var(--day-text-secondary) !important;
-  --text-tertiary: var(--day-text-tertiary) !important;
-  --accent: var(--day-accent) !important;
-  --accent-soft: var(--day-accent-soft) !important;
-  --input-bg: var(--day-input-bg) !important;
-  --orb-glow: var(--orb-glow-day) !important;
-  --orb-core: var(--orb-core-day) !important;
-  --shadow: 0 6px 20px rgba(75, 75, 75, 0.08), 0 2px 6px rgba(75, 75, 75, 0.04) !important;
-  --danger: #B07D6C !important;
+  --bg: var(--day-bg);
+  --bg-soft: var(--day-bg-soft);
+  --card: var(--day-card);
+  --card-elevated: var(--day-card-elevated);
+  --card-alt: var(--day-card-alt);
+  --border: var(--day-border);
+  --text-primary: var(--day-text-primary);
+  --text-secondary: var(--day-text-secondary);
+  --text-tertiary: var(--day-text-tertiary);
+  --accent: var(--day-accent);
+  --accent-soft: var(--day-accent-soft);
+  --input-bg: var(--day-input-bg);
+  --orb-glow: var(--orb-glow-day);
+  --orb-core: var(--orb-core-day);
+  --shadow: 0 6px 20px rgba(75, 75, 75, 0.08), 0 2px 6px rgba(75, 75, 75, 0.04);
+  --danger: #B07D6C;
 }
 
 html.theme-night, :root.theme-night {
-  --bg: var(--night-bg) !important;
-  --bg-soft: var(--night-bg-soft) !important;
-  --card: var(--night-card) !important;
-  --card-elevated: var(--night-card-elevated) !important;
-  --card-alt: var(--night-card-alt) !important;
-  --border: var(--night-border) !important;
-  --text-primary: var(--night-text-primary) !important;
-  --text-secondary: var(--night-text-secondary) !important;
-  --text-tertiary: var(--night-text-tertiary) !important;
-  --accent: var(--night-accent) !important;
-  --accent-soft: var(--night-accent-soft) !important;
-  --input-bg: var(--night-input-bg) !important;
-  --orb-glow: var(--orb-glow-night) !important;
-  --orb-core: var(--orb-core-night) !important;
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2) !important;
-  --danger: #C49080 !important;
+  --bg: var(--night-bg);
+  --bg-soft: var(--night-bg-soft);
+  --card: var(--night-card);
+  --card-elevated: var(--night-card-elevated);
+  --card-alt: var(--night-card-alt);
+  --border: var(--night-border);
+  --text-primary: var(--night-text-primary);
+  --text-secondary: var(--night-text-secondary);
+  --text-tertiary: var(--night-text-tertiary);
+  --accent: var(--night-accent);
+  --accent-soft: var(--night-accent-soft);
+  --input-bg: var(--night-input-bg);
+  --orb-glow: var(--orb-glow-night);
+  --orb-core: var(--orb-core-night);
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2);
+  --danger: #C49080;
 }
 
 @keyframes grain-shimmer {
@@ -150,10 +150,10 @@ html, body {
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
+  --ui-background: #ffffff;
+  --ui-foreground: oklch(0.145 0 0);
+  --ui-card: #ffffff;
+  --ui-card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
   --primary: #030213;
@@ -162,11 +162,11 @@ html, body {
   --secondary-foreground: #030213;
   --muted: #ececf0;
   --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
+  --ui-accent: #e9ebef;
+  --ui-accent-foreground: #030213;
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
+  --ui-border: rgba(0, 0, 0, 0.1);
   --input: transparent;
   --input-background: #f3f3f5;
   --switch-background: #cbced4;
@@ -190,10 +190,10 @@ html, body {
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
+  --ui-background: oklch(0.145 0 0);
+  --ui-foreground: oklch(0.985 0 0);
+  --ui-card: oklch(0.145 0 0);
+  --ui-card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.145 0 0);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.985 0 0);
@@ -202,11 +202,11 @@ html, body {
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --ui-accent: oklch(0.269 0 0);
+  --ui-accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
+  --ui-border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
   --ring: oklch(0.439 0 0);
   --font-weight-medium: 500;

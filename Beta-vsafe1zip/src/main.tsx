@@ -4,6 +4,7 @@ import { UserProvider } from "./state/PlanContext.tsx";
 import { EntriesProvider } from "./state/EntriesContext.tsx";
 import { ThemeProvider } from "./state/ThemeContext.tsx";
 import "./index.css";
+import "./styles/globals.css";
 
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider>
