@@ -236,7 +236,7 @@ export function ProfileScreen({
                   height: '120px',
                   background: `radial-gradient(circle, rgba(180, 191, 170, 0.35) 0%, rgba(160, 175, 155, 0.15) 40%, transparent 70%)`,
                   top: '0%',
-                  left: '50%',
+                  left: '35%',
                   transform: 'translate(-50%, -50%)',
                   filter: 'blur(15px)',
                 }}
