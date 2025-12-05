@@ -169,6 +169,31 @@ export function RainWindowScreen({
     };
   }, [stopRainAudio]);
 
+  // Seamless video loop - reset slightly before end to avoid stutter
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      if (video.duration && video.duration - video.currentTime <= 0.4) {
+        video.currentTime = 0.1;
+      }
+    };
+
+    const handleEnded = () => {
+      video.currentTime = 0.1;
+      video.play().catch(() => {});
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('ended', handleEnded);
+
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('ended', handleEnded);
+    };
+  }, []);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -186,10 +211,10 @@ export function RainWindowScreen({
         ref={videoRef}
         className="absolute object-cover"
         src="/video/rain-window.mp4"
-        loop
         muted
         playsInline
         autoPlay
+        preload="auto"
         style={{
           top: '50%',
           left: '50%',
