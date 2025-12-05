@@ -233,13 +233,11 @@ export function RainWindowScreen({
         autoPlay
         preload="auto"
         style={{
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%) scale(1.8)',
-          minWidth: '180%',
-          minHeight: '180%',
-          width: 'auto',
-          height: 'auto',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
           filter: 'brightness(0.55) saturate(0.7)',
           opacity: quietMode ? videoOpacity : 0,
           transition: 'opacity 1.2s ease-in-out',
