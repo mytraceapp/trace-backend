@@ -121,27 +121,37 @@ export function HelpScreen({
       >
         <div className="flex-shrink-0" style={{ height: '8%' }} />
 
-        {/* Title Section */}
+        {/* Title Section with ambient vignette for night mode */}
         <motion.div
-          className="w-full px-6 text-center pt-8 pb-2 flex-shrink-0"
+          className="w-full px-6 text-center pt-8 pb-2 flex-shrink-0 relative"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 1 }}
         >
+          {/* Subtle ambient vignette behind header for night mode */}
+          {isDark && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'radial-gradient(ellipse 80% 60% at 50% 30%, rgba(0, 0, 0, 0.03) 0%, transparent 70%)',
+              }}
+            />
+          )}
           <h2
-            className="mb-2"
+            className="mb-2 relative"
             style={{
               fontFamily: 'Georgia, serif',
               color: 'var(--text-primary)',
               fontWeight: 400,
               fontSize: '32px',
               letterSpacing: '-0.02em',
+              opacity: isDark ? 0.95 : 1,
             }}
           >
             Help
           </h2>
           <p
-            className="mb-2"
+            className="mb-2 relative"
             style={{
               fontFamily: 'Georgia, serif',
               color: 'var(--text-secondary)',
@@ -149,6 +159,7 @@ export function HelpScreen({
               fontSize: '15px',
               letterSpacing: '0.01em',
               marginTop: '-0.5rem',
+              opacity: isDark ? 0.92 : 1,
             }}
           >
             Support, safety, and how TRACE works.
@@ -168,9 +179,10 @@ export function HelpScreen({
               <motion.button
                 key={card.title}
                 onClick={card.onClick}
-                className="w-full rounded-[24px] p-6 text-left transition-all duration-300 hover:scale-[1.01] active:scale-[0.98]"
+                className="w-full p-6 text-left transition-all duration-300 hover:scale-[1.01] active:scale-[0.98]"
                 style={{
                   background: 'var(--card)',
+                  borderRadius: isDark ? '26px' : '24px',
                   boxShadow: isDark
                     ? '0 6px 20px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2)'
                     : '0 6px 20px rgba(90, 74, 58, 0.08), 0 2px 6px rgba(90, 74, 58, 0.04)',
@@ -183,7 +195,7 @@ export function HelpScreen({
                 transition={{ delay: 0.7 + index * 0.1, duration: 0.8 }}
               >
                 <div className="flex items-start gap-4">
-                  {/* Icon */}
+                  {/* Icon - ghost-like in night mode */}
                   <div
                     className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
                     style={{
@@ -195,7 +207,14 @@ export function HelpScreen({
                         : '0 2px 8px rgba(90, 74, 58, 0.06)',
                     }}
                   >
-                    <Icon size={20} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
+                    <Icon 
+                      size={20} 
+                      style={{ 
+                        color: 'var(--text-secondary)', 
+                        strokeWidth: 1.5,
+                        opacity: isDark ? 0.94 : 1,
+                      }} 
+                    />
                   </div>
 
                   {/* Text Content */}
@@ -208,6 +227,7 @@ export function HelpScreen({
                         fontWeight: 500,
                         fontSize: '17px',
                         letterSpacing: '0.01em',
+                        opacity: isDark ? 0.95 : 1,
                       }}
                     >
                       {card.title}
@@ -220,6 +240,7 @@ export function HelpScreen({
                         fontSize: '14px',
                         letterSpacing: '0.005em',
                         lineHeight: '1.5',
+                        opacity: isDark ? 0.93 : 1,
                       }}
                     >
                       {card.subtext}
