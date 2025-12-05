@@ -152,9 +152,11 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
           <button
             className="w-[85%] py-4 px-6 rounded-full bg-[#E8E2D4] text-[#889582] transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
             style={{
+              fontFamily: 'Georgia, serif',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.02)',
               letterSpacing: '0.05em',
-              fontWeight: 500,
+              fontWeight: 400,
+              fontSize: '15px',
             }}
             onClick={onCreateAccount}
           >
@@ -165,9 +167,11 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
           <button
             className="w-[85%] py-4 px-6 rounded-full bg-transparent border-2 border-[#E8E2D4] text-[#E8E2D4] transition-all duration-300 hover:bg-[#E8E2D4]/10 hover:scale-[1.02]"
             style={{
+              fontFamily: 'Georgia, serif',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.03), 0 2px 8px rgba(0, 0, 0, 0.02)',
               letterSpacing: '0.05em',
               fontWeight: 400,
+              fontSize: '15px',
             }}
             onClick={onLogin}
           >
@@ -193,22 +197,17 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
 
           {/* Face ID / Biometric Login */}
           <button
-            className="flex items-center justify-center gap-3 w-[85%] py-3.5 px-6 rounded-full bg-[#E8E2D4]/10 border border-[#E8E2D4]/30 text-[#E8E2D4] transition-all duration-300 hover:bg-[#E8E2D4]/20 hover:scale-[1.02]"
+            className="flex items-center justify-center gap-3 w-[85%] py-4 px-6 rounded-full bg-[#E8E2D4]/10 border border-[#E8E2D4]/30 text-[#E8E2D4] transition-all duration-300 hover:bg-[#E8E2D4]/20 hover:scale-[1.02]"
             style={{
-              letterSpacing: '0.03em',
-              fontWeight: 300,
+              fontFamily: 'Georgia, serif',
+              letterSpacing: '0.05em',
+              fontWeight: 400,
+              fontSize: '15px',
             }}
             onClick={onLogin}
           >
             <Scan size={18} strokeWidth={1.5} />
-            <span
-              style={{
-                fontFamily: 'Georgia, serif',
-                fontSize: '14px',
-              }}
-            >
-              Sign in with Face ID
-            </span>
+            Sign in with Face ID
           </button>
         </motion.div>
 
@@ -216,7 +215,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
 
       {/* Bottom Microtext */}
       <motion.div
-        className="absolute bottom-6 left-0 right-0 text-center z-20 px-8"
+        className="absolute bottom-8 left-0 right-0 text-center z-20"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2, duration: 1.5 }}
@@ -228,24 +227,10 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
             fontWeight: 300,
             color: '#EDE8DB',
             letterSpacing: '0.05em',
-            opacity: 0.35,
-            marginBottom: '6px',
+            opacity: 0.25,
           }}
         >
           Designed for calm.
-        </p>
-        <p
-          style={{
-            fontFamily: 'Georgia, serif',
-            fontSize: '9px',
-            fontWeight: 300,
-            color: '#EDE8DB',
-            letterSpacing: '0.03em',
-            opacity: 0.30,
-            lineHeight: '1.5',
-          }}
-        >
-          TRACE is designed for users 13 years and older.
         </p>
       </motion.div>
     </div>
