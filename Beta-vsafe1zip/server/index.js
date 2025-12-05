@@ -6,10 +6,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
+const hasOpenAIKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+
+let openai = null;
+if (hasOpenAIKey) {
+  openai = new OpenAI({
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || 'https://api.openai.com/v1',
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+  });
+  console.log('OpenAI client initialized');
+} else {
+  console.log('No OpenAI API key found - chat will use fallback responses');
+}
 
 const TRACE_SYSTEM_PROMPT = `You are TRACE. You respond like a calm, emotionally intelligent friend texting — not a therapist, coach, or chatbot.
 
@@ -65,11 +73,32 @@ If they mention self-harm or crisis: "I'm glad you told me. I can't help with cr
 
 Be warm. Be real. Keep it simple.`;
 
+const fallbackResponses = [
+  "mm, I'm here with you.",
+  "I hear you... tell me more?",
+  "that's okay. take your time.",
+  "mm, what's on your mind?",
+  "I'm listening.",
+  "how does that feel?",
+  "mm... that sounds like a lot.",
+  "I'm here.",
+];
+
+function getFallbackResponse() {
+  return fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+}
+
 app.post('/api/chat', async (req, res) => {
   try {
     const { messages } = req.body;
     
     console.log('Received messages:', JSON.stringify(messages, null, 2));
+    
+    if (!openai) {
+      const fallback = getFallbackResponse();
+      console.log('TRACE says (fallback):', fallback);
+      return res.json({ message: fallback });
+    }
     
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
