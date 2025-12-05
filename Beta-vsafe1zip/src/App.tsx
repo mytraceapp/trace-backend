@@ -124,7 +124,8 @@ export default function App() {
                 onNavigateToPearlRipple={() => setCurrentScreen('pearlripple')}
                 shouldStartGreeting={!showPaymentSuccess}
               />
-              {showPaymentSuccess && (
+              {/* Only show success overlay for Premium/Studio after payment - never for Light */}
+              {showPaymentSuccess && selectedPlan !== 'light' && (
                 <PaymentSuccessOverlay
                   userName={userName}
                   onStartChatting={() => setShowPaymentSuccess(false)}
