@@ -13,6 +13,7 @@ import { WalkingResetScreen } from './components/WalkingResetScreen';
 import { PowerNapScreen } from './components/PowerNapScreen';
 import { PearlRippleScreen } from './components/PearlRippleScreen';
 import { GroundingExperience } from './components/GroundingExperience';
+import { RainWindowScreen } from './components/RainWindowScreen';
 import { JournalScreen } from './components/JournalScreen';
 import { EntriesScreen } from './components/EntriesScreen';
 import { TracePatternsScreen } from './components/TracePatternsScreen';
@@ -31,12 +32,12 @@ import { AmbientAudioPlayer } from './components/AmbientAudioPlayer';
 export default function App() {
   const { selectedPlan, profile, isUpgrading, setIsUpgrading, ambienceEnabled, ambienceVolume } = useUser();
   const { theme } = useTheme();
-  const [currentScreen, setCurrentScreen] = React.useState<'home' | 'auth' | 'accountsetup' | 'payment' | 'onboarding' | 'chat' | 'activities' | 'activitieshub' | 'breathing' | 'maze' | 'walking' | 'powernap' | 'pearlripple' | 'grounding' | 'journal' | 'entries' | 'patterns' | 'fullpatterns' | 'help' | 'inthisspace' | 'crisis' | 'privacy' | 'terms' | 'profile'>('home');
+  const [currentScreen, setCurrentScreen] = React.useState<'home' | 'auth' | 'accountsetup' | 'payment' | 'onboarding' | 'chat' | 'activities' | 'activitieshub' | 'breathing' | 'maze' | 'walking' | 'powernap' | 'pearlripple' | 'grounding' | 'rainwindow' | 'journal' | 'entries' | 'patterns' | 'fullpatterns' | 'help' | 'inthisspace' | 'crisis' | 'privacy' | 'terms' | 'profile'>('home');
   const [showPaymentSuccess, setShowPaymentSuccess] = React.useState(false);
   const [ambientAudioStarted, setAmbientAudioStarted] = React.useState(false);
   const userName = profile?.name || 'there';
 
-  const screensWithOwnAudio = ['home', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding', 'maze'];
+  const screensWithOwnAudio = ['home', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding', 'maze', 'rainwindow'];
   const shouldPlayAmbient = ambientAudioStarted && ambienceEnabled && !screensWithOwnAudio.includes(currentScreen);
 
   React.useEffect(() => {
@@ -144,6 +145,7 @@ export default function App() {
               onStartPowerNap={() => setCurrentScreen('powernap')}
               onStartPearlRipple={() => setCurrentScreen('pearlripple')}
               onStartGrounding={() => setCurrentScreen('grounding')}
+              onStartRainWindow={() => setCurrentScreen('rainwindow')}
               onReturnToChat={() => setCurrentScreen('chat')}
               onNavigateToPatterns={() => setCurrentScreen('patterns')}
               onNavigateToJournal={() => setCurrentScreen('entries')}
@@ -203,6 +205,16 @@ export default function App() {
           )}
           {currentScreen === 'grounding' && (
             <GroundingExperience 
+              onReturnToChat={() => setCurrentScreen('chat')}
+              onNavigateToActivities={() => setCurrentScreen('activitieshub')}
+              onNavigateToJournal={() => setCurrentScreen('entries')}
+              onNavigateToProfile={() => setCurrentScreen('profile')}
+              onNavigateToHelp={() => setCurrentScreen('help')}
+              onBack={() => setCurrentScreen('activitieshub')}
+            />
+          )}
+          {currentScreen === 'rainwindow' && (
+            <RainWindowScreen 
               onReturnToChat={() => setCurrentScreen('chat')}
               onNavigateToActivities={() => setCurrentScreen('activitieshub')}
               onNavigateToJournal={() => setCurrentScreen('entries')}

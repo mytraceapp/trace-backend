@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Wind, Compass, Footprints, Moon, Sparkles, Hand } from 'lucide-react';
+import { Wind, Compass, Footprints, Moon, Sparkles, Hand, CloudRain } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useTheme } from '../state/ThemeContext';
 
@@ -11,6 +11,7 @@ interface ActivitiesHubScreenProps {
   onStartPowerNap: () => void;
   onStartPearlRipple?: () => void;
   onStartGrounding?: () => void;
+  onStartRainWindow?: () => void;
   onReturnToChat: () => void;
   onNavigateToPatterns?: () => void;
   onNavigateToJournal?: () => void;
@@ -25,6 +26,7 @@ export function ActivitiesHubScreen({
   onStartPowerNap,
   onStartPearlRipple,
   onStartGrounding,
+  onStartRainWindow,
   onReturnToChat,
   onNavigateToPatterns,
   onNavigateToJournal,
@@ -441,6 +443,61 @@ export function ActivitiesHubScreen({
                       }}
                     >
                       Connect with your surroundings.
+                    </p>
+                  </div>
+                </div>
+              </motion.button>
+            )}
+
+            {/* Card 7 - Rain Window */}
+            {onStartRainWindow && (
+              <motion.button
+                onClick={onStartRainWindow}
+                className="rounded-[24px] p-5 transition-all duration-300 active:scale-[0.97]"
+                style={{
+                  background: 'linear-gradient(135deg, #2a2f2d 0%, #1f2422 100%)',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 2px rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                }}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.1, duration: 0.8 }}
+                whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+              >
+                <div className="flex flex-col items-start gap-3 h-[160px]">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(140, 160, 180, 0.2) 0%, rgba(120, 140, 160, 0.1) 100%)',
+                    }}
+                  >
+                    <CloudRain size={20} style={{ color: '#8CA0B4' }} strokeWidth={1.5} />
+                  </div>
+
+                  <div className="flex-1 flex flex-col items-start justify-end text-left">
+                    <h3
+                      className="mb-1"
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: 'rgba(255, 255, 255, 0.85)',
+                        fontWeight: 500,
+                        fontSize: '16px',
+                        letterSpacing: '0.01em',
+                      }}
+                    >
+                      Rain Window
+                    </h3>
+                    <p
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        fontWeight: 300,
+                        fontSize: '12px',
+                        letterSpacing: '0.005em',
+                        lineHeight: '1.4',
+                      }}
+                    >
+                      Watch the rain. Drift away.
                     </p>
                   </div>
                 </div>
