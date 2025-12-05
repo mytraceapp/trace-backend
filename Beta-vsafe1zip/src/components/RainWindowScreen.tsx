@@ -185,8 +185,6 @@ export function RainWindowScreen({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const remainingTime = ACTIVITY_DURATION - elapsedTime;
-
   return (
     <div 
       className="relative w-full h-full overflow-hidden"
@@ -236,7 +234,7 @@ export function RainWindowScreen({
         transition={{ duration: 1, delay: 0.2 }}
       >
         <h1 style={{
-          color: 'rgba(255, 255, 255, 0.85)',
+          color: 'rgba(255, 255, 255, 0.68)',
           fontWeight: 300,
           letterSpacing: '0.8em',
           fontSize: '10px',
@@ -269,7 +267,7 @@ export function RainWindowScreen({
               letterSpacing: '0.05em',
             }}
           >
-            {formatTime(remainingTime)}
+            {formatTime(elapsedTime)}
           </div>
         </motion.div>
       )}
@@ -412,7 +410,7 @@ export function RainWindowScreen({
               fontFamily: 'Georgia, serif',
               fontSize: '14px',
               fontWeight: 300,
-              color: 'rgba(255, 255, 255, 0.85)',
+              color: 'rgba(255, 255, 255, 0.68)',
               letterSpacing: '0.08em',
             }}
           >
