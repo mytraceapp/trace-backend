@@ -26,9 +26,7 @@ export function ProfileScreen({
   onNavigateToPrivacy,
   onNavigateToTerms
 }: ProfileScreenProps) {
-  const { profile, selectedPlan, generateReferralCode, updatePlan, setIsUpgrading } = useUser();
-  const [ambienceEnabled, setAmbienceEnabled] = React.useState(true);
-  const [volume, setVolume] = React.useState(65);
+  const { profile, selectedPlan, generateReferralCode, updatePlan, setIsUpgrading, ambienceEnabled, setAmbienceEnabled, ambienceVolume, setAmbienceVolume } = useUser();
   const [selectedTheme, setSelectedTheme] = React.useState('Sage');
   
   const [showManagePlanPopup, setShowManagePlanPopup] = React.useState(false);
@@ -455,11 +453,11 @@ export function ProfileScreen({
                       type="range"
                       min="0"
                       max="100"
-                      value={volume}
-                      onChange={(e) => setVolume(Number(e.target.value))}
+                      value={ambienceVolume}
+                      onChange={(e) => setAmbienceVolume(Number(e.target.value))}
                       className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
                       style={{
-                        background: `linear-gradient(to right, #8A7A6A 0%, #8A7A6A ${volume}%, rgba(138, 122, 106, 0.15) ${volume}%, rgba(138, 122, 106, 0.15) 100%)`,
+                        background: `linear-gradient(to right, #8A7A6A 0%, #8A7A6A ${ambienceVolume}%, rgba(138, 122, 106, 0.15) ${ambienceVolume}%, rgba(138, 122, 106, 0.15) 100%)`,
                       }}
                     />
                     <span
@@ -472,7 +470,7 @@ export function ProfileScreen({
                         textAlign: 'right',
                       }}
                     >
-                      {volume}%
+                      {ambienceVolume}%
                     </span>
                   </div>
                 )}

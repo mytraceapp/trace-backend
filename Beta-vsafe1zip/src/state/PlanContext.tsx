@@ -14,11 +14,15 @@ interface UserState {
   selectedPlan: PlanTier;
   profile: UserProfile | null;
   isUpgrading: boolean;
+  ambienceEnabled: boolean;
+  ambienceVolume: number;
   setSelectedPlan: (plan: PlanTier) => void;
   setProfile: (profile: UserProfile) => void;
   updatePlan: (plan: PlanTier, hasPaid?: boolean) => void;
   generateReferralCode: () => string;
   setIsUpgrading: (value: boolean) => void;
+  setAmbienceEnabled: (value: boolean) => void;
+  setAmbienceVolume: (value: number) => void;
 }
 
 const UserContext = createContext<UserState | undefined>(undefined);
@@ -40,6 +44,8 @@ export function UserProvider({ children }: UserProviderProps) {
   const [selectedPlan, setSelectedPlan] = useState<PlanTier>('light');
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isUpgrading, setIsUpgrading] = useState(false);
+  const [ambienceEnabled, setAmbienceEnabled] = useState(true);
+  const [ambienceVolume, setAmbienceVolume] = useState(65);
 
   const updatePlan = useCallback((plan: PlanTier, hasPaid?: boolean) => {
     if (profile) {
@@ -71,7 +77,11 @@ export function UserProvider({ children }: UserProviderProps) {
       updatePlan, 
       generateReferralCode,
       isUpgrading,
-      setIsUpgrading
+      setIsUpgrading,
+      ambienceEnabled,
+      setAmbienceEnabled,
+      ambienceVolume,
+      setAmbienceVolume
     }}>
       {children}
     </UserContext.Provider>

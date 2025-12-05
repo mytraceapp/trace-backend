@@ -28,14 +28,14 @@ import { PaymentSuccessOverlay } from './components/PaymentSuccessOverlay';
 import { AmbientAudioPlayer } from './components/AmbientAudioPlayer';
 
 export default function App() {
-  const { selectedPlan, profile, isUpgrading, setIsUpgrading } = useUser();
+  const { selectedPlan, profile, isUpgrading, setIsUpgrading, ambienceEnabled, ambienceVolume } = useUser();
   const [currentScreen, setCurrentScreen] = React.useState<'home' | 'auth' | 'accountsetup' | 'payment' | 'onboarding' | 'chat' | 'activities' | 'activitieshub' | 'breathing' | 'maze' | 'walking' | 'powernap' | 'pearlripple' | 'grounding' | 'journal' | 'entries' | 'patterns' | 'fullpatterns' | 'help' | 'inthisspace' | 'crisis' | 'privacy' | 'terms' | 'profile'>('home');
   const [showPaymentSuccess, setShowPaymentSuccess] = React.useState(false);
   const [ambientAudioStarted, setAmbientAudioStarted] = React.useState(false);
   const userName = profile?.name || 'there';
 
   const screensWithOwnAudio = ['home', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding', 'maze'];
-  const shouldPlayAmbient = ambientAudioStarted && !screensWithOwnAudio.includes(currentScreen);
+  const shouldPlayAmbient = ambientAudioStarted && ambienceEnabled && !screensWithOwnAudio.includes(currentScreen);
 
   React.useEffect(() => {
     if (currentScreen === 'auth' && !ambientAudioStarted) {
@@ -51,7 +51,7 @@ export default function App() {
         <div className="w-full h-full rounded-[43px] overflow-hidden relative">
           {/* Global Ambient Audio - always mounted, plays on screens without their own audio */}
           {ambientAudioStarted && (
-            <AmbientAudioPlayer shouldPlay={shouldPlayAmbient} volume={0.35} showControls={false} />
+            <AmbientAudioPlayer shouldPlay={shouldPlayAmbient} volume={ambienceVolume / 100 * 0.5} showControls={false} />
           )}
           
           {/* Conditional Screen Rendering */}
