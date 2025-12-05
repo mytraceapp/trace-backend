@@ -43,46 +43,66 @@ export function RainWindowScreen({
     masterGain.connect(ctx.destination);
     gainNodeRef.current = masterGain;
 
-    const pinkNoise = () => {
+    const createNoiseBuffer = () => {
       const bufferSize = 2 * ctx.sampleRate;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const output = buffer.getChannelData(0);
-
-      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
       for (let i = 0; i < bufferSize; i++) {
-        const white = Math.random() * 2 - 1;
-        b0 = 0.99886 * b0 + white * 0.0555179;
-        b1 = 0.99332 * b1 + white * 0.0750759;
-        b2 = 0.96900 * b2 + white * 0.1538520;
-        b3 = 0.86650 * b3 + white * 0.3104856;
-        b4 = 0.55000 * b4 + white * 0.5329522;
-        b5 = -0.7616 * b5 - white * 0.0168980;
-        output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
-        b6 = white * 0.115926;
+        output[i] = Math.random() * 2 - 1;
       }
       return buffer;
     };
 
-    const noiseBuffer = pinkNoise();
-    const noiseSource = ctx.createBufferSource();
-    noiseSource.buffer = noiseBuffer;
-    noiseSource.loop = true;
+    const noiseBuffer = createNoiseBuffer();
 
-    const lowpass = ctx.createBiquadFilter();
-    lowpass.type = 'lowpass';
-    lowpass.frequency.value = 400;
-    lowpass.Q.value = 0.5;
+    // Layer 1: Soft rain backdrop (low frequencies)
+    const softRain = ctx.createBufferSource();
+    softRain.buffer = noiseBuffer;
+    softRain.loop = true;
+    const softLowpass = ctx.createBiquadFilter();
+    softLowpass.type = 'lowpass';
+    softLowpass.frequency.value = 800;
+    softLowpass.Q.value = 0.3;
+    const softGain = ctx.createGain();
+    softGain.gain.value = 0.08;
+    softRain.connect(softLowpass);
+    softLowpass.connect(softGain);
+    softGain.connect(masterGain);
+    softRain.start();
 
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.value = 0.25;
+    // Layer 2: Mid-range patter (raindrops on surface)
+    const midRain = ctx.createBufferSource();
+    midRain.buffer = noiseBuffer;
+    midRain.loop = true;
+    const midBandpass = ctx.createBiquadFilter();
+    midBandpass.type = 'bandpass';
+    midBandpass.frequency.value = 2500;
+    midBandpass.Q.value = 0.8;
+    const midGain = ctx.createGain();
+    midGain.gain.value = 0.04;
+    midRain.connect(midBandpass);
+    midBandpass.connect(midGain);
+    midGain.connect(masterGain);
+    midRain.start();
 
-    noiseSource.connect(lowpass);
-    lowpass.connect(noiseGain);
-    noiseGain.connect(masterGain);
-    noiseSource.start();
+    // Layer 3: High sparkle (light droplets on glass)
+    const highRain = ctx.createBufferSource();
+    highRain.buffer = noiseBuffer;
+    highRain.loop = true;
+    const highpass = ctx.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.value = 4000;
+    highpass.Q.value = 0.5;
+    const highGain = ctx.createGain();
+    highGain.gain.value = 0.015;
+    highRain.connect(highpass);
+    highpass.connect(highGain);
+    highGain.connect(masterGain);
+    highRain.start();
 
+    // Gentle fade in
     masterGain.gain.setValueAtTime(0, ctx.currentTime);
-    masterGain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 3);
+    masterGain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 4);
   }, []);
 
   const stopRainAudio = useCallback(() => {
