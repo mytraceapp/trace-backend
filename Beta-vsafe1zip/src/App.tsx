@@ -91,8 +91,8 @@ export default function App() {
             <AccountSetupScreen 
               onContinue={() => {
                 if (selectedPlan === 'light') {
+                  // Light plan users skip payment and go straight to chat
                   setCurrentScreen('chat');
-                  setShowPaymentSuccess(true);
                 } else {
                   setCurrentScreen('payment');
                 }
