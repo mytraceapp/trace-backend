@@ -15,15 +15,15 @@ export function AmbientAudioPlayer({
   autoPlay = false,
   showControls = true,
   volume = 0.4,
-  fadeInDuration = 5500,
-  startDelay = 300,
+  fadeInDuration = 7000,
+  startDelay = 100,
   onReady,
 }: AmbientAudioPlayerProps) {
   const { play, pause, isPlaying, isLoaded } = useAmbientAudio({
     src: '/audio/ambient-loop.mp3',
     volume,
     fadeInDuration,
-    fadeOutDuration: 3000,
+    fadeOutDuration: 3500,
     loop: true,
     startDelay,
   });
