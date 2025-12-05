@@ -80,7 +80,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
       />
 
       {/* Content Container */}
-      <div className="relative z-10 flex flex-col items-center w-full px-8 pt-6 pb-12">
+      <div className="relative z-10 flex flex-col items-center w-full px-6 pt-6 pb-12">
         
         {/* TRACE Brand Name - at very top */}
         <motion.div

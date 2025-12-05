@@ -409,7 +409,7 @@ export function AccountSetupScreen({
 
           {/* Footer Text */}
           <motion.p
-            className="text-center px-8 mb-6"
+            className="text-center px-6 mb-6"
             style={{
               fontFamily: "Georgia, serif",
               fontSize: "11px",

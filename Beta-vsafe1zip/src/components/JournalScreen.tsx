@@ -299,7 +299,7 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
         `}</style>
         {/* Title Section - moved up */}
         <motion.div
-          className="w-full px-8 text-center pt-20 pb-4"
+          className="w-full px-6 text-center pt-20 pb-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 1 }}

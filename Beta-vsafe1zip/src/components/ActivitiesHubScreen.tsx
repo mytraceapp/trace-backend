@@ -83,7 +83,7 @@ export function ActivitiesHubScreen({
       <div className="relative w-full p-6" style={{ paddingTop: '0' }}>
         {/* Title Section */}
         <motion.div
-          className="w-full px-2 text-center mb-8"
+          className="w-full px-6 text-center mb-8"
           style={{ marginTop: '-6px' }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

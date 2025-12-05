@@ -123,7 +123,7 @@ export function HelpScreen({
 
         {/* Title Section */}
         <motion.div
-          className="w-full px-8 text-center pt-8 pb-2 flex-shrink-0"
+          className="w-full px-6 text-center pt-8 pb-2 flex-shrink-0"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 1 }}
