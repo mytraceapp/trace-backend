@@ -24,11 +24,23 @@ export function RainWindowScreen({
   const [introVisible, setIntroVisible] = useState(true);
   const [videoOpacity, setVideoOpacity] = useState(1);
   const [volume, setVolume] = useState(0.6);
+  const [quietMode, setQuietMode] = useState(false);
+  const [quietToast, setQuietToast] = useState<string | null>(null);
   const timerRef = useRef<number | null>(null);
   const introTimeoutRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const isFadingRef = useRef(false);
   const { addEntry } = useEntries();
+
+  // Toggle quiet mode with micro-toast
+  const toggleQuietMode = useCallback(() => {
+    setQuietMode(prev => {
+      const newMode = !prev;
+      setQuietToast(newMode ? "Quiet visuals on." : "Back to normal mode.");
+      setTimeout(() => setQuietToast(null), 2000);
+      return newMode;
+    });
+  }, []);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -204,9 +216,11 @@ export function RainWindowScreen({
           minHeight: '115%',
           width: 'auto',
           height: 'auto',
-          filter: 'brightness(0.72) saturate(0.9)',
+          filter: quietMode 
+            ? 'brightness(0.55) saturate(0.65)' 
+            : 'brightness(0.72) saturate(0.9)',
           opacity: videoOpacity,
-          transition: 'opacity 0.4s ease-in-out',
+          transition: 'opacity 0.4s ease-in-out, filter 0.8s ease-in-out',
         }}
       />
 
@@ -243,6 +257,65 @@ export function RainWindowScreen({
           TRACE
         </h1>
       </motion.div>
+
+      {/* Quiet Mode Toggle - top right */}
+      <motion.button
+        className="absolute z-20"
+        style={{ 
+          top: '6.5%', 
+          right: '6%',
+          padding: '8px',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+        }}
+        onClick={toggleQuietMode}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1, delay: 0.4 }}
+        whileTap={{ scale: 0.92 }}
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill={quietMode ? 'rgba(255, 255, 255, 0.6)' : 'none'}
+          stroke="rgba(255, 255, 255, 0.5)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ 
+            filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.4))',
+            transition: 'fill 0.4s ease, stroke 0.4s ease',
+          }}
+        >
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </motion.button>
+
+      {/* Quiet Mode Toast */}
+      <AnimatePresence>
+        {quietToast && (
+          <motion.div
+            className="absolute z-30 left-1/2"
+            style={{ top: '14%' }}
+            initial={{ opacity: 0, y: -8, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -8, x: '-50%' }}
+            transition={{ duration: 0.4 }}
+          >
+            <span style={{
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontSize: '12px',
+              fontWeight: 300,
+              letterSpacing: '0.05em',
+              textShadow: '0 1px 6px rgba(0,0,0,0.5)',
+            }}>
+              {quietToast}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
 
       <div className="absolute inset-0 flex flex-col items-center justify-center z-10 px-8">

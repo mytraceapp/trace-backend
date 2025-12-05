@@ -1,0 +1,91 @@
+Goal: Add an optional visual state to the rain activity screen that hides the orb and reduces visual stimulation for users who prefer a more minimal experience.
+
+Feature Name
+
+Quiet Mode
+
+Trigger / UI Placement
+	•	Small toggle icon in the upper corner of the rain session screen (moon icon or “• • •”)
+	•	One tap toggles between:
+	•	Default Mode (orb + rain + standard brightness)
+	•	Quiet Mode (no orb, reduced motion, darker video)
+
+Behavior Requirements
+
+Default Mode
+	•	Shows the orb
+	•	Uses the current rain video and brightness
+	•	UI stays unchanged
+
+Quiet Mode
+	•	Orb is hidden or fully transparent (no movement, no glow)
+	•	Rain video dimmed by +10% to +20% (exact amount adjustable after UX review)
+	•	Video saturation reduced slightly so visuals feel softer
+	•	No additional UI motion or gradients
+
+Transitions
+	•	Smooth fade between states (no abrupt change)
+	•	State remains persistent for that session
+	•	Does NOT auto-save globally unless user wants
+
+Accessibility
+	•	Default mode remains visually expressive
+	•	Quiet Mode = sensory-low, sleep-friendly
+
+Notes
+	•	This is not a new screen — it’s a state toggle for the same activity screen
+	•	No new backend work required
+	•	One boolean is enough:
+quietMode = true/false
+
+⸻
+
+DEV ACCEPTANCE CONDITIONS
+
+The feature is complete if:
+	•	user can toggle Quiet Mode on/off within the Window activity screen
+	•	toggle hides orb completely
+	•	brightness + saturation are reduced in Quiet Mode
+	•	rain video remains playing
+	•	UI stays readable and uncluttered
+	•	no flicker or abrupt transitions during toggle
+
+⸻
+
+COPY (light and gentle)
+
+When user toggles Quiet Mode, optional micro-toast:
+
+“Quiet visuals on.”
+or
+“Visuals dimmed.”
+
+When toggled back:
+
+“Back to normal mode.”
+
+(no intrusive modals)
+
+⸻
+
+WHY I MADE IT THIS SPECIFIC
+	•	Keeps engineering effort small
+	•	Keeps UI logic simple
+	•	No new feature screens
+	•	No backend
+	•	No risk to performance
+	•	No confusion for user
+
+This is literally one state flag + conditional rendering.
+
+⸻
+
+⭐ OPTIONAL: ICON INSTRUCTIONS
+
+Use a simple moon icon for Quiet Mode:
+	•	moon = sensory minimal
+	•	universally understood
+	•	no words needed
+
+Default: moon outline
+Quiet mode ON: moon filled
