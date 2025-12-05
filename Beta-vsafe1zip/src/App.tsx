@@ -220,7 +220,6 @@ export default function App() {
               onNavigateToJournal={() => setCurrentScreen('entries')}
               onNavigateToProfile={() => setCurrentScreen('profile')}
               onNavigateToHelp={() => setCurrentScreen('help')}
-              onBack={() => setCurrentScreen('activitieshub')}
             />
           )}
           {currentScreen === 'journal' && (

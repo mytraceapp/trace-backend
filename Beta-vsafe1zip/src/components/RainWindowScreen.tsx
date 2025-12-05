@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Play, Pause } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
 
@@ -10,7 +9,6 @@ interface RainWindowScreenProps {
   onNavigateToJournal: () => void;
   onNavigateToProfile: () => void;
   onNavigateToHelp: () => void;
-  onBack: () => void;
 }
 
 export function RainWindowScreen({
@@ -19,7 +17,6 @@ export function RainWindowScreen({
   onNavigateToJournal,
   onNavigateToProfile,
   onNavigateToHelp,
-  onBack,
 }: RainWindowScreenProps) {
   const [isActive, setIsActive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -108,17 +105,6 @@ export function RainWindowScreen({
     startRainAudio();
     if (videoRef.current) {
       videoRef.current.play().catch(() => {});
-    }
-  };
-
-  const handlePauseResume = () => {
-    setIsPaused(!isPaused);
-    if (videoRef.current) {
-      if (isPaused) {
-        videoRef.current.play().catch(() => {});
-      } else {
-        videoRef.current.pause();
-      }
     }
   };
 
@@ -216,21 +202,32 @@ export function RainWindowScreen({
         }}
       />
 
-      <motion.button
-        onClick={onBack}
-        className="absolute top-14 left-5 z-50 w-10 h-10 rounded-full flex items-center justify-center"
-        style={{
-          background: 'rgba(0, 0, 0, 0.3)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-        }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <X size={18} style={{ color: 'rgba(255, 255, 255, 0.7)' }} />
-      </motion.button>
+            {/* Top UI Bar - Timer on the right */}
+      {isActive && !showCompletion && (
+        <motion.div 
+          className="absolute top-0 left-0 right-0 flex items-center justify-end p-6 z-20"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div
+            className="px-5 py-2.5 rounded-full"
+            style={{
+              background: 'rgba(0, 0, 0, 0.35)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+              fontFamily: 'Georgia, serif',
+              fontSize: '14px',
+              fontWeight: 300,
+              color: 'rgba(255, 255, 255, 0.8)',
+              letterSpacing: '0.05em',
+            }}
+          >
+            {formatTime(remainingTime)}
+          </div>
+        </motion.div>
+      )}
 
       <div className="absolute inset-0 flex flex-col items-center justify-center z-10 px-8">
         <AnimatePresence mode="wait">
@@ -300,50 +297,6 @@ export function RainWindowScreen({
             </motion.div>
           )}
 
-          {isActive && !showCompletion && (
-            <motion.div
-              key="active"
-              className="text-center"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1 }}
-            >
-              <motion.div
-                style={{
-                  fontFamily: 'SF Pro Display, -apple-system, sans-serif',
-                  color: 'rgba(255, 255, 255, 0.5)',
-                  fontSize: '48px',
-                  fontWeight: 200,
-                  letterSpacing: '0.05em',
-                  filter: 'blur(0.4px)',
-                  textShadow: '0 2px 20px rgba(0, 0, 0, 0.5)',
-                }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5, duration: 1 }}
-              >
-                {formatTime(remainingTime)}
-              </motion.div>
-
-              <motion.button
-                onClick={handlePauseResume}
-                className="mt-8 w-14 h-14 rounded-full flex items-center justify-center"
-                style={{
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  backdropFilter: 'blur(10px)',
-                }}
-                whileTap={{ scale: 0.95 }}
-              >
-                {isPaused ? (
-                  <Play size={20} style={{ color: 'rgba(255, 255, 255, 0.7)' }} />
-                ) : (
-                  <Pause size={20} style={{ color: 'rgba(255, 255, 255, 0.7)' }} />
-                )}
-              </motion.button>
-            </motion.div>
-          )}
 
           {showCompletion && (
             <motion.div
@@ -380,6 +333,35 @@ export function RainWindowScreen({
           )}
         </AnimatePresence>
       </div>
+
+      {/* Bottom End Session Button */}
+      {isActive && !showCompletion && (
+        <motion.div 
+          className="absolute left-0 right-0 flex justify-center z-20" 
+          style={{ bottom: '122px' }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.8 }}
+        >
+          <button
+            onClick={handleComplete}
+            className="px-8 py-3 rounded-full transition-all duration-300 hover:scale-105"
+            style={{
+              background: 'rgba(0, 0, 0, 0.4)',
+              backdropFilter: 'blur(30px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+              fontFamily: 'Georgia, serif',
+              fontSize: '14px',
+              fontWeight: 300,
+              color: 'rgba(255, 255, 255, 0.85)',
+              letterSpacing: '0.08em',
+            }}
+          >
+            End Session
+          </button>
+        </motion.div>
+      )}
 
       <div className="absolute bottom-0 left-0 right-0 z-40">
         <BottomNav
