@@ -33,10 +33,10 @@ export function RainWindowScreen({
   const isFadingRef = useRef(false);
   const { addEntry } = useEntries();
 
-  // Slow down quiet video by 20%
+  // Slow down quiet video by 30%
   useEffect(() => {
     if (quietVideoRef.current) {
-      quietVideoRef.current.playbackRate = 0.8;
+      quietVideoRef.current.playbackRate = 0.7;
     }
   }, []);
 
