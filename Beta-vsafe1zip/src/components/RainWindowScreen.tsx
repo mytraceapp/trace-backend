@@ -204,7 +204,7 @@ export function RainWindowScreen({
           minHeight: '115%',
           width: 'auto',
           height: 'auto',
-          filter: 'brightness(0.85) saturate(0.9)',
+          filter: 'brightness(0.72) saturate(0.9)',
           opacity: videoOpacity,
           transition: 'opacity 0.4s ease-in-out',
         }}
