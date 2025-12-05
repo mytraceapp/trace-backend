@@ -10,43 +10,48 @@ export function EtherealTone({ trigger }: EtherealToneProps) {
 
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     
-    // Create a mellow "hello" tone - friendly and simple
-    const playHello = () => {
+    const playAwakeningTone = () => {
       const now = audioContext.currentTime;
-      const duration = 3.5; // Match the orb rising animation
       
-      // Whisper-soft melody - very gentle and calming
-      const notes = [
-        { freq: 261.63, time: 0, gain: 0.08 }, // C4 - quieter first note
-        { freq: 523.25, time: 1.0, gain: 0.10 }, // C5
-        { freq: 659.25, time: 2.0, gain: 0.09 }, // E5
-        { freq: 783.99, time: 3.0, gain: 0.08 }, // G5
-      ];
+      const createSoftPad = (freq: number, startTime: number, duration: number, maxGain: number) => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const filter = audioContext.createBiquadFilter();
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + startTime);
+        
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, now + startTime);
+        filter.Q.setValueAtTime(1, now + startTime);
+        
+        gain.gain.setValueAtTime(0, now + startTime);
+        gain.gain.linearRampToValueAtTime(maxGain, now + startTime + duration * 0.3);
+        gain.gain.setValueAtTime(maxGain, now + startTime + duration * 0.7);
+        gain.gain.linearRampToValueAtTime(maxGain * 0.6, now + startTime + duration);
+        
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.start(now + startTime);
+        osc.stop(now + startTime + duration);
+      };
       
-      // Create whisper-soft tone with very gentle fade-in
-      notes.forEach(({ freq, time, gain }) => {
-        // Fundamental frequency - pure, gentle tone
-        const fundamental = audioContext.createOscillator();
-        fundamental.frequency.setValueAtTime(freq, now + time);
-        fundamental.type = 'sine';
-        
-        const fundamentalGain = audioContext.createGain();
-        fundamentalGain.gain.setValueAtTime(0, now + time);
-        fundamentalGain.gain.linearRampToValueAtTime(gain, now + time + 0.06); // Very soft fade-in
-        fundamentalGain.gain.exponentialRampToValueAtTime(gain * 0.5, now + time + 0.15); // Gentle hold
-        fundamentalGain.gain.exponentialRampToValueAtTime(0.001, now + time + 0.6); // Soft fade-out
-        
-        fundamental.connect(fundamentalGain);
-        fundamentalGain.connect(audioContext.destination);
-        fundamental.start(now + time);
-        fundamental.stop(now + time + 0.6);
-      });
+      createSoftPad(174.61, 0, 6, 0.06);
+      createSoftPad(261.63, 0.5, 5.5, 0.05);
+      createSoftPad(329.63, 1.0, 5, 0.04);
+      createSoftPad(392.00, 1.5, 4.5, 0.04);
+      createSoftPad(440.00, 2.5, 3.5, 0.03);
+      createSoftPad(523.25, 3.5, 2.5, 0.03);
     };
 
-    playHello();
+    playAwakeningTone();
 
     return () => {
-      audioContext.close();
+      setTimeout(() => {
+        audioContext.close();
+      }, 7000);
     };
   }, [trigger]);
 
