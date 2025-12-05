@@ -9,8 +9,10 @@ export function GroundingTone({ isPlaying, volume = 0.38 }: GroundingToneProps) 
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const gainsRef = useRef<GainNode[]>([]);
+  const filtersRef = useRef<BiquadFilterNode[]>([]);
   const masterGainRef = useRef<GainNode | null>(null);
   const lfosRef = useRef<OscillatorNode[]>([]);
+  const transitionIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (isPlaying) {
@@ -43,16 +45,51 @@ export function GroundingTone({ isPlaying, volume = 0.38 }: GroundingToneProps) 
         osc.start();
         oscillatorsRef.current.push(osc);
         gainsRef.current.push(oscGain);
+        filtersRef.current.push(filter);
 
         return { osc, oscGain, filter };
       };
 
-      createGroundingVoice(40, 0.12, 120);
-      createGroundingVoice(55, 0.10, 150);
-      createGroundingVoice(82.41, 0.085, 200);
-      createGroundingVoice(110, 0.07, 280);
-      createGroundingVoice(164.81, 0.05, 350);
-      createGroundingVoice(220, 0.035, 400);
+      const voices = [
+        createGroundingVoice(40, 0.12, 120),
+        createGroundingVoice(55, 0.10, 150),
+        createGroundingVoice(82.41, 0.085, 200),
+        createGroundingVoice(110, 0.07, 280),
+        createGroundingVoice(164.81, 0.05, 350),
+        createGroundingVoice(220, 0.035, 400),
+      ];
+
+      let transitionPhase = 0;
+      const scheduleTransitions = () => {
+        transitionIntervalRef.current = window.setInterval(() => {
+          if (!audioContextRef.current || audioContextRef.current.state === 'closed') return;
+          
+          const ctx = audioContextRef.current;
+          const now = ctx.currentTime;
+          transitionPhase = (transitionPhase + 1) % 4;
+
+          voices.forEach((voice, index) => {
+            const baseFilterFreq = [120, 150, 200, 280, 350, 400][index];
+            const baseGain = [0.12, 0.10, 0.085, 0.07, 0.05, 0.035][index];
+            
+            if (transitionPhase === 0) {
+              voice.filter.frequency.linearRampToValueAtTime(baseFilterFreq * 1.3, now + 4);
+              voice.oscGain.gain.linearRampToValueAtTime(baseGain * 1.1, now + 4);
+            } else if (transitionPhase === 1) {
+              voice.filter.frequency.linearRampToValueAtTime(baseFilterFreq * 0.9, now + 4);
+              voice.oscGain.gain.linearRampToValueAtTime(baseGain * 0.85, now + 4);
+            } else if (transitionPhase === 2) {
+              voice.filter.frequency.linearRampToValueAtTime(baseFilterFreq * 1.15, now + 4);
+              voice.oscGain.gain.linearRampToValueAtTime(baseGain * 1.05, now + 4);
+            } else {
+              voice.filter.frequency.linearRampToValueAtTime(baseFilterFreq, now + 4);
+              voice.oscGain.gain.linearRampToValueAtTime(baseGain, now + 4);
+            }
+          });
+        }, 8000);
+      };
+
+      setTimeout(scheduleTransitions, 6000);
 
       const lfo1 = audioContext.createOscillator();
       const lfo1Gain = audioContext.createGain();
@@ -98,6 +135,10 @@ export function GroundingTone({ isPlaying, volume = 0.38 }: GroundingToneProps) 
       masterGain.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 6);
 
     } else {
+      if (transitionIntervalRef.current) {
+        clearInterval(transitionIntervalRef.current);
+        transitionIntervalRef.current = null;
+      }
       if (masterGainRef.current && audioContextRef.current) {
         const currentTime = audioContextRef.current.currentTime;
         masterGainRef.current.gain.linearRampToValueAtTime(0, currentTime + 2.5);
@@ -114,6 +155,7 @@ export function GroundingTone({ isPlaying, volume = 0.38 }: GroundingToneProps) 
           }
           oscillatorsRef.current = [];
           gainsRef.current = [];
+          filtersRef.current = [];
           lfosRef.current = [];
           audioContextRef.current = null;
           masterGainRef.current = null;
@@ -122,6 +164,10 @@ export function GroundingTone({ isPlaying, volume = 0.38 }: GroundingToneProps) 
     }
 
     return () => {
+      if (transitionIntervalRef.current) {
+        clearInterval(transitionIntervalRef.current);
+        transitionIntervalRef.current = null;
+      }
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         oscillatorsRef.current.forEach(osc => {
           try { osc.stop(); } catch (e) {}
@@ -132,6 +178,7 @@ export function GroundingTone({ isPlaying, volume = 0.38 }: GroundingToneProps) 
         audioContextRef.current.close();
         oscillatorsRef.current = [];
         gainsRef.current = [];
+        filtersRef.current = [];
         lfosRef.current = [];
       }
     };
