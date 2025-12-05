@@ -684,24 +684,15 @@ export function ChatScreen({
             bottom: '22%',
           }}
         >
-          {/* Gradient fade at top - messages disappear before hitting orb */}
-          <div 
-            className="absolute top-0 left-0 right-0 z-30 pointer-events-none"
-            style={{
-              height: '100px',
-              background: isDark 
-                ? 'linear-gradient(to bottom, transparent 0%, transparent 100%)'
-                : 'linear-gradient(to bottom, rgba(154, 176, 156, 1) 0%, rgba(154, 176, 156, 0.95) 20%, rgba(154, 176, 156, 0.7) 45%, rgba(154, 176, 156, 0.4) 65%, rgba(154, 176, 156, 0.2) 80%, rgba(154, 176, 156, 0.08) 92%, transparent 100%)',
-            }}
-          />
-          
-          {/* Scrollable messages container */}
+          {/* Scrollable messages container with fade mask at top */}
           <div 
             className="h-full overflow-y-auto px-6 pb-4"
             style={{
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',
               WebkitOverflowScrolling: 'touch',
+              maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 8%, rgba(0,0,0,0.75) 15%, black 25%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 8%, rgba(0,0,0,0.75) 15%, black 25%)',
             }}
           >
             <style>
