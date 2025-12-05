@@ -55,29 +55,7 @@ export function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyModalProps)
             </style>
 
             <div className="p-5 pb-0 flex-shrink-0">
-              <button
-                onClick={onClose}
-                className="flex items-center justify-center rounded-full transition-colors hover:bg-black/10"
-                style={{ 
-                  position: 'absolute',
-                  top: '16px',
-                  right: '16px',
-                  width: '32px',
-                  height: '32px',
-                  backgroundColor: 'rgba(90, 74, 58, 0.1)',
-                  zIndex: 10,
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path
-                    d="M1 1L13 13M1 13L13 1"
-                    stroke="#5A4A3A"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-              <div style={{ paddingRight: '32px' }}>
+              <div>
                 <h2
                   style={{
                     fontFamily: 'Playfair Display, Georgia, serif',
@@ -300,7 +278,7 @@ export function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyModalProps)
             <div className="p-5 pt-3 flex-shrink-0">
               <button
                 onClick={onClose}
-                className="w-full rounded-[14px] px-5 py-3 transition-all duration-200 active:scale-[0.98]"
+                className="w-full rounded-full px-5 py-3 transition-all duration-200 active:scale-[0.98]"
                 style={{
                   backgroundColor: '#D7C8B5',
                   border: '1px solid rgba(43, 30, 21, 0.1)',
