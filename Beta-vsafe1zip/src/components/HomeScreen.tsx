@@ -14,10 +14,10 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
   // When logo finishes lowering, trigger orb awakening
   React.useEffect(() => {
     if (isLogoLowered && !isAwakened) {
-      // Wait for logo to finish lowering (1.5s), then awaken orb
+      // Wait for logo to finish lowering (2.8s), then awaken orb
       const awakenTimer = setTimeout(() => {
         setIsAwakened(true);
-      }, 1500);
+      }, 2800);
 
       return () => clearTimeout(awakenTimer);
     }
@@ -357,7 +357,7 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
         transition={{ 
           opacity: { delay: 0.3, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] },
           scale: isAwakened ? { duration: 0.4 } : { duration: 2.5, repeat: Infinity, ease: "easeInOut" },
-          top: { duration: 1.5, ease: [0.22, 0.61, 0.36, 1] },
+          top: { duration: 2.8, ease: [0.15, 0.65, 0.35, 1] },
         }}
         whileHover={!isLogoLowered ? { scale: 1.05 } : {}}
         whileTap={!isLogoLowered ? { scale: 0.95 } : {}}
