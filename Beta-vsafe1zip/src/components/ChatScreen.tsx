@@ -433,42 +433,53 @@ export function ChatScreen({
           }}
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ 
-          // Breathing-like states - slow, intuitive, steady
-          opacity: [0.95, 1, 0.95], // Consistent gentle breathing regardless of state
+          // State-aware breathing - smooth transitions between states
+          opacity: isThinking ? [0.92, 1, 0.92] : 
+                   message.length > 0 ? [0.94, 1, 0.94] : 
+                   showTypewriter && currentIndex < greetingText.length ? [0.93, 0.99, 0.93] : 
+                   [0.96, 1, 0.96],
           
-          scale: [1, 1.02, 1], // Very subtle breathing scale - same for all states
+          scale: isThinking ? [1, 1.025, 1] : 
+                 message.length > 0 ? [1, 1.02, 1] : 
+                 showTypewriter && currentIndex < greetingText.length ? [1, 1.015, 1] : 
+                 [1, 1.01, 1],
           
-          // Minimal floating movement - extremely gentle
-          x: [0, -1, 0, 1, 0], // Barely perceptible drift
+          // Intentional, slow floating - state-aware but gentle
+          x: isThinking ? [0, -2, 0, 2, 0] : 
+             message.length > 0 ? [0, -1.5, 0, 1.5, 0] : 
+             showTypewriter && currentIndex < greetingText.length ? [0, -1, 0, 1, 0] : 
+             [0, -0.5, 0, 0.5, 0],
           
-          y: [0, -0.5, 0, 0.5, 0], // Almost imperceptible float
-          
-          // No rotation to prevent jerkiness
-          rotate: 0,
+          y: isThinking ? [0, -1.5, 0, 1.5, 0] : 
+             message.length > 0 ? [0, -1, 0, 1, 0] : 
+             showTypewriter && currentIndex < greetingText.length ? [0, -0.5, 0, 0.5, 0] : 
+             [0, -0.3, 0, 0.3, 0],
         }}
         transition={{ 
+          // Smooth state transitions - no jerky snapping
+          default: {
+            duration: 1.5,
+            ease: "easeInOut"
+          },
           opacity: { 
-            duration: 8, 
+            duration: isThinking ? 5 : message.length > 0 ? 6 : 8, 
             repeat: Infinity, 
             ease: "easeInOut"
           },
           scale: { 
-            duration: 10, 
+            duration: isThinking ? 6 : message.length > 0 ? 7 : 10, 
             repeat: Infinity, 
             ease: "easeInOut"
           },
           x: { 
-            duration: 16, 
+            duration: isThinking ? 12 : message.length > 0 ? 14 : 18, 
             repeat: Infinity, 
             ease: "easeInOut"
           },
           y: { 
-            duration: 20, 
+            duration: isThinking ? 14 : message.length > 0 ? 16 : 22, 
             repeat: Infinity, 
             ease: "easeInOut"
-          },
-          rotate: {
-            duration: 0
           }
         }}
       >
