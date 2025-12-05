@@ -235,8 +235,8 @@ export function ProfileScreen({
                   width: '120px',
                   height: '120px',
                   background: `radial-gradient(circle, rgba(180, 191, 170, 0.35) 0%, rgba(160, 175, 155, 0.15) 40%, transparent 70%)`,
-                  top: '-15%',
-                  left: '5%',
+                  top: '-30%',
+                  left: '-10%',
                   transform: 'translate(-50%, -50%)',
                   filter: 'blur(15px)',
                 }}
