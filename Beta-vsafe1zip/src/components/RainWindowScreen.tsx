@@ -256,32 +256,46 @@ export function RainWindowScreen({
             >
               <motion.div
                 style={{
-                  fontSize: '48px',
-                  marginBottom: '8px',
-                  filter: 'drop-shadow(0 4px 20px rgba(0, 0, 0, 0.4))',
+                  marginBottom: '16px',
                 }}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.3, duration: 1 }}
               >
-                🌧️
+                <svg 
+                  width="44" 
+                  height="44" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  style={{ filter: 'drop-shadow(0 2px 12px rgba(0, 0, 0, 0.3))' }}
+                >
+                  <path 
+                    d="M12 2.5C12 2.5 5 10 5 14.5C5 18.366 8.134 21.5 12 21.5C15.866 21.5 19 18.366 19 14.5C19 10 12 2.5 12 2.5Z" 
+                    stroke="rgba(255, 255, 255, 0.75)"
+                    strokeWidth="1.25"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                </svg>
               </motion.div>
               
               <motion.h1
                 style={{
                   fontFamily: 'Georgia, serif',
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  fontSize: '24px',
+                  color: 'transparent',
+                  fontSize: '18px',
                   fontWeight: 300,
                   marginBottom: '16px',
-                  letterSpacing: '0.1em',
-                  textShadow: '0 2px 20px rgba(0, 0, 0, 0.5)',
+                  letterSpacing: '0.35em',
+                  WebkitTextStroke: '0.5px rgba(255, 255, 255, 0.8)',
+                  textShadow: '0 2px 20px rgba(0, 0, 0, 0.4)',
                 }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
               >
-                Window
+                WINDOW
               </motion.h1>
               
               <motion.p
