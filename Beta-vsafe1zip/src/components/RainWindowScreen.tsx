@@ -179,7 +179,7 @@ export function RainWindowScreen({
 
   return (
     <div 
-      className="relative w-full h-full overflow-hidden"
+      className="relative w-full h-full overflow-hidden flex flex-col"
       style={{ background: '#0a0c0b' }}
     >
       <video
@@ -381,15 +381,18 @@ export function RainWindowScreen({
         </AnimatePresence>
       </div>
 
-      <BottomNav
-        activeScreen="activities"
-        onNavigateHome={onReturnToChat}
-        onNavigateActivities={onNavigateToActivities}
-        onNavigateJournal={onNavigateToJournal}
-        onNavigateProfile={onNavigateToProfile}
-        onNavigateHelp={onNavigateToHelp}
-        variant="neutral"
-      />
+      <div className="absolute bottom-0 left-0 right-0 z-40">
+        <BottomNav
+          activeScreen="activities"
+          onNavigateHome={onReturnToChat}
+          onNavigateActivities={onNavigateToActivities}
+          onNavigateJournal={onNavigateToJournal}
+          onNavigateProfile={onNavigateToProfile}
+          onNavigateHelp={onNavigateToHelp}
+          variant="neutral"
+          disableAnimation={true}
+        />
+      </div>
     </div>
   );
 }
