@@ -387,7 +387,9 @@ export function ChatScreen({
     <div 
       className="relative w-full h-full flex flex-col transition-colors duration-300"
       style={{ 
-        backgroundColor: 'transparent',
+        background: isDark 
+          ? 'transparent' 
+          : 'linear-gradient(180deg, #9AB09C 0%, #8DA18F 25%, #7A9180 50%, #8DA18F 75%, #9AB09C 100%)',
       }}
     >
       
