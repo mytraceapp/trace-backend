@@ -23,9 +23,11 @@ export function RainWindowScreen({
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showCompletion, setShowCompletion] = useState(false);
   const [introVisible, setIntroVisible] = useState(true);
+  const [videoOpacity, setVideoOpacity] = useState(1);
   const timerRef = useRef<number | null>(null);
   const introTimeoutRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const isFadingRef = useRef(false);
   const { addEntry } = useEntries();
 
   const ACTIVITY_DURATION = 180;
@@ -144,13 +146,34 @@ export function RainWindowScreen({
     };
   }, [stopRainAudio]);
 
-  // Video setup - native loop with slow playback for dreamy effect
+  // Video setup with subtle fade at loop point for smoother transition
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     video.playbackRate = 0.5;
     video.loop = true;
+
+    const handleTimeUpdate = () => {
+      if (!video.duration || isFadingRef.current) return;
+      
+      const timeRemaining = video.duration - video.currentTime;
+      
+      // Start subtle fade 0.8s before loop (at 0.5x speed = ~0.4s real time)
+      if (timeRemaining <= 0.8 && timeRemaining > 0) {
+        isFadingRef.current = true;
+        setVideoOpacity(0.85); // Subtle dip, not full black
+        
+        // Reset after loop
+        setTimeout(() => {
+          setVideoOpacity(1);
+          isFadingRef.current = false;
+        }, 600);
+      }
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    return () => video.removeEventListener('timeupdate', handleTimeUpdate);
   }, []);
 
   const formatTime = (seconds: number) => {
@@ -182,6 +205,8 @@ export function RainWindowScreen({
           width: 'auto',
           height: 'auto',
           filter: 'brightness(0.85) saturate(0.9)',
+          opacity: videoOpacity,
+          transition: 'opacity 0.4s ease-in-out',
         }}
       />
 
