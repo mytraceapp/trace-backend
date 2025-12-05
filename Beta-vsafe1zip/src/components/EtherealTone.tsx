@@ -29,9 +29,10 @@ export function EtherealTone({ trigger }: EtherealToneProps) {
         filter.Q.setValueAtTime(0.5, now + startTime);
         
         gain.gain.setValueAtTime(0, now + startTime);
-        gain.gain.linearRampToValueAtTime(maxGain * 0.12, now + startTime + duration * 0.25);
-        gain.gain.linearRampToValueAtTime(maxGain * 0.85, now + startTime + duration * 0.55);
-        gain.gain.setValueAtTime(maxGain * 0.85, now + startTime + duration * 0.6);
+        gain.gain.linearRampToValueAtTime(maxGain * 0.35, now + startTime + duration * 0.08);
+        gain.gain.linearRampToValueAtTime(maxGain * 0.55, now + startTime + duration * 0.2);
+        gain.gain.linearRampToValueAtTime(maxGain * 0.85, now + startTime + duration * 0.5);
+        gain.gain.setValueAtTime(maxGain * 0.85, now + startTime + duration * 0.55);
         gain.gain.exponentialRampToValueAtTime(maxGain * 0.5, now + startTime + duration * 0.75);
         gain.gain.exponentialRampToValueAtTime(maxGain * 0.15, now + startTime + duration * 0.9);
         gain.gain.exponentialRampToValueAtTime(0.001, now + startTime + duration);
