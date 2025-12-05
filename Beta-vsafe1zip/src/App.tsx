@@ -41,6 +41,10 @@ export default function App() {
   const shouldPlayAmbient = ambientAudioStarted && ambienceEnabled && !screensWithOwnAudio.includes(currentScreen);
 
   React.useEffect(() => {
+    console.log('App screen/audio state:', { currentScreen, shouldPlayAmbient, ambientAudioStarted, ambienceEnabled });
+  }, [currentScreen, shouldPlayAmbient, ambientAudioStarted, ambienceEnabled]);
+
+  React.useEffect(() => {
     if (currentScreen === 'auth' && !ambientAudioStarted) {
       setAmbientAudioStarted(true);
     }

@@ -37,20 +37,23 @@ export function AmbientAudioPlayer({
     }
   }, [isLoaded, onReady]);
 
+  const shouldPlayRef = useRef(shouldPlay);
+  
+  useEffect(() => {
+    shouldPlayRef.current = shouldPlay;
+  }, [shouldPlay]);
+
   useEffect(() => {
     if (!isLoaded) return;
     
+    console.log('AmbientAudioPlayer:', { shouldPlay, isPlaying, isLoaded });
+    
     if (shouldPlay && !isPlaying) {
-      const timer = setTimeout(() => {
-        if (!hasStartedRef.current) {
-          hasStartedRef.current = true;
-          play();
-        } else {
-          play();
-        }
-      }, 500);
-      return () => clearTimeout(timer);
+      console.log('Starting ambient audio playback');
+      hasStartedRef.current = true;
+      play();
     } else if (!shouldPlay && isPlaying) {
+      console.log('Pausing ambient audio');
       pause();
     }
   }, [shouldPlay, isLoaded, isPlaying, play, pause]);
