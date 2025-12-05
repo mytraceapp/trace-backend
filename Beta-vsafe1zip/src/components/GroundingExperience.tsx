@@ -93,7 +93,7 @@ export function GroundingExperience({ onBack, onComplete, onReturnToChat, onNavi
   };
 
   const handleEndSession = () => {
-    if (onNavigateToActivities) onNavigateToActivities();
+    if (onReturnToChat) onReturnToChat();
     else if (onComplete) onComplete();
     else if (onBack) onBack();
   };
