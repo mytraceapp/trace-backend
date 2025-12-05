@@ -260,7 +260,6 @@ export default function App() {
           )}
           {currentScreen === 'privacy' && (
             <PrivacyScreen 
-              onViewPrivacyPolicy={() => console.log('View Privacy Policy')}
               onBackToHelp={() => setCurrentScreen('help')}
               onNavigateToActivities={() => setCurrentScreen('activitieshub')}
               onNavigateToProfile={() => setCurrentScreen('profile')}

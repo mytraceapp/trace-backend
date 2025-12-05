@@ -37,7 +37,7 @@ interface ChatScreenProps {
 export function ChatScreen({
   onNavigateToActivities,
   onNavigateToProfile,
-  onNavigateToPatterns,
+  onNavigateToPatterns: _onNavigateToPatterns,
   onNavigateToHelp,
   onNavigateToJournal,
   onNavigateToBreathing,
@@ -48,9 +48,11 @@ export function ChatScreen({
   onNavigateToPearlRipple,
   shouldStartGreeting = true,
 }: ChatScreenProps = {}) {
+  void _onNavigateToPatterns;
   const [message, setMessage] = React.useState('');
   const [hasResponded, setHasResponded] = React.useState(false);
-  const [userMessage, setUserMessage] = React.useState('');
+  const [_userMessage, setUserMessage] = React.useState('');
+  void _userMessage;
   const [showTypewriter, setShowTypewriter] = React.useState(false);
   const [messages, setMessages] = React.useState<Message[]>([]);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);

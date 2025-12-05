@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
@@ -16,10 +16,11 @@ export function PrivacyScreen({
   onBackToHelp, 
   onNavigateToActivities, 
   onNavigateToProfile, 
-  onNavigateToPatterns,
+  onNavigateToPatterns: _onNavigateToPatterns,
   onNavigateToJournal,
   onReturnToChat,
 }: PrivacyScreenProps) {
+  void _onNavigateToPatterns;
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   return (
