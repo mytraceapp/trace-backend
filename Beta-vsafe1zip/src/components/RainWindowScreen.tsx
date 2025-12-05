@@ -29,8 +29,16 @@ export function RainWindowScreen({
   const timerRef = useRef<number | null>(null);
   const introTimeoutRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const quietVideoRef = useRef<HTMLVideoElement | null>(null);
   const isFadingRef = useRef(false);
   const { addEntry } = useEntries();
+
+  // Slow down quiet video by 20%
+  useEffect(() => {
+    if (quietVideoRef.current) {
+      quietVideoRef.current.playbackRate = 0.8;
+    }
+  }, []);
 
   // Toggle quiet mode with micro-toast
   const toggleQuietMode = useCallback(() => {
@@ -225,6 +233,7 @@ export function RainWindowScreen({
 
       {/* Quiet Mode Video (no orb, softer) */}
       <video
+        ref={quietVideoRef}
         className="absolute object-cover"
         src="/video/rain-quiet.mp4"
         muted
