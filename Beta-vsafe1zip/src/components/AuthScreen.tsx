@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Scan, X, Eye, EyeOff } from 'lucide-react';
+import { Scan, Eye, EyeOff } from 'lucide-react';
 import traceLogo from 'figma:asset/513ec3c351285cce0b15e678c8f6d864d8269d64.png';
 
 interface AuthScreenProps {
@@ -215,37 +215,6 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
             Log In
           </button>
 
-          {/* Divider */}
-          <div className="flex items-center w-[85%] mt-1 mb-1">
-            <div className="flex-1 h-px bg-[#E8E2D4]/20" />
-            <span 
-              className="px-4 text-[#E8E2D4]/50"
-              style={{
-                fontFamily: 'Georgia, serif',
-                fontSize: '11px',
-                fontWeight: 300,
-                letterSpacing: '0.05em',
-              }}
-            >
-              or
-            </span>
-            <div className="flex-1 h-px bg-[#E8E2D4]/20" />
-          </div>
-
-          {/* Face ID / Biometric Login */}
-          <button
-            className="flex items-center justify-center gap-3 w-[85%] py-4 px-6 rounded-full bg-[#E8E2D4]/10 border border-[#E8E2D4]/30 text-[#E8E2D4] transition-all duration-300 hover:bg-[#E8E2D4]/20 hover:scale-[1.02] -mt-1"
-            style={{
-              fontFamily: 'Georgia, serif',
-              letterSpacing: '0.05em',
-              fontWeight: 400,
-              fontSize: '15px',
-            }}
-            onClick={handleFaceIDLogin}
-          >
-            <Scan size={18} strokeWidth={1.5} />
-            Sign in with Face ID
-          </button>
         </motion.div>
 
       </div>
@@ -271,55 +240,68 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
         </p>
       </motion.div>
 
-      {/* Login Modal */}
+      {/* Login Modal - Full Screen */}
       <AnimatePresence>
         {showLoginModal && (
           <motion.div
-            className="absolute inset-0 z-50 flex items-end justify-center"
+            className="absolute inset-0 z-50 flex flex-col"
+            style={{
+              background: 'linear-gradient(to bottom, #D3C9BC 0%, #C4BAB0 100%)',
+            }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            {/* Backdrop */}
-            <motion.div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              onClick={() => setShowLoginModal(false)}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            {/* Soft vignette overlay */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'radial-gradient(circle at center, transparent 0%, rgba(75, 75, 75, 0.05) 100%)',
+              }}
+            />
+
+            {/* Subtle sage accent at top */}
+            <div
+              className="absolute top-0 left-0 right-0 h-32 pointer-events-none"
+              style={{
+                background: 'linear-gradient(to bottom, rgba(141, 161, 143, 0.08) 0%, transparent 100%)',
+              }}
             />
 
             {/* Modal Content */}
             <motion.div
-              className="relative w-full max-w-md mx-4 mb-8 rounded-[32px] p-8"
-              style={{
-                background: 'linear-gradient(to bottom, #F5F1EB 0%, #E8E4DC 100%)',
-                boxShadow: '0 -8px 40px rgba(0, 0, 0, 0.15), 0 4px 20px rgba(0, 0, 0, 0.1)',
-              }}
-              initial={{ y: '100%', opacity: 0 }}
+              className="relative flex-1 flex flex-col justify-center px-8 pt-20"
+              initial={{ y: 30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              exit={{ y: '100%', opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              exit={{ y: 30, opacity: 0 }}
+              transition={{ delay: 0.1, duration: 0.4, ease: [0.22, 0.61, 0.36, 1] }}
             >
-              {/* Close Button */}
+              {/* Back Button */}
               <button
-                className="absolute top-5 right-5 p-2 rounded-full transition-colors hover:bg-black/5"
+                className="absolute top-8 left-6 py-2 px-4 rounded-full transition-colors hover:bg-black/5"
                 onClick={() => setShowLoginModal(false)}
+                style={{
+                  fontFamily: 'Georgia, serif',
+                  fontSize: '14px',
+                  fontWeight: 300,
+                  color: '#5A4A3A',
+                  letterSpacing: '0.02em',
+                }}
               >
-                <X size={20} strokeWidth={1.5} style={{ color: '#8A7A6A' }} />
+                Back
               </button>
 
               {/* Modal Header */}
-              <div className="text-center mb-8">
+              <div className="text-center mb-10">
                 <h2
                   style={{
                     fontFamily: 'Georgia, serif',
-                    fontSize: '22px',
+                    fontSize: '26px',
                     fontWeight: 400,
-                    color: '#5A4A3A',
+                    color: '#4A3A2A',
                     letterSpacing: '0.02em',
-                    marginBottom: '8px',
+                    marginBottom: '10px',
                   }}
                 >
                   Welcome back
@@ -327,9 +309,9 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                 <p
                   style={{
                     fontFamily: 'Georgia, serif',
-                    fontSize: '14px',
+                    fontSize: '15px',
                     fontWeight: 300,
-                    color: '#8A7A6A',
+                    color: '#6B5A4A',
                     letterSpacing: '0.01em',
                   }}
                 >
@@ -337,182 +319,186 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                 </p>
               </div>
 
-              {/* Error Message */}
-              {error && (
-                <motion.div
-                  className="mb-4 p-3 rounded-xl text-center"
-                  style={{
-                    background: 'rgba(176, 125, 108, 0.1)',
-                    border: '1px solid rgba(176, 125, 108, 0.2)',
-                  }}
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <p
+              {/* Form Container */}
+              <div className="w-full max-w-sm mx-auto">
+                {/* Error Message */}
+                {error && (
+                  <motion.div
+                    className="mb-5 p-3 rounded-xl text-center"
+                    style={{
+                      background: 'rgba(176, 125, 108, 0.15)',
+                      border: '1px solid rgba(176, 125, 108, 0.25)',
+                    }}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <p
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        fontSize: '13px',
+                        color: '#8B5A4A',
+                        fontWeight: 300,
+                      }}
+                    >
+                      {error}
+                    </p>
+                  </motion.div>
+                )}
+
+                {/* Email Input */}
+                <div className="mb-5">
+                  <label
                     style={{
                       fontFamily: 'Georgia, serif',
-                      fontSize: '13px',
-                      color: '#B07D6C',
+                      fontSize: '12px',
                       fontWeight: 300,
+                      color: '#5A4A3A',
+                      letterSpacing: '0.03em',
+                      display: 'block',
+                      marginBottom: '10px',
+                      marginLeft: '4px',
                     }}
                   >
-                    {error}
-                  </p>
-                </motion.div>
-              )}
-
-              {/* Email Input */}
-              <div className="mb-4">
-                <label
-                  style={{
-                    fontFamily: 'Georgia, serif',
-                    fontSize: '12px',
-                    fontWeight: 300,
-                    color: '#8A7A6A',
-                    letterSpacing: '0.03em',
-                    display: 'block',
-                    marginBottom: '8px',
-                    marginLeft: '4px',
-                  }}
-                >
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@email.com"
-                  className="w-full px-5 py-4 rounded-2xl outline-none transition-all duration-200 focus:ring-2 focus:ring-[#8DA18F]/30"
-                  style={{
-                    fontFamily: 'Georgia, serif',
-                    fontSize: '15px',
-                    fontWeight: 300,
-                    color: '#5A4A3A',
-                    background: '#FFFFFF',
-                    border: '1px solid rgba(138, 122, 106, 0.15)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
-                  }}
-                />
-              </div>
-
-              {/* Password Input */}
-              <div className="mb-6">
-                <label
-                  style={{
-                    fontFamily: 'Georgia, serif',
-                    fontSize: '12px',
-                    fontWeight: 300,
-                    color: '#8A7A6A',
-                    letterSpacing: '0.03em',
-                    display: 'block',
-                    marginBottom: '8px',
-                    marginLeft: '4px',
-                  }}
-                >
-                  Password
-                </label>
-                <div className="relative">
+                    Email
+                  </label>
                   <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="w-full px-5 py-4 pr-12 rounded-2xl outline-none transition-all duration-200 focus:ring-2 focus:ring-[#8DA18F]/30"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@email.com"
+                    className="w-full px-5 py-4 rounded-2xl outline-none transition-all duration-200 focus:ring-2 focus:ring-[#8DA18F]/40"
                     style={{
                       fontFamily: 'Georgia, serif',
                       fontSize: '15px',
                       fontWeight: 300,
-                      color: '#5A4A3A',
-                      background: '#FFFFFF',
-                      border: '1px solid rgba(138, 122, 106, 0.15)',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
+                      color: '#4A3A2A',
+                      background: 'rgba(255, 255, 255, 0.85)',
+                      border: '1px solid rgba(141, 161, 143, 0.2)',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                     }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                   />
-                  <button
-                    type="button"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1"
-                    onClick={() => setShowPassword(!showPassword)}
+                </div>
+
+                {/* Password Input */}
+                <div className="mb-5">
+                  <label
+                    style={{
+                      fontFamily: 'Georgia, serif',
+                      fontSize: '12px',
+                      fontWeight: 300,
+                      color: '#5A4A3A',
+                      letterSpacing: '0.03em',
+                      display: 'block',
+                      marginBottom: '10px',
+                      marginLeft: '4px',
+                    }}
                   >
-                    {showPassword ? (
-                      <EyeOff size={18} strokeWidth={1.5} style={{ color: '#8A7A6A' }} />
-                    ) : (
-                      <Eye size={18} strokeWidth={1.5} style={{ color: '#8A7A6A' }} />
-                    )}
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="w-full px-5 py-4 pr-12 rounded-2xl outline-none transition-all duration-200 focus:ring-2 focus:ring-[#8DA18F]/40"
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        fontSize: '15px',
+                        fontWeight: 300,
+                        color: '#4A3A2A',
+                        background: 'rgba(255, 255, 255, 0.85)',
+                        border: '1px solid rgba(141, 161, 143, 0.2)',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-1"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff size={18} strokeWidth={1.5} style={{ color: '#6B5A4A' }} />
+                      ) : (
+                        <Eye size={18} strokeWidth={1.5} style={{ color: '#6B5A4A' }} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Forgot Password Link */}
+                <div className="text-center mb-8">
+                  <button
+                    className="transition-opacity hover:opacity-70"
+                    style={{
+                      fontFamily: 'Georgia, serif',
+                      fontSize: '13px',
+                      fontWeight: 300,
+                      color: '#6B5A4A',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: '3px',
+                    }}
+                  >
+                    Forgot password?
                   </button>
                 </div>
-              </div>
 
-              {/* Forgot Password Link */}
-              <div className="text-center mb-6">
+                {/* Sign In Button */}
                 <button
-                  className="transition-opacity hover:opacity-70"
+                  className="w-full py-4 px-6 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     fontFamily: 'Georgia, serif',
-                    fontSize: '13px',
-                    fontWeight: 300,
-                    color: '#8A7A6A',
-                    textDecoration: 'underline',
-                    textUnderlineOffset: '3px',
+                    fontSize: '15px',
+                    fontWeight: 400,
+                    letterSpacing: '0.05em',
+                    background: '#8DA18F',
+                    color: '#FFFFFF',
+                    boxShadow: '0 4px 20px rgba(141, 161, 143, 0.35)',
                   }}
+                  onClick={handleLogin}
+                  disabled={isLoading}
                 >
-                  Forgot password?
+                  {isLoading ? 'Signing in...' : 'Sign In'}
+                </button>
+
+                {/* Divider */}
+                <div className="flex items-center my-6">
+                  <div className="flex-1 h-px bg-[#5A4A3A]/10" />
+                  <span 
+                    className="px-4"
+                    style={{
+                      fontFamily: 'Georgia, serif',
+                      fontSize: '11px',
+                      fontWeight: 300,
+                      color: '#6B5A4A',
+                      opacity: 0.7,
+                    }}
+                  >
+                    or
+                  </span>
+                  <div className="flex-1 h-px bg-[#5A4A3A]/10" />
+                </div>
+
+                {/* Face ID Option in Modal */}
+                <button
+                  className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-full transition-all duration-300 hover:bg-[#8DA18F]/15 disabled:opacity-50"
+                  style={{
+                    fontFamily: 'Georgia, serif',
+                    fontSize: '15px',
+                    fontWeight: 400,
+                    letterSpacing: '0.03em',
+                    color: '#4A3A2A',
+                    border: '1.5px solid rgba(141, 161, 143, 0.5)',
+                    background: 'rgba(141, 161, 143, 0.08)',
+                  }}
+                  onClick={handleFaceIDLogin}
+                  disabled={isLoading}
+                >
+                  <Scan size={18} strokeWidth={1.5} />
+                  Use Face ID instead
                 </button>
               </div>
-
-              {/* Sign In Button */}
-              <button
-                className="w-full py-4 px-6 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  fontSize: '15px',
-                  fontWeight: 400,
-                  letterSpacing: '0.05em',
-                  background: '#8DA18F',
-                  color: '#FFFFFF',
-                  boxShadow: '0 4px 16px rgba(141, 161, 143, 0.3)',
-                }}
-                onClick={handleLogin}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Signing in...' : 'Sign In'}
-              </button>
-
-              {/* Divider */}
-              <div className="flex items-center my-5">
-                <div className="flex-1 h-px bg-[#8A7A6A]/15" />
-                <span 
-                  className="px-4"
-                  style={{
-                    fontFamily: 'Georgia, serif',
-                    fontSize: '11px',
-                    fontWeight: 300,
-                    color: '#8A7A6A',
-                    opacity: 0.6,
-                  }}
-                >
-                  or
-                </span>
-                <div className="flex-1 h-px bg-[#8A7A6A]/15" />
-              </div>
-
-              {/* Face ID Option in Modal */}
-              <button
-                className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-full transition-all duration-300 hover:bg-[#8DA18F]/10 disabled:opacity-50"
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  fontSize: '15px',
-                  fontWeight: 400,
-                  letterSpacing: '0.03em',
-                  color: '#5A4A3A',
-                  border: '1.5px solid rgba(141, 161, 143, 0.4)',
-                }}
-                onClick={handleFaceIDLogin}
-                disabled={isLoading}
-              >
-                <Scan size={18} strokeWidth={1.5} />
-                Use Face ID instead
-              </button>
             </motion.div>
           </motion.div>
         )}
