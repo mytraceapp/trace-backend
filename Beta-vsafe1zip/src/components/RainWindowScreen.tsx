@@ -235,9 +235,9 @@ export function RainWindowScreen({
         style={{
           top: '50%',
           left: '50%',
-          transform: 'translate(-50%, -50%) scale(1.15)',
-          minWidth: '115%',
-          minHeight: '115%',
+          transform: 'translate(-50%, -50%) scale(1.8)',
+          minWidth: '180%',
+          minHeight: '180%',
           width: 'auto',
           height: 'auto',
           filter: 'brightness(0.55) saturate(0.7)',
@@ -427,7 +427,7 @@ export function RainWindowScreen({
       {isActive && !showCompletion && (
         <motion.div 
           className="absolute left-0 right-0 flex flex-col items-center z-20" 
-          style={{ bottom: '100px' }}
+          style={{ bottom: '112px' }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.8 }}
@@ -468,11 +468,12 @@ export function RainWindowScreen({
 
           {/* Volume Slider */}
           <div 
-            className="flex items-center gap-3 mb-5 px-5 py-3 rounded-full"
+            className="flex items-center gap-3 px-5 py-3 rounded-full"
             style={{
               background: 'rgba(0, 0, 0, 0.25)',
               backdropFilter: 'blur(20px)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
+              marginBottom: '17px',
             }}
           >
             <svg 
