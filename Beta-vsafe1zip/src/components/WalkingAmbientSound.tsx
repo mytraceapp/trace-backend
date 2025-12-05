@@ -68,8 +68,8 @@ export function WalkingAmbientSound({ isPlaying, stepTrigger = 0 }: WalkingAmbie
     
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.0125, now + 0.02);
-    gain.gain.setValueAtTime(0.0125, now + 0.05);
+    gain.gain.linearRampToValueAtTime(0.008, now + 0.02);
+    gain.gain.setValueAtTime(0.008, now + 0.05);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
     
     noise.connect(highpass);
@@ -94,7 +94,7 @@ export function WalkingAmbientSound({ isPlaying, stepTrigger = 0 }: WalkingAmbie
     
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.025, now + 0.01);
+    gain.gain.linearRampToValueAtTime(0.016, now + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
     
     osc.connect(gain);
