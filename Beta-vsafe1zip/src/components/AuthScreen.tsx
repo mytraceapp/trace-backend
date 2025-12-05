@@ -170,7 +170,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
               color: '#B8A896',
               opacity: 0.90,
               fontStyle: 'italic',
-              textShadow: '0 1px 3px rgba(40, 32, 24, 0.7), 0 2px 6px rgba(40, 32, 24, 0.5), 0 0 12px rgba(40, 32, 24, 0.3)',
+              textShadow: '0 1px 3px rgba(40, 32, 24, 0.47), 0 2px 6px rgba(40, 32, 24, 0.33), 0 0 12px rgba(40, 32, 24, 0.2)',
             }}
           >
             Your mind, at its pace.
