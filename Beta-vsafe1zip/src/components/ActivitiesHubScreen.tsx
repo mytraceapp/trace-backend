@@ -455,9 +455,9 @@ export function ActivitiesHubScreen({
                 onClick={onStartRainWindow}
                 className="rounded-[24px] p-5 transition-all duration-300 active:scale-[0.97]"
                 style={{
-                  background: 'linear-gradient(135deg, #2a2f2d 0%, #1f2422 100%)',
-                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 2px rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  background: 'linear-gradient(135deg, #C9C3BA 0%, #B8B2A8 100%)',
+                  boxShadow: '0 8px 24px rgba(75, 75, 75, 0.08), 0 2px 8px rgba(75, 75, 75, 0.04), inset 0 1px 2px rgba(255, 255, 255, 0.25)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
                 }}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -468,10 +468,10 @@ export function ActivitiesHubScreen({
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(140, 160, 180, 0.2) 0%, rgba(120, 140, 160, 0.1) 100%)',
+                      background: 'linear-gradient(135deg, rgba(120, 110, 100, 0.18) 0%, rgba(120, 110, 100, 0.09) 100%)',
                     }}
                   >
-                    <CloudRain size={20} style={{ color: '#8CA0B4' }} strokeWidth={1.5} />
+                    <CloudRain size={20} style={{ color: '#6B6358' }} strokeWidth={1.5} />
                   </div>
 
                   <div className="flex-1 flex flex-col items-start justify-end text-left">
@@ -479,7 +479,7 @@ export function ActivitiesHubScreen({
                       className="mb-1"
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: 'rgba(255, 255, 255, 0.85)',
+                        color: '#4B4B4B',
                         fontWeight: 500,
                         fontSize: '16px',
                         letterSpacing: '0.01em',
@@ -490,7 +490,7 @@ export function ActivitiesHubScreen({
                     <p
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: 'rgba(255, 255, 255, 0.5)',
+                        color: '#6B6761',
                         fontWeight: 300,
                         fontSize: '12px',
                         letterSpacing: '0.005em',
