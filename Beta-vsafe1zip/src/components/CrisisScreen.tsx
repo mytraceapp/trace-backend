@@ -81,7 +81,7 @@ export function CrisisScreen({
 
         {/* Centered Content Container */}
         <div className="w-full max-w-md mx-auto px-6 flex flex-col items-center">
-          {/* Header Section */}
+          {/* Header Section with ambient vignette for night mode */}
           <motion.div
             className="relative z-10 text-center pt-8 pb-6"
             style={{ marginBottom: '-1rem' }}
@@ -89,7 +89,17 @@ export function CrisisScreen({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.2, ease: [0.22, 0.61, 0.36, 1] }}
           >
+            {/* Subtle ambient vignette behind header for night mode */}
+            {isDark && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: 'radial-gradient(ellipse 80% 60% at 50% 30%, rgba(0, 0, 0, 0.03) 0%, transparent 70%)',
+                }}
+              />
+            )}
             <h2
+              className="relative"
               style={{
                 fontFamily: 'Playfair Display, Georgia, serif',
                 fontSize: '30px',
@@ -97,11 +107,13 @@ export function CrisisScreen({
                 letterSpacing: '0.04em',
                 color: 'var(--text-primary)',
                 marginBottom: '-0.15rem',
+                opacity: isDark ? 0.95 : 1,
               }}
             >
               If You're in Crisis
             </h2>
             <p
+              className="relative"
               style={{
                 fontFamily: 'Georgia, serif',
                 fontSize: '15px',
@@ -109,11 +121,13 @@ export function CrisisScreen({
                 letterSpacing: '0.02em',
                 color: 'var(--text-primary)',
                 marginBottom: '0.5rem',
+                opacity: isDark ? 0.93 : 1,
               }}
             >
               You're not alone.
             </p>
             <p
+              className="relative"
               style={{
                 fontFamily: 'Georgia, serif',
                 fontSize: '14px',
@@ -121,17 +135,19 @@ export function CrisisScreen({
                 letterSpacing: '0.03em',
                 color: 'var(--text-secondary)',
                 fontStyle: 'italic',
+                opacity: isDark ? 0.92 : 1,
               }}
             >
               Real-world help comes first.
             </p>
           </motion.div>
 
-          {/* Main Card */}
+          {/* Main Card - softer corners in night mode */}
           <motion.div
-            className="w-full rounded-[28px] p-8 mt-0"
+            className="w-full p-8 mt-0"
             style={{
               background: 'var(--card)',
+              borderRadius: isDark ? '30px' : '28px',
               boxShadow: isDark
                 ? '0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2)'
                 : '0 8px 32px rgba(75, 75, 75, 0.08), 0 2px 8px rgba(75, 75, 75, 0.04)',
@@ -153,6 +169,7 @@ export function CrisisScreen({
                 color: 'var(--text-primary)',
                 letterSpacing: '0.01em',
                 lineHeight: '1.6',
+                opacity: isDark ? 0.95 : 1,
               }}
             >
               TRACE can't respond to emergencies.
@@ -162,8 +179,9 @@ export function CrisisScreen({
             <div className="space-y-4 mb-6">
               {/* 911 Card */}
               <div
-                className="rounded-[20px] p-5 flex items-start gap-4"
+                className="p-5 flex items-start gap-4"
                 style={{
+                  borderRadius: isDark ? '22px' : '20px',
                   backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#EDE8E0',
                   border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(75, 75, 75, 0.08)',
                   boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.15)' : '0 2px 8px rgba(0, 0, 0, 0.03)',
@@ -175,7 +193,7 @@ export function CrisisScreen({
                     backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#D9CFC2',
                   }}
                 >
-                  <Phone size={18} style={{ color: 'var(--text-primary)', strokeWidth: 2 }} />
+                  <Phone size={18} style={{ color: 'var(--text-primary)', strokeWidth: 2, opacity: isDark ? 0.93 : 1 }} />
                 </div>
                 <div>
                   <p
@@ -186,6 +204,7 @@ export function CrisisScreen({
                       color: 'var(--text-primary)',
                       marginBottom: '4px',
                       letterSpacing: '0.01em',
+                      opacity: isDark ? 0.95 : 1,
                     }}
                   >
                     Call 911
@@ -198,6 +217,7 @@ export function CrisisScreen({
                       color: 'var(--text-secondary)',
                       lineHeight: '1.5',
                       letterSpacing: '0.005em',
+                      opacity: isDark ? 0.93 : 1,
                     }}
                   >
                     If you're in immediate danger.
@@ -207,8 +227,9 @@ export function CrisisScreen({
 
               {/* 988 Card */}
               <div
-                className="rounded-[20px] p-5 flex items-start gap-4"
+                className="p-5 flex items-start gap-4"
                 style={{
+                  borderRadius: isDark ? '22px' : '20px',
                   backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#EDE8E0',
                   border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(75, 75, 75, 0.08)',
                   boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.15)' : '0 2px 8px rgba(0, 0, 0, 0.03)',
@@ -220,7 +241,7 @@ export function CrisisScreen({
                     backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#D9CFC2',
                   }}
                 >
-                  <MessageCircle size={18} style={{ color: 'var(--text-primary)', strokeWidth: 2 }} />
+                  <MessageCircle size={18} style={{ color: 'var(--text-primary)', strokeWidth: 2, opacity: isDark ? 0.93 : 1 }} />
                 </div>
                 <div>
                   <p
@@ -231,6 +252,7 @@ export function CrisisScreen({
                       color: 'var(--text-primary)',
                       marginBottom: '4px',
                       letterSpacing: '0.01em',
+                      opacity: isDark ? 0.95 : 1,
                     }}
                   >
                     Call or text 988
@@ -243,6 +265,7 @@ export function CrisisScreen({
                       color: 'var(--text-secondary)',
                       lineHeight: '1.5',
                       letterSpacing: '0.005em',
+                      opacity: isDark ? 0.93 : 1,
                     }}
                   >
                     U.S. Suicide & Crisis Lifeline.
@@ -252,8 +275,9 @@ export function CrisisScreen({
 
               {/* Crisis Text Line Card */}
               <div
-                className="rounded-[20px] p-5 flex items-start gap-4"
+                className="p-5 flex items-start gap-4"
                 style={{
+                  borderRadius: isDark ? '22px' : '20px',
                   backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#EDE8E0',
                   border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(75, 75, 75, 0.08)',
                   boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.15)' : '0 2px 8px rgba(0, 0, 0, 0.03)',
@@ -265,7 +289,7 @@ export function CrisisScreen({
                     backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#D9CFC2',
                   }}
                 >
-                  <Mail size={18} style={{ color: 'var(--text-primary)', strokeWidth: 2 }} />
+                  <Mail size={18} style={{ color: 'var(--text-primary)', strokeWidth: 2, opacity: isDark ? 0.93 : 1 }} />
                 </div>
                 <div>
                   <p
@@ -276,6 +300,7 @@ export function CrisisScreen({
                       color: 'var(--text-primary)',
                       marginBottom: '4px',
                       letterSpacing: '0.01em',
+                      opacity: isDark ? 0.95 : 1,
                     }}
                   >
                     Text HOME to 741741
@@ -288,6 +313,7 @@ export function CrisisScreen({
                       color: 'var(--text-secondary)',
                       lineHeight: '1.5',
                       letterSpacing: '0.005em',
+                      opacity: isDark ? 0.93 : 1,
                     }}
                   >
                     Crisis Text Line.
@@ -307,6 +333,7 @@ export function CrisisScreen({
                 lineHeight: '1.7',
                 letterSpacing: '0.01em',
                 fontStyle: 'italic',
+                opacity: isDark ? 0.92 : 1,
               }}
             >
               Real people can help.
