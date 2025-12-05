@@ -33,10 +33,21 @@ export function RainWindowScreen({
   const isFadingRef = useRef(false);
   const { addEntry } = useEntries();
 
-  // Slow down quiet video by 30%
+  // Slow down quiet video by 30% and skip first 12 seconds (camera motion)
   useEffect(() => {
-    if (quietVideoRef.current) {
-      quietVideoRef.current.playbackRate = 0.7;
+    const video = quietVideoRef.current;
+    if (video) {
+      video.playbackRate = 0.7;
+      video.currentTime = 12;
+      
+      // When video loops, skip back to 12 seconds instead of 0
+      const handleLoop = () => {
+        if (video.currentTime < 12) {
+          video.currentTime = 12;
+        }
+      };
+      video.addEventListener('timeupdate', handleLoop);
+      return () => video.removeEventListener('timeupdate', handleLoop);
     }
   }, []);
 
