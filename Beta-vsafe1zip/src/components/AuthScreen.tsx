@@ -302,7 +302,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
               transition={{ delay: 0.1, duration: 0.4, ease: [0.22, 0.61, 0.36, 1] }}
             >
               {/* Modal Header */}
-              <div className="text-center mb-6 w-full">
+              <div className="text-center mb-6 w-full" style={{ marginTop: '24px' }}>
                 <h2
                   style={{
                     fontFamily: 'Georgia, serif',
