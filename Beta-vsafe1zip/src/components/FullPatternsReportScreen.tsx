@@ -179,16 +179,16 @@ export function FullPatternsReportScreen({
                   <motion.div
                     className="absolute rounded-full pointer-events-none"
                     style={{
-                      width: '120px',
-                      height: '120px',
-                      background: `radial-gradient(circle, rgba(180, 191, 170, 0.35) 0%, rgba(160, 175, 155, 0.15) 40%, transparent 70%)`,
+                      width: '150px',
+                      height: '150px',
+                      background: `radial-gradient(circle, rgba(180, 191, 170, 0.45) 0%, rgba(160, 175, 155, 0.2) 40%, transparent 70%)`,
                       top: '-30%',
                       left: '-25%',
                       transform: 'translate(-50%, -50%)',
-                      filter: 'blur(15px)',
+                      filter: 'blur(18px)',
                     }}
                     animate={{
-                      opacity: [0.5, 0.85, 0.5],
+                      opacity: [0.6, 0.95, 0.6],
                       scale: [0.9, 1.15, 0.9],
                     }}
                     transition={{
