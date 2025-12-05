@@ -244,9 +244,10 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
       <AnimatePresence>
         {showLoginModal && (
           <motion.div
-            className="absolute inset-0 z-50 flex flex-col"
+            className="absolute inset-0 z-50 flex flex-col overflow-hidden"
             style={{
               background: 'linear-gradient(to bottom, #D3C9BC 0%, #C4BAB0 100%)',
+              borderRadius: 'inherit',
             }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -302,7 +303,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
               transition={{ delay: 0.1, duration: 0.4, ease: [0.22, 0.61, 0.36, 1] }}
             >
               {/* Modal Header */}
-              <div className="text-center mb-6 w-full" style={{ marginTop: '24px' }}>
+              <div className="text-center mb-6 w-full" style={{ marginTop: '38px' }}>
                 <h2
                   style={{
                     fontFamily: 'Georgia, serif',
