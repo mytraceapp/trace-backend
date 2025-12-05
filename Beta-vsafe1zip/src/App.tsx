@@ -1,5 +1,4 @@
 import React from 'react';
-import { Volume2, VolumeX } from 'lucide-react';
 import { HomeScreen } from './components/HomeScreen';
 import { AuthScreen } from './components/AuthScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
@@ -26,14 +25,11 @@ import { ProfileScreen } from './components/ProfileScreen';
 import { AccountSetupScreen } from './components/AccountSetupScreen';
 import { PaymentScreen } from './components/PaymentScreen';
 import { PaymentSuccessOverlay } from './components/PaymentSuccessOverlay';
-import { BackgroundMusic } from './components/BackgroundMusic';
 
 export default function App() {
   const { selectedPlan, profile, isUpgrading, setIsUpgrading } = useUser();
   const [currentScreen, setCurrentScreen] = React.useState<'home' | 'auth' | 'accountsetup' | 'payment' | 'onboarding' | 'chat' | 'activities' | 'activitieshub' | 'breathing' | 'maze' | 'walking' | 'powernap' | 'pearlripple' | 'grounding' | 'journal' | 'entries' | 'patterns' | 'fullpatterns' | 'help' | 'inthisspace' | 'crisis' | 'privacy' | 'terms' | 'profile'>('home');
   const [showPaymentSuccess, setShowPaymentSuccess] = React.useState(false);
-  const [musicEnabled, setMusicEnabled] = React.useState(true);
-  const [musicVolume] = React.useState(0.25);
   const userName = profile?.name || 'there';
 
   return (
@@ -299,28 +295,6 @@ export default function App() {
         {/* Dynamic Island */}
         <div className="absolute top-[24px] left-1/2 -translate-x-1/2 w-[126px] h-[37px] bg-black rounded-full z-50" />
       </div>
-
-      {/* Background Music - plays throughout the app */}
-      <BackgroundMusic 
-        playing={musicEnabled} 
-        volume={musicVolume}
-        fadeInDuration={3000}
-        fadeOutDuration={2000}
-        crossfadeDuration={4000}
-      />
-
-      {/* Music Toggle Button */}
-      <button
-        onClick={() => setMusicEnabled(!musicEnabled)}
-        className="fixed top-4 right-4 p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-300 z-50"
-        title={musicEnabled ? 'Mute music' : 'Play music'}
-      >
-        {musicEnabled ? (
-          <Volume2 className="w-5 h-5 text-gray-700" />
-        ) : (
-          <VolumeX className="w-5 h-5 text-gray-400" />
-        )}
-      </button>
 
       {/* Dev Navigation */}
       <div className="fixed bottom-4 left-4 bg-white p-4 rounded-lg shadow-lg max-w-xs">
