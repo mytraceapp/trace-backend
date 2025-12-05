@@ -226,25 +226,51 @@ export function ProfileScreen({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3, duration: 1 }}
         >
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200"
-            style={{
-              background: 'var(--card)',
-              border: '1.5px solid var(--text-secondary)',
-              boxShadow: `0 2px 12px var(--shadow)`,
-            }}
-          >
-            <span
+          <div className="relative">
+            {/* Breathing glow behind initial circle - Night Mode only */}
+            {isDark && (
+              <motion.div
+                className="absolute rounded-full pointer-events-none"
+                style={{
+                  width: '120px',
+                  height: '120px',
+                  background: `radial-gradient(circle, rgba(180, 191, 170, 0.35) 0%, rgba(160, 175, 155, 0.15) 40%, transparent 70%)`,
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  filter: 'blur(15px)',
+                }}
+                animate={{
+                  opacity: [0.5, 0.85, 0.5],
+                  scale: [0.9, 1.15, 0.9],
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
+            )}
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 relative z-10"
               style={{
-                fontFamily: 'Playfair Display, Georgia, serif',
-                fontSize: '22px',
-                color: 'var(--text-secondary)',
-                fontWeight: 400,
-                letterSpacing: '0.02em',
+                background: 'var(--card)',
+                border: '1.5px solid var(--text-secondary)',
+                boxShadow: `0 2px 12px var(--shadow)`,
               }}
             >
-              {userInitial}
-            </span>
+              <span
+                style={{
+                  fontFamily: 'Playfair Display, Georgia, serif',
+                  fontSize: '22px',
+                  color: 'var(--text-secondary)',
+                  fontWeight: 400,
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {userInitial}
+              </span>
+            </div>
           </div>
         </motion.div>
 
