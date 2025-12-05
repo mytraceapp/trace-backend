@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Scan, Eye, EyeOff } from 'lucide-react';
+import { Scan, Eye, EyeOff, ChevronLeft } from 'lucide-react';
 import traceLogo from 'figma:asset/513ec3c351285cce0b15e678c8f6d864d8269d64.png';
 
 interface AuthScreenProps {
@@ -269,43 +269,36 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
               }}
             />
 
-            {/* Back Button - Fixed at top */}
+            {/* Back Arrow - Fixed at top */}
             <motion.button
-              className="absolute top-10 left-6 py-2 px-4 rounded-full transition-colors hover:bg-black/5 z-10"
+              className="absolute top-10 left-5 p-2 rounded-full transition-colors hover:bg-black/5 z-10"
               onClick={() => setShowLoginModal(false)}
-              style={{
-                fontFamily: 'Georgia, serif',
-                fontSize: '14px',
-                fontWeight: 300,
-                color: '#5A4A3A',
-                letterSpacing: '0.02em',
-              }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
             >
-              Back
+              <ChevronLeft size={24} strokeWidth={1.5} style={{ color: '#5A4A3A' }} />
             </motion.button>
 
             {/* Modal Content - Centered and moved up */}
             <motion.div
               className="relative flex-1 flex flex-col items-center justify-center px-8"
-              style={{ paddingBottom: '15%' }}
+              style={{ paddingBottom: '18%' }}
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
               transition={{ delay: 0.1, duration: 0.4, ease: [0.22, 0.61, 0.36, 1] }}
             >
               {/* Modal Header */}
-              <div className="text-center mb-10 w-full">
+              <div className="text-center mb-6 w-full">
                 <h2
                   style={{
                     fontFamily: 'Georgia, serif',
-                    fontSize: '26px',
+                    fontSize: '24px',
                     fontWeight: 400,
                     color: '#4A3A2A',
                     letterSpacing: '0.02em',
-                    marginBottom: '10px',
+                    marginBottom: '6px',
                   }}
                 >
                   Welcome back
@@ -313,7 +306,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                 <p
                   style={{
                     fontFamily: 'Georgia, serif',
-                    fontSize: '15px',
+                    fontSize: '14px',
                     fontWeight: 300,
                     color: '#6B5A4A',
                     letterSpacing: '0.01em',
@@ -328,7 +321,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                 {/* Error Message */}
                 {error && (
                   <motion.div
-                    className="mb-5 p-3 rounded-xl text-center"
+                    className="mb-4 p-3 rounded-xl text-center"
                     style={{
                       background: 'rgba(176, 125, 108, 0.15)',
                       border: '1px solid rgba(176, 125, 108, 0.25)',
@@ -350,7 +343,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                 )}
 
                 {/* Email Input */}
-                <div className="mb-5">
+                <div className="mb-4">
                   <label
                     style={{
                       fontFamily: 'Georgia, serif',
@@ -359,7 +352,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                       color: '#5A4A3A',
                       letterSpacing: '0.03em',
                       display: 'block',
-                      marginBottom: '10px',
+                      marginBottom: '6px',
                       marginLeft: '4px',
                     }}
                   >
@@ -370,7 +363,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@email.com"
-                    className="w-full px-5 py-4 rounded-2xl outline-none transition-all duration-200 focus:ring-2 focus:ring-[#8DA18F]/40"
+                    className="w-full px-5 py-3.5 rounded-2xl outline-none transition-all duration-200 focus:ring-2 focus:ring-[#8DA18F]/40"
                     style={{
                       fontFamily: 'Georgia, serif',
                       fontSize: '15px',
@@ -384,7 +377,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                 </div>
 
                 {/* Password Input */}
-                <div className="mb-5">
+                <div className="mb-3">
                   <label
                     style={{
                       fontFamily: 'Georgia, serif',
@@ -393,7 +386,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                       color: '#5A4A3A',
                       letterSpacing: '0.03em',
                       display: 'block',
-                      marginBottom: '10px',
+                      marginBottom: '6px',
                       marginLeft: '4px',
                     }}
                   >
@@ -405,7 +398,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
-                      className="w-full px-5 py-4 pr-12 rounded-2xl outline-none transition-all duration-200 focus:ring-2 focus:ring-[#8DA18F]/40"
+                      className="w-full px-5 py-3.5 pr-12 rounded-2xl outline-none transition-all duration-200 focus:ring-2 focus:ring-[#8DA18F]/40"
                       style={{
                         fontFamily: 'Georgia, serif',
                         fontSize: '15px',
@@ -432,7 +425,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                 </div>
 
                 {/* Forgot Password Link */}
-                <div className="text-center mb-8">
+                <div className="text-center mb-5">
                   <button
                     className="transition-opacity hover:opacity-70"
                     style={{
@@ -450,7 +443,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
 
                 {/* Sign In Button */}
                 <button
-                  className="w-full py-4 px-6 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3.5 px-6 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     fontFamily: 'Georgia, serif',
                     fontSize: '15px',
@@ -467,7 +460,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                 </button>
 
                 {/* Divider */}
-                <div className="flex items-center my-6">
+                <div className="flex items-center my-4">
                   <div className="flex-1 h-px bg-[#5A4A3A]/10" />
                   <span 
                     className="px-4"
@@ -486,7 +479,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
 
                 {/* Face ID Option in Modal */}
                 <button
-                  className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-full transition-all duration-300 hover:bg-[#8DA18F]/15 disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-3 py-3.5 px-6 rounded-full transition-all duration-300 hover:bg-[#8DA18F]/15 disabled:opacity-50"
                   style={{
                     fontFamily: 'Georgia, serif',
                     fontSize: '15px',
