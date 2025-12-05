@@ -19,45 +19,52 @@ export function RainWindowScreen({
   onNavigateToHelp,
 }: RainWindowScreenProps) {
   const [isActive, setIsActive] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showCompletion, setShowCompletion] = useState(false);
   const [introVisible, setIntroVisible] = useState(true);
   const [videoOpacity, setVideoOpacity] = useState(1);
+  const [volume, setVolume] = useState(0.6);
   const timerRef = useRef<number | null>(null);
   const introTimeoutRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const isFadingRef = useRef(false);
   const { addEntry } = useEntries();
 
-  const ACTIVITY_DURATION = 180;
-
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Real rain audio slowed to 50% for dreamy effect
+  // Real rain audio slowed for dreamy effect
   const startRainAudio = useCallback(() => {
     if (!audioRef.current) {
       const audio = new Audio('/audio/rain-ambient.mp3');
       audio.loop = true;
       audio.volume = 0;
-      audio.playbackRate = 0.575; // 57.5% speed (50% + 15%)
-      audio.preservesPitch = false; // Allow pitch to lower with speed
+      audio.playbackRate = 0.575; // 57.5% speed
+      audio.preservesPitch = false;
       audioRef.current = audio;
     }
     
     const audio = audioRef.current;
     audio.play().catch(() => {});
     
-    // Gentle fade in over 3 seconds
+    // Gentle fade in over 3 seconds to target volume
     let vol = 0;
+    const targetVol = volume;
     const fadeIn = setInterval(() => {
       vol += 0.02;
-      if (vol >= 0.6) {
-        vol = 0.6;
+      if (vol >= targetVol) {
+        vol = targetVol;
         clearInterval(fadeIn);
       }
       if (audioRef.current) audioRef.current.volume = vol;
     }, 60);
+  }, [volume]);
+
+  // Update audio volume when slider changes
+  const handleVolumeChange = useCallback((newVolume: number) => {
+    setVolume(newVolume);
+    if (audioRef.current) {
+      audioRef.current.volume = newVolume;
+    }
   }, []);
 
   const stopRainAudio = useCallback(() => {
@@ -79,11 +86,10 @@ export function RainWindowScreen({
   // Auto-start session on mount
   useEffect(() => {
     setIsActive(true);
-    setIsPaused(false);
     setElapsedTime(0);
     startRainAudio();
     if (videoRef.current) {
-      videoRef.current.playbackRate = 0.5; // 50% speed for dreamy, smooth feel
+      videoRef.current.playbackRate = 0.5;
       videoRef.current.play().catch(() => {});
     }
 
@@ -99,7 +105,15 @@ export function RainWindowScreen({
     };
   }, [startRainAudio]);
 
+  // Trigger gentle haptic feedback
+  const triggerHaptic = useCallback(() => {
+    if (navigator.vibrate) {
+      navigator.vibrate([50, 30, 50]); // Gentle double pulse
+    }
+  }, []);
+
   const handleComplete = useCallback(() => {
+    triggerHaptic();
     setShowCompletion(true);
     stopRainAudio();
 
@@ -117,28 +131,20 @@ export function RainWindowScreen({
     setTimeout(() => {
       onReturnToChat();
     }, 3000);
-  }, [addEntry, elapsedTime, onReturnToChat, stopRainAudio]);
+  }, [addEntry, elapsedTime, onReturnToChat, stopRainAudio, triggerHaptic]);
 
+  // Track elapsed time for session logging (endless mode, no auto-complete)
   useEffect(() => {
-    if (isActive && !isPaused) {
+    if (isActive) {
       timerRef.current = window.setInterval(() => {
-        setElapsedTime(prev => {
-          if (prev >= ACTIVITY_DURATION) {
-            if (timerRef.current) clearInterval(timerRef.current);
-            handleComplete();
-            return prev;
-          }
-          return prev + 1;
-        });
+        setElapsedTime(prev => prev + 1);
       }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
     }
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isActive, isPaused, handleComplete]);
+  }, [isActive]);
 
   useEffect(() => {
     return () => {
@@ -175,12 +181,6 @@ export function RainWindowScreen({
     video.addEventListener('timeupdate', handleTimeUpdate);
     return () => video.removeEventListener('timeupdate', handleTimeUpdate);
   }, []);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   return (
     <div 
@@ -244,32 +244,6 @@ export function RainWindowScreen({
         </h1>
       </motion.div>
 
-      {/* Top UI Bar - Timer on the right */}
-      {isActive && !showCompletion && (
-        <motion.div 
-          className="absolute top-0 left-0 right-0 flex items-center justify-end p-6 z-20"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          <div
-            className="px-5 py-2.5 rounded-full"
-            style={{
-              background: 'rgba(0, 0, 0, 0.35)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-              fontFamily: 'Georgia, serif',
-              fontSize: '14px',
-              fontWeight: 300,
-              color: 'rgba(255, 255, 255, 0.20)',
-              letterSpacing: '0.05em',
-            }}
-          >
-            {formatTime(elapsedTime)}
-          </div>
-        </motion.div>
-      )}
 
       <div className="absolute inset-0 flex flex-col items-center justify-center z-10 px-8">
         <AnimatePresence mode="wait">
@@ -389,15 +363,71 @@ export function RainWindowScreen({
         </AnimatePresence>
       </div>
 
-      {/* Bottom End Session Button */}
+      {/* Bottom Controls - Volume Slider & End Session */}
       {isActive && !showCompletion && (
         <motion.div 
-          className="absolute left-0 right-0 flex justify-center z-20" 
+          className="absolute left-0 right-0 flex flex-col items-center z-20" 
           style={{ bottom: '122px' }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.8 }}
         >
+          {/* Volume Slider */}
+          <div 
+            className="flex items-center gap-3 mb-5 px-5 py-3 rounded-full"
+            style={{
+              background: 'rgba(0, 0, 0, 0.25)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}
+          >
+            <svg 
+              width="16" 
+              height="16" 
+              viewBox="0 0 24 24" 
+              fill="none"
+              style={{ opacity: 0.5 }}
+            >
+              <path 
+                d="M11 5L6 9H2v6h4l5 4V5z" 
+                stroke="rgba(255,255,255,0.6)" 
+                strokeWidth="1.5" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              />
+              {volume > 0.3 && (
+                <path 
+                  d="M15.54 8.46a5 5 0 0 1 0 7.07" 
+                  stroke="rgba(255,255,255,0.5)" 
+                  strokeWidth="1.5" 
+                  strokeLinecap="round"
+                />
+              )}
+              {volume > 0.6 && (
+                <path 
+                  d="M19.07 4.93a10 10 0 0 1 0 14.14" 
+                  stroke="rgba(255,255,255,0.4)" 
+                  strokeWidth="1.5" 
+                  strokeLinecap="round"
+                />
+              )}
+            </svg>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+              className="w-24 h-1 rounded-full appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.5) ${volume * 100}%, rgba(255,255,255,0.15) ${volume * 100}%, rgba(255,255,255,0.15) 100%)`,
+                WebkitAppearance: 'none',
+              }}
+            />
+          </div>
+
+          {/* End Session Button */}
           <button
             onClick={handleComplete}
             className="px-8 py-3 rounded-full transition-all duration-300 hover:scale-105"
