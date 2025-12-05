@@ -583,7 +583,7 @@ export function PowerNapScreen({
           transition={{ delay: 1.5, duration: 1 }}
         >
           <button 
-            onClick={onNavigateActivities}
+            onClick={onReturnToChat}
             className="w-full rounded-full px-8 py-4 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
             style={{
               background: '#EDE8DB',
@@ -599,7 +599,7 @@ export function PowerNapScreen({
                 letterSpacing: '0.03em',
               }}
             >
-              Return to Activities
+              Return to Chat
             </span>
           </button>
         </motion.div>

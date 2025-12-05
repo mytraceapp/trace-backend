@@ -183,7 +183,7 @@ export default function App() {
           )}
           {currentScreen === 'powernap' && (
             <PowerNapScreen 
-              onReturnToChat={() => setCurrentScreen('activitieshub')}
+              onReturnToChat={() => setCurrentScreen('chat')}
               onNavigateHome={() => setCurrentScreen('chat')}
               onNavigateActivities={() => setCurrentScreen('activitieshub')}
               onNavigateJournal={() => setCurrentScreen('entries')}
