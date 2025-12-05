@@ -156,14 +156,10 @@ html.theme-night, :root.theme-night {
 .night-texture {
   position: relative;
   isolation: isolate;
-  background: linear-gradient(180deg, 
-    #0E0F0D 0%, 
-    #141512 15%,
-    #1A1816 35%,
-    #1E1C1A 55%,
-    #1A1816 75%,
-    #0E0F0D 100%
-  );
+  background: 
+    radial-gradient(circle at top, rgba(215, 200, 160, 0.12), transparent 55%),
+    radial-gradient(circle at bottom, rgba(120, 100, 70, 0.18), transparent 60%),
+    linear-gradient(to bottom, #101111 0%, #161918 35%, #1c211f 100%);
 }
 
 .night-texture::before {
@@ -173,10 +169,8 @@ html.theme-night, :root.theme-night {
   pointer-events: none;
   z-index: -2;
   background: 
-    radial-gradient(ellipse 90% 70% at 50% 45%, rgba(194, 178, 158, 0.04) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 50% at 30% 70%, rgba(168, 152, 132, 0.03) 0%, transparent 50%),
-    radial-gradient(ellipse 60% 40% at 70% 30%, rgba(178, 162, 142, 0.025) 0%, transparent 45%),
-    radial-gradient(ellipse 120% 100% at 50% 100%, rgba(62, 54, 44, 0.12) 0%, transparent 60%);
+    radial-gradient(ellipse 90% 70% at 50% 30%, rgba(215, 200, 160, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 60% at 50% 80%, rgba(120, 100, 70, 0.08) 0%, transparent 50%);
   border-radius: inherit;
   animation: sand-drift 60s ease-in-out infinite;
 }
@@ -187,10 +181,11 @@ html.theme-night, :root.theme-night {
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.025;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 600 600' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='sandNoise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23sandNoise)'/%3E%3C/svg%3E");
+  opacity: 0.10;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 1024 1024' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='sandGrain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23sandGrain)'/%3E%3C/svg%3E");
   background-repeat: repeat;
-  background-size: 300px 300px;
+  background-size: 512px 512px;
   animation: grain-shimmer 90s ease-in-out infinite;
   border-radius: inherit;
 }

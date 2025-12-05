@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { BookOpen, AlertCircle, Shield, FileText, ExternalLink } from 'lucide-react';
+import { BookOpen, AlertCircle, Shield, FileText } from 'lucide-react';
 import { BottomNav } from './BottomNav';
+import { useTheme } from '../state/ThemeContext';
 
 interface HelpScreenProps {
   onReturnToChat: () => void;
@@ -26,6 +27,9 @@ export function HelpScreen({
   onNavigateToPrivacy,
   onNavigateToTerms,
 }: HelpScreenProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'night';
+
   const helpCards = [
     {
       icon: BookOpen,
@@ -57,14 +61,16 @@ export function HelpScreen({
     <div
       className="relative w-full h-full flex flex-col overflow-hidden"
       style={{
-        background: 'linear-gradient(to bottom, #F4F1EC 0%, #E8E4DD 50%, #D3CFC8 100%)',
+        background: 'transparent',
       }}
     >
       {/* Soft vignette overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(circle at center, transparent 0%, rgba(75, 75, 75, 0.04) 100%)',
+          background: isDark
+            ? 'radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.08) 100%)'
+            : 'radial-gradient(circle at center, transparent 0%, rgba(75, 75, 75, 0.04) 100%)',
         }}
       />
 
@@ -79,11 +85,11 @@ export function HelpScreen({
         <h1
           style={{
             fontFamily: 'ALORE, Georgia, serif',
-            color: '#5A4A3A',
+            color: 'var(--text-primary)',
             fontWeight: 300,
             letterSpacing: '1em',
             fontSize: '11px',
-            textShadow: '0 0 15px rgba(90, 74, 58, 0.4), 0 0 30px rgba(90, 74, 58, 0.2), 0 2px 4px rgba(0,0,0,0.15)',
+            textShadow: `0 0 15px var(--orb-glow), 0 0 30px var(--orb-glow), 0 2px 4px rgba(0,0,0,0.15)`,
             opacity: 0.85,
           }}
         >
@@ -126,7 +132,7 @@ export function HelpScreen({
             className="mb-2"
             style={{
               fontFamily: 'Georgia, serif',
-              color: '#5A4A3A',
+              color: 'var(--text-primary)',
               fontWeight: 400,
               fontSize: '32px',
               letterSpacing: '-0.02em',
@@ -138,7 +144,7 @@ export function HelpScreen({
             className="mb-2"
             style={{
               fontFamily: 'Georgia, serif',
-              color: '#8A7D73',
+              color: 'var(--text-secondary)',
               fontWeight: 300,
               fontSize: '15px',
               letterSpacing: '0.01em',
@@ -164,9 +170,13 @@ export function HelpScreen({
                 onClick={card.onClick}
                 className="w-full rounded-[24px] p-6 text-left transition-all duration-300 hover:scale-[1.01] active:scale-[0.98]"
                 style={{
-                  background: 'linear-gradient(135deg, #F4F1EC 0%, #EEEBE6 100%)',
-                  boxShadow: '0 6px 20px rgba(90, 74, 58, 0.08), 0 2px 6px rgba(90, 74, 58, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.4)',
+                  background: 'var(--card)',
+                  boxShadow: isDark
+                    ? '0 6px 20px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2)'
+                    : '0 6px 20px rgba(90, 74, 58, 0.08), 0 2px 6px rgba(90, 74, 58, 0.04)',
+                  border: isDark
+                    ? '1px solid rgba(255, 255, 255, 0.08)'
+                    : '1px solid rgba(255, 255, 255, 0.4)',
                 }}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -177,11 +187,15 @@ export function HelpScreen({
                   <div
                     className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
                     style={{
-                      background: 'linear-gradient(135deg, #E8E4DD 0%, #DDD9D2 100%)',
-                      boxShadow: '0 2px 8px rgba(90, 74, 58, 0.06)',
+                      background: isDark
+                        ? 'rgba(255, 255, 255, 0.08)'
+                        : 'linear-gradient(135deg, #E8E4DD 0%, #DDD9D2 100%)',
+                      boxShadow: isDark
+                        ? 'none'
+                        : '0 2px 8px rgba(90, 74, 58, 0.06)',
                     }}
                   >
-                    <Icon size={20} style={{ color: '#7D6B5A', strokeWidth: 1.5 }} />
+                    <Icon size={20} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
                   </div>
 
                   {/* Text Content */}
@@ -190,7 +204,7 @@ export function HelpScreen({
                       className="mb-1"
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: '#4B4038',
+                        color: 'var(--text-primary)',
                         fontWeight: 500,
                         fontSize: '17px',
                         letterSpacing: '0.01em',
@@ -201,7 +215,7 @@ export function HelpScreen({
                     <p
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: '#8A7D73',
+                        color: 'var(--text-secondary)',
                         fontWeight: 300,
                         fontSize: '14px',
                         letterSpacing: '0.005em',

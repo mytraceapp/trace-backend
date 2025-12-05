@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Phone, MessageCircle, Mail } from 'lucide-react';
 import { BottomNav } from './BottomNav';
+import { useTheme } from '../state/ThemeContext';
 
 interface CrisisScreenProps {
   onReturnToChat?: () => void;
@@ -20,28 +21,23 @@ export function CrisisScreen({
   onNavigateToPatterns,
   onNavigateToJournal 
 }: CrisisScreenProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'night';
+
   return (
     <div 
       className="relative w-full h-full overflow-hidden"
       style={{ 
-        background: 'linear-gradient(to bottom, #D3C9BC 0%, #C4BAB0 100%)' 
+        background: 'transparent' 
       }}
     >
-      {/* Subtle grain texture overlay */}
-      <div 
-        className="fixed inset-0 pointer-events-none opacity-[0.015]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-          backgroundRepeat: 'repeat',
-          mixBlendMode: 'overlay',
-        }}
-      />
-
       {/* Soft vignette overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(circle at center, transparent 0%, rgba(75, 75, 75, 0.05) 100%)',
+          background: isDark
+            ? 'radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.08) 100%)'
+            : 'radial-gradient(circle at center, transparent 0%, rgba(75, 75, 75, 0.05) 100%)',
         }}
       />
 
@@ -56,11 +52,11 @@ export function CrisisScreen({
         <h1
           style={{
             fontFamily: 'ALORE, Georgia, serif',
-            color: '#5A4A3A',
+            color: 'var(--text-primary)',
             fontWeight: 300,
             letterSpacing: '1em',
             fontSize: '11px',
-            textShadow: '0 0 15px rgba(90, 74, 58, 0.45), 0 0 30px rgba(90, 74, 58, 0.25), 0 2px 4px rgba(0,0,0,0.15)',
+            textShadow: `0 0 15px var(--orb-glow), 0 0 30px var(--orb-glow), 0 2px 4px rgba(0,0,0,0.15)`,
             opacity: 0.88,
           }}
         >
@@ -99,7 +95,7 @@ export function CrisisScreen({
                 fontSize: '30px',
                 fontWeight: 500,
                 letterSpacing: '0.04em',
-                color: '#4A3A2A',
+                color: 'var(--text-primary)',
                 marginBottom: '-0.15rem',
               }}
             >
@@ -111,7 +107,7 @@ export function CrisisScreen({
                 fontSize: '15px',
                 fontWeight: 400,
                 letterSpacing: '0.02em',
-                color: '#5A4A3A',
+                color: 'var(--text-primary)',
                 marginBottom: '0.5rem',
               }}
             >
@@ -123,7 +119,7 @@ export function CrisisScreen({
                 fontSize: '14px',
                 fontWeight: 300,
                 letterSpacing: '0.03em',
-                color: '#6D5D4D',
+                color: 'var(--text-secondary)',
                 fontStyle: 'italic',
               }}
             >
@@ -135,9 +131,13 @@ export function CrisisScreen({
           <motion.div
             className="w-full rounded-[28px] p-8 mt-0"
             style={{
-              background: 'linear-gradient(135deg, #F7F4F0 0%, #F2EFE9 100%)',
-              boxShadow: '0 8px 32px rgba(75, 75, 75, 0.08), 0 2px 8px rgba(75, 75, 75, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.5)',
+              background: 'var(--card)',
+              boxShadow: isDark
+                ? '0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2)'
+                : '0 8px 32px rgba(75, 75, 75, 0.08), 0 2px 8px rgba(75, 75, 75, 0.04)',
+              border: isDark
+                ? '1px solid rgba(255, 255, 255, 0.08)'
+                : '1px solid rgba(255, 255, 255, 0.5)',
             }}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -150,7 +150,7 @@ export function CrisisScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '16px',
                 fontWeight: 600,
-                color: '#4A3A2A',
+                color: 'var(--text-primary)',
                 letterSpacing: '0.01em',
                 lineHeight: '1.6',
               }}
@@ -164,18 +164,18 @@ export function CrisisScreen({
               <div
                 className="rounded-[20px] p-5 flex items-start gap-4"
                 style={{
-                  backgroundColor: '#EDE8E0',
-                  border: '1px solid rgba(75, 75, 75, 0.08)',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#EDE8E0',
+                  border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(75, 75, 75, 0.08)',
+                  boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.15)' : '0 2px 8px rgba(0, 0, 0, 0.03)',
                 }}
               >
                 <div
                   className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
                   style={{
-                    backgroundColor: '#D9CFC2',
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#D9CFC2',
                   }}
                 >
-                  <Phone size={18} style={{ color: '#5A4A3A', strokeWidth: 2 }} />
+                  <Phone size={18} style={{ color: 'var(--text-primary)', strokeWidth: 2 }} />
                 </div>
                 <div>
                   <p
@@ -183,7 +183,7 @@ export function CrisisScreen({
                       fontFamily: 'Georgia, serif',
                       fontSize: '16px',
                       fontWeight: 600,
-                      color: '#4A3A2A',
+                      color: 'var(--text-primary)',
                       marginBottom: '4px',
                       letterSpacing: '0.01em',
                     }}
@@ -195,7 +195,7 @@ export function CrisisScreen({
                       fontFamily: 'Georgia, serif',
                       fontSize: '14px',
                       fontWeight: 300,
-                      color: '#75655A',
+                      color: 'var(--text-secondary)',
                       lineHeight: '1.5',
                       letterSpacing: '0.005em',
                     }}
@@ -209,18 +209,18 @@ export function CrisisScreen({
               <div
                 className="rounded-[20px] p-5 flex items-start gap-4"
                 style={{
-                  backgroundColor: '#EDE8E0',
-                  border: '1px solid rgba(75, 75, 75, 0.08)',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#EDE8E0',
+                  border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(75, 75, 75, 0.08)',
+                  boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.15)' : '0 2px 8px rgba(0, 0, 0, 0.03)',
                 }}
               >
                 <div
                   className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
                   style={{
-                    backgroundColor: '#D9CFC2',
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#D9CFC2',
                   }}
                 >
-                  <MessageCircle size={18} style={{ color: '#5A4A3A', strokeWidth: 2 }} />
+                  <MessageCircle size={18} style={{ color: 'var(--text-primary)', strokeWidth: 2 }} />
                 </div>
                 <div>
                   <p
@@ -228,7 +228,7 @@ export function CrisisScreen({
                       fontFamily: 'Georgia, serif',
                       fontSize: '16px',
                       fontWeight: 600,
-                      color: '#4A3A2A',
+                      color: 'var(--text-primary)',
                       marginBottom: '4px',
                       letterSpacing: '0.01em',
                     }}
@@ -240,7 +240,7 @@ export function CrisisScreen({
                       fontFamily: 'Georgia, serif',
                       fontSize: '14px',
                       fontWeight: 300,
-                      color: '#75655A',
+                      color: 'var(--text-secondary)',
                       lineHeight: '1.5',
                       letterSpacing: '0.005em',
                     }}
@@ -254,18 +254,18 @@ export function CrisisScreen({
               <div
                 className="rounded-[20px] p-5 flex items-start gap-4"
                 style={{
-                  backgroundColor: '#EDE8E0',
-                  border: '1px solid rgba(75, 75, 75, 0.08)',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#EDE8E0',
+                  border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(75, 75, 75, 0.08)',
+                  boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.15)' : '0 2px 8px rgba(0, 0, 0, 0.03)',
                 }}
               >
                 <div
                   className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
                   style={{
-                    backgroundColor: '#D9CFC2',
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#D9CFC2',
                   }}
                 >
-                  <Mail size={18} style={{ color: '#5A4A3A', strokeWidth: 2 }} />
+                  <Mail size={18} style={{ color: 'var(--text-primary)', strokeWidth: 2 }} />
                 </div>
                 <div>
                   <p
@@ -273,7 +273,7 @@ export function CrisisScreen({
                       fontFamily: 'Georgia, serif',
                       fontSize: '16px',
                       fontWeight: 600,
-                      color: '#4A3A2A',
+                      color: 'var(--text-primary)',
                       marginBottom: '4px',
                       letterSpacing: '0.01em',
                     }}
@@ -285,7 +285,7 @@ export function CrisisScreen({
                       fontFamily: 'Georgia, serif',
                       fontSize: '14px',
                       fontWeight: 300,
-                      color: '#75655A',
+                      color: 'var(--text-secondary)',
                       lineHeight: '1.5',
                       letterSpacing: '0.005em',
                     }}
@@ -303,7 +303,7 @@ export function CrisisScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '15px',
                 fontWeight: 300,
-                color: '#5A4A3A',
+                color: 'var(--text-primary)',
                 lineHeight: '1.7',
                 letterSpacing: '0.01em',
                 fontStyle: 'italic',
@@ -325,15 +325,21 @@ export function CrisisScreen({
               onClick={onReturnToChat}
               className="w-full rounded-full px-8 py-5 transition-all duration-300 hover:scale-[1.01] active:scale-[0.98]"
               style={{
-                background: 'linear-gradient(135deg, #D9CFC2 0%, #CEC4B8 100%)',
-                boxShadow: '0 6px 24px rgba(75, 75, 75, 0.1), 0 2px 8px rgba(75, 75, 75, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
+                background: isDark
+                  ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%)'
+                  : 'linear-gradient(135deg, #D9CFC2 0%, #CEC4B8 100%)',
+                boxShadow: isDark
+                  ? '0 6px 24px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1)'
+                  : '0 6px 24px rgba(75, 75, 75, 0.1), 0 2px 8px rgba(75, 75, 75, 0.05)',
+                border: isDark
+                  ? '1px solid rgba(255, 255, 255, 0.1)'
+                  : '1px solid rgba(255, 255, 255, 0.3)',
               }}
             >
               <span
                 style={{
                   fontFamily: 'Georgia, serif',
-                  color: '#4A3A2A',
+                  color: 'var(--text-primary)',
                   fontSize: '16px',
                   fontWeight: 400,
                   letterSpacing: '0.02em',

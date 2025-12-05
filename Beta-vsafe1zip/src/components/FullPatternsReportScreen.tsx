@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { patternsData, PatternCategory } from '../data/patterns';
+import { useTheme } from '../state/ThemeContext';
 
 interface FullPatternsReportScreenProps {
   onBack: () => void;
@@ -51,27 +52,22 @@ export function FullPatternsReportScreen({
     'Evenings carry mental noise; keep them light.',
   ];
 
-  return (
-    <div className="relative w-full h-full overflow-hidden" style={{ background: 'linear-gradient(to bottom, #E8E0D5 0%, #D7CDBF 100%)' }}>
-      {/* Subtle grain texture overlay */}
-      <div 
-        className="fixed inset-0 pointer-events-none opacity-[0.015]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-          backgroundRepeat: 'repeat',
-          mixBlendMode: 'overlay',
-        }}
-      />
+  const { theme } = useTheme();
+  const isDark = theme === 'night';
 
-      {/* Math notebook grid overlay */}
-      <div 
-        className="fixed inset-0 pointer-events-none opacity-[0.25]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%238DA18F' stroke-width='1'/%3E%3C/svg%3E")`,
-          backgroundSize: '24px 24px',
-          backgroundRepeat: 'repeat',
-        }}
-      />
+  return (
+    <div className="relative w-full h-full overflow-hidden" style={{ background: 'transparent' }}>
+      {/* Math notebook grid overlay - only visible in day mode */}
+      {!isDark && (
+        <div 
+          className="fixed inset-0 pointer-events-none opacity-[0.25]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%238DA18F' stroke-width='1'/%3E%3C/svg%3E")`,
+            backgroundSize: '24px 24px',
+            backgroundRepeat: 'repeat',
+          }}
+        />
+      )}
 
       {/* TRACE Brand Name - absolute position like patterns page */}
       <motion.div
@@ -84,11 +80,11 @@ export function FullPatternsReportScreen({
         <h1
           style={{
             fontFamily: 'ALORE, Georgia, serif',
-            color: '#5A4A3A',
+            color: 'var(--text-primary)',
             fontWeight: 300,
             letterSpacing: '1em',
             fontSize: '11px',
-            textShadow: '0 0 15px rgba(90, 74, 58, 0.45), 0 0 30px rgba(90, 74, 58, 0.25), 0 2px 4px rgba(0,0,0,0.15)',
+            textShadow: `0 0 15px var(--orb-glow), 0 0 30px var(--orb-glow), 0 2px 4px rgba(0,0,0,0.15)`,
             opacity: 0.88,
           }}
         >
@@ -124,7 +120,7 @@ export function FullPatternsReportScreen({
                 fontSize: '32px',
                 fontWeight: 500,
                 letterSpacing: '0.04em',
-                color: '#4A3526',
+                color: 'var(--text-primary)',
                 marginBottom: '8px',
               }}
             >
@@ -133,7 +129,7 @@ export function FullPatternsReportScreen({
             <p
               style={{
                 fontFamily: 'Georgia, serif',
-                color: '#7D5D47',
+                color: 'var(--text-secondary)',
                 fontWeight: 300,
                 fontSize: '16px',
                 letterSpacing: '0.03em',
@@ -146,7 +142,7 @@ export function FullPatternsReportScreen({
             <p
               style={{
                 fontFamily: 'Georgia, serif',
-                color: '#7D5D47',
+                color: 'var(--text-secondary)',
                 fontWeight: 300,
                 fontSize: '14px',
                 letterSpacing: '0.03em',
@@ -209,7 +205,9 @@ export function FullPatternsReportScreen({
                 <div
                   className="absolute top-[20%] left-[30%] w-[29px] h-[29px] rounded-full"
                   style={{
-                    background: 'radial-gradient(circle, rgba(237, 232, 219, 0.63) 0%, transparent 70%)',
+                    background: isDark 
+                      ? 'radial-gradient(circle, rgba(200, 195, 180, 0.4) 0%, transparent 70%)'
+                      : 'radial-gradient(circle, rgba(237, 232, 219, 0.63) 0%, transparent 70%)',
                     filter: 'blur(8px)',
                   }}
                 />
@@ -219,7 +217,7 @@ export function FullPatternsReportScreen({
               <p
                 style={{
                   fontFamily: 'Georgia, serif',
-                  color: '#6A584B',
+                  color: 'var(--text-primary)',
                   fontWeight: 300,
                   fontSize: '15px',
                   letterSpacing: '0.02em',
@@ -242,15 +240,15 @@ export function FullPatternsReportScreen({
             <div
               className="rounded-3xl p-6"
               style={{
-                background: 'rgba(237, 232, 219, 0.5)',
-                boxShadow: '0 4px 20px rgba(106, 88, 75, 0.08)',
+                background: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(237, 232, 219, 0.5)',
+                boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.15)' : '0 4px 20px rgba(106, 88, 75, 0.08)',
               }}
             >
               <h3
                 className="mb-4"
                 style={{
                   fontFamily: 'Georgia, serif',
-                  color: '#6A584B',
+                  color: 'var(--text-primary)',
                   fontWeight: 400,
                   fontSize: '16px',
                   letterSpacing: '0.03em',
@@ -270,7 +268,7 @@ export function FullPatternsReportScreen({
                       y1={i * 45}
                       x2="100%"
                       y2={i * 45}
-                      stroke="rgba(106, 88, 75, 0.08)"
+                      stroke={isDark ? "rgba(255, 255, 255, 0.06)" : "rgba(106, 88, 75, 0.08)"}
                       strokeWidth="1"
                     />
                   ))}
@@ -286,7 +284,7 @@ export function FullPatternsReportScreen({
                       return `${i === 0 ? 'M' : 'L'} ${x}% ${y}%`;
                     }).join(' ')}
                     fill="none"
-                    stroke="#8DA18F"
+                    stroke={isDark ? '#A8B39A' : '#8DA18F'}
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -305,7 +303,7 @@ export function FullPatternsReportScreen({
                         cx={`${x}%`}
                         cy={`${y}%`}
                         r="4"
-                        fill="#8DA18F"
+                        fill={isDark ? '#A8B39A' : '#8DA18F'}
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ delay: 0.5 + i * 0.1, duration: 0.3 }}
@@ -321,9 +319,9 @@ export function FullPatternsReportScreen({
                       key={i}
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: '#6A584B',
+                        color: 'var(--text-secondary)',
                         fontSize: '11px',
-                        opacity: 0.5,
+                        opacity: 0.7,
                       }}
                     >
                       {d.day}
@@ -336,11 +334,11 @@ export function FullPatternsReportScreen({
                 className="text-center"
                 style={{
                   fontFamily: 'Georgia, serif',
-                  color: '#6A584B',
+                  color: 'var(--text-secondary)',
                   fontWeight: 300,
                   fontSize: '12px',
                   letterSpacing: '0.02em',
-                  opacity: 0.6,
+                  opacity: 0.8,
                 }}
               >
                 Your emotional flow across the week.
@@ -358,15 +356,15 @@ export function FullPatternsReportScreen({
             <div
               className="rounded-3xl p-6"
               style={{
-                background: 'rgba(237, 232, 219, 0.5)',
-                boxShadow: '0 4px 20px rgba(106, 88, 75, 0.08)',
+                background: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(237, 232, 219, 0.5)',
+                boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.15)' : '0 4px 20px rgba(106, 88, 75, 0.08)',
               }}
             >
               <h3
                 className="mb-6"
                 style={{
                   fontFamily: 'Georgia, serif',
-                  color: '#6A584B',
+                  color: 'var(--text-primary)',
                   fontWeight: 400,
                   fontSize: '16px',
                   letterSpacing: '0.03em',
@@ -389,8 +387,10 @@ export function FullPatternsReportScreen({
                     <div
                       className="flex-shrink-0 w-10 h-10 rounded-full"
                       style={{
-                        background: `radial-gradient(circle, rgba(141, 161, 143, ${day.value / 100}) 0%, rgba(141, 161, 143, ${day.value / 150}) 70%, transparent 100%)`,
-                        boxShadow: '0 2px 8px rgba(141, 161, 143, 0.2)',
+                        background: isDark 
+                          ? `radial-gradient(circle, rgba(168, 179, 154, ${day.value / 100}) 0%, rgba(168, 179, 154, ${day.value / 150}) 70%, transparent 100%)`
+                          : `radial-gradient(circle, rgba(141, 161, 143, ${day.value / 100}) 0%, rgba(141, 161, 143, ${day.value / 150}) 70%, transparent 100%)`,
+                        boxShadow: isDark ? '0 2px 8px rgba(168, 179, 154, 0.2)' : '0 2px 8px rgba(141, 161, 143, 0.2)',
                       }}
                     />
 
@@ -399,7 +399,7 @@ export function FullPatternsReportScreen({
                       <p
                         style={{
                           fontFamily: 'Georgia, serif',
-                          color: '#6A584B',
+                          color: 'var(--text-primary)',
                           fontWeight: 500,
                           fontSize: '13px',
                           marginBottom: '2px',
@@ -410,10 +410,10 @@ export function FullPatternsReportScreen({
                       <p
                         style={{
                           fontFamily: 'Georgia, serif',
-                          color: '#6A584B',
+                          color: 'var(--text-secondary)',
                           fontWeight: 300,
                           fontSize: '12px',
-                          opacity: 0.6,
+                          opacity: 0.8,
                           fontStyle: 'italic',
                         }}
                       >
@@ -437,7 +437,7 @@ export function FullPatternsReportScreen({
               className="mb-4"
               style={{
                 fontFamily: 'Georgia, serif',
-                color: '#6A584B',
+                color: 'var(--text-primary)',
                 fontWeight: 400,
                 fontSize: '16px',
                 letterSpacing: '0.03em',
@@ -452,8 +452,8 @@ export function FullPatternsReportScreen({
                   key={i}
                   className="rounded-2xl p-4 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                   style={{
-                    background: '#D7CDBF',
-                    boxShadow: '0 2px 12px rgba(106, 88, 75, 0.1)',
+                    background: isDark ? 'rgba(255, 255, 255, 0.05)' : '#D7CDBF',
+                    boxShadow: isDark ? '0 2px 12px rgba(0, 0, 0, 0.15)' : '0 2px 12px rgba(106, 88, 75, 0.1)',
                   }}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -462,7 +462,7 @@ export function FullPatternsReportScreen({
                   <p
                     style={{
                       fontFamily: 'Georgia, serif',
-                      color: '#5B4A3F',
+                      color: 'var(--text-primary)',
                       fontWeight: 400,
                       fontSize: '13px',
                       letterSpacing: '0.01em',
@@ -485,14 +485,14 @@ export function FullPatternsReportScreen({
             <div
               className="rounded-3xl p-6"
               style={{
-                background: 'rgba(237, 232, 219, 0.7)',
-                boxShadow: '0 4px 20px rgba(106, 88, 75, 0.1)',
+                background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(237, 232, 219, 0.7)',
+                boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.15)' : '0 4px 20px rgba(106, 88, 75, 0.1)',
               }}
             >
               <p
                 style={{
                   fontFamily: 'Georgia, serif',
-                  color: '#6A584B',
+                  color: 'var(--text-primary)',
                   fontWeight: 300,
                   fontSize: '14px',
                   lineHeight: '1.8',
@@ -517,7 +517,7 @@ export function FullPatternsReportScreen({
               className="mb-4"
               style={{
                 fontFamily: 'Georgia, serif',
-                color: '#6A584B',
+                color: 'var(--text-primary)',
                 fontWeight: 400,
                 fontSize: '16px',
                 letterSpacing: '0.03em',
@@ -537,17 +537,17 @@ export function FullPatternsReportScreen({
                 >
                   <div
                     className="flex-shrink-0 w-1.5 h-1.5 rounded-full mt-2"
-                    style={{ background: '#8DA18F' }}
+                    style={{ background: isDark ? '#A8B39A' : '#8DA18F' }}
                   />
                   <p
                     style={{
                       fontFamily: 'Georgia, serif',
-                      color: '#6A584B',
+                      color: 'var(--text-primary)',
                       fontWeight: 300,
                       fontSize: '13px',
                       lineHeight: '1.6',
                       letterSpacing: '0.01em',
-                      opacity: 0.8,
+                      opacity: 0.9,
                     }}
                   >
                     {suggestion}
@@ -568,14 +568,14 @@ export function FullPatternsReportScreen({
               onClick={onNavigateActivities}
               className="w-full rounded-full px-8 py-4 mb-4 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               style={{
-                background: '#EDE8DB',
-                boxShadow: '0 4px 16px rgba(106, 88, 75, 0.12)',
+                background: isDark ? 'rgba(255, 255, 255, 0.06)' : '#EDE8DB',
+                boxShadow: isDark ? '0 4px 16px rgba(0, 0, 0, 0.15)' : '0 4px 16px rgba(106, 88, 75, 0.12)',
               }}
             >
               <span
                 style={{
                   fontFamily: 'Georgia, serif',
-                  color: '#6A584B',
+                  color: 'var(--text-primary)',
                   fontWeight: 500,
                   fontSize: '15px',
                   letterSpacing: '0.03em',
@@ -591,11 +591,11 @@ export function FullPatternsReportScreen({
               <span
                 style={{
                   fontFamily: 'Georgia, serif',
-                  color: '#6A584B',
+                  color: 'var(--text-secondary)',
                   fontWeight: 300,
                   fontSize: '13px',
                   letterSpacing: '0.02em',
-                  opacity: 0.6,
+                  opacity: 0.8,
                 }}
               >
                 Export My Patterns (Studio only)

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
+import { useTheme } from '../state/ThemeContext';
 
 interface PrivacyScreenProps {
   onBackToHelp?: () => void;
@@ -22,29 +23,23 @@ export function PrivacyScreen({
 }: PrivacyScreenProps) {
   void _onNavigateToPatterns;
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const { theme } = useTheme();
+  const isDark = theme === 'night';
 
   return (
     <div 
       className="relative w-full h-full overflow-hidden"
       style={{ 
-        background: 'linear-gradient(to bottom, #F5F1EB 0%, #E8DFD3 100%)' 
+        background: 'transparent' 
       }}
     >
-      {/* Subtle grain texture overlay */}
-      <div 
-        className="fixed inset-0 pointer-events-none opacity-[0.015]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-          backgroundRepeat: 'repeat',
-          mixBlendMode: 'overlay',
-        }}
-      />
-
       {/* Soft vignette overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(circle at center, transparent 0%, rgba(75, 75, 75, 0.04) 100%)',
+          background: isDark
+            ? 'radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.08) 100%)'
+            : 'radial-gradient(circle at center, transparent 0%, rgba(75, 75, 75, 0.04) 100%)',
         }}
       />
 
@@ -59,11 +54,11 @@ export function PrivacyScreen({
         <h1
           style={{
             fontFamily: 'ALORE, Georgia, serif',
-            color: '#5A4A3A',
+            color: 'var(--text-primary)',
             fontWeight: 300,
             letterSpacing: '1em',
             fontSize: '11px',
-            textShadow: '0 0 15px rgba(90, 74, 58, 0.45), 0 0 30px rgba(90, 74, 58, 0.25), 0 2px 4px rgba(0,0,0,0.15)',
+            textShadow: `0 0 15px var(--orb-glow), 0 0 30px var(--orb-glow), 0 2px 4px rgba(0,0,0,0.15)`,
             opacity: 0.88,
           }}
         >
@@ -101,7 +96,7 @@ export function PrivacyScreen({
                 fontSize: '30px',
                 fontWeight: 500,
                 letterSpacing: '0.04em',
-                color: '#5A4A3A',
+                color: 'var(--text-primary)',
               }}
             >
               Privacy & Your Data
@@ -112,7 +107,7 @@ export function PrivacyScreen({
                 fontSize: '14px',
                 fontWeight: 300,
                 letterSpacing: '0.03em',
-                color: '#7D6D5D',
+                color: 'var(--text-secondary)',
                 fontStyle: 'italic',
                 marginTop: '-0.6rem',
               }}
@@ -125,9 +120,13 @@ export function PrivacyScreen({
           <motion.div
             className="w-full rounded-[28px] p-8"
             style={{
-              background: 'linear-gradient(135deg, #F7F4F0 0%, #F2EFE9 100%)',
-              boxShadow: '0 8px 32px rgba(75, 75, 75, 0.08), 0 2px 8px rgba(75, 75, 75, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.5)',
+              background: 'var(--card)',
+              boxShadow: isDark
+                ? '0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2)'
+                : '0 8px 32px rgba(75, 75, 75, 0.08), 0 2px 8px rgba(75, 75, 75, 0.04)',
+              border: isDark
+                ? '1px solid rgba(255, 255, 255, 0.08)'
+                : '1px solid rgba(255, 255, 255, 0.5)',
               marginTop: '-1rem',
             }}
             initial={{ opacity: 0, y: 30 }}
@@ -142,7 +141,7 @@ export function PrivacyScreen({
                   fontFamily: 'Playfair Display, Georgia, serif',
                   fontSize: '18px',
                   fontWeight: 500,
-                  color: '#5A4A3A',
+                  color: 'var(--text-primary)',
                   letterSpacing: '0.02em',
                 }}
               >
@@ -153,7 +152,7 @@ export function PrivacyScreen({
                   fontFamily: 'Georgia, serif',
                   fontSize: '15px',
                   fontWeight: 300,
-                  color: '#75655A',
+                  color: 'var(--text-secondary)',
                   lineHeight: '1.7',
                   letterSpacing: '0.01em',
                 }}
@@ -166,7 +165,9 @@ export function PrivacyScreen({
             <div 
               className="w-full h-[1px] mb-8"
               style={{
-                background: 'linear-gradient(to right, transparent 0%, rgba(75, 75, 75, 0.08) 50%, transparent 100%)',
+                background: isDark
+                  ? 'linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%)'
+                  : 'linear-gradient(to right, transparent 0%, rgba(75, 75, 75, 0.08) 50%, transparent 100%)',
               }}
             />
 
@@ -178,7 +179,7 @@ export function PrivacyScreen({
                   fontFamily: 'Playfair Display, Georgia, serif',
                   fontSize: '18px',
                   fontWeight: 500,
-                  color: '#5A4A3A',
+                  color: 'var(--text-primary)',
                   letterSpacing: '0.02em',
                 }}
               >
@@ -189,7 +190,7 @@ export function PrivacyScreen({
                   fontFamily: 'Georgia, serif',
                   fontSize: '15px',
                   fontWeight: 300,
-                  color: '#75655A',
+                  color: 'var(--text-secondary)',
                   lineHeight: '1.7',
                   letterSpacing: '0.01em',
                 }}
@@ -202,7 +203,9 @@ export function PrivacyScreen({
             <div 
               className="w-full h-[1px] mb-8"
               style={{
-                background: 'linear-gradient(to right, transparent 0%, rgba(75, 75, 75, 0.08) 50%, transparent 100%)',
+                background: isDark
+                  ? 'linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%)'
+                  : 'linear-gradient(to right, transparent 0%, rgba(75, 75, 75, 0.08) 50%, transparent 100%)',
               }}
             />
 
@@ -214,7 +217,7 @@ export function PrivacyScreen({
                   fontFamily: 'Playfair Display, Georgia, serif',
                   fontSize: '18px',
                   fontWeight: 500,
-                  color: '#5A4A3A',
+                  color: 'var(--text-primary)',
                   letterSpacing: '0.02em',
                 }}
               >
@@ -225,7 +228,7 @@ export function PrivacyScreen({
                   fontFamily: 'Georgia, serif',
                   fontSize: '15px',
                   fontWeight: 300,
-                  color: '#75655A',
+                  color: 'var(--text-secondary)',
                   lineHeight: '1.7',
                   letterSpacing: '0.01em',
                 }}
@@ -238,7 +241,9 @@ export function PrivacyScreen({
             <div 
               className="w-full h-[1px] mt-8 mb-6"
               style={{
-                background: 'linear-gradient(to right, transparent 0%, rgba(75, 75, 75, 0.08) 50%, transparent 100%)',
+                background: isDark
+                  ? 'linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%)'
+                  : 'linear-gradient(to right, transparent 0%, rgba(75, 75, 75, 0.08) 50%, transparent 100%)',
               }}
             />
 
@@ -246,12 +251,13 @@ export function PrivacyScreen({
             <div className="space-y-3">
               <button
                 onClick={() => setShowPrivacyModal(true)}
-                className="w-full text-left py-3 px-4 rounded-2xl transition-all duration-300 hover:bg-black/5"
+                className="w-full text-left py-3 px-4 rounded-2xl transition-all duration-300"
+                style={{ backgroundColor: isDark ? 'transparent' : 'transparent' }}
               >
                 <span
                   style={{
                     fontFamily: 'Georgia, serif',
-                    color: '#5A4A3A',
+                    color: 'var(--text-primary)',
                     fontSize: '15px',
                     fontWeight: 400,
                     letterSpacing: '0.01em',
@@ -277,15 +283,21 @@ export function PrivacyScreen({
               onClick={onReturnToChat}
               className="w-full rounded-full px-8 py-5 transition-all duration-300 hover:scale-[1.01] active:scale-[0.98]"
               style={{
-                background: 'linear-gradient(135deg, #D9CFC2 0%, #CEC4B8 100%)',
-                boxShadow: '0 6px 24px rgba(75, 75, 75, 0.1), 0 2px 8px rgba(75, 75, 75, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
+                background: isDark
+                  ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%)'
+                  : 'linear-gradient(135deg, #D9CFC2 0%, #CEC4B8 100%)',
+                boxShadow: isDark
+                  ? '0 6px 24px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1)'
+                  : '0 6px 24px rgba(75, 75, 75, 0.1), 0 2px 8px rgba(75, 75, 75, 0.05)',
+                border: isDark
+                  ? '1px solid rgba(255, 255, 255, 0.1)'
+                  : '1px solid rgba(255, 255, 255, 0.3)',
               }}
             >
               <span
                 style={{
                   fontFamily: 'Georgia, serif',
-                  color: '#5A4A3A',
+                  color: 'var(--text-primary)',
                   fontSize: '16px',
                   fontWeight: 400,
                   letterSpacing: '0.02em',

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { patternsData, Pattern } from '../data/patterns';
 import { usePlanTier } from '../hooks/usePlanTier';
+import { useTheme } from '../state/ThemeContext';
 
 interface TracePatternsScreenProps {
   onViewFull?: () => void;
@@ -20,6 +21,9 @@ interface PatternModalProps {
 }
 
 function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'night';
+  
   if (!pattern) return null;
 
   return (
@@ -42,9 +46,11 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
           <motion.div
             className="relative z-10 w-full max-w-[340px] rounded-[24px] p-6 max-h-[85vh] overflow-y-auto"
             style={{
-              backgroundColor: '#E9E2D8',
-              border: '1px solid rgba(43, 30, 21, 0.12)',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.1)',
+              backgroundColor: isDark ? 'rgba(38, 42, 38, 0.95)' : '#E9E2D8',
+              border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.12)',
+              boxShadow: isDark 
+                ? '0 20px 60px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3)'
+                : '0 20px 60px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.1)',
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',
             }}
@@ -62,14 +68,14 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                 right: '16px',
                 width: '32px',
                 height: '32px',
-                backgroundColor: 'rgba(90, 74, 58, 0.1)',
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(90, 74, 58, 0.1)',
                 zIndex: 10,
               }}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path
                   d="M1 1L13 13M1 13L13 1"
-                  stroke="#5A4A3A"
+                  stroke={isDark ? '#F2F0EC' : '#5A4A3A'}
                   strokeWidth="1.5"
                   strokeLinecap="round"
                 />
@@ -82,7 +88,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                   fontFamily: 'Playfair Display, Georgia, serif',
                   fontSize: '22px',
                   fontWeight: 500,
-                  color: '#4A3526',
+                  color: 'var(--text-primary)',
                   marginBottom: '4px',
                   letterSpacing: '0.01em',
                 }}
@@ -94,7 +100,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                   fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                   fontSize: '13px',
                   fontWeight: 400,
-                  color: '#7D5D47',
+                  color: 'var(--text-secondary)',
                   marginBottom: '16px',
                 }}
               >
@@ -106,8 +112,8 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
               <div
                 className="rounded-[12px] px-4 py-3 mb-4"
                 style={{
-                  backgroundColor: 'rgba(141, 161, 143, 0.15)',
-                  border: '1px solid rgba(141, 161, 143, 0.2)',
+                  backgroundColor: 'var(--accent-soft)',
+                  border: isDark ? '1px solid rgba(168, 179, 154, 0.2)' : '1px solid rgba(141, 161, 143, 0.2)',
                 }}
               >
                 <p
@@ -115,7 +121,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                     fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                     fontSize: '14px',
                     fontWeight: 500,
-                    color: '#5A4A3A',
+                    color: 'var(--text-primary)',
                   }}
                 >
                   {pattern.timeWindow}
@@ -127,7 +133,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
               style={{
                 width: '100%',
                 height: '1px',
-                backgroundColor: 'rgba(43, 30, 21, 0.1)',
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(43, 30, 21, 0.1)',
                 marginBottom: '16px',
               }}
             />
@@ -138,7 +144,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                   fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                   fontSize: '12px',
                   fontWeight: 600,
-                  color: '#7D5D47',
+                  color: 'var(--text-secondary)',
                   letterSpacing: '0.05em',
                   textTransform: 'uppercase',
                   marginBottom: '12px',
@@ -154,7 +160,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                       fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                       fontSize: '14px',
                       fontWeight: 300,
-                      color: '#5A4A3A',
+                      color: 'var(--text-primary)',
                       lineHeight: '1.6',
                       marginBottom: '8px',
                       paddingLeft: '16px',
@@ -165,7 +171,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                       style={{
                         position: 'absolute',
                         left: 0,
-                        color: '#8DA18F',
+                        color: 'var(--accent)',
                       }}
                     >
                       •
@@ -182,7 +188,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                   fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                   fontSize: '12px',
                   fontWeight: 600,
-                  color: '#7D5D47',
+                  color: 'var(--text-secondary)',
                   letterSpacing: '0.05em',
                   textTransform: 'uppercase',
                   marginBottom: '12px',
@@ -198,7 +204,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                       fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                       fontSize: '14px',
                       fontWeight: 300,
-                      color: '#5A4A3A',
+                      color: 'var(--text-primary)',
                       lineHeight: '1.6',
                       marginBottom: '8px',
                       paddingLeft: '16px',
@@ -209,7 +215,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                       style={{
                         position: 'absolute',
                         left: 0,
-                        color: '#A9683A',
+                        color: isDark ? '#C49A6C' : '#A9683A',
                       }}
                     >
                       →
@@ -237,7 +243,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                   fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                   fontSize: '14px',
                   fontWeight: 500,
-                  color: '#8DA18F',
+                  color: 'var(--accent)',
                   letterSpacing: '0.01em',
                 }}
               >
@@ -249,8 +255,8 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
               onClick={onClose}
               className="w-full rounded-[16px] px-6 py-4 transition-all duration-200 active:scale-[0.98]"
               style={{
-                backgroundColor: '#D7C8B5',
-                border: '1px solid rgba(43, 30, 21, 0.1)',
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#D7C8B5',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.1)',
               }}
             >
               <span
@@ -258,7 +264,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                   fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                   fontSize: '15px',
                   fontWeight: 500,
-                  color: '#4A3526',
+                  color: 'var(--text-primary)',
                   letterSpacing: '0.02em',
                 }}
               >
@@ -278,6 +284,9 @@ interface UpsellModalProps {
 }
 
 function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'night';
+  
   if (!isOpen) return null;
 
   return (
@@ -300,9 +309,11 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
           <motion.div
             className="relative z-10 w-full max-w-[320px] rounded-[24px] p-6"
             style={{
-              backgroundColor: '#E9E2D8',
-              border: '1px solid rgba(43, 30, 21, 0.12)',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.1)',
+              backgroundColor: isDark ? 'rgba(38, 42, 38, 0.95)' : '#E9E2D8',
+              border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.12)',
+              boxShadow: isDark 
+                ? '0 20px 60px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3)'
+                : '0 20px 60px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.1)',
             }}
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -318,13 +329,13 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
                 right: '16px',
                 width: '32px',
                 height: '32px',
-                backgroundColor: 'rgba(90, 74, 58, 0.1)' 
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(90, 74, 58, 0.1)' 
               }}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path
                   d="M1 1L13 13M1 13L13 1"
-                  stroke="#5A4A3A"
+                  stroke={isDark ? '#F2F0EC' : '#5A4A3A'}
                   strokeWidth="1.5"
                   strokeLinecap="round"
                 />
@@ -333,12 +344,12 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
 
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center mb-4"
-              style={{ backgroundColor: 'rgba(141, 161, 143, 0.2)' }}
+              style={{ backgroundColor: 'var(--accent-soft)' }}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
-                  stroke="#8DA18F"
+                  stroke="var(--accent)"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -351,7 +362,7 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
                 fontFamily: 'Playfair Display, Georgia, serif',
                 fontSize: '20px',
                 fontWeight: 500,
-                color: '#4A3526',
+                color: 'var(--text-primary)',
                 marginBottom: '12px',
                 letterSpacing: '0.01em',
                 paddingRight: '32px',
@@ -365,7 +376,7 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
                 fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                 fontSize: '15px',
                 fontWeight: 300,
-                color: '#5A4A3A',
+                color: 'var(--text-primary)',
                 lineHeight: '1.65',
                 marginBottom: '24px',
               }}
@@ -380,8 +391,8 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
               }}
               className="w-full rounded-[16px] px-6 py-4 transition-all duration-200 active:scale-[0.98] mb-3"
               style={{
-                backgroundColor: '#8DA18F',
-                border: '1px solid rgba(43, 30, 21, 0.1)',
+                backgroundColor: 'var(--accent)',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.1)',
               }}
             >
               <span
@@ -411,7 +422,7 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
                   fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                   fontSize: '14px',
                   fontWeight: 400,
-                  color: '#7D5D47',
+                  color: 'var(--text-secondary)',
                 }}
               >
                 Maybe later
@@ -656,23 +667,18 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
     return particles;
   };
 
-  return (
-    <div className="relative w-full h-full overflow-hidden" style={{ background: 'linear-gradient(to bottom, #F4F1EC 0%, #D3CFC8 100%)' }}>
-      {/* Subtle grain texture overlay */}
-      <div 
-        className="fixed inset-0 pointer-events-none opacity-[0.015]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-          backgroundRepeat: 'repeat',
-          mixBlendMode: 'overlay',
-        }}
-      />
+  const { theme } = useTheme();
+  const isDark = theme === 'night';
 
+  return (
+    <div className="relative w-full h-full overflow-hidden" style={{ background: 'transparent' }}>
       {/* Soft vignette overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(circle at center, transparent 0%, rgba(75, 75, 75, 0.05) 100%)',
+          background: isDark 
+            ? 'radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.1) 100%)'
+            : 'radial-gradient(circle at center, transparent 0%, rgba(75, 75, 75, 0.05) 100%)',
         }}
       />
 
@@ -687,11 +693,11 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
         <h1
           style={{
             fontFamily: 'ALORE, Georgia, serif',
-            color: '#5A4A3A',
+            color: 'var(--text-primary)',
             fontWeight: 300,
             letterSpacing: '1em',
             fontSize: '11px',
-            textShadow: '0 0 15px rgba(90, 74, 58, 0.45), 0 0 30px rgba(90, 74, 58, 0.25), 0 2px 4px rgba(0,0,0,0.15)',
+            textShadow: `0 0 15px var(--orb-glow), 0 0 30px var(--orb-glow), 0 2px 4px rgba(0,0,0,0.15)`,
             opacity: 0.88,
           }}
         >
@@ -728,7 +734,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   fontSize: '32px',
                   fontWeight: 500,
                   letterSpacing: '0.04em',
-                  color: '#4A3526',
+                  color: 'var(--text-primary)',
                 }}
               >
                 PATTERNS™
@@ -739,7 +745,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   fontSize: '14px',
                   fontWeight: 300,
                   letterSpacing: '0.03em',
-                  color: '#7D5D47',
+                  color: 'var(--text-secondary)',
                 }}
               >
                 Your weekly rhythm, quietly mapped.
@@ -889,13 +895,13 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             <motion.div
               className="rounded-[22px] p-6 cursor-pointer relative"
               style={{
-                backgroundColor: '#D7C8B5',
-                border: '1px solid rgba(43, 30, 21, 0.1)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.01)',
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#D7C8B5',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(43, 30, 21, 0.1)',
+                boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1)' : '0 2px 8px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.01)',
               }}
               onClick={() => peakWindowPattern && handlePatternClick(peakWindowPattern)}
               whileTap={{ scale: 0.98 }}
-              whileHover={{ boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
+              whileHover={{ boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.25)' : '0 4px 12px rgba(0,0,0,0.06)' }}
             >
               {peakWindowPattern?.tag && (
                 <span
@@ -906,7 +912,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                     fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                     fontSize: '10px',
                     fontWeight: 500,
-                    color: '#8DA18F',
+                    color: 'var(--accent)',
                     letterSpacing: '0.03em',
                     textTransform: 'uppercase',
                   }}
@@ -919,7 +925,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   fontFamily: 'Playfair Display, Georgia, serif',
                   fontSize: '17px',
                   fontWeight: 500,
-                  color: '#4A3526',
+                  color: 'var(--text-primary)',
                   marginBottom: '6px',
                   letterSpacing: '0.01em',
                 }}
@@ -931,7 +937,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                   fontSize: '13px',
                   fontWeight: 300,
-                  color: '#5A4A3A',
+                  color: 'var(--text-primary)',
                   lineHeight: '1.5',
                   marginBottom: '14px',
                 }}
@@ -957,13 +963,13 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             <motion.div
               className="rounded-[22px] p-6 cursor-pointer relative"
               style={{
-                backgroundColor: '#D7C8B5',
-                border: '1px solid rgba(43, 30, 21, 0.1)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.01)',
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#D7C8B5',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(43, 30, 21, 0.1)',
+                boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1)' : '0 2px 8px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.01)',
               }}
               onClick={() => energyTidesPattern && handlePatternClick(energyTidesPattern)}
               whileTap={{ scale: 0.98 }}
-              whileHover={{ boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
+              whileHover={{ boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.25)' : '0 4px 12px rgba(0,0,0,0.06)' }}
             >
               {energyTidesPattern?.tag && (
                 <span
@@ -974,7 +980,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                     fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                     fontSize: '10px',
                     fontWeight: 500,
-                    color: '#8DA18F',
+                    color: 'var(--accent)',
                     letterSpacing: '0.03em',
                     textTransform: 'uppercase',
                   }}
@@ -987,7 +993,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   fontFamily: 'Playfair Display, Georgia, serif',
                   fontSize: '17px',
                   fontWeight: 500,
-                  color: '#4A3526',
+                  color: 'var(--text-primary)',
                   marginBottom: '6px',
                   letterSpacing: '0.01em',
                 }}
@@ -999,7 +1005,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                   fontSize: '13px',
                   fontWeight: 300,
-                  color: '#5A4A3A',
+                  color: 'var(--text-primary)',
                   lineHeight: '1.5',
                   marginBottom: '14px',
                 }}
@@ -1025,13 +1031,13 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             <motion.div
               className="rounded-[22px] p-6 cursor-pointer relative"
               style={{
-                backgroundColor: '#D7C8B5',
-                border: '1px solid rgba(43, 30, 21, 0.1)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.01)',
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#D7C8B5',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(43, 30, 21, 0.1)',
+                boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1)' : '0 2px 8px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.01)',
               }}
               onClick={() => stressEchoesPattern && handlePatternClick(stressEchoesPattern)}
               whileTap={{ scale: 0.98 }}
-              whileHover={{ boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
+              whileHover={{ boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.25)' : '0 4px 12px rgba(0,0,0,0.06)' }}
             >
               {stressEchoesPattern && !canAccessPattern(stressEchoesPattern.requiredTier) ? (
                 <span
@@ -1042,7 +1048,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                     fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                     fontSize: '10px',
                     fontWeight: 500,
-                    color: '#A9683A',
+                    color: isDark ? '#C49A6C' : '#A9683A',
                     letterSpacing: '0.03em',
                     textTransform: 'uppercase',
                     display: 'flex',
@@ -1053,7 +1059,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
                     <path
                       d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
-                      stroke="#A9683A"
+                      stroke={isDark ? '#C49A6C' : '#A9683A'}
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1070,7 +1076,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                     fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                     fontSize: '10px',
                     fontWeight: 500,
-                    color: '#8DA18F',
+                    color: 'var(--accent)',
                     letterSpacing: '0.03em',
                     textTransform: 'uppercase',
                   }}
@@ -1083,7 +1089,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   fontFamily: 'Playfair Display, Georgia, serif',
                   fontSize: '17px',
                   fontWeight: 500,
-                  color: '#4A3526',
+                  color: 'var(--text-primary)',
                   marginBottom: '6px',
                   letterSpacing: '0.01em',
                 }}
@@ -1095,7 +1101,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                   fontSize: '13px',
                   fontWeight: 300,
-                  color: '#5A4A3A',
+                  color: 'var(--text-primary)',
                   lineHeight: '1.5',
                   marginBottom: '14px',
                 }}
@@ -1134,9 +1140,9 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
           <motion.div
             className="rounded-[22px] p-6 mt-8"
             style={{
-              backgroundColor: '#E9E2D8',
-              border: '1px solid rgba(43, 30, 21, 0.08)',
-              boxShadow: '0 3px 12px rgba(0,0,0,0.02)',
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#E9E2D8',
+              border: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(43, 30, 21, 0.08)',
+              boxShadow: isDark ? '0 3px 12px rgba(0,0,0,0.1)' : '0 3px 12px rgba(0,0,0,0.02)',
             }}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1148,7 +1154,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 fontFamily: 'Playfair Display, Georgia, serif',
                 fontSize: '12px',
                 fontWeight: 400,
-                color: '#7D5D47',
+                color: 'var(--text-secondary)',
                 letterSpacing: '0.04em',
               }}
             >
@@ -1228,7 +1234,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 fontFamily: 'Playfair Display, Georgia, serif',
                 fontSize: '19px',
                 fontWeight: 500,
-                color: '#5A4A3A',
+                color: 'var(--text-primary)',
                 letterSpacing: '0.02em',
               }}
             >
@@ -1240,9 +1246,9 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 key={signature}
                 className="rounded-[18px] px-5 py-4"
                 style={{
-                  backgroundColor: '#E9E2D8',
-                  border: '1px solid rgba(43, 30, 21, 0.09)',
-                  boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.03), 0 1px 4px rgba(0,0,0,0.02)',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#E9E2D8',
+                  border: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(43, 30, 21, 0.09)',
+                  boxShadow: isDark ? 'inset 0 1px 2px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.08)' : 'inset 0 1px 2px rgba(0,0,0,0.03), 0 1px 4px rgba(0,0,0,0.02)',
                 }}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1253,7 +1259,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                     fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                     fontSize: '14px',
                     fontWeight: 400,
-                    color: '#5A4A3A',
+                    color: 'var(--text-primary)',
                     letterSpacing: '0.01em',
                   }}
                 >
@@ -1267,9 +1273,9 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
           <motion.div
             className="rounded-[22px] p-8 mt-6"
             style={{
-              backgroundColor: '#F2EFEA',
-              border: '1px solid rgba(43, 30, 21, 0.08)',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : '#F2EFEA',
+              border: isDark ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid rgba(43, 30, 21, 0.08)',
+              boxShadow: isDark ? '0 4px 16px rgba(0,0,0,0.1)' : '0 4px 16px rgba(0,0,0,0.03)',
             }}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1280,7 +1286,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 fontFamily: 'Playfair Display, Georgia, serif',
                 fontSize: '15px',
                 fontWeight: 300,
-                color: '#4A3526',
+                color: 'var(--text-primary)',
                 lineHeight: '1.8',
                 letterSpacing: '0.01em',
                 fontStyle: 'italic',
@@ -1307,9 +1313,9 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               onClick={onViewFull}
               className="w-full rounded-[20px] px-8 py-5 transition-all duration-300 active:scale-[0.98]"
               style={{
-                backgroundColor: '#D7C8B5',
-                border: '1px solid rgba(43, 30, 21, 0.1)',
-                boxShadow: '0 3px 12px rgba(0,0,0,0.04)',
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#D7C8B5',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(43, 30, 21, 0.1)',
+                boxShadow: isDark ? '0 3px 12px rgba(0,0,0,0.12)' : '0 3px 12px rgba(0,0,0,0.04)',
               }}
             >
               <span
@@ -1317,7 +1323,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                   fontSize: '15px',
                   fontWeight: 400,
-                  color: '#5A4A3A',
+                  color: 'var(--text-primary)',
                   letterSpacing: '0.02em',
                 }}
               >
