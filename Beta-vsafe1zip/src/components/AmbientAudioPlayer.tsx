@@ -46,14 +46,10 @@ export function AmbientAudioPlayer({
   useEffect(() => {
     if (!isLoaded) return;
     
-    console.log('AmbientAudioPlayer:', { shouldPlay, isPlaying, isLoaded });
-    
     if (shouldPlay && !isPlaying) {
-      console.log('Starting ambient audio playback');
       hasStartedRef.current = true;
       play();
     } else if (!shouldPlay && isPlaying) {
-      console.log('Pausing ambient audio');
       pause();
     }
   }, [shouldPlay, isLoaded, isPlaying, play, pause]);
