@@ -281,7 +281,7 @@ export function FullPatternsReportScreen({
             <div
               className="rounded-3xl p-6"
               style={{
-                background: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(237, 232, 219, 0.5)',
+                background: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(237, 232, 219, 0.5)',
                 boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.15)' : '0 4px 20px rgba(106, 88, 75, 0.08)',
               }}
             >
@@ -399,7 +399,7 @@ export function FullPatternsReportScreen({
             <div
               className="rounded-3xl p-6"
               style={{
-                background: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(237, 232, 219, 0.5)',
+                background: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(237, 232, 219, 0.5)',
                 boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.15)' : '0 4px 20px rgba(106, 88, 75, 0.08)',
               }}
             >
@@ -495,7 +495,7 @@ export function FullPatternsReportScreen({
                   key={i}
                   className="rounded-2xl p-4 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                   style={{
-                    background: isDark ? 'rgba(255, 255, 255, 0.05)' : '#D7CDBF',
+                    background: isDark ? 'rgba(255, 255, 255, 0.14)' : '#D7CDBF',
                     boxShadow: isDark ? '0 2px 12px rgba(0, 0, 0, 0.15)' : '0 2px 12px rgba(106, 88, 75, 0.1)',
                   }}
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -528,7 +528,7 @@ export function FullPatternsReportScreen({
             <div
               className="rounded-3xl p-6"
               style={{
-                background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(237, 232, 219, 0.7)',
+                background: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(237, 232, 219, 0.7)',
                 boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.15)' : '0 4px 20px rgba(106, 88, 75, 0.1)',
               }}
             >
@@ -611,7 +611,7 @@ export function FullPatternsReportScreen({
               onClick={onNavigateActivities}
               className="w-full rounded-full px-8 py-4 mb-4 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               style={{
-                background: isDark ? 'rgba(255, 255, 255, 0.06)' : '#EDE8DB',
+                background: isDark ? 'rgba(255, 255, 255, 0.12)' : '#EDE8DB',
                 boxShadow: isDark ? '0 4px 16px rgba(0, 0, 0, 0.15)' : '0 4px 16px rgba(106, 88, 75, 0.12)',
               }}
             >
