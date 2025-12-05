@@ -286,8 +286,8 @@ export function RainWindowScreen({
                 transition={{ delay: 0.3, duration: 1 }}
               >
                 <svg 
-                  width="48" 
-                  height="48" 
+                  width="41" 
+                  height="41" 
                   viewBox="0 0 24 24" 
                   fill="none" 
                   style={{ filter: 'drop-shadow(0 2px 12px rgba(0, 0, 0, 0.3))' }}
