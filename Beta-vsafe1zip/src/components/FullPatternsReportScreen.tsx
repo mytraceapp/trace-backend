@@ -283,7 +283,7 @@ export function FullPatternsReportScreen({
             <div
               className="rounded-3xl p-6"
               style={{
-                background: isDark ? 'rgba(30, 35, 32, 0.98)' : 'rgba(237, 232, 219, 0.5)',
+                background: isDark ? 'rgba(30, 35, 32, 1)' : 'rgba(237, 232, 219, 0.5)',
                 boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.25)' : '0 4px 20px rgba(106, 88, 75, 0.08)',
               }}
             >
@@ -408,7 +408,7 @@ export function FullPatternsReportScreen({
             <div
               className="rounded-3xl p-6"
               style={{
-                background: isDark ? 'rgba(30, 35, 32, 0.98)' : 'rgba(237, 232, 219, 0.5)',
+                background: isDark ? 'rgba(30, 35, 32, 1)' : 'rgba(237, 232, 219, 0.5)',
                 boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.25)' : '0 4px 20px rgba(106, 88, 75, 0.08)',
               }}
             >
@@ -504,7 +504,7 @@ export function FullPatternsReportScreen({
                   key={i}
                   className="rounded-2xl p-4 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                   style={{
-                    background: isDark ? 'rgba(35, 40, 37, 0.98)' : '#D7CDBF',
+                    background: isDark ? 'rgba(35, 40, 37, 1)' : '#D7CDBF',
                     boxShadow: isDark ? '0 2px 12px rgba(0, 0, 0, 0.15)' : '0 2px 12px rgba(106, 88, 75, 0.1)',
                   }}
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -537,7 +537,7 @@ export function FullPatternsReportScreen({
             <div
               className="rounded-3xl p-6"
               style={{
-                background: isDark ? 'rgba(30, 35, 32, 0.98)' : 'rgba(237, 232, 219, 0.7)',
+                background: isDark ? 'rgba(30, 35, 32, 1)' : 'rgba(237, 232, 219, 0.7)',
                 boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.15)' : '0 4px 20px rgba(106, 88, 75, 0.1)',
               }}
             >
