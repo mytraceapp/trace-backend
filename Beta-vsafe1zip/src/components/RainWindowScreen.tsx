@@ -427,7 +427,7 @@ export function RainWindowScreen({
       {isActive && !showCompletion && (
         <motion.div 
           className="absolute left-0 right-0 flex flex-col items-center z-20" 
-          style={{ bottom: '112px' }}
+          style={{ bottom: '100px' }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.8 }}
@@ -436,7 +436,7 @@ export function RainWindowScreen({
           <motion.button
             className="mb-4"
             style={{ 
-              padding: '10px 16px',
+              padding: '10px',
               background: 'rgba(0, 0, 0, 0.25)',
               backdropFilter: 'blur(20px)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -444,7 +444,7 @@ export function RainWindowScreen({
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              justifyContent: 'center',
             }}
             onClick={toggleQuietMode}
             whileTap={{ scale: 0.95 }}
@@ -464,14 +464,6 @@ export function RainWindowScreen({
             >
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
-            <span style={{
-              color: 'rgba(255, 255, 255, 0.5)',
-              fontSize: '11px',
-              fontWeight: 300,
-              letterSpacing: '0.05em',
-            }}>
-              {quietMode ? 'Quiet' : 'Quiet'}
-            </span>
           </motion.button>
 
           {/* Volume Slider */}
