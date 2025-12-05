@@ -3,14 +3,15 @@
 :root {
   --night-bg: #0E0F0D;
   --night-bg-soft: #1A1C1A;
-  --night-card: #1F211F;
-  --night-card-elevated: rgba(42, 46, 42, 0.85);
-  --night-border: rgba(255, 255, 255, 0.08);
+  --night-card: rgba(38, 42, 38, 0.92);
+  --night-card-elevated: rgba(48, 52, 48, 0.95);
+  --night-card-alt: rgba(32, 36, 32, 0.88);
+  --night-border: rgba(255, 255, 255, 0.1);
   --night-text-primary: #F2F0EC;
   --night-text-secondary: #C7C5C0;
-  --night-text-tertiary: #9A9896;
+  --night-text-tertiary: #A8A6A2;
   --night-accent: #A8B39A;
-  --night-accent-soft: rgba(168, 179, 154, 0.12);
+  --night-accent-soft: rgba(168, 179, 154, 0.15);
   --night-input-bg: #2A2C2A;
   --orb-glow-night: rgba(168, 179, 154, 0.25);
   --orb-core-night: rgba(255, 255, 255, 0.7);
@@ -49,42 +50,42 @@
   --transition: 300ms ease-out;
 }
 
-.theme-day {
-  --bg: var(--day-bg);
-  --bg-soft: var(--day-bg-soft);
-  --card: var(--day-card);
-  --card-elevated: var(--day-card-elevated);
-  --card-alt: var(--day-card-alt);
-  --border: var(--day-border);
-  --text-primary: var(--day-text-primary);
-  --text-secondary: var(--day-text-secondary);
-  --text-tertiary: var(--day-text-tertiary);
-  --accent: var(--day-accent);
-  --accent-soft: var(--day-accent-soft);
-  --input-bg: var(--day-input-bg);
-  --orb-glow: var(--orb-glow-day);
-  --orb-core: var(--orb-core-day);
-  --shadow: 0 6px 20px rgba(75, 75, 75, 0.08), 0 2px 6px rgba(75, 75, 75, 0.04);
-  --danger: #B07D6C;
+html.theme-day, :root.theme-day {
+  --bg: var(--day-bg) !important;
+  --bg-soft: var(--day-bg-soft) !important;
+  --card: var(--day-card) !important;
+  --card-elevated: var(--day-card-elevated) !important;
+  --card-alt: var(--day-card-alt) !important;
+  --border: var(--day-border) !important;
+  --text-primary: var(--day-text-primary) !important;
+  --text-secondary: var(--day-text-secondary) !important;
+  --text-tertiary: var(--day-text-tertiary) !important;
+  --accent: var(--day-accent) !important;
+  --accent-soft: var(--day-accent-soft) !important;
+  --input-bg: var(--day-input-bg) !important;
+  --orb-glow: var(--orb-glow-day) !important;
+  --orb-core: var(--orb-core-day) !important;
+  --shadow: 0 6px 20px rgba(75, 75, 75, 0.08), 0 2px 6px rgba(75, 75, 75, 0.04) !important;
+  --danger: #B07D6C !important;
 }
 
-.theme-night {
-  --bg: var(--night-bg);
-  --bg-soft: var(--night-bg-soft);
-  --card: var(--night-card);
-  --card-elevated: var(--night-card-elevated);
-  --card-alt: #2A2C2A;
-  --border: var(--night-border);
-  --text-primary: var(--night-text-primary);
-  --text-secondary: var(--night-text-secondary);
-  --text-tertiary: var(--night-text-tertiary);
-  --accent: var(--night-accent);
-  --accent-soft: var(--night-accent-soft);
-  --input-bg: var(--night-input-bg);
-  --orb-glow: var(--orb-glow-night);
-  --orb-core: var(--orb-core-night);
-  --shadow: 0 6px 20px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.15);
-  --danger: #C49080;
+html.theme-night, :root.theme-night {
+  --bg: var(--night-bg) !important;
+  --bg-soft: var(--night-bg-soft) !important;
+  --card: var(--night-card) !important;
+  --card-elevated: var(--night-card-elevated) !important;
+  --card-alt: var(--night-card-alt) !important;
+  --border: var(--night-border) !important;
+  --text-primary: var(--night-text-primary) !important;
+  --text-secondary: var(--night-text-secondary) !important;
+  --text-tertiary: var(--night-text-tertiary) !important;
+  --accent: var(--night-accent) !important;
+  --accent-soft: var(--night-accent-soft) !important;
+  --input-bg: var(--night-input-bg) !important;
+  --orb-glow: var(--orb-glow-night) !important;
+  --orb-core: var(--orb-core-night) !important;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  --danger: #C49080 !important;
 }
 
 @keyframes grain-shimmer {
@@ -108,6 +109,7 @@
 
 .night-texture {
   position: relative;
+  isolation: isolate;
 }
 
 .night-texture::before {
@@ -115,7 +117,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
+  z-index: -2;
   background: 
     radial-gradient(ellipse 80% 60% at 50% 55%, rgba(168, 179, 154, 0.06) 0%, transparent 50%),
     radial-gradient(ellipse 120% 100% at 50% 100%, rgba(62, 54, 44, 0.15) 0%, transparent 60%),
@@ -133,12 +135,12 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 1;
-  opacity: 0.06;
+  z-index: -1;
+  opacity: 0.03;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 200px 200px;
-  animation: grain-shimmer 20s ease-in-out infinite;
+  animation: grain-shimmer 120s ease-in-out infinite;
   border-radius: inherit;
 }
 
