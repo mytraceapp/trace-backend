@@ -258,41 +258,6 @@ export function RainWindowScreen({
         </h1>
       </motion.div>
 
-      {/* Quiet Mode Toggle - top right */}
-      <motion.button
-        className="absolute z-20"
-        style={{ 
-          top: '6.5%', 
-          right: '6%',
-          padding: '8px',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-        }}
-        onClick={toggleQuietMode}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1, delay: 0.4 }}
-        whileTap={{ scale: 0.92 }}
-      >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill={quietMode ? 'rgba(255, 255, 255, 0.6)' : 'none'}
-          stroke="rgba(255, 255, 255, 0.5)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ 
-            filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.4))',
-            transition: 'fill 0.4s ease, stroke 0.4s ease',
-          }}
-        >
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      </motion.button>
-
       {/* Quiet Mode Toast */}
       <AnimatePresence>
         {quietToast && (
@@ -436,15 +401,57 @@ export function RainWindowScreen({
         </AnimatePresence>
       </div>
 
-      {/* Bottom Controls - Volume Slider & End Session */}
+      {/* Bottom Controls - Moon Toggle, Volume Slider & End Session */}
       {isActive && !showCompletion && (
         <motion.div 
           className="absolute left-0 right-0 flex flex-col items-center z-20" 
-          style={{ bottom: '122px' }}
+          style={{ bottom: '112px' }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.8 }}
         >
+          {/* Quiet Mode Toggle */}
+          <motion.button
+            className="mb-4"
+            style={{ 
+              padding: '10px 16px',
+              background: 'rgba(0, 0, 0, 0.25)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '9999px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+            onClick={toggleQuietMode}
+            whileTap={{ scale: 0.95 }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill={quietMode ? 'rgba(255, 255, 255, 0.6)' : 'none'}
+              stroke="rgba(255, 255, 255, 0.5)"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ 
+                transition: 'fill 0.4s ease',
+              }}
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+            <span style={{
+              color: 'rgba(255, 255, 255, 0.5)',
+              fontSize: '11px',
+              fontWeight: 300,
+              letterSpacing: '0.05em',
+            }}>
+              {quietMode ? 'Quiet' : 'Quiet'}
+            </span>
+          </motion.button>
+
           {/* Volume Slider */}
           <div 
             className="flex items-center gap-3 mb-5 px-5 py-3 rounded-full"
