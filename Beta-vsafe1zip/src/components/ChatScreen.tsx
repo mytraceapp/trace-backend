@@ -716,21 +716,17 @@ export function ChatScreen({
               {messages.map((msg, index) => {
                 const totalMessages = messages.length;
                 const positionFromEnd = totalMessages - 1 - index;
-                const messageOpacity = positionFromEnd >= 7 
+                const messageOpacity = positionFromEnd >= 5 
                   ? 0 
-                  : positionFromEnd >= 6 
-                    ? 0.1
-                    : positionFromEnd >= 5 
-                      ? 0.25
-                      : positionFromEnd >= 4 
-                        ? 0.45
-                        : positionFromEnd >= 3 
-                          ? 0.65
-                          : positionFromEnd >= 2 
-                            ? 0.8
-                            : positionFromEnd >= 1 
-                              ? 0.9
-                              : 1;
+                  : positionFromEnd >= 4 
+                    ? 0.05
+                    : positionFromEnd >= 3 
+                      ? 0.3
+                      : positionFromEnd >= 2 
+                        ? 0.6
+                        : positionFromEnd >= 1 
+                          ? 0.85
+                          : 1;
                 
                 return (
                   <motion.div
