@@ -225,7 +225,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
       if (audioContext && audioContext.state !== 'closed') {
         audioContext.close();
       }
-      if (onNavigateToActivities) onNavigateToActivities();
+      if (onReturnToChat) onReturnToChat();
       else if (onBack) onBack();
     }, 500);
   };
@@ -517,6 +517,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
             fontWeight: 300,
             color: '#9A8778',
             letterSpacing: '0.05em',
+            filter: 'blur(0.4px)',
           }}
         >
           {formatTime(timeRemaining)}
