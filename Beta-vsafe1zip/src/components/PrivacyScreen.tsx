@@ -83,25 +83,37 @@ export function PrivacyScreen({
 
         {/* Centered Content Container */}
         <div className="w-full max-w-md mx-auto px-6 flex flex-col items-center">
-          {/* Header Section */}
+          {/* Header Section with ambient vignette for night mode */}
           <motion.div
             className="relative z-10 text-center space-y-3 pt-8 pb-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.2, ease: [0.22, 0.61, 0.36, 1] }}
           >
+            {/* Subtle ambient vignette behind header for night mode */}
+            {isDark && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: 'radial-gradient(ellipse 80% 60% at 50% 30%, rgba(0, 0, 0, 0.03) 0%, transparent 70%)',
+                }}
+              />
+            )}
             <h2
+              className="relative"
               style={{
                 fontFamily: 'Playfair Display, Georgia, serif',
                 fontSize: '30px',
                 fontWeight: 500,
                 letterSpacing: '0.04em',
                 color: 'var(--text-primary)',
+                opacity: isDark ? 0.95 : 1,
               }}
             >
               Privacy & Your Data
             </h2>
             <p
+              className="relative"
               style={{
                 fontFamily: 'Georgia, serif',
                 fontSize: '14px',
@@ -110,17 +122,19 @@ export function PrivacyScreen({
                 color: 'var(--text-secondary)',
                 fontStyle: 'italic',
                 marginTop: '-0.6rem',
+                opacity: isDark ? 0.92 : 1,
               }}
             >
               Kept safe. Never sold.
             </p>
           </motion.div>
 
-          {/* Main Card */}
+          {/* Main Card - softer corners in night mode */}
           <motion.div
-            className="w-full rounded-[28px] p-8"
+            className="w-full p-8"
             style={{
               background: 'var(--card)',
+              borderRadius: isDark ? '30px' : '28px',
               boxShadow: isDark
                 ? '0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2)'
                 : '0 8px 32px rgba(75, 75, 75, 0.08), 0 2px 8px rgba(75, 75, 75, 0.04)',
@@ -143,6 +157,7 @@ export function PrivacyScreen({
                   fontWeight: 500,
                   color: 'var(--text-primary)',
                   letterSpacing: '0.02em',
+                  opacity: isDark ? 0.95 : 1,
                 }}
               >
                 What we store
@@ -155,6 +170,7 @@ export function PrivacyScreen({
                   color: 'var(--text-secondary)',
                   lineHeight: '1.7',
                   letterSpacing: '0.01em',
+                  opacity: isDark ? 0.93 : 1,
                 }}
               >
                 Your messages, entries, and patterns so you can revisit them.
@@ -166,7 +182,7 @@ export function PrivacyScreen({
               className="w-full h-[1px] mb-8"
               style={{
                 background: isDark
-                  ? 'linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%)'
+                  ? 'linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%)'
                   : 'linear-gradient(to right, transparent 0%, rgba(75, 75, 75, 0.08) 50%, transparent 100%)',
               }}
             />
@@ -181,6 +197,7 @@ export function PrivacyScreen({
                   fontWeight: 500,
                   color: 'var(--text-primary)',
                   letterSpacing: '0.02em',
+                  opacity: isDark ? 0.95 : 1,
                 }}
               >
                 What we don't do
@@ -193,6 +210,7 @@ export function PrivacyScreen({
                   color: 'var(--text-secondary)',
                   lineHeight: '1.7',
                   letterSpacing: '0.01em',
+                  opacity: isDark ? 0.93 : 1,
                 }}
               >
                 No selling data. No ads based on your feelings.
@@ -204,7 +222,7 @@ export function PrivacyScreen({
               className="w-full h-[1px] mb-8"
               style={{
                 background: isDark
-                  ? 'linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%)'
+                  ? 'linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%)'
                   : 'linear-gradient(to right, transparent 0%, rgba(75, 75, 75, 0.08) 50%, transparent 100%)',
               }}
             />
@@ -219,6 +237,7 @@ export function PrivacyScreen({
                   fontWeight: 500,
                   color: 'var(--text-primary)',
                   letterSpacing: '0.02em',
+                  opacity: isDark ? 0.95 : 1,
                 }}
               >
                 Your control
@@ -231,6 +250,7 @@ export function PrivacyScreen({
                   color: 'var(--text-secondary)',
                   lineHeight: '1.7',
                   letterSpacing: '0.01em',
+                  opacity: isDark ? 0.93 : 1,
                 }}
               >
                 Edit, export, or delete entries anytime.
