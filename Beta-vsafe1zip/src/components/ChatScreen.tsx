@@ -810,15 +810,15 @@ export function ChatScreen({
       {/* Bottom Menu Bar - animates in smoothly after user responds */}
       <motion.div 
         className="absolute bottom-0 left-0 right-0 z-30"
-        initial={{ y: 50, opacity: 0 }}
+        initial={{ y: 60, opacity: 0 }}
         animate={{ 
-          y: hasResponded ? 0 : 50, 
+          y: hasResponded ? 0 : 60, 
           opacity: hasResponded ? 1 : 0 
         }}
         transition={{ 
-          duration: 3.2,
-          ease: [0.05, 0.7, 0.1, 1],
-          delay: hasResponded ? 0.5 : 0
+          duration: 2.2,
+          ease: [0.08, 0.82, 0.17, 1],
+          delay: hasResponded ? 0.4 : 0
         }}
       >
         <BottomNav 
