@@ -30,6 +30,8 @@ export function useAmbientAudio({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  const filterChainRef = useRef<BiquadFilterNode[]>([]);
+
   useEffect(() => {
     const loadAudio = async () => {
       try {
@@ -38,8 +40,36 @@ export function useAmbientAudio({
 
         const masterGain = context.createGain();
         masterGain.gain.value = 0;
-        masterGain.connect(context.destination);
         masterGainRef.current = masterGain;
+
+        const highPass = context.createBiquadFilter();
+        highPass.type = 'highpass';
+        highPass.frequency.value = 120;
+        highPass.Q.value = 0.7;
+
+        const lowShelf = context.createBiquadFilter();
+        lowShelf.type = 'lowshelf';
+        lowShelf.frequency.value = 300;
+        lowShelf.gain.value = -4;
+
+        const midBoost = context.createBiquadFilter();
+        midBoost.type = 'peaking';
+        midBoost.frequency.value = 800;
+        midBoost.Q.value = 1.2;
+        midBoost.gain.value = 3;
+
+        const highShelf = context.createBiquadFilter();
+        highShelf.type = 'highshelf';
+        highShelf.frequency.value = 4000;
+        highShelf.gain.value = -5;
+
+        masterGain.connect(highPass);
+        highPass.connect(lowShelf);
+        lowShelf.connect(midBoost);
+        midBoost.connect(highShelf);
+        highShelf.connect(context.destination);
+
+        filterChainRef.current = [highPass, lowShelf, midBoost, highShelf];
 
         const response = await fetch(src);
         const arrayBuffer = await response.arrayBuffer();
