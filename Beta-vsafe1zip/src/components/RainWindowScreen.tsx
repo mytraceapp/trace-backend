@@ -107,6 +107,7 @@ export function RainWindowScreen({
     setElapsedTime(0);
     startRainAudio();
     if (videoRef.current) {
+      videoRef.current.playbackRate = 0.75; // Slow down for dreamy, smooth feel
       videoRef.current.play().catch(() => {});
     }
 
@@ -174,14 +175,18 @@ export function RainWindowScreen({
     const video = videoRef.current;
     if (!video) return;
 
+    // Ensure slow playback rate is set
+    video.playbackRate = 0.75;
+
     const handleTimeUpdate = () => {
-      if (video.duration && video.duration - video.currentTime <= 0.4) {
+      if (video.duration && video.duration - video.currentTime <= 0.5) {
         video.currentTime = 0.1;
       }
     };
 
     const handleEnded = () => {
       video.currentTime = 0.1;
+      video.playbackRate = 0.75;
       video.play().catch(() => {});
     };
 
