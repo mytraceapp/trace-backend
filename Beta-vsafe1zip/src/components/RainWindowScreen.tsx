@@ -276,7 +276,7 @@ export function RainWindowScreen({
             >
               <motion.div
                 style={{
-                  marginBottom: '8px',
+                  marginBottom: '5px',
                   display: 'flex',
                   justifyContent: 'center',
                   width: '100%',
