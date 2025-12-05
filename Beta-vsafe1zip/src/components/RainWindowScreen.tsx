@@ -218,8 +218,8 @@ export function RainWindowScreen({
 
       {/* TRACE Brand - top center */}
       <motion.div
-        className="absolute z-20"
-        style={{ top: '7%', left: '50%', transform: 'translateX(-50%)' }}
+        className="absolute z-20 w-full flex justify-center"
+        style={{ top: '7%' }}
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1, delay: 0.2 }}
@@ -230,6 +230,7 @@ export function RainWindowScreen({
           letterSpacing: '0.8em',
           fontSize: '10px',
           textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+          paddingLeft: '0.8em',
         }}>
           TRACE
         </h1>
@@ -253,7 +254,7 @@ export function RainWindowScreen({
               fontFamily: 'Georgia, serif',
               fontSize: '14px',
               fontWeight: 300,
-              color: 'rgba(255, 255, 255, 0.51)',
+              color: 'rgba(255, 255, 255, 0.41)',
               letterSpacing: '0.05em',
             }}
           >
@@ -275,23 +276,23 @@ export function RainWindowScreen({
             >
               <motion.div
                 style={{
-                  marginBottom: '16px',
+                  marginBottom: '20px',
                 }}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.3, duration: 1 }}
               >
                 <svg 
-                  width="44" 
-                  height="44" 
+                  width="56" 
+                  height="56" 
                   viewBox="0 0 24 24" 
                   fill="none" 
                   style={{ filter: 'drop-shadow(0 2px 12px rgba(0, 0, 0, 0.3))' }}
                 >
                   <path 
                     d="M12 2.5C12 2.5 5 10 5 14.5C5 18.366 8.134 21.5 12 21.5C15.866 21.5 19 18.366 19 14.5C19 10 12 2.5 12 2.5Z" 
-                    stroke="rgba(255, 255, 255, 0.75)"
-                    strokeWidth="1.25"
+                    stroke="rgba(255, 255, 255, 0.85)"
+                    strokeWidth="1.1"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     fill="none"
@@ -303,12 +304,13 @@ export function RainWindowScreen({
                 style={{
                   fontFamily: 'Georgia, serif',
                   color: 'transparent',
-                  fontSize: '18px',
+                  fontSize: '22px',
                   fontWeight: 300,
-                  marginBottom: '16px',
+                  marginBottom: '18px',
                   letterSpacing: '0.35em',
-                  WebkitTextStroke: '0.5px rgba(255, 255, 255, 0.8)',
+                  WebkitTextStroke: '0.6px rgba(255, 255, 255, 0.9)',
                   textShadow: '0 2px 20px rgba(0, 0, 0, 0.4)',
+                  paddingLeft: '0.35em',
                 }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
