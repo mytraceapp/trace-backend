@@ -26,39 +26,45 @@ export function RainWindowScreen({
   const timerRef = useRef<number | null>(null);
   const introTimeoutRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { addEntry } = useEntries();
 
   const ACTIVITY_DURATION = 180;
 
-  // Use the video's natural rain audio - fade in/out handled via video element
+  // Real rain audio from mp3 file
   const startRainAudio = useCallback(() => {
-    const video = videoRef.current;
-    if (video) {
-      video.muted = false;
-      video.volume = 0;
-      // Gentle fade in over 3 seconds
-      let vol = 0;
-      const fadeIn = setInterval(() => {
-        vol += 0.02;
-        if (vol >= 0.6) {
-          vol = 0.6;
-          clearInterval(fadeIn);
-        }
-        video.volume = vol;
-      }, 60);
+    if (!audioRef.current) {
+      const audio = new Audio('/audio/rain-ambient.mp3');
+      audio.loop = true;
+      audio.volume = 0;
+      audioRef.current = audio;
     }
+    
+    const audio = audioRef.current;
+    audio.play().catch(() => {});
+    
+    // Gentle fade in over 3 seconds
+    let vol = 0;
+    const fadeIn = setInterval(() => {
+      vol += 0.02;
+      if (vol >= 0.5) {
+        vol = 0.5;
+        clearInterval(fadeIn);
+      }
+      if (audioRef.current) audioRef.current.volume = vol;
+    }, 60);
   }, []);
 
   const stopRainAudio = useCallback(() => {
-    const video = videoRef.current;
-    if (video) {
+    const audio = audioRef.current;
+    if (audio) {
       // Gentle fade out over 2 seconds
       const fadeOut = setInterval(() => {
-        if (video.volume > 0.02) {
-          video.volume -= 0.02;
+        if (audio.volume > 0.02) {
+          audio.volume -= 0.02;
         } else {
-          video.volume = 0;
-          video.muted = true;
+          audio.volume = 0;
+          audio.pause();
           clearInterval(fadeOut);
         }
       }, 40);
