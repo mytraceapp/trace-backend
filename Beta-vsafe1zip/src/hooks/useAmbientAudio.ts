@@ -173,7 +173,8 @@ export function useAmbientAudio({
 
     const now = context.currentTime;
     masterGain.gain.cancelScheduledValues(now);
-    masterGain.gain.setValueAtTime(volume, now);
+    masterGain.gain.setValueAtTime(0, now);
+    masterGain.gain.linearRampToValueAtTime(volume, now + 1.5);
 
     scheduleLoop();
   }, [volume, scheduleLoop]);
