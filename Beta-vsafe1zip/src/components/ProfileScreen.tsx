@@ -549,7 +549,7 @@ export function ProfileScreen({
                         fontWeight: theme === 'day' ? 400 : 300,
                       }}
                     >
-                      Day
+                      Sage
                     </span>
                   </button>
                   <button
@@ -569,7 +569,7 @@ export function ProfileScreen({
                         fontWeight: theme === 'night' ? 400 : 300,
                       }}
                     >
-                      Night
+                      Luna
                     </span>
                   </button>
                   <button
