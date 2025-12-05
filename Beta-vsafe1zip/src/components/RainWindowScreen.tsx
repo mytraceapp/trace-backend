@@ -321,6 +321,7 @@ export function RainWindowScreen({
             <motion.div
               key="intro"
               className="text-center"
+              style={{ marginTop: '-15px' }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, transition: { duration: 1.5 } }}
               exit={{ opacity: 0, y: -6, transition: { duration: 3, ease: [0.4, 0, 0.2, 1] } }}
