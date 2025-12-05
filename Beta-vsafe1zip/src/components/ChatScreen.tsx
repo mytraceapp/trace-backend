@@ -389,7 +389,7 @@ export function ChatScreen({
       style={{ 
         background: isDark 
           ? 'transparent' 
-          : 'linear-gradient(180deg, #9AB09C 0%, #8DA18F 25%, #7A9180 50%, #8DA18F 75%, #9AB09C 100%)',
+          : 'linear-gradient(180deg, #9FB5A1 0%, #96AA98 8%, #8FA393 15%, #889C8D 25%, #819588 35%, #7A8E81 45%, #768A7D 55%, #7A8E81 65%, #819588 75%, #889C8D 85%, #8FA393 92%, #96AA98 100%)',
       }}
     >
       
@@ -820,20 +820,30 @@ export function ChatScreen({
         </div>
       </motion.div>
 
-      {/* Bottom Menu Bar - shown after user responds */}
-      {hasResponded && (
-        <div className="absolute bottom-0 left-0 right-0 z-30">
-          <BottomNav 
-            activeScreen="chat"
-            variant="sage"
-            onNavigateHome={() => {}}
-            onNavigateActivities={onNavigateToActivities}
-            onNavigateJournal={onNavigateToJournal}
-            onNavigateProfile={onNavigateToProfile}
-            onNavigateHelp={onNavigateToHelp}
-          />
-        </div>
-      )}
+      {/* Bottom Menu Bar - animates in smoothly after user responds */}
+      <motion.div 
+        className="absolute bottom-0 left-0 right-0 z-30"
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ 
+          y: hasResponded ? 0 : 100, 
+          opacity: hasResponded ? 1 : 0 
+        }}
+        transition={{ 
+          duration: 0.6, 
+          ease: [0.22, 0.61, 0.36, 1],
+          delay: hasResponded ? 0.2 : 0
+        }}
+      >
+        <BottomNav 
+          activeScreen="chat"
+          variant="sage"
+          onNavigateHome={() => {}}
+          onNavigateActivities={onNavigateToActivities}
+          onNavigateJournal={onNavigateToJournal}
+          onNavigateProfile={onNavigateToProfile}
+          onNavigateHelp={onNavigateToHelp}
+        />
+      </motion.div>
 
     </div>
   );
