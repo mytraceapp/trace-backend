@@ -612,20 +612,6 @@ export function ProfileScreen({
                     ? 'A light, soft palette designed to feel open, fresh, and steady.'
                     : 'A dimmed, grounding palette that reduces eye strain and supports evening reflection.'}
                 </p>
-                <p
-                  className="mt-1.5"
-                  style={{
-                    fontFamily: 'Georgia, serif',
-                    color: 'var(--text-primary)',
-                    fontSize: '10px',
-                    fontWeight: 300,
-                    letterSpacing: '0.01em',
-                    fontStyle: 'italic',
-                    opacity: 0.5,
-                  }}
-                >
-                  Auto · Follow device / sunset — coming soon
-                </p>
               </div>
             </div>
           </motion.div>
