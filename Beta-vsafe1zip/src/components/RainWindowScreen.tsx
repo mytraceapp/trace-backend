@@ -23,9 +23,11 @@ export function RainWindowScreen({
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showCompletion, setShowCompletion] = useState(false);
   const [introVisible, setIntroVisible] = useState(true);
+  const [videoOpacity, setVideoOpacity] = useState(1);
   const timerRef = useRef<number | null>(null);
   const introTimeoutRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const isLoopingRef = useRef(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const { addEntry } = useEntries();
@@ -107,7 +109,7 @@ export function RainWindowScreen({
     setElapsedTime(0);
     startRainAudio();
     if (videoRef.current) {
-      videoRef.current.playbackRate = 0.75; // Slow down for dreamy, smooth feel
+      videoRef.current.playbackRate = 0.5; // 50% speed for dreamy, smooth feel
       videoRef.current.play().catch(() => {});
     }
 
@@ -170,23 +172,41 @@ export function RainWindowScreen({
     };
   }, [stopRainAudio]);
 
-  // Seamless video loop - reset slightly before end to avoid stutter
+  // Seamless video loop with cross-fade
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     // Ensure slow playback rate is set
-    video.playbackRate = 0.75;
+    video.playbackRate = 0.5;
 
     const handleTimeUpdate = () => {
-      if (video.duration && video.duration - video.currentTime <= 0.5) {
-        video.currentTime = 0.1;
+      if (!video.duration) return;
+      
+      const timeRemaining = video.duration - video.currentTime;
+      
+      // Start fade out 1 second before end
+      if (timeRemaining <= 1 && timeRemaining > 0 && !isLoopingRef.current) {
+        isLoopingRef.current = true;
+        setVideoOpacity(0);
+        
+        // Reset video during fade
+        setTimeout(() => {
+          video.currentTime = 0.05;
+          video.play().catch(() => {});
+          
+          // Fade back in
+          setTimeout(() => {
+            setVideoOpacity(1);
+            isLoopingRef.current = false;
+          }, 100);
+        }, 400);
       }
     };
 
     const handleEnded = () => {
-      video.currentTime = 0.1;
-      video.playbackRate = 0.75;
+      video.currentTime = 0.05;
+      video.playbackRate = 0.5;
       video.play().catch(() => {});
     };
 
@@ -229,6 +249,8 @@ export function RainWindowScreen({
           width: 'auto',
           height: 'auto',
           filter: 'brightness(0.85) saturate(0.9)',
+          opacity: videoOpacity,
+          transition: 'opacity 0.5s ease-in-out',
         }}
       />
 
