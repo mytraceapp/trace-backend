@@ -34,6 +34,9 @@ export default function App() {
   const [ambientAudioStarted, setAmbientAudioStarted] = React.useState(false);
   const userName = profile?.name || 'there';
 
+  const screensWithOwnAudio = ['home', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding'];
+  const shouldPlayAmbient = ambientAudioStarted && !screensWithOwnAudio.includes(currentScreen);
+
   React.useEffect(() => {
     if (currentScreen === 'auth' && !ambientAudioStarted) {
       setAmbientAudioStarted(true);
@@ -46,8 +49,8 @@ export default function App() {
       <div className="relative w-[390px] h-[844px] bg-black rounded-[55px] p-[12px] shadow-2xl">
         {/* Screen Content */}
         <div className="w-full h-full rounded-[43px] overflow-hidden relative">
-          {/* Global Ambient Audio - plays continuously once started */}
-          {ambientAudioStarted && (
+          {/* Global Ambient Audio - plays on screens without their own audio */}
+          {shouldPlayAmbient && (
             <AmbientAudioPlayer autoPlay={true} volume={0.35} showControls={false} />
           )}
           
