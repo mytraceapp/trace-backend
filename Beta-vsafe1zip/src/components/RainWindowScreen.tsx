@@ -254,7 +254,7 @@ export function RainWindowScreen({
               fontFamily: 'Georgia, serif',
               fontSize: '14px',
               fontWeight: 300,
-              color: 'rgba(255, 255, 255, 0.31)',
+              color: 'rgba(255, 255, 255, 0.20)',
               letterSpacing: '0.05em',
             }}
           >
@@ -276,7 +276,7 @@ export function RainWindowScreen({
             >
               <motion.div
                 style={{
-                  marginBottom: '12px',
+                  marginBottom: '8px',
                   display: 'flex',
                   justifyContent: 'center',
                   width: '100%',
@@ -286,8 +286,8 @@ export function RainWindowScreen({
                 transition={{ delay: 0.3, duration: 1 }}
               >
                 <svg 
-                  width="56" 
-                  height="56" 
+                  width="48" 
+                  height="48" 
                   viewBox="0 0 24 24" 
                   fill="none" 
                   style={{ filter: 'drop-shadow(0 2px 12px rgba(0, 0, 0, 0.3))' }}
