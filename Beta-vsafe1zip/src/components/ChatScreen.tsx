@@ -434,58 +434,41 @@ export function ChatScreen({
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ 
           // Breathing-like states - slow, intuitive, steady
-          opacity: isThinking ? [0.88, 1, 0.88] : // Thinking - gentle dimming as it processes
-                   message.length > 0 ? [0.92, 1, 0.92] : // User typing - attentive
-                   showTypewriter && currentIndex < greetingText.length ? [0.9, 0.98, 0.9] : // Speaking - gentle
-                   [0.94, 1, 0.94], // Idle - barely perceptible breathing
+          opacity: [0.95, 1, 0.95], // Consistent gentle breathing regardless of state
           
-          scale: isThinking ? [1, 1.06, 1] : // Thinking - slow, deep breath expansion
-                 message.length > 0 ? [1, 1.04, 1] : // User typing - slightly more present
-                 showTypewriter && currentIndex < greetingText.length ? [1, 1.03, 1] : // Speaking - gentle pulse
-                 [1, 1.02, 1], // Idle - very subtle breathing
+          scale: [1, 1.02, 1], // Very subtle breathing scale - same for all states
           
-          // Movement - gentle, floating, never jarring
-          x: isThinking ? [0, -6, 0, 6, 0] : // Thinking - gentle contemplative sway
-             message.length > 0 ? [0, -4, 0, 4, 0] : // User typing - slight lean in
-             showTypewriter && currentIndex < greetingText.length ? [0, -3, 0, 3, 0] : // Speaking
-             [0, -2, 0, 2, 0], // Idle - almost still, peaceful
+          // Minimal floating movement - extremely gentle
+          x: [0, -1, 0, 1, 0], // Barely perceptible drift
           
-          y: isThinking ? [0, -4, 0, 4, 0] : // Thinking - gentle rise and fall
-             message.length > 0 ? [0, -3, 0, 3, 0] : // User typing
-             showTypewriter && currentIndex < greetingText.length ? [0, -2, 0, 2, 0] : // Speaking
-             [0, -1, 0, 1, 0], // Idle - barely floating
+          y: [0, -0.5, 0, 0.5, 0], // Almost imperceptible float
           
-          // Very subtle rotation - like a slow exhale
-          rotate: isThinking ? [0, 2, 0, -2, 0] : // Thinking - slight turn
-                  message.length > 0 ? [0, 1.5, 0, -1.5, 0] : // User typing
-                  showTypewriter && currentIndex < greetingText.length ? [0, 1, 0, -1, 0] : // Speaking
-                  [0, 0.5, 0, -0.5, 0], // Idle - nearly still
+          // No rotation to prevent jerkiness
+          rotate: 0,
         }}
         transition={{ 
           opacity: { 
-            duration: isThinking ? 3 : message.length > 0 ? 3.5 : showTypewriter && currentIndex < greetingText.length ? 4 : 6, 
+            duration: 8, 
             repeat: Infinity, 
-            ease: [0.45, 0.05, 0.55, 0.95] // Smooth breath-like easing
+            ease: "easeInOut"
           },
           scale: { 
-            duration: isThinking ? 3.5 : message.length > 0 ? 4 : showTypewriter && currentIndex < greetingText.length ? 5 : 7, 
+            duration: 10, 
             repeat: Infinity, 
-            ease: [0.45, 0.05, 0.55, 0.95]
+            ease: "easeInOut"
           },
           x: { 
-            duration: isThinking ? 6 : message.length > 0 ? 7 : showTypewriter && currentIndex < greetingText.length ? 8 : 10, 
+            duration: 16, 
             repeat: Infinity, 
-            ease: [0.45, 0.05, 0.55, 0.95]
+            ease: "easeInOut"
           },
           y: { 
-            duration: isThinking ? 7 : message.length > 0 ? 8 : showTypewriter && currentIndex < greetingText.length ? 9 : 12, 
+            duration: 20, 
             repeat: Infinity, 
-            ease: [0.45, 0.05, 0.55, 0.95]
+            ease: "easeInOut"
           },
           rotate: {
-            duration: isThinking ? 8 : message.length > 0 ? 10 : showTypewriter && currentIndex < greetingText.length ? 12 : 15,
-            repeat: Infinity,
-            ease: [0.45, 0.05, 0.55, 0.95]
+            duration: 0
           }
         }}
       >
