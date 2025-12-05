@@ -184,20 +184,14 @@ export function RainWindowScreen({
     >
       <video
         ref={videoRef}
-        className="absolute object-cover"
+        className="absolute inset-0 w-full h-full object-cover"
         src="/video/rain-window.mp4"
         loop
         muted
         playsInline
         autoPlay
         style={{
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%) scale(1.1)',
-          minWidth: '110%',
-          minHeight: '110%',
-          width: 'auto',
-          height: 'auto',
+          transform: 'scale(1.05)',
           filter: 'brightness(0.85) saturate(0.9)',
         }}
       />
