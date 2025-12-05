@@ -269,31 +269,35 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
               }}
             />
 
-            {/* Modal Content */}
+            {/* Back Button - Fixed at top */}
+            <motion.button
+              className="absolute top-10 left-6 py-2 px-4 rounded-full transition-colors hover:bg-black/5 z-10"
+              onClick={() => setShowLoginModal(false)}
+              style={{
+                fontFamily: 'Georgia, serif',
+                fontSize: '14px',
+                fontWeight: 300,
+                color: '#5A4A3A',
+                letterSpacing: '0.02em',
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              Back
+            </motion.button>
+
+            {/* Modal Content - Centered and moved up */}
             <motion.div
-              className="relative flex-1 flex flex-col justify-center px-8 pt-20"
-              initial={{ y: 30, opacity: 0 }}
+              className="relative flex-1 flex flex-col items-center justify-center px-8"
+              style={{ paddingBottom: '15%' }}
+              initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 30, opacity: 0 }}
+              exit={{ y: 20, opacity: 0 }}
               transition={{ delay: 0.1, duration: 0.4, ease: [0.22, 0.61, 0.36, 1] }}
             >
-              {/* Back Button */}
-              <button
-                className="absolute top-8 left-6 py-2 px-4 rounded-full transition-colors hover:bg-black/5"
-                onClick={() => setShowLoginModal(false)}
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  fontSize: '14px',
-                  fontWeight: 300,
-                  color: '#5A4A3A',
-                  letterSpacing: '0.02em',
-                }}
-              >
-                Back
-              </button>
-
               {/* Modal Header */}
-              <div className="text-center mb-10">
+              <div className="text-center mb-10 w-full">
                 <h2
                   style={{
                     fontFamily: 'Georgia, serif',
