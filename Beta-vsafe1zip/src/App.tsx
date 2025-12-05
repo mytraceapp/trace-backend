@@ -173,7 +173,7 @@ export default function App() {
           )}
           {currentScreen === 'walking' && (
             <WalkingResetScreen 
-              onFinish={() => setCurrentScreen('activitieshub')}
+              onFinish={() => setCurrentScreen('chat')}
               onNavigateHome={() => setCurrentScreen('chat')}
               onNavigateActivities={() => setCurrentScreen('activitieshub')}
               onNavigateJournal={() => setCurrentScreen('entries')}

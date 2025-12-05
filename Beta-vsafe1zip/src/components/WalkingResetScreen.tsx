@@ -603,6 +603,7 @@ export function WalkingResetScreen({
             fontSize: '12px',
             letterSpacing: '0.05em',
             opacity: 0.7,
+            filter: 'blur(0.4px)',
           }}
         >
           {minutesRemaining}:{secondsRemaining.toString().padStart(2, '0')} remaining
