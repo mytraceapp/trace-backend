@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
+import { GroundingTone } from './GroundingTone';
 
 interface GroundingExperienceProps {
   onBack?: () => void;
@@ -112,6 +113,9 @@ export function GroundingExperience({ onBack, onComplete, onReturnToChat, onNavi
         background: 'linear-gradient(135deg, #FFFFFF 0%, #F8F6F3 25%, #F0EDE8 50%, #E8E4DF 75%, #E0DCD7 100%)',
       }}
     >
+      {/* Grounding vibrational tone - plays entire experience */}
+      <GroundingTone isPlaying={!showCompletion} volume={0.38} />
+      
       {/* Ambient glow base */}
       <div
         className="absolute inset-0"
