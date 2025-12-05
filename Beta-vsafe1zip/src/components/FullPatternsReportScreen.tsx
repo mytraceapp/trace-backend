@@ -174,6 +174,31 @@ export function FullPatternsReportScreen({
                   ease: "easeInOut",
                 }}
               >
+                {/* Breathing glow behind orb - Night Mode only */}
+                {isDark && (
+                  <motion.div
+                    className="absolute rounded-full pointer-events-none"
+                    style={{
+                      width: '120px',
+                      height: '120px',
+                      background: `radial-gradient(circle, rgba(180, 191, 170, 0.35) 0%, rgba(160, 175, 155, 0.15) 40%, transparent 70%)`,
+                      top: '-30%',
+                      left: '-25%',
+                      transform: 'translate(-50%, -50%)',
+                      filter: 'blur(15px)',
+                    }}
+                    animate={{
+                      opacity: [0.5, 0.85, 0.5],
+                      scale: [0.9, 1.15, 0.9],
+                    }}
+                    transition={{
+                      duration: 4,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  />
+                )}
+                
                 {/* Outer glow */}
                 <motion.div
                   className="absolute inset-[-14px] rounded-full"
