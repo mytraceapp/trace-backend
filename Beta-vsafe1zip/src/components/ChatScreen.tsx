@@ -717,7 +717,7 @@ export function ChatScreen({
                 const totalMessages = messages.length;
                 const fadeStart = Math.max(0, totalMessages - 6);
                 const messageOpacity = index < fadeStart 
-                  ? Math.max(0.15, 0.15 + (index / fadeStart) * 0.55)
+                  ? Math.max(0.08, 0.08 + (index / fadeStart) * 0.62)
                   : 0.7 + ((index - fadeStart) / Math.max(1, totalMessages - fadeStart - 1)) * 0.3;
                 
                 return (
