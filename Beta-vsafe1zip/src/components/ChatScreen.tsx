@@ -305,9 +305,9 @@ export function ChatScreen({
       
       const colorIndex = i % colors.length;
       const color = colors[colorIndex];
-      // Reduce opacity by 2.5% in dark mode
+      // Reduce opacity by 5% in dark mode
       const baseOpacity = 0.18 + (i % 10) * 0.02;
-      const opacity = isDark ? baseOpacity - 0.025 : baseOpacity;
+      const opacity = isDark ? baseOpacity - 0.05 : baseOpacity;
       
       const strokeWidth = 5 + (i % 10) * 3;
       const blur = 3 + (i % 5) * 1.5;
