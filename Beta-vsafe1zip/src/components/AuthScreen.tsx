@@ -1,6 +1,5 @@
 import { motion } from 'motion/react';
 import traceLogo from 'figma:asset/513ec3c351285cce0b15e678c8f6d864d8269d64.png';
-import { AmbientAudioPlayer } from './AmbientAudioPlayer';
 
 interface AuthScreenProps {
   onCreateAccount?: () => void;
@@ -176,9 +175,6 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
         </motion.div>
 
       </div>
-
-      {/* Ambient Audio - auto-plays seamlessly from wake-up tone */}
-      <AmbientAudioPlayer autoPlay={true} volume={0.35} showControls={false} />
 
       {/* Bottom Microtext */}
       <motion.div

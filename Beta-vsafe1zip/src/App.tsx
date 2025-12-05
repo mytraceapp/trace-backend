@@ -25,12 +25,20 @@ import { ProfileScreen } from './components/ProfileScreen';
 import { AccountSetupScreen } from './components/AccountSetupScreen';
 import { PaymentScreen } from './components/PaymentScreen';
 import { PaymentSuccessOverlay } from './components/PaymentSuccessOverlay';
+import { AmbientAudioPlayer } from './components/AmbientAudioPlayer';
 
 export default function App() {
   const { selectedPlan, profile, isUpgrading, setIsUpgrading } = useUser();
   const [currentScreen, setCurrentScreen] = React.useState<'home' | 'auth' | 'accountsetup' | 'payment' | 'onboarding' | 'chat' | 'activities' | 'activitieshub' | 'breathing' | 'maze' | 'walking' | 'powernap' | 'pearlripple' | 'grounding' | 'journal' | 'entries' | 'patterns' | 'fullpatterns' | 'help' | 'inthisspace' | 'crisis' | 'privacy' | 'terms' | 'profile'>('home');
   const [showPaymentSuccess, setShowPaymentSuccess] = React.useState(false);
+  const [ambientAudioStarted, setAmbientAudioStarted] = React.useState(false);
   const userName = profile?.name || 'there';
+
+  React.useEffect(() => {
+    if (currentScreen === 'auth' && !ambientAudioStarted) {
+      setAmbientAudioStarted(true);
+    }
+  }, [currentScreen, ambientAudioStarted]);
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -38,6 +46,11 @@ export default function App() {
       <div className="relative w-[390px] h-[844px] bg-black rounded-[55px] p-[12px] shadow-2xl">
         {/* Screen Content */}
         <div className="w-full h-full rounded-[43px] overflow-hidden relative">
+          {/* Global Ambient Audio - plays continuously once started */}
+          {ambientAudioStarted && (
+            <AmbientAudioPlayer autoPlay={true} volume={0.35} showControls={false} />
+          )}
+          
           {/* Conditional Screen Rendering */}
           {currentScreen === 'home' && (
             <HomeScreen onNavigateToAuth={() => setCurrentScreen('auth')} />
