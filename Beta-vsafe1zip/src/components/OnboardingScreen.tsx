@@ -152,6 +152,15 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         }}
       />
 
+      {/* Smooth bottom gradient for seamless transition */}
+      <div
+        className="absolute bottom-0 left-0 right-0 pointer-events-none"
+        style={{
+          height: '35%',
+          background: 'linear-gradient(to bottom, transparent 0%, rgba(115, 135, 118, 0.15) 40%, rgba(105, 125, 108, 0.25) 70%, rgba(95, 115, 98, 0.35) 100%)',
+        }}
+      />
+
       {/* Ambient background glow */}
       <div className="absolute inset-0 flex items-start justify-center pt-20">
         <motion.div 
