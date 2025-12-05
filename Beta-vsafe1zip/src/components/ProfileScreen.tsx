@@ -124,6 +124,31 @@ export function ProfileScreen({
         transition={{ duration: 2, ease: [0.22, 0.61, 0.36, 1] }}
       />
 
+      {/* Breathing glow behind orb - Night Mode only */}
+      {isDark && (
+        <motion.div
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            width: '340px',
+            height: '340px',
+            background: `radial-gradient(circle, rgba(180, 191, 170, 0.25) 0%, rgba(160, 175, 155, 0.12) 35%, rgba(140, 155, 135, 0.05) 55%, transparent 75%)`,
+            top: '35%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            filter: 'blur(40px)',
+          }}
+          animate={{
+            opacity: [0.4, 0.7, 0.4],
+            scale: [0.95, 1.08, 0.95],
+          }}
+          transition={{
+            duration: 5,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+      )}
+
       {/* Subtle grain texture overlay */}
       <div 
         className="fixed inset-0 pointer-events-none opacity-[0.02]"
