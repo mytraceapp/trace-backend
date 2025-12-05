@@ -41,7 +41,7 @@ export default function App() {
   const shouldPlayAmbient = ambientAudioStarted && ambienceEnabled && !screensWithOwnAudio.includes(currentScreen);
 
   React.useEffect(() => {
-    if (currentScreen === 'auth' && !ambientAudioStarted) {
+    if (!ambientAudioStarted && (currentScreen === 'auth' || currentScreen === 'chat' || currentScreen === 'activities' || currentScreen === 'activitieshub')) {
       setAmbientAudioStarted(true);
     }
   }, [currentScreen, ambientAudioStarted]);
