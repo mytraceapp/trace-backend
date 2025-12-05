@@ -163,7 +163,7 @@ export default function App() {
           )}
           {currentScreen === 'maze' && (
             <MazeScreen 
-              onReturnToChat={() => setCurrentScreen('activitieshub')}
+              onReturnToChat={() => setCurrentScreen('chat')}
               onNavigateHome={() => setCurrentScreen('chat')}
               onNavigateActivities={() => setCurrentScreen('activitieshub')}
               onNavigateJournal={() => setCurrentScreen('entries')}
