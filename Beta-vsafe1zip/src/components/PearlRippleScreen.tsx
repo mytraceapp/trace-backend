@@ -36,63 +36,65 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
       const nodes: any[] = [];
       
-      // Master gain control - much softer
+      // Master gain control with smooth fade in
       const masterGainNode = ctx.createGain();
-      masterGainNode.gain.value = 0.10; // Even softer
+      masterGainNode.gain.setValueAtTime(0, ctx.currentTime);
+      masterGainNode.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.3);
+      masterGainNode.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 1.5);
+      masterGainNode.gain.linearRampToValueAtTime(0.22, ctx.currentTime + 3);
       masterGainNode.connect(ctx.destination);
       
-      // Create wave oscillators with harmonically related frequencies
-      // Using musical intervals to prevent dissonance
-      const createWave = (frequency: number, delay: number, index: number) => {
+      // Create smooth wave pad - all start immediately
+      const createSmoothPad = (frequency: number, gain: number, detune: number = 0) => {
         const osc = ctx.createOscillator();
-        osc.type = 'sine'; // Pure sine for smoothest harmonics
-        osc.frequency.value = frequency;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+        osc.detune.setValueAtTime(detune, ctx.currentTime);
         
-        const waveGain = ctx.createGain();
-        waveGain.gain.setValueAtTime(0.0001, ctx.currentTime); // Never use 0 to avoid clicks
+        const oscGain = ctx.createGain();
+        oscGain.gain.setValueAtTime(gain, ctx.currentTime);
         
-        // Gentle low-pass filter
+        // Smooth low-pass filter
         const lowPass = ctx.createBiquadFilter();
         lowPass.type = 'lowpass';
-        lowPass.frequency.value = 400;
-        lowPass.Q.value = 0.05; // Very low Q for zero ringing
+        lowPass.frequency.setValueAtTime(500, ctx.currentTime);
+        lowPass.Q.setValueAtTime(0.5, ctx.currentTime);
         
         osc.connect(lowPass);
-        lowPass.connect(waveGain);
-        waveGain.connect(masterGainNode);
+        lowPass.connect(oscGain);
+        oscGain.connect(masterGainNode);
         
         osc.start(0);
         
-        // Schedule smooth breathing cycles using only exponential ramps
-        const scheduleCycles = () => {
-          const now = ctx.currentTime;
-          const cycleDuration = 10 + (index * 2); // Varied cycles per wave
-          const peakGain = 0.05 + (index * 0.005); // Slightly varied peaks
-          
-          // Schedule multiple cycles ahead for seamless playback
-          for (let i = 0; i < 12; i++) {
-            const cycleStart = now + delay + (i * cycleDuration);
-            const halfCycle = cycleDuration / 2;
-            
-            // Smooth exponential envelope - never hits zero
-            waveGain.gain.setValueAtTime(0.0001, cycleStart);
-            waveGain.gain.exponentialRampToValueAtTime(peakGain, cycleStart + halfCycle);
-            waveGain.gain.exponentialRampToValueAtTime(0.0001, cycleStart + cycleDuration - 0.1);
-          }
-        };
-        
-        scheduleCycles();
-        
-        return { oscillator: osc, gain: waveGain, filter: lowPass };
+        return { oscillator: osc, gain: oscGain, filter: lowPass };
       };
       
-      // Harmonically related frequencies based on 200Hz fundamental
-      // Using perfect musical intervals for smooth harmonies
-      const fundamental = 200; // Deep, calm fundamental
-      nodes.push(createWave(fundamental, 0, 0));           // 200 Hz - Fundamental
-      nodes.push(createWave(fundamental * 1.25, 1.5, 1)); // 250 Hz - Major third
-      nodes.push(createWave(fundamental * 1.5, 3.2, 2));  // 300 Hz - Perfect fifth
-      nodes.push(createWave(fundamental * 1.125, 5.1, 3)); // 225 Hz - Major second
+      // Smooth harmonic pad - ocean-like chord
+      nodes.push(createSmoothPad(110, 0.09));      // A2 - deep foundation
+      nodes.push(createSmoothPad(164.81, 0.08, 3)); // E3 - perfect fifth
+      nodes.push(createSmoothPad(220, 0.07, -2));   // A3 - octave
+      nodes.push(createSmoothPad(277.18, 0.055, 4)); // C#4 - major third
+      nodes.push(createSmoothPad(329.63, 0.045, -3)); // E4 - fifth
+      
+      // Create smooth LFO for gentle movement
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.type = 'sine';
+      lfo.frequency.setValueAtTime(0.06, ctx.currentTime); // Very slow modulation
+      lfoGain.gain.setValueAtTime(0.12, ctx.currentTime);
+      lfo.connect(lfoGain);
+      
+      // Apply subtle modulation to each voice
+      nodes.forEach((node, index) => {
+        const modDepth = 0.08 + (index * 0.015);
+        const modGain = ctx.createGain();
+        modGain.gain.setValueAtTime(modDepth, ctx.currentTime);
+        lfoGain.connect(modGain);
+        modGain.connect(node.gain.gain);
+      });
+      
+      lfo.start(0);
+      nodes.push({ oscillator: lfo, gain: lfoGain });
       
       // Store in refs for cleanup
       audioContextRef.current = ctx;
