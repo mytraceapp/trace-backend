@@ -22,28 +22,35 @@ export function EtherealTone({ trigger }: EtherealToneProps) {
         osc.frequency.setValueAtTime(freq, now + startTime);
         
         filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(800, now + startTime);
-        filter.Q.setValueAtTime(1, now + startTime);
+        filter.frequency.setValueAtTime(600, now + startTime);
+        filter.frequency.linearRampToValueAtTime(900, now + startTime + duration * 0.5);
+        filter.frequency.linearRampToValueAtTime(400, now + startTime + duration);
+        filter.Q.setValueAtTime(0.7, now + startTime);
         
         gain.gain.setValueAtTime(0, now + startTime);
-        gain.gain.linearRampToValueAtTime(maxGain, now + startTime + duration * 0.3);
-        gain.gain.setValueAtTime(maxGain, now + startTime + duration * 0.7);
-        gain.gain.linearRampToValueAtTime(maxGain * 0.6, now + startTime + duration);
+        gain.gain.linearRampToValueAtTime(maxGain * 0.3, now + startTime + duration * 0.15);
+        gain.gain.linearRampToValueAtTime(maxGain, now + startTime + duration * 0.4);
+        gain.gain.setValueAtTime(maxGain, now + startTime + duration * 0.6);
+        gain.gain.exponentialRampToValueAtTime(maxGain * 0.3, now + startTime + duration * 0.85);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + startTime + duration);
         
         osc.connect(filter);
         filter.connect(gain);
         gain.connect(audioContext.destination);
         
         osc.start(now + startTime);
-        osc.stop(now + startTime + duration);
+        osc.stop(now + startTime + duration + 0.1);
       };
       
-      createSoftPad(174.61, 0, 6, 0.06);
-      createSoftPad(261.63, 0.5, 5.5, 0.05);
-      createSoftPad(329.63, 1.0, 5, 0.04);
-      createSoftPad(392.00, 1.5, 4.5, 0.04);
-      createSoftPad(440.00, 2.5, 3.5, 0.03);
-      createSoftPad(523.25, 3.5, 2.5, 0.03);
+      createSoftPad(130.81, 0, 8, 0.05);
+      createSoftPad(174.61, 0.3, 7.7, 0.045);
+      createSoftPad(196.00, 0.8, 7.2, 0.04);
+      createSoftPad(261.63, 1.2, 6.8, 0.04);
+      createSoftPad(293.66, 1.8, 6.2, 0.035);
+      createSoftPad(329.63, 2.5, 5.5, 0.035);
+      createSoftPad(392.00, 3.2, 4.8, 0.03);
+      createSoftPad(440.00, 4.0, 4, 0.025);
+      createSoftPad(523.25, 4.8, 3.2, 0.02);
     };
 
     playAwakeningTone();
@@ -51,7 +58,7 @@ export function EtherealTone({ trigger }: EtherealToneProps) {
     return () => {
       setTimeout(() => {
         audioContext.close();
-      }, 7000);
+      }, 9000);
     };
   }, [trigger]);
 

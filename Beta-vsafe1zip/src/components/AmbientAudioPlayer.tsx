@@ -6,6 +6,8 @@ interface AmbientAudioPlayerProps {
   autoPlay?: boolean;
   showControls?: boolean;
   volume?: number;
+  fadeInDuration?: number;
+  startDelay?: number;
   onReady?: () => void;
 }
 
@@ -13,14 +15,17 @@ export function AmbientAudioPlayer({
   autoPlay = false,
   showControls = true,
   volume = 0.4,
+  fadeInDuration = 4000,
+  startDelay = 500,
   onReady,
 }: AmbientAudioPlayerProps) {
   const { play, pause, isPlaying, isLoaded } = useAmbientAudio({
     src: '/audio/ambient-loop.mp3',
     volume,
-    fadeInDuration: 2000,
-    fadeOutDuration: 2000,
+    fadeInDuration,
+    fadeOutDuration: 2500,
     loop: true,
+    startDelay,
   });
 
   useEffect(() => {

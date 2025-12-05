@@ -6,14 +6,16 @@ interface UseAmbientAudioOptions {
   fadeInDuration?: number;
   fadeOutDuration?: number;
   loop?: boolean;
+  startDelay?: number;
 }
 
 export function useAmbientAudio({
   src,
   volume = 0.5,
-  fadeInDuration = 2000,
+  fadeInDuration = 3500,
   fadeOutDuration = 2000,
   loop = true,
+  startDelay = 0,
 }: UseAmbientAudioOptions) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeIntervalRef = useRef<number | null>(null);
@@ -55,28 +57,37 @@ export function useAmbientAudio({
       clearInterval(fadeIntervalRef.current);
     }
 
-    const steps = 50;
-    const stepDuration = fadeInDuration / steps;
-    const volumeStep = volume / steps;
-    let currentStep = 0;
+    const startFade = () => {
+      const steps = 80;
+      const stepDuration = fadeInDuration / steps;
+      let currentStep = 0;
 
-    audio.volume = 0;
-    audio.play().catch(console.error);
-    setIsPlaying(true);
+      audio.volume = 0;
+      audio.play().catch(console.error);
+      setIsPlaying(true);
 
-    fadeIntervalRef.current = window.setInterval(() => {
-      currentStep++;
-      const newVolume = Math.min(volumeStep * currentStep, volume);
-      audio.volume = newVolume;
+      fadeIntervalRef.current = window.setInterval(() => {
+        currentStep++;
+        const progress = currentStep / steps;
+        const easedProgress = 1 - Math.pow(1 - progress, 3);
+        const newVolume = Math.min(easedProgress * volume, volume);
+        audio.volume = newVolume;
 
-      if (currentStep >= steps) {
-        if (fadeIntervalRef.current) {
-          clearInterval(fadeIntervalRef.current);
-          fadeIntervalRef.current = null;
+        if (currentStep >= steps) {
+          if (fadeIntervalRef.current) {
+            clearInterval(fadeIntervalRef.current);
+            fadeIntervalRef.current = null;
+          }
         }
-      }
-    }, stepDuration);
-  }, [fadeInDuration, volume]);
+      }, stepDuration);
+    };
+
+    if (startDelay > 0) {
+      setTimeout(startFade, startDelay);
+    } else {
+      startFade();
+    }
+  }, [fadeInDuration, volume, startDelay]);
 
   const fadeOut = useCallback(() => {
     const audio = audioRef.current;
