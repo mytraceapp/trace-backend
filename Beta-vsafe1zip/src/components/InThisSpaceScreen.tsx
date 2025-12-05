@@ -80,7 +80,7 @@ export function InThisSpaceScreen({
 
         {/* Centered Content Container */}
         <div className="w-full max-w-md mx-auto px-6 flex flex-col items-center">
-          {/* Header Section */}
+          {/* Header Section with ambient vignette for night mode */}
           <motion.div
             className="relative z-10 text-center pt-8 pb-6"
             style={{ marginBottom: '-1.35rem' }}
@@ -88,7 +88,17 @@ export function InThisSpaceScreen({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.2, ease: [0.22, 0.61, 0.36, 1] }}
           >
+            {/* Subtle ambient vignette behind header for night mode */}
+            {isDark && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: 'radial-gradient(ellipse 80% 60% at 50% 30%, rgba(0, 0, 0, 0.03) 0%, transparent 70%)',
+                }}
+              />
+            )}
             <h2
+              className="relative"
               style={{
                 fontFamily: 'Playfair Display, Georgia, serif',
                 fontSize: '32px',
@@ -96,11 +106,13 @@ export function InThisSpaceScreen({
                 letterSpacing: '0.04em',
                 color: 'var(--text-primary)',
                 marginBottom: '0rem',
+                opacity: isDark ? 0.95 : 1,
               }}
             >
               In This Space
             </h2>
             <p
+              className="relative"
               style={{
                 fontFamily: 'Georgia, serif',
                 fontSize: '14px',
@@ -109,11 +121,13 @@ export function InThisSpaceScreen({
                 color: 'var(--text-secondary)',
                 fontStyle: 'italic',
                 marginBottom: '16px',
+                opacity: isDark ? 0.92 : 1,
               }}
             >
               What TRACE is here for.
             </p>
             <p
+              className="relative"
               style={{
                 fontFamily: 'Georgia, serif',
                 fontSize: '13px',
@@ -122,11 +136,13 @@ export function InThisSpaceScreen({
                 color: 'var(--text-primary)',
                 lineHeight: '1.6',
                 marginBottom: '8px',
+                opacity: isDark ? 0.93 : 1,
               }}
             >
               TRACE offers emotional support, reflection, grounding, and gentle companionship.
             </p>
             <p
+              className="relative"
               style={{
                 fontFamily: 'Georgia, serif',
                 fontSize: '13px',
@@ -134,18 +150,19 @@ export function InThisSpaceScreen({
                 letterSpacing: '0.02em',
                 color: 'var(--text-secondary)',
                 lineHeight: '1.6',
-                opacity: 0.85,
+                opacity: isDark ? 0.78 : 0.85,
               }}
             >
               TRACE does not diagnose, prescribe, or replace therapy or emergency services.
             </p>
           </motion.div>
 
-          {/* Main Card */}
+          {/* Main Card - softer corners in night mode */}
           <motion.div
-            className="w-full rounded-[28px] p-8 mt-0"
+            className="w-full p-8 mt-0"
             style={{
               background: 'var(--card)',
+              borderRadius: isDark ? '30px' : '28px',
               boxShadow: isDark 
                 ? '0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2)'
                 : '0 8px 32px rgba(75, 75, 75, 0.08), 0 2px 8px rgba(75, 75, 75, 0.04)',
@@ -167,6 +184,7 @@ export function InThisSpaceScreen({
                   fontWeight: 500,
                   color: 'var(--text-primary)',
                   letterSpacing: '0.02em',
+                  opacity: isDark ? 0.95 : 1,
                 }}
               >
                 TRACE can…
@@ -179,6 +197,7 @@ export function InThisSpaceScreen({
                   color: 'var(--text-secondary)',
                   lineHeight: '1.7',
                   letterSpacing: '0.01em',
+                  opacity: isDark ? 0.93 : 1,
                 }}
               >
                 Listen, reflect, and offer gentle activities.
@@ -190,7 +209,7 @@ export function InThisSpaceScreen({
               className="w-full h-[1px] mb-8"
               style={{
                 background: isDark
-                  ? 'linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 100%)'
+                  ? 'linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.10) 50%, transparent 100%)'
                   : 'linear-gradient(to right, transparent 0%, rgba(75, 75, 75, 0.18) 50%, transparent 100%)',
               }}
             />
@@ -205,6 +224,7 @@ export function InThisSpaceScreen({
                   fontWeight: 500,
                   color: 'var(--text-primary)',
                   letterSpacing: '0.02em',
+                  opacity: isDark ? 0.95 : 1,
                 }}
               >
                 TRACE can't…
@@ -217,6 +237,7 @@ export function InThisSpaceScreen({
                   color: 'var(--text-secondary)',
                   lineHeight: '1.7',
                   letterSpacing: '0.01em',
+                  opacity: isDark ? 0.93 : 1,
                 }}
               >
                 Replace therapy, medical care, or crisis support.
@@ -228,7 +249,7 @@ export function InThisSpaceScreen({
               className="w-full h-[1px] mb-8"
               style={{
                 background: isDark
-                  ? 'linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 100%)'
+                  ? 'linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.10) 50%, transparent 100%)'
                   : 'linear-gradient(to right, transparent 0%, rgba(75, 75, 75, 0.18) 50%, transparent 100%)',
               }}
             />
@@ -243,6 +264,7 @@ export function InThisSpaceScreen({
                   fontWeight: 500,
                   color: 'var(--text-primary)',
                   letterSpacing: '0.02em',
+                  opacity: isDark ? 0.95 : 1,
                 }}
               >
                 You're in control.
@@ -255,6 +277,7 @@ export function InThisSpaceScreen({
                   color: 'var(--text-secondary)',
                   lineHeight: '1.7',
                   letterSpacing: '0.01em',
+                  opacity: isDark ? 0.93 : 1,
                 }}
               >
                 Share what you want, at your own pace.
