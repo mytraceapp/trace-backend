@@ -153,7 +153,7 @@ export default function App() {
           )}
           {currentScreen === 'breathing' && (
             <BreathingExerciseScreen 
-              onFinish={() => setCurrentScreen('activitieshub')}
+              onFinish={() => setCurrentScreen('chat')}
               onNavigateHome={() => setCurrentScreen('chat')}
               onNavigateActivities={() => setCurrentScreen('activitieshub')}
               onNavigateJournal={() => setCurrentScreen('entries')}
