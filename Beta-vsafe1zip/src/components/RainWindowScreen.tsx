@@ -419,12 +419,34 @@ export function RainWindowScreen({
               step="0.01"
               value={volume}
               onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-              className="w-24 h-1 rounded-full appearance-none cursor-pointer"
+              className="w-24 h-1 rounded-full appearance-none cursor-pointer volume-slider"
               style={{
-                background: `linear-gradient(to right, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.5) ${volume * 100}%, rgba(255,255,255,0.15) ${volume * 100}%, rgba(255,255,255,0.15) 100%)`,
+                background: `linear-gradient(to right, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.25) ${volume * 100}%, rgba(255,255,255,0.08) ${volume * 100}%, rgba(255,255,255,0.08) 100%)`,
                 WebkitAppearance: 'none',
               }}
             />
+            <style>{`
+              .volume-slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                background: rgba(245, 241, 235, 0.5);
+                cursor: pointer;
+                border: none;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+              }
+              .volume-slider::-moz-range-thumb {
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                background: rgba(245, 241, 235, 0.5);
+                cursor: pointer;
+                border: none;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+              }
+            `}</style>
           </div>
 
           {/* End Session Button */}
