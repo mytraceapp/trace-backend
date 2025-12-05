@@ -183,36 +183,11 @@ export function RainWindowScreen({
     };
   }, [stopRainAudio]);
 
-  // Video setup - loop only first 13 seconds (single take)
+  // Video setup - slow playback
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-
     video.playbackRate = 0.5;
-
-    const loopEnd = 13; // Only use first 13 seconds
-
-    const handleTimeUpdate = () => {
-      if (video.currentTime >= loopEnd) {
-        video.currentTime = 0.1;
-        if (video.paused) {
-          video.play().catch(() => {});
-        }
-      }
-    };
-
-    const handleEnded = () => {
-      video.currentTime = 0.1;
-      video.play().catch(() => {});
-    };
-
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('ended', handleEnded);
-    
-    return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('ended', handleEnded);
-    };
   }, []);
 
   return (
@@ -226,6 +201,7 @@ export function RainWindowScreen({
         className="absolute object-cover"
         src="/video/rain-window.mp4"
         muted
+        loop
         playsInline
         autoPlay
         preload="auto"
