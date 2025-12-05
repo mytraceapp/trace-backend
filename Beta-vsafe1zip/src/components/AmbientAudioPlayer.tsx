@@ -41,12 +41,15 @@ export function AmbientAudioPlayer({
     if (!isLoaded) return;
     
     if (shouldPlay && !isPlaying) {
-      if (!hasStartedRef.current) {
-        hasStartedRef.current = true;
-        play();
-      } else {
-        play();
-      }
+      const timer = setTimeout(() => {
+        if (!hasStartedRef.current) {
+          hasStartedRef.current = true;
+          play();
+        } else {
+          play();
+        }
+      }, 500);
+      return () => clearTimeout(timer);
     } else if (!shouldPlay && isPlaying) {
       pause();
     }
