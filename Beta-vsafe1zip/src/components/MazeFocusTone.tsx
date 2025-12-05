@@ -89,8 +89,8 @@ export function MazeFocusTone({ isPlaying, volume = 0.35 }: MazeFocusToneProps) 
           if (lfoRef.current) {
             try { lfoRef.current.stop(); } catch (e) {}
           }
-          if (audioContextRef.current) {
-            audioContextRef.current.close();
+          if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+            audioContextRef.current.close().catch(() => {});
           }
           oscillatorsRef.current = [];
           gainsRef.current = [];
@@ -109,7 +109,7 @@ export function MazeFocusTone({ isPlaying, volume = 0.35 }: MazeFocusToneProps) 
         if (lfoRef.current) {
           try { lfoRef.current.stop(); } catch (e) {}
         }
-        audioContextRef.current.close();
+        audioContextRef.current.close().catch(() => {});
         oscillatorsRef.current = [];
         gainsRef.current = [];
       }

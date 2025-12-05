@@ -114,8 +114,8 @@ export function BreathingExerciseScreen({
   // Cleanup audio context
   React.useEffect(() => {
     return () => {
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().catch(() => {});
       }
     };
   }, []);

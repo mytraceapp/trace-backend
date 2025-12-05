@@ -60,7 +60,9 @@ export function EtherealTone({ trigger }: EtherealToneProps) {
 
     return () => {
       setTimeout(() => {
-        audioContext.close();
+        if (audioContext.state !== 'closed') {
+          audioContext.close().catch(() => {});
+        }
       }, 14000);
     };
   }, [trigger]);

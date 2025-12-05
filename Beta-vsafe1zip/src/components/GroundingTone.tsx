@@ -150,8 +150,8 @@ export function GroundingTone({ isPlaying, volume = 0.38 }: GroundingToneProps) 
           lfosRef.current.forEach(lfo => {
             try { lfo.stop(); } catch (e) {}
           });
-          if (audioContextRef.current) {
-            audioContextRef.current.close();
+          if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+            audioContextRef.current.close().catch(() => {});
           }
           oscillatorsRef.current = [];
           gainsRef.current = [];
@@ -175,7 +175,7 @@ export function GroundingTone({ isPlaying, volume = 0.38 }: GroundingToneProps) 
         lfosRef.current.forEach(lfo => {
           try { lfo.stop(); } catch (e) {}
         });
-        audioContextRef.current.close();
+        audioContextRef.current.close().catch(() => {});
         oscillatorsRef.current = [];
         gainsRef.current = [];
         filtersRef.current = [];

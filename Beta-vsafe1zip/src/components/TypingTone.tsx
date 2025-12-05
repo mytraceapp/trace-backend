@@ -66,7 +66,9 @@ export function TypingTone({ playing, currentChar }: TypingToneProps) {
     }
 
     return () => {
-      audioContext.close();
+      if (audioContext.state !== 'closed') {
+        audioContext.close().catch(() => {});
+      }
     };
   }, [playing, currentChar]);
 
