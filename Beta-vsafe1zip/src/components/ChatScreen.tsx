@@ -713,41 +713,49 @@ export function ChatScreen({
             </style>
             
             <div className="space-y-4 min-h-full flex flex-col justify-end">
-              {messages.map((msg, index) => (
-                <motion.div
-                  key={msg.id}
-                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                  initial={{ opacity: 0, x: msg.sender === 'user' ? 20 : -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1, duration: 0.6 }}
-                >
-                  <div 
-                    className={`max-w-[75%] px-5 py-4 rounded-3xl ${
-                      msg.sender === 'user' ? 'rounded-tr-md' : 'rounded-tl-md'
-                    }`}
-                    style={{
-                      background: msg.sender === 'user' 
-                        ? '#EDE8DB' 
-                        : 'rgba(237, 232, 219, 0.15)',
-                      boxShadow: msg.sender === 'user'
-                        ? '0 2px 8px rgba(0, 0, 0, 0.1)'
-                        : '0 2px 8px rgba(0, 0, 0, 0.08)',
-                    }}
+              {messages.map((msg, index) => {
+                const totalMessages = messages.length;
+                const fadeStart = Math.max(0, totalMessages - 6);
+                const messageOpacity = index < fadeStart 
+                  ? Math.max(0.15, 0.15 + (index / fadeStart) * 0.55)
+                  : 0.7 + ((index - fadeStart) / Math.max(1, totalMessages - fadeStart - 1)) * 0.3;
+                
+                return (
+                  <motion.div
+                    key={msg.id}
+                    className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                    initial={{ opacity: 0, x: msg.sender === 'user' ? 20 : -20 }}
+                    animate={{ opacity: Math.min(1, messageOpacity), x: 0 }}
+                    transition={{ delay: index * 0.1, duration: 0.6 }}
                   >
-                    <p 
-                      className={msg.sender === 'user' ? 'text-[#6B7A6E]' : 'text-[#EDE8DB]'}
+                    <div 
+                      className={`max-w-[75%] px-5 py-4 rounded-3xl ${
+                        msg.sender === 'user' ? 'rounded-tr-md' : 'rounded-tl-md'
+                      }`}
                       style={{
-                        fontSize: '14px',
-                        lineHeight: '1.5',
-                        letterSpacing: '0.01em',
-                        opacity: 0.9,
+                        background: msg.sender === 'user' 
+                          ? '#EDE8DB' 
+                          : 'rgba(237, 232, 219, 0.15)',
+                        boxShadow: msg.sender === 'user'
+                          ? '0 2px 8px rgba(0, 0, 0, 0.1)'
+                          : '0 2px 8px rgba(0, 0, 0, 0.08)',
                       }}
                     >
-                      {msg.text}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
+                      <p 
+                        className={msg.sender === 'user' ? 'text-[#6B7A6E]' : 'text-[#EDE8DB]'}
+                        style={{
+                          fontSize: '14px',
+                          lineHeight: '1.5',
+                          letterSpacing: '0.01em',
+                          opacity: 0.9,
+                        }}
+                      >
+                        {msg.text}
+                      </p>
+                    </div>
+                  </motion.div>
+                );
+              })}
               
               {/* Invisible div for auto-scroll */}
               <div ref={messagesEndRef} />
