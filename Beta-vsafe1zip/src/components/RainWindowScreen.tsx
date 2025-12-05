@@ -113,10 +113,10 @@ export function RainWindowScreen({
       videoRef.current.play().catch(() => {});
     }
 
-    // Fade out intro after 10 seconds
+    // Fade out intro after 7 seconds
     introTimeoutRef.current = window.setTimeout(() => {
       setIntroVisible(false);
-    }, 10000);
+    }, 7000);
 
     return () => {
       if (introTimeoutRef.current) {
