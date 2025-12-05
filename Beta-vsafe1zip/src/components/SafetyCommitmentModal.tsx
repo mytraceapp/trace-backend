@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTheme } from '../state/ThemeContext';
 
 interface SafetyCommitmentModalProps {
   isOpen: boolean;
@@ -7,6 +8,9 @@ interface SafetyCommitmentModalProps {
 }
 
 export function SafetyCommitmentModal({ isOpen, onClose }: SafetyCommitmentModalProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'night';
+  
   if (!isOpen) return null;
 
   return (
@@ -33,11 +37,14 @@ export function SafetyCommitmentModal({ isOpen, onClose }: SafetyCommitmentModal
             onClick={onClose}
           />
           <motion.div
-            className="relative z-10 w-full max-w-[340px] rounded-[24px] flex flex-col"
+            className="relative z-10 w-full max-w-[340px] flex flex-col"
             style={{
-              backgroundColor: '#E9E2D8',
-              border: '1px solid rgba(43, 30, 21, 0.12)',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.1)',
+              borderRadius: isDark ? '26px' : '24px',
+              backgroundColor: isDark ? 'rgba(38, 42, 38, 0.98)' : '#E9E2D8',
+              border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.12)',
+              boxShadow: isDark 
+                ? '0 20px 60px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3)'
+                : '0 20px 60px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.1)',
               maxHeight: '100%',
               overflow: 'hidden',
             }}
@@ -61,7 +68,7 @@ export function SafetyCommitmentModal({ isOpen, onClose }: SafetyCommitmentModal
                     fontFamily: 'Playfair Display, Georgia, serif',
                     fontSize: '20px',
                     fontWeight: 500,
-                    color: '#4A3526',
+                    color: isDark ? 'rgba(255, 255, 255, 0.95)' : '#4A3526',
                     marginBottom: '4px',
                     letterSpacing: '0.02em',
                   }}
@@ -72,7 +79,7 @@ export function SafetyCommitmentModal({ isOpen, onClose }: SafetyCommitmentModal
                   style={{
                     fontFamily: 'Georgia, serif',
                     fontSize: '11px',
-                    color: '#7D6D5D',
+                    color: isDark ? 'rgba(255, 255, 255, 0.6)' : '#7D6D5D',
                     marginBottom: '12px',
                     fontStyle: 'italic',
                   }}
@@ -93,7 +100,7 @@ export function SafetyCommitmentModal({ isOpen, onClose }: SafetyCommitmentModal
                 style={{
                   fontFamily: 'Georgia, serif',
                   fontSize: '12px',
-                  color: '#5A4A3A',
+                  color: isDark ? 'rgba(255, 255, 255, 0.88)' : '#5A4A3A',
                   lineHeight: '1.6',
                   marginBottom: '14px',
                 }}
@@ -101,88 +108,98 @@ export function SafetyCommitmentModal({ isOpen, onClose }: SafetyCommitmentModal
                 TRACE is designed to support emotional well-being, reflection, and personal clarity. We care deeply about your safety. This policy explains what TRACE can and cannot do, and the commitments we make to protect you.
               </p>
 
-              <Section title="1. TRACE is a Wellness Companion — Not a Clinician">
-                <p style={paragraphStyle}>
+              <Section title="1. TRACE is a Wellness Companion — Not a Clinician" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   TRACE provides emotional support, grounding tools, journaling, and guided reflection. However:
-                </p>
-                <BulletList items={[
+                </Paragraph>
+                <BulletList isDark={isDark} items={[
                   'TRACE is not a substitute for therapy, counseling, or medical care.',
                   'TRACE cannot diagnose conditions or give medical, legal, or crisis advice.',
                   'TRACE should be used to support your wellness, not replace professional help.',
                 ]} />
               </Section>
 
-              <Section title="2. Crisis Safety">
-                <p style={paragraphStyle}>
+              <Section title="2. Crisis Safety" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   If you ever feel unsafe, overwhelmed, or in danger, please contact:
-                </p>
-                <BulletList items={[
+                </Paragraph>
+                <BulletList isDark={isDark} items={[
                   '988 (U.S.) – Suicide & Crisis Lifeline',
                   'Your local emergency number',
                   'A trusted friend, family member, or mental health professional',
                 ]} />
-                <p style={paragraphStyle}>
+                <Paragraph isDark={isDark}>
                   TRACE does not monitor or intervene in real-time emergencies.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="3. Emotional Boundaries">
-                <p style={paragraphStyle}>
+              <Section title="3. Emotional Boundaries" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   TRACE is built with ethical guidelines to ensure safe, respectful responses:
-                </p>
-                <BulletList items={[
+                </Paragraph>
+                <BulletList isDark={isDark} items={[
                   'No judgment or shame',
                   'No manipulation or persuasion',
                   'No harmful or triggering content',
                   'No romantic or inappropriate behavior',
                   'No false promises or guarantees',
                 ]} />
-                <p style={paragraphStyle}>
+                <Paragraph isDark={isDark}>
                   Your emotional safety comes first.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="4. Data Safety">
-                <p style={paragraphStyle}>
+              <Section title="4. Data Safety" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   Your reflections and emotional content are private. We commit to:
-                </p>
-                <BulletList items={[
+                </Paragraph>
+                <BulletList isDark={isDark} items={[
                   'Never selling your data',
                   'Never using your feelings for ads',
                   'Never training external AI models on your identifiable content',
                   'Encrypting your information for safety',
                 ]} />
-                <p style={{ ...paragraphStyle, fontStyle: 'italic', opacity: 0.85 }}>
+                <p
+                  style={{
+                    fontFamily: 'Georgia, serif',
+                    fontSize: '12px',
+                    color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#5A4A3A',
+                    lineHeight: '1.6',
+                    marginBottom: '10px',
+                    fontStyle: 'italic',
+                    opacity: 0.85,
+                  }}
+                >
                   (See the full Privacy Policy for details.)
                 </p>
               </Section>
 
-              <Section title="5. Age Requirement">
-                <p style={paragraphStyle}>
+              <Section title="5. Age Requirement" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   TRACE is designed for individuals 13+. Users under the required age should not use the app.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="6. Respectful Use">
-                <p style={paragraphStyle}>
+              <Section title="6. Respectful Use" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   To keep TRACE safe for everyone:
-                </p>
-                <BulletList items={[
+                </Paragraph>
+                <BulletList isDark={isDark} items={[
                   'Use TRACE responsibly',
                   'Do not attempt to misuse or exploit the app',
                   'Do not input harmful content aimed at others',
                   'Do not use TRACE for illegal or violent intent',
                 ]} />
-                <p style={paragraphStyle}>
+                <Paragraph isDark={isDark}>
                   This keeps the community and the brand protected.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="7. Our Promise to You">
-                <p style={paragraphStyle}>
+              <Section title="7. Our Promise to You" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   We commit to:
-                </p>
-                <BulletList items={[
+                </Paragraph>
+                <BulletList isDark={isDark} items={[
                   'Designing TRACE with safety and ethics at its core',
                   'Constantly improving emotional-support features',
                   'Providing clarity, grounding, and peace—not confusion',
@@ -193,7 +210,7 @@ export function SafetyCommitmentModal({ isOpen, onClose }: SafetyCommitmentModal
                   style={{
                     fontFamily: 'Georgia, serif',
                     fontSize: '12px',
-                    color: '#5A4A3A',
+                    color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#5A4A3A',
                     fontStyle: 'italic',
                     marginTop: '10px',
                     marginBottom: '8px',
@@ -210,8 +227,8 @@ export function SafetyCommitmentModal({ isOpen, onClose }: SafetyCommitmentModal
                 onClick={onClose}
                 className="w-full rounded-full px-5 py-3 transition-all duration-200 active:scale-[0.98]"
                 style={{
-                  backgroundColor: '#D7C8B5',
-                  border: '1px solid rgba(43, 30, 21, 0.1)',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#D7C8B5',
+                  border: isDark ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid rgba(43, 30, 21, 0.1)',
                 }}
               >
                 <span
@@ -219,7 +236,7 @@ export function SafetyCommitmentModal({ isOpen, onClose }: SafetyCommitmentModal
                     fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                     fontSize: '14px',
                     fontWeight: 500,
-                    color: '#4A3526',
+                    color: isDark ? 'rgba(255, 255, 255, 0.92)' : '#4A3526',
                     letterSpacing: '0.02em',
                   }}
                 >
@@ -234,15 +251,7 @@ export function SafetyCommitmentModal({ isOpen, onClose }: SafetyCommitmentModal
   );
 }
 
-const paragraphStyle: React.CSSProperties = {
-  fontFamily: 'Georgia, serif',
-  fontSize: '12px',
-  color: '#5A4A3A',
-  lineHeight: '1.6',
-  marginBottom: '10px',
-};
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, isDark }: { title: string; children: React.ReactNode; isDark?: boolean }) {
   return (
     <div style={{ marginBottom: '16px' }}>
       <h3
@@ -250,7 +259,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
           fontFamily: 'Playfair Display, Georgia, serif',
           fontSize: '14px',
           fontWeight: 500,
-          color: '#4A3526',
+          color: isDark ? 'rgba(255, 255, 255, 0.93)' : '#4A3526',
           marginBottom: '8px',
           letterSpacing: '0.01em',
         }}
@@ -262,7 +271,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function BulletList({ items }: { items: string[] }) {
+function BulletList({ items, isDark }: { items: string[]; isDark?: boolean }) {
   return (
     <ul style={{ paddingLeft: '14px', marginBottom: '8px' }}>
       {items.map((item, index) => (
@@ -271,7 +280,7 @@ function BulletList({ items }: { items: string[] }) {
           style={{
             fontFamily: 'Georgia, serif',
             fontSize: '12px',
-            color: '#5A4A3A',
+            color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#5A4A3A',
             lineHeight: '1.55',
             marginBottom: '3px',
             listStyleType: 'disc',
@@ -281,5 +290,21 @@ function BulletList({ items }: { items: string[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+function Paragraph({ children, isDark }: { children: React.ReactNode; isDark?: boolean }) {
+  return (
+    <p
+      style={{
+        fontFamily: 'Georgia, serif',
+        fontSize: '12px',
+        color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#5A4A3A',
+        lineHeight: '1.6',
+        marginBottom: '10px',
+      }}
+    >
+      {children}
+    </p>
   );
 }

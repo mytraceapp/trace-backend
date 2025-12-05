@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTheme } from '../state/ThemeContext';
 
 interface TermsOfUseModalProps {
   isOpen: boolean;
@@ -7,6 +8,9 @@ interface TermsOfUseModalProps {
 }
 
 export function TermsOfUseModal({ isOpen, onClose }: TermsOfUseModalProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'night';
+  
   if (!isOpen) return null;
 
   return (
@@ -33,11 +37,14 @@ export function TermsOfUseModal({ isOpen, onClose }: TermsOfUseModalProps) {
             onClick={onClose}
           />
           <motion.div
-            className="relative z-10 w-full max-w-[340px] rounded-[24px] flex flex-col"
+            className="relative z-10 w-full max-w-[340px] flex flex-col"
             style={{
-              backgroundColor: '#E9E2D8',
-              border: '1px solid rgba(43, 30, 21, 0.12)',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.1)',
+              borderRadius: isDark ? '26px' : '24px',
+              backgroundColor: isDark ? 'rgba(38, 42, 38, 0.98)' : '#E9E2D8',
+              border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.12)',
+              boxShadow: isDark 
+                ? '0 20px 60px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3)'
+                : '0 20px 60px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.1)',
               maxHeight: '100%',
               overflow: 'hidden',
             }}
@@ -61,7 +68,7 @@ export function TermsOfUseModal({ isOpen, onClose }: TermsOfUseModalProps) {
                     fontFamily: 'Playfair Display, Georgia, serif',
                     fontSize: '20px',
                     fontWeight: 500,
-                    color: '#4A3526',
+                    color: isDark ? 'rgba(255, 255, 255, 0.95)' : '#4A3526',
                     marginBottom: '4px',
                     letterSpacing: '0.02em',
                   }}
@@ -72,7 +79,7 @@ export function TermsOfUseModal({ isOpen, onClose }: TermsOfUseModalProps) {
                   style={{
                     fontFamily: 'Georgia, serif',
                     fontSize: '11px',
-                    color: '#7D6D5D',
+                    color: isDark ? 'rgba(255, 255, 255, 0.6)' : '#7D6D5D',
                     marginBottom: '12px',
                     fontStyle: 'italic',
                   }}
@@ -93,7 +100,7 @@ export function TermsOfUseModal({ isOpen, onClose }: TermsOfUseModalProps) {
                 style={{
                   fontFamily: 'Georgia, serif',
                   fontSize: '12px',
-                  color: '#5A4A3A',
+                  color: isDark ? 'rgba(255, 255, 255, 0.88)' : '#5A4A3A',
                   lineHeight: '1.6',
                   marginBottom: '12px',
                 }}
@@ -105,7 +112,7 @@ export function TermsOfUseModal({ isOpen, onClose }: TermsOfUseModalProps) {
                 style={{
                   fontFamily: 'Georgia, serif',
                   fontSize: '11px',
-                  color: '#7D6D5D',
+                  color: isDark ? 'rgba(255, 255, 255, 0.55)' : '#7D6D5D',
                   lineHeight: '1.55',
                   marginBottom: '14px',
                   fontStyle: 'italic',
@@ -114,156 +121,156 @@ export function TermsOfUseModal({ isOpen, onClose }: TermsOfUseModalProps) {
                 By using TRACE, you agree to these Terms.
               </p>
 
-              <Section title="1. Purpose of TRACE">
-                <p style={paragraphStyle}>
+              <Section title="1. Purpose of TRACE" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   TRACE is a wellness and emotional-support tool designed to help you slow down, breathe, reflect, and better understand your emotional patterns.
-                </p>
-                <p style={paragraphStyle}>
+                </Paragraph>
+                <Paragraph isDark={isDark}>
                   TRACE is not a medical, psychological, or crisis service.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="2. Not Medical Advice">
-                <p style={paragraphStyle}>TRACE does not provide:</p>
-                <BulletList items={[
+              <Section title="2. Not Medical Advice" isDark={isDark}>
+                <Paragraph isDark={isDark}>TRACE does not provide:</Paragraph>
+                <BulletList isDark={isDark} items={[
                   'Professional counseling or therapy',
                   'Medical or psychiatric advice',
                   'Diagnosis or treatment of any condition',
                 ]} />
-                <p style={paragraphStyle}>
+                <Paragraph isDark={isDark}>
                   If you are in crisis or need urgent help, contact local emergency services or a qualified professional.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="3. Eligibility">
-                <p style={paragraphStyle}>You may use TRACE only if:</p>
-                <BulletList items={[
+              <Section title="3. Eligibility" isDark={isDark}>
+                <Paragraph isDark={isDark}>You may use TRACE only if:</Paragraph>
+                <BulletList isDark={isDark} items={[
                   'You are at least 13 years old (or the minimum age required in your region)',
                   'You can legally agree to these Terms',
                   'You use the app for personal, non-commercial purposes',
                 ]} />
               </Section>
 
-              <Section title="4. Your TRACE Account">
-                <p style={paragraphStyle}>When you create an account, you agree to:</p>
-                <BulletList items={[
+              <Section title="4. Your TRACE Account" isDark={isDark}>
+                <Paragraph isDark={isDark}>When you create an account, you agree to:</Paragraph>
+                <BulletList isDark={isDark} items={[
                   'Provide accurate information',
                   'Keep your login details secure',
                   'Be responsible for all activity in your account',
                 ]} />
-                <p style={paragraphStyle}>
+                <Paragraph isDark={isDark}>
                   If you believe your account is compromised, notify us immediately.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="5. Subscriptions & Payments">
-                <p style={paragraphStyle}>TRACE offers:</p>
-                <BulletList items={[
+              <Section title="5. Subscriptions & Payments" isDark={isDark}>
+                <Paragraph isDark={isDark}>TRACE offers:</Paragraph>
+                <BulletList isDark={isDark} items={[
                   'Light (Free)',
                   'Premium ($9.99/mo)',
                   'Studio ($14.99/mo)',
                 ]} />
-                <p style={paragraphStyle}>
+                <Paragraph isDark={isDark}>
                   By subscribing, you authorize recurring payments until you cancel. You may cancel anytime in the app or through your platform account (Apple/Google).
-                </p>
-                <p style={paragraphStyle}>
+                </Paragraph>
+                <Paragraph isDark={isDark}>
                   Paid plans unlock additional features. Refunds follow the policies of the App Store or payment provider.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="6. Acceptable Use">
-                <p style={paragraphStyle}>You agree not to:</p>
-                <BulletList items={[
+              <Section title="6. Acceptable Use" isDark={isDark}>
+                <Paragraph isDark={isDark}>You agree not to:</Paragraph>
+                <BulletList isDark={isDark} items={[
                   'Use TRACE for harmful, abusive, or illegal activity',
                   'Attempt to disrupt or reverse-engineer the app',
                   'Upload content that is threatening, hateful, or unsafe',
                   'Use TRACE if you are prohibited by law from doing so',
                 ]} />
-                <p style={paragraphStyle}>
+                <Paragraph isDark={isDark}>
                   We may suspend or terminate accounts that violate these rules.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="7. Your Content">
-                <p style={paragraphStyle}>
+              <Section title="7. Your Content" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   You own your journal entries, messages, and activities.
-                </p>
-                <p style={paragraphStyle}>By using TRACE, you give us permission to:</p>
-                <BulletList items={[
+                </Paragraph>
+                <Paragraph isDark={isDark}>By using TRACE, you give us permission to:</Paragraph>
+                <BulletList isDark={isDark} items={[
                   'Store your content securely',
                   'Process it to provide AI-driven emotional support',
                   'Display it back to you in the app',
                   'Improve your experience and app functionality',
                 ]} />
-                <p style={paragraphStyle}>
+                <Paragraph isDark={isDark}>
                   We do not sell or share your emotional content.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="8. AI & Limitations">
-                <p style={paragraphStyle}>
+              <Section title="8. AI & Limitations" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   TRACE uses artificial intelligence for reflections and emotional guidance. While thoughtful and supportive, AI responses:
-                </p>
-                <BulletList items={[
+                </Paragraph>
+                <BulletList isDark={isDark} items={[
                   'May not always be accurate',
                   'Should not replace human judgment',
                   'Are for wellness support only',
                 ]} />
-                <p style={paragraphStyle}>
+                <Paragraph isDark={isDark}>
                   Use TRACE mindfully and at your own discretion.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="9. Termination">
-                <p style={paragraphStyle}>
+              <Section title="9. Termination" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   You may delete your account at any time. We may suspend or terminate access if:
-                </p>
-                <BulletList items={[
+                </Paragraph>
+                <BulletList isDark={isDark} items={[
                   'You violate these Terms',
                   'You misuse the app',
                   'We need to protect the platform or community',
                 ]} />
-                <p style={paragraphStyle}>
+                <Paragraph isDark={isDark}>
                   Upon deletion, your personal data is removed in accordance with our Privacy Policy.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="10. Changes to TRACE">
-                <p style={paragraphStyle}>
+              <Section title="10. Changes to TRACE" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   We may modify or update features, pricing, or these Terms. When changes are significant, we will notify you in the app.
-                </p>
-                <p style={paragraphStyle}>
+                </Paragraph>
+                <Paragraph isDark={isDark}>
                   Continued use means you accept the updated Terms.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="11. Limitation of Liability">
-                <p style={paragraphStyle}>
+              <Section title="11. Limitation of Liability" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   TRACE is provided "as-is." We do not guarantee uninterrupted access or perfect accuracy.
-                </p>
-                <p style={paragraphStyle}>
+                </Paragraph>
+                <Paragraph isDark={isDark}>
                   To the fullest extent allowed by law, TRACE is not liable for:
-                </p>
-                <BulletList items={[
+                </Paragraph>
+                <BulletList isDark={isDark} items={[
                   'Emotional distress, decisions, or outcomes based on app content',
                   'Loss of data',
                   'Service interruptions',
                   'Indirect or consequential damages',
                 ]} />
-                <p style={paragraphStyle}>
+                <Paragraph isDark={isDark}>
                   Use TRACE at your own discretion.
-                </p>
+                </Paragraph>
               </Section>
 
-              <Section title="12. Contact Us">
-                <p style={paragraphStyle}>
+              <Section title="12. Contact Us" isDark={isDark}>
+                <Paragraph isDark={isDark}>
                   If you have questions about these Terms:
-                </p>
+                </Paragraph>
                 <p
                   style={{
                     fontFamily: 'Georgia, serif',
                     fontSize: '13px',
-                    color: '#5A4A3A',
+                    color: isDark ? 'rgba(255, 255, 255, 0.9)' : '#5A4A3A',
                     fontWeight: 500,
                     marginTop: '6px',
                     marginBottom: '8px',
@@ -279,8 +286,8 @@ export function TermsOfUseModal({ isOpen, onClose }: TermsOfUseModalProps) {
                 onClick={onClose}
                 className="w-full rounded-full px-5 py-3 transition-all duration-200 active:scale-[0.98]"
                 style={{
-                  backgroundColor: '#D7C8B5',
-                  border: '1px solid rgba(43, 30, 21, 0.1)',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#D7C8B5',
+                  border: isDark ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid rgba(43, 30, 21, 0.1)',
                 }}
               >
                 <span
@@ -288,7 +295,7 @@ export function TermsOfUseModal({ isOpen, onClose }: TermsOfUseModalProps) {
                     fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                     fontSize: '14px',
                     fontWeight: 500,
-                    color: '#4A3526',
+                    color: isDark ? 'rgba(255, 255, 255, 0.92)' : '#4A3526',
                     letterSpacing: '0.02em',
                   }}
                 >
@@ -303,15 +310,7 @@ export function TermsOfUseModal({ isOpen, onClose }: TermsOfUseModalProps) {
   );
 }
 
-const paragraphStyle: React.CSSProperties = {
-  fontFamily: 'Georgia, serif',
-  fontSize: '12px',
-  color: '#5A4A3A',
-  lineHeight: '1.6',
-  marginBottom: '10px',
-};
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, isDark }: { title: string; children: React.ReactNode; isDark?: boolean }) {
   return (
     <div style={{ marginBottom: '16px' }}>
       <h3
@@ -319,7 +318,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
           fontFamily: 'Playfair Display, Georgia, serif',
           fontSize: '14px',
           fontWeight: 500,
-          color: '#4A3526',
+          color: isDark ? 'rgba(255, 255, 255, 0.93)' : '#4A3526',
           marginBottom: '8px',
           letterSpacing: '0.01em',
         }}
@@ -331,7 +330,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function BulletList({ items }: { items: string[] }) {
+function BulletList({ items, isDark }: { items: string[]; isDark?: boolean }) {
   return (
     <ul style={{ paddingLeft: '14px', marginBottom: '8px' }}>
       {items.map((item, index) => (
@@ -340,7 +339,7 @@ function BulletList({ items }: { items: string[] }) {
           style={{
             fontFamily: 'Georgia, serif',
             fontSize: '12px',
-            color: '#5A4A3A',
+            color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#5A4A3A',
             lineHeight: '1.55',
             marginBottom: '3px',
             listStyleType: 'disc',
@@ -350,5 +349,21 @@ function BulletList({ items }: { items: string[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+function Paragraph({ children, isDark }: { children: React.ReactNode; isDark?: boolean }) {
+  return (
+    <p
+      style={{
+        fontFamily: 'Georgia, serif',
+        fontSize: '12px',
+        color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#5A4A3A',
+        lineHeight: '1.6',
+        marginBottom: '10px',
+      }}
+    >
+      {children}
+    </p>
   );
 }
