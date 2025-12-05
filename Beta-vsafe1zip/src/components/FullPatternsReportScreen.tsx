@@ -69,12 +69,12 @@ export function FullPatternsReportScreen({
         />
       )}
       
-      {/* Math notebook grid overlay - night mode with super light green */}
+      {/* Math notebook grid overlay - night mode with darker green */}
       {isDark && (
         <div 
-          className="fixed inset-0 pointer-events-none opacity-[0.08]"
+          className="fixed inset-0 pointer-events-none opacity-[0.12]"
           style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%23A8BFA0' stroke-width='0.5'/%3E%3C/svg%3E")`,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%233D4A3A' stroke-width='0.5'/%3E%3C/svg%3E")`,
             backgroundSize: '24px 24px',
             backgroundRepeat: 'repeat',
           }}
@@ -316,22 +316,24 @@ export function FullPatternsReportScreen({
                 </svg>
 
                 {/* Line graph */}
-                <svg className="absolute inset-0 w-full h-full">
-                  {/* Path */}
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  {/* Path connecting the dots */}
                   <motion.path
                     d={weekData.map((d, i) => {
                       const x = (i / (weekData.length - 1)) * 100;
                       const y = 100 - d.value;
-                      return `${i === 0 ? 'M' : 'L'} ${x}% ${y}%`;
+                      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
                     }).join(' ')}
                     fill="none"
                     stroke={isDark ? '#A8B39A' : '#8DA18F'}
-                    strokeWidth="2.5"
+                    strokeWidth="0.8"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ duration: 2, ease: "easeOut" }}
+                    vectorEffect="non-scaling-stroke"
+                    style={{ strokeWidth: '2px' }}
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
                   />
 
                   {/* Dots at each point */}
@@ -341,13 +343,13 @@ export function FullPatternsReportScreen({
                     return (
                       <motion.circle
                         key={i}
-                        cx={`${x}%`}
-                        cy={`${y}%`}
-                        r="4"
+                        cx={x}
+                        cy={y}
+                        r="2"
                         fill={isDark ? '#A8B39A' : '#8DA18F'}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.5 + i * 0.1, duration: 0.3 }}
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.3 + i * 0.1, duration: 0.3 }}
                       />
                     );
                   })}
