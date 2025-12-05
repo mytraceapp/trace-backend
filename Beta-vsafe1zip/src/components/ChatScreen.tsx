@@ -715,10 +715,18 @@ export function ChatScreen({
             <div className="space-y-4 min-h-full flex flex-col justify-end">
               {messages.map((msg, index) => {
                 const totalMessages = messages.length;
-                const fadeStart = Math.max(0, totalMessages - 6);
-                const messageOpacity = index < fadeStart 
-                  ? Math.max(0.025, 0.025 + (index / fadeStart) * 0.675)
-                  : 0.7 + ((index - fadeStart) / Math.max(1, totalMessages - fadeStart - 1)) * 0.3;
+                const positionFromEnd = totalMessages - 1 - index;
+                const messageOpacity = positionFromEnd >= 5 
+                  ? 0 
+                  : positionFromEnd >= 4 
+                    ? 0.15
+                    : positionFromEnd >= 3 
+                      ? 0.4
+                      : positionFromEnd >= 2 
+                        ? 0.65
+                        : positionFromEnd >= 1 
+                          ? 0.85
+                          : 1;
                 
                 return (
                   <motion.div
