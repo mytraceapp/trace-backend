@@ -19,7 +19,7 @@ export function useAmbientAudio({
   loop = true,
   startDelay = 0,
   playbackRate = 1.0,
-  crossfadeDuration = 6,
+  crossfadeDuration = 10,
 }: UseAmbientAudioOptions) {
   const audio1Ref = useRef<HTMLAudioElement | null>(null);
   const audio2Ref = useRef<HTMLAudioElement | null>(null);
@@ -92,15 +92,15 @@ export function useAmbientAudio({
         nextAudio.volume = 0;
         nextAudio.play().catch(() => {});
         
-        const crossfadeSteps = 60;
+        const crossfadeSteps = 100;
         const stepDuration = (crossfadeDuration * 1000) / crossfadeSteps;
         let step = 0;
         
         const crossfade = setInterval(() => {
           step++;
           const progress = step / crossfadeSteps;
-          const easedOut = 1 - Math.pow(progress, 2);
-          const easedIn = 1 - Math.pow(1 - progress, 2);
+          const easedOut = Math.cos(progress * Math.PI / 2);
+          const easedIn = Math.sin(progress * Math.PI / 2);
           
           activeAudio.volume = Math.max(0, volume * easedOut);
           nextAudio.volume = Math.min(volume, volume * easedIn);
