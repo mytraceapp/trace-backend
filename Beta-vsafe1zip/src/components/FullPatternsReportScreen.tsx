@@ -72,9 +72,9 @@ export function FullPatternsReportScreen({
       {/* Math notebook grid overlay - night mode with darker green - behind content */}
       {isDark && (
         <div 
-          className="fixed inset-0 pointer-events-none opacity-[0.12]"
+          className="fixed inset-0 pointer-events-none opacity-[0.06]"
           style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%233D4A3A' stroke-width='0.5'/%3E%3C/svg%3E")`,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%231A2118' stroke-width='0.5'/%3E%3C/svg%3E")`,
             backgroundSize: '24px 24px',
             backgroundRepeat: 'repeat',
             zIndex: 0,
