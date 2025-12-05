@@ -1,0 +1,50 @@
+	•	For now, implement storage as:
+	•	an in-memory React context that also syncs to localStorage so entries persist across refresh.
+	•	Put this in something like src/state/EntriesContext.tsx with a provider that exposes:
+	•	entries: Entry[]
+	•	addEntry(entryInput: Omit<Entry, 'id' | 'timestamp'>)
+	•	deleteEntry(id: string)
+	•	clearAllEntries() (for account deletion later)
+
+Save to Entries buttons
+	•	On the Power Nap / Rest completion screen (the one that says “Welcome back. You rested well.”), find the component file (it should be named something like PowerNapCompleteScreen.tsx or similar).
+	•	Wire the “Save to Entries” button so that when pressed it:
+	•	calls addEntry with:
+	•	type: 'session'
+	•	title: 'Power Nap – Rested'
+	•	body: a short summary string already on the screen (e.g. “You rested well.”)
+	•	sourceScreen: 'PowerNap'
+	•	any relevant metadata like duration.
+	•	after saving, navigate to the Entries tab (or show a small toast that it was saved).
+	•	Do the same for other activities later (maze, breathing, grounding, etc.) so they each create a type: 'session' entry with a meaningful title.
+
+Emotional notes / Journal
+	•	Treat the existing Journal feature as type: 'emotional_note'.
+	•	Wherever a user saves a journal entry, instead of a custom journal store, use addEntry with:
+	•	type: 'emotional_note'
+	•	title as the first line or a provided title
+	•	body as the full note text.
+	•	If there is already a JournalScreen.tsx, refactor it to:
+	•	read from EntriesContext and show only entries.filter(e => e.type === 'emotional_note').
+
+EntriesScreen
+	•	Create or update EntriesScreen.tsx (the tab in the bottom nav).
+	•	This screen should:
+	•	Use EntriesContext to get all entries.
+	•	Visually group them into sections:
+	•	“Daily sessions” → type: 'session'
+	•	“Emotional notes” → type: 'emotional_note'
+	•	“AI reflections” → type: 'ai_reflection'
+	•	“Check-ins” → type: 'check_in'
+	•	“Patterns-connected” → type: 'pattern'
+	•	Within each section, show a simple list: title, short preview, timestamp.
+	•	Tapping an entry opens a detail view with the full body.
+
+Navigation
+	•	Make sure:
+	•	“Save to Entries” → saves via EntriesContext and then either:
+	•	navigates to the Entries tab, or
+	•	keeps the user on the same screen but confirms “Saved to Entries.”
+	•	The bottom navigation “Entries” icon routes to EntriesScreen.
+
+Don’t change the visual styling; only add the data model, context, and wiring for saving + listing entries. When you’re done, show me the new Entry interface and a snippet of how addEntry is called from the Power Nap completion screen so I can verify.

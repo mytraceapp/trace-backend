@@ -1,0 +1,133 @@
+You are helping me finish the PATTERNS feature in my React + Vite app in this Replit project.
+
+Context:
+- This is my TRACE emotional wellness app.
+- The codebase was imported from Figma/Make as a React/Vite project.
+- I already have UI screens including: Home, Activities, Breathing, Journal, Chat, Patterns, Full Patterns, etc.
+- There is a Patterns screen that visually shows cards like "Peak Window", "Energy Tides", and "Stress Echoes".
+- I want you to implement ALL the front-end logic for Patterns in a clean, TypeScript-friendly way, using my existing design and navigation.
+
+Please do the following in small, clear steps and update the relevant files for me:
+
+------------------------------------------------
+1. Locate the current Patterns screen component
+------------------------------------------------
+- Find the file that corresponds to the Patterns screen (it might be named something like `PatternsScreen.tsx`, `Patterns.tsx`, or similar).
+- Tell me which file you found and treat that as the main Patterns screen.
+
+------------------------------------------------
+2. Create a strong data model for patterns
+------------------------------------------------
+In a shared place (for example `src/data/patterns.ts` or similar), define a TypeScript model and seed data:
+
+- Create a `PatternType` or `PatternCategory` type, e.g.: `"peakWindow" | "energyTides" | "stressEchoes"`.
+- Create a `Pattern` interface like:
+
+  - `id: string`
+  - `key: PatternCategory`
+  - `title: string`             // e.g. "Peak Window"
+  - `subtitle: string`          // short sentence under the title
+  - `summary: string`           // 1–2 sentence summary
+  - `timeWindow?: string`       // e.g. "9:40 AM – 12:10 PM"
+  - `insightBullets: string[]`  // key bullet points to show in modal
+  - `suggestedActions: string[]`// bullet list of what they can do
+  - `tag?: string`              // e.g. "Focus hours", "Weekend dips"
+  - `lockedForFree?: boolean`   // for future gating
+
+- Seed three example patterns:
+  - Peak Window
+  - Energy Tides
+  - Stress Echoes
+
+Use realistic placeholder copy that matches the tone of the UI:
+- warm, calm, gentle, not clinical.
+
+Export this data so the Patterns screen and Full Patterns screen can both consume it.
+
+------------------------------------------------
+3. Wire the data model into the Patterns screen
+------------------------------------------------
+Update the Patterns screen component so that:
+
+- It imports the patterns array from the shared data file.
+- It maps over the patterns list and renders the existing design cards using the data (instead of hardcoding text).
+- Each card should:
+  - Show title, subtitle, and any time window.
+  - Be clickable/tappable.
+- When a user taps a card, open a modal with details (see next step).
+- Keep the design exactly as it is visually – just replace static text with dynamic data.
+
+------------------------------------------------
+4. Implement 3 modals for the Patterns cards
+------------------------------------------------
+For the modals:
+
+- Use a simple React state pattern like `const [activePattern, setActivePattern] = useState<Pattern | null>(null);`
+- When a card is clicked, set `activePattern` and open a modal.
+- The modal layout should match my existing aesthetic:
+  - soft background, rounded corners, no harsh borders.
+  - title, subtitle, divider line, and sections for:
+    - “What this means for you”
+    - “How to work with this pattern”
+  - Render `insightBullets` under “What this means for you”.
+  - Render `suggestedActions` under “How to work with this pattern”.
+- Add a close button (“Done” or an X) that sets `activePattern` back to `null`.
+- Please reuse any existing modal or dialog component in the project if there is one; if not, create a simple local modal component in a clean, reusable way.
+
+------------------------------------------------
+5. Add a CTA link to the Full Patterns page
+------------------------------------------------
+Inside each modal, add a small CTA at the bottom:
+
+- Text button: “Open full weekly map”
+- When clicked, it should navigate to the existing Full Patterns screen (`FullPatternsReportScreen` or similar).
+- Pass the selected pattern key via navigation/state or URL query so the Full Patterns screen knows which pattern to highlight first (if this is easy in the current routing setup; if not, just navigate without extra state but structure the code so it will be easy to extend later).
+
+------------------------------------------------
+6. Implement the Full Patterns screen logic
+------------------------------------------------
+On the Full Patterns screen:
+
+- Import the same patterns data from the shared data file.
+- At the top, show a gentle summary line like:
+  “Here’s how your week tends to move. These patterns will deepen as you use the app.”
+- Render:
+  - A list or grid of all patterns with:
+    - title
+    - brief one-line summary
+    - small tag (e.g. “Focus”, “Energy”, “Stress”).
+- If a pattern key was passed from the Patterns modal:
+  - Visually highlight that card (e.g., subtle border or glow).
+  - Optionally scroll it into view.
+- Include a back button that returns to the main Patterns screen.
+
+------------------------------------------------
+7. Prepare for future gating by plan tier (NO real auth yet)
+------------------------------------------------
+I will later introduce real plan tiers (free, premium, studio) via Supabase/Stripe, but for now:
+
+- Create a simple `PlanTier` type: `"free" | "premium" | "studio"`.
+- For now, hard-code a `const currentPlan: PlanTier = "premium";` at the top of the Patterns screen (or better, a small `usePlanTier()` hook that returns `"premium"`).
+- If `currentPlan === "free"` and a pattern has `lockedForFree === true`:
+  - Show a subtle “Studio” tag or lock icon on the card.
+  - On click, instead of opening the insight modal, open a very simple upsell modal that says something like:
+    “This pattern deep dive lives in TRACE Studio. Upgrade to unlock your full rhythm map.”
+  - Include a dummy “Upgrade” button that just closes the modal or logs to console for now (no real payments).
+
+Code should make it easy to later swap `currentPlan` with real plan data from a backend.
+
+------------------------------------------------
+8. Keep everything clean, commented, and TypeScript-safe
+------------------------------------------------
+- Use TypeScript types and interfaces for all new data structures.
+- Add brief comments explaining:
+  - where the patterns data lives
+  - how to add new patterns in the future
+  - how to later plug in real plan-tier logic.
+- Do NOT change unrelated screens or logic.
+- Preserve the current visual styling as much as possible.
+
+After you implement all of this, summarize:
+- What files you created or edited
+- How to add a new pattern
+- Where to change plan tier behavior in the future.

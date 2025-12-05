@@ -1,0 +1,67 @@
+I’m working on my React/Vite app for a mental wellness product called TRACE.
+There is already a “Trace the Maze” screen designed in the UI. Right now the maze is static.
+I want you to turn this into an interactive maze mini-game that:
+	•	Generates a new maze layout every time the user opens the screen
+	•	Lets the user trace the path with their finger (on touch) or mouse cursor (desktop)
+	•	Uses a small glowing orb as the guided marker
+	•	Keeps the overall visual design exactly as it is now (layout, colors, typography)
+
+1. Locate the existing screen
+	•	Find the React component that renders the “Trace the Maze” view (it will be named something like MazeScreen.tsx, TraceMazeScreen.tsx, or similar in src/ui).
+	•	Keep the header, subtitle, description text, and “Finish Session” button exactly the same.
+	•	Replace only the inner maze area (the square card with the path) with a generated maze component.
+
+2. Maze generation
+	•	Implement a simple maze generator in TypeScript:
+	•	Use a grid-based maze (for example 10x10 or 12x12 cells) with one clear path from start to finish and a few branches.
+	•	Use an algorithm like recursive backtracking or similar to generate new mazes.
+	•	Difficulty: easy to medium – clearly visible path, not too dense.
+	•	Render the maze as either:
+	•	An <svg> with paths and walls, or
+	•	A <canvas> inside the existing rounded card, matching the current aesthetic.
+	•	Every time the Maze screen mounts, generate a fresh maze layout.
+
+3. Orb + input behavior
+	•	Add a small glowing orb at the maze’s starting point:
+	•	The orb should visually match the existing orb style (soft glow, light circle).
+	•	Implement input handling for both:
+	•	Mouse (desktop): click and drag
+	•	Touch (mobile): touch and drag
+	•	Behavior:
+	•	When the user presses down on or near the orb, start “tracing mode”.
+	•	As they drag, the orb should follow their pointer along the maze path only.
+	•	If they move off the path by more than a small tolerance:
+	•	Gently snap the orb back to the nearest valid point on the path or
+	•	Briefly show a subtle “off path” feedback (e.g., tiny shake or soft pulse) and prevent moving through walls.
+	•	When the orb reaches the maze end point:
+	•	Show a short success state: e.g. “Reset complete” text fade-in or a tiny glow pulse around the orb.
+	•	After success, enable the “Finish Session” button if it was disabled, or automatically scroll focus to it.
+
+4. Integration with the existing UI
+	•	Keep the surrounding layout exactly as designed:
+	•	Title: “Trace the Maze”
+	•	Subtitle and supporting text under the maze card
+	•	“45-SECOND RESET” text can remain static for now (doesn’t have to be a real timer yet).
+	•	“Finish Session” button at the bottom should still work as before (navigate back or close the activity).
+	•	Make sure the maze card:
+	•	Respects the current rounded corners and drop shadow
+	•	Does NOT overflow outside the iPhone frame.
+
+5. Implementation details
+	•	Create a dedicated component, for example InteractiveMaze.tsx, and use it inside the Maze screen.
+	•	The maze should resize responsively within its card, but you can assume a fixed aspect ratio.
+	•	Use React state to manage:
+	•	Generated maze data
+	•	Orb position
+	•	Whether the user is currently tracing
+	•	Whether the maze is completed
+	•	Keep the code clean and commented so I can adjust parameters later (grid size, difficulty, colors).
+
+6. Completion check
+	•	When you’re done, show me:
+	1.	The final MazeScreen (or equivalent) component JSX
+	2.	The new InteractiveMaze component with the maze generator and orb logic
+	•	Then run the app in the Replit preview and confirm:
+	•	A new maze appears on refresh / re-entry
+	•	I can trace it with mouse or touch
+	•	Reaching the end triggers the success state / allows “Finish Session”.
