@@ -23,11 +23,9 @@ export function RainWindowScreen({
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showCompletion, setShowCompletion] = useState(false);
   const [introVisible, setIntroVisible] = useState(true);
-  const [videoOpacity, setVideoOpacity] = useState(1);
   const timerRef = useRef<number | null>(null);
   const introTimeoutRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const isLoopingRef = useRef(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const { addEntry } = useEntries();
@@ -172,51 +170,13 @@ export function RainWindowScreen({
     };
   }, [stopRainAudio]);
 
-  // Seamless video loop with cross-fade
+  // Video setup - native loop with slow playback for dreamy effect
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Ensure slow playback rate is set
     video.playbackRate = 0.5;
-
-    const handleTimeUpdate = () => {
-      if (!video.duration) return;
-      
-      const timeRemaining = video.duration - video.currentTime;
-      
-      // Start fade out 1 second before end
-      if (timeRemaining <= 1 && timeRemaining > 0 && !isLoopingRef.current) {
-        isLoopingRef.current = true;
-        setVideoOpacity(0);
-        
-        // Reset video during fade
-        setTimeout(() => {
-          video.currentTime = 0.05;
-          video.play().catch(() => {});
-          
-          // Fade back in
-          setTimeout(() => {
-            setVideoOpacity(1);
-            isLoopingRef.current = false;
-          }, 100);
-        }, 400);
-      }
-    };
-
-    const handleEnded = () => {
-      video.currentTime = 0.05;
-      video.playbackRate = 0.5;
-      video.play().catch(() => {});
-    };
-
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('ended', handleEnded);
-
-    return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('ended', handleEnded);
-    };
+    video.loop = true;
   }, []);
 
   const formatTime = (seconds: number) => {
@@ -237,6 +197,7 @@ export function RainWindowScreen({
         className="absolute object-cover"
         src="/video/rain-window.mp4"
         muted
+        loop
         playsInline
         autoPlay
         preload="auto"
@@ -249,8 +210,6 @@ export function RainWindowScreen({
           width: 'auto',
           height: 'auto',
           filter: 'brightness(0.85) saturate(0.9)',
-          opacity: videoOpacity,
-          transition: 'opacity 0.5s ease-in-out',
         }}
       />
 
