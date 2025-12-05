@@ -1,6 +1,77 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --trace-bg-main: #F5F1EB;
+  --trace-bg-secondary: #E8E4DC;
+  --trace-bg-gradient-start: #F5F1EB;
+  --trace-bg-gradient-mid: #D8DCD5;
+  --trace-bg-gradient-end: #B4BFB3;
+  --trace-text-primary: #5A4A3A;
+  --trace-text-secondary: #8A7A6A;
+  --trace-text-muted: #6B5A4A;
+  --trace-accent: #8DA18F;
+  --trace-accent-dark: #7D9180;
+  --trace-overlay: rgba(138, 122, 106, 0.12);
+  --trace-overlay-faint: rgba(138, 122, 106, 0.05);
+  --trace-orb-glow: rgba(141, 161, 143, 0.15);
+  --trace-card-bg: #F5F1EB;
+  --trace-card-alt: #C9BCB0;
+  --trace-border: rgba(138, 122, 106, 0.12);
+  --trace-border-strong: rgba(138, 122, 106, 0.3);
+  --trace-shadow: rgba(138, 122, 106, 0.16);
+  --trace-danger: #B07D6C;
+  --trace-transition: 200ms ease-out;
+}
+
+.trace-day {
+  --trace-bg-main: #F5F1EB;
+  --trace-bg-secondary: #E8E4DC;
+  --trace-bg-gradient-start: #F5F1EB;
+  --trace-bg-gradient-mid: #D8DCD5;
+  --trace-bg-gradient-end: #B4BFB3;
+  --trace-text-primary: #5A4A3A;
+  --trace-text-secondary: #8A7A6A;
+  --trace-text-muted: #6B5A4A;
+  --trace-accent: #8DA18F;
+  --trace-accent-dark: #7D9180;
+  --trace-overlay: rgba(138, 122, 106, 0.12);
+  --trace-overlay-faint: rgba(138, 122, 106, 0.05);
+  --trace-orb-glow: rgba(141, 161, 143, 0.15);
+  --trace-card-bg: #F5F1EB;
+  --trace-card-alt: #C9BCB0;
+  --trace-border: rgba(138, 122, 106, 0.12);
+  --trace-border-strong: rgba(138, 122, 106, 0.3);
+  --trace-shadow: rgba(138, 122, 106, 0.16);
+  --trace-danger: #B07D6C;
+}
+
+.trace-night {
+  --trace-bg-main: #1A1F1A;
+  --trace-bg-secondary: #242924;
+  --trace-bg-gradient-start: #1A1F1A;
+  --trace-bg-gradient-mid: #1E2620;
+  --trace-bg-gradient-end: #222A24;
+  --trace-text-primary: #D8DCD5;
+  --trace-text-secondary: #A5A89F;
+  --trace-text-muted: #8A8D84;
+  --trace-accent: #6B8A6E;
+  --trace-accent-dark: #5A7A5D;
+  --trace-overlay: rgba(180, 191, 179, 0.12);
+  --trace-overlay-faint: rgba(180, 191, 179, 0.05);
+  --trace-orb-glow: rgba(107, 138, 110, 0.2);
+  --trace-card-bg: #242924;
+  --trace-card-alt: #2D342D;
+  --trace-border: rgba(180, 191, 179, 0.1);
+  --trace-border-strong: rgba(180, 191, 179, 0.25);
+  --trace-shadow: rgba(0, 0, 0, 0.25);
+  --trace-danger: #C49080;
+}
+
+html, body {
+  transition: background-color var(--trace-transition), color var(--trace-transition);
+}
+
+:root {
   --font-size: 16px;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);

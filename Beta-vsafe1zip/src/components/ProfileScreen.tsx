@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight, Lock, Download, Trash2, Volume2, VolumeX, X, Copy, Check } from 'lucide-react';
+import { ChevronRight, Lock, Download, Trash2, Volume2, VolumeX, X, Copy, Check, Sun, Moon } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useUser, planLabels, PlanTier } from '../state/PlanContext';
+import { useTheme } from '../state/ThemeContext';
 import { AboutTraceModal } from './AboutTraceModal';
 
 interface ProfileScreenProps {
@@ -27,7 +28,8 @@ export function ProfileScreen({
   onNavigateToTerms
 }: ProfileScreenProps) {
   const { profile, selectedPlan, generateReferralCode, updatePlan, setIsUpgrading, ambienceEnabled, setAmbienceEnabled, ambienceVolume, setAmbienceVolume } = useUser();
-  const [selectedTheme, setSelectedTheme] = React.useState('Sage');
+  const { theme, setTheme } = useTheme();
+  const [showThemePopup, setShowThemePopup] = React.useState(false);
   
   const [showManagePlanPopup, setShowManagePlanPopup] = React.useState(false);
   const [showUpgradePromoPopup, setShowUpgradePromoPopup] = React.useState(false);
@@ -99,18 +101,18 @@ export function ProfileScreen({
 
   return (
     <div 
-      className="relative w-full h-full overflow-hidden"
+      className="relative w-full h-full overflow-hidden transition-all duration-200"
       style={{ 
-        background: 'linear-gradient(to bottom, #F5F1EB 0%, #E8E4DC 18%, #D8DCD5 45%, #C5CABE 78%, #B4BFB3 100%)' 
+        background: `linear-gradient(to bottom, var(--trace-bg-gradient-start) 0%, var(--trace-bg-secondary) 18%, var(--trace-bg-gradient-mid) 45%, var(--trace-accent) 78%, var(--trace-bg-gradient-end) 100%)` 
       }}
     >
       {/* Subtle background orb */}
       <motion.div
-        className="absolute rounded-full pointer-events-none blur-3xl"
+        className="absolute rounded-full pointer-events-none blur-3xl transition-all duration-200"
         style={{
           width: '280px',
           height: '280px',
-          background: 'radial-gradient(circle, rgba(141, 161, 143, 0.15) 0%, transparent 70%)',
+          background: `radial-gradient(circle, var(--trace-orb-glow) 0%, transparent 70%)`,
           top: '35%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
@@ -139,13 +141,16 @@ export function ProfileScreen({
         transition={{ delay: 0.2, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] }}
       >
         <h1
+          className="transition-all duration-200"
           style={{
             fontFamily: 'ALORE, Georgia, serif',
-            color: '#6A5A4A',
+            color: 'var(--trace-text-muted)',
             fontWeight: 300,
             letterSpacing: '1em',
             fontSize: '11px',
-            textShadow: '0 0 15px rgba(106, 90, 74, 0.45), 0 0 30px rgba(106, 90, 74, 0.25), 0 2px 4px rgba(0,0,0,0.12)',
+            textShadow: theme === 'night' 
+              ? '0 0 15px rgba(180, 191, 179, 0.35), 0 0 30px rgba(180, 191, 179, 0.15), 0 2px 4px rgba(0,0,0,0.2)'
+              : '0 0 15px rgba(106, 90, 74, 0.45), 0 0 30px rgba(106, 90, 74, 0.25), 0 2px 4px rgba(0,0,0,0.12)',
             opacity: 0.9,
           }}
         >
@@ -195,18 +200,18 @@ export function ProfileScreen({
           transition={{ delay: 0.3, duration: 1 }}
         >
           <div
-            className="w-16 h-16 rounded-full flex items-center justify-center"
+            className="w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200"
             style={{
-              background: '#F5F1EB',
-              border: '1.5px solid #8A7A6A',
-              boxShadow: '0 2px 12px rgba(138, 122, 106, 0.12)',
+              background: 'var(--trace-card-bg)',
+              border: '1.5px solid var(--trace-text-secondary)',
+              boxShadow: `0 2px 12px var(--trace-shadow)`,
             }}
           >
             <span
               style={{
                 fontFamily: 'Playfair Display, Georgia, serif',
                 fontSize: '22px',
-                color: '#8A7A6A',
+                color: 'var(--trace-text-secondary)',
                 fontWeight: 400,
                 letterSpacing: '0.02em',
               }}
@@ -221,10 +226,10 @@ export function ProfileScreen({
           
           {/* Section 1 — Account Overview */}
           <motion.div
-            className="w-full rounded-[28px] p-7 mb-5"
+            className="w-full rounded-[28px] p-7 mb-5 transition-all duration-200"
             style={{
-              background: '#F5F1EB',
-              boxShadow: '0 2px 16px rgba(138, 122, 106, 0.16), 0 4px 24px rgba(138, 122, 106, 0.06)',
+              background: 'var(--trace-card-bg)',
+              boxShadow: `0 2px 16px var(--trace-shadow), 0 4px 24px var(--trace-shadow)`,
             }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -236,7 +241,7 @@ export function ProfileScreen({
                   fontFamily: 'Georgia, serif',
                   fontSize: '17px',
                   fontWeight: 400,
-                  color: '#5A4A3A',
+                  color: 'var(--trace-text-primary)',
                   letterSpacing: '0.015em',
                   marginBottom: '6px',
                 }}
@@ -248,7 +253,7 @@ export function ProfileScreen({
                   fontFamily: 'Georgia, serif',
                   fontSize: '14px',
                   fontWeight: 300,
-                  color: '#8A7A6A',
+                  color: 'var(--trace-text-secondary)',
                   letterSpacing: '0.01em',
                 }}
               >
@@ -262,7 +267,7 @@ export function ProfileScreen({
                   style={{
                     fontFamily: 'Georgia, serif',
                     fontSize: '11px',
-                    color: '#8A7A6A',
+                    color: 'var(--trace-text-secondary)',
                     letterSpacing: '0.05em',
                     textTransform: 'uppercase',
                     opacity: 0.6,
@@ -275,7 +280,7 @@ export function ProfileScreen({
                   style={{
                     fontFamily: 'Georgia, serif',
                     fontSize: '15px',
-                    color: '#5A4A3A',
+                    color: 'var(--trace-text-primary)',
                     fontWeight: 400,
                     letterSpacing: '0.01em',
                   }}
@@ -290,7 +295,7 @@ export function ProfileScreen({
                 <span
                   style={{
                     fontFamily: 'Georgia, serif',
-                    color: '#8A7A6A',
+                    color: 'var(--trace-text-secondary)',
                     fontSize: '14px',
                     fontWeight: 300,
                     letterSpacing: '0.01em',
@@ -305,8 +310,8 @@ export function ProfileScreen({
               <div 
                 className="py-4 my-2 space-y-3"
                 style={{
-                  borderTop: '1px solid rgba(138, 122, 106, 0.12)',
-                  borderBottom: '1px solid rgba(138, 122, 106, 0.12)',
+                  borderTop: '1px solid var(--trace-border)',
+                  borderBottom: '1px solid var(--trace-border)',
                 }}
               >
                 <button
@@ -316,14 +321,14 @@ export function ProfileScreen({
                   <span
                     style={{
                       fontFamily: 'Georgia, serif',
-                      color: '#5A4A3A',
+                      color: 'var(--trace-text-primary)',
                       fontSize: '14px',
                       fontWeight: 300,
                     }}
                   >
                     Apply Referral Code
                   </span>
-                  <ChevronRight size={16} style={{ color: '#8A7A6A', strokeWidth: 1.5 }} />
+                  <ChevronRight size={16} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
                 </button>
 
                 <div>
@@ -339,20 +344,20 @@ export function ProfileScreen({
                     <span
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: '#5A4A3A',
+                        color: 'var(--trace-text-primary)',
                         fontSize: '14px',
                         fontWeight: 300,
                       }}
                     >
                       Generate A Referral Code
                     </span>
-                    <ChevronRight size={16} style={{ color: '#8A7A6A', strokeWidth: 1.5 }} />
+                    <ChevronRight size={16} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
                   </button>
                   <p
                     className="mt-2 px-4"
                     style={{
                       fontFamily: 'Georgia, serif',
-                      color: '#8A7A6A',
+                      color: 'var(--trace-text-secondary)',
                       fontSize: '12px',
                       fontWeight: 300,
                       letterSpacing: '0.01em',
@@ -368,10 +373,10 @@ export function ProfileScreen({
 
           {/* Section 2 — Personalization */}
           <motion.div
-            className="w-full rounded-[28px] p-6 mb-5"
+            className="w-full rounded-[28px] p-6 mb-5 transition-all duration-200"
             style={{
-              background: '#F5F1EB',
-              boxShadow: '0 2px 16px rgba(138, 122, 106, 0.08)',
+              background: 'var(--trace-card-bg)',
+              boxShadow: `0 2px 16px var(--trace-shadow)`,
             }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -383,7 +388,7 @@ export function ProfileScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '15px',
                 fontWeight: 400,
-                color: '#5A4A3A',
+                color: 'var(--trace-text-primary)',
                 letterSpacing: '0.02em',
               }}
             >
@@ -398,7 +403,7 @@ export function ProfileScreen({
                 <span
                   style={{
                     fontFamily: 'Georgia, serif',
-                    color: '#5A4A3A',
+                    color: 'var(--trace-text-primary)',
                     fontSize: '14px',
                     fontWeight: 300,
                     letterSpacing: '0.01em',
@@ -406,7 +411,7 @@ export function ProfileScreen({
                 >
                   Tone Style
                 </span>
-                <ChevronRight size={16} style={{ color: '#8A7A6A', strokeWidth: 1.5 }} />
+                <ChevronRight size={16} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
               </button>
 
               {/* App Ambience */}
@@ -415,7 +420,7 @@ export function ProfileScreen({
                   <span
                     style={{
                       fontFamily: 'Georgia, serif',
-                      color: '#5A4A3A',
+                      color: 'var(--trace-text-primary)',
                       fontSize: '14px',
                       fontWeight: 300,
                       letterSpacing: '0.01em',
@@ -427,18 +432,18 @@ export function ProfileScreen({
                     onClick={() => setAmbienceEnabled(!ambienceEnabled)}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300"
                     style={{
-                      background: ambienceEnabled ? 'rgba(138, 122, 106, 0.12)' : 'rgba(138, 122, 106, 0.05)',
+                      background: ambienceEnabled ? 'var(--trace-overlay)' : 'var(--trace-overlay-faint)',
                     }}
                   >
                     {ambienceEnabled ? (
-                      <Volume2 size={14} style={{ color: '#5A4A3A', strokeWidth: 1.5 }} />
+                      <Volume2 size={14} style={{ color: 'var(--trace-text-primary)', strokeWidth: 1.5 }} />
                     ) : (
-                      <VolumeX size={14} style={{ color: '#8A7A6A', strokeWidth: 1.5 }} />
+                      <VolumeX size={14} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
                     )}
                     <span
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: ambienceEnabled ? '#5A4A3A' : '#8A7A6A',
+                        color: ambienceEnabled ? 'var(--trace-text-primary)' : 'var(--trace-text-secondary)',
                         fontSize: '13px',
                         fontWeight: 300,
                       }}
@@ -457,13 +462,13 @@ export function ProfileScreen({
                       onChange={(e) => setAmbienceVolume(Number(e.target.value))}
                       className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
                       style={{
-                        background: `linear-gradient(to right, #8A7A6A 0%, #8A7A6A ${ambienceVolume}%, rgba(138, 122, 106, 0.15) ${ambienceVolume}%, rgba(138, 122, 106, 0.15) 100%)`,
+                        background: `linear-gradient(to right, var(--trace-text-secondary) 0%, var(--trace-text-secondary) ${ambienceVolume}%, var(--trace-overlay) ${ambienceVolume}%, var(--trace-overlay) 100%)`,
                       }}
                     />
                     <span
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: '#8A7A6A',
+                        color: 'var(--trace-text-secondary)',
                         fontSize: '12px',
                         fontWeight: 300,
                         width: '32px',
@@ -477,43 +482,87 @@ export function ProfileScreen({
               </div>
 
               {/* Interface Theme */}
-              <button
-                className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
-              >
-                <span
-                  style={{
-                    fontFamily: 'Georgia, serif',
-                    color: '#5A4A3A',
-                    fontSize: '14px',
-                    fontWeight: 300,
-                    letterSpacing: '0.01em',
-                  }}
-                >
-                  Interface Theme
-                </span>
-                <div className="flex items-center gap-2">
+              <div className="py-3 px-3 rounded-xl">
+                <div className="flex items-center justify-between mb-2">
                   <span
                     style={{
                       fontFamily: 'Georgia, serif',
-                      color: '#8A7A6A',
-                      fontSize: '13px',
+                      color: 'var(--trace-text-primary)',
+                      fontSize: '14px',
                       fontWeight: 300,
+                      letterSpacing: '0.01em',
                     }}
                   >
-                    {selectedTheme}
+                    Interface Theme
                   </span>
-                  <ChevronRight size={16} style={{ color: '#8A7A6A', strokeWidth: 1.5 }} />
                 </div>
-              </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setTheme('day')}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl transition-all duration-200"
+                    style={{
+                      background: theme === 'day' ? 'var(--trace-overlay)' : 'var(--trace-overlay-faint)',
+                      border: theme === 'day' ? '1.5px solid var(--trace-border-strong)' : '1.5px solid transparent',
+                    }}
+                  >
+                    <Sun size={14} style={{ color: theme === 'day' ? 'var(--trace-text-primary)' : 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
+                    <span
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: theme === 'day' ? 'var(--trace-text-primary)' : 'var(--trace-text-secondary)',
+                        fontSize: '13px',
+                        fontWeight: theme === 'day' ? 400 : 300,
+                      }}
+                    >
+                      Day
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setTheme('night')}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl transition-all duration-200"
+                    style={{
+                      background: theme === 'night' ? 'var(--trace-overlay)' : 'var(--trace-overlay-faint)',
+                      border: theme === 'night' ? '1.5px solid var(--trace-border-strong)' : '1.5px solid transparent',
+                    }}
+                  >
+                    <Moon size={14} style={{ color: theme === 'night' ? 'var(--trace-text-primary)' : 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
+                    <span
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: theme === 'night' ? 'var(--trace-text-primary)' : 'var(--trace-text-secondary)',
+                        fontSize: '13px',
+                        fontWeight: theme === 'night' ? 400 : 300,
+                      }}
+                    >
+                      Night
+                    </span>
+                  </button>
+                </div>
+                <p
+                  className="mt-2"
+                  style={{
+                    fontFamily: 'Georgia, serif',
+                    color: 'var(--trace-text-secondary)',
+                    fontSize: '11px',
+                    fontWeight: 300,
+                    letterSpacing: '0.01em',
+                    opacity: 0.85,
+                  }}
+                >
+                  {theme === 'day' 
+                    ? 'A light, soft palette designed to feel open, fresh, and steady.'
+                    : 'A dimmed, grounding palette that reduces eye strain and supports evening reflection.'}
+                </p>
+              </div>
             </div>
           </motion.div>
 
           {/* Section 3 — Privacy & Security */}
           <motion.div
-            className="w-full rounded-[28px] p-6 mb-5"
+            className="w-full rounded-[28px] p-6 mb-5 transition-all duration-200"
             style={{
-              background: '#C9BCB0',
-              boxShadow: '0 2px 16px rgba(90, 74, 58, 0.12)',
+              background: 'var(--trace-card-alt)',
+              boxShadow: `0 2px 16px var(--trace-shadow)`,
             }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -525,7 +574,7 @@ export function ProfileScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '15px',
                 fontWeight: 400,
-                color: '#4A3A2A',
+                color: 'var(--trace-text-primary)',
                 letterSpacing: '0.02em',
               }}
             >
@@ -537,11 +586,11 @@ export function ProfileScreen({
                 className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
               >
                 <div className="flex items-center gap-3">
-                  <Lock size={15} style={{ color: '#6B5A4A', strokeWidth: 1.5 }} />
+                  <Lock size={15} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
                   <span
                     style={{
                       fontFamily: 'Georgia, serif',
-                      color: '#4A3A2A',
+                      color: 'var(--trace-text-primary)',
                       fontSize: '14px',
                       fontWeight: 300,
                       letterSpacing: '0.01em',
@@ -550,18 +599,18 @@ export function ProfileScreen({
                     Passcode / Face ID
                   </span>
                 </div>
-                <ChevronRight size={16} style={{ color: '#6B5A4A', strokeWidth: 1.5 }} />
+                <ChevronRight size={16} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
               </button>
 
               <button
                 className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
               >
                 <div className="flex items-center gap-3">
-                  <Download size={15} style={{ color: '#6B5A4A', strokeWidth: 1.5 }} />
+                  <Download size={15} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
                   <span
                     style={{
                       fontFamily: 'Georgia, serif',
-                      color: '#4A3A2A',
+                      color: 'var(--trace-text-primary)',
                       fontSize: '14px',
                       fontWeight: 300,
                       letterSpacing: '0.01em',
@@ -570,18 +619,18 @@ export function ProfileScreen({
                     Export Entries
                   </span>
                 </div>
-                <ChevronRight size={16} style={{ color: '#6B5A4A', strokeWidth: 1.5 }} />
+                <ChevronRight size={16} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
               </button>
 
               <button
                 className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
               >
                 <div className="flex items-center gap-3">
-                  <Download size={15} style={{ color: '#6B5A4A', strokeWidth: 1.5 }} />
+                  <Download size={15} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
                   <span
                     style={{
                       fontFamily: 'Georgia, serif',
-                      color: '#4A3A2A',
+                      color: 'var(--trace-text-primary)',
                       fontSize: '14px',
                       fontWeight: 300,
                       letterSpacing: '0.01em',
@@ -590,18 +639,18 @@ export function ProfileScreen({
                     Download My Data
                   </span>
                 </div>
-                <ChevronRight size={16} style={{ color: '#6B5A4A', strokeWidth: 1.5 }} />
+                <ChevronRight size={16} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
               </button>
 
               <button
                 className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
               >
                 <div className="flex items-center gap-3">
-                  <Trash2 size={15} style={{ color: '#B07D6C', strokeWidth: 1.5 }} />
+                  <Trash2 size={15} style={{ color: 'var(--trace-danger)', strokeWidth: 1.5 }} />
                   <span
                     style={{
                       fontFamily: 'Georgia, serif',
-                      color: '#B07D6C',
+                      color: 'var(--trace-danger)',
                       fontSize: '14px',
                       fontWeight: 300,
                       letterSpacing: '0.01em',
@@ -610,7 +659,7 @@ export function ProfileScreen({
                     Delete Account
                   </span>
                 </div>
-                <ChevronRight size={16} style={{ color: '#B07D6C', strokeWidth: 1.5 }} />
+                <ChevronRight size={16} style={{ color: 'var(--trace-danger)', strokeWidth: 1.5 }} />
               </button>
             </div>
           </motion.div>
@@ -628,7 +677,7 @@ export function ProfileScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '15px',
                 fontWeight: 400,
-                color: '#5A4A3A',
+                color: 'var(--trace-text-primary)',
                 letterSpacing: '0.02em',
               }}
             >
@@ -640,13 +689,13 @@ export function ProfileScreen({
                 onClick={() => setShowAboutTraceModal(true)}
                 className="w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 hover:bg-black/5"
                 style={{
-                  background: 'rgba(245, 241, 235, 0.6)',
+                  background: 'var(--trace-overlay)',
                 }}
               >
                 <span
                   style={{
                     fontFamily: 'Georgia, serif',
-                    color: '#5A4A3A',
+                    color: 'var(--trace-text-primary)',
                     fontSize: '14px',
                     fontWeight: 300,
                     letterSpacing: '0.01em',
@@ -654,20 +703,20 @@ export function ProfileScreen({
                 >
                   How TRACE Works
                 </span>
-                <ChevronRight size={16} style={{ color: '#8A7A6A', strokeWidth: 1.5 }} />
+                <ChevronRight size={16} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
               </button>
 
               <button
                 onClick={onNavigateToTerms}
                 className="w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 hover:bg-black/5"
                 style={{
-                  background: 'rgba(245, 241, 235, 0.6)',
+                  background: 'var(--trace-overlay)',
                 }}
               >
                 <span
                   style={{
                     fontFamily: 'Georgia, serif',
-                    color: '#5A4A3A',
+                    color: 'var(--trace-text-primary)',
                     fontSize: '14px',
                     fontWeight: 300,
                     letterSpacing: '0.01em',
@@ -675,20 +724,20 @@ export function ProfileScreen({
                 >
                   Terms & Safety Commitment
                 </span>
-                <ChevronRight size={16} style={{ color: '#8A7A6A', strokeWidth: 1.5 }} />
+                <ChevronRight size={16} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
               </button>
 
               <button
                 onClick={onNavigateToPrivacy}
                 className="w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 hover:bg-black/5"
                 style={{
-                  background: 'rgba(245, 241, 235, 0.6)',
+                  background: 'var(--trace-overlay)',
                 }}
               >
                 <span
                   style={{
                     fontFamily: 'Georgia, serif',
-                    color: '#5A4A3A',
+                    color: 'var(--trace-text-primary)',
                     fontSize: '14px',
                     fontWeight: 300,
                     letterSpacing: '0.01em',
@@ -696,7 +745,7 @@ export function ProfileScreen({
                 >
                   Privacy & Your Data
                 </span>
-                <ChevronRight size={16} style={{ color: '#8A7A6A', strokeWidth: 1.5 }} />
+                <ChevronRight size={16} style={{ color: 'var(--trace-text-secondary)', strokeWidth: 1.5 }} />
               </button>
             </div>
           </motion.div>
@@ -714,7 +763,7 @@ export function ProfileScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '12px',
                 fontWeight: 300,
-                color: '#8A7A6A',
+                color: 'var(--trace-text-secondary)',
                 letterSpacing: '0.01em',
                 opacity: 0.6,
                 lineHeight: '1.5',
