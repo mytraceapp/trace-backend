@@ -2,18 +2,26 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { Entry, EntryType, createEntry } from '../models/entries';
 
 const STORAGE_KEY = 'trace_entries';
-const CLEAR_FLAG = 'trace_entries_cleared_v1';
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+function filterExpiredEntries(entries: Entry[]): Entry[] {
+  const now = Date.now();
+  return entries.filter(entry => {
+    const entryTime = new Date(entry.timestamp).getTime();
+    return (now - entryTime) < TWENTY_FOUR_HOURS_MS;
+  });
+}
 
 function loadEntriesFromStorage(): Entry[] {
-  if (!localStorage.getItem(CLEAR_FLAG)) {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.setItem(CLEAR_FLAG, 'true');
-    return [];
-  }
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const allEntries = JSON.parse(stored);
+      const recentEntries = filterExpiredEntries(allEntries);
+      if (recentEntries.length !== allEntries.length) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(recentEntries));
+      }
+      return recentEntries;
     }
   } catch (e) {
     console.error('Failed to load entries from localStorage:', e);
