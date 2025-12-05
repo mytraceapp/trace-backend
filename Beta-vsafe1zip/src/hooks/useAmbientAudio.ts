@@ -8,6 +8,7 @@ interface UseAmbientAudioOptions {
   loop?: boolean;
   startDelay?: number;
   playbackRate?: number;
+  crossfadeDuration?: number;
 }
 
 export function useAmbientAudio({
@@ -18,73 +19,114 @@ export function useAmbientAudio({
   loop = true,
   startDelay = 0,
   playbackRate = 1.0,
+  crossfadeDuration = 0.8,
 }: UseAmbientAudioOptions) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const fadeIntervalRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioBufferRef = useRef<AudioBuffer | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+  const isPlayingRef = useRef(false);
+  const loopTimeoutRef = useRef<number | null>(null);
   const hasPlayedOnceRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const audio = new Audio(src);
-    audio.loop = loop;
-    audio.volume = 0;
-    audio.preload = 'auto';
-    audio.playbackRate = playbackRate;
-    audio.preservesPitch = true;
-    
-    audio.addEventListener('canplaythrough', () => {
-      setIsLoaded(true);
-    });
-    
-    audio.addEventListener('ended', () => {
-      if (!loop) {
-        setIsPlaying(false);
-      }
-    });
+    const loadAudio = async () => {
+      try {
+        const context = new AudioContext();
+        audioContextRef.current = context;
 
-    audioRef.current = audio;
+        const masterGain = context.createGain();
+        masterGain.gain.value = 0;
+        masterGain.connect(context.destination);
+        masterGainRef.current = masterGain;
+
+        const response = await fetch(src);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await context.decodeAudioData(arrayBuffer);
+        audioBufferRef.current = audioBuffer;
+        
+        setIsLoaded(true);
+      } catch (error) {
+        console.error('Failed to load audio:', error);
+      }
+    };
+
+    loadAudio();
 
     return () => {
-      if (fadeIntervalRef.current) {
-        clearInterval(fadeIntervalRef.current);
+      if (loopTimeoutRef.current) {
+        clearTimeout(loopTimeoutRef.current);
       }
-      audio.pause();
-      audio.src = '';
+      isPlayingRef.current = false;
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().catch(() => {});
+      }
     };
-  }, [src, loop, playbackRate]);
+  }, [src]);
 
-  const fadeIn = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+  const scheduleLoop = useCallback(() => {
+    const context = audioContextRef.current;
+    const buffer = audioBufferRef.current;
+    const masterGain = masterGainRef.current;
 
-    if (fadeIntervalRef.current) {
-      clearInterval(fadeIntervalRef.current);
+    if (!context || !buffer || !masterGain || !isPlayingRef.current) return;
+
+    if (context.state === 'suspended') {
+      context.resume();
     }
 
-    const startFade = () => {
-      const steps = 50;
-      const stepDuration = fadeInDuration / steps;
-      let currentStep = 0;
+    const source = context.createBufferSource();
+    const gainNode = context.createGain();
 
-      audio.volume = 0;
-      audio.play().catch(console.error);
+    source.buffer = buffer;
+    source.playbackRate.value = playbackRate;
+    source.connect(gainNode);
+    gainNode.connect(masterGain);
+
+    const now = context.currentTime;
+    const duration = buffer.duration / playbackRate;
+    const fadeTime = crossfadeDuration;
+
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(1, now + fadeTime);
+
+    gainNode.gain.setValueAtTime(1, now + duration - fadeTime);
+    gainNode.gain.linearRampToValueAtTime(0, now + duration);
+
+    source.start(now);
+    source.stop(now + duration);
+
+    if (loop && isPlayingRef.current) {
+      const nextLoopTime = (duration - fadeTime) * 1000;
+      loopTimeoutRef.current = window.setTimeout(() => {
+        if (isPlayingRef.current) {
+          scheduleLoop();
+        }
+      }, nextLoopTime);
+    }
+  }, [playbackRate, crossfadeDuration, loop]);
+
+  const fadeIn = useCallback(() => {
+    const context = audioContextRef.current;
+    const masterGain = masterGainRef.current;
+
+    if (!context || !masterGain) return;
+
+    const startFade = () => {
+      if (context.state === 'suspended') {
+        context.resume();
+      }
+
+      isPlayingRef.current = true;
       setIsPlaying(true);
 
-      fadeIntervalRef.current = window.setInterval(() => {
-        currentStep++;
-        const progress = currentStep / steps;
-        const easedProgress = 1 - Math.pow(1 - progress, 3);
-        const newVolume = Math.min(easedProgress * volume, volume);
-        audio.volume = newVolume;
+      const now = context.currentTime;
+      masterGain.gain.cancelScheduledValues(now);
+      masterGain.gain.setValueAtTime(0, now);
+      masterGain.gain.linearRampToValueAtTime(volume, now + fadeInDuration / 1000);
 
-        if (currentStep >= steps) {
-          if (fadeIntervalRef.current) {
-            clearInterval(fadeIntervalRef.current);
-            fadeIntervalRef.current = null;
-          }
-        }
-      }, stepDuration);
+      scheduleLoop();
     };
 
     if (startDelay > 0) {
@@ -92,50 +134,49 @@ export function useAmbientAudio({
     } else {
       startFade();
     }
-  }, [fadeInDuration, volume, startDelay]);
+  }, [fadeInDuration, volume, startDelay, scheduleLoop]);
 
   const fadeOut = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const context = audioContextRef.current;
+    const masterGain = masterGainRef.current;
 
-    if (fadeIntervalRef.current) {
-      clearInterval(fadeIntervalRef.current);
+    if (!context || !masterGain) return;
+
+    if (loopTimeoutRef.current) {
+      clearTimeout(loopTimeoutRef.current);
+      loopTimeoutRef.current = null;
     }
 
-    const steps = 30;
-    const stepDuration = fadeOutDuration / steps;
-    const startVolume = audio.volume;
-    let currentStep = 0;
+    const now = context.currentTime;
+    masterGain.gain.cancelScheduledValues(now);
+    masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+    masterGain.gain.linearRampToValueAtTime(0, now + fadeOutDuration / 1000);
 
-    fadeIntervalRef.current = window.setInterval(() => {
-      currentStep++;
-      const newVolume = Math.max(startVolume - (startVolume / steps) * currentStep, 0);
-      audio.volume = newVolume;
-
-      if (currentStep >= steps) {
-        if (fadeIntervalRef.current) {
-          clearInterval(fadeIntervalRef.current);
-          fadeIntervalRef.current = null;
-        }
-        audio.pause();
-        setIsPlaying(false);
-      }
-    }, stepDuration);
+    setTimeout(() => {
+      isPlayingRef.current = false;
+      setIsPlaying(false);
+    }, fadeOutDuration);
   }, [fadeOutDuration]);
 
   const resume = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const context = audioContextRef.current;
+    const masterGain = masterGainRef.current;
 
-    if (fadeIntervalRef.current) {
-      clearInterval(fadeIntervalRef.current);
-      fadeIntervalRef.current = null;
+    if (!context || !masterGain) return;
+
+    if (context.state === 'suspended') {
+      context.resume();
     }
 
-    audio.volume = volume;
-    audio.play().catch(console.error);
+    isPlayingRef.current = true;
     setIsPlaying(true);
-  }, [volume]);
+
+    const now = context.currentTime;
+    masterGain.gain.cancelScheduledValues(now);
+    masterGain.gain.setValueAtTime(volume, now);
+
+    scheduleLoop();
+  }, [volume, scheduleLoop]);
 
   const play = useCallback(() => {
     if (hasPlayedOnceRef.current) {
@@ -151,24 +192,24 @@ export function useAmbientAudio({
   }, [fadeOut]);
 
   const stop = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (fadeIntervalRef.current) {
-      clearInterval(fadeIntervalRef.current);
-      fadeIntervalRef.current = null;
+    if (loopTimeoutRef.current) {
+      clearTimeout(loopTimeoutRef.current);
+      loopTimeoutRef.current = null;
     }
 
-    audio.pause();
-    audio.currentTime = 0;
-    audio.volume = 0;
+    const masterGain = masterGainRef.current;
+    if (masterGain) {
+      masterGain.gain.value = 0;
+    }
+
+    isPlayingRef.current = false;
     setIsPlaying(false);
   }, []);
 
   const setVolume = useCallback((newVolume: number) => {
-    const audio = audioRef.current;
-    if (audio) {
-      audio.volume = Math.max(0, Math.min(1, newVolume));
+    const masterGain = masterGainRef.current;
+    if (masterGain) {
+      masterGain.gain.value = Math.max(0, Math.min(1, newVolume));
     }
   }, []);
 
