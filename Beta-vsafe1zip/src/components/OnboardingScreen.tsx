@@ -152,21 +152,12 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         }}
       />
 
-      {/* Smooth bottom gradient for seamless transition */}
+      {/* Smooth bottom darkening - uses same hue as background bottom (#7D9180) */}
       <div
         className="absolute bottom-0 left-0 right-0 pointer-events-none"
         style={{
-          height: '45%',
-          background: 'linear-gradient(to bottom, transparent 0%, rgba(100, 120, 102, 0.08) 25%, rgba(90, 110, 92, 0.18) 50%, rgba(80, 100, 82, 0.28) 75%, rgba(75, 95, 78, 0.38) 100%)',
-        }}
-      />
-      
-      {/* Extra bottom edge blend */}
-      <div
-        className="absolute bottom-0 left-0 right-0 pointer-events-none"
-        style={{
-          height: '12%',
-          background: 'linear-gradient(to bottom, transparent 0%, rgba(70, 90, 72, 0.25) 100%)',
+          height: '50%',
+          background: 'linear-gradient(to bottom, transparent 0%, rgba(125, 145, 128, 0.0) 20%, rgba(115, 135, 118, 0.12) 50%, rgba(105, 125, 108, 0.22) 80%, rgba(95, 115, 98, 0.32) 100%)',
         }}
       />
 
