@@ -182,19 +182,28 @@ export function RainWindowScreen({
       className="relative w-full h-full overflow-hidden flex flex-col"
       style={{ background: '#0a0c0b' }}
     >
-      <video
-        ref={videoRef}
-        className="absolute inset-0 w-full h-full object-cover"
-        src="/video/rain-window.mp4"
-        loop
-        muted
-        playsInline
-        autoPlay
+      <div 
+        className="absolute overflow-hidden"
         style={{
-          transform: 'scale(1.05)',
-          filter: 'brightness(0.85) saturate(0.9)',
+          top: '-50px',
+          left: '-10px',
+          right: '-10px',
+          bottom: '-10px',
         }}
-      />
+      >
+        <video
+          ref={videoRef}
+          className="w-full h-full object-cover"
+          src="/video/rain-window.mp4"
+          loop
+          muted
+          playsInline
+          autoPlay
+          style={{
+            filter: 'brightness(0.85) saturate(0.9)',
+          }}
+        />
+      </div>
 
       <div
         className="absolute inset-0 pointer-events-none"
