@@ -135,6 +135,7 @@ export function FullPatternsReportScreen({
                 letterSpacing: '0.04em',
                 color: 'var(--text-primary)',
                 marginBottom: '8px',
+                opacity: isDark ? 0.92 : 1,
               }}
             >
               PATTERNS™
@@ -146,7 +147,7 @@ export function FullPatternsReportScreen({
                 fontWeight: 300,
                 fontSize: '16px',
                 letterSpacing: '0.03em',
-                opacity: 0.8,
+                opacity: isDark ? 0.72 : 0.8,
                 marginBottom: '6px',
               }}
             >
@@ -159,7 +160,7 @@ export function FullPatternsReportScreen({
                 fontWeight: 300,
                 fontSize: '14px',
                 letterSpacing: '0.03em',
-                opacity: 0.7,
+                opacity: isDark ? 0.62 : 0.7,
               }}
             >
               Your week, understood in detail.
@@ -321,38 +322,58 @@ export function FullPatternsReportScreen({
                     transition={{ duration: 1, ease: "easeOut" }}
                   />
 
-                  {/* Dots at each point - whitish for contrast */}
+                  {/* Dots at each point - misty diffused glow for night, solid for day */}
                   {weekData.map((d, i) => {
                     const totalWidth = 100;
                     const x = 5 + (i / (weekData.length - 1)) * (totalWidth - 10);
                     const y = 10 + (100 - d.value) * 0.7;
                     return (
-                      <motion.circle
-                        key={i}
-                        cx={`${x}%`}
-                        cy={`${y}%`}
-                        r="5"
-                        fill={isDark ? 'rgba(245, 243, 238, 0.9)' : '#8DA18F'}
-                        stroke={isDark ? 'rgba(168, 179, 154, 0.5)' : 'none'}
-                        strokeWidth="1"
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.3 + i * 0.1, duration: 0.3 }}
-                      />
+                      <g key={i}>
+                        {/* Soft diffused halo for night mode - mist effect */}
+                        {isDark && (
+                          <motion.circle
+                            cx={`${x}%`}
+                            cy={`${y}%`}
+                            r="12"
+                            fill="rgba(200, 210, 195, 0.12)"
+                            filter="url(#mistBlur)"
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
+                          />
+                        )}
+                        <motion.circle
+                          cx={`${x}%`}
+                          cy={`${y}%`}
+                          r="4"
+                          fill={isDark ? 'rgba(215, 220, 210, 0.75)' : '#8DA18F'}
+                          stroke="none"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: 0.3 + i * 0.1, duration: 0.3 }}
+                        />
+                      </g>
                     );
                   })}
+                  {/* Mist blur filter for night mode dots */}
+                  <defs>
+                    <filter id="mistBlur" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="4" />
+                    </filter>
+                  </defs>
                 </svg>
 
-                {/* Day labels */}
+                {/* Day labels - soft whisper for emotional weather feel */}
                 <div className="absolute bottom-0 w-full flex justify-between">
                   {weekData.map((d, i) => (
                     <p
                       key={i}
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: 'var(--text-secondary)',
+                        color: isDark ? 'var(--text-secondary)' : 'var(--text-secondary)',
                         fontSize: '11px',
-                        opacity: 0.7,
+                        opacity: isDark ? 0.55 : 0.7,
+                        letterSpacing: '0.08em',
                       }}
                     >
                       {d.day}
@@ -369,7 +390,7 @@ export function FullPatternsReportScreen({
                   fontWeight: 300,
                   fontSize: '12px',
                   letterSpacing: '0.02em',
-                  opacity: 0.8,
+                  opacity: isDark ? 0.7 : 0.8,
                 }}
               >
                 Your emotional flow across the week.
