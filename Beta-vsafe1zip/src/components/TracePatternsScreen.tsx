@@ -30,7 +30,8 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
     <AnimatePresence>
       {pattern && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          className="fixed inset-0 z-50 flex items-start justify-center px-4"
+          style={{ paddingTop: '80px', paddingBottom: '100px' }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -44,7 +45,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
             onClick={onClose}
           />
           <motion.div
-            className="relative z-10 w-full max-w-[340px] rounded-[24px] p-6 max-h-[85vh] overflow-y-auto"
+            className="relative z-10 w-full max-w-[340px] rounded-[24px] p-6 max-h-[65vh] overflow-y-auto"
             style={{
               backgroundColor: isDark ? 'rgba(38, 42, 38, 0.95)' : '#E9E2D8',
               border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.12)',
