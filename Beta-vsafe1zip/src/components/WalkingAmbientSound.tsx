@@ -52,25 +52,25 @@ export function WalkingAmbientSound({ isPlaying, stepTrigger = 0 }: WalkingAmbie
     const ctx = audioContextRef.current;
     const now = ctx.currentTime;
     
-    const noiseBuffer = createNoiseBuffer(ctx, 'pink');
+    const noiseBuffer = createNoiseBuffer(ctx, 'white');
     const noise = ctx.createBufferSource();
     noise.buffer = noiseBuffer;
     
     const highpass = ctx.createBiquadFilter();
     highpass.type = 'highpass';
-    highpass.frequency.value = 1200;
-    highpass.Q.value = 0.3;
+    highpass.frequency.value = 2000;
+    highpass.Q.value = 0.5;
     
     const lowpass = ctx.createBiquadFilter();
     lowpass.type = 'lowpass';
-    lowpass.frequency.value = 4000;
-    lowpass.Q.value = 0.2;
+    lowpass.frequency.value = 6000;
+    lowpass.Q.value = 0.3;
     
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.006, now + 0.04);
-    gain.gain.setValueAtTime(0.006, now + 0.12);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    gain.gain.linearRampToValueAtTime(0.0125, now + 0.02);
+    gain.gain.setValueAtTime(0.0125, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
     
     noise.connect(highpass);
     highpass.connect(lowpass);
@@ -78,7 +78,7 @@ export function WalkingAmbientSound({ isPlaying, stepTrigger = 0 }: WalkingAmbie
     gain.connect(masterGainRef.current);
     
     noise.start(now);
-    noise.stop(now + 0.4);
+    noise.stop(now + 0.2);
   }, [createNoiseBuffer]);
 
   const playFootstep = React.useCallback(() => {
@@ -89,21 +89,21 @@ export function WalkingAmbientSound({ isPlaying, stepTrigger = 0 }: WalkingAmbie
     
     const osc = ctx.createOscillator();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(55, now);
-    osc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
+    osc.frequency.setValueAtTime(80, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
     
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.012, now + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    gain.gain.linearRampToValueAtTime(0.025, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
     
     osc.connect(gain);
     gain.connect(masterGainRef.current);
     
     osc.start(now);
-    osc.stop(now + 0.3);
+    osc.stop(now + 0.15);
     
-    setTimeout(() => playGravelCrunch(), 50 + Math.random() * 60);
+    setTimeout(() => playGravelCrunch(), 20 + Math.random() * 30);
   }, [playGravelCrunch]);
 
   React.useEffect(() => {
