@@ -30,248 +30,265 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
     <AnimatePresence>
       {pattern && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-start justify-center px-4"
-          style={{ paddingTop: '80px', paddingBottom: '100px' }}
+          className="fixed z-50 flex items-center justify-center px-5"
+          style={{ 
+            top: '100px',
+            left: 0,
+            right: 0,
+            bottom: '90px',
+          }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/40"
+            className="fixed inset-0 bg-black/40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
           <motion.div
-            className="relative z-10 w-full max-w-[340px] rounded-[24px] p-6 max-h-[65vh] overflow-y-auto"
+            className="relative z-10 w-full max-w-[340px] rounded-[24px] flex flex-col"
             style={{
-              backgroundColor: isDark ? 'rgba(38, 42, 38, 0.95)' : '#E9E2D8',
+              backgroundColor: isDark ? 'rgba(38, 42, 38, 0.98)' : '#E9E2D8',
               border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.12)',
               boxShadow: isDark 
                 ? '0 20px 60px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3)'
                 : '0 20px 60px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.1)',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
+              maxHeight: '100%',
+              overflow: 'hidden',
             }}
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ duration: 0.25, ease: [0.22, 0.61, 0.36, 1] }}
           >
-            <button
-              onClick={onClose}
-              className="flex items-center justify-center rounded-full transition-colors"
-              style={{ 
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                width: '32px',
-                height: '32px',
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(90, 74, 58, 0.1)',
-                zIndex: 10,
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path
-                  d="M1 1L13 13M1 13L13 1"
-                  stroke={isDark ? '#F2F0EC' : '#5A4A3A'}
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
+            <div className="p-5 pb-0 flex-shrink-0">
+              <button
+                onClick={onClose}
+                className="flex items-center justify-center rounded-full transition-colors"
+                style={{ 
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  width: '32px',
+                  height: '32px',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(90, 74, 58, 0.1)',
+                  zIndex: 10,
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path
+                    d="M1 1L13 13M1 13L13 1"
+                    stroke={isDark ? '#F2F0EC' : '#5A4A3A'}
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
 
-            <div style={{ paddingRight: '32px' }}>
-              <h3
-                style={{
-                  fontFamily: 'Playfair Display, Georgia, serif',
-                  fontSize: '22px',
-                  fontWeight: 500,
-                  color: 'var(--text-primary)',
-                  marginBottom: '4px',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                {pattern.title}
-              </h3>
-              <p
-                style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
-                  fontSize: '13px',
-                  fontWeight: 400,
-                  color: 'var(--text-secondary)',
-                  marginBottom: '16px',
-                }}
-              >
-                {pattern.subtitle}
-              </p>
+              <div style={{ paddingRight: '32px' }}>
+                <h3
+                  style={{
+                    fontFamily: 'Playfair Display, Georgia, serif',
+                    fontSize: '20px',
+                    fontWeight: 500,
+                    color: 'var(--text-primary)',
+                    marginBottom: '4px',
+                    letterSpacing: '0.01em',
+                  }}
+                >
+                  {pattern.title}
+                </h3>
+                <p
+                  style={{
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '12px',
+                    fontWeight: 400,
+                    color: 'var(--text-secondary)',
+                    marginBottom: '12px',
+                  }}
+                >
+                  {pattern.subtitle}
+                </p>
+              </div>
+
+              {pattern.timeWindow && (
+                <div
+                  className="rounded-[12px] px-4 py-2.5 mb-3"
+                  style={{
+                    backgroundColor: 'var(--accent-soft)',
+                    border: isDark ? '1px solid rgba(168, 179, 154, 0.2)' : '1px solid rgba(141, 161, 143, 0.2)',
+                  }}
+                >
+                  <p
+                    style={{
+                      fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                  {pattern.timeWindow}
+                </p>
+              </div>
+            )}
             </div>
 
-            {pattern.timeWindow && (
+            <div 
+              className="flex-1 overflow-y-auto px-5"
+              style={{
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+              }}
+            >
               <div
-                className="rounded-[12px] px-4 py-3 mb-4"
                 style={{
-                  backgroundColor: 'var(--accent-soft)',
-                  border: isDark ? '1px solid rgba(168, 179, 154, 0.2)' : '1px solid rgba(141, 161, 143, 0.2)',
+                  width: '100%',
+                  height: '1px',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(43, 30, 21, 0.1)',
+                  marginBottom: '12px',
+                }}
+              />
+
+              <div style={{ marginBottom: '14px' }}>
+                <h4
+                  style={{
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    marginBottom: '8px',
+                  }}
+                >
+                  What this means for you
+                </h4>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {pattern.insightBullets.map((bullet, index) => (
+                    <li
+                      key={index}
+                      style={{
+                        fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                        fontSize: '13px',
+                        fontWeight: 300,
+                        color: 'var(--text-primary)',
+                        lineHeight: '1.5',
+                        marginBottom: '6px',
+                        paddingLeft: '14px',
+                        position: 'relative',
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          color: 'var(--accent)',
+                        }}
+                      >
+                        •
+                      </span>
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <h4
+                  style={{
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    marginBottom: '8px',
+                  }}
+                >
+                  How to work with this pattern
+                </h4>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {pattern.suggestedActions.map((action, index) => (
+                    <li
+                      key={index}
+                      style={{
+                        fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                        fontSize: '13px',
+                        fontWeight: 300,
+                        color: 'var(--text-primary)',
+                        lineHeight: '1.5',
+                        marginBottom: '6px',
+                        paddingLeft: '14px',
+                        position: 'relative',
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          color: isDark ? '#C49A6C' : '#A9683A',
+                        }}
+                      >
+                        →
+                      </span>
+                      {action}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <button
+                onClick={() => {
+                  onClose();
+                  onViewFull?.();
+                }}
+                className="w-full mb-2 transition-all duration-200"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '6px 0',
                 }}
               >
-                <p
+                <span
+                  style={{
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    color: 'var(--accent)',
+                    letterSpacing: '0.01em',
+                  }}
+                >
+                  Open full weekly map →
+                </span>
+              </button>
+            </div>
+
+            <div className="p-5 pt-3 flex-shrink-0">
+              <button
+                onClick={onClose}
+                className="w-full rounded-[14px] px-5 py-3 transition-all duration-200 active:scale-[0.98]"
+                style={{
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#D7C8B5',
+                  border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.1)',
+                }}
+              >
+                <span
                   style={{
                     fontFamily: 'SF Pro Text, -apple-system, sans-serif',
                     fontSize: '14px',
                     fontWeight: 500,
                     color: 'var(--text-primary)',
+                    letterSpacing: '0.02em',
                   }}
                 >
-                  {pattern.timeWindow}
-                </p>
-              </div>
-            )}
-
-            <div
-              style={{
-                width: '100%',
-                height: '1px',
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(43, 30, 21, 0.1)',
-                marginBottom: '16px',
-              }}
-            />
-
-            <div style={{ marginBottom: '20px' }}>
-              <h4
-                style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: 'var(--text-secondary)',
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                  marginBottom: '12px',
-                }}
-              >
-                What this means for you
-              </h4>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {pattern.insightBullets.map((bullet, index) => (
-                  <li
-                    key={index}
-                    style={{
-                      fontFamily: 'SF Pro Text, -apple-system, sans-serif',
-                      fontSize: '14px',
-                      fontWeight: 300,
-                      color: 'var(--text-primary)',
-                      lineHeight: '1.6',
-                      marginBottom: '8px',
-                      paddingLeft: '16px',
-                      position: 'relative',
-                    }}
-                  >
-                    <span
-                      style={{
-                        position: 'absolute',
-                        left: 0,
-                        color: 'var(--accent)',
-                      }}
-                    >
-                      •
-                    </span>
-                    {bullet}
-                  </li>
-                ))}
-              </ul>
+                  Done
+                </span>
+              </button>
             </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <h4
-                style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: 'var(--text-secondary)',
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                  marginBottom: '12px',
-                }}
-              >
-                How to work with this pattern
-              </h4>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {pattern.suggestedActions.map((action, index) => (
-                  <li
-                    key={index}
-                    style={{
-                      fontFamily: 'SF Pro Text, -apple-system, sans-serif',
-                      fontSize: '14px',
-                      fontWeight: 300,
-                      color: 'var(--text-primary)',
-                      lineHeight: '1.6',
-                      marginBottom: '8px',
-                      paddingLeft: '16px',
-                      position: 'relative',
-                    }}
-                  >
-                    <span
-                      style={{
-                        position: 'absolute',
-                        left: 0,
-                        color: isDark ? '#C49A6C' : '#A9683A',
-                      }}
-                    >
-                      →
-                    </span>
-                    {action}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <button
-              onClick={() => {
-                onClose();
-                onViewFull?.();
-              }}
-              className="w-full mb-3 transition-all duration-200"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                padding: '8px 0',
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  color: 'var(--accent)',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                Open full weekly map →
-              </span>
-            </button>
-
-            <button
-              onClick={onClose}
-              className="w-full rounded-[16px] px-6 py-4 transition-all duration-200 active:scale-[0.98]"
-              style={{
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#D7C8B5',
-                border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.1)',
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
-                  fontSize: '15px',
-                  fontWeight: 500,
-                  color: 'var(--text-primary)',
-                  letterSpacing: '0.02em',
-                }}
-              >
-                Done
-              </span>
-            </button>
           </motion.div>
         </motion.div>
       )}
