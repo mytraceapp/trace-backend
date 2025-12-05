@@ -144,11 +144,11 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         background: 'linear-gradient(to bottom, #8DA18F 0%, #7D9180 100%)',
       }}
     >
-      {/* Soft vignette overlay - adjusted to avoid bottom band */}
+      {/* Soft vignette overlay - fades to transparent at bottom to avoid band */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 120% 100% at 50% 40%, transparent 0%, rgba(75, 75, 75, 0.08) 70%, rgba(75, 75, 75, 0.08) 100%)',
+          background: 'radial-gradient(ellipse 140% 120% at 50% 30%, rgba(75, 75, 75, 0.08) 0%, rgba(75, 75, 75, 0.05) 40%, rgba(75, 75, 75, 0) 65%, transparent 100%)',
         }}
       />
 
