@@ -277,6 +277,9 @@ export function RainWindowScreen({
               <motion.div
                 style={{
                   marginBottom: '20px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  width: '100%',
                 }}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -291,7 +294,7 @@ export function RainWindowScreen({
                 >
                   <path 
                     d="M12 2.5C12 2.5 5 10 5 14.5C5 18.366 8.134 21.5 12 21.5C15.866 21.5 19 18.366 19 14.5C19 10 12 2.5 12 2.5Z" 
-                    stroke="rgba(255, 255, 255, 0.85)"
+                    stroke="rgba(255, 255, 255, 0.7)"
                     strokeWidth="1.1"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -303,12 +306,11 @@ export function RainWindowScreen({
               <motion.h1
                 style={{
                   fontFamily: 'Georgia, serif',
-                  color: 'transparent',
+                  color: 'rgba(255, 255, 255, 0.75)',
                   fontSize: '22px',
                   fontWeight: 300,
                   marginBottom: '18px',
                   letterSpacing: '0.35em',
-                  WebkitTextStroke: '0.6px rgba(255, 255, 255, 0.9)',
                   textShadow: '0 2px 20px rgba(0, 0, 0, 0.4)',
                   paddingLeft: '0.35em',
                 }}
