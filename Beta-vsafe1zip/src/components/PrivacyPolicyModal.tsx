@@ -13,35 +13,37 @@ export function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyModalProps)
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="absolute inset-0 z-50 flex items-center justify-center p-4"
-          style={{ borderRadius: '44px', overflow: 'hidden' }}
+          className="fixed z-50 flex items-center justify-center px-5"
+          style={{ 
+            top: '100px',
+            left: 0,
+            right: 0,
+            bottom: '90px',
+          }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/40"
-            style={{ borderRadius: '44px' }}
+            className="fixed inset-0 bg-black/40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
           <motion.div
-            className="relative z-10 w-full rounded-[24px] p-5 pb-6"
+            className="relative z-10 w-full max-w-[340px] rounded-[24px] flex flex-col"
             style={{
-              backgroundColor: '#F5F1EB',
-              border: '1px solid rgba(43, 30, 21, 0.08)',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.15), 0 4px 16px rgba(0,0,0,0.1)',
-              maxHeight: 'calc(100% - 32px)',
-              overflowY: 'auto',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
+              backgroundColor: '#E9E2D8',
+              border: '1px solid rgba(43, 30, 21, 0.12)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.1)',
+              maxHeight: '100%',
+              overflow: 'hidden',
             }}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ duration: 0.25, ease: [0.22, 0.61, 0.36, 1] }}
           >
             <style>
@@ -52,66 +54,73 @@ export function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyModalProps)
               `}
             </style>
 
-            <button
-              onClick={onClose}
-              className="flex items-center justify-center rounded-full transition-colors hover:bg-black/10"
-              style={{ 
-                position: 'absolute',
-                top: '14px',
-                right: '14px',
-                width: '28px',
-                height: '28px',
-                backgroundColor: 'rgba(90, 74, 58, 0.1)',
-                zIndex: 10,
+            <div className="p-5 pb-0 flex-shrink-0">
+              <button
+                onClick={onClose}
+                className="flex items-center justify-center rounded-full transition-colors hover:bg-black/10"
+                style={{ 
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  width: '32px',
+                  height: '32px',
+                  backgroundColor: 'rgba(90, 74, 58, 0.1)',
+                  zIndex: 10,
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path
+                    d="M1 1L13 13M1 13L13 1"
+                    stroke="#5A4A3A"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+              <div style={{ paddingRight: '32px' }}>
+                <h2
+                  style={{
+                    fontFamily: 'Playfair Display, Georgia, serif',
+                    fontSize: '20px',
+                    fontWeight: 500,
+                    color: '#4A3526',
+                    marginBottom: '4px',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  Privacy Policy
+                </h2>
+                <p
+                  style={{
+                    fontFamily: 'Georgia, serif',
+                    fontSize: '11px',
+                    color: '#7D6D5D',
+                    marginBottom: '12px',
+                    fontStyle: 'italic',
+                  }}
+                >
+                  Last updated: January 2026
+                </p>
+              </div>
+            </div>
+
+            <div 
+              className="flex-1 overflow-y-auto px-5 privacy-modal-content"
+              style={{
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
               }}
             >
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                <path
-                  d="M1 1L13 13M1 13L13 1"
-                  stroke="#5A4A3A"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-
-            <div className="privacy-modal-content" style={{ paddingRight: '12px' }}>
-              <h2
-                style={{
-                  fontFamily: 'Playfair Display, Georgia, serif',
-                  fontSize: '20px',
-                  fontWeight: 500,
-                  color: '#4A3526',
-                  marginBottom: '6px',
-                  letterSpacing: '0.02em',
-                  paddingRight: '24px',
-                }}
-              >
-                TRACE Privacy Policy
-              </h2>
-              
-              <p
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  fontSize: '11px',
-                  color: '#7D6D5D',
-                  marginBottom: '16px',
-                  fontStyle: 'italic',
-                }}
-              >
-                Last updated: January 2026
-              </p>
-
               <p
                 style={{
                   fontFamily: 'Georgia, serif',
                   fontSize: '12px',
                   color: '#5A4A3A',
                   lineHeight: '1.6',
-                  marginBottom: '14px',
+                  marginBottom: '12px',
                 }}
               >
-                TRACE ("we," "our," or "us") provides a wellness and emotional-support application designed to help users slow down, reflect, and improve their mental clarity. Your privacy matters deeply to us. This Privacy Policy explains how we collect, use, store, and protect your data when you use TRACE.
+                TRACE provides a wellness and emotional-support application designed to help users slow down, reflect, and improve their mental clarity. Your privacy matters deeply to us.
               </p>
 
               <p
@@ -120,7 +129,7 @@ export function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyModalProps)
                   fontSize: '11px',
                   color: '#7D6D5D',
                   lineHeight: '1.55',
-                  marginBottom: '18px',
+                  marginBottom: '14px',
                   fontStyle: 'italic',
                 }}
               >
@@ -276,15 +285,39 @@ export function PrivacyPolicyModal({ isOpen, onClose }: PrivacyPolicyModalProps)
                 <p
                   style={{
                     fontFamily: 'Georgia, serif',
-                    fontSize: '14px',
+                    fontSize: '13px',
                     color: '#5A4A3A',
                     fontWeight: 500,
-                    marginTop: '8px',
+                    marginTop: '6px',
+                    marginBottom: '8px',
                   }}
                 >
                   nina.mytraceapp@gmail.com
                 </p>
               </Section>
+            </div>
+
+            <div className="p-5 pt-3 flex-shrink-0">
+              <button
+                onClick={onClose}
+                className="w-full rounded-[14px] px-5 py-3 transition-all duration-200 active:scale-[0.98]"
+                style={{
+                  backgroundColor: '#D7C8B5',
+                  border: '1px solid rgba(43, 30, 21, 0.1)',
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    color: '#4A3526',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  Done
+                </span>
+              </button>
             </div>
           </motion.div>
         </motion.div>
