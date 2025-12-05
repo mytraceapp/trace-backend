@@ -410,11 +410,11 @@ export function ProfileScreen({
                     className="mt-2 px-4"
                     style={{
                       fontFamily: 'Georgia, serif',
-                      color: 'var(--text-secondary)',
+                      color: 'var(--text-primary)',
                       fontSize: '12px',
                       fontWeight: 300,
                       letterSpacing: '0.01em',
-                      opacity: 0.85,
+                      opacity: 0.7,
                     }}
                   >
                     Refer someone and get 3 months free TRACE Studio access
@@ -534,7 +534,7 @@ export function ProfileScreen({
                 <div className="flex gap-2">
                   <button
                     onClick={() => setTheme('day')}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl transition-all duration-200"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl transition-all duration-200"
                     style={{
                       background: theme === 'day' ? 'var(--accent-soft)' : 'var(--accent-soft)',
                       border: theme === 'day' ? '1.5px solid var(--border)' : '1.5px solid transparent',
@@ -545,7 +545,7 @@ export function ProfileScreen({
                       style={{
                         fontFamily: 'Georgia, serif',
                         color: theme === 'day' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        fontSize: '13px',
+                        fontSize: '12px',
                         fontWeight: theme === 'day' ? 400 : 300,
                       }}
                     >
@@ -554,7 +554,7 @@ export function ProfileScreen({
                   </button>
                   <button
                     onClick={() => setTheme('night')}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl transition-all duration-200"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl transition-all duration-200"
                     style={{
                       background: theme === 'night' ? 'var(--accent-soft)' : 'var(--accent-soft)',
                       border: theme === 'night' ? '1.5px solid var(--border)' : '1.5px solid transparent',
@@ -565,11 +565,35 @@ export function ProfileScreen({
                       style={{
                         fontFamily: 'Georgia, serif',
                         color: theme === 'night' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        fontSize: '13px',
+                        fontSize: '12px',
                         fontWeight: theme === 'night' ? 400 : 300,
                       }}
                     >
                       Night
+                    </span>
+                  </button>
+                  <button
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl transition-all duration-200"
+                    style={{
+                      background: 'var(--accent-soft)',
+                      border: '1.5px solid transparent',
+                      opacity: 0.6,
+                    }}
+                    disabled
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="M12 6v6l4 2"/>
+                    </svg>
+                    <span
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: 'var(--text-secondary)',
+                        fontSize: '11px',
+                        fontWeight: 300,
+                      }}
+                    >
+                      Auto
                     </span>
                   </button>
                 </div>
@@ -577,16 +601,30 @@ export function ProfileScreen({
                   className="mt-2"
                   style={{
                     fontFamily: 'Georgia, serif',
-                    color: 'var(--text-secondary)',
+                    color: 'var(--text-primary)',
                     fontSize: '11px',
                     fontWeight: 300,
                     letterSpacing: '0.01em',
-                    opacity: 0.85,
+                    opacity: 0.65,
                   }}
                 >
                   {theme === 'day' 
                     ? 'A light, soft palette designed to feel open, fresh, and steady.'
                     : 'A dimmed, grounding palette that reduces eye strain and supports evening reflection.'}
+                </p>
+                <p
+                  className="mt-1.5"
+                  style={{
+                    fontFamily: 'Georgia, serif',
+                    color: 'var(--text-primary)',
+                    fontSize: '10px',
+                    fontWeight: 300,
+                    letterSpacing: '0.01em',
+                    fontStyle: 'italic',
+                    opacity: 0.5,
+                  }}
+                >
+                  Auto · Follow device / sunset — coming soon
                 </p>
               </div>
             </div>
@@ -1002,8 +1040,9 @@ export function ProfileScreen({
                   style={{
                     fontFamily: 'Georgia, serif',
                     fontSize: '12px',
-                    color: '#8A7A6A',
+                    color: '#5A4A3A',
                     marginBottom: '14px',
+                    opacity: 0.75,
                   }}
                 >
                   Enter your referral code to unlock benefits
@@ -1106,9 +1145,10 @@ export function ProfileScreen({
                 style={{
                   fontFamily: 'Georgia, serif',
                   fontSize: '12px',
-                  color: '#8A7A6A',
+                  color: '#5A4A3A',
                   marginBottom: '20px',
                   lineHeight: '1.5',
+                  opacity: 0.75,
                 }}
               >
                 Share your code with friends. When they sign up, you both get 3 months free TRACE Studio access.
