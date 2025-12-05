@@ -191,19 +191,27 @@ export function RainWindowScreen({
     video.playbackRate = 0.5;
 
     const loopEnd = 13; // Only use first 13 seconds
-    let checkInterval: number;
 
-    const checkLoop = () => {
+    const handleTimeUpdate = () => {
       if (video.currentTime >= loopEnd) {
-        video.currentTime = 0;
+        video.currentTime = 0.1;
+        if (video.paused) {
+          video.play().catch(() => {});
+        }
       }
     };
 
-    // Check every 100ms for more reliable looping
-    checkInterval = window.setInterval(checkLoop, 100);
+    const handleEnded = () => {
+      video.currentTime = 0.1;
+      video.play().catch(() => {});
+    };
 
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('ended', handleEnded);
+    
     return () => {
-      if (checkInterval) clearInterval(checkInterval);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('ended', handleEnded);
     };
   }, []);
 
