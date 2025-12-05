@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Play, Pause } from 'lucide-react';
+import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
 
 interface RainWindowScreenProps {
@@ -380,6 +381,15 @@ export function RainWindowScreen({
         </AnimatePresence>
       </div>
 
+      <BottomNav
+        activeScreen="activities"
+        onNavigateHome={onReturnToChat}
+        onNavigateActivities={onNavigateToActivities}
+        onNavigateJournal={onNavigateToJournal}
+        onNavigateProfile={onNavigateToProfile}
+        onNavigateHelp={onNavigateToHelp}
+        variant="neutral"
+      />
     </div>
   );
 }
