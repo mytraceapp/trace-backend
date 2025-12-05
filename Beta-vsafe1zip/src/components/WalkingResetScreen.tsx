@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence, useAnimationControls } from 'motion/react';
-import { Footprints, Volume2, VolumeX } from 'lucide-react';
+import { Footprints } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
 import { WalkingAmbientSound } from './WalkingAmbientSound';
@@ -27,7 +27,6 @@ export function WalkingResetScreen({
   const [currentStep, setCurrentStep] = React.useState(0);
   const [currentAffirmation, setCurrentAffirmation] = React.useState(0);
   const [isComplete, setIsComplete] = React.useState(false);
-  const [ambientEnabled, setAmbientEnabled] = React.useState(true);
   const [stepTrigger, setStepTrigger] = React.useState(0);
   const hasSavedRef = React.useRef(false);
   const TOTAL_TIME = 120; // 2 minutes in seconds
@@ -48,27 +47,8 @@ export function WalkingResetScreen({
     "Breathe and walk.",
   ];
 
-  // Metronome sound using Web Audio API (minimized volume)
-  const playMetronome = React.useCallback(() => {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    // Soft, warm metronome tone - very subtle
-    oscillator.frequency.value = 420; // Slightly lower, warmer
-    oscillator.type = 'sine';
-    
-    // Gentle envelope - even more minimized volume
-    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.008, audioContext.currentTime + 0.02);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.12);
-    
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.12);
-    
+  // Trigger step animations (no sound)
+  const triggerStep = React.useCallback(() => {
     // Trigger ambient footstep sound
     setStepTrigger(prev => prev + 1);
 
@@ -110,10 +90,10 @@ export function WalkingResetScreen({
       });
     }, 100);
 
-    // Step rhythm with metronome
+    // Step rhythm
     const stepTimer = setInterval(() => {
       setCurrentStep((prev) => (prev + 1) % 3);
-      playMetronome();
+      triggerStep();
     }, STEP_RHYTHM * 1000);
 
     // Affirmation rotation
@@ -121,15 +101,15 @@ export function WalkingResetScreen({
       setCurrentAffirmation((prev) => (prev + 1) % affirmations.length);
     }, 12000); // Change every 12 seconds
 
-    // Play initial metronome sound
-    playMetronome();
+    // Trigger initial step animation
+    triggerStep();
 
     return () => {
       clearInterval(timer);
       clearInterval(stepTimer);
       clearInterval(affirmationTimer);
     };
-  }, [playMetronome]);
+  }, [triggerStep]);
 
   // Auto-save entry when walking completes
   React.useEffect(() => {
@@ -440,29 +420,7 @@ export function WalkingResetScreen({
     <div className="relative w-full h-full flex flex-col" style={{ backgroundColor: '#9AB09C' }}>
       
       {/* Ambient Walking Sound */}
-      <WalkingAmbientSound isPlaying={ambientEnabled && !isComplete} stepTrigger={stepTrigger} />
-
-      {/* Ambient Sound Toggle */}
-      <motion.button
-        className="absolute z-30 p-3 rounded-full"
-        style={{ 
-          top: '7%', 
-          right: '6%',
-          background: 'rgba(237, 232, 219, 0.15)',
-          backdropFilter: 'blur(8px)',
-        }}
-        onClick={() => setAmbientEnabled(!ambientEnabled)}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1, duration: 0.8 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        {ambientEnabled ? (
-          <Volume2 size={18} color="#EDE8DB" strokeWidth={1.5} style={{ opacity: 0.8 }} />
-        ) : (
-          <VolumeX size={18} color="#EDE8DB" strokeWidth={1.5} style={{ opacity: 0.5 }} />
-        )}
-      </motion.button>
+      <WalkingAmbientSound isPlaying={!isComplete} stepTrigger={stepTrigger} />
 
       {/* Background gradient texture */}
       <div className="absolute inset-0 overflow-hidden">
