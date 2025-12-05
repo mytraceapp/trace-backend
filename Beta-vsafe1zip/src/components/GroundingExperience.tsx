@@ -200,6 +200,7 @@ export function GroundingExperience({ onBack, onComplete, onReturnToChat, onNavi
             fontWeight: 300,
             color: '#8DA18F',
             letterSpacing: '0.05em',
+            filter: 'blur(0.4px)',
           }}
         >
           {formatTime(timeElapsed)}
