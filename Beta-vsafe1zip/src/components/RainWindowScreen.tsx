@@ -183,7 +183,7 @@ export function RainWindowScreen({
     };
   }, [stopRainAudio]);
 
-  // Video setup - loop only first 13 seconds (single take) with subtle fade
+  // Video setup - loop only first 13 seconds (single take)
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -191,17 +191,20 @@ export function RainWindowScreen({
     video.playbackRate = 0.5;
 
     const loopEnd = 13; // Only use first 13 seconds
+    let checkInterval: number;
 
-    const handleTimeUpdate = () => {
-      // Loop back to start when reaching 13 seconds
+    const checkLoop = () => {
       if (video.currentTime >= loopEnd) {
         video.currentTime = 0;
-        video.play().catch(() => {});
       }
     };
 
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    return () => video.removeEventListener('timeupdate', handleTimeUpdate);
+    // Check every 100ms for more reliable looping
+    checkInterval = window.setInterval(checkLoop, 100);
+
+    return () => {
+      if (checkInterval) clearInterval(checkInterval);
+    };
   }, []);
 
   return (
