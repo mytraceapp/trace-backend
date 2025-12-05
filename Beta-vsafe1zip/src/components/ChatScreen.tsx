@@ -139,7 +139,8 @@ export function ChatScreen({
   }, [showTypewriter, currentIndex, greetingText, hasResponded]);
 
   const [isThinking, setIsThinking] = React.useState(false);
-  const [pendingActivity, setPendingActivity] = React.useState<ActivityType>(null);
+  const [_pendingActivity, setPendingActivity] = React.useState<ActivityType>(null);
+  void _pendingActivity;
 
   // Navigate to a specific activity
   const navigateToActivity = React.useCallback((activity: ActivityType) => {
