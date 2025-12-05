@@ -477,6 +477,7 @@ export function MazeScreen({
             fontSize: '11px',
             letterSpacing: '0.08em',
             opacity: 0.55,
+            filter: 'blur(0.4px)',
           }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.55 }}
