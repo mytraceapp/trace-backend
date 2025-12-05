@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { useAmbientAudio } from '../hooks/useAmbientAudio';
 
 interface AmbientAudioPlayerProps {
-  autoPlay?: boolean;
+  shouldPlay?: boolean;
   showControls?: boolean;
   volume?: number;
   fadeInDuration?: number;
@@ -13,7 +13,7 @@ interface AmbientAudioPlayerProps {
 }
 
 export function AmbientAudioPlayer({
-  autoPlay = false,
+  shouldPlay = false,
   showControls = true,
   volume = 0.4,
   fadeInDuration = 7000,
@@ -30,6 +30,8 @@ export function AmbientAudioPlayer({
     startDelay,
     playbackRate,
   });
+  
+  const hasStartedRef = useRef(false);
 
   useEffect(() => {
     if (isLoaded && onReady) {
@@ -38,16 +40,19 @@ export function AmbientAudioPlayer({
   }, [isLoaded, onReady]);
 
   useEffect(() => {
-    if (autoPlay && isLoaded) {
-      play();
-    }
-  }, [autoPlay, isLoaded, play]);
-
-  useEffect(() => {
-    return () => {
+    if (!isLoaded) return;
+    
+    if (shouldPlay && !isPlaying) {
+      if (!hasStartedRef.current) {
+        hasStartedRef.current = true;
+        play();
+      } else {
+        play();
+      }
+    } else if (!shouldPlay && isPlaying) {
       pause();
-    };
-  }, [pause]);
+    }
+  }, [shouldPlay, isLoaded, isPlaying, play, pause]);
 
   if (!showControls) {
     return null;

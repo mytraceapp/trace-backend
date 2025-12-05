@@ -49,9 +49,9 @@ export default function App() {
       <div className="relative w-[390px] h-[844px] bg-black rounded-[55px] p-[12px] shadow-2xl">
         {/* Screen Content */}
         <div className="w-full h-full rounded-[43px] overflow-hidden relative">
-          {/* Global Ambient Audio - plays on screens without their own audio */}
-          {shouldPlayAmbient && (
-            <AmbientAudioPlayer autoPlay={true} volume={0.35} showControls={false} />
+          {/* Global Ambient Audio - always mounted, plays on screens without their own audio */}
+          {ambientAudioStarted && (
+            <AmbientAudioPlayer shouldPlay={shouldPlayAmbient} volume={0.35} showControls={false} />
           )}
           
           {/* Conditional Screen Rendering */}
