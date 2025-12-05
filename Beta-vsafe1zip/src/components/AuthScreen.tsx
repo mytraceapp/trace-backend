@@ -1,6 +1,6 @@
-import React from 'react';
 import { motion } from 'motion/react';
 import traceLogo from 'figma:asset/513ec3c351285cce0b15e678c8f6d864d8269d64.png';
+import { AmbientAudioPlayer } from './AmbientAudioPlayer';
 
 interface AuthScreenProps {
   onCreateAccount?: () => void;
@@ -176,6 +176,16 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
         </motion.div>
 
       </div>
+
+      {/* Ambient Audio - auto-plays with smooth fade-in */}
+      <motion.div
+        className="absolute top-6 right-6 z-30"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.5, duration: 1 }}
+      >
+        <AmbientAudioPlayer autoPlay={true} volume={0.35} showControls={true} />
+      </motion.div>
 
       {/* Bottom Microtext */}
       <motion.div
