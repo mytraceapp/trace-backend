@@ -52,22 +52,28 @@ export function BottomNav({
       className="sticky bottom-0 left-0 right-0 z-30"
       initial={{ y: 100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ delay: 0.3, duration: 1, ease: [0.22, 0.61, 0.36, 1] }}
+      transition={{ 
+        delay: 0.2, 
+        duration: 1.2, 
+        ease: [0.16, 1, 0.3, 1] // Smooth expo-out curve
+      }}
     >
       <div
-        className="w-full px-8 py-5 transition-colors duration-300"
+        className="w-full px-8 py-5"
         style={{
           background: styles.background,
           backdropFilter: 'blur(20px)',
           borderTop: 'none',
           boxShadow: isSage ? 'none' : (isDark ? '0 -4px 20px rgba(0, 0, 0, 0.15)' : '0 -4px 20px rgba(90, 74, 58, 0.08)'),
+          transition: 'background 0.8s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         <div className="flex items-center justify-between max-w-sm mx-auto">
           {/* Home */}
           <button
             onClick={onNavigateHome}
-            className="flex flex-col items-center gap-1 transition-all duration-300 hover:opacity-70 active:scale-95"
+            className="flex flex-col items-center gap-1 hover:opacity-70 active:scale-95"
+            style={{ transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)' }}
           >
             {activeScreen === 'chat' && !isSage ? (
               <div
@@ -109,7 +115,8 @@ export function BottomNav({
           {/* Activities */}
           <button
             onClick={onNavigateActivities}
-            className="flex flex-col items-center gap-1 transition-all duration-300 hover:opacity-70 active:scale-95"
+            className="flex flex-col items-center gap-1 hover:opacity-70 active:scale-95"
+            style={{ transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)' }}
           >
             {activeScreen === 'activities' && !isSage ? (
               <div
@@ -151,7 +158,8 @@ export function BottomNav({
           {/* Entries */}
           <button
             onClick={onNavigateJournal}
-            className="flex flex-col items-center gap-1 transition-all duration-300 hover:opacity-70 active:scale-95"
+            className="flex flex-col items-center gap-1 hover:opacity-70 active:scale-95"
+            style={{ transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)' }}
           >
             {(activeScreen === 'journal' || activeScreen === 'entries') && !isSage ? (
               <div
@@ -193,7 +201,8 @@ export function BottomNav({
           {/* Profile */}
           <button
             onClick={onNavigateProfile}
-            className="flex flex-col items-center gap-1 transition-all duration-300 hover:opacity-70 active:scale-95"
+            className="flex flex-col items-center gap-1 hover:opacity-70 active:scale-95"
+            style={{ transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)' }}
           >
             {activeScreen === 'profile' && !isSage ? (
               <div
@@ -235,7 +244,8 @@ export function BottomNav({
           {/* Help */}
           <button
             onClick={onNavigateHelp}
-            className="flex flex-col items-center gap-1 transition-all duration-300 hover:opacity-70 active:scale-95"
+            className="flex flex-col items-center gap-1 hover:opacity-70 active:scale-95"
+            style={{ transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)' }}
           >
             {activeScreen === 'help' && !isSage ? (
               <div
