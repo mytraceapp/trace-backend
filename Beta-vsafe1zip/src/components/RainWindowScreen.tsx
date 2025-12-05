@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Play, Pause } from 'lucide-react';
-import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
 
 interface RainWindowScreenProps {
@@ -178,10 +177,13 @@ export function RainWindowScreen({
   const remainingTime = ACTIVITY_DURATION - elapsedTime;
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div 
+      className="relative w-full h-full overflow-hidden"
+      style={{ background: '#0a0c0b' }}
+    >
       <video
         ref={videoRef}
-        className="absolute w-full h-full object-cover"
+        className="absolute object-cover"
         src="/video/rain-window.mp4"
         loop
         muted
@@ -190,9 +192,9 @@ export function RainWindowScreen({
         style={{
           top: '50%',
           left: '50%',
-          transform: 'translate(-50%, -50%)',
-          minWidth: '100%',
-          minHeight: '100%',
+          transform: 'translate(-50%, -50%) scale(1.1)',
+          minWidth: '110%',
+          minHeight: '110%',
           width: 'auto',
           height: 'auto',
           filter: 'brightness(0.85) saturate(0.9)',
@@ -378,15 +380,6 @@ export function RainWindowScreen({
         </AnimatePresence>
       </div>
 
-      <BottomNav
-        activeScreen="activities"
-        onNavigateHome={onReturnToChat}
-        onNavigateActivities={onNavigateToActivities}
-        onNavigateJournal={onNavigateToJournal}
-        onNavigateProfile={onNavigateToProfile}
-        onNavigateHelp={onNavigateToHelp}
-        variant="neutral"
-      />
     </div>
   );
 }
