@@ -30,13 +30,48 @@ export function RainWindowScreen({
 
   const ACTIVITY_DURATION = 180;
 
-  // Audio disabled - add rain-ambient.mp3 to public/audio/ for rain sounds
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Real rain audio slowed to 50% for dreamy effect
   const startRainAudio = useCallback(() => {
-    // No audio currently - silent rain window experience
+    if (!audioRef.current) {
+      const audio = new Audio('/audio/rain-ambient.mp3');
+      audio.loop = true;
+      audio.volume = 0;
+      audio.playbackRate = 0.5; // 50% speed for slow, dreamy rain
+      audio.preservesPitch = false; // Allow pitch to lower with speed
+      audioRef.current = audio;
+    }
+    
+    const audio = audioRef.current;
+    audio.play().catch(() => {});
+    
+    // Gentle fade in over 3 seconds
+    let vol = 0;
+    const fadeIn = setInterval(() => {
+      vol += 0.02;
+      if (vol >= 0.6) {
+        vol = 0.6;
+        clearInterval(fadeIn);
+      }
+      if (audioRef.current) audioRef.current.volume = vol;
+    }, 60);
   }, []);
 
   const stopRainAudio = useCallback(() => {
-    // No audio to stop
+    const audio = audioRef.current;
+    if (audio) {
+      // Gentle fade out over 2 seconds
+      const fadeOut = setInterval(() => {
+        if (audio.volume > 0.02) {
+          audio.volume -= 0.02;
+        } else {
+          audio.volume = 0;
+          audio.pause();
+          clearInterval(fadeOut);
+        }
+      }, 40);
+    }
   }, []);
 
   // Auto-start session on mount
