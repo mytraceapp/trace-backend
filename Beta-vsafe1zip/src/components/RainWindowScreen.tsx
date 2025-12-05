@@ -179,12 +179,8 @@ export function RainWindowScreen({
 
   return (
     <div 
-      className="absolute inset-0 overflow-hidden"
-      style={{ 
-        background: '#0a0c0b',
-        margin: '-1px',
-        padding: '1px',
-      }}
+      className="relative w-full h-full overflow-hidden"
+      style={{ background: '#0a0c0b' }}
     >
       <video
         ref={videoRef}
@@ -195,10 +191,13 @@ export function RainWindowScreen({
         playsInline
         autoPlay
         style={{
-          top: '-5%',
-          left: '-5%',
-          width: '110%',
-          height: '115%',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%) scale(1.1)',
+          minWidth: '110%',
+          minHeight: '110%',
+          width: 'auto',
+          height: 'auto',
           filter: 'brightness(0.85) saturate(0.9)',
         }}
       />
