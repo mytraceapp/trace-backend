@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Wind, Compass, Footprints, Moon, Sparkles, Hand } from 'lucide-react';
 import { BottomNav } from './BottomNav';
+import { useTheme } from '../state/ThemeContext';
 
 interface ActivitiesHubScreenProps {
   onStartBreathing: () => void;
@@ -30,11 +31,13 @@ export function ActivitiesHubScreen({
   onNavigateToProfile,
   onNavigateToHelp,
 }: ActivitiesHubScreenProps) {
+  const { theme } = useTheme();
+  
   return (
     <div 
-      className="relative w-full h-full overflow-y-auto"
+      className="relative w-full h-full overflow-y-auto transition-colors duration-300"
       style={{
-        background: 'linear-gradient(to bottom, #F4F1EC 0%, #D3CFC8 100%)',
+        background: `linear-gradient(to bottom, var(--bg) 0%, var(--bg-soft) 100%)`,
         scrollbarWidth: 'none', /* Firefox */
         msOverflowStyle: 'none', /* IE and Edge */
       }}
@@ -55,18 +58,18 @@ export function ActivitiesHubScreen({
       />
 
       {/* TRACE Brand - Fixed */}
-      <div className="sticky top-0 left-0 right-0 z-40 text-center pointer-events-none bg-gradient-to-b from-[#F4F1EC] via-[#F4F1EC] to-transparent" style={{ paddingTop: '55px', paddingBottom: '12px' }}>
+      <div className="sticky top-0 left-0 right-0 z-40 text-center pointer-events-none transition-colors duration-300" style={{ paddingTop: '55px', paddingBottom: '12px', background: `linear-gradient(to bottom, var(--bg), var(--bg), transparent)` }}>
         <motion.h1
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 1.2, ease: [0.22, 0.61, 0.36, 1] }}
           style={{
             fontFamily: 'ALORE, Georgia, serif',
-            color: '#4B4B4B',
+            color: 'var(--text-tertiary)',
             fontWeight: 300,
             letterSpacing: '1em',
             fontSize: '10px',
-            opacity: 0.4,
+            opacity: 0.6,
             textTransform: 'uppercase',
             marginTop: '0.2rem',
           }}
@@ -90,7 +93,7 @@ export function ActivitiesHubScreen({
             className="mb-0.5"
             style={{
               fontFamily: 'Georgia, serif',
-              color: '#4B4B4B',
+              color: 'var(--text-primary)',
               fontWeight: 400,
               fontSize: '28px',
               letterSpacing: '-0.02em',

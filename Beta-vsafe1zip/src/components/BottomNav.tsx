@@ -1,6 +1,6 @@
-import React from 'react';
 import { motion } from 'motion/react';
-import { Home, Activity, BookMarked, User, HelpCircle, TrendingUp } from 'lucide-react';
+import { Home, Activity, BookMarked, User, HelpCircle } from 'lucide-react';
+import { useTheme } from '../state/ThemeContext';
 
 interface BottomNavProps {
   activeScreen: 'chat' | 'activities' | 'journal' | 'entries' | 'profile' | 'help';
@@ -21,22 +21,28 @@ export function BottomNav({
   onNavigateHelp,
   variant = 'sage'
 }: BottomNavProps) {
+  const { theme } = useTheme();
   const isSage = variant === 'sage';
+  const isDark = theme === 'night';
   
-  // Sage variant (chat screen)
+  // Sage variant (chat screen) - adapts to theme
   const sageStyles = {
-    background: 'linear-gradient(to top, rgba(107, 122, 110, 1) 0%, rgba(125, 145, 128, 0.95) 40%, rgba(154, 176, 156, 0.7) 75%, transparent 100%)',
-    iconColor: '#EDE8DB',
-    textColor: '#EDE8DB',
+    background: isDark 
+      ? 'linear-gradient(to top, rgba(30, 32, 30, 1) 0%, rgba(42, 46, 42, 0.95) 40%, rgba(58, 64, 58, 0.7) 75%, transparent 100%)'
+      : 'linear-gradient(to top, rgba(107, 122, 110, 1) 0%, rgba(125, 145, 128, 0.95) 40%, rgba(154, 176, 156, 0.7) 75%, transparent 100%)',
+    iconColor: isDark ? '#D4D8D0' : '#EDE8DB',
+    textColor: isDark ? '#D4D8D0' : '#EDE8DB',
   };
   
-  // Neutral variant (other screens)
+  // Neutral variant (other screens) - adapts to theme
   const neutralStyles = {
-    background: 'linear-gradient(to bottom, rgba(244, 241, 236, 0.15), rgba(232, 228, 221, 0.25))',
-    iconColor: '#A8A19A',
-    iconColorActive: '#5A4A3A',
-    textColor: '#A8A19A',
-    textColorActive: '#5A4A3A',
+    background: isDark 
+      ? 'linear-gradient(to bottom, rgba(30, 32, 30, 0.15), rgba(42, 46, 42, 0.25))'
+      : 'linear-gradient(to bottom, rgba(244, 241, 236, 0.15), rgba(232, 228, 221, 0.25))',
+    iconColor: isDark ? '#8A8F86' : '#A8A19A',
+    iconColorActive: isDark ? '#D4D8D0' : '#5A4A3A',
+    textColor: isDark ? '#8A8F86' : '#A8A19A',
+    textColorActive: isDark ? '#D4D8D0' : '#5A4A3A',
   };
   
   const styles = isSage ? sageStyles : neutralStyles;
@@ -49,12 +55,12 @@ export function BottomNav({
       transition={{ delay: 0.3, duration: 1, ease: [0.22, 0.61, 0.36, 1] }}
     >
       <div
-        className="w-full px-8 py-5"
+        className="w-full px-8 py-5 transition-colors duration-300"
         style={{
           background: styles.background,
           backdropFilter: 'blur(20px)',
           borderTop: 'none',
-          boxShadow: isSage ? 'none' : '0 -4px 20px rgba(90, 74, 58, 0.08)',
+          boxShadow: isSage ? 'none' : (isDark ? '0 -4px 20px rgba(0, 0, 0, 0.15)' : '0 -4px 20px rgba(90, 74, 58, 0.08)'),
         }}
       >
         <div className="flex items-center justify-between max-w-sm mx-auto">
@@ -67,8 +73,12 @@ export function BottomNav({
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{
-                  background: 'linear-gradient(135deg, #D3CFC8 0%, #C4BFB8 100%)',
-                  boxShadow: '0 2px 8px rgba(90, 74, 58, 0.15)',
+                  background: isDark 
+                    ? 'linear-gradient(135deg, #2A2E2A 0%, #3A403A 100%)' 
+                    : 'linear-gradient(135deg, #D3CFC8 0%, #C4BFB8 100%)',
+                  boxShadow: isDark 
+                    ? '0 2px 8px rgba(0, 0, 0, 0.25)' 
+                    : '0 2px 8px rgba(90, 74, 58, 0.15)',
                 }}
               >
                 <Home size={20} style={{ color: neutralStyles.iconColorActive, strokeWidth: 1.8 }} />
@@ -105,8 +115,12 @@ export function BottomNav({
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{
-                  background: 'linear-gradient(135deg, #D3CFC8 0%, #C4BFB8 100%)',
-                  boxShadow: '0 2px 8px rgba(90, 74, 58, 0.15)',
+                  background: isDark 
+                    ? 'linear-gradient(135deg, #2A2E2A 0%, #3A403A 100%)' 
+                    : 'linear-gradient(135deg, #D3CFC8 0%, #C4BFB8 100%)',
+                  boxShadow: isDark 
+                    ? '0 2px 8px rgba(0, 0, 0, 0.25)' 
+                    : '0 2px 8px rgba(90, 74, 58, 0.15)',
                 }}
               >
                 <Activity size={20} style={{ color: neutralStyles.iconColorActive, strokeWidth: 1.8 }} />
@@ -143,8 +157,12 @@ export function BottomNav({
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{
-                  background: 'linear-gradient(135deg, #D3CFC8 0%, #C4BFB8 100%)',
-                  boxShadow: '0 2px 8px rgba(90, 74, 58, 0.15)',
+                  background: isDark 
+                    ? 'linear-gradient(135deg, #2A2E2A 0%, #3A403A 100%)' 
+                    : 'linear-gradient(135deg, #D3CFC8 0%, #C4BFB8 100%)',
+                  boxShadow: isDark 
+                    ? '0 2px 8px rgba(0, 0, 0, 0.25)' 
+                    : '0 2px 8px rgba(90, 74, 58, 0.15)',
                 }}
               >
                 <BookMarked size={20} style={{ color: neutralStyles.iconColorActive, strokeWidth: 1.8 }} />
@@ -181,8 +199,12 @@ export function BottomNav({
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{
-                  background: 'linear-gradient(135deg, #D3CFC8 0%, #C4BFB8 100%)',
-                  boxShadow: '0 2px 8px rgba(90, 74, 58, 0.15)',
+                  background: isDark 
+                    ? 'linear-gradient(135deg, #2A2E2A 0%, #3A403A 100%)' 
+                    : 'linear-gradient(135deg, #D3CFC8 0%, #C4BFB8 100%)',
+                  boxShadow: isDark 
+                    ? '0 2px 8px rgba(0, 0, 0, 0.25)' 
+                    : '0 2px 8px rgba(90, 74, 58, 0.15)',
                 }}
               >
                 <User size={20} style={{ color: neutralStyles.iconColorActive, strokeWidth: 1.8 }} />
@@ -219,8 +241,12 @@ export function BottomNav({
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{
-                  background: 'linear-gradient(135deg, #D3CFC8 0%, #C4BFB8 100%)',
-                  boxShadow: '0 2px 8px rgba(90, 74, 58, 0.15)',
+                  background: isDark 
+                    ? 'linear-gradient(135deg, #2A2E2A 0%, #3A403A 100%)' 
+                    : 'linear-gradient(135deg, #D3CFC8 0%, #C4BFB8 100%)',
+                  boxShadow: isDark 
+                    ? '0 2px 8px rgba(0, 0, 0, 0.25)' 
+                    : '0 2px 8px rgba(90, 74, 58, 0.15)',
                 }}
               >
                 <HelpCircle size={20} style={{ color: neutralStyles.iconColorActive, strokeWidth: 1.8 }} />

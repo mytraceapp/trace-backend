@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Mic, Send } from 'lucide-react';
 import { TypingTone } from './TypingTone';
 import { BottomNav } from './BottomNav';
+import { useTheme } from '../state/ThemeContext';
 import { 
   sendMessageToTrace, 
   getTraceGreeting, 
@@ -49,6 +50,7 @@ export function ChatScreen({
   shouldStartGreeting = true,
 }: ChatScreenProps = {}) {
   void _onNavigateToPatterns;
+  const { theme } = useTheme();
   const [message, setMessage] = React.useState('');
   const [hasResponded, setHasResponded] = React.useState(false);
   const [_userMessage, setUserMessage] = React.useState('');
@@ -380,7 +382,7 @@ export function ChatScreen({
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col" style={{ backgroundColor: '#9AB09C' }}>
+    <div className="relative w-full h-full flex flex-col transition-colors duration-300" style={{ backgroundColor: 'var(--accent)' }}>
       
       {/* Typing sound - plays while typewriter is active */}
       <TypingTone 
@@ -758,10 +760,10 @@ export function ChatScreen({
         }}
       >
         <div 
-          className="flex items-center gap-3 px-5 py-4 rounded-full"
+          className="flex items-center gap-3 px-5 py-4 rounded-full transition-colors duration-300"
           style={{
-            background: '#EDE8DB',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12)',
+            background: 'var(--input-bg)',
+            boxShadow: `0 4px 20px var(--shadow)`,
           }}
         >
           <input
@@ -770,20 +772,21 @@ export function ChatScreen({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            className="flex-1 bg-transparent outline-none text-[#6B7A6E] placeholder-[#6B7A6E]/50"
+            className="flex-1 bg-transparent outline-none transition-colors duration-300"
             style={{
               fontSize: '14px',
               letterSpacing: '0.01em',
+              color: 'var(--text-primary)',
             }}
           />
           <button className="p-2 hover:opacity-70 transition-opacity">
-            <Mic size={20} className="text-[#8DA18F]" strokeWidth={1.5} />
+            <Mic size={20} style={{ color: 'var(--accent)' }} strokeWidth={1.5} />
           </button>
           <button 
             onClick={handleSend}
             className="p-2 hover:opacity-70 transition-opacity"
           >
-            <Send size={20} className="text-[#8DA18F]" strokeWidth={1.5} />
+            <Send size={20} style={{ color: 'var(--accent)' }} strokeWidth={1.5} />
           </button>
         </div>
       </motion.div>

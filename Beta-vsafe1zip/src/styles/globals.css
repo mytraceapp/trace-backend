@@ -1,74 +1,89 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --trace-bg-main: #F5F1EB;
-  --trace-bg-secondary: #E8E4DC;
-  --trace-bg-gradient-start: #F5F1EB;
-  --trace-bg-gradient-mid: #D8DCD5;
-  --trace-bg-gradient-end: #B4BFB3;
-  --trace-text-primary: #5A4A3A;
-  --trace-text-secondary: #8A7A6A;
-  --trace-text-muted: #6B5A4A;
-  --trace-accent: #8DA18F;
-  --trace-accent-dark: #7D9180;
-  --trace-overlay: rgba(138, 122, 106, 0.12);
-  --trace-overlay-faint: rgba(138, 122, 106, 0.05);
-  --trace-orb-glow: rgba(141, 161, 143, 0.15);
-  --trace-card-bg: #F5F1EB;
-  --trace-card-alt: #C9BCB0;
-  --trace-border: rgba(138, 122, 106, 0.12);
-  --trace-border-strong: rgba(138, 122, 106, 0.3);
-  --trace-shadow: rgba(138, 122, 106, 0.16);
-  --trace-danger: #B07D6C;
-  --trace-transition: 200ms ease-out;
+  --night-bg: #0E0F0E;
+  --night-bg-soft: #1A1C1A;
+  --night-card: #1F211F;
+  --night-border: rgba(255, 255, 255, 0.08);
+  --night-text-primary: #F2F2F1;
+  --night-text-secondary: #C7C7C2;
+  --night-text-tertiary: #9A9A96;
+  --night-accent: #A8B39A;
+  --night-accent-soft: rgba(168, 179, 154, 0.15);
+  --night-input-bg: #2A2C2A;
+  --orb-glow-night: rgba(168, 179, 154, 0.25);
+  --orb-core-night: rgba(255, 255, 255, 0.7);
+
+  --day-bg: #F5F1EB;
+  --day-bg-soft: #E8E4DC;
+  --day-card: #F5F1EB;
+  --day-card-alt: #C9BCB0;
+  --day-border: rgba(138, 122, 106, 0.12);
+  --day-text-primary: #5A4A3A;
+  --day-text-secondary: #8A7A6A;
+  --day-text-tertiary: #6B5A4A;
+  --day-accent: #8DA18F;
+  --day-accent-soft: rgba(141, 161, 143, 0.15);
+  --day-input-bg: #E8E4DC;
+  --orb-glow-day: rgba(141, 161, 143, 0.15);
+  --orb-core-day: rgba(90, 74, 58, 0.6);
+
+  --bg: var(--day-bg);
+  --bg-soft: var(--day-bg-soft);
+  --card: var(--day-card);
+  --card-alt: var(--day-card-alt);
+  --border: var(--day-border);
+  --text-primary: var(--day-text-primary);
+  --text-secondary: var(--day-text-secondary);
+  --text-tertiary: var(--day-text-tertiary);
+  --accent: var(--day-accent);
+  --accent-soft: var(--day-accent-soft);
+  --input-bg: var(--day-input-bg);
+  --orb-glow: var(--orb-glow-day);
+  --orb-core: var(--orb-core-day);
+  --shadow: rgba(138, 122, 106, 0.16);
+  --danger: #B07D6C;
+  --transition: 200ms ease-out;
 }
 
-.trace-day {
-  --trace-bg-main: #F5F1EB;
-  --trace-bg-secondary: #E8E4DC;
-  --trace-bg-gradient-start: #F5F1EB;
-  --trace-bg-gradient-mid: #D8DCD5;
-  --trace-bg-gradient-end: #B4BFB3;
-  --trace-text-primary: #5A4A3A;
-  --trace-text-secondary: #8A7A6A;
-  --trace-text-muted: #6B5A4A;
-  --trace-accent: #8DA18F;
-  --trace-accent-dark: #7D9180;
-  --trace-overlay: rgba(138, 122, 106, 0.12);
-  --trace-overlay-faint: rgba(138, 122, 106, 0.05);
-  --trace-orb-glow: rgba(141, 161, 143, 0.15);
-  --trace-card-bg: #F5F1EB;
-  --trace-card-alt: #C9BCB0;
-  --trace-border: rgba(138, 122, 106, 0.12);
-  --trace-border-strong: rgba(138, 122, 106, 0.3);
-  --trace-shadow: rgba(138, 122, 106, 0.16);
-  --trace-danger: #B07D6C;
+.theme-day {
+  --bg: var(--day-bg);
+  --bg-soft: var(--day-bg-soft);
+  --card: var(--day-card);
+  --card-alt: var(--day-card-alt);
+  --border: var(--day-border);
+  --text-primary: var(--day-text-primary);
+  --text-secondary: var(--day-text-secondary);
+  --text-tertiary: var(--day-text-tertiary);
+  --accent: var(--day-accent);
+  --accent-soft: var(--day-accent-soft);
+  --input-bg: var(--day-input-bg);
+  --orb-glow: var(--orb-glow-day);
+  --orb-core: var(--orb-core-day);
+  --shadow: rgba(138, 122, 106, 0.16);
+  --danger: #B07D6C;
 }
 
-.trace-night {
-  --trace-bg-main: #1A1F1A;
-  --trace-bg-secondary: #242924;
-  --trace-bg-gradient-start: #1A1F1A;
-  --trace-bg-gradient-mid: #1E2620;
-  --trace-bg-gradient-end: #222A24;
-  --trace-text-primary: #D8DCD5;
-  --trace-text-secondary: #A5A89F;
-  --trace-text-muted: #8A8D84;
-  --trace-accent: #6B8A6E;
-  --trace-accent-dark: #5A7A5D;
-  --trace-overlay: rgba(180, 191, 179, 0.12);
-  --trace-overlay-faint: rgba(180, 191, 179, 0.05);
-  --trace-orb-glow: rgba(107, 138, 110, 0.2);
-  --trace-card-bg: #242924;
-  --trace-card-alt: #2D342D;
-  --trace-border: rgba(180, 191, 179, 0.1);
-  --trace-border-strong: rgba(180, 191, 179, 0.25);
-  --trace-shadow: rgba(0, 0, 0, 0.25);
-  --trace-danger: #C49080;
+.theme-night {
+  --bg: var(--night-bg);
+  --bg-soft: var(--night-bg-soft);
+  --card: var(--night-card);
+  --card-alt: #2A2C2A;
+  --border: var(--night-border);
+  --text-primary: var(--night-text-primary);
+  --text-secondary: var(--night-text-secondary);
+  --text-tertiary: var(--night-text-tertiary);
+  --accent: var(--night-accent);
+  --accent-soft: var(--night-accent-soft);
+  --input-bg: var(--night-input-bg);
+  --orb-glow: var(--orb-glow-night);
+  --orb-core: var(--orb-core-night);
+  --shadow: rgba(0, 0, 0, 0.35);
+  --danger: #C49080;
 }
 
 html, body {
-  transition: background-color var(--trace-transition), color var(--trace-transition);
+  transition: background-color var(--transition), color var(--transition);
 }
 
 :root {

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Activity, BookOpen, Sparkles, CheckCircle, TrendingUp, ChevronRight, ChevronDown, X } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
+import { useTheme } from '../state/ThemeContext';
 import { Entry, EntryType, entryTypeLabels } from '../models/entries';
 
 interface EntriesScreenProps {
@@ -37,6 +38,7 @@ export function EntriesScreen({
   onNavigateJournal,
 }: EntriesScreenProps) {
   const { entries, getEntriesByType } = useEntries();
+  useTheme(); // Used for theme context
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<EntryType>>(new Set(['session', 'emotional_note']));
 
@@ -75,9 +77,9 @@ export function EntriesScreen({
 
   return (
     <div
-      className="relative w-full h-full overflow-hidden"
+      className="relative w-full h-full overflow-hidden transition-colors duration-300"
       style={{
-        background: 'linear-gradient(to bottom, #F4F1EC 0%, #E8E4DD 100%)',
+        background: `linear-gradient(to bottom, var(--bg) 0%, var(--bg-soft) 100%)`,
       }}
     >
       <div
@@ -97,11 +99,11 @@ export function EntriesScreen({
         <h1
           style={{
             fontFamily: 'ALORE, Georgia, serif',
-            color: '#5A4A3A',
+            color: 'var(--text-primary)',
             fontWeight: 300,
             letterSpacing: '1em',
             fontSize: '11px',
-            textShadow: '0 0 15px rgba(90, 74, 58, 0.4), 0 0 30px rgba(90, 74, 58, 0.2), 0 2px 4px rgba(0,0,0,0.15)',
+            textShadow: `0 0 15px var(--orb-glow), 0 0 30px var(--orb-glow), 0 2px 4px rgba(0,0,0,0.15)`,
             opacity: 0.85,
           }}
         >
@@ -133,7 +135,7 @@ export function EntriesScreen({
               fontFamily: 'Playfair Display, Georgia, serif',
               fontSize: '28px',
               fontWeight: 400,
-              color: '#4A3A2A',
+              color: 'var(--text-primary)',
               letterSpacing: '0.02em',
               marginBottom: '8px',
             }}
@@ -144,7 +146,7 @@ export function EntriesScreen({
             style={{
               fontFamily: 'Georgia, serif',
               fontSize: '14px',
-              color: '#7A6A5A',
+              color: 'var(--text-secondary)',
               opacity: 0.8,
             }}
           >
@@ -168,15 +170,15 @@ export function EntriesScreen({
             >
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                style={{ background: 'rgba(90, 74, 58, 0.08)' }}
+                style={{ background: 'var(--accent-soft)' }}
               >
-                <BookOpen size={28} style={{ color: '#8A7A6A', strokeWidth: 1.2 }} />
+                <BookOpen size={28} style={{ color: 'var(--text-secondary)', strokeWidth: 1.2 }} />
               </div>
               <p
                 style={{
                   fontFamily: 'Georgia, serif',
                   fontSize: '15px',
-                  color: '#7A6A5A',
+                  color: 'var(--text-secondary)',
                   textAlign: 'center',
                   lineHeight: 1.6,
                 }}
@@ -193,11 +195,11 @@ export function EntriesScreen({
                 const isExpanded = expandedSections.has(type);
                 
                 return (
-                  <div key={type} className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.4)' }}>
+                  <div key={type} className="rounded-2xl overflow-hidden" style={{ background: 'var(--card)' }}>
                     <button
                       onClick={() => toggleSection(type)}
                       className="w-full flex items-center justify-between p-4 transition-colors"
-                      style={{ background: 'rgba(255, 255, 255, 0.5)' }}
+                      style={{ background: 'var(--card-elevated)' }}
                     >
                       <div className="flex items-center gap-3">
                         <div
@@ -215,7 +217,7 @@ export function EntriesScreen({
                               fontFamily: 'Georgia, serif',
                               fontSize: '15px',
                               fontWeight: 500,
-                              color: '#4A3A2A',
+                              color: 'var(--text-primary)',
                             }}
                           >
                             {entryTypeLabels[type]}
@@ -224,7 +226,7 @@ export function EntriesScreen({
                             style={{
                               fontFamily: 'Georgia, serif',
                               fontSize: '12px',
-                              color: '#8A7A6A',
+                              color: 'var(--text-tertiary)',
                             }}
                           >
                             {typeEntries.length} {typeEntries.length === 1 ? 'entry' : 'entries'}
@@ -235,7 +237,7 @@ export function EntriesScreen({
                         animate={{ rotate: isExpanded ? 180 : 0 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <ChevronDown size={20} style={{ color: '#8A7A6A' }} />
+                        <ChevronDown size={20} style={{ color: 'var(--text-tertiary)' }} />
                       </motion.div>
                     </button>
                     
@@ -255,8 +257,8 @@ export function EntriesScreen({
                                 onClick={() => setSelectedEntry(entry)}
                                 className="w-full text-left rounded-xl p-3 transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
                                 style={{
-                                  background: 'rgba(255, 255, 255, 0.7)',
-                                  border: '1px solid rgba(90, 74, 58, 0.06)',
+                                  background: 'var(--card-elevated)',
+                                  border: '1px solid var(--border)',
                                 }}
                                 initial={{ opacity: 0, y: -5 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -269,12 +271,12 @@ export function EntriesScreen({
                                       fontFamily: 'Georgia, serif',
                                       fontSize: '14px',
                                       fontWeight: 500,
-                                      color: '#4A3A2A',
+                                      color: 'var(--text-primary)',
                                     }}
                                   >
                                     {entry.title || entryTypeLabels[entry.type]}
                                   </h4>
-                                  <ChevronRight size={14} style={{ color: '#A8A19A', flexShrink: 0 }} />
+                                  <ChevronRight size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
                                 </div>
                                 {entry.body && (
                                   <p
@@ -282,7 +284,7 @@ export function EntriesScreen({
                                     style={{
                                       fontFamily: 'Georgia, serif',
                                       fontSize: '12px',
-                                      color: '#7A6A5A',
+                                      color: 'var(--text-secondary)',
                                       marginBottom: '4px',
                                     }}
                                   >
@@ -293,7 +295,7 @@ export function EntriesScreen({
                                   style={{
                                     fontFamily: 'Georgia, serif',
                                     fontSize: '11px',
-                                    color: '#A8A19A',
+                                    color: 'var(--text-tertiary)',
                                   }}
                                 >
                                   {formatDate(entry.timestamp)} · {formatTime(entry.timestamp)}
@@ -324,15 +326,15 @@ export function EntriesScreen({
             onClick={onNavigateJournal}
             className="w-full rounded-full px-8 py-4 transition-all duration-300 hover:scale-[1.01] active:scale-[0.98]"
             style={{
-              background: 'linear-gradient(135deg, #F4F1EC 0%, #EEEBE6 100%)',
-              boxShadow: '0 6px 20px rgba(75, 75, 75, 0.08), 0 2px 6px rgba(75, 75, 75, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.4)',
+              background: 'var(--card)',
+              boxShadow: 'var(--shadow)',
+              border: '1px solid var(--border)',
             }}
           >
             <span
               style={{
                 fontFamily: 'Georgia, serif',
-                color: '#4B4B4B',
+                color: 'var(--text-primary)',
                 fontWeight: 500,
                 fontSize: '15px',
                 letterSpacing: '0.02em',
@@ -371,8 +373,8 @@ export function EntriesScreen({
             <motion.div
               className="relative z-10 w-full rounded-[24px] p-5 pb-6"
               style={{
-                backgroundColor: '#F5F1EB',
-                border: '1px solid rgba(43, 30, 21, 0.08)',
+                backgroundColor: 'var(--bg)',
+                border: '1px solid var(--border)',
                 boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
                 maxHeight: 'calc(100% - 48px)',
                 overflowY: 'auto',
@@ -384,9 +386,9 @@ export function EntriesScreen({
               <button
                 onClick={() => setSelectedEntry(null)}
                 className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: 'rgba(90, 74, 58, 0.1)' }}
+                style={{ backgroundColor: 'var(--accent-soft)' }}
               >
-                <X size={16} style={{ color: '#5A4A3A' }} />
+                <X size={16} style={{ color: 'var(--text-primary)' }} />
               </button>
 
               <div className="flex items-center gap-3 mb-4">
@@ -416,7 +418,7 @@ export function EntriesScreen({
                       fontFamily: 'Playfair Display, Georgia, serif',
                       fontSize: '20px',
                       fontWeight: 500,
-                      color: '#4A3526',
+                      color: 'var(--text-primary)',
                     }}
                   >
                     {selectedEntry.title || 'Entry'}
@@ -429,7 +431,7 @@ export function EntriesScreen({
                   style={{
                     fontFamily: 'Georgia, serif',
                     fontSize: '12px',
-                    color: '#8A7A6A',
+                    color: 'var(--text-tertiary)',
                   }}
                 >
                   {formatDate(selectedEntry.timestamp)} at {formatTime(selectedEntry.timestamp)}
@@ -440,13 +442,13 @@ export function EntriesScreen({
               {selectedEntry.body && (
                 <div
                   className="p-4 rounded-xl mb-4"
-                  style={{ background: 'rgba(255,255,255,0.5)' }}
+                  style={{ background: 'var(--card)' }}
                 >
                   <p
                     style={{
                       fontFamily: 'Georgia, serif',
                       fontSize: '14px',
-                      color: '#5A4A3A',
+                      color: 'var(--text-secondary)',
                       lineHeight: 1.7,
                       whiteSpace: 'pre-wrap',
                     }}
@@ -463,10 +465,10 @@ export function EntriesScreen({
                       key={idx}
                       className="px-3 py-1 rounded-full"
                       style={{
-                        background: 'rgba(90, 74, 58, 0.08)',
+                        background: 'var(--accent-soft)',
                         fontFamily: 'Georgia, serif',
                         fontSize: '11px',
-                        color: '#6A5A4A',
+                        color: 'var(--text-secondary)',
                       }}
                     >
                       {tag}
@@ -476,13 +478,13 @@ export function EntriesScreen({
               )}
 
               {selectedEntry.metadata && (
-                <div className="mt-4 pt-4 border-t border-black/5">
+                <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
                   {selectedEntry.metadata.duration && (
                     <p
                       style={{
                         fontFamily: 'Georgia, serif',
                         fontSize: '12px',
-                        color: '#8A7A6A',
+                        color: 'var(--text-tertiary)',
                       }}
                     >
                       Duration: {Math.floor(selectedEntry.metadata.duration / 60)}:{String(selectedEntry.metadata.duration % 60).padStart(2, '0')}

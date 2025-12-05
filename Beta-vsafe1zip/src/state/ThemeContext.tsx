@@ -38,11 +38,11 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     const root = document.documentElement;
     
     if (theme === 'night') {
-      root.classList.add('trace-night');
-      root.classList.remove('trace-day');
+      root.classList.add('theme-night');
+      root.classList.remove('theme-day');
     } else {
-      root.classList.add('trace-day');
-      root.classList.remove('trace-night');
+      root.classList.add('theme-day');
+      root.classList.remove('theme-night');
     }
   }, [theme]);
 

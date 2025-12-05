@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, ChevronRight, Edit3, X, Sparkles, RefreshCw } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
+import { useTheme } from '../state/ThemeContext';
 import { Entry } from '../models/entries';
 import { generateDailyAssessment } from '../utils/aiAssessment';
 
@@ -87,6 +88,7 @@ function getEntriesForDate(entries: Entry[], year: number, month: number, day: n
 
 export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNavigateToProfile, onNavigateToHelp }: JournalScreenProps) {
   const { entries, addEmotionalNoteEntry, addAIReflectionEntry } = useEntries();
+  const { theme } = useTheme();
   
   // Initialize with current date
   const now = new Date();
@@ -246,9 +248,9 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
 
   return (
     <div
-      className="relative w-full h-full overflow-hidden"
+      className="relative w-full h-full overflow-hidden transition-colors duration-300"
       style={{
-        background: 'linear-gradient(to bottom, #F4F1EC 0%, #D3CFC8 100%)',
+        background: `linear-gradient(to bottom, var(--bg) 0%, var(--bg-soft) 100%)`,
       }}
     >
       {/* Soft vignette overlay */}
@@ -270,11 +272,11 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
         <h1
           style={{
             fontFamily: 'ALORE, Georgia, serif',
-            color: '#5A4A3A',
+            color: 'var(--text-primary)',
             fontWeight: 300,
             letterSpacing: '1em',
             fontSize: '11px',
-            textShadow: '0 0 15px rgba(90, 74, 58, 0.4), 0 0 30px rgba(90, 74, 58, 0.2), 0 2px 4px rgba(0,0,0,0.15)',
+            textShadow: `0 0 15px var(--orb-glow), 0 0 30px var(--orb-glow), 0 2px 4px rgba(0,0,0,0.15)`,
             opacity: 0.85,
           }}
         >
