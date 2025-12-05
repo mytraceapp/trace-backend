@@ -1,6 +1,5 @@
-import React from 'react';
 import { motion } from 'motion/react';
-import { Wind, Compass, Footprints, Moon, Sparkles, Hand, CloudRain } from 'lucide-react';
+import { Wind, Compass, Footprints, Moon, Sparkles, Hand } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useTheme } from '../state/ThemeContext';
 
@@ -470,7 +469,21 @@ export function ActivitiesHubScreen({
                     background: 'linear-gradient(135deg, rgba(120, 110, 100, 0.18) 0%, rgba(120, 110, 100, 0.09) 100%)',
                   }}
                 >
-                  <CloudRain size={20} style={{ color: '#6B6358' }} strokeWidth={1.5} />
+                  <svg 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 24 24" 
+                    fill="none"
+                  >
+                    <path 
+                      d="M12 2.5C12 2.5 5 10 5 14.5C5 18.366 8.134 21.5 12 21.5C15.866 21.5 19 18.366 19 14.5C19 10 12 2.5 12 2.5Z" 
+                      stroke="#6B6358"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </svg>
                 </div>
 
                 <div className="flex-1 flex flex-col items-start justify-end text-left">
@@ -484,7 +497,7 @@ export function ActivitiesHubScreen({
                       letterSpacing: '0.01em',
                     }}
                   >
-                    Rain Window
+                    Window
                   </h3>
                   <p
                     style={{
