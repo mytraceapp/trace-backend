@@ -381,8 +381,15 @@ export function ChatScreen({
     return particles;
   };
 
+  const isDark = theme === 'night';
+
   return (
-    <div className="relative w-full h-full flex flex-col transition-colors duration-300" style={{ backgroundColor: 'var(--accent)' }}>
+    <div 
+      className={`relative w-full h-full flex flex-col transition-colors duration-300 ${isDark ? 'night-texture' : ''}`} 
+      style={{ 
+        backgroundColor: isDark ? 'var(--bg)' : 'var(--accent)',
+      }}
+    >
       
       {/* Typing sound - plays while typewriter is active */}
       <TypingTone 
@@ -400,11 +407,13 @@ export function ChatScreen({
       >
         <h1 style={{ 
           fontFamily: 'ALORE, Georgia, serif',
-          color: '#EDE8DB',
+          color: isDark ? 'var(--text-primary)' : '#EDE8DB',
           fontWeight: 300,
           letterSpacing: '1em',
           fontSize: '11px',
-          textShadow: '0 2px 5px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3)',
+          textShadow: isDark 
+            ? '0 0 15px var(--orb-glow), 0 2px 5px rgba(0,0,0,0.3)' 
+            : '0 2px 5px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3)',
           opacity: 0.95,
         }}>
           TRACE

@@ -99,11 +99,15 @@ export function ProfileScreen({
 
   const canUpgrade = currentPlan !== 'studio';
 
+  const isDark = theme === 'night';
+
   return (
     <div 
-      className="relative w-full h-full overflow-hidden transition-all duration-200"
+      className={`relative w-full h-full overflow-hidden transition-all duration-300 ${isDark ? 'night-texture' : ''}`}
       style={{ 
-        background: `linear-gradient(to bottom, var(--bg) 0%, var(--bg-soft) 25%, var(--accent-soft) 60%, var(--bg-soft) 100%)` 
+        background: isDark 
+          ? 'var(--bg)' 
+          : `linear-gradient(to bottom, var(--bg) 0%, var(--bg-soft) 25%, var(--accent-soft) 60%, var(--bg-soft) 100%)` 
       }}
     >
       {/* Subtle background orb */}

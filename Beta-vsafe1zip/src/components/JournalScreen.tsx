@@ -245,12 +245,13 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
   const calendarDays = generateCalendarDays();
   const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const currentMonth = MONTHS[currentMonthIndex];
+  const isDark = theme === 'night';
 
   return (
     <div
-      className="relative w-full h-full overflow-hidden transition-colors duration-300"
+      className={`relative w-full h-full overflow-hidden transition-colors duration-300 ${isDark ? 'night-texture' : ''}`}
       style={{
-        background: `linear-gradient(to bottom, var(--bg) 0%, var(--bg-soft) 100%)`,
+        background: isDark ? 'var(--bg)' : `linear-gradient(to bottom, var(--bg) 0%, var(--bg-soft) 100%)`,
       }}
     >
       {/* Soft vignette overlay */}

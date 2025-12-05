@@ -32,14 +32,15 @@ export function ActivitiesHubScreen({
   onNavigateToHelp,
 }: ActivitiesHubScreenProps) {
   const { theme } = useTheme();
+  const isDark = theme === 'night';
   
   return (
     <div 
-      className="relative w-full h-full overflow-y-auto transition-colors duration-300"
+      className={`relative w-full h-full overflow-y-auto transition-colors duration-300 ${isDark ? 'night-texture' : ''}`}
       style={{
-        background: `linear-gradient(to bottom, var(--bg) 0%, var(--bg-soft) 100%)`,
-        scrollbarWidth: 'none', /* Firefox */
-        msOverflowStyle: 'none', /* IE and Edge */
+        background: isDark ? 'var(--bg)' : `linear-gradient(to bottom, var(--bg) 0%, var(--bg-soft) 100%)`,
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
       }}
     >
       {/* Hide scrollbar for Chrome, Safari and Opera */}
