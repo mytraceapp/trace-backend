@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Scan, Eye, EyeOff, ChevronLeft } from 'lucide-react';
+import { Scan, Eye, EyeOff } from 'lucide-react';
 import traceLogo from 'figma:asset/513ec3c351285cce0b15e678c8f6d864d8269d64.png';
 
 interface AuthScreenProps {
@@ -269,16 +269,28 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
               }}
             />
 
-            {/* Back Arrow - Fixed at top */}
-            <motion.button
-              className="absolute top-10 left-5 p-2 rounded-full transition-colors hover:bg-black/5 z-10"
-              onClick={() => setShowLoginModal(false)}
+            {/* TRACE Brand Name - fixed position below camera earpiece */}
+            <motion.div
+              className="absolute w-full text-center z-20"
+              style={{ top: '7%' }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: 0.2, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] }}
             >
-              <ChevronLeft size={24} strokeWidth={1.5} style={{ color: '#5A4A3A' }} />
-            </motion.button>
+              <h1
+                style={{
+                  fontFamily: 'ALORE, Georgia, serif',
+                  color: '#5A4A3A',
+                  fontWeight: 300,
+                  letterSpacing: '1em',
+                  fontSize: '11px',
+                  textShadow: '0 0 15px rgba(90, 74, 58, 0.45), 0 0 30px rgba(90, 74, 58, 0.25), 0 2px 4px rgba(0,0,0,0.15)',
+                  opacity: 0.9,
+                }}
+              >
+                TRACE
+              </h1>
+            </motion.div>
 
             {/* Modal Content - Centered and moved up */}
             <motion.div
