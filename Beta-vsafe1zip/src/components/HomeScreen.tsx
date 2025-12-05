@@ -8,7 +8,20 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
+  const [isLogoLowered, setIsLogoLowered] = React.useState(false);
   const [isAwakened, setIsAwakened] = React.useState(false);
+
+  // When logo finishes lowering, trigger orb awakening
+  React.useEffect(() => {
+    if (isLogoLowered && !isAwakened) {
+      // Wait for logo to finish lowering (1.5s), then awaken orb
+      const awakenTimer = setTimeout(() => {
+        setIsAwakened(true);
+      }, 1500);
+
+      return () => clearTimeout(awakenTimer);
+    }
+  }, [isLogoLowered, isAwakened]);
 
   // Auto-transition to auth page after orb rises (5s) + 1 second pause
   React.useEffect(() => {
@@ -25,8 +38,8 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
   }, [isAwakened, onNavigateToAuth]);
 
   const handleLogoClick = () => {
-    if (!isAwakened) {
-      setIsAwakened(true);
+    if (!isLogoLowered) {
+      setIsLogoLowered(true);
     }
   };
 
@@ -326,24 +339,28 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
         </motion.div>
       )}
 
-      {/* TRACE Logo - lowered, clickable welcoming button */}
+      {/* TRACE Logo - starts at mid screen, lowers on click, then orb rises */}
       <motion.button
         onClick={handleLogoClick}
         className="absolute z-30 cursor-pointer"
         style={{ 
-          top: '55%',
           background: 'transparent',
           border: 'none',
           padding: 0,
         }}
-        initial={{ opacity: 0, scale: 0.92 }}
-        animate={{ opacity: 1, scale: isAwakened ? 1 : [1, 1.03, 1] }}
+        initial={{ opacity: 0, scale: 0.92, top: '40%' }}
+        animate={{ 
+          opacity: 1, 
+          scale: isAwakened ? 1 : [1, 1.03, 1],
+          top: isLogoLowered ? '55%' : '40%',
+        }}
         transition={{ 
           opacity: { delay: 0.3, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] },
-          scale: isAwakened ? { duration: 0.4 } : { duration: 2.5, repeat: Infinity, ease: "easeInOut" }
+          scale: isAwakened ? { duration: 0.4 } : { duration: 2.5, repeat: Infinity, ease: "easeInOut" },
+          top: { duration: 1.5, ease: [0.22, 0.61, 0.36, 1] },
         }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={!isLogoLowered ? { scale: 1.05 } : {}}
+        whileTap={!isLogoLowered ? { scale: 0.95 } : {}}
       >
         {/* Logo outer glow */}
         <motion.div
