@@ -21,6 +21,7 @@ export function useAmbientAudio({
 }: UseAmbientAudioOptions) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeIntervalRef = useRef<number | null>(null);
+  const hasPlayedOnceRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -123,9 +124,28 @@ export function useAmbientAudio({
     }, stepDuration);
   }, [fadeOutDuration]);
 
+  const resume = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = null;
+    }
+
+    audio.volume = volume;
+    audio.play().catch(console.error);
+    setIsPlaying(true);
+  }, [volume]);
+
   const play = useCallback(() => {
-    fadeIn();
-  }, [fadeIn]);
+    if (hasPlayedOnceRef.current) {
+      resume();
+    } else {
+      hasPlayedOnceRef.current = true;
+      fadeIn();
+    }
+  }, [fadeIn, resume]);
 
   const pause = useCallback(() => {
     fadeOut();
