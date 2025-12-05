@@ -349,6 +349,7 @@ export default function App() {
           <button onClick={() => setCurrentScreen('powernap')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Power Nap</button>
           <button onClick={() => setCurrentScreen('pearlripple')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Pearl Ripple</button>
           <button onClick={() => setCurrentScreen('grounding')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Grounding</button>
+          <button onClick={() => setCurrentScreen('rainwindow')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Rain Window</button>
           <button onClick={() => setCurrentScreen('entries')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Entries</button>
           <button onClick={() => setCurrentScreen('journal')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Journal</button>
           <button onClick={() => setCurrentScreen('patterns')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Patterns</button>
