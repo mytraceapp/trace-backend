@@ -61,9 +61,9 @@ export function WalkingResetScreen({
     oscillator.frequency.value = 420; // Slightly lower, warmer
     oscillator.type = 'sine';
     
-    // Gentle envelope - minimized volume
+    // Gentle envelope - even more minimized volume
     gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.015, audioContext.currentTime + 0.02);
+    gainNode.gain.linearRampToValueAtTime(0.008, audioContext.currentTime + 0.02);
     gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.12);
     
     oscillator.start(audioContext.currentTime);
@@ -72,28 +72,28 @@ export function WalkingResetScreen({
     // Trigger ambient footstep sound
     setStepTrigger(prev => prev + 1);
 
-    // Trigger orb reaction animations - bounce and move
+    // Trigger orb reaction animations - bounce and move (slowed to match step rhythm)
     orbControls.start({
-      scale: [1, 1.15, 1],
-      transition: { duration: 0.4, ease: "easeOut" }
+      scale: [1, 1.12, 1],
+      transition: { duration: 1.2, ease: "easeInOut" }
     });
     
     glowControls.start({
-      opacity: [0.4, 1, 0.4],
-      scale: [1, 1.2, 1],
-      transition: { duration: 0.4, ease: "easeOut" }
+      opacity: [0.4, 0.9, 0.4],
+      scale: [1, 1.15, 1],
+      transition: { duration: 1.2, ease: "easeInOut" }
     });
     
     haloControls.start({
-      scale: [1, 1.25, 1],
-      opacity: [0.3, 0.7, 0.3],
-      transition: { duration: 0.5, ease: "easeOut" }
+      scale: [1, 1.18, 1],
+      opacity: [0.3, 0.6, 0.3],
+      transition: { duration: 1.3, ease: "easeInOut" }
     });
     
-    // Bounce orb vertically
+    // Bounce orb vertically - slower, gentler
     orbPositionControls.start({
-      y: [0, -15, 0],
-      transition: { duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }
+      y: [0, -12, 0],
+      transition: { duration: 1.2, ease: [0.45, 0, 0.55, 1] }
     });
   }, [orbControls, glowControls, haloControls, orbPositionControls]);
 
