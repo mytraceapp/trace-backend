@@ -346,7 +346,7 @@ export function FullPatternsReportScreen({
                           cx={`${x}%`}
                           cy={`${y}%`}
                           r="4"
-                          fill={isDark ? 'rgba(215, 220, 210, 0.75)' : '#8DA18F'}
+                          fill={isDark ? 'rgba(195, 200, 190, 0.65)' : '#8DA18F'}
                           stroke="none"
                           initial={{ scale: 0, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
