@@ -620,9 +620,9 @@ export function MazeScreen({
                 </span>
               </button>
 
-              {/* Return to Activities */}
+              {/* Return to Chat */}
               <button 
-                onClick={onNavigateActivities}
+                onClick={onReturnToChat}
                 className="w-full rounded-full px-8 py-4 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                 style={{
                   background: 'transparent',
@@ -638,7 +638,7 @@ export function MazeScreen({
                     letterSpacing: '0.03em',
                   }}
                 >
-                  Return to Activities
+                  Return to Chat
                 </span>
               </button>
             </motion.div>
