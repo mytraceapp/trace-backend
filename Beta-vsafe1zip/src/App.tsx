@@ -3,6 +3,7 @@ import { HomeScreen } from './components/HomeScreen';
 import { AuthScreen } from './components/AuthScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { useUser } from './state/PlanContext';
+import { useTheme } from './state/ThemeContext';
 import { ChatScreen } from './components/ChatScreen';
 import { ActivitiesScreen } from './components/ActivitiesScreen';
 import { ActivitiesHubScreen } from './components/ActivitiesHubScreen';
@@ -29,6 +30,7 @@ import { AmbientAudioPlayer } from './components/AmbientAudioPlayer';
 
 export default function App() {
   const { selectedPlan, profile, isUpgrading, setIsUpgrading, ambienceEnabled, ambienceVolume } = useUser();
+  const { theme } = useTheme();
   const [currentScreen, setCurrentScreen] = React.useState<'home' | 'auth' | 'accountsetup' | 'payment' | 'onboarding' | 'chat' | 'activities' | 'activitieshub' | 'breathing' | 'maze' | 'walking' | 'powernap' | 'pearlripple' | 'grounding' | 'journal' | 'entries' | 'patterns' | 'fullpatterns' | 'help' | 'inthisspace' | 'crisis' | 'privacy' | 'terms' | 'profile'>('home');
   const [showPaymentSuccess, setShowPaymentSuccess] = React.useState(false);
   const [ambientAudioStarted, setAmbientAudioStarted] = React.useState(false);
@@ -43,12 +45,17 @@ export default function App() {
     }
   }, [currentScreen, ambientAudioStarted]);
 
+  const isDark = theme === 'night';
+
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       {/* iPhone 15 Pro Frame */}
       <div className="relative w-[390px] h-[844px] bg-black rounded-[55px] p-[12px] shadow-2xl">
-        {/* Screen Content */}
-        <div className="w-full h-full rounded-[43px] overflow-hidden relative">
+        {/* Screen Content - Apply theme texture at root level */}
+        <div 
+          className={`w-full h-full rounded-[43px] overflow-hidden relative transition-all duration-500 ${isDark ? 'night-texture' : 'day-texture'}`}
+          style={{ backgroundColor: 'var(--bg)' }}
+        >
           {/* Global Ambient Audio - always mounted, plays on screens without their own audio */}
           {ambientAudioStarted && (
             <AmbientAudioPlayer shouldPlay={shouldPlayAmbient} volume={ambienceVolume / 100 * 0.5} showControls={false} />

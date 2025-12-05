@@ -385,9 +385,9 @@ export function ChatScreen({
 
   return (
     <div 
-      className={`relative w-full h-full flex flex-col transition-colors duration-300 ${isDark ? 'night-texture' : ''}`} 
+      className="relative w-full h-full flex flex-col transition-colors duration-300"
       style={{ 
-        backgroundColor: isDark ? 'var(--bg)' : 'var(--accent)',
+        backgroundColor: 'transparent',
       }}
     >
       

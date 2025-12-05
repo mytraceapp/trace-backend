@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, ChevronRight, Edit3, X, Sparkles, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Sparkles, RefreshCw } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
 import { useTheme } from '../state/ThemeContext';
@@ -88,7 +88,7 @@ function getEntriesForDate(entries: Entry[], year: number, month: number, day: n
 
 export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNavigateToProfile, onNavigateToHelp }: JournalScreenProps) {
   const { entries, addEmotionalNoteEntry, addAIReflectionEntry } = useEntries();
-  const { theme } = useTheme();
+  useTheme();
   
   // Initialize with current date
   const now = new Date();
@@ -245,13 +245,12 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
   const calendarDays = generateCalendarDays();
   const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const currentMonth = MONTHS[currentMonthIndex];
-  const isDark = theme === 'night';
 
   return (
     <div
-      className={`relative w-full h-full overflow-hidden transition-colors duration-300 ${isDark ? 'night-texture' : ''}`}
+      className="relative w-full h-full overflow-hidden transition-colors duration-300"
       style={{
-        background: isDark ? 'var(--bg)' : `linear-gradient(to bottom, var(--bg) 0%, var(--bg-soft) 100%)`,
+        background: 'transparent',
       }}
     >
       {/* Soft vignette overlay */}
