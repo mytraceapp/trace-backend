@@ -565,7 +565,7 @@ export function FullPatternsReportScreen({
             transition={{ delay: 2.2, duration: 1 }}
           >
             <button
-              onClick={onBack}
+              onClick={onNavigateActivities}
               className="w-full rounded-full px-8 py-4 mb-4 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               style={{
                 background: '#EDE8DB',
@@ -581,7 +581,7 @@ export function FullPatternsReportScreen({
                   letterSpacing: '0.03em',
                 }}
               >
-                Return to Activity
+                Return to Activities
               </span>
             </button>
 
