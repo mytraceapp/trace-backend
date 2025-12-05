@@ -721,7 +721,7 @@ export function ChatScreen({
                   : positionFromEnd >= 4 
                     ? 0.05
                     : positionFromEnd >= 3 
-                      ? 0.3
+                      ? 0.2
                       : positionFromEnd >= 2 
                         ? 0.6
                         : positionFromEnd >= 1 
