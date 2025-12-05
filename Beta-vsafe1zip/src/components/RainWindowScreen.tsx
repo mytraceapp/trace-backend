@@ -22,7 +22,9 @@ export function RainWindowScreen({
   const [isPaused, setIsPaused] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showCompletion, setShowCompletion] = useState(false);
+  const [introVisible, setIntroVisible] = useState(true);
   const timerRef = useRef<number | null>(null);
+  const introTimeoutRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
@@ -98,7 +100,8 @@ export function RainWindowScreen({
     }
   }, []);
 
-  const handleStart = () => {
+  // Auto-start session on mount
+  useEffect(() => {
     setIsActive(true);
     setIsPaused(false);
     setElapsedTime(0);
@@ -106,7 +109,18 @@ export function RainWindowScreen({
     if (videoRef.current) {
       videoRef.current.play().catch(() => {});
     }
-  };
+
+    // Fade out intro after 10 seconds
+    introTimeoutRef.current = window.setTimeout(() => {
+      setIntroVisible(false);
+    }, 10000);
+
+    return () => {
+      if (introTimeoutRef.current) {
+        clearTimeout(introTimeoutRef.current);
+      }
+    };
+  }, [startRainAudio]);
 
   const handleComplete = useCallback(() => {
     setShowCompletion(true);
@@ -220,7 +234,7 @@ export function RainWindowScreen({
               fontFamily: 'Georgia, serif',
               fontSize: '14px',
               fontWeight: 300,
-              color: 'rgba(255, 255, 255, 0.8)',
+              color: 'rgba(255, 255, 255, 0.64)',
               letterSpacing: '0.05em',
             }}
           >
@@ -231,69 +245,65 @@ export function RainWindowScreen({
 
       <div className="absolute inset-0 flex flex-col items-center justify-center z-10 px-8">
         <AnimatePresence mode="wait">
-          {!isActive && !showCompletion && (
+          {introVisible && !showCompletion && (
             <motion.div
               key="intro"
               className="text-center"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.8 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.5 }}
             >
+              <motion.div
+                style={{
+                  fontSize: '48px',
+                  marginBottom: '8px',
+                  filter: 'drop-shadow(0 4px 20px rgba(0, 0, 0, 0.4))',
+                }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3, duration: 1 }}
+              >
+                🌧️
+              </motion.div>
+              
               <motion.h1
                 style={{
                   fontFamily: 'Georgia, serif',
                   color: 'rgba(255, 255, 255, 0.9)',
-                  fontSize: '28px',
-                  fontWeight: 400,
-                  marginBottom: '12px',
-                  letterSpacing: '-0.02em',
+                  fontSize: '24px',
+                  fontWeight: 300,
+                  marginBottom: '16px',
+                  letterSpacing: '0.1em',
                   textShadow: '0 2px 20px rgba(0, 0, 0, 0.5)',
                 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.8 }}
               >
-                Rain Window
+                Window
               </motion.h1>
               
               <motion.p
                 style={{
                   fontFamily: 'Georgia, serif',
-                  color: 'rgba(255, 255, 255, 0.6)',
-                  fontSize: '15px',
+                  color: 'rgba(255, 255, 255, 0.55)',
+                  fontSize: '14px',
                   fontWeight: 300,
-                  lineHeight: 1.6,
-                  maxWidth: '280px',
-                  margin: '0 auto 40px',
+                  lineHeight: 1.7,
+                  maxWidth: '260px',
+                  margin: '0 auto',
                   textShadow: '0 1px 10px rgba(0, 0, 0, 0.4)',
+                  letterSpacing: '0.02em',
                 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8, duration: 1 }}
               >
                 Watch the rain fall.
                 <br />
                 Let your thoughts drift.
               </motion.p>
-
-              <motion.button
-                onClick={handleStart}
-                className="px-10 py-4 rounded-full"
-                style={{
-                  background: 'rgba(0, 0, 0, 0.35)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(10px)',
-                }}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <span
-                  style={{
-                    fontFamily: 'Georgia, serif',
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    fontSize: '16px',
-                    fontWeight: 400,
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  Begin
-                </span>
-              </motion.button>
             </motion.div>
           )}
 
