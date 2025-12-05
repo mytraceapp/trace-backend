@@ -189,23 +189,14 @@ export function RainWindowScreen({
     if (!video) return;
 
     video.playbackRate = 0.5;
-    video.loop = false; // Manual loop control
 
     const loopEnd = 13; // Only use first 13 seconds
 
     const handleTimeUpdate = () => {
       // Loop back to start when reaching 13 seconds
       if (video.currentTime >= loopEnd) {
-        if (!isFadingRef.current) {
-          isFadingRef.current = true;
-          setVideoOpacity(0.85);
-          
-          setTimeout(() => {
-            video.currentTime = 0;
-            setVideoOpacity(1);
-            isFadingRef.current = false;
-          }, 400);
-        }
+        video.currentTime = 0;
+        video.play().catch(() => {});
       }
     };
 
