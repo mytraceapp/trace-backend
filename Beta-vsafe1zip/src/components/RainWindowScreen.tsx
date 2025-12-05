@@ -216,7 +216,26 @@ export function RainWindowScreen({
         }}
       />
 
-            {/* Top UI Bar - Timer on the right */}
+      {/* TRACE Brand - top center */}
+      <motion.div
+        className="absolute z-20"
+        style={{ top: '7%', left: '50%', transform: 'translateX(-50%)' }}
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1, delay: 0.2 }}
+      >
+        <h1 style={{
+          color: 'rgba(255, 255, 255, 0.85)',
+          fontWeight: 300,
+          letterSpacing: '0.8em',
+          fontSize: '10px',
+          textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+        }}>
+          TRACE
+        </h1>
+      </motion.div>
+
+      {/* Top UI Bar - Timer on the right */}
       {isActive && !showCompletion && (
         <motion.div 
           className="absolute top-0 left-0 right-0 flex items-center justify-end p-6 z-20"
@@ -234,7 +253,7 @@ export function RainWindowScreen({
               fontFamily: 'Georgia, serif',
               fontSize: '14px',
               fontWeight: 300,
-              color: 'rgba(255, 255, 255, 0.64)',
+              color: 'rgba(255, 255, 255, 0.51)',
               letterSpacing: '0.05em',
             }}
           >
