@@ -244,10 +244,9 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
       <AnimatePresence>
         {showLoginModal && (
           <motion.div
-            className="absolute inset-0 z-50 flex flex-col overflow-hidden"
+            className="absolute inset-0 z-50 flex flex-col overflow-hidden rounded-[43px]"
             style={{
               background: 'linear-gradient(to bottom, #D3C9BC 0%, #C4BAB0 100%)',
-              borderRadius: 'inherit',
             }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -311,7 +310,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                     fontWeight: 400,
                     color: '#4A3A2A',
                     letterSpacing: '0.02em',
-                    marginBottom: '6px',
+                    marginBottom: '2px',
                   }}
                 >
                   Welcome back
@@ -323,6 +322,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                     fontWeight: 300,
                     color: '#6B5A4A',
                     letterSpacing: '0.01em',
+                    marginTop: '-2px',
                   }}
                 >
                   Sign in to continue your journey
