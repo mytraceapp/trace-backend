@@ -121,6 +121,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Design System
 
+**Theme System**
+- **Day Mode (Sage Palette)**: Soft sage greens with warm earth tones - `--day-bg: #F5F1EB`, subtle radial gradient overlays with light noise texture (1.5% opacity)
+- **Night Mode (Luxury Desert Sand)**: Deep olive-charcoal backgrounds (`#0E0F0D`) with pearlescent desert sand undertones, moving grain shimmer animation (90s duration), and sand-drift animation (60s duration) for subtle movement
+- Theme applied at App root level via `.day-texture` and `.night-texture` classes with pseudo-element overlays using negative z-index (-2, -1) with `isolation: isolate`
+- Individual screens use transparent backgrounds to inherit from root theme container
+- Toggle accessible in Profile screen settings
+
 **Visual Language**
 - Soft, organic gradients using sage, pearl, cream, and muted earth tones
 - Subtle grain textures and vignette overlays for depth
