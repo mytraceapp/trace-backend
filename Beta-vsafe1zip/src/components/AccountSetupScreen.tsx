@@ -58,23 +58,20 @@ export function AccountSetupScreen({
       {/* TRACE Brand Name at top */}
       <motion.div
         className="absolute w-full text-center z-20"
-        style={{ top: "7%" }}
+        style={{ top: '7%' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{
-          delay: 0.2,
-          duration: 1.5,
-          ease: [0.22, 0.61, 0.36, 1],
-        }}
+        transition={{ delay: 0.2, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] }}
       >
         <h1
           style={{
-            fontFamily: "ALORE, Georgia, serif",
-            color: "#8A7A6A",
+            fontFamily: 'ALORE, Georgia, serif',
+            color: '#5A4A3A',
             fontWeight: 300,
-            letterSpacing: "1em",
-            fontSize: "11px",
-            opacity: 0.35,
+            letterSpacing: '1em',
+            fontSize: '11px',
+            textShadow: '0 0 15px rgba(90, 74, 58, 0.45), 0 0 30px rgba(90, 74, 58, 0.25), 0 2px 4px rgba(0,0,0,0.15)',
+            opacity: 0.9,
           }}
         >
           TRACE
