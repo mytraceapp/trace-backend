@@ -398,24 +398,6 @@ export function ProfileScreen({
             </h3>
 
             <div className="space-y-1">
-              {/* Tone Style */}
-              <button
-                className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
-              >
-                <span
-                  style={{
-                    fontFamily: 'Georgia, serif',
-                    color: 'var(--text-primary)',
-                    fontSize: '14px',
-                    fontWeight: 300,
-                    letterSpacing: '0.01em',
-                  }}
-                >
-                  Tone Style
-                </span>
-                <ChevronRight size={16} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
-              </button>
-
               {/* App Ambience */}
               <div className="py-3 px-3 rounded-xl">
                 <div className="flex items-center justify-between mb-3">
