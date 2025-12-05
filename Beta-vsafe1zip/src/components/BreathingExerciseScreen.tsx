@@ -539,6 +539,7 @@ export function BreathingExerciseScreen({
             fontSize: '12px',
             letterSpacing: '0.05em',
             opacity: 0.7,
+            filter: 'blur(0.4px)',
           }}
         >
           {Math.floor(TOTAL_DURATION - progress)}s remaining
