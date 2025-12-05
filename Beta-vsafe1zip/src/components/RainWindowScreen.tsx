@@ -183,29 +183,29 @@ export function RainWindowScreen({
     };
   }, [stopRainAudio]);
 
-  // Video setup with subtle fade at loop point for smoother transition
+  // Video setup - loop only first 13 seconds (single take) with subtle fade
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     video.playbackRate = 0.5;
-    video.loop = true;
+    video.loop = false; // Manual loop control
+
+    const loopEnd = 13; // Only use first 13 seconds
 
     const handleTimeUpdate = () => {
-      if (!video.duration || isFadingRef.current) return;
-      
-      const timeRemaining = video.duration - video.currentTime;
-      
-      // Start subtle fade 0.8s before loop (at 0.5x speed = ~0.4s real time)
-      if (timeRemaining <= 0.8 && timeRemaining > 0) {
-        isFadingRef.current = true;
-        setVideoOpacity(0.85); // Subtle dip, not full black
-        
-        // Reset after loop
-        setTimeout(() => {
-          setVideoOpacity(1);
-          isFadingRef.current = false;
-        }, 600);
+      // Loop back to start when reaching 13 seconds
+      if (video.currentTime >= loopEnd) {
+        if (!isFadingRef.current) {
+          isFadingRef.current = true;
+          setVideoOpacity(0.85);
+          
+          setTimeout(() => {
+            video.currentTime = 0;
+            setVideoOpacity(1);
+            isFadingRef.current = false;
+          }, 400);
+        }
       }
     };
 
@@ -224,7 +224,6 @@ export function RainWindowScreen({
         className="absolute object-cover"
         src="/video/rain-window.mp4"
         muted
-        loop
         playsInline
         autoPlay
         preload="auto"
