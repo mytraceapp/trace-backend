@@ -689,7 +689,9 @@ export function ChatScreen({
             className="absolute top-0 left-0 right-0 z-30 pointer-events-none"
             style={{
               height: '80px',
-              background: 'linear-gradient(to bottom, rgba(154, 176, 156, 1) 0%, rgba(154, 176, 156, 0.95) 20%, rgba(154, 176, 156, 0.7) 45%, rgba(154, 176, 156, 0.4) 65%, rgba(154, 176, 156, 0.2) 80%, rgba(154, 176, 156, 0.08) 92%, transparent 100%)',
+              background: isDark 
+                ? 'linear-gradient(to bottom, rgba(22, 25, 24, 1) 0%, rgba(22, 25, 24, 0.95) 20%, rgba(22, 25, 24, 0.7) 45%, rgba(22, 25, 24, 0.4) 65%, rgba(22, 25, 24, 0.2) 80%, rgba(22, 25, 24, 0.08) 92%, transparent 100%)'
+                : 'linear-gradient(to bottom, rgba(154, 176, 156, 1) 0%, rgba(154, 176, 156, 0.95) 20%, rgba(154, 176, 156, 0.7) 45%, rgba(154, 176, 156, 0.4) 65%, rgba(154, 176, 156, 0.2) 80%, rgba(154, 176, 156, 0.08) 92%, transparent 100%)',
             }}
           />
           
