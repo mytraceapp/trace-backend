@@ -65,6 +65,12 @@ export default function App() {
     if (!ambientAudioStarted && screensToTriggerAudio.includes(currentScreen)) {
       setAmbientAudioStarted(true);
     }
+    
+    // Reset crossfade flag when entering any screen with its own audio (including home)
+    // Crossfade only applies during the initial home→auth transition
+    if (screensWithOwnAudio.includes(currentScreen)) {
+      setAmbientCrossfadeActive(false);
+    }
   }, [currentScreen, ambientAudioStarted]);
 
   const isDark = theme === 'night';
