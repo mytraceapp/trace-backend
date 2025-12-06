@@ -58,8 +58,8 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
       const volumeBoost = scrollProgress * 0.08;
       bgAudioRef.current.volume = Math.min(baseVolume + volumeBoost, 0.25);
       
-      const baseRate = 0.92;
-      const rateBoost = scrollProgress * 0.06;
+      const baseRate = 0.75;
+      const rateBoost = scrollProgress * 0.03;
       bgAudioRef.current.playbackRate = baseRate + rateBoost;
     }
   }, []);
@@ -74,7 +74,7 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
     const bgAudio = new Audio('/audio/ambient-loop.mp3');
     bgAudio.volume = 0;
     bgAudio.loop = true;
-    bgAudio.playbackRate = 0.92;
+    bgAudio.playbackRate = 0.75;
     bgAudioRef.current = bgAudio;
     
     const playBgAudio = () => {
