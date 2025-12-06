@@ -494,7 +494,7 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
               {/* Mood toothpick bars - transparent container */}
-              <div className="flex flex-col items-center justify-center gap-3 py-3">
+              <div className="flex flex-col items-center justify-center gap-2 py-2">
                 {(() => {
                   const loggedMoods = selectedDayEntries
                     .filter(e => e.type === 'emotional_note' && e.metadata?.mood)
