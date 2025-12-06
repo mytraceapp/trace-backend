@@ -43,8 +43,10 @@ export function RainWindowScreen({
 
   // Toggle quiet mode with micro-toast
   const toggleQuietMode = useCallback(() => {
+    console.log('Toggle quiet mode clicked');
     setQuietMode(prev => {
       const newMode = !prev;
+      console.log('Quiet mode changing to:', newMode);
       setQuietToast(newMode ? "Quiet visuals on." : "Back to normal mode.");
       setTimeout(() => setQuietToast(null), 2000);
       return newMode;
@@ -196,6 +198,7 @@ export function RainWindowScreen({
         autoPlay
         preload="auto"
         style={{
+          zIndex: 1,
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%) scale(1.15)',
@@ -204,7 +207,7 @@ export function RainWindowScreen({
           width: 'auto',
           height: 'auto',
           filter: 'brightness(0.57) saturate(0.9)',
-          opacity: quietMode ? 0 : videoOpacity,
+          opacity: quietMode ? 0 : 1,
           transition: 'opacity 1.2s ease-in-out',
         }}
       />
@@ -220,6 +223,7 @@ export function RainWindowScreen({
         autoPlay
         preload="auto"
         style={{
+          zIndex: 2,
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%) scale(1.15)',
@@ -228,7 +232,7 @@ export function RainWindowScreen({
           width: 'auto',
           height: 'auto',
           filter: 'brightness(0.35) saturate(0.5)',
-          opacity: quietMode ? videoOpacity : 0,
+          opacity: quietMode ? 1 : 0,
           transition: 'opacity 1.2s ease-in-out',
         }}
       />
