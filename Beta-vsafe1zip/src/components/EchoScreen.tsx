@@ -54,31 +54,31 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
 
       ctx.save();
       
-      const gridPulse = 0.08 + Math.sin(time * 0.0002) * 0.02;
+      const gridPulse = 0.12 + Math.sin(time * 0.0002) * 0.03;
       
       for (let i = 1; i <= 12; i++) {
         const radius = (maxRadius / 12) * i;
         const breathe = 1 + Math.sin(time * 0.0003 + i * 0.15) * 0.015;
-        const fadeOut = 1 - (i / 14);
+        const fadeOut = 1 - (i / 16);
         
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius * breathe, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(107, 124, 107, ${gridPulse * fadeOut})`;
-        ctx.lineWidth = 0.6;
+        ctx.lineWidth = 0.8;
         ctx.stroke();
       }
 
       for (let i = 0; i < 24; i++) {
         const angle = (i / 24) * Math.PI * 2 + time * 0.00003;
-        const fadeOut = 0.6;
+        const fadeOut = 0.7;
         ctx.beginPath();
         ctx.moveTo(centerX, centerY);
         ctx.lineTo(
           centerX + Math.cos(angle) * maxRadius,
           centerY + Math.sin(angle) * maxRadius
         );
-        ctx.strokeStyle = `rgba(107, 124, 107, ${gridPulse * fadeOut * 0.5})`;
-        ctx.lineWidth = 0.4;
+        ctx.strokeStyle = `rgba(107, 124, 107, ${gridPulse * fadeOut * 0.6})`;
+        ctx.lineWidth = 0.5;
         ctx.stroke();
       }
 
@@ -134,17 +134,17 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
       const centerY = height / 2;
 
       const layers = [
-        { color: LUNA_PALETTE.midnightBlue, opacity: 0.75, amplitude: 60, frequency: 0.008, speed: 0.0003, offset: 0, blur: 5 },
-        { color: LUNA_PALETTE.sageGray, opacity: 0.68, amplitude: 45, frequency: 0.012, speed: 0.0004, offset: 1, blur: 3 },
-        { color: LUNA_PALETTE.beige, opacity: 0.55, amplitude: 35, frequency: 0.015, speed: 0.0005, offset: 2, blur: 2 },
-        { color: LUNA_PALETTE.sageMuted, opacity: 0.62, amplitude: 50, frequency: 0.01, speed: 0.00035, offset: 1.5, blur: 4 },
+        { color: LUNA_PALETTE.midnightBlue, opacity: 0.85, amplitude: 60, frequency: 0.008, speed: 0.0003, offset: 0, blur: 4 },
+        { color: LUNA_PALETTE.sageGray, opacity: 0.78, amplitude: 45, frequency: 0.012, speed: 0.0004, offset: 1, blur: 2 },
+        { color: LUNA_PALETTE.beige, opacity: 0.65, amplitude: 35, frequency: 0.015, speed: 0.0005, offset: 2, blur: 1 },
+        { color: LUNA_PALETTE.sageMuted, opacity: 0.72, amplitude: 50, frequency: 0.01, speed: 0.00035, offset: 1.5, blur: 3 },
       ];
 
       layers.forEach((layer, layerIndex) => {
         ctx.save();
         
         const points: { x: number; y: number }[] = [];
-        const segments = 100;
+        const segments = 150;
 
         for (let i = 0; i <= segments; i++) {
           const x = (i / segments) * width;
@@ -185,14 +185,14 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
         gradient.addColorStop(1, `${layer.color}00`);
 
         ctx.strokeStyle = gradient;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.globalAlpha = layer.opacity;
         ctx.filter = `blur(${layer.blur}px)`;
         ctx.stroke();
 
         ctx.filter = 'none';
-        ctx.lineWidth = 1.5;
-        ctx.globalAlpha = layer.opacity * 0.8;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = layer.opacity * 0.9;
         ctx.stroke();
 
         ctx.restore();
