@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Wind, Compass, Footprints, Moon, Sparkles, Hand } from 'lucide-react';
+import { Wind, Compass, Footprints, Moon, Sparkles, Hand, Activity } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useTheme } from '../state/ThemeContext';
 
@@ -11,6 +11,7 @@ interface ActivitiesHubScreenProps {
   onStartPearlRipple?: () => void;
   onStartGrounding?: () => void;
   onStartRainWindow: () => void;
+  onStartEcho?: () => void;
   onReturnToChat: () => void;
   onNavigateToPatterns?: () => void;
   onNavigateToJournal?: () => void;
@@ -26,14 +27,14 @@ export function ActivitiesHubScreen({
   onStartPearlRipple,
   onStartGrounding,
   onStartRainWindow,
+  onStartEcho,
   onReturnToChat,
   onNavigateToPatterns,
   onNavigateToJournal,
   onNavigateToProfile,
   onNavigateToHelp,
 }: ActivitiesHubScreenProps) {
-  const { theme } = useTheme();
-  const isDark = theme === 'night';
+  useTheme();
   
   return (
     <div 
@@ -514,6 +515,61 @@ export function ActivitiesHubScreen({
                 </div>
               </div>
             </motion.button>
+
+            {/* Card 8 - Echo */}
+            {onStartEcho && (
+              <motion.button
+                onClick={onStartEcho}
+                className="rounded-[24px] p-5 transition-all duration-300 active:scale-[0.97]"
+                style={{
+                  background: 'linear-gradient(135deg, #2d3a4a 0%, #1a1d1a 100%)',
+                  boxShadow: '0 8px 24px rgba(26, 29, 26, 0.3), 0 2px 8px rgba(26, 29, 26, 0.2), inset 0 1px 2px rgba(107, 124, 107, 0.15)',
+                  border: '1px solid rgba(107, 124, 107, 0.2)',
+                }}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.2, duration: 0.8 }}
+                whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+              >
+                <div className="flex flex-col items-start gap-3 h-[160px]">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(107, 124, 107, 0.25) 0%, rgba(45, 58, 74, 0.15) 100%)',
+                    }}
+                  >
+                    <Activity size={20} style={{ color: '#6b7c6b' }} strokeWidth={1.5} />
+                  </div>
+
+                  <div className="flex-1 flex flex-col items-start justify-end text-left">
+                    <h3
+                      className="mb-1"
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: '#d4c4a8',
+                        fontWeight: 500,
+                        fontSize: '16px',
+                        letterSpacing: '0.01em',
+                      }}
+                    >
+                      Echo
+                    </h3>
+                    <p
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: '#6b7c6b',
+                        fontWeight: 300,
+                        fontSize: '12px',
+                        letterSpacing: '0.005em',
+                        lineHeight: '1.4',
+                      }}
+                    >
+                      Gentle waves of calm.
+                    </p>
+                  </div>
+                </div>
+              </motion.button>
+            )}
           </div>
         </motion.div>
 

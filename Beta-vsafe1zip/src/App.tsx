@@ -14,6 +14,7 @@ import { PowerNapScreen } from './components/PowerNapScreen';
 import { PearlRippleScreen } from './components/PearlRippleScreen';
 import { GroundingExperience } from './components/GroundingExperience';
 import { RainWindowScreen } from './components/RainWindowScreen';
+import EchoScreen from './components/EchoScreen';
 import { JournalScreen } from './components/JournalScreen';
 import { EntriesScreen } from './components/EntriesScreen';
 import { TracePatternsScreen } from './components/TracePatternsScreen';
@@ -32,12 +33,12 @@ import { AmbientAudioPlayer } from './components/AmbientAudioPlayer';
 export default function App() {
   const { selectedPlan, profile, isUpgrading, setIsUpgrading, ambienceEnabled, ambienceVolume } = useUser();
   const { theme } = useTheme();
-  const [currentScreen, setCurrentScreen] = React.useState<'home' | 'auth' | 'accountsetup' | 'payment' | 'onboarding' | 'chat' | 'activities' | 'activitieshub' | 'breathing' | 'maze' | 'walking' | 'powernap' | 'pearlripple' | 'grounding' | 'rainwindow' | 'journal' | 'entries' | 'patterns' | 'fullpatterns' | 'help' | 'inthisspace' | 'crisis' | 'privacy' | 'terms' | 'profile'>('home');
+  const [currentScreen, setCurrentScreen] = React.useState<'home' | 'auth' | 'accountsetup' | 'payment' | 'onboarding' | 'chat' | 'activities' | 'activitieshub' | 'breathing' | 'maze' | 'walking' | 'powernap' | 'pearlripple' | 'grounding' | 'rainwindow' | 'echo' | 'journal' | 'entries' | 'patterns' | 'fullpatterns' | 'help' | 'inthisspace' | 'crisis' | 'privacy' | 'terms' | 'profile'>('home');
   const [showPaymentSuccess, setShowPaymentSuccess] = React.useState(false);
   const [ambientAudioStarted, setAmbientAudioStarted] = React.useState(false);
   const userName = profile?.name || 'there';
 
-  const screensWithOwnAudio = ['home', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding', 'maze', 'rainwindow'];
+  const screensWithOwnAudio = ['home', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding', 'maze', 'rainwindow', 'echo'];
   const shouldPlayAmbient = ambientAudioStarted && ambienceEnabled && !screensWithOwnAudio.includes(currentScreen);
 
   React.useEffect(() => {
@@ -146,6 +147,7 @@ export default function App() {
               onStartPearlRipple={() => setCurrentScreen('pearlripple')}
               onStartGrounding={() => setCurrentScreen('grounding')}
               onStartRainWindow={() => setCurrentScreen('rainwindow')}
+              onStartEcho={() => setCurrentScreen('echo')}
               onReturnToChat={() => setCurrentScreen('chat')}
               onNavigateToPatterns={() => setCurrentScreen('patterns')}
               onNavigateToJournal={() => setCurrentScreen('entries')}
@@ -220,6 +222,11 @@ export default function App() {
               onNavigateToJournal={() => setCurrentScreen('entries')}
               onNavigateToProfile={() => setCurrentScreen('profile')}
               onNavigateToHelp={() => setCurrentScreen('help')}
+            />
+          )}
+          {currentScreen === 'echo' && (
+            <EchoScreen 
+              onBack={() => setCurrentScreen('activitieshub')}
             />
           )}
           {currentScreen === 'journal' && (
@@ -349,6 +356,7 @@ export default function App() {
           <button onClick={() => setCurrentScreen('pearlripple')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Pearl Ripple</button>
           <button onClick={() => setCurrentScreen('grounding')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Grounding</button>
           <button onClick={() => setCurrentScreen('rainwindow')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Rain Window</button>
+          <button onClick={() => setCurrentScreen('echo')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Echo</button>
           <button onClick={() => setCurrentScreen('entries')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Entries</button>
           <button onClick={() => setCurrentScreen('journal')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Journal</button>
           <button onClick={() => setCurrentScreen('patterns')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Patterns</button>
