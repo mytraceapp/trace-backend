@@ -10,6 +10,7 @@ interface HomeScreenProps {
 export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
   const [isLogoLowered, setIsLogoLowered] = React.useState(false);
   const [isAwakened, setIsAwakened] = React.useState(false);
+  const [showWakeRipple, setShowWakeRipple] = React.useState(false);
 
   // When logo finishes lowering, trigger orb awakening
   React.useEffect(() => {
@@ -23,13 +24,23 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
     }
   }, [isLogoLowered, isAwakened]);
 
-  // Auto-transition to auth page after orb rises (5s) + 1 second pause
+  // Trigger wake ripple effect before transitioning
+  React.useEffect(() => {
+    if (isAwakened) {
+      const rippleTimer = setTimeout(() => {
+        setShowWakeRipple(true);
+      }, 4500);
+
+      return () => clearTimeout(rippleTimer);
+    }
+  }, [isAwakened]);
+
+  // Auto-transition to auth page after orb rises (5s) + ripple (1.5s)
   React.useEffect(() => {
     if (isAwakened && onNavigateToAuth) {
-      // Orb rise animation takes 5 seconds, then wait 1 second
       const transitionTimer = setTimeout(() => {
         onNavigateToAuth();
-      }, 6000); // Navigate at 6s (5s rise + 1s pause)
+      }, 7000);
 
       return () => {
         clearTimeout(transitionTimer);
@@ -246,6 +257,34 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
               ease: "easeInOut",
             }}
           />
+
+          {/* Wake-up ripple rings */}
+          {showWakeRipple && (
+            <>
+              {[0, 1, 2, 3].map((i) => (
+                <motion.div
+                  key={`ripple-${i}`}
+                  className="absolute rounded-full"
+                  style={{
+                    top: '50%',
+                    left: '50%',
+                    width: '100%',
+                    height: '100%',
+                    transform: 'translate(-50%, -50%)',
+                    border: '2px solid rgba(255, 255, 255, 0.4)',
+                    boxShadow: '0 0 20px rgba(255, 255, 255, 0.2), inset 0 0 20px rgba(255, 255, 255, 0.1)',
+                  }}
+                  initial={{ scale: 1, opacity: 0.6 }}
+                  animate={{ scale: 3.5, opacity: 0 }}
+                  transition={{
+                    duration: 2,
+                    delay: i * 0.25,
+                    ease: [0.22, 0.61, 0.36, 1],
+                  }}
+                />
+              ))}
+            </>
+          )}
 
           {/* Main orb body - translucent */}
           <div className="absolute inset-0 rounded-full overflow-hidden" style={{
