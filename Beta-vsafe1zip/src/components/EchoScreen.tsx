@@ -45,6 +45,26 @@ export default function EchoScreen({
     audio.crossOrigin = 'anonymous';
     audioRef.current = audio;
 
+    // Start ambient music immediately when page loads
+    const ambientAudio = new Audio('/audio/ambient-loop.mp3');
+    ambientAudio.loop = true;
+    ambientAudio.volume = 0;
+    ambientAudio.playbackRate = 0.9;
+    ambientAudioRef.current = ambientAudio;
+    
+    ambientAudio.play().then(() => {
+      // Fade in to incredibly faint level
+      let vol = 0;
+      const fadeInterval = setInterval(() => {
+        vol += 0.003;
+        if (vol >= 0.06) {
+          vol = 0.06;
+          clearInterval(fadeInterval);
+        }
+        if (ambientAudioRef.current) ambientAudioRef.current.volume = vol;
+      }, 50);
+    }).catch(() => {});
+
     const setupAudioAnalyser = () => {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       audioContextRef.current = audioContext;
@@ -59,26 +79,6 @@ export default function EchoScreen({
       analyser.connect(audioContext.destination);
       
       audioDataRef.current = new Uint8Array(analyser.frequencyBinCount);
-
-      // Play app soundtrack at very low volume, slowed down 10%
-      const ambientAudio = new Audio('/audio/ambient-loop.mp3');
-      ambientAudio.loop = true;
-      ambientAudio.volume = 0;
-      ambientAudio.playbackRate = 0.9;
-      ambientAudioRef.current = ambientAudio;
-      
-      ambientAudio.play().then(() => {
-        // Fade in to incredibly faint level
-        let vol = 0;
-        const fadeInterval = setInterval(() => {
-          vol += 0.003;
-          if (vol >= 0.06) {
-            vol = 0.06;
-            clearInterval(fadeInterval);
-          }
-          if (ambientAudioRef.current) ambientAudioRef.current.volume = vol;
-        }, 50);
-      }).catch(() => {});
     };
 
     const fadeIn = () => {
@@ -93,6 +93,7 @@ export default function EchoScreen({
       }, 50);
     };
 
+    // Delay TRACE's voice by 7 seconds, letting the music set the mood first
     const startTimeout = setTimeout(() => {
       setupAudioAnalyser();
       audio.play().then(fadeIn).catch(() => {});
