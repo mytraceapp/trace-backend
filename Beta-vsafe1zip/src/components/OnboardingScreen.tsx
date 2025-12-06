@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useUser, PlanTier } from '../state/PlanContext';
 
@@ -6,16 +6,71 @@ interface OnboardingScreenProps {
   onContinue?: () => void;
 }
 
+const KEY_PHRASES = [
+  { time: 0, text: "Hi, I'm Trace..." },
+  { time: 3.5, text: "your calm, grounded companion" },
+  { time: 7, text: "Here to help you slow down" },
+  { time: 11, text: "reflect, and find clarity" },
+  { time: 15, text: "whenever you need a moment" },
+];
+
 export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
   const { selectedPlan, setSelectedPlan } = useUser();
   const [expandedTier, setExpandedTier] = React.useState<PlanTier | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const bgAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const phraseTimersRef = useRef<number[]>([]);
+  
+  const [voiceIntensity, setVoiceIntensity] = useState(0);
+  const [currentPhrase, setCurrentPhrase] = useState<string | null>(null);
+  const [phraseOpacity, setPhraseOpacity] = useState(0);
+
+  const analyzeAudio = useCallback(() => {
+    if (!analyserRef.current) return;
+    
+    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+    analyserRef.current.getByteFrequencyData(dataArray);
+    
+    let sum = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+      sum += dataArray[i];
+    }
+    const average = sum / dataArray.length;
+    const normalizedIntensity = Math.min(average / 128, 1);
+    
+    setVoiceIntensity(normalizedIntensity);
+    
+    animationFrameRef.current = requestAnimationFrame(analyzeAudio);
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current) return;
+    
+    const container = scrollContainerRef.current;
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight - container.clientHeight;
+    const scrollProgress = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
+    
+    if (bgAudioRef.current) {
+      const baseVolume = 0.15;
+      const volumeBoost = scrollProgress * 0.08;
+      bgAudioRef.current.volume = Math.min(baseVolume + volumeBoost, 0.25);
+      
+      const baseRate = 0.92;
+      const rateBoost = scrollProgress * 0.06;
+      bgAudioRef.current.playbackRate = baseRate + rateBoost;
+    }
+  }, []);
 
   useEffect(() => {
     const voiceAudio = new Audio('/audio/trace-intro.mp3');
     voiceAudio.volume = 0;
     voiceAudio.playbackRate = 1.05;
+    voiceAudio.crossOrigin = 'anonymous';
     audioRef.current = voiceAudio;
 
     const bgAudio = new Audio('/audio/ambient-loop.mp3');
@@ -39,17 +94,56 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
     };
 
     const playVoiceAudio = () => {
-      voiceAudio.play().then(() => {
-        let vol = 0;
-        const fadeIn = setInterval(() => {
-          vol += 0.05;
-          if (vol >= 0.9) {
-            vol = 0.9;
-            clearInterval(fadeIn);
-          }
-          voiceAudio.volume = vol;
-        }, 100);
-      }).catch(() => {});
+      try {
+        const audioContext = new AudioContext();
+        audioContextRef.current = audioContext;
+        
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.8;
+        analyserRef.current = analyser;
+        
+        const source = audioContext.createMediaElementSource(voiceAudio);
+        source.connect(analyser);
+        analyser.connect(audioContext.destination);
+        
+        voiceAudio.play().then(() => {
+          let vol = 0;
+          const fadeIn = setInterval(() => {
+            vol += 0.05;
+            if (vol >= 0.9) {
+              vol = 0.9;
+              clearInterval(fadeIn);
+            }
+            voiceAudio.volume = vol;
+          }, 100);
+          
+          analyzeAudio();
+          
+          KEY_PHRASES.forEach(({ time, text }) => {
+            const timerId = window.setTimeout(() => {
+              setCurrentPhrase(text);
+              setPhraseOpacity(0);
+              const fadeInTimer = window.setTimeout(() => setPhraseOpacity(1), 50);
+              const fadeOutTimer = window.setTimeout(() => setPhraseOpacity(0), 3000);
+              phraseTimersRef.current.push(fadeInTimer, fadeOutTimer);
+            }, time * 1000);
+            phraseTimersRef.current.push(timerId);
+          });
+        }).catch(() => {});
+      } catch (e) {
+        voiceAudio.play().then(() => {
+          let vol = 0;
+          const fadeIn = setInterval(() => {
+            vol += 0.05;
+            if (vol >= 0.9) {
+              vol = 0.9;
+              clearInterval(fadeIn);
+            }
+            voiceAudio.volume = vol;
+          }, 100);
+        }).catch(() => {});
+      }
     };
 
     const bgTimer = setTimeout(playBgAudio, 1000);
@@ -58,6 +152,14 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
     return () => {
       clearTimeout(bgTimer);
       clearTimeout(voiceTimer);
+      phraseTimersRef.current.forEach(timerId => clearTimeout(timerId));
+      phraseTimersRef.current = [];
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
       if (audioRef.current) {
         const fadeOut = setInterval(() => {
           if (audioRef.current && audioRef.current.volume > 0.05) {
@@ -79,7 +181,7 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         }, 50);
       }
     };
-  }, []);
+  }, [analyzeAudio]);
 
   const handleTierClick = (tier: PlanTier) => {
     if (selectedPlan === tier && expandedTier === tier) {
@@ -210,6 +312,8 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
 
   return (
     <div 
+      ref={scrollContainerRef}
+      onScroll={handleScroll}
       className="relative w-full h-full flex flex-col overflow-y-auto scrollbar-hide"
       style={{
         background: 'linear-gradient(to bottom, #8DA18F 0%, #7D9180 100%)',
@@ -268,24 +372,34 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
           </h1>
         </motion.div>
         
-        {/* Central Orb - smaller, tighter */}
+        {/* Central Orb - voice reactive */}
         <motion.div 
           className="relative flex items-center justify-center mb-6"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ 
             opacity: 1, 
-            scale: [0.98, 1.02, 0.98],
+            scale: 1 + voiceIntensity * 0.08,
           }}
           transition={{ 
             opacity: { duration: 1.5, ease: [0.22, 0.61, 0.36, 1] },
-            scale: {
-              duration: 5,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }
+            scale: { duration: 0.1, ease: "easeOut" }
           }}
         >
           <div className="w-[140px] h-[140px] relative">
+            {/* Voice-reactive outer glow */}
+            <motion.div
+              className="absolute inset-[-60px] rounded-full pointer-events-none"
+              animate={{
+                scale: 1 + voiceIntensity * 0.3,
+                opacity: 0.15 + voiceIntensity * 0.25,
+              }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              style={{
+                background: 'radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(230,240,235,0.15) 30%, transparent 60%)',
+                filter: 'blur(25px)',
+              }}
+            />
+            
             {/* Faint glowing halo around orb */}
             <motion.div
               className="absolute inset-[-40px] rounded-full"
@@ -294,14 +408,10 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
                 filter: 'blur(30px)',
               }}
               animate={{
-                scale: [0.95, 1.05, 0.95],
-                opacity: [0.2, 0.35, 0.2],
+                scale: 0.95 + voiceIntensity * 0.15,
+                opacity: 0.2 + voiceIntensity * 0.2,
               }}
-              transition={{
-                duration: 5,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
+              transition={{ duration: 0.12, ease: "easeOut" }}
             />
 
             {/* Secondary halo layer */}
@@ -312,14 +422,10 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
                 filter: 'blur(35px)',
               }}
               animate={{
-                scale: [1, 1.1, 1],
-                opacity: [0.12, 0.25, 0.12],
+                scale: 1 + voiceIntensity * 0.12,
+                opacity: 0.12 + voiceIntensity * 0.18,
               }}
-              transition={{
-                duration: 6,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
+              transition={{ duration: 0.12, ease: "easeOut" }}
             />
 
             {/* Main orb body - translucent */}
@@ -410,6 +516,33 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
             />
           </div>
         </motion.div>
+
+        {/* Key phrase captions - elegant subtitles synced with TRACE voice */}
+        <div className="h-[50px] flex items-center justify-center mb-4">
+          <AnimatePresence mode="wait">
+            {currentPhrase && (
+              <motion.p
+                key={currentPhrase}
+                initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
+                animate={{ opacity: phraseOpacity, y: 0, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }}
+                transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
+                className="text-center"
+                style={{
+                  fontFamily: 'Georgia, serif',
+                  fontWeight: 300,
+                  fontSize: '16px',
+                  letterSpacing: '0.04em',
+                  color: '#EDE8DB',
+                  opacity: phraseOpacity * 0.9,
+                  textShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                }}
+              >
+                {currentPhrase}
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Intro Paragraph - tighter spacing */}
         <motion.div 
