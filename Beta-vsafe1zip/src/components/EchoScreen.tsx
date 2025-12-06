@@ -1,8 +1,14 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BottomNav } from './BottomNav';
 
 interface EchoScreenProps {
   onBack: () => void;
+  onReturnToChat: () => void;
+  onNavigateToActivities: () => void;
+  onNavigateToJournal: () => void;
+  onNavigateToProfile: () => void;
+  onNavigateToHelp: () => void;
 }
 
 const LUNA_PALETTE = {
@@ -14,7 +20,14 @@ const LUNA_PALETTE = {
   fogWhite: '#e8e4dc',
 };
 
-export default function EchoScreen({ onBack }: EchoScreenProps) {
+export default function EchoScreen({ 
+  onBack, 
+  onReturnToChat, 
+  onNavigateToActivities, 
+  onNavigateToJournal, 
+  onNavigateToProfile, 
+  onNavigateToHelp 
+}: EchoScreenProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
   const timeRef = useRef<number>(0);
@@ -284,6 +297,18 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
             className="absolute inset-0 w-full h-full cursor-pointer"
             onClick={handleExit}
           />
+          <div className="absolute bottom-0 left-0 right-0 z-40">
+            <BottomNav
+              activeScreen="activities"
+              onNavigateHome={onReturnToChat}
+              onNavigateActivities={onNavigateToActivities}
+              onNavigateJournal={onNavigateToJournal}
+              onNavigateProfile={onNavigateToProfile}
+              onNavigateHelp={onNavigateToHelp}
+              variant="neutral"
+              disableAnimation={true}
+            />
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

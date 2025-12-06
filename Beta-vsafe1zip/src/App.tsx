@@ -227,6 +227,11 @@ export default function App() {
           {currentScreen === 'echo' && (
             <EchoScreen 
               onBack={() => setCurrentScreen('activitieshub')}
+              onReturnToChat={() => setCurrentScreen('chat')}
+              onNavigateToActivities={() => setCurrentScreen('activitieshub')}
+              onNavigateToJournal={() => setCurrentScreen('entries')}
+              onNavigateToProfile={() => setCurrentScreen('profile')}
+              onNavigateToHelp={() => setCurrentScreen('help')}
             />
           )}
           {currentScreen === 'journal' && (
