@@ -68,6 +68,10 @@ export function ChatScreen({
 
   const userName = currentProfile?.name || null;
   
+  // Crossfade transition state for smooth activity navigation
+  const [isTransitioning, setIsTransitioning] = React.useState(false);
+  const pendingNavigationRef = React.useRef<(() => void) | null>(null);
+  
   const getPersonalizedGreeting = React.useCallback(() => {
     if (userName) {
       return `Whenever you're ready, ${userName}.`;
@@ -251,41 +255,55 @@ export function ChatScreen({
     }
   }, [message.length, isThinking, orbEmotion]);
 
-  // Navigate to a specific activity
+  // Navigate to a specific activity with smooth crossfade
   const navigateToActivity = React.useCallback((activity: ActivityType) => {
     if (!activity) return;
     
     clearLastSuggestedActivity();
     setPendingActivity(null);
     
+    // Determine the navigation callback
+    let navigateCallback: (() => void) | null = null;
     switch (activity) {
       case 'breathing':
-        onNavigateToBreathing?.();
+        navigateCallback = onNavigateToBreathing || null;
         break;
       case 'grounding':
-        onNavigateToGrounding?.();
+        navigateCallback = onNavigateToGrounding || null;
         break;
       case 'walking':
-        onNavigateToWalking?.();
+        navigateCallback = onNavigateToWalking || null;
         break;
       case 'maze':
-        onNavigateToMaze?.();
+        navigateCallback = onNavigateToMaze || null;
         break;
       case 'powernap':
-        onNavigateToPowerNap?.();
+        navigateCallback = onNavigateToPowerNap || null;
         break;
       case 'pearlripple':
-        onNavigateToPearlRipple?.();
+        navigateCallback = onNavigateToPearlRipple || null;
         break;
       case 'rest':
-        onNavigateToRest?.();
+        navigateCallback = onNavigateToRest || null;
         break;
       case 'window':
-        onNavigateToWindow?.();
+        navigateCallback = onNavigateToWindow || null;
         break;
       case 'echo':
-        onNavigateToEcho?.();
+        navigateCallback = onNavigateToEcho || null;
         break;
+    }
+    
+    if (navigateCallback) {
+      // Store the callback and trigger crossfade
+      pendingNavigationRef.current = navigateCallback;
+      setIsTransitioning(true);
+      
+      // Navigate after fade completes
+      setTimeout(() => {
+        pendingNavigationRef.current?.();
+        pendingNavigationRef.current = null;
+      }, 600);
     }
   }, [onNavigateToBreathing, onNavigateToGrounding, onNavigateToWalking, onNavigateToMaze, onNavigateToPowerNap, onNavigateToPearlRipple, onNavigateToRest, onNavigateToWindow, onNavigateToEcho]);
 
@@ -1081,6 +1099,24 @@ export function ChatScreen({
           disableAnimation
         />
       </div>
+
+      {/* Crossfade transition overlay */}
+      <AnimatePresence>
+        {isTransitioning && (
+          <motion.div
+            className="absolute inset-0 z-50"
+            style={{
+              background: isDark 
+                ? 'linear-gradient(180deg, #0E0F0D 0%, #1a1b18 50%, #0E0F0D 100%)'
+                : 'linear-gradient(180deg, #F5F1EB 0%, #E8E4DE 50%, #F5F1EB 100%)',
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );
