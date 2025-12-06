@@ -6,14 +6,6 @@ interface OnboardingScreenProps {
   onContinue?: () => void;
 }
 
-const KEY_PHRASES = [
-  { time: 0, text: "Hi, I'm Trace..." },
-  { time: 3.5, text: "your calm, grounded companion" },
-  { time: 7, text: "Here to help you slow down" },
-  { time: 11, text: "reflect, and find clarity" },
-  { time: 15, text: "whenever you need a moment" },
-];
-
 export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
   const { selectedPlan, setSelectedPlan } = useUser();
   const [expandedTier, setExpandedTier] = React.useState<PlanTier | null>(null);
@@ -23,11 +15,9 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const phraseTimersRef = useRef<number[]>([]);
   
   const [voiceIntensity, setVoiceIntensity] = useState(0);
-  const [currentPhrase, setCurrentPhrase] = useState<string | null>(null);
-  const [phraseOpacity, setPhraseOpacity] = useState(0);
+  const [audioMuted, setAudioMuted] = useState(false);
 
   const analyzeAudio = useCallback(() => {
     if (!analyserRef.current) return;
@@ -119,17 +109,6 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
           }, 100);
           
           analyzeAudio();
-          
-          KEY_PHRASES.forEach(({ time, text }) => {
-            const timerId = window.setTimeout(() => {
-              setCurrentPhrase(text);
-              setPhraseOpacity(0);
-              const fadeInTimer = window.setTimeout(() => setPhraseOpacity(1), 50);
-              const fadeOutTimer = window.setTimeout(() => setPhraseOpacity(0), 3000);
-              phraseTimersRef.current.push(fadeInTimer, fadeOutTimer);
-            }, time * 1000);
-            phraseTimersRef.current.push(timerId);
-          });
         }).catch(() => {});
       } catch (e) {
         voiceAudio.play().then(() => {
@@ -152,8 +131,6 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
     return () => {
       clearTimeout(bgTimer);
       clearTimeout(voiceTimer);
-      phraseTimersRef.current.forEach(timerId => clearTimeout(timerId));
-      phraseTimersRef.current = [];
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -193,6 +170,65 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
       setExpandedTier(tier);
     }
   };
+
+  const handleOrbToggle = useCallback(() => {
+    const newMuted = !audioMuted;
+    setAudioMuted(newMuted);
+    
+    if (audioRef.current) {
+      if (newMuted) {
+        let vol = audioRef.current.volume;
+        const fadeOut = setInterval(() => {
+          vol -= 0.1;
+          if (vol <= 0) {
+            vol = 0;
+            clearInterval(fadeOut);
+            audioRef.current!.pause();
+          }
+          if (audioRef.current) audioRef.current.volume = vol;
+        }, 50);
+      } else {
+        audioRef.current.play();
+        let vol = 0;
+        audioRef.current.volume = 0;
+        const fadeIn = setInterval(() => {
+          vol += 0.1;
+          if (vol >= 0.9) {
+            vol = 0.9;
+            clearInterval(fadeIn);
+          }
+          if (audioRef.current) audioRef.current.volume = vol;
+        }, 50);
+      }
+    }
+    
+    if (bgAudioRef.current) {
+      if (newMuted) {
+        let vol = bgAudioRef.current.volume;
+        const fadeOut = setInterval(() => {
+          vol -= 0.02;
+          if (vol <= 0) {
+            vol = 0;
+            clearInterval(fadeOut);
+            bgAudioRef.current!.pause();
+          }
+          if (bgAudioRef.current) bgAudioRef.current.volume = vol;
+        }, 50);
+      } else {
+        bgAudioRef.current.play();
+        let vol = 0;
+        bgAudioRef.current.volume = 0;
+        const fadeIn = setInterval(() => {
+          vol += 0.02;
+          if (vol >= 0.15) {
+            vol = 0.15;
+            clearInterval(fadeIn);
+          }
+          if (bgAudioRef.current) bgAudioRef.current.volume = vol;
+        }, 50);
+      }
+    }
+  }, [audioMuted]);
 
   // Generate liquid light swirls with sage, pearl, and pale aqua (from HomeScreen)
   const generateLiquidSwirls = () => {
@@ -372,18 +408,20 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
           </h1>
         </motion.div>
         
-        {/* Central Orb - voice reactive */}
+        {/* Central Orb - voice reactive & touchable to toggle audio */}
         <motion.div 
-          className="relative flex items-center justify-center mb-6"
+          className="relative flex items-center justify-center mb-6 cursor-pointer"
+          onClick={handleOrbToggle}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ 
-            opacity: 1, 
-            scale: 1 + voiceIntensity * 0.08,
+            opacity: audioMuted ? 0.6 : 1, 
+            scale: audioMuted ? 0.95 : 1 + voiceIntensity * 0.08,
           }}
           transition={{ 
-            opacity: { duration: 1.5, ease: [0.22, 0.61, 0.36, 1] },
+            opacity: { duration: 0.4, ease: "easeOut" },
             scale: { duration: 0.1, ease: "easeOut" }
           }}
+          whileTap={{ scale: 0.92 }}
         >
           <div className="w-[140px] h-[140px] relative">
             {/* Voice-reactive outer glow */}
@@ -516,33 +554,6 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
             />
           </div>
         </motion.div>
-
-        {/* Key phrase captions - elegant subtitles synced with TRACE voice */}
-        <div className="h-[50px] flex items-center justify-center mb-4">
-          <AnimatePresence mode="wait">
-            {currentPhrase && (
-              <motion.p
-                key={currentPhrase}
-                initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
-                animate={{ opacity: phraseOpacity, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }}
-                transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
-                className="text-center"
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  fontWeight: 300,
-                  fontSize: '16px',
-                  letterSpacing: '0.04em',
-                  color: '#EDE8DB',
-                  opacity: phraseOpacity * 0.9,
-                  textShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                }}
-              >
-                {currentPhrase}
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </div>
 
         {/* Intro Paragraph - tighter spacing */}
         <motion.div 
