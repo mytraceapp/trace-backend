@@ -9,7 +9,7 @@ interface BottomNavProps {
   onNavigateJournal?: () => void;
   onNavigateProfile?: () => void;
   onNavigateHelp?: () => void;
-  variant?: 'sage' | 'neutral'; // sage for chat screen, neutral for other screens
+  variant?: 'sage' | 'neutral' | 'transparent'; // sage for chat screen, neutral for other screens, transparent for immersive screens
   disableAnimation?: boolean; // disable entrance animation when parent handles it
 }
 
@@ -25,6 +25,7 @@ export function BottomNav({
 }: BottomNavProps) {
   const { theme } = useTheme();
   const isSage = variant === 'sage';
+  const isTransparent = variant === 'transparent';
   const isDark = theme === 'night';
   
   // Sage variant (chat screen) - adapts to theme
@@ -47,7 +48,16 @@ export function BottomNav({
     textColorActive: isDark ? '#D4D8D0' : '#5A4A3A',
   };
   
-  const styles = isSage ? sageStyles : neutralStyles;
+  // Transparent variant (immersive screens like Echo, Rain Window) - no background
+  const transparentStyles = {
+    background: 'transparent',
+    iconColor: 'rgba(212, 196, 168, 0.6)',
+    iconColorActive: 'rgba(212, 196, 168, 0.9)',
+    textColor: 'rgba(212, 196, 168, 0.6)',
+    textColorActive: 'rgba(212, 196, 168, 0.9)',
+  };
+  
+  const styles = isSage ? sageStyles : (isTransparent ? transparentStyles : neutralStyles);
 
   return (
     <motion.div
@@ -64,9 +74,9 @@ export function BottomNav({
         className="w-full px-8 py-5"
         style={{
           background: styles.background,
-          backdropFilter: 'blur(20px)',
+          backdropFilter: isTransparent ? 'none' : 'blur(20px)',
           borderTop: 'none',
-          boxShadow: isSage ? 'none' : (isDark ? '0 -4px 20px rgba(0, 0, 0, 0.15)' : '0 -4px 20px rgba(90, 74, 58, 0.08)'),
+          boxShadow: (isSage || isTransparent) ? 'none' : (isDark ? '0 -4px 20px rgba(0, 0, 0, 0.15)' : '0 -4px 20px rgba(90, 74, 58, 0.08)'),
           transition: 'background 0.8s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >

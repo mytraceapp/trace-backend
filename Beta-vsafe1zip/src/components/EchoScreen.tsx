@@ -328,7 +328,7 @@ export default function EchoScreen({
               onNavigateJournal={onNavigateToJournal}
               onNavigateProfile={onNavigateToProfile}
               onNavigateHelp={onNavigateToHelp}
-              variant="neutral"
+              variant="transparent"
               disableAnimation={true}
             />
           </div>
