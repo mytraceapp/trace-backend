@@ -264,18 +264,13 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
               {[0, 1, 2, 3].map((i) => (
                 <motion.div
                   key={`ripple-${i}`}
-                  className="absolute rounded-full"
+                  className="absolute inset-0 rounded-full"
                   style={{
-                    top: '50%',
-                    left: '50%',
-                    width: '100%',
-                    height: '100%',
-                    transform: 'translate(-50%, -50%)',
-                    border: '2px solid rgba(255, 255, 255, 0.4)',
-                    boxShadow: '0 0 20px rgba(255, 255, 255, 0.2), inset 0 0 20px rgba(255, 255, 255, 0.1)',
+                    border: '2px solid rgba(180, 145, 90, 0.5)',
+                    boxShadow: '0 0 25px rgba(180, 145, 90, 0.3), inset 0 0 15px rgba(180, 145, 90, 0.15)',
                   }}
-                  initial={{ scale: 1, opacity: 0.6 }}
-                  animate={{ scale: 3.5, opacity: 0 }}
+                  initial={{ scale: 1, opacity: 0.7 }}
+                  animate={{ scale: 4, opacity: 0 }}
                   transition={{
                     duration: 2,
                     delay: i * 0.25,
