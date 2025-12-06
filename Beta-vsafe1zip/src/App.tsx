@@ -161,6 +161,9 @@ export default function App() {
                 onNavigateToMaze={() => setCurrentScreen('maze')}
                 onNavigateToPowerNap={() => setCurrentScreen('powernap')}
                 onNavigateToPearlRipple={() => setCurrentScreen('pearlripple')}
+                onNavigateToRest={() => setCurrentScreen('powernap')}
+                onNavigateToWindow={() => setCurrentScreen('rainwindow')}
+                onNavigateToEcho={() => setCurrentScreen('echo')}
                 shouldStartGreeting={!showPaymentSuccess}
               />
               {/* Only show success overlay for Premium/Studio after payment - never for Light */}

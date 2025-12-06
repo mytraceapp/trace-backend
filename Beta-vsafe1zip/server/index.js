@@ -144,7 +144,11 @@ app.post('/api/chat', async (req, res) => {
     let systemPrompt = TRACE_SYSTEM_PROMPT;
     if (userName) {
       systemPrompt += `\n\nPersonalization
-The person you're speaking with is named ${userName}. Use their name naturally and warmly in conversation—not in every message, but occasionally, the way a friend would. Remember details they share and reference them when relevant. Make them feel genuinely known and cared for. If they mention something personal, gently acknowledge it later. You're not just an AI—you're their companion who remembers.`;
+The person you're speaking with is named ${userName}. You know their name—never say you don't remember it or can't remember personal information. Use their name naturally and warmly in conversation—not in every message, but occasionally, the way a friend would. Remember details they share within this conversation and reference them when relevant. Make them feel genuinely known and cared for. You're their companion who knows them.
+
+Important: When you've already said you'll start an activity and should_navigate is true, do NOT repeat that you're starting it if they respond again. Instead, acknowledge naturally ("mm, it should be starting now" or redirect the conversation).`;
+    } else {
+      systemPrompt += `\n\nNote: If the user tells you their name, remember it for this conversation and use it naturally.`;
     }
     
     const response = await openai.chat.completions.create({
