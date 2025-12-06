@@ -313,14 +313,14 @@ export default function EchoScreen({
       // Ultra-slow breath LFO (14 second cycle) - the signature
       const breathLFO = Math.sin(time * 0.00045) * 0.12 + 1;
       
-      // Soft breath audio response
-      const softAudioResponse = 1 + Math.min(safeAudio * 0.2, 0.2);
+      // Responsive audio - waves clearly move with TRACE's voice
+      const audioResponse = 1 + safeAudio * 0.5;
 
       // Clean, cohesive wave layers - all flowing together
       const layers = [
-        { color: LUNA_PALETTE.midnightBlue, opacity: 0.7, amplitude: 50, yOffset: -25, blur: 6 },
-        { color: LUNA_PALETTE.sageGray, opacity: 0.8, amplitude: 60, yOffset: 0, blur: 3 },
-        { color: LUNA_PALETTE.beige, opacity: 0.6, amplitude: 45, yOffset: 20, blur: 1 },
+        { color: LUNA_PALETTE.midnightBlue, opacity: 0.7, amplitude: 55, yOffset: -30, blur: 6 },
+        { color: LUNA_PALETTE.sageGray, opacity: 0.85, amplitude: 70, yOffset: 0, blur: 3 },
+        { color: LUNA_PALETTE.beige, opacity: 0.65, amplitude: 50, yOffset: 25, blur: 1 },
       ];
 
       layers.forEach((layer, layerIndex) => {
@@ -341,7 +341,7 @@ export default function EchoScreen({
           const envelope = Math.sin(normalizedX * Math.PI);
           
           // Combine with breath and audio
-          const waveHeight = (baseWave + secondWave) * layer.amplitude * envelope * breathLFO * softAudioResponse;
+          const waveHeight = (baseWave + secondWave) * layer.amplitude * envelope * breathLFO * audioResponse;
           
           const y = centerY + layer.yOffset + waveHeight;
           points.push({ x, y });
