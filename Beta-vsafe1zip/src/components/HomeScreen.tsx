@@ -37,12 +37,12 @@ export function HomeScreen({ onNavigateToAuth, onStartAmbient }: HomeScreenProps
     }
   }, [isAwakened, onStartAmbient]);
 
-  // Auto-transition to auth page after orb rises (5s) + slow ripple (4s)
+  // Auto-transition to auth page - orb rises then transitions
   React.useEffect(() => {
     if (isAwakened && onNavigateToAuth) {
       const transitionTimer = setTimeout(() => {
         onNavigateToAuth();
-      }, 12000);
+      }, 7000);
 
       return () => {
         clearTimeout(transitionTimer);
