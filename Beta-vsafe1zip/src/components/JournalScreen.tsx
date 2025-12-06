@@ -439,12 +439,12 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                           <motion.div
                             className="absolute bottom-1"
                             style={{
-                              width: '4px',
-                              height: '4px',
+                              width: '5px',
+                              height: '5px',
                               borderRadius: '50%',
-                              background: isDark ? '#d4c4a8' : '#8A8680',
+                              background: isDark ? '#e8e4dc' : '#8A8680',
                               boxShadow: isDark 
-                                ? '0 0 6px rgba(212, 196, 168, 0.6)' 
+                                ? '0 0 8px rgba(232, 228, 220, 0.8)' 
                                 : '0 0 6px rgba(138, 134, 128, 0.6)',
                             }}
                             animate={{
