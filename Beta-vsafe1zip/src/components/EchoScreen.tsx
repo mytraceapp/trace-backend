@@ -262,8 +262,8 @@ export default function EchoScreen({
       const centerY = height / 2 + verticalOffset;
       const safeAudioLevel = isNaN(audioLevel) ? 0 : audioLevel;
 
-      const breathe = 1 + Math.sin(time * 0.0004) * 0.08;
-      const audioReact = 1 + safeAudioLevel * 0.3;
+      const breathe = 1 + Math.sin(time * 0.00035) * 0.1;
+      const audioReact = 1 + Math.min(safeAudioLevel * 0.12, 0.12); // Soft nudge, not jarring
       const baseRadius = Math.min(width, height) * 0.35;
       const radius = Math.max(1, baseRadius * breathe * audioReact);
 
@@ -288,7 +288,7 @@ export default function EchoScreen({
         centerX, centerY, 0,
         centerX, centerY, radius * 0.6
       );
-      const glowIntensity = 0.22 + safeAudioLevel * 0.25;
+      const glowIntensity = 0.22 + Math.min(safeAudioLevel * 0.1, 0.1); // Subtle glow response
       innerGlow.addColorStop(0, `rgba(212, 196, 168, ${glowIntensity})`);
       innerGlow.addColorStop(1, 'rgba(212, 196, 168, 0)');
 
@@ -309,11 +309,18 @@ export default function EchoScreen({
       const centerY = height / 2 + verticalOffset;
       const safeAudio = isNaN(audioLevel) ? 0 : audioLevel;
 
+      // Ultra-slow breath LFO (14 second cycle) - the signature
+      const breathLFO = Math.sin(time * 0.00045) * 0.12 + 1;
+      
+      // Soft audio response - gentle nudge, not jarring reaction (capped at ±18%)
+      const softAudioResponse = 1 + Math.min(safeAudio * 0.18, 0.18);
+
+      // Slower speeds, longer wavelengths for ultra-premium calm
       const layers = [
-        { color: LUNA_PALETTE.midnightBlue, opacity: 0.85, amplitude: 60, frequency: 0.008, speed: 0.0003, offset: 0, blur: 4 },
-        { color: LUNA_PALETTE.sageGray, opacity: 0.78, amplitude: 45, frequency: 0.012, speed: 0.0004, offset: 1, blur: 2 },
-        { color: LUNA_PALETTE.beige, opacity: 0.65, amplitude: 35, frequency: 0.015, speed: 0.0005, offset: 2, blur: 1 },
-        { color: LUNA_PALETTE.sageMuted, opacity: 0.72, amplitude: 50, frequency: 0.01, speed: 0.00035, offset: 1.5, blur: 3 },
+        { color: LUNA_PALETTE.midnightBlue, opacity: 0.85, amplitude: 40, frequency: 0.003, speed: 0.00012, offset: 0, blur: 4 },
+        { color: LUNA_PALETTE.sageGray, opacity: 0.78, amplitude: 32, frequency: 0.004, speed: 0.00016, offset: 1, blur: 2 },
+        { color: LUNA_PALETTE.beige, opacity: 0.65, amplitude: 25, frequency: 0.005, speed: 0.0002, offset: 2, blur: 1 },
+        { color: LUNA_PALETTE.sageMuted, opacity: 0.72, amplitude: 35, frequency: 0.0035, speed: 0.00014, offset: 1.5, blur: 3 },
       ];
 
       layers.forEach((layer, layerIndex) => {
@@ -326,20 +333,23 @@ export default function EchoScreen({
           const x = (i / segments) * width;
           const normalizedX = i / segments;
 
-          const audioBoost = 1 + safeAudio * 1.8;
+          // Gentle frequency modulation from audio (very subtle)
           const freqIndex = Math.floor((i / segments) * (frequencyData?.length || 1));
           const freqValue = frequencyData ? frequencyData[freqIndex] / 255 : 0;
-          const freqBoost = 1 + freqValue * 1.2;
+          const gentleFreqNudge = 1 + freqValue * 0.08;
           
-          const wave1 = Math.sin(normalizedX * Math.PI * 4 * layer.frequency * 100 + time * layer.speed + layer.offset) * layer.amplitude * audioBoost;
-          const wave2 = Math.sin(normalizedX * Math.PI * 2 * layer.frequency * 80 + time * layer.speed * 0.7 + layer.offset * 1.5) * layer.amplitude * 0.6 * freqBoost;
-          const wave3 = Math.sin(normalizedX * Math.PI * 6 * layer.frequency * 60 + time * layer.speed * 1.2 + layer.offset * 0.8) * layer.amplitude * 0.3;
+          // Slower, longer waves - meditative motion
+          const wave1 = Math.sin(normalizedX * Math.PI * 2 * layer.frequency * 100 + time * layer.speed + layer.offset) * layer.amplitude;
+          const wave2 = Math.sin(normalizedX * Math.PI * 1.5 * layer.frequency * 80 + time * layer.speed * 0.6 + layer.offset * 1.5) * layer.amplitude * 0.5;
+          const wave3 = Math.sin(normalizedX * Math.PI * 2.5 * layer.frequency * 60 + time * layer.speed * 0.8 + layer.offset * 0.8) * layer.amplitude * 0.25;
 
-          const breathe = Math.sin(time * 0.0002 + layerIndex * 0.5) * 0.15 + 1;
+          // Layer-specific slow breathing
+          const layerBreathe = Math.sin(time * 0.00015 + layerIndex * 0.4) * 0.08 + 1;
           
           const envelope = Math.sin(normalizedX * Math.PI) * 0.8 + 0.2;
           
-          const y = centerY + (wave1 + wave2 + wave3) * envelope * breathe;
+          // Combine: base waves * envelope * breath LFO * soft audio * layer breathe * gentle freq nudge
+          const y = centerY + (wave1 + wave2 + wave3) * envelope * breathLFO * softAudioResponse * layerBreathe * gentleFreqNudge;
           points.push({ x, y });
         }
 
