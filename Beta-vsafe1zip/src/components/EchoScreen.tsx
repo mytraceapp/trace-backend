@@ -31,10 +31,62 @@ export default function EchoScreen({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
   const timeRef = useRef<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isExiting, setIsExiting] = useState(false);
+
+  useEffect(() => {
+    const audio = new Audio('/audio/trace-echo.mp3');
+    audio.volume = 0;
+    audio.loop = true;
+    audioRef.current = audio;
+
+    const fadeIn = () => {
+      let vol = 0;
+      const fadeInterval = setInterval(() => {
+        vol += 0.02;
+        if (vol >= 0.8) {
+          vol = 0.8;
+          clearInterval(fadeInterval);
+        }
+        if (audioRef.current) audioRef.current.volume = vol;
+      }, 50);
+    };
+
+    audio.play().then(fadeIn).catch(() => {});
+
+    return () => {
+      if (audioRef.current) {
+        let vol = audioRef.current.volume;
+        const fadeInterval = setInterval(() => {
+          vol -= 0.05;
+          if (vol <= 0) {
+            vol = 0;
+            clearInterval(fadeInterval);
+            audioRef.current?.pause();
+            audioRef.current = null;
+          } else if (audioRef.current) {
+            audioRef.current.volume = vol;
+          }
+        }, 30);
+      }
+    };
+  }, []);
 
   const handleExit = useCallback(() => {
     setIsExiting(true);
+    if (audioRef.current) {
+      let vol = audioRef.current.volume;
+      const fadeInterval = setInterval(() => {
+        vol -= 0.05;
+        if (vol <= 0) {
+          vol = 0;
+          clearInterval(fadeInterval);
+          audioRef.current?.pause();
+        } else if (audioRef.current) {
+          audioRef.current.volume = vol;
+        }
+      }, 30);
+    }
     setTimeout(() => {
       onBack();
     }, 600);
