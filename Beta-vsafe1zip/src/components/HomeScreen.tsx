@@ -40,7 +40,7 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
     if (isAwakened && onNavigateToAuth) {
       const transitionTimer = setTimeout(() => {
         onNavigateToAuth();
-      }, 8500);
+      }, 10000);
 
       return () => {
         clearTimeout(transitionTimer);
@@ -269,12 +269,12 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
                     border: '2px solid rgba(139, 110, 78, 0.55)',
                     boxShadow: '0 0 30px rgba(139, 110, 78, 0.35), inset 0 0 20px rgba(139, 110, 78, 0.2)',
                   }}
-                  initial={{ scale: 1, opacity: 0.65 }}
-                  animate={{ scale: 4, opacity: 0 }}
+                  initial={{ scale: 1, opacity: 0.5 }}
+                  animate={{ scale: 5, opacity: 0 }}
                   transition={{
-                    duration: 4,
-                    delay: i * 0.5,
-                    ease: [0.25, 0.46, 0.45, 0.94],
+                    duration: 6,
+                    delay: i * 0.8,
+                    ease: [0.15, 0.35, 0.45, 0.95],
                   }}
                 />
               ))}
