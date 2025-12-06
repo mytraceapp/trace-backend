@@ -25,12 +25,14 @@ export function HomeScreen({ onNavigateToAuth, onStartAmbient }: HomeScreenProps
     }
   }, [isLogoLowered, isAwakened]);
 
-  // Start ambient audio early for smooth crossfade with ethereal tone
+  // Start ambient audio with proper timing to blend with ethereal wake-up tone
+  // Ethereal tone plays for ~7 seconds, starts fading at ~4s
+  // We start ambient at 3.5s so it fades in as ethereal fades out
   React.useEffect(() => {
     if (isAwakened) {
       const ambientTimer = setTimeout(() => {
         onStartAmbient?.();
-      }, 1500);
+      }, 3500);
 
       return () => clearTimeout(ambientTimer);
     }
