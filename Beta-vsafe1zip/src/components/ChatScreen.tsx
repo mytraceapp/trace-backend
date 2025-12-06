@@ -4,6 +4,7 @@ import { Mic, Send } from 'lucide-react';
 import { TypingTone } from './TypingTone';
 import { BottomNav } from './BottomNav';
 import { useTheme } from '../state/ThemeContext';
+import { useAuth } from '../state/AuthContext';
 import { 
   sendMessageToTrace, 
   getTraceGreeting, 
@@ -56,6 +57,7 @@ export function ChatScreen({
 }: ChatScreenProps = {}) {
   void _onNavigateToPatterns;
   const { theme } = useTheme();
+  const { currentProfile } = useAuth();
   const [message, setMessage] = React.useState('');
   const [hasResponded, setHasResponded] = React.useState(false);
   const [_userMessage, setUserMessage] = React.useState('');
@@ -64,10 +66,32 @@ export function ChatScreen({
   const [messages, setMessages] = React.useState<Message[]>([]);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
-  // Typewriter effect with dynamic greeting - refreshes each visit
+  const userName = currentProfile?.name || null;
+  
+  const getPersonalizedGreeting = React.useCallback(() => {
+    const baseGreeting = getTraceGreeting();
+    if (userName) {
+      const greetings = [
+        `Hi, ${userName}. I'm here with you.`,
+        `Hey ${userName}... how are you feeling?`,
+        `${userName}... I'm here. What's on your mind?`,
+        `Hi ${userName}. How are you doing?`,
+        `Hey ${userName}. I'm here whenever you're ready.`,
+      ];
+      return greetings[Math.floor(Math.random() * greetings.length)];
+    }
+    return baseGreeting;
+  }, [userName]);
+
   const [greetingText, setGreetingText] = React.useState(() => getTraceGreeting());
   const [displayedText, setDisplayedText] = React.useState('');
   const [currentIndex, setCurrentIndex] = React.useState(0);
+  
+  React.useEffect(() => {
+    if (userName && !hasResponded && messages.length === 0) {
+      setGreetingText(getPersonalizedGreeting());
+    }
+  }, [userName, hasResponded, messages.length, getPersonalizedGreeting]);
 
   // Chat session persistence - messages persist for 1 hour
   const CHAT_STORAGE_KEY = 'trace_chat_session';
@@ -98,7 +122,7 @@ export function ChatScreen({
     
     // Start fresh session with greeting
     if (shouldStartGreeting) {
-      setGreetingText(getTraceGreeting());
+      setGreetingText(getPersonalizedGreeting());
       setDisplayedText('');
       setCurrentIndex(0);
       setMessages([]);

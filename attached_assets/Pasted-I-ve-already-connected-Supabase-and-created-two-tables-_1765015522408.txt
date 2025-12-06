@@ -1,0 +1,62 @@
+I’ve already connected Supabase and created two tables:
+	•	entries
+	•	profiles with columns:
+	•	id uuid PRIMARY KEY REFERENCES auth.users(id)
+	•	name text
+	•	email text
+	•	plan text DEFAULT 'light'
+	•	has_paid boolean DEFAULT false
+	•	referral_code text
+	•	ambience_enabled boolean DEFAULT true
+	•	ambience_volume integer DEFAULT 40
+	•	created_at timestamptz DEFAULT now()
+	•	updated_at timestamptz DEFAULT now()
+
+Supabase client is already configured via
+	•	VITE_SUPABASE_URL
+	•	VITE_SUPABASE_ANON_KEY
+
+✅ I want you to add minimal profile persistence so TRACE can remember the current user’s name and settings.
+
+Please do the following changes in the codebase (and show me which files you edit):
+	1.	Create a small profile service
+	•	Add a new file, e.g. src/lib/profileService.ts (or .js if the project is JS).
+	•	Export functions:
+	•	getOrCreateProfile(user)
+	•	takes the authenticated Supabase user object
+	•	checks the profiles table for a row with id = user.id
+	•	if none exists, inserts a new row with:
+	•	id = user.id
+	•	email = user.email
+	•	plan = 'light'
+	•	ambience_enabled = true
+	•	ambience_volume = 40
+	•	returns the profile row
+	•	updateProfile(userId, data)
+	•	updates the profiles row by id with the provided fields (e.g. { name, plan, ambience_enabled, ambience_volume })
+	2.	Hook into auth state
+	•	Wherever the app is currently watching Supabase auth state or storing the current user (for example a useAuth hook, context, or top-level App), after a user successfully signs in or signs up:
+	•	Call getOrCreateProfile(user)
+	•	Store the returned profile in a global state (context, Zustand store, or React state) like currentProfile.
+	3.	Use the profile on the Profile screen
+	•	On the Profile / Account screen where it currently shows “Your Name” and the email placeholder:
+	•	Replace those placeholders with currentProfile.name and currentProfile.email.
+	•	If currentProfile.name is empty, show something like “Add your name” instead.
+	4.	Allow updating the name
+	•	On the Profile screen, allow the user to edit their name (either in a text input or “Edit name” modal).
+	•	When the user saves:
+	•	Call updateProfile(currentUser.id, { name: newName }).
+	•	Update the in-memory currentProfile so the UI reflects the change immediately.
+	5.	Use the name in the chat greeting
+	•	In the main chat / home screen where TRACE greets the user, update the greeting logic:
+	•	If currentProfile.name exists, use a line like:
+	•	“Hi, {name}. I’m here with you.”
+	•	If no name yet, fall back to the generic greeting.
+	6.	Important details
+	•	Make sure all Supabase calls are using the existing Supabase client instance already configured in the app.
+	•	Handle loading states and errors softly: if profile fetch fails, don’t crash — just log the error and continue with a generic experience.
+	•	Do not change any visual styling (colors, fonts, layout) — only wire up the data.
+
+When you’re done, tell me:
+	•	Which files you created or modified
+	•	Where in the code I can change the default values for plan and ambience later.
