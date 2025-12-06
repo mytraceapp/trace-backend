@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import traceLogo from 'figma:asset/513ec3c351285cce0b15e678c8f6d864d8269d64.png';
 import { EtherealTone } from './EtherealTone';
 
@@ -12,7 +12,6 @@ export function HomeScreen({ onNavigateToAuth, onStartAmbient }: HomeScreenProps
   const [isLogoLowered, setIsLogoLowered] = React.useState(false);
   const [isAwakened, setIsAwakened] = React.useState(false);
   const [showWakeRipple, setShowWakeRipple] = React.useState(false);
-  const [isTransitioning, setIsTransitioning] = React.useState(false);
 
   // When logo finishes lowering, trigger orb awakening
   React.useEffect(() => {
@@ -50,21 +49,14 @@ export function HomeScreen({ onNavigateToAuth, onStartAmbient }: HomeScreenProps
     }
   }, [isAwakened]);
 
-  // Auto-transition to auth page - orb rises, then smooth crossfade, then navigate
+  // Auto-transition to auth page - orb rises then transitions
   React.useEffect(() => {
     if (isAwakened && onNavigateToAuth) {
-      // Start crossfade at 6s (before navigation)
-      const fadeTimer = setTimeout(() => {
-        setIsTransitioning(true);
-      }, 6000);
-      
-      // Navigate at 7s (after fade has started)
       const transitionTimer = setTimeout(() => {
         onNavigateToAuth();
       }, 7000);
 
       return () => {
-        clearTimeout(fadeTimer);
         clearTimeout(transitionTimer);
       };
     }
@@ -458,34 +450,6 @@ export function HomeScreen({ onNavigateToAuth, onStartAmbient }: HomeScreenProps
           }}
         />
       </motion.button>
-
-      {/* Smooth crossfade overlay for transition to auth */}
-      <AnimatePresence>
-        {isTransitioning && (
-          <motion.div
-            className="fixed inset-0 z-50 pointer-events-none"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1, ease: [0.22, 0.61, 0.36, 1] }}
-            style={{
-              background: 'radial-gradient(ellipse at center, rgba(139, 169, 152, 0.3) 0%, #1a1f1a 50%, #0E0F0D 100%)',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
-            {/* Centered sage glow during transition */}
-            <motion.div
-              className="absolute inset-0"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1.2 }}
-              transition={{ duration: 1.2, ease: 'easeOut' }}
-              style={{
-                background: 'radial-gradient(circle at center, rgba(139, 169, 152, 0.4) 0%, rgba(139, 169, 152, 0.15) 30%, transparent 60%)',
-              }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
