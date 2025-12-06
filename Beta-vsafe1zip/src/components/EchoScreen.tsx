@@ -295,10 +295,10 @@ export default function EchoScreen({
           const x = (i / segments) * width;
           const normalizedX = i / segments;
 
-          const audioBoost = 1 + Math.min(audioLevel, 0.5) * 0.4;
+          const audioBoost = 1 + Math.min(audioLevel, 0.8) * 1.5;
           const freqIndex = Math.floor((i / segments) * (frequencyData?.length || 1));
           const freqValue = frequencyData ? frequencyData[freqIndex] / 255 : 0;
-          const freqBoost = 1 + Math.min(freqValue, 0.6) * 0.3;
+          const freqBoost = 1 + Math.min(freqValue, 0.8) * 1.2;
           
           const wave1 = Math.sin(normalizedX * Math.PI * 4 * layer.frequency * 100 + time * layer.speed + layer.offset) * layer.amplitude * audioBoost;
           const wave2 = Math.sin(normalizedX * Math.PI * 2 * layer.frequency * 80 + time * layer.speed * 0.7 + layer.offset * 1.5) * layer.amplitude * 0.6 * freqBoost;
@@ -356,7 +356,7 @@ export default function EchoScreen({
         const x = (i / segments) * width;
         const normalizedX = i / segments;
 
-        const audioBoost = 1 + Math.min(audioLevel, 0.5) * 0.5;
+        const audioBoost = 1 + Math.min(audioLevel, 0.8) * 2.0;
         const wave = (Math.sin(normalizedX * Math.PI * 3 + time * 0.0004) * 40 +
                      Math.sin(normalizedX * Math.PI * 5 + time * 0.0003) * 25 +
                      Math.sin(normalizedX * Math.PI * 2 + time * 0.0005) * 30) * audioBoost;
