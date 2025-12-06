@@ -26,13 +26,13 @@ export function HomeScreen({ onNavigateToAuth, onStartAmbient }: HomeScreenProps
   }, [isLogoLowered, isAwakened]);
 
   // Start ambient audio with proper timing to blend with ethereal wake-up tone
-  // Ethereal tone plays for ~7 seconds, starts fading at ~4s
-  // We start ambient at 3.5s so it fades in as ethereal fades out
+  // Ethereal tone plays for ~7 seconds, peaks around 3.5s, starts fading at ~4s
+  // We start ambient at 2s so it has time to gradually fade in underneath
   React.useEffect(() => {
     if (isAwakened) {
       const ambientTimer = setTimeout(() => {
         onStartAmbient?.();
-      }, 3500);
+      }, 2000);
 
       return () => clearTimeout(ambientTimer);
     }

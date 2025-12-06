@@ -22,7 +22,7 @@ export function AmbientAudioPlayer({
   const { play, pause, isPlaying, isLoaded } = useAmbientAudio({
     src: '/audio/ambient-loop.mp3',
     volume,
-    fadeInDuration: 5000, // 5 second fade-in for smooth blend with ethereal wake-up tone
+    fadeInDuration: 6000, // 6 second fade-in for smooth blend with ethereal wake-up tone
     fadeOutDuration: 1500,
     loop: true,
     startDelay,
