@@ -482,18 +482,19 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
           </div>
         </motion.div>
 
-        {/* Expandable Feelings Grid - shows on single click */}
+        {/* Expandable Feelings Grid - shows on single click, positioned right below calendar */}
         <AnimatePresence>
           {expandedDay && selectedDayEntries.length > 0 && (
             <motion.div
-              className="w-full px-6 pt-3"
+              className="w-full px-6"
+              style={{ marginTop: '-8px', marginBottom: '16px' }}
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
               <div
-                className="rounded-[16px] p-3"
+                className="rounded-[16px] p-4"
                 style={{
                   background: 'linear-gradient(135deg, #E8E4DD 0%, #DDD9D2 100%)',
                   boxShadow: '0 4px 12px rgba(75, 75, 75, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.4)',
@@ -501,31 +502,31 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                 }}
               >
                 {/* Mood toothpick bars - horizontal bars stacked vertically with varying lengths */}
-                <div className="flex flex-col items-center justify-center gap-2 py-2">
+                <div className="flex flex-col items-center justify-center gap-2.5">
                   {(() => {
                     const loggedMoods = selectedDayEntries
                       .filter(e => e.type === 'emotional_note' && e.metadata?.mood)
                       .map(e => e.metadata?.mood as string);
                     
-                    const baseLengths = [160, 100, 130, 75];
+                    const baseLengths = [120, 70, 95, 50];
                     
                     return moodOptions.map((mood, index) => {
                       const isLogged = loggedMoods.includes(mood.type);
-                      const barWidth = isLogged ? 220 : baseLengths[index];
+                      const barWidth = isLogged ? 260 : baseLengths[index];
                       
                       return (
                         <div
                           key={mood.type}
                           style={{
                             width: `${barWidth}px`,
-                            height: '5px',
-                            borderRadius: '2.5px',
+                            height: '6px',
+                            borderRadius: '3px',
                             background: mood.color,
                             boxShadow: isLogged 
-                              ? '0 2px 8px rgba(75, 75, 75, 0.2)' 
+                              ? '0 2px 10px rgba(75, 75, 75, 0.25)' 
                               : '0 1px 3px rgba(75, 75, 75, 0.08)',
                             border: '1px solid rgba(255, 255, 255, 0.5)',
-                            transition: 'width 0.3s ease',
+                            transition: 'width 0.4s ease',
                           }}
                         />
                       );
