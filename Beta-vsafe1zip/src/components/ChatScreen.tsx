@@ -372,8 +372,10 @@ export function ChatScreen({
         // If should_navigate is true, navigate to the activity after showing the message
         if (activity_suggestion?.should_navigate && activity_suggestion?.name) {
           const activityType = mapActivityName(activity_suggestion.name);
+          console.log('Activity navigation triggered:', activity_suggestion.name, '->', activityType);
           if (activityType) {
             setTimeout(() => {
+              console.log('Navigating to activity:', activityType);
               navigateToActivity(activityType);
             }, 1500);
           }
@@ -944,11 +946,11 @@ export function ChatScreen({
                       }}
                       transition={{ 
                         type: "spring",
-                        stiffness: 1.5,
-                        damping: 3,
-                        mass: 10,
-                        opacity: { duration: 4 },
-                        layout: { type: "spring", stiffness: 1, damping: 2.5, mass: 12 }
+                        stiffness: 2,
+                        damping: 3.5,
+                        mass: 8,
+                        opacity: { duration: 3.2 },
+                        layout: { type: "spring", stiffness: 1.3, damping: 3, mass: 10 }
                       }}
                     >
                       <motion.div 
@@ -967,9 +969,9 @@ export function ChatScreen({
                         animate={{ scale: 1 }}
                         transition={{ 
                           type: "spring",
-                          stiffness: 1.5,
-                          damping: 3,
-                          mass: 9
+                          stiffness: 2,
+                          damping: 3.5,
+                          mass: 7
                         }}
                       >
                         <p 
