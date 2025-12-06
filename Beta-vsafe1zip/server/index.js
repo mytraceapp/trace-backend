@@ -129,9 +129,10 @@ function getFallbackResponse() {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { messages } = req.body;
+    const { messages, userName } = req.body;
     
     console.log('Received messages:', JSON.stringify(messages, null, 2));
+    console.log('User name:', userName);
     
     if (!openai) {
       const fallback = getFallbackResponse();
@@ -139,10 +140,17 @@ app.post('/api/chat', async (req, res) => {
       return res.json({ message: fallback });
     }
     
+    // Build personalized system prompt if we have a user name
+    let systemPrompt = TRACE_SYSTEM_PROMPT;
+    if (userName) {
+      systemPrompt += `\n\nPersonalization
+The person you're speaking with is named ${userName}. Use their name naturally and warmly in conversation—not in every message, but occasionally, the way a friend would. Remember details they share and reference them when relevant. Make them feel genuinely known and cared for. If they mention something personal, gently acknowledge it later. You're not just an AI—you're their companion who remembers.`;
+    }
+    
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: TRACE_SYSTEM_PROMPT },
+        { role: 'system', content: systemPrompt },
         ...messages
       ],
       max_tokens: 300,

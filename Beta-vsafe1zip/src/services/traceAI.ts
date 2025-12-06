@@ -60,7 +60,7 @@ export interface TraceResponse {
   activity_suggestion: ActivitySuggestion;
 }
 
-export async function sendMessageToTrace(userMessage: string): Promise<TraceResponse> {
+export async function sendMessageToTrace(userMessage: string, userName?: string | null): Promise<TraceResponse> {
   // Add user message to history
   conversationHistory.push({
     role: 'user',
@@ -86,6 +86,7 @@ export async function sendMessageToTrace(userMessage: string): Promise<TraceResp
           role: msg.role,
           content: msg.content,
         })),
+        userName: userName || null,
       }),
     });
 

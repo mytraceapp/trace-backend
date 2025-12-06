@@ -356,7 +356,7 @@ export function ChatScreen({
       
       try {
         // Get real response from TRACE AI (now returns object with message and activity_suggestion)
-        const traceResponse = await sendMessageToTrace(userMsg);
+        const traceResponse = await sendMessageToTrace(userMsg, userName);
         const { message: responseMessage, activity_suggestion } = traceResponse;
         
         // Detect emotion and animate orb accordingly
