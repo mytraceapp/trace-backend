@@ -735,7 +735,26 @@ export function ProfileScreen({
               {/* Sign In / Sign Out */}
               {user ? (
                 <div className="w-full py-3 px-3">
-                  <div className="flex items-center justify-between mb-2">
+                  <button
+                    onClick={signOut}
+                    className="flex items-center gap-2 py-1.5 px-3 rounded-full transition-all duration-200 hover:bg-black/5 mb-3"
+                    style={{
+                      border: '1px solid var(--text-secondary)',
+                    }}
+                  >
+                    <LogOut size={13} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
+                    <span
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: 'var(--text-secondary)',
+                        fontSize: '12px',
+                        fontWeight: 300,
+                      }}
+                    >
+                      Sign Out
+                    </span>
+                  </button>
+                  <div className="mb-1">
                     <span
                       style={{
                         fontFamily: 'Georgia, serif',
@@ -748,7 +767,7 @@ export function ProfileScreen({
                       Signed in as
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div>
                     <span
                       style={{
                         fontFamily: 'Georgia, serif',
@@ -756,29 +775,11 @@ export function ProfileScreen({
                         fontSize: '14px',
                         fontWeight: 400,
                         letterSpacing: '0.01em',
+                        wordBreak: 'break-all',
                       }}
                     >
                       {user.email}
                     </span>
-                    <button
-                      onClick={signOut}
-                      className="flex items-center gap-2 py-1.5 px-3 rounded-full transition-all duration-200 hover:bg-black/5"
-                      style={{
-                        border: '1px solid var(--text-secondary)',
-                      }}
-                    >
-                      <LogOut size={13} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
-                      <span
-                        style={{
-                          fontFamily: 'Georgia, serif',
-                          color: 'var(--text-secondary)',
-                          fontSize: '12px',
-                          fontWeight: 300,
-                        }}
-                      >
-                        Sign Out
-                      </span>
-                    </button>
                   </div>
                 </div>
               ) : (
