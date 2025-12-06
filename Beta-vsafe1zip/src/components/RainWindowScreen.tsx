@@ -137,7 +137,6 @@ export function RainWindowScreen({
 
   const handleComplete = useCallback(() => {
     triggerHaptic();
-    setShowCompletion(true);
     stopRainAudio();
 
     addEntry({
@@ -151,9 +150,7 @@ export function RainWindowScreen({
       },
     });
 
-    setTimeout(() => {
-      onReturnToChat();
-    }, 3000);
+    onReturnToChat();
   }, [addEntry, elapsedTime, onReturnToChat, stopRainAudio, triggerHaptic]);
 
   // Track elapsed time for session logging (endless mode, no auto-complete)
