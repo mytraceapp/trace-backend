@@ -183,15 +183,15 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
 
   const countdownText = getCountdownText();
 
-  // Generate multiple ripple layers
+  // Generate multiple ripple layers - 20% faded, 35% slower
   const generateRipples = () => {
     const ripples = [];
     const rippleCount = 12;
 
     for (let i = 0; i < rippleCount; i++) {
-      const delay = i * 0.8;
-      const duration = 8;
-      const opacity = 0.55 - i * 0.04;
+      const delay = i * 1.08;  // 35% slower
+      const duration = 10.8;   // 35% slower (was 8)
+      const opacity = 0.44 - i * 0.032;  // 20% faded
 
       ripples.push(
         <motion.div
@@ -204,8 +204,8 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
             top: '50%',
             marginLeft: '-60px',
             marginTop: '-60px',
-            border: '3px solid rgba(168, 149, 133, 0.35)',
-            boxShadow: '0 0 20px rgba(168, 149, 133, 0.25), inset 0 0 20px rgba(255, 255, 255, 0.15)',
+            border: '3px solid rgba(168, 149, 133, 0.28)',  // 20% faded
+            boxShadow: '0 0 20px rgba(168, 149, 133, 0.20), inset 0 0 20px rgba(255, 255, 255, 0.12)',  // 20% faded
           }}
           animate={{
             scale: [1, 6],
@@ -224,9 +224,9 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
 
     // Add secondary geometric ripples with different timing
     for (let i = 0; i < 8; i++) {
-      const delay = i * 1.2 + 0.4;
-      const duration = 10;
-      const opacity = 0.45 - i * 0.05;
+      const delay = i * 1.62 + 0.54;  // 35% slower
+      const duration = 13.5;           // 35% slower (was 10)
+      const opacity = 0.36 - i * 0.04; // 20% faded
 
       ripples.push(
         <motion.div
@@ -239,8 +239,8 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
             top: '50%',
             marginLeft: '-50px',
             marginTop: '-50px',
-            border: '2px solid rgba(154, 135, 120, 0.30)',
-            boxShadow: '0 0 15px rgba(154, 135, 120, 0.20)',
+            border: '2px solid rgba(154, 135, 120, 0.24)',  // 20% faded
+            boxShadow: '0 0 15px rgba(154, 135, 120, 0.16)',  // 20% faded
           }}
           animate={{
             scale: [1, 7],
