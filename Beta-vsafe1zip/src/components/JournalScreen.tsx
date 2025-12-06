@@ -501,30 +501,30 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                 }}
               >
                 {/* Mood toothpick bars - horizontal bars stacked vertically with varying lengths */}
-                <div className="flex flex-col items-center justify-center gap-1.5">
+                <div className="flex flex-col items-center justify-center gap-2 py-2">
                   {(() => {
                     const loggedMoods = selectedDayEntries
                       .filter(e => e.type === 'emotional_note' && e.metadata?.mood)
                       .map(e => e.metadata?.mood as string);
                     
-                    const baseLengths = [80, 55, 70, 45];
+                    const baseLengths = [160, 100, 130, 75];
                     
                     return moodOptions.map((mood, index) => {
                       const isLogged = loggedMoods.includes(mood.type);
-                      const barWidth = isLogged ? 140 : baseLengths[index];
+                      const barWidth = isLogged ? 220 : baseLengths[index];
                       
                       return (
                         <div
                           key={mood.type}
                           style={{
                             width: `${barWidth}px`,
-                            height: '3px',
-                            borderRadius: '1.5px',
+                            height: '5px',
+                            borderRadius: '2.5px',
                             background: mood.color,
                             boxShadow: isLogged 
-                              ? '0 1px 4px rgba(75, 75, 75, 0.15)' 
-                              : 'none',
-                            border: '1px solid rgba(255, 255, 255, 0.4)',
+                              ? '0 2px 8px rgba(75, 75, 75, 0.2)' 
+                              : '0 1px 3px rgba(75, 75, 75, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.5)',
                             transition: 'width 0.3s ease',
                           }}
                         />
