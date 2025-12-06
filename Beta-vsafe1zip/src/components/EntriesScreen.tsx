@@ -112,11 +112,13 @@ export function EntriesScreen({
       </motion.div>
 
       <div 
-        className="entries-scroll relative z-10 flex flex-col h-full pb-52 overflow-y-auto"
+        className="entries-scroll relative z-10 flex flex-col overflow-y-auto"
         style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
           WebkitOverflowScrolling: 'touch',
+          height: '100%',
+          paddingBottom: '220px',
         }}
       >
         <style>{`
