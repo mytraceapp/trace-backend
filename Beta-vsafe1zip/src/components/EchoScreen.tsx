@@ -45,11 +45,13 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
     resize();
     window.addEventListener('resize', resize);
 
+    const verticalOffset = -15;
+
     const drawRadialGrid = (time: number) => {
       const width = canvas.width / (window.devicePixelRatio || 1);
       const height = canvas.height / (window.devicePixelRatio || 1);
       const centerX = width / 2;
-      const centerY = height / 2;
+      const centerY = height / 2 + verticalOffset;
       const maxRadius = Math.max(width, height) * 0.9;
 
       ctx.save();
@@ -89,7 +91,7 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
       const width = canvas.width / (window.devicePixelRatio || 1);
       const height = canvas.height / (window.devicePixelRatio || 1);
       const centerX = width / 2;
-      const centerY = height / 2;
+      const centerY = height / 2 + verticalOffset;
 
       const breathe = 1 + Math.sin(time * 0.0004) * 0.08;
       const baseRadius = Math.min(width, height) * 0.35;
@@ -131,7 +133,7 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
     const drawWaveform = (time: number) => {
       const width = canvas.width / (window.devicePixelRatio || 1);
       const height = canvas.height / (window.devicePixelRatio || 1);
-      const centerY = height / 2;
+      const centerY = height / 2 + verticalOffset;
 
       const layers = [
         { color: LUNA_PALETTE.midnightBlue, opacity: 0.85, amplitude: 60, frequency: 0.008, speed: 0.0003, offset: 0, blur: 4 },
