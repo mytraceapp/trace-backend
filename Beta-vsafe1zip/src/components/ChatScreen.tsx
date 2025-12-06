@@ -945,12 +945,11 @@ export function ChatScreen({
                         transition: { duration: 0.2 }
                       }}
                       transition={{ 
-                        type: "spring",
-                        stiffness: 1.7,
-                        damping: 4,
-                        mass: 9.5,
-                        opacity: { duration: 3.7 },
-                        layout: { type: "spring", stiffness: 1.1, damping: 3.5, mass: 12 }
+                        type: "tween",
+                        duration: 1.8,
+                        ease: [0.25, 0.1, 0.25, 1],
+                        opacity: { duration: 2.5, ease: "easeOut" },
+                        layout: { type: "tween", duration: 1.5, ease: [0.22, 0.61, 0.36, 1] }
                       }}
                     >
                       <motion.div 
@@ -965,13 +964,12 @@ export function ChatScreen({
                             ? '0 2px 8px rgba(0, 0, 0, 0.1)'
                             : '0 2px 8px rgba(0, 0, 0, 0.08)',
                         }}
-                        initial={{ scale: 0.99 }}
+                        initial={{ scale: 0.98 }}
                         animate={{ scale: 1 }}
                         transition={{ 
-                          type: "spring",
-                          stiffness: 1.7,
-                          damping: 4,
-                          mass: 8
+                          type: "tween",
+                          duration: 1.2,
+                          ease: [0.22, 0.61, 0.36, 1]
                         }}
                       >
                         <p 
