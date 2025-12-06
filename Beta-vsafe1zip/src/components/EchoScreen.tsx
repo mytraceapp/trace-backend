@@ -49,7 +49,7 @@ export default function EchoScreen({
     const ambientAudio = new Audio('/audio/ambient-loop.mp3');
     ambientAudio.loop = true;
     ambientAudio.volume = 0;
-    ambientAudio.playbackRate = 0.9;
+    ambientAudio.playbackRate = 0.82;
     ambientAudioRef.current = ambientAudio;
     
     ambientAudio.play().then(() => {
@@ -84,13 +84,13 @@ export default function EchoScreen({
     const fadeIn = () => {
       let vol = 0;
       const fadeInterval = setInterval(() => {
-        vol += 0.02;
+        vol += 0.005; // Very gradual fade in
         if (vol >= 0.83) {
           vol = 0.83;
           clearInterval(fadeInterval);
         }
         if (audioRef.current) audioRef.current.volume = vol;
-      }, 50);
+      }, 40);
     };
 
     // Delay TRACE's voice by 7 seconds, letting the music set the mood first
