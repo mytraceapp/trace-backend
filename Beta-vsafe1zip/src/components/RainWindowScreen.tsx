@@ -185,7 +185,7 @@ export function RainWindowScreen({
       className="relative w-full h-full overflow-hidden"
       style={{ background: '#0a0c0b' }}
     >
-      {/* Rain Window Video - filter changes based on quiet mode */}
+      {/* Normal Mode Video */}
       <video
         ref={videoRef}
         className="absolute object-cover"
@@ -203,9 +203,33 @@ export function RainWindowScreen({
           minHeight: '115%',
           width: 'auto',
           height: 'auto',
-          filter: quietMode ? 'brightness(0.35) saturate(0.4)' : 'brightness(0.57) saturate(0.9)',
-          opacity: videoOpacity,
-          transition: 'filter 1.2s ease-in-out, opacity 1.2s ease-in-out',
+          filter: 'brightness(0.57) saturate(0.9)',
+          opacity: quietMode ? 0 : videoOpacity,
+          transition: 'opacity 1.2s ease-in-out',
+        }}
+      />
+
+      {/* Quiet Mode Video - same video, darker treatment */}
+      <video
+        ref={quietVideoRef}
+        className="absolute object-cover"
+        src="/video/rain-window.mp4"
+        muted
+        loop
+        playsInline
+        autoPlay
+        preload="auto"
+        style={{
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%) scale(1.15)',
+          minWidth: '115%',
+          minHeight: '115%',
+          width: 'auto',
+          height: 'auto',
+          filter: 'brightness(0.35) saturate(0.5)',
+          opacity: quietMode ? videoOpacity : 0,
+          transition: 'opacity 1.2s ease-in-out',
         }}
       />
 
