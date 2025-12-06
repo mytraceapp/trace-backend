@@ -85,8 +85,8 @@ export default function EchoScreen({
       let vol = 0;
       const fadeInterval = setInterval(() => {
         vol += 0.02;
-        if (vol >= 0.85) {
-          vol = 0.85;
+        if (vol >= 0.83) {
+          vol = 0.83;
           clearInterval(fadeInterval);
         }
         if (audioRef.current) audioRef.current.volume = vol;
@@ -96,7 +96,7 @@ export default function EchoScreen({
     const startTimeout = setTimeout(() => {
       setupAudioAnalyser();
       audio.play().then(fadeIn).catch(() => {});
-    }, 1500);
+    }, 7000);
 
     return () => {
       clearTimeout(startTimeout);
