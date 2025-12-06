@@ -22,7 +22,7 @@ export function AmbientAudioPlayer({
   const { play, pause, isPlaying, isLoaded } = useAmbientAudio({
     src: '/audio/ambient-loop.mp3',
     volume,
-    fadeInDuration: 2000,
+    fadeInDuration: 5000,
     fadeOutDuration: 1200,
     loop: true,
     startDelay,

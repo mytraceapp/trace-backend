@@ -56,7 +56,7 @@ export default function App() {
   }, []);
   const userName = profile?.name || 'there';
 
-  const screensWithOwnAudio = ['home', 'auth', 'onboarding', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding', 'maze', 'rainwindow', 'echo'];
+  const screensWithOwnAudio = ['home', 'onboarding', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding', 'maze', 'rainwindow', 'echo'];
   const shouldPlayAmbient = ambientAudioStarted && ambienceEnabled && !screensWithOwnAudio.includes(currentScreen);
   
   React.useEffect(() => {
