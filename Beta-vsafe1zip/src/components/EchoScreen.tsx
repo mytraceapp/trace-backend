@@ -43,7 +43,7 @@ export default function EchoScreen({
     audio.volume = 0;
     audio.loop = false;
     audio.crossOrigin = 'anonymous';
-    audio.playbackRate = 0.98; // Slow down by 2% for smoother delivery
+    audio.playbackRate = 0.95; // Slow down by 5% for smoother delivery
     audioRef.current = audio;
 
     // Start ambient music immediately when page loads
