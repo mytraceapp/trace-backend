@@ -29,18 +29,18 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
     if (isAwakened) {
       const rippleTimer = setTimeout(() => {
         setShowWakeRipple(true);
-      }, 4500);
+      }, 3000);
 
       return () => clearTimeout(rippleTimer);
     }
   }, [isAwakened]);
 
-  // Auto-transition to auth page after orb rises (5s) + ripple (1.5s)
+  // Auto-transition to auth page after orb rises (5s) + slow ripple (4s)
   React.useEffect(() => {
     if (isAwakened && onNavigateToAuth) {
       const transitionTimer = setTimeout(() => {
         onNavigateToAuth();
-      }, 7000);
+      }, 8500);
 
       return () => {
         clearTimeout(transitionTimer);
@@ -266,15 +266,15 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
                   key={`ripple-${i}`}
                   className="absolute inset-0 rounded-full"
                   style={{
-                    border: '2px solid rgba(180, 145, 90, 0.5)',
-                    boxShadow: '0 0 25px rgba(180, 145, 90, 0.3), inset 0 0 15px rgba(180, 145, 90, 0.15)',
+                    border: '2px solid rgba(139, 110, 78, 0.55)',
+                    boxShadow: '0 0 30px rgba(139, 110, 78, 0.35), inset 0 0 20px rgba(139, 110, 78, 0.2)',
                   }}
-                  initial={{ scale: 1, opacity: 0.7 }}
+                  initial={{ scale: 1, opacity: 0.65 }}
                   animate={{ scale: 4, opacity: 0 }}
                   transition={{
-                    duration: 2,
-                    delay: i * 0.25,
-                    ease: [0.22, 0.61, 0.36, 1],
+                    duration: 4,
+                    delay: i * 0.5,
+                    ease: [0.25, 0.46, 0.45, 0.94],
                   }}
                 />
               ))}
