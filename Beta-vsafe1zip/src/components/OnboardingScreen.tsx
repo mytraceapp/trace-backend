@@ -21,8 +21,8 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         let vol = 0;
         const fadeIn = setInterval(() => {
           vol += 0.05;
-          if (vol >= 0.8) {
-            vol = 0.8;
+          if (vol >= 0.85) {
+            vol = 0.85;
             clearInterval(fadeIn);
           }
           audio.volume = vol;
@@ -30,7 +30,7 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
       }).catch(() => {});
     };
 
-    const timer = setTimeout(playAudio, 500);
+    const timer = setTimeout(playAudio, 1000);
 
     return () => {
       clearTimeout(timer);
