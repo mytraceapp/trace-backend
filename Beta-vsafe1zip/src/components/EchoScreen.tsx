@@ -50,7 +50,7 @@ export default function EchoScreen({
     const ambientAudio = new Audio('/audio/ambient-loop.mp3');
     ambientAudio.loop = true;
     ambientAudio.volume = 0;
-    ambientAudio.playbackRate = 0.77;
+    ambientAudio.playbackRate = 0.88;
     ambientAudioRef.current = ambientAudio;
     
     ambientAudio.play().then(() => {
@@ -58,8 +58,8 @@ export default function EchoScreen({
       let vol = 0;
       const fadeInterval = setInterval(() => {
         vol += 0.003;
-        if (vol >= 0.06) {
-          vol = 0.06;
+        if (vol >= 0.10) {
+          vol = 0.10;
           clearInterval(fadeInterval);
         }
         if (ambientAudioRef.current) ambientAudioRef.current.volume = vol;
@@ -94,11 +94,11 @@ export default function EchoScreen({
       }, 40);
     };
 
-    // Delay TRACE's voice by 7 seconds, letting the music set the mood first
+    // Delay TRACE's voice by 4 seconds, letting the music set the mood first
     const startTimeout = setTimeout(() => {
       setupAudioAnalyser();
       audio.play().then(fadeIn).catch(() => {});
-    }, 7000);
+    }, 4000);
 
     return () => {
       clearTimeout(startTimeout);
