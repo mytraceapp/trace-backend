@@ -266,10 +266,10 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
                   key={`ripple-${i}`}
                   className="absolute inset-0 rounded-full"
                   style={{
-                    border: '1.5px solid rgba(139, 110, 78, 0.38)',
-                    boxShadow: '0 0 20px rgba(139, 110, 78, 0.23)',
+                    border: '1.5px solid rgba(139, 110, 78, 0.35)',
+                    boxShadow: '0 0 20px rgba(139, 110, 78, 0.20)',
                   }}
-                  initial={{ scale: 1, opacity: 0.34 }}
+                  initial={{ scale: 1, opacity: 0.31 }}
                   animate={{ scale: 3.5, opacity: 0 }}
                   transition={{
                     duration: 10,
