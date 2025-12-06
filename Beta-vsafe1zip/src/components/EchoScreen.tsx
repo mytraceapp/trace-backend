@@ -20,7 +20,6 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
   const animationRef = useRef<number>(0);
   const timeRef = useRef<number>(0);
   const [isExiting, setIsExiting] = useState(false);
-  const [sessionTime, setSessionTime] = useState(0);
 
   const handleExit = useCallback(() => {
     setIsExiting(true);
@@ -28,13 +27,6 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
       onBack();
     }, 600);
   }, [onBack]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSessionTime(prev => prev + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -106,9 +98,9 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
         centerX, centerY, 0,
         centerX, centerY, radius * 1.5
       );
-      gradient.addColorStop(0, 'rgba(45, 58, 74, 0.15)');
-      gradient.addColorStop(0.4, 'rgba(45, 58, 74, 0.08)');
-      gradient.addColorStop(0.7, 'rgba(107, 124, 107, 0.04)');
+      gradient.addColorStop(0, 'rgba(45, 58, 74, 0.20)');
+      gradient.addColorStop(0.4, 'rgba(45, 58, 74, 0.12)');
+      gradient.addColorStop(0.7, 'rgba(107, 124, 107, 0.06)');
       gradient.addColorStop(1, 'rgba(107, 124, 107, 0)');
 
       ctx.save();
@@ -123,7 +115,7 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
         centerX, centerY, 0,
         centerX, centerY, radius * 0.6
       );
-      innerGlow.addColorStop(0, 'rgba(212, 196, 168, 0.06)');
+      innerGlow.addColorStop(0, 'rgba(212, 196, 168, 0.10)');
       innerGlow.addColorStop(1, 'rgba(212, 196, 168, 0)');
 
       ctx.save();
@@ -273,12 +265,6 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
     };
   }, []);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   return (
     <AnimatePresence>
       {!isExiting && (
@@ -322,40 +308,6 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
           >
             <X size={20} color={LUNA_PALETTE.fogWhite} strokeWidth={1.5} />
           </motion.button>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.6 }}
-            className="absolute bottom-32 left-0 right-0 flex flex-col items-center z-10"
-          >
-            <p 
-              className="text-sm tracking-widest uppercase mb-2"
-              style={{ color: `${LUNA_PALETTE.sageGray}99` }}
-            >
-              Echo
-            </p>
-            <p 
-              className="text-2xl font-light tracking-wide"
-              style={{ color: LUNA_PALETTE.fogWhite }}
-            >
-              {formatTime(sessionTime)}
-            </p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7, duration: 0.5 }}
-            className="absolute bottom-16 left-0 right-0 flex justify-center z-10"
-          >
-            <p 
-              className="text-xs tracking-wide text-center px-8"
-              style={{ color: `${LUNA_PALETTE.beige}66` }}
-            >
-              Breathe slowly. Let the waves carry your thoughts.
-            </p>
-          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
