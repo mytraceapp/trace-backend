@@ -30,6 +30,8 @@ import { PaymentScreen } from './components/PaymentScreen';
 import { PaymentSuccessOverlay } from './components/PaymentSuccessOverlay';
 import { AmbientAudioPlayer } from './components/AmbientAudioPlayer';
 import AuthModal from './components/AuthModal';
+import { supabase } from './lib/supabaseClient';
+import type { User } from '@supabase/supabase-js';
 
 export default function App() {
   const { selectedPlan, profile, isUpgrading, setIsUpgrading, ambienceEnabled, ambienceVolume } = useUser();
@@ -38,6 +40,20 @@ export default function App() {
   const [showPaymentSuccess, setShowPaymentSuccess] = React.useState(false);
   const [showAuthModal, setShowAuthModal] = React.useState(false);
   const [ambientAudioStarted, setAmbientAudioStarted] = React.useState(false);
+  const [user, setUser] = React.useState<User | null>(null);
+
+  // Supabase session listener - store logged-in user state
+  React.useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
   const userName = profile?.name || 'there';
 
   const screensWithOwnAudio = ['home', 'onboarding', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding', 'maze', 'rainwindow', 'echo'];
