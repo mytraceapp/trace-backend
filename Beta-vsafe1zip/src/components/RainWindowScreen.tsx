@@ -29,8 +29,17 @@ export function RainWindowScreen({
   const timerRef = useRef<number | null>(null);
   const introTimeoutRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const quietVideoRef = useRef<HTMLVideoElement | null>(null);
   const isFadingRef = useRef(false);
   const { addEntry } = useEntries();
+
+  // Setup quiet video playback rate
+  useEffect(() => {
+    const quietVideo = quietVideoRef.current;
+    if (quietVideo) {
+      quietVideo.playbackRate = 0.7;
+    }
+  }, []);
 
   // Toggle quiet mode with micro-toast
   const toggleQuietMode = useCallback(() => {
@@ -178,7 +187,7 @@ export function RainWindowScreen({
       className="relative w-full h-full overflow-hidden"
       style={{ background: '#0a0c0b' }}
     >
-      {/* Single Video - filter changes based on quiet mode */}
+      {/* Normal Mode Video */}
       <video
         ref={videoRef}
         className="absolute object-cover"
@@ -197,8 +206,36 @@ export function RainWindowScreen({
           minHeight: '115%',
           width: 'auto',
           height: 'auto',
-          filter: quietMode ? 'brightness(0.35) saturate(0.4)' : 'brightness(0.57) saturate(0.9)',
-          transition: 'filter 1.2s ease-in-out',
+          filter: 'brightness(0.57) saturate(0.9)',
+          opacity: quietMode ? 0 : 1,
+          transition: 'opacity 1.2s ease-in-out',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Quiet Mode Video - separate video file */}
+      <video
+        ref={quietVideoRef}
+        className="absolute object-cover"
+        src="/video/rain-quiet.mp4"
+        muted
+        loop
+        playsInline
+        autoPlay
+        preload="auto"
+        style={{
+          zIndex: 2,
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%) scale(1.15)',
+          minWidth: '115%',
+          minHeight: '115%',
+          width: 'auto',
+          height: 'auto',
+          filter: 'brightness(0.5) saturate(0.6)',
+          opacity: quietMode ? 1 : 0,
+          transition: 'opacity 1.2s ease-in-out',
+          pointerEvents: 'none',
         }}
       />
 
