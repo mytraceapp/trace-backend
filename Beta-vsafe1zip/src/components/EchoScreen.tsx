@@ -35,6 +35,8 @@ export default function EchoScreen({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioDataRef = useRef<Uint8Array | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const ambientGainRef = useRef<GainNode | null>(null);
+  const ambientOscillatorsRef = useRef<OscillatorNode[]>([]);
   const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
@@ -58,6 +60,44 @@ export default function EchoScreen({
       analyser.connect(audioContext.destination);
       
       audioDataRef.current = new Uint8Array(analyser.frequencyBinCount);
+
+      // Very subtle ambient pad - ethereal background texture
+      const ambientGain = audioContext.createGain();
+      ambientGain.gain.value = 0;
+      ambientGainRef.current = ambientGain;
+
+      // Soft low-pass filter for warmth
+      const lowPass = audioContext.createBiquadFilter();
+      lowPass.type = 'lowpass';
+      lowPass.frequency.value = 120;
+      lowPass.Q.value = 0.3;
+
+      // Gentle oscillators at harmonically related frequencies
+      const frequencies = [65, 98, 130]; // C2, G2, C3 - open fifth harmony
+      const oscillators: OscillatorNode[] = [];
+
+      frequencies.forEach((freq, i) => {
+        const osc = audioContext.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        
+        // Very subtle individual gains
+        const oscGain = audioContext.createGain();
+        oscGain.gain.value = i === 0 ? 0.06 : 0.03;
+        
+        osc.connect(oscGain);
+        oscGain.connect(lowPass);
+        osc.start();
+        oscillators.push(osc);
+      });
+
+      lowPass.connect(ambientGain);
+      ambientGain.connect(audioContext.destination);
+      ambientOscillatorsRef.current = oscillators;
+
+      // Very slow fade in to barely audible level
+      ambientGain.gain.setValueAtTime(0, audioContext.currentTime);
+      ambientGain.gain.linearRampToValueAtTime(0.08, audioContext.currentTime + 3);
     };
 
     const fadeIn = () => {
@@ -93,12 +133,19 @@ export default function EchoScreen({
           }
         }, 30);
       }
+      // Fade out ambient
+      if (ambientGainRef.current && audioContextRef.current) {
+        ambientGainRef.current.gain.linearRampToValueAtTime(0, audioContextRef.current.currentTime + 0.5);
+      }
+      ambientOscillatorsRef.current.forEach(osc => {
+        try { osc.stop(audioContextRef.current!.currentTime + 0.6); } catch {}
+      });
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         setTimeout(() => {
           if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
             audioContextRef.current.close().catch(() => {});
           }
-        }, 600);
+        }, 700);
       }
     };
   }, []);
@@ -117,6 +164,10 @@ export default function EchoScreen({
           audioRef.current.volume = vol;
         }
       }, 30);
+    }
+    // Fade out ambient on exit
+    if (ambientGainRef.current && audioContextRef.current) {
+      ambientGainRef.current.gain.linearRampToValueAtTime(0, audioContextRef.current.currentTime + 1.5);
     }
     setTimeout(() => {
       onBack();
