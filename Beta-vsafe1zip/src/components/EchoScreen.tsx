@@ -50,7 +50,7 @@ export default function EchoScreen({
     const ambientAudio = new Audio('/audio/ambient-loop.mp3');
     ambientAudio.loop = true;
     ambientAudio.volume = 0;
-    ambientAudio.playbackRate = 0.82;
+    ambientAudio.playbackRate = 0.77;
     ambientAudioRef.current = ambientAudio;
     
     ambientAudio.play().then(() => {
