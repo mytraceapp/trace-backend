@@ -23,7 +23,7 @@ export function AmbientAudioPlayer({
     src: '/audio/ambient-loop.mp3',
     volume,
     fadeInDuration: 2000,
-    fadeOutDuration: 400,
+    fadeOutDuration: 1200,
     loop: true,
     startDelay,
     playbackRate,
