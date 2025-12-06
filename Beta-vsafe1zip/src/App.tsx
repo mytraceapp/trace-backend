@@ -29,12 +29,14 @@ import { AccountSetupScreen } from './components/AccountSetupScreen';
 import { PaymentScreen } from './components/PaymentScreen';
 import { PaymentSuccessOverlay } from './components/PaymentSuccessOverlay';
 import { AmbientAudioPlayer } from './components/AmbientAudioPlayer';
+import AuthModal from './components/AuthModal';
 
 export default function App() {
   const { selectedPlan, profile, isUpgrading, setIsUpgrading, ambienceEnabled, ambienceVolume } = useUser();
   const { theme } = useTheme();
   const [currentScreen, setCurrentScreen] = React.useState<'home' | 'auth' | 'accountsetup' | 'payment' | 'onboarding' | 'chat' | 'activities' | 'activitieshub' | 'breathing' | 'maze' | 'walking' | 'powernap' | 'pearlripple' | 'grounding' | 'rainwindow' | 'echo' | 'journal' | 'entries' | 'patterns' | 'fullpatterns' | 'help' | 'inthisspace' | 'crisis' | 'privacy' | 'terms' | 'profile'>('home');
   const [showPaymentSuccess, setShowPaymentSuccess] = React.useState(false);
+  const [showAuthModal, setShowAuthModal] = React.useState(false);
   const [ambientAudioStarted, setAmbientAudioStarted] = React.useState(false);
   const userName = profile?.name || 'there';
 
@@ -375,6 +377,9 @@ export default function App() {
           <button onClick={() => setCurrentScreen('terms')} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Terms</button>
         </div>
       </div>
+
+      {/* Auth Modal - sits above all screens */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 }
