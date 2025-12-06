@@ -7,6 +7,7 @@ import { useTheme } from '../state/ThemeContext';
 import { useAuth } from '../state/AuthContext';
 import { AboutTraceModal } from './AboutTraceModal';
 import AuthModal from './AuthModal';
+import { PasscodeSettingsModal } from './PasscodeSettingsModal';
 
 interface ProfileScreenProps {
   onNavigateToActivities?: () => void;
@@ -34,6 +35,7 @@ export function ProfileScreen({
   const { user, signOut, currentProfile, updateProfileData } = useAuth();
   const [showAuthModal, setShowAuthModal] = React.useState(false);
   const [showEditNameModal, setShowEditNameModal] = React.useState(false);
+  const [showPasscodeSettings, setShowPasscodeSettings] = React.useState(false);
   const [editingName, setEditingName] = React.useState('');
   const [isSavingName, setIsSavingName] = React.useState(false);
   
@@ -671,6 +673,7 @@ export function ProfileScreen({
             <div className="space-y-1">
               <button
                 className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
+                onClick={() => setShowPasscodeSettings(true)}
               >
                 <div className="flex items-center gap-3">
                   <Lock size={15} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
@@ -1405,6 +1408,12 @@ export function ProfileScreen({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Passcode Settings Modal */}
+      <PasscodeSettingsModal
+        isOpen={showPasscodeSettings}
+        onClose={() => setShowPasscodeSettings(false)}
+      />
 
     </div>
   );

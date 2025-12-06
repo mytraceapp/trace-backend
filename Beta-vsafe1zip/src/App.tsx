@@ -30,6 +30,7 @@ import { PaymentScreen } from './components/PaymentScreen';
 import { PaymentSuccessOverlay } from './components/PaymentSuccessOverlay';
 import { AmbientAudioPlayer } from './components/AmbientAudioPlayer';
 import AuthModal from './components/AuthModal';
+import { PasscodeLockScreen } from './components/PasscodeLockScreen';
 import { supabase } from './lib/supabaseClient';
 import type { User } from '@supabase/supabase-js';
 
@@ -42,6 +43,23 @@ export default function App() {
   const [ambientAudioStarted, setAmbientAudioStarted] = React.useState(false);
   const [ambientCrossfadeActive, setAmbientCrossfadeActive] = React.useState(false);
   const [user, setUser] = React.useState<User | null>(null);
+  const [isLocked, setIsLocked] = React.useState(false);
+  const [biometricAvailable, setBiometricAvailable] = React.useState(false);
+
+  // Check if passcode is enabled on mount
+  React.useEffect(() => {
+    const passcode = localStorage.getItem('trace-passcode');
+    if (passcode) {
+      setIsLocked(true);
+    }
+    
+    // Check biometric availability
+    if (window.PublicKeyCredential) {
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then(available => setBiometricAvailable(available))
+        .catch(() => setBiometricAvailable(false));
+    }
+  }, []);
 
   // Supabase session listener - store logged-in user state
   React.useEffect(() => {
@@ -417,6 +435,16 @@ export default function App() {
 
       {/* Auth Modal - sits above all screens */}
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+
+      {/* Passcode Lock Screen */}
+      {isLocked && (
+        <PasscodeLockScreen
+          mode="unlock"
+          onUnlock={() => setIsLocked(false)}
+          biometricAvailable={biometricAvailable && localStorage.getItem('trace-biometric-enabled') === 'true'}
+          onBiometricUnlock={() => setIsLocked(false)}
+        />
+      )}
     </div>
   );
 }
