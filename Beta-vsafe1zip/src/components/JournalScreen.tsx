@@ -487,7 +487,7 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
           {expandedDay && selectedDayEntries.length > 0 && (
             <motion.div
               className="w-full px-6"
-              style={{ marginTop: '3px', marginBottom: '24px' }}
+              style={{ marginTop: '-6px', marginBottom: '24px' }}
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
