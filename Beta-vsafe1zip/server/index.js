@@ -273,7 +273,7 @@ Examples of good greetings:
 - "It's late... I'm glad you came."
 - "Hi. Whenever you're ready."
 
-Respond with ONLY the greeting text, nothing else.`;
+Respond with ONLY the greeting text, nothing else. Do NOT include quotation marks around your response.`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -284,7 +284,9 @@ Respond with ONLY the greeting text, nothing else.`;
       temperature: 0.9, // Higher creativity for unique greetings
     });
 
-    const greeting = response.choices[0]?.message?.content?.trim() || "I'm here with you.";
+    let greeting = response.choices[0]?.message?.content?.trim() || "I'm here with you.";
+    // Remove any quotation marks the AI might have added
+    greeting = greeting.replace(/^["']|["']$/g, '');
     console.log('Generated greeting:', greeting);
     
     res.json({ greeting });
