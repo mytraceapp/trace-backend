@@ -7,7 +7,6 @@ import { useTheme } from '../state/ThemeContext';
 import { 
   sendMessageToTrace, 
   getTraceGreeting, 
-  detectActivitySuggestion, 
   detectUserAgreement, 
   getLastSuggestedActivity,
   clearLastSuggestedActivity,
@@ -32,6 +31,9 @@ interface ChatScreenProps {
   onNavigateToMaze?: () => void;
   onNavigateToPowerNap?: () => void;
   onNavigateToPearlRipple?: () => void;
+  onNavigateToRest?: () => void;
+  onNavigateToWindow?: () => void;
+  onNavigateToEcho?: () => void;
   shouldStartGreeting?: boolean;
 }
 
@@ -47,6 +49,9 @@ export function ChatScreen({
   onNavigateToMaze,
   onNavigateToPowerNap,
   onNavigateToPearlRipple,
+  onNavigateToRest,
+  onNavigateToWindow,
+  onNavigateToEcho,
   shouldStartGreeting = true,
 }: ChatScreenProps = {}) {
   void _onNavigateToPatterns;
@@ -186,6 +191,19 @@ export function ChatScreen({
   type OrbEmotion = 'idle' | 'listening' | 'thinking' | 'speaking' | 'surprised' | 'empathetic' | 'joyful' | 'calm';
   const [orbEmotion, setOrbEmotion] = React.useState<OrbEmotion>('idle');
   
+  // Map activity names from AI response to internal activity types
+  const mapActivityName = (name: string): ActivityType => {
+    const mapping: Record<string, ActivityType> = {
+      'Breathing': 'breathing',
+      'Trace the Maze': 'maze',
+      'Walking Reset': 'walking',
+      'Rest': 'rest',
+      'Window': 'window',
+      'Echo': 'echo',
+    };
+    return mapping[name] || null;
+  };
+  
   // Detect emotion from AI response
   const detectEmotion = (text: string): OrbEmotion => {
     const lower = text.toLowerCase();
@@ -243,8 +261,17 @@ export function ChatScreen({
       case 'pearlripple':
         onNavigateToPearlRipple?.();
         break;
+      case 'rest':
+        onNavigateToRest?.();
+        break;
+      case 'window':
+        onNavigateToWindow?.();
+        break;
+      case 'echo':
+        onNavigateToEcho?.();
+        break;
     }
-  }, [onNavigateToBreathing, onNavigateToGrounding, onNavigateToWalking, onNavigateToMaze, onNavigateToPowerNap, onNavigateToPearlRipple]);
+  }, [onNavigateToBreathing, onNavigateToGrounding, onNavigateToWalking, onNavigateToMaze, onNavigateToPowerNap, onNavigateToPearlRipple, onNavigateToRest, onNavigateToWindow, onNavigateToEcho]);
 
   const handleSend = async () => {
     if (message.trim() && !isThinking) {
@@ -301,24 +328,37 @@ export function ChatScreen({
       setOrbEmotion('thinking');
       
       try {
-        // Get real response from TRACE AI
-        const response = await sendMessageToTrace(userMsg);
+        // Get real response from TRACE AI (now returns object with message and activity_suggestion)
+        const traceResponse = await sendMessageToTrace(userMsg);
+        const { message: responseMessage, activity_suggestion } = traceResponse;
         
         // Detect emotion and animate orb accordingly
-        const emotion = detectEmotion(response);
+        const emotion = detectEmotion(responseMessage);
         setOrbEmotion(emotion);
         
-        // Check if TRACE suggested an activity
-        const suggestedActivity = detectActivitySuggestion(response);
-        if (suggestedActivity) {
-          setPendingActivity(suggestedActivity);
+        // Check if TRACE suggested an activity (from the structured response)
+        if (activity_suggestion?.name) {
+          const activityType = mapActivityName(activity_suggestion.name);
+          if (activityType) {
+            setPendingActivity(activityType);
+          }
         }
         
         setMessages(prev => [...prev, {
           id: Date.now() + 1,
-          text: response,
+          text: responseMessage,
           sender: 'ai'
         }]);
+        
+        // If should_navigate is true, navigate to the activity after showing the message
+        if (activity_suggestion?.should_navigate && activity_suggestion?.name) {
+          const activityType = mapActivityName(activity_suggestion.name);
+          if (activityType) {
+            setTimeout(() => {
+              navigateToActivity(activityType);
+            }, 1500);
+          }
+        }
         
         // Return to idle after response settles
         setTimeout(() => setOrbEmotion('idle'), 5000);

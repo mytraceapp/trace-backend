@@ -55,7 +55,12 @@ function cleanConversationHistory(history: ChatMessage[]): ChatMessage[] {
 conversationHistory = cleanConversationHistory(conversationHistory);
 saveConversationHistory(conversationHistory);
 
-export async function sendMessageToTrace(userMessage: string): Promise<string> {
+export interface TraceResponse {
+  message: string;
+  activity_suggestion: ActivitySuggestion;
+}
+
+export async function sendMessageToTrace(userMessage: string): Promise<TraceResponse> {
   // Add user message to history
   conversationHistory.push({
     role: 'user',
@@ -90,6 +95,19 @@ export async function sendMessageToTrace(userMessage: string): Promise<string> {
 
     const data = await response.json();
     const assistantMessage = data.message || "mm, what's on your mind?";
+    const activitySuggestion: ActivitySuggestion = data.activity_suggestion || {
+      name: null,
+      reason: null,
+      should_navigate: false
+    };
+
+    // Store the activity suggestion for later reference
+    lastActivitySuggestion = activitySuggestion;
+    
+    // Map the activity name to our internal activity type
+    if (activitySuggestion.name) {
+      lastSuggestedActivity = mapActivityNameToType(activitySuggestion.name);
+    }
 
     // Add assistant response to history
     conversationHistory.push({
@@ -104,13 +122,37 @@ export async function sendMessageToTrace(userMessage: string): Promise<string> {
     
     saveConversationHistory(conversationHistory);
 
-    return assistantMessage;
+    return {
+      message: assistantMessage,
+      activity_suggestion: activitySuggestion
+    };
   } catch (error: any) {
     console.error('TRACE AI error:', error?.message || error);
     
     // Don't save fallback to history - it poisons future responses
-    return "mm, I'm here.";
+    return {
+      message: "mm, I'm here.",
+      activity_suggestion: { name: null, reason: null, should_navigate: false }
+    };
   }
+}
+
+// Map AI activity names to our internal activity types
+function mapActivityNameToType(name: string): ActivityType {
+  const mapping: Record<string, ActivityType> = {
+    'Breathing': 'breathing',
+    'Trace the Maze': 'maze',
+    'Walking Reset': 'walking',
+    'Rest': 'rest',
+    'Window': 'window',
+    'Echo': 'echo',
+  };
+  return mapping[name] || null;
+}
+
+// Get the last activity suggestion from the AI
+export function getLastActivitySuggestion(): ActivitySuggestion | null {
+  return lastActivitySuggestion;
 }
 
 export function clearConversation(): void {
@@ -133,10 +175,18 @@ export function reloadConversationFromStorage(): ChatMessage[] {
 }
 
 // Activity types that TRACE can suggest
-export type ActivityType = 'breathing' | 'grounding' | 'walking' | 'maze' | 'powernap' | 'pearlripple' | null;
+export type ActivityType = 'breathing' | 'grounding' | 'walking' | 'maze' | 'powernap' | 'pearlripple' | 'window' | 'echo' | 'rest' | null;
+
+// Activity suggestion from the AI response
+export interface ActivitySuggestion {
+  name: string | null;
+  reason: string | null;
+  should_navigate: boolean;
+}
 
 // Track the last suggested activity
 let lastSuggestedActivity: ActivityType = null;
+let lastActivitySuggestion: ActivitySuggestion | null = null;
 
 // Detect if TRACE's response contains an activity suggestion
 export function detectActivitySuggestion(response: string): ActivityType {
