@@ -75,7 +75,7 @@ export default function EchoScreen({
     const startTimeout = setTimeout(() => {
       setupAudioAnalyser();
       audio.play().then(fadeIn).catch(() => {});
-    }, 4000);
+    }, 1500);
 
     return () => {
       clearTimeout(startTimeout);
