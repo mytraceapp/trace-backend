@@ -30,7 +30,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
   const oceanNodesRef = useRef<any[]>([]);
   const masterGainRef = useRef<GainNode | null>(null);
 
-  // Initialize ocean wave audio
+  // Initialize ocean wave audio - clean, pure tones without reverb or static
   useEffect(() => {
     const initOceanAudio = () => {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -39,62 +39,53 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
       // Master gain control with smooth fade in
       const masterGainNode = ctx.createGain();
       masterGainNode.gain.setValueAtTime(0, ctx.currentTime);
-      masterGainNode.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.3);
-      masterGainNode.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 1.5);
-      masterGainNode.gain.linearRampToValueAtTime(0.22, ctx.currentTime + 3);
+      masterGainNode.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 1);
+      masterGainNode.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 3);
       masterGainNode.connect(ctx.destination);
       
-      // Create smooth wave pad - all start immediately
-      const createSmoothPad = (frequency: number, gain: number, detune: number = 0) => {
+      // Create pure, clean tone - no filters, direct connection
+      const createPureTone = (frequency: number, gain: number) => {
         const osc = ctx.createOscillator();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(frequency, ctx.currentTime);
-        osc.detune.setValueAtTime(detune, ctx.currentTime);
         
         const oscGain = ctx.createGain();
         oscGain.gain.setValueAtTime(gain, ctx.currentTime);
         
-        // Smooth low-pass filter
-        const lowPass = ctx.createBiquadFilter();
-        lowPass.type = 'lowpass';
-        lowPass.frequency.setValueAtTime(500, ctx.currentTime);
-        lowPass.Q.setValueAtTime(0.5, ctx.currentTime);
-        
-        osc.connect(lowPass);
-        lowPass.connect(oscGain);
+        osc.connect(oscGain);
         oscGain.connect(masterGainNode);
         
         osc.start(0);
         
-        return { oscillator: osc, gain: oscGain, filter: lowPass };
+        return { oscillator: osc, gain: oscGain };
       };
       
-      // Smooth harmonic pad - ocean-like chord
-      nodes.push(createSmoothPad(110, 0.09));      // A2 - deep foundation
-      nodes.push(createSmoothPad(164.81, 0.08, 3)); // E3 - perfect fifth
-      nodes.push(createSmoothPad(220, 0.07, -2));   // A3 - octave
-      nodes.push(createSmoothPad(277.18, 0.055, 4)); // C#4 - major third
-      nodes.push(createSmoothPad(329.63, 0.045, -3)); // E4 - fifth
+      // Pure harmonic pad - clean ocean-like chord (no filters = no static)
+      nodes.push(createPureTone(110, 0.10));     // A2 - deep foundation
+      nodes.push(createPureTone(165, 0.08));     // E3 - perfect fifth  
+      nodes.push(createPureTone(220, 0.07));     // A3 - octave
+      nodes.push(createPureTone(277, 0.05));     // C#4 - major third
+      nodes.push(createPureTone(330, 0.04));     // E4 - fifth
       
-      // Create smooth LFO for gentle movement
-      const lfo = ctx.createOscillator();
-      const lfoGain = ctx.createGain();
-      lfo.type = 'sine';
-      lfo.frequency.setValueAtTime(0.06, ctx.currentTime); // Very slow modulation
-      lfoGain.gain.setValueAtTime(0.12, ctx.currentTime);
-      lfo.connect(lfoGain);
+      // Gentle volume swell using scheduled automation (no LFO = cleaner)
+      const swellDuration = 8; // seconds per cycle
+      const scheduleSwells = () => {
+        const now = ctx.currentTime;
+        nodes.forEach((node, index) => {
+          const baseGain = node.gain.gain.value;
+          const offset = index * 0.5; // stagger swells
+          
+          // Schedule gentle volume swells
+          for (let cycle = 0; cycle < 10; cycle++) {
+            const cycleStart = now + cycle * swellDuration + offset;
+            node.gain.gain.setValueAtTime(baseGain * 0.85, cycleStart);
+            node.gain.gain.linearRampToValueAtTime(baseGain, cycleStart + swellDuration * 0.5);
+            node.gain.gain.linearRampToValueAtTime(baseGain * 0.85, cycleStart + swellDuration);
+          }
+        });
+      };
       
-      // Apply subtle modulation to each voice
-      nodes.forEach((node, index) => {
-        const modDepth = 0.08 + (index * 0.015);
-        const modGain = ctx.createGain();
-        modGain.gain.setValueAtTime(modDepth, ctx.currentTime);
-        lfoGain.connect(modGain);
-        modGain.connect(node.gain.gain);
-      });
-      
-      lfo.start(0);
-      nodes.push({ oscillator: lfo, gain: lfoGain });
+      scheduleSwells();
       
       // Store in refs for cleanup
       audioContextRef.current = ctx;
