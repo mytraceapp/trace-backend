@@ -53,18 +53,6 @@ export default function EchoScreen({
       }, 2000);
     };
 
-    // Gradually ease playback speed from 0.88 to 0.95 over first 18 seconds
-    let currentRate = 0.88;
-    const targetRate = 0.95;
-    const rateEaseInterval = setInterval(() => {
-      currentRate += 0.001;
-      if (currentRate >= targetRate) {
-        currentRate = targetRate;
-        clearInterval(rateEaseInterval);
-      }
-      if (audioRef.current) audioRef.current.playbackRate = currentRate;
-    }, 260);
-
     // Start ambient music immediately when page loads
     const ambientAudio = new Audio('/audio/ambient-loop.mp3');
     ambientAudio.loop = true;
@@ -112,6 +100,18 @@ export default function EchoScreen({
         }
         if (audioRef.current) audioRef.current.volume = vol;
       }, 40);
+
+      // Gradually ease playback speed from 0.88 to 0.95 over first 18 seconds
+      let currentRate = 0.88;
+      const targetRate = 0.95;
+      const rateEaseInterval = setInterval(() => {
+        currentRate += 0.001;
+        if (currentRate >= targetRate) {
+          currentRate = targetRate;
+          clearInterval(rateEaseInterval);
+        }
+        if (audioRef.current) audioRef.current.playbackRate = currentRate;
+      }, 260);
     };
 
     // Delay TRACE's voice by 4 seconds, letting the music set the mood first
