@@ -90,7 +90,7 @@ export default function App() {
               shouldPlay={shouldPlayAmbient} 
               volume={ambienceVolume / 100 * 0.5} 
               showControls={false}
-              playbackRate={0.88}
+              playbackRate={0.92}
             />
           )}
           
