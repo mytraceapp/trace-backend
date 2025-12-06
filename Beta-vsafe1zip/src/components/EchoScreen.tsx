@@ -114,9 +114,9 @@ export default function EchoScreen({
         centerX, centerY, 0,
         centerX, centerY, radius * 1.5
       );
-      gradient.addColorStop(0, 'rgba(45, 58, 74, 0.40)');
-      gradient.addColorStop(0.4, 'rgba(45, 58, 74, 0.26)');
-      gradient.addColorStop(0.7, 'rgba(107, 124, 107, 0.14)');
+      gradient.addColorStop(0, 'rgba(45, 58, 74, 0.36)');
+      gradient.addColorStop(0.4, 'rgba(45, 58, 74, 0.23)');
+      gradient.addColorStop(0.7, 'rgba(107, 124, 107, 0.13)');
       gradient.addColorStop(1, 'rgba(107, 124, 107, 0)');
 
       ctx.save();
@@ -131,7 +131,7 @@ export default function EchoScreen({
         centerX, centerY, 0,
         centerX, centerY, radius * 0.6
       );
-      innerGlow.addColorStop(0, 'rgba(212, 196, 168, 0.24)');
+      innerGlow.addColorStop(0, 'rgba(212, 196, 168, 0.22)');
       innerGlow.addColorStop(1, 'rgba(212, 196, 168, 0)');
 
       ctx.save();
