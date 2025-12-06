@@ -212,11 +212,11 @@ export function RainWindowScreen({
         }}
       />
 
-      {/* Quiet Mode Video - original quiet video with boosted brightness for tree visibility */}
+      {/* Quiet Mode Video - same sharp video with softer, calmer treatment */}
       <video
         ref={quietVideoRef}
         className="absolute object-cover"
-        src="/video/rain-quiet.mp4"
+        src="/video/rain-window.mp4"
         muted
         loop
         playsInline
@@ -224,12 +224,14 @@ export function RainWindowScreen({
         preload="auto"
         style={{
           zIndex: 2,
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          filter: 'brightness(1.2) saturate(1.0) contrast(1.1)',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%) scale(1.15)',
+          minWidth: '115%',
+          minHeight: '115%',
+          width: 'auto',
+          height: 'auto',
+          filter: 'brightness(0.4) saturate(0.5)',
           opacity: quietMode ? 1 : 0,
           transition: 'opacity 1.2s ease-in-out',
         }}
