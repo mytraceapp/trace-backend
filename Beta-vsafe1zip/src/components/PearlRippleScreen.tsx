@@ -21,86 +21,52 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
   const [countdownStep, setCountdownStep] = useState<number | null>(3);
   const [showMainText, setShowMainText] = useState(false);
   const [sessionActive, setSessionActive] = useState(true);
-  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
-  const [oceanNodes, setOceanNodes] = useState<any[]>([]);
-  const [masterGain, setMasterGain] = useState<GainNode | null>(null);
-  
-  // Use refs to ensure cleanup has access to current values
+  // Use refs for audio cleanup
   const audioContextRef = useRef<AudioContext | null>(null);
-  const oceanNodesRef = useRef<any[]>([]);
-  const masterGainRef = useRef<GainNode | null>(null);
+  const oscillatorRef = useRef<OscillatorNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
 
-  // Initialize ocean wave audio - clean, pure tones without reverb or static
+  // Simple, clean ambient tone - single oscillator approach
   useEffect(() => {
-    const initOceanAudio = () => {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const nodes: any[] = [];
-      
-      // Master gain at 70% volume with smooth fade in
-      const masterGainNode = ctx.createGain();
-      masterGainNode.gain.setValueAtTime(0, ctx.currentTime);
-      masterGainNode.gain.linearRampToValueAtTime(0.09, ctx.currentTime + 2);
-      masterGainNode.gain.linearRampToValueAtTime(0.126, ctx.currentTime + 4);
-      masterGainNode.connect(ctx.destination);
-      
-      // Create pure, clean tone - no filters, no modulation, direct connection
-      const createPureTone = (frequency: number, gain: number) => {
+    const startAudio = async () => {
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = ctx;
+        
+        // Single clean oscillator - no complex routing
         const osc = ctx.createOscillator();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+        osc.frequency.value = 174; // F3 - calming frequency
+        oscillatorRef.current = osc;
         
-        const oscGain = ctx.createGain();
-        oscGain.gain.setValueAtTime(gain, ctx.currentTime);
+        // Simple gain node at 70% volume
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        gainNodeRef.current = gain;
         
-        osc.connect(oscGain);
-        oscGain.connect(masterGainNode);
+        // Direct connection: oscillator -> gain -> output
+        osc.connect(gain);
+        gain.connect(ctx.destination);
         
-        osc.start(0);
+        // Start and fade in
+        osc.start();
+        gain.gain.linearRampToValueAtTime(0.07, ctx.currentTime + 3);
         
-        return { oscillator: osc, gain: oscGain };
-      };
-      
-      // Pure harmonic pad - steady tones, no automation (eliminates all static)
-      nodes.push(createPureTone(110, 0.10));     // A2 - deep foundation
-      nodes.push(createPureTone(165, 0.08));     // E3 - perfect fifth  
-      nodes.push(createPureTone(220, 0.07));     // A3 - octave
-      nodes.push(createPureTone(277, 0.05));     // C#4 - major third
-      nodes.push(createPureTone(330, 0.04));     // E4 - fifth
-      
-      // Store in refs for cleanup
-      audioContextRef.current = ctx;
-      oceanNodesRef.current = nodes;
-      masterGainRef.current = masterGainNode;
-      
-      setAudioContext(ctx);
-      setOceanNodes(nodes);
-      setMasterGain(masterGainNode);
+      } catch (e) {
+        console.log('Audio init error:', e);
+      }
     };
     
-    initOceanAudio();
+    startAudio();
     
-    // Cleanup on unmount - stop music when navigating away
+    // Cleanup
     return () => {
-      // Stop all oscillators immediately
-      oceanNodesRef.current.forEach(node => {
-        if (node.oscillator) {
-          try {
-            node.oscillator.stop();
-          } catch (e) {
-            // Already stopped
-          }
-        }
-      });
-      
-      // Close audio context only if it's not already closed
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        try {
-          audioContextRef.current.close();
-        } catch (e) {
-          // Already closed
-        }
+      if (oscillatorRef.current) {
+        try { oscillatorRef.current.stop(); } catch (e) {}
       }
-      audioContextRef.current = null;
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        try { audioContextRef.current.close(); } catch (e) {}
+      }
     };
   }, []);
 
@@ -133,23 +99,15 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         if (prev <= 1) {
           setSessionActive(false);
           // Fade out audio
-          if (masterGain && audioContext) {
-            masterGain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1);
+          if (gainNodeRef.current && audioContextRef.current) {
+            gainNodeRef.current.gain.linearRampToValueAtTime(0.001, audioContextRef.current.currentTime + 1);
           }
           setTimeout(() => {
-            // Stop all oscillators
-            oceanNodes.forEach(node => {
-              if (node.oscillator) {
-                try {
-                  node.oscillator.stop();
-                } catch (e) {
-                  // Already stopped
-                }
-              }
-            });
-            // Close context only if not already closed
-            if (audioContext && audioContext.state !== 'closed') {
-              audioContext.close();
+            if (oscillatorRef.current) {
+              try { oscillatorRef.current.stop(); } catch (e) {}
+            }
+            if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+              try { audioContextRef.current.close(); } catch (e) {}
             }
           }, 1000);
           return 0;
@@ -159,7 +117,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [sessionActive, timeRemaining, masterGain, audioContext, oceanNodes]);
+  }, [sessionActive, timeRemaining]);
 
   // Auto-save entry when session completes
   useEffect(() => {
@@ -178,23 +136,15 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
   const handleEndSession = () => {
     setSessionActive(false);
     // Fade out audio smoothly
-    if (masterGain && audioContext && audioContext.state !== 'closed') {
-      masterGain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
+    if (gainNodeRef.current && audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      gainNodeRef.current.gain.linearRampToValueAtTime(0.001, audioContextRef.current.currentTime + 0.5);
     }
     setTimeout(() => {
-      // Stop all oscillators
-      oceanNodes.forEach(node => {
-        if (node.oscillator) {
-          try {
-            node.oscillator.stop();
-          } catch (e) {
-            // Already stopped
-          }
-        }
-      });
-      // Close context only if not already closed
-      if (audioContext && audioContext.state !== 'closed') {
-        audioContext.close();
+      if (oscillatorRef.current) {
+        try { oscillatorRef.current.stop(); } catch (e) {}
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        try { audioContextRef.current.close(); } catch (e) {}
       }
       if (onReturnToChat) onReturnToChat();
       else if (onBack) onBack();
