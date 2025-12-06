@@ -7,7 +7,8 @@ import { useTheme } from '../state/ThemeContext';
 import { useAuth } from '../state/AuthContext';
 import { 
   sendMessageToTrace, 
-  getTraceGreeting, 
+  getTraceGreeting,
+  getAIGreeting, 
   detectUserAgreement, 
   getLastSuggestedActivity,
   clearLastSuggestedActivity,
@@ -72,22 +73,26 @@ export function ChatScreen({
   const [isTransitioning, setIsTransitioning] = React.useState(false);
   const pendingNavigationRef = React.useRef<(() => void) | null>(null);
   
-  const getPersonalizedGreeting = React.useCallback(() => {
-    if (userName) {
-      return `Whenever you're ready, ${userName}.`;
-    }
-    return getTraceGreeting();
-  }, [userName]);
-
-  const [greetingText, setGreetingText] = React.useState(() => getTraceGreeting());
+  const [greetingText, setGreetingText] = React.useState('');
   const [displayedText, setDisplayedText] = React.useState('');
   const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [isLoadingGreeting, setIsLoadingGreeting] = React.useState(true);
+  void isLoadingGreeting; // Used for future loading indicator
   
-  React.useEffect(() => {
-    if (userName && !hasResponded && messages.length === 0) {
-      setGreetingText(getPersonalizedGreeting());
+  // Fetch AI-generated greeting when chat starts
+  const fetchAIGreeting = React.useCallback(async () => {
+    setIsLoadingGreeting(true);
+    try {
+      const greeting = await getAIGreeting(userName);
+      setGreetingText(greeting);
+    } catch (error) {
+      console.error('Failed to fetch AI greeting:', error);
+      // Fallback to static greeting
+      setGreetingText(userName ? `Hi ${userName}. I'm here.` : getTraceGreeting());
+    } finally {
+      setIsLoadingGreeting(false);
     }
-  }, [userName, hasResponded, messages.length, getPersonalizedGreeting]);
+  }, [userName]);
 
   // Chat session persistence - messages persist for 1 hour
   const CHAT_STORAGE_KEY = 'trace_chat_session';
@@ -106,6 +111,7 @@ export function ChatScreen({
           setMessages(savedMessages);
           setHasResponded(true);
           setShowTypewriter(false);
+          setIsLoadingGreeting(false);
           return; // Don't show greeting if resuming
         } else {
           // Clear expired session
@@ -116,21 +122,21 @@ export function ChatScreen({
       console.error('Error loading chat session:', e);
     }
     
-    // Start fresh session with greeting
+    // Start fresh session with AI-generated greeting
     if (shouldStartGreeting) {
-      setGreetingText(getPersonalizedGreeting());
       setDisplayedText('');
       setCurrentIndex(0);
       setMessages([]);
       setHasResponded(false);
       
-      const startDelay = setTimeout(() => {
-        setShowTypewriter(true);
-      }, 1500);
-
-      return () => clearTimeout(startDelay);
+      // Fetch AI greeting then start typewriter
+      fetchAIGreeting().then(() => {
+        setTimeout(() => {
+          setShowTypewriter(true);
+        }, 500);
+      });
     }
-  }, []);
+  }, [fetchAIGreeting, shouldStartGreeting]);
   
   // Save messages whenever they change
   React.useEffect(() => {

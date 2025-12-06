@@ -230,6 +230,70 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Generate a unique AI-powered welcome greeting
+app.post('/api/greeting', async (req, res) => {
+  try {
+    const { userName, localTime, localDay, localDate } = req.body;
+    
+    console.log('Generating greeting for:', userName || 'anonymous user');
+    console.log('Time context:', localTime, localDay, localDate);
+    
+    if (!openai) {
+      // Fallback greetings when no API key
+      const fallbackGreetings = [
+        userName ? `Hi ${userName}. I'm glad you're here.` : "Hi. I'm glad you're here.",
+        "Whenever you're ready.",
+        "I'm here with you.",
+      ];
+      return res.json({ greeting: fallbackGreetings[Math.floor(Math.random() * fallbackGreetings.length)] });
+    }
+    
+    const greetingPrompt = `You are TRACE, a calm and warm emotional wellness companion. Generate a single, unique welcome message for someone opening the app.
+
+Context:
+- User's name: ${userName || 'unknown (don\'t mention their name)'}
+- Current time: ${localTime || 'unknown'}
+- Day: ${localDay || 'unknown'}
+- Date: ${localDate || 'unknown'}
+
+Guidelines:
+- Keep it SHORT - one or two sentences max (under 15 words ideally)
+- Be warm, genuine, and calming
+- Don't ask questions - just welcome them
+- Be aware of the time of day naturally (morning, afternoon, evening, late night)
+- If you know their name, you can use it warmly (but not required every time)
+- Vary your style - sometimes poetic, sometimes simple, sometimes reflective
+- Never be generic like "Hello! How can I help you today?"
+- Feel like a calm friend who's genuinely happy to see them
+
+Examples of good greetings:
+- "Hey ${userName || 'there'}. Glad you're here."
+- "Good evening. I've been here, waiting."
+- "Morning. Take your time settling in."
+- "It's late... I'm glad you came."
+- "Hi. Whenever you're ready."
+
+Respond with ONLY the greeting text, nothing else.`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'user', content: greetingPrompt }
+      ],
+      max_tokens: 50,
+      temperature: 0.9, // Higher creativity for unique greetings
+    });
+
+    const greeting = response.choices[0]?.message?.content?.trim() || "I'm here with you.";
+    console.log('Generated greeting:', greeting);
+    
+    res.json({ greeting });
+  } catch (error) {
+    console.error('Greeting API error:', error.message || error);
+    res.json({ greeting: "Whenever you're ready." });
+  }
+});
+
 const PORT = 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`TRACE API server running on port ${PORT}`);

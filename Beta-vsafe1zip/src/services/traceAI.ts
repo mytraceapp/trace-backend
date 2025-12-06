@@ -4,6 +4,35 @@
 // This ensures TRACE remembers context without exceeding token limits
 const MAX_CONVERSATION_HISTORY = 12;
 
+// Get a unique AI-generated greeting from TRACE
+export async function getAIGreeting(userName?: string | null): Promise<string> {
+  try {
+    const response = await fetch('/api/greeting', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userName: userName || null,
+        localTime: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        localDay: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
+        localDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.greeting || "Whenever you're ready.";
+  } catch (error) {
+    console.error('Failed to get AI greeting:', error);
+    // Fallback to simple greeting
+    return userName ? `Hi ${userName}. I'm here.` : "Whenever you're ready.";
+  }
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
