@@ -58,7 +58,7 @@ export default function EchoScreen({
     resize();
     window.addEventListener('resize', resize);
 
-    const verticalOffset = -15;
+    const verticalOffset = -20;
 
     const drawRadialGrid = (time: number) => {
       const width = canvas.width / (window.devicePixelRatio || 1);
@@ -297,7 +297,10 @@ export default function EchoScreen({
             className="absolute inset-0 w-full h-full cursor-pointer"
             onClick={handleExit}
           />
-          <div className="absolute bottom-0 left-0 right-0 z-40">
+          <div className="absolute bottom-0 left-0 right-0 z-40" style={{
+            background: 'linear-gradient(to top, rgba(26, 29, 26, 0.95) 0%, rgba(26, 29, 26, 0.7) 40%, rgba(26, 29, 26, 0) 100%)',
+            paddingTop: '40px',
+          }}>
             <BottomNav
               activeScreen="activities"
               onNavigateHome={onReturnToChat}
