@@ -19,6 +19,13 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
   const [voiceIntensity, setVoiceIntensity] = useState(0);
   const [audioMuted, setAudioMuted] = useState(false);
   const [showRipple, setShowRipple] = useState(false);
+  
+  const restingPulseDuration = React.useMemo(() => 
+    4 + Math.random() * 2, []);
+  const haloPulseDuration = React.useMemo(() => 
+    4 + Math.random() * 2, []);
+  const secondaryHaloPulseDuration = React.useMemo(() => 
+    4 + Math.random() * 2, []);
 
   const analyzeAudio = useCallback(() => {
     if (!analyserRef.current) return;
@@ -469,7 +476,7 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
                   opacity: [0.15, 0.25, 0.15],
                 }}
                 transition={{
-                  duration: 4,
+                  duration: restingPulseDuration,
                   repeat: Infinity,
                   ease: "easeInOut",
                 }}
@@ -511,7 +518,7 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
                 opacity: 0.2 + voiceIntensity * 0.2,
               }}
               transition={audioMuted ? {
-                duration: 5,
+                duration: haloPulseDuration,
                 repeat: Infinity,
                 ease: "easeInOut",
               } : { duration: 0.12, ease: "easeOut" }}
@@ -532,7 +539,7 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
                 opacity: 0.12 + voiceIntensity * 0.18,
               }}
               transition={audioMuted ? {
-                duration: 6,
+                duration: secondaryHaloPulseDuration,
                 repeat: Infinity,
                 ease: "easeInOut",
               } : { duration: 0.12, ease: "easeOut" }}
