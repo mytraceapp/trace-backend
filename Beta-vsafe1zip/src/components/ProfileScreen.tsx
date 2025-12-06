@@ -1,10 +1,12 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight, Lock, Download, Trash2, Volume2, VolumeX, X, Copy, Check, Sun, Moon } from 'lucide-react';
+import { ChevronRight, Lock, Download, Trash2, Volume2, VolumeX, X, Copy, Check, Sun, Moon, LogIn, LogOut } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useUser, planLabels, PlanTier } from '../state/PlanContext';
 import { useTheme } from '../state/ThemeContext';
+import { useAuth } from '../state/AuthContext';
 import { AboutTraceModal } from './AboutTraceModal';
+import AuthModal from './AuthModal';
 
 interface ProfileScreenProps {
   onNavigateToActivities?: () => void;
@@ -29,7 +31,9 @@ export function ProfileScreen({
 }: ProfileScreenProps) {
   const { profile, selectedPlan, generateReferralCode, updatePlan, setIsUpgrading, ambienceEnabled, setAmbienceEnabled, ambienceVolume, setAmbienceVolume } = useUser();
   const { theme, setTheme } = useTheme();
+  const { user, signOut } = useAuth();
   const [showThemePopup, setShowThemePopup] = React.useState(false);
+  const [showAuthModal, setShowAuthModal] = React.useState(false);
   
   const [showManagePlanPopup, setShowManagePlanPopup] = React.useState(false);
   const [showUpgradePromoPopup, setShowUpgradePromoPopup] = React.useState(false);
@@ -686,6 +690,32 @@ export function ProfileScreen({
                 <ChevronRight size={16} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
               </button>
 
+              {/* Sign In / Sign Out */}
+              <button
+                onClick={() => user ? signOut() : setShowAuthModal(true)}
+                className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
+              >
+                <div className="flex items-center gap-3">
+                  {user ? (
+                    <LogOut size={15} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
+                  ) : (
+                    <LogIn size={15} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
+                  )}
+                  <span
+                    style={{
+                      fontFamily: 'Georgia, serif',
+                      color: 'var(--text-primary)',
+                      fontSize: '14px',
+                      fontWeight: 300,
+                      letterSpacing: '0.01em',
+                    }}
+                  >
+                    {user ? 'Sign Out' : 'Sign In / Create Account'}
+                  </span>
+                </div>
+                <ChevronRight size={16} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
+              </button>
+
               <button
                 className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
               >
@@ -1199,6 +1229,12 @@ export function ProfileScreen({
       <AboutTraceModal 
         isOpen={showAboutTraceModal} 
         onClose={() => setShowAboutTraceModal(false)} 
+      />
+
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
       />
     </div>
   );

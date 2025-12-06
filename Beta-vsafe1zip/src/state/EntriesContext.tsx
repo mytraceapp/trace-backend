@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Entry, EntryType, createEntry } from '../models/entries';
-import { supabase, getTraceUserId } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
+import { useAuth } from './AuthContext';
 
 const STORAGE_KEY = 'trace_entries';
 
@@ -24,7 +25,7 @@ const EntriesContext = createContext<EntriesContextType | undefined>(undefined);
 export function EntriesProvider({ children }: { children: React.ReactNode }) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const userId = useRef<string>(getTraceUserId());
+  const { userId } = useAuth();
 
   // Load entries from Supabase on mount
   useEffect(() => {
@@ -33,7 +34,7 @@ export function EntriesProvider({ children }: { children: React.ReactNode }) {
         const { data, error } = await supabase
           .from('entries')
           .select('*')
-          .eq('user_id', userId.current)
+          .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -79,7 +80,7 @@ export function EntriesProvider({ children }: { children: React.ReactNode }) {
         .from('entries')
         .insert({
           id: entry.id,
-          user_id: userId.current,
+          user_id: userId,
           type: entry.type,
           title: entry.title || null,
           body: entry.body || null,
@@ -196,7 +197,7 @@ export function EntriesProvider({ children }: { children: React.ReactNode }) {
         .from('entries')
         .delete()
         .eq('id', id)
-        .eq('user_id', userId.current);
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Error deleting entry from Supabase:', error);
@@ -214,7 +215,7 @@ export function EntriesProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase
         .from('entries')
         .delete()
-        .eq('user_id', userId.current);
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Error clearing entries from Supabase:', error);
