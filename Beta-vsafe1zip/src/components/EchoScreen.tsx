@@ -35,8 +35,6 @@ export default function EchoScreen({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioDataRef = useRef<Uint8Array | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const ambientGainRef = useRef<GainNode | null>(null);
-  const ambientOscillatorsRef = useRef<OscillatorNode[]>([]);
   const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
@@ -60,44 +58,6 @@ export default function EchoScreen({
       analyser.connect(audioContext.destination);
       
       audioDataRef.current = new Uint8Array(analyser.frequencyBinCount);
-
-      const ambientGain = audioContext.createGain();
-      ambientGain.gain.value = 0;
-      ambientGainRef.current = ambientGain;
-
-      const lowPassFilter = audioContext.createBiquadFilter();
-      lowPassFilter.type = 'lowpass';
-      lowPassFilter.frequency.value = 200;
-      lowPassFilter.Q.value = 0.5;
-
-      const highPassFilter = audioContext.createBiquadFilter();
-      highPassFilter.type = 'highpass';
-      highPassFilter.frequency.value = 40;
-
-      const frequencies = [55, 82.5, 110, 165];
-      const oscillators: OscillatorNode[] = [];
-
-      frequencies.forEach((freq, i) => {
-        const osc = audioContext.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        
-        const oscGain = audioContext.createGain();
-        oscGain.gain.value = i === 0 ? 0.15 : (i === 1 ? 0.08 : 0.04);
-        
-        osc.connect(oscGain);
-        oscGain.connect(lowPassFilter);
-        osc.start();
-        oscillators.push(osc);
-      });
-
-      lowPassFilter.connect(highPassFilter);
-      highPassFilter.connect(ambientGain);
-      ambientGain.connect(audioContext.destination);
-      ambientOscillatorsRef.current = oscillators;
-
-      ambientGain.gain.setValueAtTime(0, audioContext.currentTime);
-      ambientGain.gain.linearRampToValueAtTime(0.25, audioContext.currentTime + 2);
     };
 
     const fadeIn = () => {
@@ -133,12 +93,6 @@ export default function EchoScreen({
           }
         }, 30);
       }
-      if (ambientGainRef.current && audioContextRef.current) {
-        ambientGainRef.current.gain.linearRampToValueAtTime(0, audioContextRef.current.currentTime + 0.5);
-      }
-      ambientOscillatorsRef.current.forEach(osc => {
-        try { osc.stop(); } catch {}
-      });
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         setTimeout(() => {
           if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
@@ -163,9 +117,6 @@ export default function EchoScreen({
           audioRef.current.volume = vol;
         }
       }, 30);
-    }
-    if (ambientGainRef.current && audioContextRef.current) {
-      ambientGainRef.current.gain.linearRampToValueAtTime(0, audioContextRef.current.currentTime + 1.5);
     }
     setTimeout(() => {
       onBack();
