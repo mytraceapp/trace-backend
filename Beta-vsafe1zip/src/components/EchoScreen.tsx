@@ -318,8 +318,8 @@ export default function EchoScreen({
             </h1>
           </motion.div>
           <div className="absolute bottom-0 left-0 right-0 z-40" style={{
-            background: 'linear-gradient(to top, rgba(26, 29, 26, 1) 0%, rgba(26, 29, 26, 0.9) 20%, rgba(26, 29, 26, 0.6) 40%, rgba(26, 29, 26, 0.3) 60%, rgba(26, 29, 26, 0.1) 80%, rgba(26, 29, 26, 0) 100%)',
-            paddingTop: '80px',
+            background: 'linear-gradient(to top, rgba(42, 46, 42, 0.95) 0%, rgba(36, 40, 36, 0.85) 25%, rgba(30, 34, 30, 0.6) 50%, rgba(26, 29, 26, 0.3) 75%, rgba(26, 29, 26, 0) 100%)',
+            paddingTop: '70px',
           }}>
             <BottomNav
               activeScreen="activities"
