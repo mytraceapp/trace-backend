@@ -21,64 +21,8 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
   const [countdownStep, setCountdownStep] = useState<number | null>(3);
   const [showMainText, setShowMainText] = useState(false);
   const [sessionActive, setSessionActive] = useState(true);
-  // Use refs for audio cleanup
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const oscillatorRef = useRef<OscillatorNode | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
 
-  // Simple, clean ambient tone - single oscillator approach
-  useEffect(() => {
-    const startAudio = async () => {
-      try {
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        audioContextRef.current = ctx;
-        
-        // Single clean oscillator - no complex routing
-        const osc = ctx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.value = 174; // F3 - calming frequency
-        oscillatorRef.current = osc;
-        
-        // Simple gain node at 70% volume
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0, ctx.currentTime); // Start at 0
-        gainNodeRef.current = gain;
-        
-        // Direct connection: oscillator -> gain -> output
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        
-        // Start oscillator and fade in properly
-        osc.start();
-        // Must set current value before ramping
-        gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.07, ctx.currentTime + 3);
-        
-      } catch (e) {
-        console.log('Audio init error:', e);
-      }
-    };
-    
-    startAudio();
-    
-    // Cleanup - fade out first to prevent clicks
-    return () => {
-      const ctx = audioContextRef.current;
-      const gain = gainNodeRef.current;
-      const osc = oscillatorRef.current;
-      
-      if (ctx && gain && osc && ctx.state !== 'closed') {
-        // Fade to zero over 100ms before stopping
-        gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.1);
-        // Stop after fade completes
-        setTimeout(() => {
-          try { osc.stop(); } catch (e) {}
-          try { ctx.close(); } catch (e) {}
-        }, 150);
-      }
-    };
-  }, []);
+  // Pearl Ripple is a silent visual meditation - no audio to avoid static issues
 
   // Countdown sequence
   useEffect(() => {
@@ -108,19 +52,6 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
       setTimeRemaining((prev) => {
         if (prev <= 1) {
           setSessionActive(false);
-          // Proper fade out to prevent static/clicks
-          const ctx = audioContextRef.current;
-          const gain = gainNodeRef.current;
-          const osc = oscillatorRef.current;
-          
-          if (ctx && gain && osc && ctx.state !== 'closed') {
-            gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
-            setTimeout(() => {
-              try { osc.stop(); } catch (e) {}
-              try { ctx.close(); } catch (e) {}
-            }, 600);
-          }
           return 0;
         }
         return prev - 1;
@@ -146,26 +77,8 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
 
   const handleEndSession = () => {
     setSessionActive(false);
-    // Proper fade out to prevent static/clicks
-    const ctx = audioContextRef.current;
-    const gain = gainNodeRef.current;
-    const osc = oscillatorRef.current;
-    
-    if (ctx && gain && osc && ctx.state !== 'closed') {
-      gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
-    }
-    
-    setTimeout(() => {
-      if (osc) {
-        try { osc.stop(); } catch (e) {}
-      }
-      if (ctx && ctx.state !== 'closed') {
-        try { ctx.close(); } catch (e) {}
-      }
-      if (onReturnToChat) onReturnToChat();
-      else if (onBack) onBack();
-    }, 400);
+    if (onReturnToChat) onReturnToChat();
+    else if (onBack) onBack();
   };
 
   const getCountdownText = () => {
