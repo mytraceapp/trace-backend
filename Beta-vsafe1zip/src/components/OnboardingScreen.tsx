@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useUser, PlanTier } from '../state/PlanContext';
 
@@ -9,6 +9,43 @@ interface OnboardingScreenProps {
 export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
   const { selectedPlan, setSelectedPlan } = useUser();
   const [expandedTier, setExpandedTier] = React.useState<PlanTier | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = new Audio('/audio/trace-intro.mp3');
+    audio.volume = 0;
+    audioRef.current = audio;
+    
+    const playAudio = () => {
+      audio.play().then(() => {
+        let vol = 0;
+        const fadeIn = setInterval(() => {
+          vol += 0.05;
+          if (vol >= 0.8) {
+            vol = 0.8;
+            clearInterval(fadeIn);
+          }
+          audio.volume = vol;
+        }, 100);
+      }).catch(() => {});
+    };
+
+    const timer = setTimeout(playAudio, 500);
+
+    return () => {
+      clearTimeout(timer);
+      if (audioRef.current) {
+        const fadeOut = setInterval(() => {
+          if (audioRef.current && audioRef.current.volume > 0.05) {
+            audioRef.current.volume -= 0.05;
+          } else {
+            clearInterval(fadeOut);
+            audioRef.current?.pause();
+          }
+        }, 50);
+      }
+    };
+  }, []);
 
   const handleTierClick = (tier: PlanTier) => {
     if (selectedPlan === tier && expandedTier === tier) {
