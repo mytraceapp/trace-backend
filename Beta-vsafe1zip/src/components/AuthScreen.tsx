@@ -345,7 +345,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
             {/* Modal Content - Centered and moved up */}
             <motion.div
               className="relative flex-1 flex flex-col items-center justify-center px-8"
-              style={{ paddingBottom: '18%' }}
+              style={{ paddingBottom: 'calc(18% - 20px)' }}
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
@@ -563,6 +563,19 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                   <Scan size={18} strokeWidth={1.5} />
                   Use Face ID instead
                 </button>
+
+                {/* Logo at bottom */}
+                <div className="flex justify-center mt-8">
+                  <img 
+                    src={traceLogo} 
+                    alt="TRACE" 
+                    style={{ 
+                      width: '32px', 
+                      height: '32px',
+                      opacity: 0.5,
+                    }} 
+                  />
+                </div>
               </div>
             </motion.div>
           </motion.div>
