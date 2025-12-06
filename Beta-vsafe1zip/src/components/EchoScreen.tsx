@@ -246,10 +246,10 @@ export default function EchoScreen({
           const x = (i / segments) * width;
           const normalizedX = i / segments;
 
-          const audioBoost = 1 + audioLevel * 0.8;
+          const audioBoost = 1 + Math.min(audioLevel, 0.5) * 0.4;
           const freqIndex = Math.floor((i / segments) * (frequencyData?.length || 1));
           const freqValue = frequencyData ? frequencyData[freqIndex] / 255 : 0;
-          const freqBoost = 1 + freqValue * 0.5;
+          const freqBoost = 1 + Math.min(freqValue, 0.6) * 0.3;
           
           const wave1 = Math.sin(normalizedX * Math.PI * 4 * layer.frequency * 100 + time * layer.speed + layer.offset) * layer.amplitude * audioBoost;
           const wave2 = Math.sin(normalizedX * Math.PI * 2 * layer.frequency * 80 + time * layer.speed * 0.7 + layer.offset * 1.5) * layer.amplitude * 0.6 * freqBoost;
@@ -286,14 +286,14 @@ export default function EchoScreen({
         gradient.addColorStop(1, `${layer.color}00`);
 
         ctx.strokeStyle = gradient;
-        ctx.lineWidth = 2.5;
-        ctx.globalAlpha = layer.opacity;
-        ctx.filter = `blur(${layer.blur}px)`;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = Math.min(layer.opacity + 0.1, 1);
+        ctx.filter = `blur(${Math.max(layer.blur - 1, 0)}px)`;
         ctx.stroke();
 
         ctx.filter = 'none';
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = layer.opacity * 0.9;
+        ctx.lineWidth = 2.5;
+        ctx.globalAlpha = layer.opacity;
         ctx.stroke();
 
         ctx.restore();
@@ -307,7 +307,7 @@ export default function EchoScreen({
         const x = (i / segments) * width;
         const normalizedX = i / segments;
 
-        const audioBoost = 1 + audioLevel * 1.0;
+        const audioBoost = 1 + Math.min(audioLevel, 0.5) * 0.5;
         const wave = (Math.sin(normalizedX * Math.PI * 3 + time * 0.0004) * 40 +
                      Math.sin(normalizedX * Math.PI * 5 + time * 0.0003) * 25 +
                      Math.sin(normalizedX * Math.PI * 2 + time * 0.0005) * 30) * audioBoost;
@@ -334,8 +334,8 @@ export default function EchoScreen({
       coreGradient.addColorStop(1, 'rgba(232, 228, 220, 0)');
 
       ctx.strokeStyle = coreGradient;
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = 0.6;
+      ctx.lineWidth = 2.5;
+      ctx.globalAlpha = 0.75;
       ctx.stroke();
       ctx.restore();
     };
