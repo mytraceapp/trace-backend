@@ -58,7 +58,7 @@ export default function EchoScreen({
     resize();
     window.addEventListener('resize', resize);
 
-    const verticalOffset = -20;
+    const verticalOffset = -40;
 
     const drawRadialGrid = (time: number) => {
       const width = canvas.width / (window.devicePixelRatio || 1);
@@ -318,8 +318,8 @@ export default function EchoScreen({
             </h1>
           </motion.div>
           <div className="absolute bottom-0 left-0 right-0 z-40" style={{
-            background: 'linear-gradient(to top, rgba(26, 29, 26, 1) 0%, rgba(26, 29, 26, 0.85) 30%, rgba(26, 29, 26, 0.5) 60%, rgba(26, 29, 26, 0.2) 80%, rgba(26, 29, 26, 0) 100%)',
-            paddingTop: '60px',
+            background: 'linear-gradient(to top, rgba(26, 29, 26, 1) 0%, rgba(26, 29, 26, 0.9) 20%, rgba(26, 29, 26, 0.6) 40%, rgba(26, 29, 26, 0.3) 60%, rgba(26, 29, 26, 0.1) 80%, rgba(26, 29, 26, 0) 100%)',
+            paddingTop: '80px',
           }}>
             <BottomNav
               activeScreen="activities"
