@@ -14,6 +14,7 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
   useEffect(() => {
     const audio = new Audio('/audio/trace-intro.mp3');
     audio.volume = 0;
+    audio.playbackRate = 1.05;
     audioRef.current = audio;
     
     const playAudio = () => {
@@ -21,8 +22,8 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         let vol = 0;
         const fadeIn = setInterval(() => {
           vol += 0.05;
-          if (vol >= 0.85) {
-            vol = 0.85;
+          if (vol >= 0.9) {
+            vol = 0.9;
             clearInterval(fadeIn);
           }
           audio.volume = vol;
