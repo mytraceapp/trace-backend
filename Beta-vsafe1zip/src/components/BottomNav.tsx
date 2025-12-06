@@ -28,13 +28,11 @@ export function BottomNav({
   const isTransparent = variant === 'transparent';
   const isDark = theme === 'night';
   
-  // Sage variant (chat screen) - adapts to theme
+  // Sage variant (activities & main screens) - always uses light sage, never adapts to dark mode
   const sageStyles = {
-    background: isDark 
-      ? 'linear-gradient(to top, rgba(30, 32, 30, 1) 0%, rgba(42, 46, 42, 0.95) 40%, rgba(58, 64, 58, 0.7) 75%, transparent 100%)'
-      : 'linear-gradient(to top, rgba(107, 122, 110, 1) 0%, rgba(125, 145, 128, 0.95) 40%, rgba(154, 176, 156, 0.7) 75%, transparent 100%)',
-    iconColor: isDark ? '#D4D8D0' : '#EDE8DB',
-    textColor: isDark ? '#D4D8D0' : '#EDE8DB',
+    background: 'linear-gradient(to top, rgba(107, 122, 110, 1) 0%, rgba(125, 145, 128, 0.95) 40%, rgba(154, 176, 156, 0.7) 75%, transparent 100%)',
+    iconColor: '#EDE8DB',
+    textColor: '#EDE8DB',
   };
   
   // Neutral variant (other screens) - adapts to theme
