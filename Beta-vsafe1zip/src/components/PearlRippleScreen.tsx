@@ -41,15 +41,17 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         
         // Simple gain node at 70% volume
         const gain = ctx.createGain();
-        gain.gain.value = 0;
+        gain.gain.setValueAtTime(0, ctx.currentTime); // Start at 0
         gainNodeRef.current = gain;
         
         // Direct connection: oscillator -> gain -> output
         osc.connect(gain);
         gain.connect(ctx.destination);
         
-        // Start and fade in
+        // Start oscillator and fade in properly
         osc.start();
+        // Must set current value before ramping
+        gain.gain.setValueAtTime(0, ctx.currentTime);
         gain.gain.linearRampToValueAtTime(0.07, ctx.currentTime + 3);
         
       } catch (e) {
@@ -59,13 +61,21 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
     
     startAudio();
     
-    // Cleanup
+    // Cleanup - fade out first to prevent clicks
     return () => {
-      if (oscillatorRef.current) {
-        try { oscillatorRef.current.stop(); } catch (e) {}
-      }
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        try { audioContextRef.current.close(); } catch (e) {}
+      const ctx = audioContextRef.current;
+      const gain = gainNodeRef.current;
+      const osc = oscillatorRef.current;
+      
+      if (ctx && gain && osc && ctx.state !== 'closed') {
+        // Fade to zero over 100ms before stopping
+        gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.1);
+        // Stop after fade completes
+        setTimeout(() => {
+          try { osc.stop(); } catch (e) {}
+          try { ctx.close(); } catch (e) {}
+        }, 150);
       }
     };
   }, []);
@@ -98,18 +108,19 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
       setTimeRemaining((prev) => {
         if (prev <= 1) {
           setSessionActive(false);
-          // Fade out audio
-          if (gainNodeRef.current && audioContextRef.current) {
-            gainNodeRef.current.gain.linearRampToValueAtTime(0.001, audioContextRef.current.currentTime + 1);
+          // Proper fade out to prevent static/clicks
+          const ctx = audioContextRef.current;
+          const gain = gainNodeRef.current;
+          const osc = oscillatorRef.current;
+          
+          if (ctx && gain && osc && ctx.state !== 'closed') {
+            gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+            setTimeout(() => {
+              try { osc.stop(); } catch (e) {}
+              try { ctx.close(); } catch (e) {}
+            }, 600);
           }
-          setTimeout(() => {
-            if (oscillatorRef.current) {
-              try { oscillatorRef.current.stop(); } catch (e) {}
-            }
-            if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-              try { audioContextRef.current.close(); } catch (e) {}
-            }
-          }, 1000);
           return 0;
         }
         return prev - 1;
@@ -135,20 +146,26 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
 
   const handleEndSession = () => {
     setSessionActive(false);
-    // Fade out audio smoothly
-    if (gainNodeRef.current && audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      gainNodeRef.current.gain.linearRampToValueAtTime(0.001, audioContextRef.current.currentTime + 0.5);
+    // Proper fade out to prevent static/clicks
+    const ctx = audioContextRef.current;
+    const gain = gainNodeRef.current;
+    const osc = oscillatorRef.current;
+    
+    if (ctx && gain && osc && ctx.state !== 'closed') {
+      gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
     }
+    
     setTimeout(() => {
-      if (oscillatorRef.current) {
-        try { oscillatorRef.current.stop(); } catch (e) {}
+      if (osc) {
+        try { osc.stop(); } catch (e) {}
       }
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        try { audioContextRef.current.close(); } catch (e) {}
+      if (ctx && ctx.state !== 'closed') {
+        try { ctx.close(); } catch (e) {}
       }
       if (onReturnToChat) onReturnToChat();
       else if (onBack) onBack();
-    }, 500);
+    }, 400);
   };
 
   const getCountdownText = () => {
