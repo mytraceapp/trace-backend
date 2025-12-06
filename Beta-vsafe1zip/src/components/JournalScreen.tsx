@@ -500,8 +500,8 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                   border: '1px solid rgba(255, 255, 255, 0.3)',
                 }}
               >
-                {/* Mood toothpick bars - horizontal */}
-                <div className="flex items-end justify-center gap-3">
+                {/* Mood toothpick bars - horizontal like long toothpicks next to each other */}
+                <div className="flex items-center justify-center gap-2">
                   {(() => {
                     const loggedMoods = selectedDayEntries
                       .filter(e => e.type === 'emotional_note' && e.metadata?.mood)
@@ -509,21 +509,21 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                     
                     return moodOptions.map((mood) => {
                       const isLogged = loggedMoods.includes(mood.type);
-                      const barHeight = isLogged ? 28 : 10;
+                      const barWidth = isLogged ? 48 : 24;
                       
                       return (
                         <div
                           key={mood.type}
                           style={{
-                            width: '4px',
-                            height: `${barHeight}px`,
+                            width: `${barWidth}px`,
+                            height: '4px',
                             borderRadius: '2px',
                             background: mood.color,
                             boxShadow: isLogged 
                               ? '0 2px 6px rgba(75, 75, 75, 0.12)' 
                               : 'none',
                             border: '1px solid rgba(255, 255, 255, 0.4)',
-                            transition: 'height 0.3s ease',
+                            transition: 'width 0.3s ease',
                           }}
                         />
                       );
