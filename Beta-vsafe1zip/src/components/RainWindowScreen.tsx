@@ -213,11 +213,11 @@ export function RainWindowScreen({
         }}
       />
 
-      {/* Quiet Mode - Trees video (calmer scene) */}
+      {/* Quiet Mode - Trees video (calmer forest scene) */}
       <video
         ref={quietVideoRef}
         className="absolute object-cover"
-        src="/video/rain-quiet.mp4"
+        src="/video/rain-trees.mp4"
         muted
         loop
         playsInline
