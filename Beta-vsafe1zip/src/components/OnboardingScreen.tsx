@@ -21,15 +21,16 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
     const bgAudio = new Audio('/audio/ambient-loop.mp3');
     bgAudio.volume = 0;
     bgAudio.loop = true;
+    bgAudio.playbackRate = 0.92;
     bgAudioRef.current = bgAudio;
     
     const playAudio = () => {
       bgAudio.play().then(() => {
         let bgVol = 0;
         const bgFadeIn = setInterval(() => {
-          bgVol += 0.02;
-          if (bgVol >= 0.25) {
-            bgVol = 0.25;
+          bgVol += 0.01;
+          if (bgVol >= 0.15) {
+            bgVol = 0.15;
             clearInterval(bgFadeIn);
           }
           bgAudio.volume = bgVol;
