@@ -263,8 +263,8 @@ export default function EchoScreen({
       const centerY = height / 2 + verticalOffset;
       const safeAudioLevel = isNaN(audioLevel) ? 0 : audioLevel;
 
-      const breathe = 1 + Math.sin(time * 0.00035) * 0.1;
-      const audioReact = 1 + Math.min(safeAudioLevel * 0.12, 0.12); // Soft nudge, not jarring
+      const breathe = 1 + Math.sin(time * 0.0003) * 0.08;
+      const audioReact = 1 + safeAudioLevel * 0.4; // Responsive to voice
       const baseRadius = Math.min(width, height) * 0.35;
       const radius = Math.max(1, baseRadius * breathe * audioReact);
 
@@ -289,7 +289,7 @@ export default function EchoScreen({
         centerX, centerY, 0,
         centerX, centerY, radius * 0.6
       );
-      const glowIntensity = 0.22 + Math.min(safeAudioLevel * 0.1, 0.1); // Subtle glow response
+      const glowIntensity = 0.22 + safeAudioLevel * 0.35; // Responsive glow
       innerGlow.addColorStop(0, `rgba(212, 196, 168, ${glowIntensity})`);
       innerGlow.addColorStop(1, 'rgba(212, 196, 168, 0)');
 
@@ -398,17 +398,17 @@ export default function EchoScreen({
         audioLevel = Math.min(1, rawLevel * 1.5);
       }
 
-      // Signature "soft breath" envelope - slow attack (~1.5s), very slow release (~5s)
+      // Responsive breath envelope - quick attack, smooth release
       const currentEnvelope = breathEnvelopeRef.current;
       const targetEnvelope = audioLevel;
-      const attackRate = 0.008; // ~1.5 seconds to rise
-      const releaseRate = 0.003; // ~5 seconds to fall
+      const attackRate = 0.08; // Fast attack - respond to voice quickly
+      const releaseRate = 0.015; // Smooth release - drift down gracefully
       
       if (targetEnvelope > currentEnvelope) {
-        // Attack - voice is present, gently rise
+        // Attack - voice is present, rise with it
         breathEnvelopeRef.current = currentEnvelope + (targetEnvelope - currentEnvelope) * attackRate;
       } else {
-        // Release - voice fading, slowly drift down
+        // Release - voice fading, drift down smoothly
         breathEnvelopeRef.current = currentEnvelope + (targetEnvelope - currentEnvelope) * releaseRate;
       }
       
