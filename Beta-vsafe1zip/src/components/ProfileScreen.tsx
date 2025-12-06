@@ -691,30 +691,76 @@ export function ProfileScreen({
               </button>
 
               {/* Sign In / Sign Out */}
-              <button
-                onClick={() => user ? signOut() : setShowAuthModal(true)}
-                className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
-              >
-                <div className="flex items-center gap-3">
-                  {user ? (
-                    <LogOut size={15} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
-                  ) : (
-                    <LogIn size={15} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
-                  )}
-                  <span
-                    style={{
-                      fontFamily: 'Georgia, serif',
-                      color: 'var(--text-primary)',
-                      fontSize: '14px',
-                      fontWeight: 300,
-                      letterSpacing: '0.01em',
-                    }}
-                  >
-                    {user ? 'Sign Out' : 'Sign In / Create Account'}
-                  </span>
+              {user ? (
+                <div className="w-full py-3 px-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: 'var(--text-secondary)',
+                        fontSize: '12px',
+                        fontWeight: 300,
+                        letterSpacing: '0.01em',
+                      }}
+                    >
+                      Signed in as
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: 'var(--text-primary)',
+                        fontSize: '14px',
+                        fontWeight: 400,
+                        letterSpacing: '0.01em',
+                      }}
+                    >
+                      {user.email}
+                    </span>
+                    <button
+                      onClick={signOut}
+                      className="flex items-center gap-2 py-1.5 px-3 rounded-full transition-all duration-200 hover:bg-black/5"
+                      style={{
+                        border: '1px solid var(--text-secondary)',
+                      }}
+                    >
+                      <LogOut size={13} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
+                      <span
+                        style={{
+                          fontFamily: 'Georgia, serif',
+                          color: 'var(--text-secondary)',
+                          fontSize: '12px',
+                          fontWeight: 300,
+                        }}
+                      >
+                        Sign Out
+                      </span>
+                    </button>
+                  </div>
                 </div>
-                <ChevronRight size={16} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
-              </button>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
+                >
+                  <div className="flex items-center gap-3">
+                    <LogIn size={15} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
+                    <span
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: 'var(--text-primary)',
+                        fontSize: '14px',
+                        fontWeight: 300,
+                        letterSpacing: '0.01em',
+                      }}
+                    >
+                      Sign In to save your data
+                    </span>
+                  </div>
+                  <ChevronRight size={16} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
+                </button>
+              )}
 
               <button
                 className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
