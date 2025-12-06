@@ -88,6 +88,9 @@ export async function sendMessageToTrace(userMessage: string, userName?: string 
         })),
         userName: userName || null,
         chatStyle: chatStyle,
+        localTime: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        localDay: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
+        localDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
       }),
     });
 

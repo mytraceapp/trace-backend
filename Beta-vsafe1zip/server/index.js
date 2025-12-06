@@ -151,11 +151,12 @@ function getFallbackResponse() {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { messages, userName, chatStyle = 'conversation' } = req.body;
+    const { messages, userName, chatStyle = 'conversation', localTime, localDay, localDate } = req.body;
     
     console.log('Received messages:', JSON.stringify(messages, null, 2));
     console.log('User name:', userName);
     console.log('Chat style:', chatStyle);
+    console.log('Local time:', localTime, localDay, localDate);
     
     if (!openai) {
       const fallback = getFallbackResponse();
@@ -165,6 +166,18 @@ app.post('/api/chat', async (req, res) => {
     
     // Build personalized system prompt with user preferences
     let systemPrompt = TRACE_SYSTEM_PROMPT.replace('{chat_style}', chatStyle);
+    // Add time awareness
+    if (localTime || localDay || localDate) {
+      systemPrompt += `\n\nTime awareness
+It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${localDate || ''} for the user. Be naturally aware of this:
+- Morning (before noon): You might acknowledge it's morning, ask how they slept, or note they're starting their day.
+- Afternoon: Mid-day energy, maybe they're taking a break.
+- Evening (after 6pm): Wind-down time, reflect on how their day went.
+- Late night (after 10pm): They might be having trouble sleeping, or just unwinding. Be gentle.
+- Weekends vs weekdays: Different energy. Weekends might be more relaxed or social.
+Don't force time references into every message—just be aware, like a friend who knows what time it is.`;
+    }
+    
     if (userName) {
       systemPrompt += `\n\nPersonalization
 The person you're speaking with is named ${userName}. You know their name—never say you don't remember it or can't remember personal information. Use their name naturally and warmly in conversation—not in every message, but occasionally, the way a friend would. Remember details they share within this conversation and reference them when relevant. Make them feel genuinely known and cared for. You're their companion who knows them.
