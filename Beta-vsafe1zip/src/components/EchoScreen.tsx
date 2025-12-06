@@ -51,7 +51,7 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
       const gridSize = 24;
 
       ctx.save();
-      ctx.strokeStyle = 'rgba(107, 124, 107, 0.06)';
+      ctx.strokeStyle = 'rgba(107, 124, 107, 0.09)';
       ctx.lineWidth = 0.5;
 
       for (let x = 0; x <= width; x += gridSize) {
@@ -123,9 +123,9 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
         centerX, centerY, 0,
         centerX, centerY, radius * 1.5
       );
-      gradient.addColorStop(0, 'rgba(45, 58, 74, 0.32)');
-      gradient.addColorStop(0.4, 'rgba(45, 58, 74, 0.20)');
-      gradient.addColorStop(0.7, 'rgba(107, 124, 107, 0.10)');
+      gradient.addColorStop(0, 'rgba(45, 58, 74, 0.40)');
+      gradient.addColorStop(0.4, 'rgba(45, 58, 74, 0.26)');
+      gradient.addColorStop(0.7, 'rgba(107, 124, 107, 0.14)');
       gradient.addColorStop(1, 'rgba(107, 124, 107, 0)');
 
       ctx.save();
@@ -140,7 +140,7 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
         centerX, centerY, 0,
         centerX, centerY, radius * 0.6
       );
-      innerGlow.addColorStop(0, 'rgba(212, 196, 168, 0.18)');
+      innerGlow.addColorStop(0, 'rgba(212, 196, 168, 0.24)');
       innerGlow.addColorStop(1, 'rgba(212, 196, 168, 0)');
 
       ctx.save();
@@ -158,10 +158,10 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
       const centerY = height / 2;
 
       const layers = [
-        { color: LUNA_PALETTE.midnightBlue, opacity: 0.65, amplitude: 60, frequency: 0.008, speed: 0.0003, offset: 0, blur: 6 },
-        { color: LUNA_PALETTE.sageGray, opacity: 0.58, amplitude: 45, frequency: 0.012, speed: 0.0004, offset: 1, blur: 4 },
-        { color: LUNA_PALETTE.beige, opacity: 0.45, amplitude: 35, frequency: 0.015, speed: 0.0005, offset: 2, blur: 2 },
-        { color: LUNA_PALETTE.sageMuted, opacity: 0.52, amplitude: 50, frequency: 0.01, speed: 0.00035, offset: 1.5, blur: 5 },
+        { color: LUNA_PALETTE.midnightBlue, opacity: 0.75, amplitude: 60, frequency: 0.008, speed: 0.0003, offset: 0, blur: 5 },
+        { color: LUNA_PALETTE.sageGray, opacity: 0.68, amplitude: 45, frequency: 0.012, speed: 0.0004, offset: 1, blur: 3 },
+        { color: LUNA_PALETTE.beige, opacity: 0.55, amplitude: 35, frequency: 0.015, speed: 0.0005, offset: 2, blur: 2 },
+        { color: LUNA_PALETTE.sageMuted, opacity: 0.62, amplitude: 50, frequency: 0.01, speed: 0.00035, offset: 1.5, blur: 4 },
       ];
 
       layers.forEach((layer, layerIndex) => {
