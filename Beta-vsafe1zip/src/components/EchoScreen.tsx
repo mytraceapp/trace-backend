@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
 
 interface EchoScreenProps {
   onBack: () => void;
@@ -278,22 +277,9 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
         >
           <canvas
             ref={canvasRef}
-            className="absolute inset-0 w-full h-full"
-          />
-
-          <motion.button
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.4 }}
+            className="absolute inset-0 w-full h-full cursor-pointer"
             onClick={handleExit}
-            className="absolute top-14 right-6 z-10 p-3 rounded-full"
-            style={{ 
-              backgroundColor: 'rgba(107, 124, 107, 0.2)',
-              backdropFilter: 'blur(10px)'
-            }}
-          >
-            <X size={20} color={LUNA_PALETTE.fogWhite} strokeWidth={1.5} />
-          </motion.button>
+          />
         </motion.div>
       )}
     </AnimatePresence>
