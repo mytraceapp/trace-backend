@@ -37,7 +37,7 @@ export default function EchoScreen({
   useEffect(() => {
     const audio = new Audio('/audio/trace-echo.mp3');
     audio.volume = 0;
-    audio.loop = true;
+    audio.loop = false;
     audioRef.current = audio;
 
     const fadeIn = () => {
@@ -52,9 +52,12 @@ export default function EchoScreen({
       }, 50);
     };
 
-    audio.play().then(fadeIn).catch(() => {});
+    const startTimeout = setTimeout(() => {
+      audio.play().then(fadeIn).catch(() => {});
+    }, 4000);
 
     return () => {
+      clearTimeout(startTimeout);
       if (audioRef.current) {
         let vol = audioRef.current.volume;
         const fadeInterval = setInterval(() => {
@@ -89,7 +92,7 @@ export default function EchoScreen({
     }
     setTimeout(() => {
       onBack();
-    }, 600);
+    }, 2000);
   }, [onBack]);
 
   useEffect(() => {
