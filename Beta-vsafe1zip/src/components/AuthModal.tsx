@@ -12,6 +12,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
 
   if (!isOpen) return null;
 
@@ -25,6 +26,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     e.preventDefault();
     setIsLoading(true);
     setMessage("");
+    setIsError(false);
 
     try {
       if (mode === "signup") {
@@ -42,10 +44,18 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           password,
         });
         if (error) throw error;
-        setMessage("Signed in. You can close this window.");
+        setMessage("Signed in successfully!");
+        // Auto-close modal after successful login
+        setTimeout(() => {
+          onClose();
+          setEmail("");
+          setPassword("");
+          setMessage("");
+        }, 1200);
       }
     } catch (err: any) {
       console.error(err);
+      setIsError(true);
       setMessage(err.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
@@ -285,7 +295,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             style={{
               marginTop: 10,
               fontSize: 12,
-              color: "rgba(236, 227, 212, 0.86)",
+              padding: "8px 12px",
+              borderRadius: 8,
+              background: isError ? "rgba(180, 80, 80, 0.15)" : "rgba(120, 160, 120, 0.15)",
+              color: isError ? "#e8a0a0" : "#a8d4a8",
+              border: `1px solid ${isError ? "rgba(180, 80, 80, 0.3)" : "rgba(120, 160, 120, 0.3)"}`,
             }}
           >
             {message}
