@@ -69,18 +69,10 @@ export function ChatScreen({
   const userName = currentProfile?.name || null;
   
   const getPersonalizedGreeting = React.useCallback(() => {
-    const baseGreeting = getTraceGreeting();
     if (userName) {
-      const greetings = [
-        `Hi, ${userName}. I'm here with you.`,
-        `Hey ${userName}... how are you feeling?`,
-        `${userName}... I'm here. What's on your mind?`,
-        `Hi ${userName}. How are you doing?`,
-        `Hey ${userName}. I'm here whenever you're ready.`,
-      ];
-      return greetings[Math.floor(Math.random() * greetings.length)];
+      return `Hi, ${userName}. I'm here if you need me.`;
     }
-    return baseGreeting;
+    return getTraceGreeting();
   }, [userName]);
 
   const [greetingText, setGreetingText] = React.useState(() => getTraceGreeting());
