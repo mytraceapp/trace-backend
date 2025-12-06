@@ -92,7 +92,7 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
       const centerY = height / 2;
 
       const breathe = 1 + Math.sin(time * 0.0004) * 0.08;
-      const baseRadius = Math.min(width, height) * 0.25;
+      const baseRadius = Math.min(width, height) * 0.35;
       const radius = baseRadius * breathe;
 
       const gradient = ctx.createRadialGradient(
