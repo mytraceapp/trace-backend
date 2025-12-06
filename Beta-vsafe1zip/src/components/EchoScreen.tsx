@@ -46,6 +46,13 @@ export default function EchoScreen({
     audio.playbackRate = 0.95; // Slow down by 5% for smoother delivery
     audioRef.current = audio;
 
+    // Auto-navigate to chat 2 seconds after TRACE finishes speaking
+    audio.onended = () => {
+      setTimeout(() => {
+        onReturnToChat();
+      }, 2000);
+    };
+
     // Start ambient music immediately when page loads
     const ambientAudio = new Audio('/audio/ambient-loop.mp3');
     ambientAudio.loop = true;
@@ -86,8 +93,8 @@ export default function EchoScreen({
       let vol = 0;
       const fadeInterval = setInterval(() => {
         vol += 0.002; // Ultra smooth fade in over ~16 seconds
-        if (vol >= 0.85) {
-          vol = 0.85;
+        if (vol >= 0.92) {
+          vol = 0.92;
           clearInterval(fadeInterval);
         }
         if (audioRef.current) audioRef.current.volume = vol;
