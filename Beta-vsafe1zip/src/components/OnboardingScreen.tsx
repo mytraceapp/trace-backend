@@ -18,6 +18,7 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
   
   const [voiceIntensity, setVoiceIntensity] = useState(0);
   const [audioMuted, setAudioMuted] = useState(false);
+  const [showRipple, setShowRipple] = useState(false);
 
   const analyzeAudio = useCallback(() => {
     if (!analyserRef.current) return;
@@ -174,6 +175,11 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
   const handleOrbToggle = useCallback(() => {
     const newMuted = !audioMuted;
     setAudioMuted(newMuted);
+    
+    if (!newMuted) {
+      setShowRipple(true);
+      setTimeout(() => setShowRipple(false), 800);
+    }
     
     if (audioRef.current) {
       if (newMuted) {
@@ -414,7 +420,7 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
           onClick={handleOrbToggle}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ 
-            opacity: audioMuted ? 0.6 : 1, 
+            opacity: audioMuted ? 0.7 : 1, 
             scale: audioMuted ? 0.95 : 1 + voiceIntensity * 0.08,
           }}
           transition={{ 
@@ -423,20 +429,72 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
           }}
           whileTap={{ scale: 0.92 }}
         >
+          {/* Ripple animation when unmuting */}
+          <AnimatePresence>
+            {showRipple && (
+              <>
+                <motion.div
+                  className="absolute rounded-full pointer-events-none"
+                  initial={{ width: 140, height: 140, opacity: 0.5 }}
+                  animate={{ width: 280, height: 280, opacity: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  style={{
+                    border: '2px solid rgba(255,255,255,0.4)',
+                    background: 'transparent',
+                  }}
+                />
+                <motion.div
+                  className="absolute rounded-full pointer-events-none"
+                  initial={{ width: 140, height: 140, opacity: 0.3 }}
+                  animate={{ width: 220, height: 220, opacity: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+                  style={{
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    background: 'transparent',
+                  }}
+                />
+              </>
+            )}
+          </AnimatePresence>
+
           <div className="w-[140px] h-[140px] relative">
-            {/* Voice-reactive outer glow */}
-            <motion.div
-              className="absolute inset-[-60px] rounded-full pointer-events-none"
-              animate={{
-                scale: 1 + voiceIntensity * 0.3,
-                opacity: 0.15 + voiceIntensity * 0.25,
-              }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              style={{
-                background: 'radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(230,240,235,0.15) 30%, transparent 60%)',
-                filter: 'blur(25px)',
-              }}
-            />
+            {/* Resting pulse when muted - slow, calm breathing */}
+            {audioMuted && (
+              <motion.div
+                className="absolute inset-[-20px] rounded-full pointer-events-none"
+                animate={{
+                  scale: [1, 1.08, 1],
+                  opacity: [0.15, 0.25, 0.15],
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                style={{
+                  background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)',
+                  filter: 'blur(15px)',
+                }}
+              />
+            )}
+
+            {/* Voice-reactive outer glow - only when not muted */}
+            {!audioMuted && (
+              <motion.div
+                className="absolute inset-[-60px] rounded-full pointer-events-none"
+                animate={{
+                  scale: 1 + voiceIntensity * 0.3,
+                  opacity: 0.15 + voiceIntensity * 0.25,
+                }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                style={{
+                  background: 'radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(230,240,235,0.15) 30%, transparent 60%)',
+                  filter: 'blur(25px)',
+                }}
+              />
+            )}
             
             {/* Faint glowing halo around orb */}
             <motion.div
@@ -445,11 +503,18 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
                 background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(230,240,235,0.1) 25%, rgba(210,235,230,0.06) 40%, transparent 65%)',
                 filter: 'blur(30px)',
               }}
-              animate={{
+              animate={audioMuted ? {
+                scale: [0.95, 1.02, 0.95],
+                opacity: [0.15, 0.22, 0.15],
+              } : {
                 scale: 0.95 + voiceIntensity * 0.15,
                 opacity: 0.2 + voiceIntensity * 0.2,
               }}
-              transition={{ duration: 0.12, ease: "easeOut" }}
+              transition={audioMuted ? {
+                duration: 5,
+                repeat: Infinity,
+                ease: "easeInOut",
+              } : { duration: 0.12, ease: "easeOut" }}
             />
 
             {/* Secondary halo layer */}
@@ -459,11 +524,18 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
                 background: 'radial-gradient(circle, rgba(210,235,230,0.12) 0%, rgba(200,218,215,0.06) 30%, transparent 55%)',
                 filter: 'blur(35px)',
               }}
-              animate={{
+              animate={audioMuted ? {
+                scale: [1, 1.06, 1],
+                opacity: [0.1, 0.16, 0.1],
+              } : {
                 scale: 1 + voiceIntensity * 0.12,
                 opacity: 0.12 + voiceIntensity * 0.18,
               }}
-              transition={{ duration: 0.12, ease: "easeOut" }}
+              transition={audioMuted ? {
+                duration: 6,
+                repeat: Infinity,
+                ease: "easeInOut",
+              } : { duration: 0.12, ease: "easeOut" }}
             />
 
             {/* Main orb body - translucent */}
