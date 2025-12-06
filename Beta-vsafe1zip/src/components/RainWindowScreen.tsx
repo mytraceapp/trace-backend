@@ -229,7 +229,7 @@ export function RainWindowScreen({
           width: '100%',
           height: '100%',
           objectFit: 'cover',
-          filter: 'brightness(0.75) saturate(0.8)',
+          filter: 'brightness(1.2) saturate(1.0) contrast(1.1)',
           opacity: quietMode ? 1 : 0,
           transition: 'opacity 1.2s ease-in-out',
         }}
