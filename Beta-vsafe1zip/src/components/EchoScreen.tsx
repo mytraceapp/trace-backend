@@ -54,16 +54,16 @@ export default function EchoScreen({
     ambientAudioRef.current = ambientAudio;
     
     ambientAudio.play().then(() => {
-      // Fade in to incredibly faint level
+      // Smooth fade in to fill the space
       let vol = 0;
       const fadeInterval = setInterval(() => {
-        vol += 0.003;
+        vol += 0.002;
         if (vol >= 0.10) {
           vol = 0.10;
           clearInterval(fadeInterval);
         }
         if (ambientAudioRef.current) ambientAudioRef.current.volume = vol;
-      }, 50);
+      }, 30);
     }).catch(() => {});
 
     const setupAudioAnalyser = () => {
@@ -71,8 +71,8 @@ export default function EchoScreen({
       audioContextRef.current = audioContext;
       
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 128;
-      analyser.smoothingTimeConstant = 0.7;
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.85;
       analyserRef.current = analyser;
       
       const source = audioContext.createMediaElementSource(audio);
