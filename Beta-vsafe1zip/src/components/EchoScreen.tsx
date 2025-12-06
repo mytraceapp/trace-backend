@@ -32,13 +32,33 @@ export default function EchoScreen({
   const animationRef = useRef<number>(0);
   const timeRef = useRef<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioDataRef = useRef<Uint8Array | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
     const audio = new Audio('/audio/trace-echo.mp3');
     audio.volume = 0;
     audio.loop = false;
+    audio.crossOrigin = 'anonymous';
     audioRef.current = audio;
+
+    const setupAudioAnalyser = () => {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = audioContext;
+      
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      analyserRef.current = analyser;
+      
+      const source = audioContext.createMediaElementSource(audio);
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
+      
+      audioDataRef.current = new Uint8Array(analyser.frequencyBinCount);
+    };
 
     const fadeIn = () => {
       let vol = 0;
@@ -53,6 +73,7 @@ export default function EchoScreen({
     };
 
     const startTimeout = setTimeout(() => {
+      setupAudioAnalyser();
       audio.play().then(fadeIn).catch(() => {});
     }, 4000);
 
@@ -71,6 +92,9 @@ export default function EchoScreen({
             audioRef.current.volume = vol;
           }
         }, 30);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
       }
     };
   }, []);
@@ -155,15 +179,16 @@ export default function EchoScreen({
       ctx.restore();
     };
 
-    const drawOrb = (time: number) => {
+    const drawOrb = (time: number, audioLevel: number) => {
       const width = canvas.width / (window.devicePixelRatio || 1);
       const height = canvas.height / (window.devicePixelRatio || 1);
       const centerX = width / 2;
       const centerY = height / 2 + verticalOffset;
 
       const breathe = 1 + Math.sin(time * 0.0004) * 0.08;
+      const audioReact = 1 + audioLevel * 0.15;
       const baseRadius = Math.min(width, height) * 0.35;
-      const radius = baseRadius * breathe;
+      const radius = baseRadius * breathe * audioReact;
 
       const gradient = ctx.createRadialGradient(
         centerX, centerY, 0,
@@ -186,7 +211,8 @@ export default function EchoScreen({
         centerX, centerY, 0,
         centerX, centerY, radius * 0.6
       );
-      innerGlow.addColorStop(0, 'rgba(212, 196, 168, 0.22)');
+      const glowIntensity = 0.22 + audioLevel * 0.15;
+      innerGlow.addColorStop(0, `rgba(212, 196, 168, ${glowIntensity})`);
       innerGlow.addColorStop(1, 'rgba(212, 196, 168, 0)');
 
       ctx.save();
@@ -198,7 +224,7 @@ export default function EchoScreen({
       ctx.restore();
     };
 
-    const drawWaveform = (time: number) => {
+    const drawWaveform = (time: number, audioLevel: number, frequencyData: Uint8Array | null) => {
       const width = canvas.width / (window.devicePixelRatio || 1);
       const height = canvas.height / (window.devicePixelRatio || 1);
       const centerY = height / 2 + verticalOffset;
@@ -220,8 +246,13 @@ export default function EchoScreen({
           const x = (i / segments) * width;
           const normalizedX = i / segments;
 
-          const wave1 = Math.sin(normalizedX * Math.PI * 4 * layer.frequency * 100 + time * layer.speed + layer.offset) * layer.amplitude;
-          const wave2 = Math.sin(normalizedX * Math.PI * 2 * layer.frequency * 80 + time * layer.speed * 0.7 + layer.offset * 1.5) * layer.amplitude * 0.6;
+          const audioBoost = 1 + audioLevel * 0.8;
+          const freqIndex = Math.floor((i / segments) * (frequencyData?.length || 1));
+          const freqValue = frequencyData ? frequencyData[freqIndex] / 255 : 0;
+          const freqBoost = 1 + freqValue * 0.5;
+          
+          const wave1 = Math.sin(normalizedX * Math.PI * 4 * layer.frequency * 100 + time * layer.speed + layer.offset) * layer.amplitude * audioBoost;
+          const wave2 = Math.sin(normalizedX * Math.PI * 2 * layer.frequency * 80 + time * layer.speed * 0.7 + layer.offset * 1.5) * layer.amplitude * 0.6 * freqBoost;
           const wave3 = Math.sin(normalizedX * Math.PI * 6 * layer.frequency * 60 + time * layer.speed * 1.2 + layer.offset * 0.8) * layer.amplitude * 0.3;
 
           const breathe = Math.sin(time * 0.0002 + layerIndex * 0.5) * 0.15 + 1;
@@ -276,9 +307,10 @@ export default function EchoScreen({
         const x = (i / segments) * width;
         const normalizedX = i / segments;
 
-        const wave = Math.sin(normalizedX * Math.PI * 3 + time * 0.0004) * 40 +
+        const audioBoost = 1 + audioLevel * 1.0;
+        const wave = (Math.sin(normalizedX * Math.PI * 3 + time * 0.0004) * 40 +
                      Math.sin(normalizedX * Math.PI * 5 + time * 0.0003) * 25 +
-                     Math.sin(normalizedX * Math.PI * 2 + time * 0.0005) * 30;
+                     Math.sin(normalizedX * Math.PI * 2 + time * 0.0005) * 30) * audioBoost;
 
         const envelope = Math.sin(normalizedX * Math.PI);
         const breathe = Math.sin(time * 0.00025) * 0.1 + 1;
@@ -314,14 +346,24 @@ export default function EchoScreen({
       const width = canvas.width / (window.devicePixelRatio || 1);
       const height = canvas.height / (window.devicePixelRatio || 1);
 
+      let audioLevel = 0;
+      let frequencyData: Uint8Array | null = null;
+      
+      if (analyserRef.current && audioDataRef.current) {
+        analyserRef.current.getByteFrequencyData(audioDataRef.current);
+        frequencyData = audioDataRef.current;
+        const sum = audioDataRef.current.reduce((a, b) => a + b, 0);
+        audioLevel = sum / (audioDataRef.current.length * 255);
+      }
+
       ctx.clearRect(0, 0, width, height);
 
       ctx.fillStyle = LUNA_PALETTE.charcoal;
       ctx.fillRect(0, 0, width, height);
 
       drawRadialGrid(timestamp);
-      drawOrb(timestamp);
-      drawWaveform(timestamp);
+      drawOrb(timestamp, audioLevel);
+      drawWaveform(timestamp, audioLevel, frequencyData);
 
       animationRef.current = requestAnimationFrame(animate);
     };
