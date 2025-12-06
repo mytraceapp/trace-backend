@@ -51,7 +51,7 @@ export default function EchoScreen({
       
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 128;
-      analyser.smoothingTimeConstant = 0.3;
+      analyser.smoothingTimeConstant = 0.7;
       analyserRef.current = analyser;
       
       const source = audioContext.createMediaElementSource(audio);
@@ -303,10 +303,10 @@ export default function EchoScreen({
           const x = (i / segments) * width;
           const normalizedX = i / segments;
 
-          const audioBoost = 1 + safeAudio * 3.3;
+          const audioBoost = 1 + safeAudio * 1.8;
           const freqIndex = Math.floor((i / segments) * (frequencyData?.length || 1));
           const freqValue = frequencyData ? frequencyData[freqIndex] / 255 : 0;
-          const freqBoost = 1 + freqValue * 2.5;
+          const freqBoost = 1 + freqValue * 1.2;
           
           const wave1 = Math.sin(normalizedX * Math.PI * 4 * layer.frequency * 100 + time * layer.speed + layer.offset) * layer.amplitude * audioBoost;
           const wave2 = Math.sin(normalizedX * Math.PI * 2 * layer.frequency * 80 + time * layer.speed * 0.7 + layer.offset * 1.5) * layer.amplitude * 0.6 * freqBoost;
@@ -365,7 +365,7 @@ export default function EchoScreen({
         const x = (i / segments) * width;
         const normalizedX = i / segments;
 
-        const audioBoost = 1 + safeLevel * 4.2;
+        const audioBoost = 1 + safeLevel * 2.0;
         const wave = (Math.sin(normalizedX * Math.PI * 3 + time * 0.0004) * 40 +
                      Math.sin(normalizedX * Math.PI * 5 + time * 0.0003) * 25 +
                      Math.sin(normalizedX * Math.PI * 2 + time * 0.0005) * 30) * audioBoost;
@@ -412,7 +412,7 @@ export default function EchoScreen({
         frequencyData = audioDataRef.current;
         const sum = audioDataRef.current.reduce((a, b) => a + b, 0);
         const rawLevel = sum / (audioDataRef.current.length * 255);
-        audioLevel = Math.min(1, rawLevel * 3.0);
+        audioLevel = Math.min(1, rawLevel * 1.5);
       }
 
       ctx.clearRect(0, 0, width, height);
