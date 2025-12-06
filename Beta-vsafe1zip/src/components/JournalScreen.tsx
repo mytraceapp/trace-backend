@@ -21,6 +21,7 @@ interface MoodOption {
   label: string;
   description: string;
   color: string;
+  colorDark: string;
   glow: string;
   shadow: string;
 }
@@ -31,6 +32,7 @@ const moodOptions: MoodOption[] = [
     label: 'Calm',
     description: 'Peaceful & centered',
     color: '#F4F1EC',
+    colorDark: '#A8D4A2',
     glow: 'rgba(244, 241, 236, 0.6)',
     shadow: '0 2px 8px rgba(211, 207, 200, 0.3)',
   },
@@ -39,6 +41,7 @@ const moodOptions: MoodOption[] = [
     label: 'Okay',
     description: 'Steady & manageable',
     color: '#D3CFC8',
+    colorDark: '#D4C49A',
     glow: 'rgba(211, 207, 200, 0.7)',
     shadow: '0 2px 10px rgba(179, 171, 160, 0.35)',
   },
@@ -47,6 +50,7 @@ const moodOptions: MoodOption[] = [
     label: 'Heavy',
     description: 'Weighed down',
     color: '#B3ABA0',
+    colorDark: '#C49A80',
     glow: 'rgba(179, 171, 160, 0.8)',
     shadow: '0 3px 12px rgba(138, 134, 128, 0.4)',
   },
@@ -55,6 +59,7 @@ const moodOptions: MoodOption[] = [
     label: 'Overwhelmed',
     description: 'Intense & difficult',
     color: '#8A8680',
+    colorDark: '#9A7A8A',
     glow: 'rgba(138, 134, 128, 0.9)',
     shadow: '0 4px 16px rgba(107, 103, 97, 0.5)',
   },
@@ -88,7 +93,8 @@ function getEntriesForDate(entries: Entry[], year: number, month: number, day: n
 
 export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNavigateToProfile, onNavigateToHelp }: JournalScreenProps) {
   const { entries, addEmotionalNoteEntry, addAIReflectionEntry } = useEntries();
-  useTheme();
+  const { theme } = useTheme();
+  const isDark = theme === 'night';
   
   // Initialize with current date
   const now = new Date();
@@ -505,6 +511,7 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                   return moodOptions.map((mood, index) => {
                     const isLogged = loggedMoods.includes(mood.type);
                     const barWidth = isLogged ? 260 : baseLengths[index];
+                    const barColor = isDark ? mood.colorDark : mood.color;
                     
                     return (
                       <div
@@ -513,12 +520,12 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                           width: `${barWidth}px`,
                           height: '6px',
                           borderRadius: '3px',
-                          background: mood.color,
+                          background: barColor,
                           boxShadow: isLogged 
-                            ? '0 2px 10px rgba(75, 75, 75, 0.25)' 
-                            : '0 1px 3px rgba(75, 75, 75, 0.08)',
-                          border: '1px solid rgba(255, 255, 255, 0.5)',
-                          transition: 'width 0.4s ease',
+                            ? (isDark ? '0 2px 12px rgba(0, 0, 0, 0.4)' : '0 2px 10px rgba(75, 75, 75, 0.25)')
+                            : (isDark ? '0 1px 4px rgba(0, 0, 0, 0.3)' : '0 1px 3px rgba(75, 75, 75, 0.08)'),
+                          border: isDark ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(255, 255, 255, 0.5)',
+                          transition: 'width 0.4s ease, background 0.3s ease',
                         }}
                       />
                     );
