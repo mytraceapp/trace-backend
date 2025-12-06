@@ -64,10 +64,34 @@ export function ChatScreen({
   const [displayedText, setDisplayedText] = React.useState('');
   const [currentIndex, setCurrentIndex] = React.useState(0);
 
-  // Chat UI starts fresh each visit - TRACE's memory is kept in localStorage separately
-  // This means the visible chat clears when leaving, but TRACE remembers context
+  // Chat session persistence - messages persist for 1 hour
+  const CHAT_STORAGE_KEY = 'trace_chat_session';
+  const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
+  
+  // Load saved messages on mount if within timeout
   React.useEffect(() => {
-    // Always start with fresh UI - get a new greeting each time
+    try {
+      const saved = localStorage.getItem(CHAT_STORAGE_KEY);
+      if (saved) {
+        const { messages: savedMessages, timestamp } = JSON.parse(saved);
+        const now = Date.now();
+        
+        // If session is still valid (within 1 hour)
+        if (now - timestamp < SESSION_TIMEOUT_MS && savedMessages.length > 0) {
+          setMessages(savedMessages);
+          setHasResponded(true);
+          setShowTypewriter(false);
+          return; // Don't show greeting if resuming
+        } else {
+          // Clear expired session
+          localStorage.removeItem(CHAT_STORAGE_KEY);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading chat session:', e);
+    }
+    
+    // Start fresh session with greeting
     if (shouldStartGreeting) {
       setGreetingText(getTraceGreeting());
       setDisplayedText('');
@@ -81,7 +105,21 @@ export function ChatScreen({
 
       return () => clearTimeout(startDelay);
     }
-  }, [shouldStartGreeting]);
+  }, []);
+  
+  // Save messages whenever they change
+  React.useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({
+          messages,
+          timestamp: Date.now()
+        }));
+      } catch (e) {
+        console.error('Error saving chat session:', e);
+      }
+    }
+  }, [messages]);
 
   React.useEffect(() => {
     if (showTypewriter && currentIndex < greetingText.length && !hasResponded) {
