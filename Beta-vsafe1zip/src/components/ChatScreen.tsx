@@ -70,7 +70,7 @@ export function ChatScreen({
   
   const getPersonalizedGreeting = React.useCallback(() => {
     if (userName) {
-      return `Hi, ${userName}. I'm here if you need me.`;
+      return `Whenever you're ready, ${userName}.`;
     }
     return getTraceGreeting();
   }, [userName]);
