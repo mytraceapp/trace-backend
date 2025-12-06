@@ -299,11 +299,11 @@ export function ChatScreen({
       pendingNavigationRef.current = navigateCallback;
       setIsTransitioning(true);
       
-      // Navigate after fade completes
+      // Navigate after fade completes (longer for smoother feel)
       setTimeout(() => {
         pendingNavigationRef.current?.();
         pendingNavigationRef.current = null;
-      }, 600);
+      }, 900);
     }
   }, [onNavigateToBreathing, onNavigateToGrounding, onNavigateToWalking, onNavigateToMaze, onNavigateToPowerNap, onNavigateToPearlRipple, onNavigateToRest, onNavigateToWindow, onNavigateToEcho]);
 
@@ -1100,11 +1100,11 @@ export function ChatScreen({
         />
       </div>
 
-      {/* Crossfade transition overlay */}
+      {/* Crossfade transition overlay - super smooth with blur and glow */}
       <AnimatePresence>
         {isTransitioning && (
           <motion.div
-            className="absolute inset-0 z-50"
+            className="absolute inset-0 z-50 flex items-center justify-center"
             style={{
               background: isDark 
                 ? 'linear-gradient(180deg, #0E0F0D 0%, #1a1b18 50%, #0E0F0D 100%)'
@@ -1113,10 +1113,39 @@ export function ChatScreen({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
-          />
+            transition={{ duration: 0.9, ease: [0.22, 0.61, 0.36, 1] }}
+          >
+            {/* Subtle centered glow during transition */}
+            <motion.div
+              className="absolute rounded-full"
+              style={{
+                width: 200,
+                height: 200,
+                background: isDark
+                  ? 'radial-gradient(circle, rgba(180, 200, 190, 0.15) 0%, transparent 70%)'
+                  : 'radial-gradient(circle, rgba(139, 169, 152, 0.2) 0%, transparent 70%)',
+                filter: 'blur(40px)',
+              }}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1.2, opacity: 1 }}
+              transition={{ duration: 0.8, ease: 'easeOut' }}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Blur overlay that activates during transition */}
+      <motion.div
+        className="absolute inset-0 z-40 pointer-events-none"
+        style={{
+          backdropFilter: isTransitioning ? 'blur(20px)' : 'blur(0px)',
+          WebkitBackdropFilter: isTransitioning ? 'blur(20px)' : 'blur(0px)',
+        }}
+        animate={{
+          opacity: isTransitioning ? 1 : 0,
+        }}
+        transition={{ duration: 0.5, ease: 'easeInOut' }}
+      />
 
     </div>
   );
