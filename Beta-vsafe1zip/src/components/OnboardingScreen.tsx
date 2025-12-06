@@ -10,15 +10,33 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
   const { selectedPlan, setSelectedPlan } = useUser();
   const [expandedTier, setExpandedTier] = React.useState<PlanTier | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const bgAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    const audio = new Audio('/audio/trace-intro.mp3');
-    audio.volume = 0;
-    audio.playbackRate = 1.05;
-    audioRef.current = audio;
+    const voiceAudio = new Audio('/audio/trace-intro.mp3');
+    voiceAudio.volume = 0;
+    voiceAudio.playbackRate = 1.05;
+    audioRef.current = voiceAudio;
+
+    const bgAudio = new Audio('/audio/ambient-loop.mp3');
+    bgAudio.volume = 0;
+    bgAudio.loop = true;
+    bgAudioRef.current = bgAudio;
     
     const playAudio = () => {
-      audio.play().then(() => {
+      bgAudio.play().then(() => {
+        let bgVol = 0;
+        const bgFadeIn = setInterval(() => {
+          bgVol += 0.02;
+          if (bgVol >= 0.25) {
+            bgVol = 0.25;
+            clearInterval(bgFadeIn);
+          }
+          bgAudio.volume = bgVol;
+        }, 100);
+      }).catch(() => {});
+
+      voiceAudio.play().then(() => {
         let vol = 0;
         const fadeIn = setInterval(() => {
           vol += 0.05;
@@ -26,7 +44,7 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
             vol = 0.9;
             clearInterval(fadeIn);
           }
-          audio.volume = vol;
+          voiceAudio.volume = vol;
         }, 100);
       }).catch(() => {});
     };
@@ -42,6 +60,16 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
           } else {
             clearInterval(fadeOut);
             audioRef.current?.pause();
+          }
+        }, 50);
+      }
+      if (bgAudioRef.current) {
+        const bgFadeOut = setInterval(() => {
+          if (bgAudioRef.current && bgAudioRef.current.volume > 0.02) {
+            bgAudioRef.current.volume -= 0.02;
+          } else {
+            clearInterval(bgFadeOut);
+            bgAudioRef.current?.pause();
           }
         }, 50);
       }
