@@ -487,7 +487,7 @@ export function GroundingExperience({ onBack, onComplete, onReturnToChat, onNavi
           onNavigateJournal={onNavigateToJournal}
           onNavigateProfile={onNavigateToProfile}
           onNavigateHelp={onNavigateToHelp}
-          variant="sage"
+          variant="sage-fixed"
         />
       </div>
     </div>

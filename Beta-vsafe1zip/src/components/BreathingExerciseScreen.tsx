@@ -602,7 +602,7 @@ export function BreathingExerciseScreen({
       <div className="absolute bottom-0 left-0 right-0 z-30">
         <BottomNav 
           activeScreen="activities"
-          variant="sage"
+          variant="sage-fixed"
           onNavigateHome={onNavigateHome}
           onNavigateActivities={onNavigateActivities}
           onNavigateJournal={onNavigateJournal}

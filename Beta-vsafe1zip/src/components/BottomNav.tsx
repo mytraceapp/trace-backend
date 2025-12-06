@@ -9,7 +9,7 @@ interface BottomNavProps {
   onNavigateJournal?: () => void;
   onNavigateProfile?: () => void;
   onNavigateHelp?: () => void;
-  variant?: 'sage' | 'neutral' | 'transparent'; // sage for chat screen, neutral for other screens, transparent for immersive screens
+  variant?: 'sage' | 'sage-fixed' | 'neutral' | 'transparent'; // sage for main screens (adapts to theme), sage-fixed for activities (always light), neutral for other screens, transparent for immersive screens
   disableAnimation?: boolean; // disable entrance animation when parent handles it
 }
 
@@ -24,12 +24,22 @@ export function BottomNav({
   disableAnimation = false
 }: BottomNavProps) {
   const { theme } = useTheme();
-  const isSage = variant === 'sage';
+  const isSage = variant === 'sage' || variant === 'sage-fixed';
+  const isSageFixed = variant === 'sage-fixed';
   const isTransparent = variant === 'transparent';
   const isDark = theme === 'night';
   
-  // Sage variant (activities & main screens) - always uses light sage, never adapts to dark mode
+  // Sage variant (main screens) - adapts to theme
   const sageStyles = {
+    background: isDark 
+      ? 'linear-gradient(to top, rgba(30, 32, 30, 1) 0%, rgba(42, 46, 42, 0.95) 40%, rgba(58, 64, 58, 0.7) 75%, transparent 100%)'
+      : 'linear-gradient(to top, rgba(107, 122, 110, 1) 0%, rgba(125, 145, 128, 0.95) 40%, rgba(154, 176, 156, 0.7) 75%, transparent 100%)',
+    iconColor: isDark ? '#D4D8D0' : '#EDE8DB',
+    textColor: isDark ? '#D4D8D0' : '#EDE8DB',
+  };
+  
+  // Sage-fixed variant (activity screens) - always light sage, never adapts to dark mode
+  const sageFixedStyles = {
     background: 'linear-gradient(to top, rgba(107, 122, 110, 1) 0%, rgba(125, 145, 128, 0.95) 40%, rgba(154, 176, 156, 0.7) 75%, transparent 100%)',
     iconColor: '#EDE8DB',
     textColor: '#EDE8DB',
@@ -55,7 +65,7 @@ export function BottomNav({
     textColorActive: 'rgba(212, 196, 168, 0.9)',
   };
   
-  const styles = isSage ? sageStyles : (isTransparent ? transparentStyles : neutralStyles);
+  const styles = isSageFixed ? sageFixedStyles : (isSage ? sageStyles : (isTransparent ? transparentStyles : neutralStyles));
 
   return (
     <motion.div
