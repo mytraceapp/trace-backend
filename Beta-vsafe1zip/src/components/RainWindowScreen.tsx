@@ -556,13 +556,13 @@ export function RainWindowScreen({
         </motion.div>
       )}
 
-      {/* Bottom gradient overlay - always visible */}
+      {/* Bottom gradient overlay - sits behind nav */}
       <div 
         className="absolute bottom-0 left-0 right-0 pointer-events-none"
         style={{
-          zIndex: 50,
-          height: '200px',
-          background: 'linear-gradient(to top, rgba(26, 28, 26, 1) 0%, rgba(30, 32, 30, 0.95) 25%, rgba(34, 38, 34, 0.7) 50%, rgba(38, 42, 38, 0.3) 75%, transparent 100%)',
+          zIndex: 5,
+          height: '160px',
+          background: 'linear-gradient(to top, rgba(26, 28, 26, 1) 0%, rgba(30, 32, 30, 0.9) 30%, rgba(34, 38, 34, 0.5) 60%, transparent 100%)',
         }}
       />
 
