@@ -98,9 +98,9 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
         centerX, centerY, 0,
         centerX, centerY, radius * 1.5
       );
-      gradient.addColorStop(0, 'rgba(45, 58, 74, 0.20)');
-      gradient.addColorStop(0.4, 'rgba(45, 58, 74, 0.12)');
-      gradient.addColorStop(0.7, 'rgba(107, 124, 107, 0.06)');
+      gradient.addColorStop(0, 'rgba(45, 58, 74, 0.26)');
+      gradient.addColorStop(0.4, 'rgba(45, 58, 74, 0.16)');
+      gradient.addColorStop(0.7, 'rgba(107, 124, 107, 0.08)');
       gradient.addColorStop(1, 'rgba(107, 124, 107, 0)');
 
       ctx.save();
@@ -115,7 +115,7 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
         centerX, centerY, 0,
         centerX, centerY, radius * 0.6
       );
-      innerGlow.addColorStop(0, 'rgba(212, 196, 168, 0.10)');
+      innerGlow.addColorStop(0, 'rgba(212, 196, 168, 0.14)');
       innerGlow.addColorStop(1, 'rgba(212, 196, 168, 0)');
 
       ctx.save();
@@ -133,10 +133,10 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
       const centerY = height / 2;
 
       const layers = [
-        { color: LUNA_PALETTE.midnightBlue, opacity: 0.4, amplitude: 60, frequency: 0.008, speed: 0.0003, offset: 0, blur: 8 },
-        { color: LUNA_PALETTE.sageGray, opacity: 0.35, amplitude: 45, frequency: 0.012, speed: 0.0004, offset: 1, blur: 5 },
-        { color: LUNA_PALETTE.beige, opacity: 0.25, amplitude: 35, frequency: 0.015, speed: 0.0005, offset: 2, blur: 3 },
-        { color: LUNA_PALETTE.sageMuted, opacity: 0.3, amplitude: 50, frequency: 0.01, speed: 0.00035, offset: 1.5, blur: 6 },
+        { color: LUNA_PALETTE.midnightBlue, opacity: 0.48, amplitude: 60, frequency: 0.008, speed: 0.0003, offset: 0, blur: 8 },
+        { color: LUNA_PALETTE.sageGray, opacity: 0.42, amplitude: 45, frequency: 0.012, speed: 0.0004, offset: 1, blur: 5 },
+        { color: LUNA_PALETTE.beige, opacity: 0.30, amplitude: 35, frequency: 0.015, speed: 0.0005, offset: 2, blur: 3 },
+        { color: LUNA_PALETTE.sageMuted, opacity: 0.36, amplitude: 50, frequency: 0.01, speed: 0.00035, offset: 1.5, blur: 6 },
       ];
 
       layers.forEach((layer, layerIndex) => {
