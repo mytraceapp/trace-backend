@@ -550,7 +550,10 @@ export function RainWindowScreen({
         </motion.div>
       )}
 
-      <div className="absolute bottom-0 left-0 right-0 z-40">
+      <div className="absolute bottom-0 left-0 right-0 z-40" style={{
+          background: 'linear-gradient(to top, rgba(42, 46, 42, 0.95) 0%, rgba(36, 40, 36, 0.85) 25%, rgba(30, 34, 30, 0.6) 50%, rgba(26, 29, 26, 0.3) 75%, rgba(26, 29, 26, 0) 100%)',
+          paddingTop: '70px',
+        }}>
         <BottomNav
           activeScreen="activities"
           onNavigateHome={onReturnToChat}
@@ -558,7 +561,7 @@ export function RainWindowScreen({
           onNavigateJournal={onNavigateToJournal}
           onNavigateProfile={onNavigateToProfile}
           onNavigateHelp={onNavigateToHelp}
-          variant="neutral"
+          variant="transparent"
           disableAnimation={true}
         />
       </div>
