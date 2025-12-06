@@ -522,9 +522,9 @@ export function ActivitiesHubScreen({
                 onClick={onStartEcho}
                 className="rounded-[24px] p-5 transition-all duration-300 active:scale-[0.97]"
                 style={{
-                  background: 'linear-gradient(135deg, #2d3a4a 0%, #1a1d1a 100%)',
-                  boxShadow: '0 8px 24px rgba(26, 29, 26, 0.3), 0 2px 8px rgba(26, 29, 26, 0.2), inset 0 1px 2px rgba(107, 124, 107, 0.15)',
-                  border: '1px solid rgba(107, 124, 107, 0.2)',
+                  background: 'linear-gradient(135deg, #D8D4CD 0%, #D0CCC5 100%)',
+                  boxShadow: '0 8px 24px rgba(75, 75, 75, 0.08), 0 2px 8px rgba(75, 75, 75, 0.04), inset 0 1px 2px rgba(255, 255, 255, 0.35)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
                 }}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -535,7 +535,7 @@ export function ActivitiesHubScreen({
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(107, 124, 107, 0.25) 0%, rgba(45, 58, 74, 0.15) 100%)',
+                      background: 'linear-gradient(135deg, rgba(107, 124, 107, 0.18) 0%, rgba(107, 124, 107, 0.08) 100%)',
                     }}
                   >
                     <Activity size={20} style={{ color: '#6b7c6b' }} strokeWidth={1.5} />
@@ -546,7 +546,7 @@ export function ActivitiesHubScreen({
                       className="mb-1"
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: '#d4c4a8',
+                        color: '#4B4B4B',
                         fontWeight: 500,
                         fontSize: '16px',
                         letterSpacing: '0.01em',
@@ -557,7 +557,7 @@ export function ActivitiesHubScreen({
                     <p
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: '#6b7c6b',
+                        color: '#6B6761',
                         fontWeight: 300,
                         fontSize: '12px',
                         letterSpacing: '0.005em',
