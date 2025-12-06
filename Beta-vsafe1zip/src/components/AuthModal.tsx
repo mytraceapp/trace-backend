@@ -13,8 +13,38 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   if (!isOpen) return null;
+
+  async function handleForgotPassword() {
+    if (!email) {
+      setIsError(true);
+      setMessage("Please enter your email address first.");
+      return;
+    }
+    
+    setIsLoading(true);
+    setMessage("");
+    setIsError(false);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      
+      if (error) throw new Error(error.message);
+      
+      setMessage("Password reset email sent! Check your inbox.");
+      setShowForgotPassword(false);
+    } catch (err: any) {
+      console.error("Reset password error:", err);
+      setIsError(true);
+      setMessage(err.message || "Failed to send reset email. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   const title = mode === "signin" ? "Sign In" : "Create Account";
   const subtitle =
@@ -284,11 +314,32 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               background: "rgba(7, 8, 8, 0.9)",
               color: "#f5f1e9",
               fontSize: 14,
-              marginBottom: 14,
+              marginBottom: 6,
               outline: "none",
               boxSizing: "border-box",
             }}
           />
+
+          {/* Forgot Password Link - only show on sign in */}
+          {mode === "signin" && (
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={isLoading}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "rgba(180, 170, 155, 0.9)",
+                fontSize: 12,
+                cursor: "pointer",
+                marginBottom: 12,
+                padding: 0,
+                textAlign: "left",
+              }}
+            >
+              Forgot your password?
+            </button>
+          )}
 
           <button
             type="submit"
