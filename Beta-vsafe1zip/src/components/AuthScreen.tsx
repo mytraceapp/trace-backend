@@ -11,13 +11,11 @@ interface AuthScreenProps {
 
 export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
   const [showLoginModal, setShowLoginModal] = React.useState(false);
-  const [authMode, setAuthMode] = React.useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState('');
-  const [successMessage, setSuccessMessage] = React.useState('');
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -27,7 +25,6 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
     
     setIsLoading(true);
     setError('');
-    setSuccessMessage('');
     
     try {
       console.log('Attempting Supabase sign in...', { email });
@@ -50,59 +47,12 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
         return;
       }
       
-      // Success!
+      // Success - go to chat/main app
       setIsLoading(false);
       setShowLoginModal(false);
       onLogin?.();
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.message || 'Something went wrong. Please try again.');
-      setIsLoading(false);
-    }
-  };
-
-  const handleSignUp = async () => {
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter your email and password');
-      return;
-    }
-    
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-    
-    setIsLoading(true);
-    setError('');
-    setSuccessMessage('');
-    
-    try {
-      console.log('Attempting Supabase sign up...', { email });
-      const { data, error: authError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password: password,
-      });
-      
-      console.log('Sign up response:', { data, error: authError });
-      
-      if (authError) {
-        setError(authError.message);
-        setIsLoading(false);
-        return;
-      }
-      
-      if (data?.user?.identities?.length === 0) {
-        setError('This email is already registered. Try signing in instead.');
-        setIsLoading(false);
-        return;
-      }
-      
-      // Success!
-      setIsLoading(false);
-      setSuccessMessage('Account created! Check your email to confirm, then sign in.');
-      setAuthMode('signin');
-    } catch (err: any) {
-      console.error('Sign up error:', err);
       setError(err.message || 'Something went wrong. Please try again.');
       setIsLoading(false);
     }
@@ -413,7 +363,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                     marginBottom: '2px',
                   }}
                 >
-                  {authMode === 'signin' ? 'Welcome back' : 'Create Account'}
+                  Welcome back
                 </h2>
                 <p
                   style={{
@@ -425,72 +375,12 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                     marginTop: '-2px',
                   }}
                 >
-                  {authMode === 'signin' ? 'Sign in to continue your journey' : 'Start your mindful journey'}
+                  Sign in to continue your journey
                 </p>
-              </div>
-
-              {/* Mode Toggle */}
-              <div className="flex justify-center gap-4 mb-4">
-                <button
-                  onClick={() => { setAuthMode('signin'); setError(''); setSuccessMessage(''); }}
-                  style={{
-                    fontFamily: 'Georgia, serif',
-                    fontSize: '13px',
-                    fontWeight: authMode === 'signin' ? 500 : 300,
-                    color: authMode === 'signin' ? '#4A3A2A' : '#8A7A6A',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    borderBottom: authMode === 'signin' ? '2px solid #8DA18F' : '2px solid transparent',
-                    paddingBottom: '4px',
-                  }}
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => { setAuthMode('signup'); setError(''); setSuccessMessage(''); }}
-                  style={{
-                    fontFamily: 'Georgia, serif',
-                    fontSize: '13px',
-                    fontWeight: authMode === 'signup' ? 500 : 300,
-                    color: authMode === 'signup' ? '#4A3A2A' : '#8A7A6A',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    borderBottom: authMode === 'signup' ? '2px solid #8DA18F' : '2px solid transparent',
-                    paddingBottom: '4px',
-                  }}
-                >
-                  Sign Up
-                </button>
               </div>
 
               {/* Form Container */}
               <div className="w-full max-w-sm mx-auto">
-                {/* Success Message */}
-                {successMessage && (
-                  <motion.div
-                    className="mb-4 p-3 rounded-xl text-center"
-                    style={{
-                      background: 'rgba(141, 161, 143, 0.15)',
-                      border: '1px solid rgba(141, 161, 143, 0.25)',
-                    }}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: 'Georgia, serif',
-                        fontSize: '13px',
-                        fontWeight: 300,
-                        color: '#5A7A5A',
-                      }}
-                    >
-                      {successMessage}
-                    </span>
-                  </motion.div>
-                )}
-
                 {/* Error Message */}
                 {error && (
                   <motion.div
@@ -597,31 +487,29 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                   </div>
                 </div>
 
-                {/* Forgot Password Link - only show for sign in */}
-                {authMode === 'signin' && (
-                  <div className="text-center mb-5">
-                    <button
-                      className="transition-opacity hover:opacity-70 disabled:opacity-50"
-                      style={{
-                        fontFamily: 'Georgia, serif',
-                        fontSize: '13px',
-                        fontWeight: 300,
-                        color: '#6B5A4A',
-                        textDecoration: 'underline',
-                        textUnderlineOffset: '3px',
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
-                      onClick={handleForgotPassword}
-                      disabled={isLoading}
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
-                )}
+                {/* Forgot Password Link */}
+                <div className="text-center mb-5">
+                  <button
+                    className="transition-opacity hover:opacity-70 disabled:opacity-50"
+                    style={{
+                      fontFamily: 'Georgia, serif',
+                      fontSize: '13px',
+                      fontWeight: 300,
+                      color: '#6B5A4A',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: '3px',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                    onClick={handleForgotPassword}
+                    disabled={isLoading}
+                  >
+                    Forgot password?
+                  </button>
+                </div>
 
-                {/* Sign In / Sign Up Button */}
+                {/* Sign In Button */}
                 <button
                   className="w-full py-3.5 px-6 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
@@ -633,13 +521,10 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                     color: '#FFFFFF',
                     boxShadow: '0 4px 20px rgba(141, 161, 143, 0.35)',
                   }}
-                  onClick={authMode === 'signin' ? handleLogin : handleSignUp}
+                  onClick={handleLogin}
                   disabled={isLoading}
                 >
-                  {isLoading 
-                    ? (authMode === 'signin' ? 'Signing in...' : 'Creating account...') 
-                    : (authMode === 'signin' ? 'Sign In' : 'Create Account')
-                  }
+                  {isLoading ? 'Signing in...' : 'Sign In'}
                 </button>
 
                 {/* Divider */}
