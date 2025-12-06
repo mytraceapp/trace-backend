@@ -36,6 +36,7 @@ export default function EchoScreen({
   const audioDataRef = useRef<Uint8Array | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
+  const breathEnvelopeRef = useRef<number>(0); // Soft breath envelope for signature effect
   const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
@@ -448,14 +449,30 @@ export default function EchoScreen({
         audioLevel = Math.min(1, rawLevel * 1.5);
       }
 
+      // Signature "soft breath" envelope - slow attack (~1.5s), very slow release (~5s)
+      const currentEnvelope = breathEnvelopeRef.current;
+      const targetEnvelope = audioLevel;
+      const attackRate = 0.008; // ~1.5 seconds to rise
+      const releaseRate = 0.003; // ~5 seconds to fall
+      
+      if (targetEnvelope > currentEnvelope) {
+        // Attack - voice is present, gently rise
+        breathEnvelopeRef.current = currentEnvelope + (targetEnvelope - currentEnvelope) * attackRate;
+      } else {
+        // Release - voice fading, slowly drift down
+        breathEnvelopeRef.current = currentEnvelope + (targetEnvelope - currentEnvelope) * releaseRate;
+      }
+      
+      const breathEnvelope = breathEnvelopeRef.current;
+
       ctx.clearRect(0, 0, width, height);
 
       ctx.fillStyle = LUNA_PALETTE.charcoal;
       ctx.fillRect(0, 0, width, height);
 
       drawRadialGrid(timestamp);
-      drawOrb(timestamp, audioLevel);
-      drawWaveform(timestamp, audioLevel, frequencyData);
+      drawOrb(timestamp, breathEnvelope);
+      drawWaveform(timestamp, breathEnvelope, frequencyData);
 
       animationRef.current = requestAnimationFrame(animate);
     };
