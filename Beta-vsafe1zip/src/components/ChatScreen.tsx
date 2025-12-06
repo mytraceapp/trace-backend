@@ -322,6 +322,9 @@ export function ChatScreen({
           maze: "Let's trace the maze together… nice and slow.",
           powernap: "Rest now… I'll be here when you wake.",
           pearlripple: "Let's listen to the waves… just breathe.",
+          rest: "Time to rest… I'll be here when you're ready.",
+          window: "Let's watch the rain together… find some peace.",
+          echo: "Let's listen to the echoes… find your calm.",
         };
         
         setMessages(prev => [...prev, {
@@ -949,11 +952,11 @@ export function ChatScreen({
                       }}
                       transition={{ 
                         type: "spring",
-                        stiffness: 300,
-                        damping: 30,
-                        mass: 0.8,
-                        opacity: { duration: 0.4 },
-                        layout: { type: "spring", stiffness: 200, damping: 25 }
+                        stiffness: 90,
+                        damping: 20,
+                        mass: 1.2,
+                        opacity: { duration: 1.0 },
+                        layout: { type: "spring", stiffness: 60, damping: 18 }
                       }}
                     >
                       <motion.div 
@@ -972,8 +975,9 @@ export function ChatScreen({
                         animate={{ scale: 1 }}
                         transition={{ 
                           type: "spring",
-                          stiffness: 400,
-                          damping: 25
+                          stiffness: 120,
+                          damping: 18,
+                          mass: 1.2
                         }}
                       >
                         <p 
