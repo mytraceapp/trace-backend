@@ -315,12 +315,12 @@ export default function EchoScreen({
       // Soft audio response - gentle nudge, not jarring reaction (capped at ±18%)
       const softAudioResponse = 1 + Math.min(safeAudio * 0.18, 0.18);
 
-      // Slower speeds, longer wavelengths for ultra-premium calm
+      // Slightly longer wavelengths with smooth oscillation
       const layers = [
-        { color: LUNA_PALETTE.midnightBlue, opacity: 0.85, amplitude: 40, frequency: 0.003, speed: 0.00012, offset: 0, blur: 4 },
-        { color: LUNA_PALETTE.sageGray, opacity: 0.78, amplitude: 32, frequency: 0.004, speed: 0.00016, offset: 1, blur: 2 },
-        { color: LUNA_PALETTE.beige, opacity: 0.65, amplitude: 25, frequency: 0.005, speed: 0.0002, offset: 2, blur: 1 },
-        { color: LUNA_PALETTE.sageMuted, opacity: 0.72, amplitude: 35, frequency: 0.0035, speed: 0.00014, offset: 1.5, blur: 3 },
+        { color: LUNA_PALETTE.midnightBlue, opacity: 0.85, amplitude: 45, frequency: 0.006, speed: 0.00021, offset: 0, blur: 4 },
+        { color: LUNA_PALETTE.sageGray, opacity: 0.78, amplitude: 38, frequency: 0.008, speed: 0.00028, offset: 1, blur: 2 },
+        { color: LUNA_PALETTE.beige, opacity: 0.65, amplitude: 30, frequency: 0.01, speed: 0.00035, offset: 2, blur: 1 },
+        { color: LUNA_PALETTE.sageMuted, opacity: 0.72, amplitude: 42, frequency: 0.007, speed: 0.00024, offset: 1.5, blur: 3 },
       ];
 
       layers.forEach((layer, layerIndex) => {
