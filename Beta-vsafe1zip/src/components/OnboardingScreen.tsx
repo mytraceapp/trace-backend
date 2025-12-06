@@ -24,7 +24,7 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
     bgAudio.playbackRate = 0.92;
     bgAudioRef.current = bgAudio;
     
-    const playAudio = () => {
+    const playBgAudio = () => {
       bgAudio.play().then(() => {
         let bgVol = 0;
         const bgFadeIn = setInterval(() => {
@@ -36,7 +36,9 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
           bgAudio.volume = bgVol;
         }, 100);
       }).catch(() => {});
+    };
 
+    const playVoiceAudio = () => {
       voiceAudio.play().then(() => {
         let vol = 0;
         const fadeIn = setInterval(() => {
@@ -50,10 +52,12 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
       }).catch(() => {});
     };
 
-    const timer = setTimeout(playAudio, 1000);
+    const bgTimer = setTimeout(playBgAudio, 1000);
+    const voiceTimer = setTimeout(playVoiceAudio, 4000);
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(bgTimer);
+      clearTimeout(voiceTimer);
       if (audioRef.current) {
         const fadeOut = setInterval(() => {
           if (audioRef.current && audioRef.current.volume > 0.05) {
