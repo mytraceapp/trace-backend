@@ -516,73 +516,73 @@ export function ChatScreen({
           }}
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ 
-          // Emotion-aware breathing - dynamic responses to conversation
-          opacity: orbEmotion === 'thinking' ? [0.85, 1, 0.85] : 
-                   orbEmotion === 'surprised' ? [0.95, 1, 0.98, 1, 0.95] :
-                   orbEmotion === 'joyful' ? [0.92, 1, 0.95, 1, 0.92] :
-                   orbEmotion === 'empathetic' ? [0.88, 0.95, 0.88] :
-                   orbEmotion === 'calm' ? [0.9, 0.96, 0.9] :
+          // Emotion-aware breathing - gentle, calm responses
+          opacity: orbEmotion === 'thinking' ? [0.9, 1, 0.9] : 
+                   orbEmotion === 'surprised' ? [0.94, 1, 0.94] :
+                   orbEmotion === 'joyful' ? [0.93, 1, 0.93] :
+                   orbEmotion === 'empathetic' ? [0.9, 0.96, 0.9] :
+                   orbEmotion === 'calm' ? [0.92, 0.97, 0.92] :
                    orbEmotion === 'listening' ? [0.94, 1, 0.94] : 
                    showTypewriter && currentIndex < greetingText.length ? [0.93, 0.99, 0.93] : 
                    [0.96, 1, 0.96],
           
-          scale: orbEmotion === 'thinking' ? [1, 1.06, 1] : 
-                 orbEmotion === 'surprised' ? [1, 1.12, 1.02, 1.08, 1] :
-                 orbEmotion === 'joyful' ? [1, 1.05, 1.02, 1.04, 1] :
-                 orbEmotion === 'empathetic' ? [1, 1.03, 1] :
-                 orbEmotion === 'calm' ? [1, 1.02, 1] :
-                 orbEmotion === 'listening' ? [1, 1.04, 1] : 
+          scale: orbEmotion === 'thinking' ? [1, 1.03, 1] : 
+                 orbEmotion === 'surprised' ? [1, 1.04, 1] :
+                 orbEmotion === 'joyful' ? [1, 1.03, 1] :
+                 orbEmotion === 'empathetic' ? [1, 1.02, 1] :
+                 orbEmotion === 'calm' ? [1, 1.015, 1] :
+                 orbEmotion === 'listening' ? [1, 1.025, 1] : 
                  showTypewriter && currentIndex < greetingText.length ? [1, 1.015, 1] : 
                  [1, 1.01, 1],
           
-          // Floating movement - more active during engaged states
-          x: orbEmotion === 'thinking' ? [0, -4, 0, 4, 0] : 
-             orbEmotion === 'surprised' ? [0, -2, 2, -1, 0] :
-             orbEmotion === 'joyful' ? [0, -2, 1, -1, 0] :
-             orbEmotion === 'listening' ? [0, -2, 0, 2, 0] : 
-             showTypewriter && currentIndex < greetingText.length ? [0, -1, 0, 1, 0] : 
-             [0, -0.5, 0, 0.5, 0],
+          // Floating movement - subtle and calm
+          x: orbEmotion === 'thinking' ? [0, -2, 0, 2, 0] : 
+             orbEmotion === 'surprised' ? [0, -1, 0, 1, 0] :
+             orbEmotion === 'joyful' ? [0, -1, 0, 1, 0] :
+             orbEmotion === 'listening' ? [0, -1, 0, 1, 0] : 
+             showTypewriter && currentIndex < greetingText.length ? [0, -0.5, 0, 0.5, 0] : 
+             [0, -0.3, 0, 0.3, 0],
           
-          y: orbEmotion === 'thinking' ? [0, -3, 0, 3, 0] : 
-             orbEmotion === 'surprised' ? [0, -5, 0, -2, 0] :
-             orbEmotion === 'joyful' ? [0, -3, 0, -1, 0] :
-             orbEmotion === 'listening' ? [0, -1.5, 0, 1.5, 0] : 
+          y: orbEmotion === 'thinking' ? [0, -1.5, 0, 1.5, 0] : 
+             orbEmotion === 'surprised' ? [0, -2, 0, -1, 0] :
+             orbEmotion === 'joyful' ? [0, -1.5, 0, -0.5, 0] :
+             orbEmotion === 'listening' ? [0, -1, 0, 1, 0] : 
              showTypewriter && currentIndex < greetingText.length ? [0, -0.5, 0, 0.5, 0] : 
              [0, -0.3, 0, 0.3, 0],
         }}
         transition={{ 
-          // Smooth state transitions
+          // Smooth, slow state transitions
           default: {
-            duration: 1.2,
+            duration: 1.5,
             ease: "easeInOut"
           },
           opacity: { 
-            duration: orbEmotion === 'thinking' ? 2.5 : 
-                      orbEmotion === 'surprised' ? 0.8 :
-                      orbEmotion === 'joyful' ? 2 :
-                      orbEmotion === 'listening' ? 3 : 6, 
+            duration: orbEmotion === 'thinking' ? 4 : 
+                      orbEmotion === 'surprised' ? 3 :
+                      orbEmotion === 'joyful' ? 4 :
+                      orbEmotion === 'listening' ? 4 : 6, 
             repeat: Infinity, 
             ease: "easeInOut"
           },
           scale: { 
-            duration: orbEmotion === 'thinking' ? 2 : 
-                      orbEmotion === 'surprised' ? 0.6 :
-                      orbEmotion === 'joyful' ? 1.5 :
-                      orbEmotion === 'listening' ? 3 : 8, 
+            duration: orbEmotion === 'thinking' ? 4 : 
+                      orbEmotion === 'surprised' ? 3.5 :
+                      orbEmotion === 'joyful' ? 4 :
+                      orbEmotion === 'listening' ? 4 : 8, 
             repeat: Infinity, 
-            ease: orbEmotion === 'surprised' ? [0.36, 1.2, 0.5, 1] : "easeInOut"
+            ease: "easeInOut"
           },
           x: { 
-            duration: orbEmotion === 'thinking' ? 6 : 
-                      orbEmotion === 'surprised' ? 1.2 :
-                      orbEmotion === 'listening' ? 8 : 16, 
+            duration: orbEmotion === 'thinking' ? 8 : 
+                      orbEmotion === 'surprised' ? 6 :
+                      orbEmotion === 'listening' ? 10 : 16, 
             repeat: Infinity, 
             ease: "easeInOut"
           },
           y: { 
-            duration: orbEmotion === 'thinking' ? 5 : 
-                      orbEmotion === 'surprised' ? 0.8 :
-                      orbEmotion === 'listening' ? 10 : 20, 
+            duration: orbEmotion === 'thinking' ? 7 : 
+                      orbEmotion === 'surprised' ? 5 :
+                      orbEmotion === 'listening' ? 12 : 20, 
             repeat: Infinity, 
             ease: "easeInOut"
           }
@@ -602,27 +602,27 @@ export function ChatScreen({
             filter: 'blur(40px)',
           }}
           animate={{
-            scale: orbEmotion === 'thinking' ? [0.85, 1.3, 0.85] :
-                   orbEmotion === 'surprised' ? [0.9, 1.4, 1.1, 1.25, 0.9] :
-                   orbEmotion === 'joyful' ? [0.92, 1.2, 0.92] :
-                   orbEmotion === 'listening' ? [0.94, 1.18, 0.94] :
-                   showTypewriter && currentIndex < greetingText.length ? [0.95, 1.1, 0.95] :
-                   [0.97, 1.06, 0.97],
+            scale: orbEmotion === 'thinking' ? [0.95, 1.08, 0.95] :
+                   orbEmotion === 'surprised' ? [0.96, 1.1, 0.96] :
+                   orbEmotion === 'joyful' ? [0.96, 1.08, 0.96] :
+                   orbEmotion === 'listening' ? [0.97, 1.06, 0.97] :
+                   showTypewriter && currentIndex < greetingText.length ? [0.97, 1.05, 0.97] :
+                   [0.98, 1.04, 0.98],
             
-            opacity: orbEmotion === 'thinking' ? [0.25, 0.6, 0.25] :
-                     orbEmotion === 'surprised' ? [0.4, 0.75, 0.5, 0.7, 0.4] :
-                     orbEmotion === 'joyful' ? [0.35, 0.6, 0.35] :
-                     orbEmotion === 'listening' ? [0.28, 0.52, 0.28] :
-                     showTypewriter && currentIndex < greetingText.length ? [0.28, 0.45, 0.28] :
-                     [0.3, 0.42, 0.3],
+            opacity: orbEmotion === 'thinking' ? [0.28, 0.45, 0.28] :
+                     orbEmotion === 'surprised' ? [0.32, 0.5, 0.32] :
+                     orbEmotion === 'joyful' ? [0.3, 0.48, 0.3] :
+                     orbEmotion === 'listening' ? [0.28, 0.42, 0.28] :
+                     showTypewriter && currentIndex < greetingText.length ? [0.28, 0.4, 0.28] :
+                     [0.3, 0.4, 0.3],
           }}
           transition={{
-            duration: orbEmotion === 'thinking' ? 2.5 :
-                      orbEmotion === 'surprised' ? 0.7 :
-                      orbEmotion === 'joyful' ? 2 :
-                      orbEmotion === 'listening' ? 3 : 5,
+            duration: orbEmotion === 'thinking' ? 4.5 :
+                      orbEmotion === 'surprised' ? 4 :
+                      orbEmotion === 'joyful' ? 4.5 :
+                      orbEmotion === 'listening' ? 5 : 6,
             repeat: Infinity,
-            ease: orbEmotion === 'surprised' ? [0.36, 1.3, 0.5, 1] : [0.45, 0.05, 0.55, 0.95],
+            ease: "easeInOut",
           }}
         />
 
@@ -638,27 +638,27 @@ export function ChatScreen({
             filter: 'blur(50px)',
           }}
           animate={{
-            scale: orbEmotion === 'thinking' ? [0.9, 1.25, 0.9] :
-                   orbEmotion === 'surprised' ? [0.95, 1.35, 1.05, 1.2, 0.95] :
-                   orbEmotion === 'joyful' ? [0.97, 1.15, 0.97] :
-                   orbEmotion === 'listening' ? [0.98, 1.14, 0.98] :
-                   showTypewriter && currentIndex < greetingText.length ? [0.98, 1.08, 0.98] :
-                   [1, 1.05, 1],
+            scale: orbEmotion === 'thinking' ? [0.96, 1.08, 0.96] :
+                   orbEmotion === 'surprised' ? [0.97, 1.08, 0.97] :
+                   orbEmotion === 'joyful' ? [0.97, 1.06, 0.97] :
+                   orbEmotion === 'listening' ? [0.98, 1.05, 0.98] :
+                   showTypewriter && currentIndex < greetingText.length ? [0.98, 1.04, 0.98] :
+                   [0.99, 1.03, 0.99],
             
-            opacity: orbEmotion === 'thinking' ? [0.12, 0.45, 0.12] :
-                     orbEmotion === 'surprised' ? [0.25, 0.55, 0.35, 0.5, 0.25] :
-                     orbEmotion === 'joyful' ? [0.18, 0.42, 0.18] :
-                     orbEmotion === 'listening' ? [0.14, 0.38, 0.14] :
-                     showTypewriter && currentIndex < greetingText.length ? [0.14, 0.32, 0.14] :
-                     [0.18, 0.28, 0.18],
+            opacity: orbEmotion === 'thinking' ? [0.15, 0.32, 0.15] :
+                     orbEmotion === 'surprised' ? [0.18, 0.35, 0.18] :
+                     orbEmotion === 'joyful' ? [0.16, 0.32, 0.16] :
+                     orbEmotion === 'listening' ? [0.14, 0.28, 0.14] :
+                     showTypewriter && currentIndex < greetingText.length ? [0.14, 0.26, 0.14] :
+                     [0.16, 0.25, 0.16],
           }}
           transition={{
-            duration: orbEmotion === 'thinking' ? 3 :
-                      orbEmotion === 'surprised' ? 0.8 :
-                      orbEmotion === 'joyful' ? 2.2 :
-                      orbEmotion === 'listening' ? 3.5 : 6,
+            duration: orbEmotion === 'thinking' ? 5 :
+                      orbEmotion === 'surprised' ? 4.5 :
+                      orbEmotion === 'joyful' ? 5 :
+                      orbEmotion === 'listening' ? 5.5 : 7,
             repeat: Infinity,
-            ease: orbEmotion === 'surprised' ? [0.36, 1.2, 0.5, 1] : [0.45, 0.05, 0.55, 0.95],
+            ease: "easeInOut",
           }}
         />
 
@@ -689,29 +689,29 @@ export function ChatScreen({
               filter: 'blur(25px)',
             }}
             animate={{
-              scale: orbEmotion === 'thinking' ? [0.75, 1.35, 0.75] :
-                     orbEmotion === 'surprised' ? [0.85, 1.5, 1.1, 1.3, 0.85] :
-                     orbEmotion === 'joyful' ? [0.88, 1.25, 0.88] :
-                     orbEmotion === 'empathetic' ? [0.9, 1.15, 0.9] :
-                     orbEmotion === 'listening' ? [0.88, 1.2, 0.88] :
-                     showTypewriter && currentIndex < greetingText.length ? [0.88, 1.12, 0.88] :
-                     [0.92, 1.08, 0.92],
+              scale: orbEmotion === 'thinking' ? [0.9, 1.12, 0.9] :
+                     orbEmotion === 'surprised' ? [0.92, 1.1, 0.92] :
+                     orbEmotion === 'joyful' ? [0.93, 1.08, 0.93] :
+                     orbEmotion === 'empathetic' ? [0.94, 1.06, 0.94] :
+                     orbEmotion === 'listening' ? [0.92, 1.08, 0.92] :
+                     showTypewriter && currentIndex < greetingText.length ? [0.94, 1.06, 0.94] :
+                     [0.95, 1.05, 0.95],
               
-              opacity: orbEmotion === 'thinking' ? [0.25, 0.7, 0.25] :
-                       orbEmotion === 'surprised' ? [0.5, 0.9, 0.6, 0.8, 0.5] :
-                       orbEmotion === 'joyful' ? [0.4, 0.7, 0.4] :
-                       orbEmotion === 'empathetic' ? [0.35, 0.6, 0.35] :
-                       orbEmotion === 'listening' ? [0.3, 0.55, 0.3] :
-                       showTypewriter && currentIndex < greetingText.length ? [0.3, 0.48, 0.3] :
-                       [0.32, 0.45, 0.32],
+              opacity: orbEmotion === 'thinking' ? [0.3, 0.5, 0.3] :
+                       orbEmotion === 'surprised' ? [0.35, 0.55, 0.35] :
+                       orbEmotion === 'joyful' ? [0.35, 0.52, 0.35] :
+                       orbEmotion === 'empathetic' ? [0.33, 0.48, 0.33] :
+                       orbEmotion === 'listening' ? [0.32, 0.48, 0.32] :
+                       showTypewriter && currentIndex < greetingText.length ? [0.32, 0.45, 0.32] :
+                       [0.35, 0.45, 0.35],
             }}
             transition={{
-              duration: orbEmotion === 'thinking' ? 2 :
-                        orbEmotion === 'surprised' ? 0.5 :
-                        orbEmotion === 'joyful' ? 1.8 :
-                        orbEmotion === 'listening' ? 2.5 : 5,
+              duration: orbEmotion === 'thinking' ? 4 :
+                        orbEmotion === 'surprised' ? 3.5 :
+                        orbEmotion === 'joyful' ? 4 :
+                        orbEmotion === 'listening' ? 4.5 : 6,
               repeat: Infinity,
-              ease: orbEmotion === 'surprised' ? [0.36, 1.4, 0.4, 1] : [0.45, 0.05, 0.55, 0.95],
+              ease: "easeInOut",
             }}
           />
 
