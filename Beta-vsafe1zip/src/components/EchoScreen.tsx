@@ -86,8 +86,8 @@ export default function EchoScreen({
       let vol = 0;
       const fadeInterval = setInterval(() => {
         vol += 0.002; // Ultra smooth fade in over ~16 seconds
-        if (vol >= 0.80) {
-          vol = 0.80;
+        if (vol >= 0.85) {
+          vol = 0.85;
           clearInterval(fadeInterval);
         }
         if (audioRef.current) audioRef.current.volume = vol;
