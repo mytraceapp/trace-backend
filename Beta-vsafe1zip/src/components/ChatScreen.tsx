@@ -79,6 +79,59 @@ export function ChatScreen({
   const [isLoadingGreeting, setIsLoadingGreeting] = React.useState(true);
   void isLoadingGreeting; // Used for future loading indicator
   
+  // Privacy mode - activated by shaking device
+  const [privacyMode, setPrivacyMode] = React.useState(false);
+  const lastShakeRef = React.useRef(0);
+  const shakeThreshold = 15; // Acceleration threshold for shake detection
+  
+  // Shake detection for emergency privacy
+  React.useEffect(() => {
+    let lastX = 0, lastY = 0, lastZ = 0;
+    let lastUpdate = 0;
+    
+    const handleMotion = (event: DeviceMotionEvent) => {
+      const acc = event.accelerationIncludingGravity;
+      if (!acc || acc.x === null || acc.y === null || acc.z === null) return;
+      
+      const currentTime = Date.now();
+      const timeDiff = currentTime - lastUpdate;
+      
+      if (timeDiff > 100) {
+        const diffTime = currentTime - lastUpdate;
+        lastUpdate = currentTime;
+        
+        const x = acc.x;
+        const y = acc.y;
+        const z = acc.z;
+        
+        const speed = Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime * 10000;
+        
+        if (speed > shakeThreshold) {
+          // Prevent rapid toggling
+          if (currentTime - lastShakeRef.current > 1000) {
+            lastShakeRef.current = currentTime;
+            setPrivacyMode(prev => !prev);
+          }
+        }
+        
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+      }
+    };
+    
+    // Request permission on iOS 13+
+    if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+      // Will need user gesture to request permission
+    } else {
+      window.addEventListener('devicemotion', handleMotion);
+    }
+    
+    return () => {
+      window.removeEventListener('devicemotion', handleMotion);
+    };
+  }, []);
+  
   // Fetch AI-generated greeting when chat starts
   const fetchAIGreeting = React.useCallback(async () => {
     setIsLoadingGreeting(true);
@@ -563,6 +616,59 @@ export function ChatScreen({
           : 'linear-gradient(180deg, #9FB5A1 0%, #96AA98 8%, #8FA393 15%, #889C8D 25%, #819588 35%, #7A8E81 45%, #768A7D 55%, #7A8E81 65%, #819588 75%, #889C8D 85%, #8FA393 92%, #96AA98 100%)',
       }}
     >
+      
+      {/* Privacy Mode Overlay - activated by shaking device */}
+      <AnimatePresence>
+        {privacyMode && (
+          <motion.div
+            className="absolute inset-0 z-[100] flex items-center justify-center cursor-pointer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setPrivacyMode(false)}
+            style={{
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              background: isDark 
+                ? 'rgba(14, 15, 13, 0.85)' 
+                : 'rgba(139, 169, 152, 0.85)',
+            }}
+          >
+            <motion.div
+              className="flex flex-col items-center gap-4"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center"
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                }}
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-primary)' }}>
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </div>
+              <p
+                style={{
+                  fontFamily: 'Georgia, serif',
+                  color: 'var(--text-primary)',
+                  fontSize: '14px',
+                  fontWeight: 300,
+                  opacity: 0.8,
+                }}
+              >
+                Tap anywhere to return
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Typing sound - plays while typewriter is active */}
       <TypingTone 
