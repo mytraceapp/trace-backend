@@ -102,9 +102,10 @@ export default function EchoScreen({
     };
 
     const fadeIn = () => {
-      let vol = 0;
+      let vol = 0.25; // Start at 25% so voice is present immediately
+      if (audioRef.current) audioRef.current.volume = vol;
       const fadeInterval = setInterval(() => {
-        vol += 0.0012; // Ultra smooth fade in over ~28 seconds
+        vol += 0.003; // Smooth fade to full volume over ~10 seconds
         if (vol >= 0.95) {
           vol = 0.95;
           clearInterval(fadeInterval);
