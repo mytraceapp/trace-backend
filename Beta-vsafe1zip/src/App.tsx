@@ -40,9 +40,10 @@ export default function App() {
 
   const screensWithOwnAudio = ['home', 'onboarding', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding', 'maze', 'rainwindow', 'echo'];
   const shouldPlayAmbient = ambientAudioStarted && ambienceEnabled && !screensWithOwnAudio.includes(currentScreen);
-
+  
   React.useEffect(() => {
-    if (!ambientAudioStarted && (currentScreen === 'auth' || currentScreen === 'chat' || currentScreen === 'activities' || currentScreen === 'activitieshub')) {
+    const screensToTriggerAudio = ['auth', 'chat', 'activities', 'activitieshub', 'journal', 'entries', 'patterns', 'profile', 'help'];
+    if (!ambientAudioStarted && screensToTriggerAudio.includes(currentScreen)) {
       setAmbientAudioStarted(true);
     }
   }, [currentScreen, ambientAudioStarted]);
