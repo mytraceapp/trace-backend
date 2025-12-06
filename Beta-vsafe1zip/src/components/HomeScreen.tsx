@@ -25,17 +25,27 @@ export function HomeScreen({ onNavigateToAuth, onStartAmbient }: HomeScreenProps
     }
   }, [isLogoLowered, isAwakened]);
 
-  // Trigger wake ripple effect and start ambient audio for crossfade
+  // Start ambient audio early for smooth crossfade with ethereal tone
+  React.useEffect(() => {
+    if (isAwakened) {
+      const ambientTimer = setTimeout(() => {
+        onStartAmbient?.();
+      }, 1500);
+
+      return () => clearTimeout(ambientTimer);
+    }
+  }, [isAwakened, onStartAmbient]);
+
+  // Trigger wake ripple effect separately
   React.useEffect(() => {
     if (isAwakened) {
       const rippleTimer = setTimeout(() => {
         setShowWakeRipple(true);
-        onStartAmbient?.();
       }, 3000);
 
       return () => clearTimeout(rippleTimer);
     }
-  }, [isAwakened, onStartAmbient]);
+  }, [isAwakened]);
 
   // Auto-transition to auth page - orb rises then transitions
   React.useEffect(() => {
