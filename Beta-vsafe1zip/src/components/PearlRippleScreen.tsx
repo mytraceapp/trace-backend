@@ -36,14 +36,14 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
       const nodes: any[] = [];
       
-      // Master gain control with smooth fade in
+      // Master gain at 70% volume with smooth fade in
       const masterGainNode = ctx.createGain();
       masterGainNode.gain.setValueAtTime(0, ctx.currentTime);
-      masterGainNode.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 1);
-      masterGainNode.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 3);
+      masterGainNode.gain.linearRampToValueAtTime(0.09, ctx.currentTime + 2);
+      masterGainNode.gain.linearRampToValueAtTime(0.126, ctx.currentTime + 4);
       masterGainNode.connect(ctx.destination);
       
-      // Create pure, clean tone - no filters, direct connection
+      // Create pure, clean tone - no filters, no modulation, direct connection
       const createPureTone = (frequency: number, gain: number) => {
         const osc = ctx.createOscillator();
         osc.type = 'sine';
@@ -60,32 +60,12 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         return { oscillator: osc, gain: oscGain };
       };
       
-      // Pure harmonic pad - clean ocean-like chord (no filters = no static)
+      // Pure harmonic pad - steady tones, no automation (eliminates all static)
       nodes.push(createPureTone(110, 0.10));     // A2 - deep foundation
       nodes.push(createPureTone(165, 0.08));     // E3 - perfect fifth  
       nodes.push(createPureTone(220, 0.07));     // A3 - octave
       nodes.push(createPureTone(277, 0.05));     // C#4 - major third
       nodes.push(createPureTone(330, 0.04));     // E4 - fifth
-      
-      // Gentle volume swell using scheduled automation (no LFO = cleaner)
-      const swellDuration = 8; // seconds per cycle
-      const scheduleSwells = () => {
-        const now = ctx.currentTime;
-        nodes.forEach((node, index) => {
-          const baseGain = node.gain.gain.value;
-          const offset = index * 0.5; // stagger swells
-          
-          // Schedule gentle volume swells
-          for (let cycle = 0; cycle < 10; cycle++) {
-            const cycleStart = now + cycle * swellDuration + offset;
-            node.gain.gain.setValueAtTime(baseGain * 0.85, cycleStart);
-            node.gain.gain.linearRampToValueAtTime(baseGain, cycleStart + swellDuration * 0.5);
-            node.gain.gain.linearRampToValueAtTime(baseGain * 0.85, cycleStart + swellDuration);
-          }
-        });
-      };
-      
-      scheduleSwells();
       
       // Store in refs for cleanup
       audioContextRef.current = ctx;
