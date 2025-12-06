@@ -264,7 +264,7 @@ export default function EchoScreen({
       const safeAudioLevel = isNaN(audioLevel) ? 0 : audioLevel;
 
       const breathe = 1 + Math.sin(time * 0.0003) * 0.08;
-      const audioReact = 1 + safeAudioLevel * 0.4; // Responsive to voice
+      const audioReact = 1 + safeAudioLevel * 0.65; // 65% response to TRACE's voice
       const baseRadius = Math.min(width, height) * 0.35;
       const radius = Math.max(1, baseRadius * breathe * audioReact);
 
@@ -313,8 +313,8 @@ export default function EchoScreen({
       // Ultra-slow breath LFO (14 second cycle) - the signature
       const breathLFO = Math.sin(time * 0.00045) * 0.12 + 1;
       
-      // Responsive audio - waves clearly move with TRACE's voice
-      const audioResponse = 1 + safeAudio * 0.5;
+      // 65% response to TRACE's voice
+      const audioResponse = 1 + safeAudio * 0.65;
 
       // Clean, cohesive wave layers - all flowing together
       const layers = [
