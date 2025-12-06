@@ -417,7 +417,7 @@ export function RainWindowScreen({
       {/* Bottom Controls - Moon Toggle, Volume Slider & End Session */}
       {isActive && !showCompletion && (
         <motion.div 
-          className="absolute left-0 right-0 flex flex-col items-center z-20" 
+          className="absolute left-0 right-0 flex flex-col items-center z-50" 
           style={{ bottom: '112px' }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
