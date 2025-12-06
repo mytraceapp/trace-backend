@@ -287,7 +287,7 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.6 }}
-          className="fixed inset-0 z-50"
+          className="absolute inset-0 z-50"
           style={{ backgroundColor: LUNA_PALETTE.charcoal }}
         >
           <canvas
