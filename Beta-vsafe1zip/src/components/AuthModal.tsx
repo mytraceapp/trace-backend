@@ -28,18 +28,25 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setMessage("");
     setIsError(false);
 
-    // Debug: log Supabase URL to verify connection
     console.log("Attempting auth with Supabase...", { mode, email });
 
     try {
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
+        const result = await supabase.auth.signUp({
           email,
           password,
         });
-        console.log("Sign up response:", { data, error });
-        if (error) throw error;
-        if (data?.user?.identities?.length === 0) {
+        console.log("Sign up response:", result);
+        
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+        
+        if (!result.data?.user) {
+          throw new Error("Sign up failed - no user returned");
+        }
+        
+        if (result.data.user.identities?.length === 0) {
           setIsError(true);
           setMessage("This email is already registered. Try signing in instead.");
         } else {
@@ -48,12 +55,20 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           );
         }
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const result = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        console.log("Sign in response:", { data, error });
-        if (error) throw error;
+        console.log("Sign in response:", result);
+        
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+        
+        if (!result.data?.user) {
+          throw new Error("Sign in failed - no user returned");
+        }
+        
         setMessage("Signed in successfully!");
         // Auto-close modal after successful login
         setTimeout(() => {
@@ -66,7 +81,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     } catch (err: any) {
       console.error("Auth error:", err);
       setIsError(true);
-      setMessage(err.message || "Something went wrong. Please try again.");
+      const errorMessage = err?.message || "Something went wrong. Please try again.";
+      setMessage(errorMessage);
     } finally {
       setIsLoading(false);
     }
