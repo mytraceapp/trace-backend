@@ -136,6 +136,7 @@ export function RainWindowScreen({
   }, []);
 
   const handleComplete = useCallback(() => {
+    console.log('End Session clicked - navigating to chat');
     triggerHaptic();
     stopRainAudio();
 
