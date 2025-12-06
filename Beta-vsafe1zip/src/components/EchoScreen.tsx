@@ -45,64 +45,40 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
     resize();
     window.addEventListener('resize', resize);
 
-    const drawBackgroundGrid = () => {
-      const width = canvas.width / (window.devicePixelRatio || 1);
-      const height = canvas.height / (window.devicePixelRatio || 1);
-      const gridSize = 24;
-
-      ctx.save();
-      ctx.strokeStyle = 'rgba(107, 124, 107, 0.09)';
-      ctx.lineWidth = 0.5;
-
-      for (let x = 0; x <= width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-
-      for (let y = 0; y <= height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-      }
-
-      ctx.restore();
-    };
-
     const drawRadialGrid = (time: number) => {
       const width = canvas.width / (window.devicePixelRatio || 1);
       const height = canvas.height / (window.devicePixelRatio || 1);
       const centerX = width / 2;
       const centerY = height / 2;
-      const maxRadius = Math.max(width, height) * 0.7;
+      const maxRadius = Math.max(width, height) * 0.9;
 
       ctx.save();
       
-      const gridPulse = 0.03 + Math.sin(time * 0.0002) * 0.01;
+      const gridPulse = 0.08 + Math.sin(time * 0.0002) * 0.02;
       
-      for (let i = 1; i <= 8; i++) {
-        const radius = (maxRadius / 8) * i;
-        const breathe = 1 + Math.sin(time * 0.0003 + i * 0.2) * 0.02;
+      for (let i = 1; i <= 12; i++) {
+        const radius = (maxRadius / 12) * i;
+        const breathe = 1 + Math.sin(time * 0.0003 + i * 0.15) * 0.015;
+        const fadeOut = 1 - (i / 14);
         
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius * breathe, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(107, 124, 107, ${gridPulse * (1 - i * 0.1)})`;
-        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = `rgba(107, 124, 107, ${gridPulse * fadeOut})`;
+        ctx.lineWidth = 0.6;
         ctx.stroke();
       }
 
-      for (let i = 0; i < 12; i++) {
-        const angle = (i / 12) * Math.PI * 2 + time * 0.00005;
+      for (let i = 0; i < 24; i++) {
+        const angle = (i / 24) * Math.PI * 2 + time * 0.00003;
+        const fadeOut = 0.6;
         ctx.beginPath();
         ctx.moveTo(centerX, centerY);
         ctx.lineTo(
           centerX + Math.cos(angle) * maxRadius,
           centerY + Math.sin(angle) * maxRadius
         );
-        ctx.strokeStyle = `rgba(107, 124, 107, ${gridPulse * 0.5})`;
-        ctx.lineWidth = 0.3;
+        ctx.strokeStyle = `rgba(107, 124, 107, ${gridPulse * fadeOut * 0.5})`;
+        ctx.lineWidth = 0.4;
         ctx.stroke();
       }
 
@@ -273,7 +249,6 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
       ctx.fillStyle = LUNA_PALETTE.charcoal;
       ctx.fillRect(0, 0, width, height);
 
-      drawBackgroundGrid();
       drawRadialGrid(timestamp);
       drawOrb(timestamp);
       drawWaveform(timestamp);
