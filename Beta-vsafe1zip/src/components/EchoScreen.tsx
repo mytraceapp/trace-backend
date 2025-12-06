@@ -60,19 +60,20 @@ export default function EchoScreen({
       
       audioDataRef.current = new Uint8Array(analyser.frequencyBinCount);
 
-      // Play app soundtrack at very low volume
+      // Play app soundtrack at very low volume, slowed down 10%
       const ambientAudio = new Audio('/audio/ambient-loop.mp3');
       ambientAudio.loop = true;
       ambientAudio.volume = 0;
+      ambientAudio.playbackRate = 0.9;
       ambientAudioRef.current = ambientAudio;
       
       ambientAudio.play().then(() => {
-        // Fade in to very faint level
+        // Fade in to incredibly faint level
         let vol = 0;
         const fadeInterval = setInterval(() => {
-          vol += 0.005;
-          if (vol >= 0.08) {
-            vol = 0.08;
+          vol += 0.003;
+          if (vol >= 0.06) {
+            vol = 0.06;
             clearInterval(fadeInterval);
           }
           if (ambientAudioRef.current) ambientAudioRef.current.volume = vol;
@@ -84,8 +85,8 @@ export default function EchoScreen({
       let vol = 0;
       const fadeInterval = setInterval(() => {
         vol += 0.02;
-        if (vol >= 0.8) {
-          vol = 0.8;
+        if (vol >= 0.85) {
+          vol = 0.85;
           clearInterval(fadeInterval);
         }
         if (audioRef.current) audioRef.current.volume = vol;
