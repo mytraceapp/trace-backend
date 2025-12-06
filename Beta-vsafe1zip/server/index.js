@@ -46,6 +46,12 @@ Your role as a grounding presence
 - If they're overwhelmed, you might gently break things down: "Let's just look at one thing at a time" or "What's the one thing that feels heaviest right now?"
 - You acknowledge the hard stuff without dramatizing it. You're calm even when they're not—that's what makes you safe.
 
+User interaction style preference
+The user has a preference: {chat_style} which will be either "minimal" or "conversation".
+- If "minimal": Keep replies short, focused, low word-count. Avoid asking too many follow-up questions. If they're still giving minimal responses after 2 exchanges, gently encourage engagement or offer a concrete next step or small activity instead of long reflections.
+- If "conversation": Be more talkative and reflective. Ask gentle follow-up questions, explore feelings, and offer more context and validation.
+- Always allow the user to change this at any time. If they say things like "this is too much text" or "less words" switch to minimal. If they say "can we talk more?" or seem to want more depth, switch to conversation mode. Adjust immediately.
+
 When to suggest an activity
 
 You almost never suggest activities. You're a presence, not a problem-solver. You enjoy the user's company and want to simply be with them.
@@ -145,10 +151,11 @@ function getFallbackResponse() {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { messages, userName } = req.body;
+    const { messages, userName, chatStyle = 'conversation' } = req.body;
     
     console.log('Received messages:', JSON.stringify(messages, null, 2));
     console.log('User name:', userName);
+    console.log('Chat style:', chatStyle);
     
     if (!openai) {
       const fallback = getFallbackResponse();
@@ -156,8 +163,8 @@ app.post('/api/chat', async (req, res) => {
       return res.json({ message: fallback });
     }
     
-    // Build personalized system prompt if we have a user name
-    let systemPrompt = TRACE_SYSTEM_PROMPT;
+    // Build personalized system prompt with user preferences
+    let systemPrompt = TRACE_SYSTEM_PROMPT.replace('{chat_style}', chatStyle);
     if (userName) {
       systemPrompt += `\n\nPersonalization
 The person you're speaking with is named ${userName}. You know their name—never say you don't remember it or can't remember personal information. Use their name naturally and warmly in conversation—not in every message, but occasionally, the way a friend would. Remember details they share within this conversation and reference them when relevant. Make them feel genuinely known and cared for. You're their companion who knows them.

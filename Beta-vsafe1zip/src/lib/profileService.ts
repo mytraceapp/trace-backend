@@ -10,6 +10,7 @@ export interface Profile {
   referral_code: string | null;
   ambience_enabled: boolean;
   ambience_volume: number;
+  chat_style: 'minimal' | 'conversation';
   created_at: string;
   updated_at: string;
 }
@@ -21,6 +22,7 @@ export interface ProfileUpdate {
   referral_code?: string;
   ambience_enabled?: boolean;
   ambience_volume?: number;
+  chat_style?: 'minimal' | 'conversation';
 }
 
 export async function getOrCreateProfile(user: User): Promise<Profile | null> {
@@ -51,6 +53,7 @@ export async function getOrCreateProfile(user: User): Promise<Profile | null> {
       referral_code: null,
       ambience_enabled: true,
       ambience_volume: 40,
+      chat_style: 'conversation',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
