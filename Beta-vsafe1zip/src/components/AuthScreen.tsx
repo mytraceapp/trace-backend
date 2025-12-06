@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Scan, Eye, EyeOff } from 'lucide-react';
 import traceLogo from 'figma:asset/513ec3c351285cce0b15e678c8f6d864d8269d64.png';
+import { supabase } from '../lib/supabaseClient';
 
 interface AuthScreenProps {
   onCreateAccount?: () => void;
@@ -25,24 +26,73 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
     setIsLoading(true);
     setError('');
     
-    // Simulate authentication delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    try {
+      console.log('Attempting Supabase sign in...', { email });
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password,
+      });
+      
+      console.log('Sign in response:', { data, error: authError });
+      
+      if (authError) {
+        setError(authError.message);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!data?.user) {
+        setError('Sign in failed - please try again');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Success!
+      setIsLoading(false);
+      setShowLoginModal(false);
+      onLogin?.();
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Something went wrong. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setError('Please enter your email address first');
+      return;
+    }
     
-    setIsLoading(false);
-    setShowLoginModal(false);
-    onLogin?.();
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: window.location.origin,
+      });
+      
+      if (resetError) {
+        setError(resetError.message);
+      } else {
+        setError(''); // Clear error
+        alert('Password reset email sent! Check your inbox.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to send reset email');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleFaceIDLogin = async () => {
     setIsLoading(true);
     setError('');
     
-    // Simulate Face ID authentication
+    // Face ID is a placeholder - show message
     await new Promise(resolve => setTimeout(resolve, 600));
-    
+    setError('Face ID not available - please use email and password');
     setIsLoading(false);
-    setShowLoginModal(false);
-    onLogin?.();
   };
 
   return (
@@ -440,7 +490,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                 {/* Forgot Password Link */}
                 <div className="text-center mb-5">
                   <button
-                    className="transition-opacity hover:opacity-70"
+                    className="transition-opacity hover:opacity-70 disabled:opacity-50"
                     style={{
                       fontFamily: 'Georgia, serif',
                       fontSize: '13px',
@@ -448,7 +498,12 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                       color: '#6B5A4A',
                       textDecoration: 'underline',
                       textUnderlineOffset: '3px',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
                     }}
+                    onClick={handleForgotPassword}
+                    disabled={isLoading}
                   >
                     Forgot password?
                   </button>
