@@ -297,9 +297,29 @@ export default function EchoScreen({
             className="absolute inset-0 w-full h-full cursor-pointer"
             onClick={handleExit}
           />
+          
+          {/* TRACE Brand - top center */}
+          <motion.div
+            className="absolute z-20 w-full flex justify-center"
+            style={{ top: '7%' }}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.8 }}
+          >
+            <h1 style={{
+              color: 'rgba(212, 196, 168, 0.5)',
+              fontWeight: 300,
+              letterSpacing: '0.8em',
+              fontSize: '10px',
+              textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+              paddingLeft: '0.8em',
+            }}>
+              TRACE
+            </h1>
+          </motion.div>
           <div className="absolute bottom-0 left-0 right-0 z-40" style={{
-            background: 'linear-gradient(to top, rgba(26, 29, 26, 0.95) 0%, rgba(26, 29, 26, 0.7) 40%, rgba(26, 29, 26, 0) 100%)',
-            paddingTop: '40px',
+            background: 'linear-gradient(to top, rgba(26, 29, 26, 1) 0%, rgba(26, 29, 26, 0.85) 30%, rgba(26, 29, 26, 0.5) 60%, rgba(26, 29, 26, 0.2) 80%, rgba(26, 29, 26, 0) 100%)',
+            paddingTop: '60px',
           }}>
             <BottomNav
               activeScreen="activities"
