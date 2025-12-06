@@ -453,9 +453,176 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
   );
 }
 
+function WeeklyRhythmInfoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { theme } = useTheme();
+  const isDark = theme === 'night';
+  
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center px-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <motion.div
+            className="absolute inset-0 bg-black/40"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+          />
+          <motion.div
+            className="relative z-10 w-full max-w-[320px] rounded-[24px] p-6"
+            style={{
+              backgroundColor: isDark ? 'rgba(38, 42, 38, 0.98)' : '#E9E2D8',
+              border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.12)',
+              boxShadow: isDark 
+                ? '0 20px 60px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3)'
+                : '0 20px 60px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.1)',
+            }}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ duration: 0.25, ease: [0.22, 0.61, 0.36, 1] }}
+          >
+            <button
+              onClick={onClose}
+              className="flex items-center justify-center rounded-full transition-colors"
+              style={{ 
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                width: '32px',
+                height: '32px',
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(90, 74, 58, 0.1)' 
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path
+                  d="M1 1L13 13M1 13L13 1"
+                  stroke={isDark ? '#F2F0EC' : '#5A4A3A'}
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center mb-4"
+              style={{ backgroundColor: 'var(--accent-soft)' }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M3 12h4l3-9 4 18 3-9h4"
+                  stroke="var(--accent)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+
+            <h3
+              style={{
+                fontFamily: 'Playfair Display, Georgia, serif',
+                fontSize: '20px',
+                fontWeight: 500,
+                color: 'var(--text-primary)',
+                marginBottom: '16px',
+                letterSpacing: '0.01em',
+                paddingRight: '32px',
+              }}
+            >
+              Weekly Rhythm Map
+            </h3>
+
+            <div className="space-y-4">
+              <p
+                style={{
+                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontSize: '14px',
+                  fontWeight: 300,
+                  color: 'var(--text-primary)',
+                  lineHeight: '1.7',
+                }}
+              >
+                The Weekly Rhythm Map reflects how your emotional or behavioral energy moves through the week.
+              </p>
+              
+              <p
+                style={{
+                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontSize: '14px',
+                  fontWeight: 300,
+                  color: 'var(--text-primary)',
+                  lineHeight: '1.7',
+                }}
+              >
+                Small rises might mean clarity or ease. Dips may show stress, fatigue, or recovery time.
+              </p>
+              
+              <p
+                style={{
+                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontSize: '14px',
+                  fontWeight: 300,
+                  color: 'var(--text-primary)',
+                  lineHeight: '1.7',
+                }}
+              >
+                Patterns that repeat on similar days help you understand your natural rhythm — not fix it.
+              </p>
+              
+              <p
+                style={{
+                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontSize: '14px',
+                  fontWeight: 400,
+                  color: 'var(--text-secondary)',
+                  lineHeight: '1.7',
+                  fontStyle: 'italic',
+                }}
+              >
+                It's simply awareness, not evaluation.
+              </p>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="w-full rounded-[14px] px-5 py-3 mt-6 transition-all duration-200 active:scale-[0.98]"
+              style={{
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#D7C8B5',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.1)',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                Got it
+              </span>
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToActivities, onNavigateToProfile, onNavigateToHelp, onNavigateToJournal }: TracePatternsScreenProps) {
   const [activePattern, setActivePattern] = useState<Pattern | null>(null);
   const [showUpsell, setShowUpsell] = useState(false);
+  const [showWeeklyRhythmInfo, setShowWeeklyRhythmInfo] = useState(false);
   const { canAccessPattern } = usePlanTier();
 
   const handlePatternClick = (pattern: Pattern) => {
@@ -1166,18 +1333,33 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.2, delay: 0.4 }}
           >
-            <p
-              className="mb-5"
-              style={{
-                fontFamily: 'Playfair Display, Georgia, serif',
-                fontSize: '12px',
-                fontWeight: 400,
-                color: 'var(--text-secondary)',
-                letterSpacing: '0.04em',
-              }}
-            >
-              Weekly Rhythm Map
-            </p>
+            <div className="flex items-center justify-between mb-5">
+              <p
+                style={{
+                  fontFamily: 'Playfair Display, Georgia, serif',
+                  fontSize: '12px',
+                  fontWeight: 400,
+                  color: 'var(--text-secondary)',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Weekly Rhythm Map
+              </p>
+              <button
+                onClick={() => setShowWeeklyRhythmInfo(true)}
+                className="flex items-center justify-center rounded-full transition-opacity hover:opacity-70"
+                style={{
+                  width: '22px',
+                  height: '22px',
+                  backgroundColor: 'var(--accent-soft)',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="var(--text-secondary)" strokeWidth="1.5" />
+                  <path d="M12 16v-4M12 8h.01" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
             
             {/* Minimalist Graph */}
             <svg width="100%" height="110" viewBox="0 0 300 110">
@@ -1374,6 +1556,12 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
       <UpsellModal
         isOpen={showUpsell}
         onClose={() => setShowUpsell(false)}
+      />
+
+      {/* Weekly Rhythm Map Info Modal */}
+      <WeeklyRhythmInfoModal
+        isOpen={showWeeklyRhythmInfo}
+        onClose={() => setShowWeeklyRhythmInfo(false)}
       />
     </div>
   );
