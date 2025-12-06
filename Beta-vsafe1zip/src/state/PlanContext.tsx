@@ -133,10 +133,13 @@ export function UserProvider({ children }: UserProviderProps) {
   // Listen for auth state changes to load profile
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('User signed in, loading profile...');
-          await loadProfileFromSupabase();
+          // Non-blocking profile load
+          loadProfileFromSupabase().catch(err => {
+            console.error('Failed to load profile on sign in:', err);
+          });
         } else if (event === 'SIGNED_OUT') {
           console.log('User signed out, clearing profile');
           setProfileState(null);
@@ -148,7 +151,9 @@ export function UserProvider({ children }: UserProviderProps) {
     // Check for existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        loadProfileFromSupabase();
+        loadProfileFromSupabase().catch(err => {
+          console.error('Failed to load profile on mount:', err);
+        });
       }
     });
 
