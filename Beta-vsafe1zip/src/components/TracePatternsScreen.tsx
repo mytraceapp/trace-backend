@@ -117,10 +117,11 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
 
               {pattern.timeWindow && (
                 <div
-                  className="rounded-[12px] px-4 py-2.5 mb-3"
+                  className="px-4 py-2.5 mb-3"
                   style={{
                     backgroundColor: 'var(--accent-soft)',
                     border: isDark ? '1px solid rgba(168, 179, 154, 0.2)' : '1px solid rgba(141, 161, 143, 0.2)',
+                    borderRadius: '16px',
                   }}
                 >
                   <p
@@ -270,10 +271,11 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
             <div className="p-5 pt-3 flex-shrink-0">
               <button
                 onClick={onClose}
-                className="w-full rounded-[14px] px-5 py-3 transition-all duration-200 active:scale-[0.98]"
+                className="w-full px-5 py-3 transition-all duration-200 active:scale-[0.98]"
                 style={{
                   backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#D7C8B5',
                   border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.1)',
+                  borderRadius: '20px',
                 }}
               >
                 <span
@@ -407,10 +409,11 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
                 console.log('Upgrade clicked - integrate with payment flow');
                 onClose();
               }}
-              className="w-full rounded-[16px] px-6 py-4 transition-all duration-200 active:scale-[0.98] mb-3"
+              className="w-full px-6 py-4 transition-all duration-200 active:scale-[0.98] mb-3"
               style={{
                 backgroundColor: 'var(--accent)',
                 border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.1)',
+                borderRadius: '20px',
               }}
             >
               <span
@@ -594,10 +597,11 @@ function WeeklyRhythmInfoModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
 
             <button
               onClick={onClose}
-              className="w-full rounded-[14px] px-5 py-3 mt-6 transition-all duration-200 active:scale-[0.98]"
+              className="w-full px-5 py-3 mt-6 transition-all duration-200 active:scale-[0.98]"
               style={{
                 backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#D7C8B5',
                 border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(43, 30, 21, 0.1)',
+                borderRadius: '20px',
               }}
             >
               <span
