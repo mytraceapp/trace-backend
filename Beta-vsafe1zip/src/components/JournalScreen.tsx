@@ -500,16 +500,18 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                   border: '1px solid rgba(255, 255, 255, 0.3)',
                 }}
               >
-                {/* Mood toothpick bars - horizontal bars stacked vertically */}
+                {/* Mood toothpick bars - horizontal bars stacked vertically with varying lengths */}
                 <div className="flex flex-col items-center justify-center gap-1.5">
                   {(() => {
                     const loggedMoods = selectedDayEntries
                       .filter(e => e.type === 'emotional_note' && e.metadata?.mood)
                       .map(e => e.metadata?.mood as string);
                     
-                    return moodOptions.map((mood) => {
+                    const baseLengths = [80, 55, 70, 45];
+                    
+                    return moodOptions.map((mood, index) => {
                       const isLogged = loggedMoods.includes(mood.type);
-                      const barWidth = isLogged ? 120 : 60;
+                      const barWidth = isLogged ? 140 : baseLengths[index];
                       
                       return (
                         <div
