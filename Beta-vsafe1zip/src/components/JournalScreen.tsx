@@ -442,9 +442,9 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                               width: '5px',
                               height: '5px',
                               borderRadius: '50%',
-                              background: isDark ? '#e8e4dc' : '#8A8680',
+                              background: isDark ? '#c4a882' : '#8A8680',
                               boxShadow: isDark 
-                                ? '0 0 8px rgba(232, 228, 220, 0.8)' 
+                                ? '0 0 10px rgba(196, 168, 130, 0.9)' 
                                 : '0 0 6px rgba(138, 134, 128, 0.6)',
                             }}
                             animate={{
