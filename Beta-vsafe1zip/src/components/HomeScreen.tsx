@@ -5,9 +5,10 @@ import { EtherealTone } from './EtherealTone';
 
 interface HomeScreenProps {
   onNavigateToAuth?: () => void;
+  onStartAmbient?: () => void;
 }
 
-export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
+export function HomeScreen({ onNavigateToAuth, onStartAmbient }: HomeScreenProps) {
   const [isLogoLowered, setIsLogoLowered] = React.useState(false);
   const [isAwakened, setIsAwakened] = React.useState(false);
   const [showWakeRipple, setShowWakeRipple] = React.useState(false);
@@ -24,16 +25,17 @@ export function HomeScreen({ onNavigateToAuth }: HomeScreenProps) {
     }
   }, [isLogoLowered, isAwakened]);
 
-  // Trigger wake ripple effect before transitioning
+  // Trigger wake ripple effect and start ambient audio for crossfade
   React.useEffect(() => {
     if (isAwakened) {
       const rippleTimer = setTimeout(() => {
         setShowWakeRipple(true);
+        onStartAmbient?.();
       }, 3000);
 
       return () => clearTimeout(rippleTimer);
     }
-  }, [isAwakened]);
+  }, [isAwakened, onStartAmbient]);
 
   // Auto-transition to auth page after orb rises (5s) + slow ripple (4s)
   React.useEffect(() => {

@@ -40,6 +40,7 @@ export default function App() {
   const [showPaymentSuccess, setShowPaymentSuccess] = React.useState(false);
   const [showAuthModal, setShowAuthModal] = React.useState(false);
   const [ambientAudioStarted, setAmbientAudioStarted] = React.useState(false);
+  const [ambientCrossfadeActive, setAmbientCrossfadeActive] = React.useState(false);
   const [user, setUser] = React.useState<User | null>(null);
 
   // Supabase session listener - store logged-in user state
@@ -57,7 +58,7 @@ export default function App() {
   const userName = profile?.name || 'there';
 
   const screensWithOwnAudio = ['home', 'onboarding', 'breathing', 'powernap', 'pearlripple', 'walking', 'grounding', 'maze', 'rainwindow', 'echo'];
-  const shouldPlayAmbient = ambientAudioStarted && ambienceEnabled && !screensWithOwnAudio.includes(currentScreen);
+  const shouldPlayAmbient = ambientAudioStarted && ambienceEnabled && (!screensWithOwnAudio.includes(currentScreen) || ambientCrossfadeActive);
   
   React.useEffect(() => {
     const screensToTriggerAudio = ['auth', 'chat', 'activities', 'activitieshub', 'journal', 'entries', 'patterns', 'profile', 'help'];
@@ -84,7 +85,13 @@ export default function App() {
           
           {/* Conditional Screen Rendering */}
           {currentScreen === 'home' && (
-            <HomeScreen onNavigateToAuth={() => setCurrentScreen('auth')} />
+            <HomeScreen 
+              onNavigateToAuth={() => setCurrentScreen('auth')} 
+              onStartAmbient={() => {
+                setAmbientAudioStarted(true);
+                setAmbientCrossfadeActive(true);
+              }}
+            />
           )}
           {currentScreen === 'auth' && (
             <AuthScreen 
