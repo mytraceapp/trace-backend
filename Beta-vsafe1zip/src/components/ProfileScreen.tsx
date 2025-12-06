@@ -31,8 +31,11 @@ export function ProfileScreen({
 }: ProfileScreenProps) {
   const { profile, selectedPlan, generateReferralCode, updatePlan, setIsUpgrading, ambienceEnabled, setAmbienceEnabled, ambienceVolume, setAmbienceVolume } = useUser();
   const { theme, setTheme } = useTheme();
-  const { user, signOut, currentProfile } = useAuth();
+  const { user, signOut, currentProfile, updateProfileData } = useAuth();
   const [showAuthModal, setShowAuthModal] = React.useState(false);
+  const [showEditNameModal, setShowEditNameModal] = React.useState(false);
+  const [editingName, setEditingName] = React.useState('');
+  const [isSavingName, setIsSavingName] = React.useState(false);
   
   const [showManagePlanPopup, setShowManagePlanPopup] = React.useState(false);
   const [showUpgradePromoPopup, setShowUpgradePromoPopup] = React.useState(false);
@@ -51,6 +54,25 @@ export function ProfileScreen({
   const userEmail = user?.email || currentProfile?.email || profile?.email || 'name@email.com';
   const displayName = userName || 'Add your name';
   
+  const handleEditName = () => {
+    setEditingName(userName || '');
+    setShowEditNameModal(true);
+  };
+  
+  const handleSaveName = async () => {
+    if (!editingName.trim()) return;
+    
+    setIsSavingName(true);
+    try {
+      await updateProfileData({ name: editingName.trim() });
+      setShowEditNameModal(false);
+    } catch (error) {
+      console.error('Failed to save name:', error);
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
   const getInitial = (name: string | null | undefined, email: string | undefined) => {
     // First try to use name
     if (name && name !== 'Your Name') {
@@ -302,7 +324,12 @@ export function ProfileScreen({
             transition={{ duration: 0.8, delay: 0.4 }}
           >
             <div className="mb-5">
-              <div className="text-left w-full">
+              <button
+                onClick={user ? handleEditName : undefined}
+                disabled={!user}
+                className="text-left w-full group"
+                style={{ cursor: user ? 'pointer' : 'default' }}
+              >
                 <h3
                   style={{
                     fontFamily: 'Georgia, serif',
@@ -313,10 +340,11 @@ export function ProfileScreen({
                     marginBottom: '6px',
                     fontStyle: userName ? 'normal' : 'italic',
                   }}
+                  className={user ? 'group-hover:opacity-70 transition-opacity' : ''}
                 >
                   {displayName}
                 </h3>
-              </div>
+              </button>
               <p
                 style={{
                   fontFamily: 'Georgia, serif',
@@ -589,24 +617,23 @@ export function ProfileScreen({
                     </span>
                   </button>
                   <button
+                    onClick={() => setTheme('auto')}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl transition-all duration-200"
                     style={{
-                      background: 'var(--accent-soft)',
-                      border: '1.5px solid transparent',
-                      opacity: 0.6,
+                      background: theme === 'auto' ? 'var(--accent-soft)' : 'var(--accent-soft)',
+                      border: theme === 'auto' ? '1.5px solid var(--border)' : '1.5px solid transparent',
                     }}
-                    disabled
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme === 'auto' ? 'var(--text-primary)' : 'var(--text-secondary)'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10"/>
                       <path d="M12 6v6l4 2"/>
                     </svg>
                     <span
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: 'var(--text-secondary)',
+                        color: theme === 'auto' ? 'var(--text-primary)' : 'var(--text-secondary)',
                         fontSize: '11px',
-                        fontWeight: 300,
+                        fontWeight: theme === 'auto' ? 400 : 300,
                       }}
                     >
                       Auto
@@ -1294,6 +1321,90 @@ export function ProfileScreen({
         isOpen={showAuthModal} 
         onClose={() => setShowAuthModal(false)} 
       />
+
+      {/* Edit Name Modal */}
+      <AnimatePresence>
+        {showEditNameModal && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center px-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setShowEditNameModal(false)}
+            />
+            <motion.div
+              className="relative w-full max-w-sm rounded-[28px] p-6"
+              style={{
+                background: 'var(--card)',
+                boxShadow: '0 4px 24px var(--shadow)',
+              }}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            >
+              <button
+                className="absolute top-4 right-4 p-2 rounded-full transition-opacity hover:opacity-70"
+                onClick={() => setShowEditNameModal(false)}
+              >
+                <X size={18} style={{ color: 'var(--text-secondary)' }} />
+              </button>
+
+              <h3
+                style={{
+                  fontFamily: 'Georgia, serif',
+                  fontSize: '18px',
+                  fontWeight: 400,
+                  color: 'var(--text-primary)',
+                  marginBottom: '20px',
+                }}
+              >
+                Edit your name
+              </h3>
+
+              <input
+                type="text"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                placeholder="Enter your name"
+                className="w-full px-4 py-3 rounded-xl mb-4 outline-none transition-all duration-200"
+                style={{
+                  background: 'var(--accent-soft)',
+                  border: '1px solid var(--border)',
+                  fontFamily: 'Georgia, serif',
+                  fontSize: '15px',
+                  color: 'var(--text-primary)',
+                }}
+                autoFocus
+              />
+
+              <button
+                className="w-full py-3 px-4 rounded-xl transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+                style={{
+                  background: 'linear-gradient(135deg, #8A7A6A 0%, #6A5A4A 100%)',
+                  boxShadow: '0 4px 12px rgba(138, 122, 106, 0.25)',
+                }}
+                onClick={handleSaveName}
+                disabled={isSavingName || !editingName.trim()}
+              >
+                <span
+                  style={{
+                    fontFamily: 'Georgia, serif',
+                    fontSize: '14px',
+                    fontWeight: 400,
+                    color: '#FFFFFF',
+                  }}
+                >
+                  {isSavingName ? 'Saving...' : 'Save'}
+                </span>
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
