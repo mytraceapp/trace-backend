@@ -43,7 +43,7 @@ export default function EchoScreen({
     audio.volume = 0;
     audio.loop = false;
     audio.crossOrigin = 'anonymous';
-    audio.playbackRate = 0.95; // Slow down by 5% for smoother delivery
+    audio.playbackRate = 0.88; // Start slower for gentle entry
     audioRef.current = audio;
 
     // Auto-navigate to chat 2 seconds after TRACE finishes speaking
@@ -52,6 +52,18 @@ export default function EchoScreen({
         onReturnToChat();
       }, 2000);
     };
+
+    // Gradually ease playback speed from 0.88 to 0.95 over first 18 seconds
+    let currentRate = 0.88;
+    const targetRate = 0.95;
+    const rateEaseInterval = setInterval(() => {
+      currentRate += 0.001;
+      if (currentRate >= targetRate) {
+        currentRate = targetRate;
+        clearInterval(rateEaseInterval);
+      }
+      if (audioRef.current) audioRef.current.playbackRate = currentRate;
+    }, 260);
 
     // Start ambient music immediately when page loads
     const ambientAudio = new Audio('/audio/ambient-loop.mp3');
