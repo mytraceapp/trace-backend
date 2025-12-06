@@ -1107,8 +1107,8 @@ export function ChatScreen({
             className="absolute inset-0 z-50 flex items-center justify-center"
             style={{
               background: isDark 
-                ? 'linear-gradient(180deg, #0E0F0D 0%, #1a1b18 50%, #0E0F0D 100%)'
-                : 'linear-gradient(180deg, #F5F1EB 0%, #E8E4DE 50%, #F5F1EB 100%)',
+                ? 'linear-gradient(180deg, #2a3328 0%, #3d4a3a 50%, #2a3328 100%)'
+                : 'linear-gradient(180deg, #8BA998 0%, #9DB8A7 50%, #8BA998 100%)',
             }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1122,8 +1122,8 @@ export function ChatScreen({
                 width: 200,
                 height: 200,
                 background: isDark
-                  ? 'radial-gradient(circle, rgba(180, 200, 190, 0.15) 0%, transparent 70%)'
-                  : 'radial-gradient(circle, rgba(139, 169, 152, 0.2) 0%, transparent 70%)',
+                  ? 'radial-gradient(circle, rgba(157, 184, 167, 0.25) 0%, transparent 70%)'
+                  : 'radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%)',
                 filter: 'blur(40px)',
               }}
               initial={{ scale: 0.8, opacity: 0 }}
