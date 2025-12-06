@@ -28,21 +28,31 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setMessage("");
     setIsError(false);
 
+    // Debug: log Supabase URL to verify connection
+    console.log("Attempting auth with Supabase...", { mode, email });
+
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
+        console.log("Sign up response:", { data, error });
         if (error) throw error;
-        setMessage(
-          "Check your email to confirm your account, then sign in here."
-        );
+        if (data?.user?.identities?.length === 0) {
+          setIsError(true);
+          setMessage("This email is already registered. Try signing in instead.");
+        } else {
+          setMessage(
+            "Account created! Check your email to confirm, then sign in."
+          );
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
+        console.log("Sign in response:", { data, error });
         if (error) throw error;
         setMessage("Signed in successfully!");
         // Auto-close modal after successful login
@@ -54,7 +64,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         }, 1200);
       }
     } catch (err: any) {
-      console.error(err);
+      console.error("Auth error:", err);
       setIsError(true);
       setMessage(err.message || "Something went wrong. Please try again.");
     } finally {
