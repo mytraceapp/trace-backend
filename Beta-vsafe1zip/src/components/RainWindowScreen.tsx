@@ -209,23 +209,25 @@ export function RainWindowScreen({
         }}
       />
 
-      {/* Quiet Mode Video (no orb, softer) */}
+      {/* Quiet Mode Video (same video, softer treatment with trees visible) */}
       <video
         ref={quietVideoRef}
         className="absolute object-cover"
-        src="/video/rain-quiet.mp4"
+        src="/video/rain-window.mp4"
         muted
         loop
         playsInline
         autoPlay
         preload="auto"
         style={{
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          filter: 'brightness(0.55) saturate(0.7)',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%) scale(1.15)',
+          minWidth: '115%',
+          minHeight: '115%',
+          width: 'auto',
+          height: 'auto',
+          filter: 'brightness(0.45) saturate(0.6)',
           opacity: quietMode ? videoOpacity : 0,
           transition: 'opacity 1.2s ease-in-out',
         }}
@@ -550,8 +552,16 @@ export function RainWindowScreen({
         </motion.div>
       )}
 
+      {/* Bottom gradient overlay */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 pointer-events-none z-[45]"
+        style={{
+          height: '180px',
+          background: 'linear-gradient(to top, rgba(30, 32, 30, 1) 0%, rgba(36, 40, 36, 0.9) 30%, rgba(30, 34, 30, 0.5) 60%, transparent 100%)',
+        }}
+      />
+
       <div className="absolute bottom-0 left-0 right-0 z-40" style={{
-          background: 'linear-gradient(to top, rgba(42, 46, 42, 0.95) 0%, rgba(36, 40, 36, 0.85) 25%, rgba(30, 34, 30, 0.6) 50%, rgba(26, 29, 26, 0.3) 75%, rgba(26, 29, 26, 0) 100%)',
           paddingTop: '70px',
         }}>
         <BottomNav
