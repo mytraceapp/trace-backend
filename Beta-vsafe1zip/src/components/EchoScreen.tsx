@@ -313,50 +313,44 @@ export default function EchoScreen({
       // Ultra-slow breath LFO (14 second cycle) - the signature
       const breathLFO = Math.sin(time * 0.00045) * 0.12 + 1;
       
-      // Soft audio response - gentle nudge, not jarring reaction (capped at ±18%)
-      const softAudioResponse = 1 + Math.min(safeAudio * 0.18, 0.18);
+      // Soft breath audio response
+      const softAudioResponse = 1 + Math.min(safeAudio * 0.2, 0.2);
 
-      // More wavy with longer wavelengths
+      // Clean, cohesive wave layers - all flowing together
       const layers = [
-        { color: LUNA_PALETTE.midnightBlue, opacity: 0.85, amplitude: 65, frequency: 0.0025, speed: 0.00017, offset: 0, blur: 4 },
-        { color: LUNA_PALETTE.sageGray, opacity: 0.78, amplitude: 55, frequency: 0.003, speed: 0.00022, offset: 1, blur: 2 },
-        { color: LUNA_PALETTE.beige, opacity: 0.65, amplitude: 45, frequency: 0.0035, speed: 0.00028, offset: 2, blur: 1 },
-        { color: LUNA_PALETTE.sageMuted, opacity: 0.72, amplitude: 58, frequency: 0.0028, speed: 0.00019, offset: 1.5, blur: 3 },
+        { color: LUNA_PALETTE.midnightBlue, opacity: 0.7, amplitude: 50, yOffset: -25, blur: 6 },
+        { color: LUNA_PALETTE.sageGray, opacity: 0.8, amplitude: 60, yOffset: 0, blur: 3 },
+        { color: LUNA_PALETTE.beige, opacity: 0.6, amplitude: 45, yOffset: 20, blur: 1 },
       ];
 
       layers.forEach((layer, layerIndex) => {
         ctx.save();
         
         const points: { x: number; y: number }[] = [];
-        const segments = 150;
+        const segments = 100;
 
         for (let i = 0; i <= segments; i++) {
           const x = (i / segments) * width;
           const normalizedX = i / segments;
-
-          // Gentle frequency modulation from audio (very subtle)
-          const freqIndex = Math.floor((i / segments) * (frequencyData?.length || 1));
-          const freqValue = frequencyData ? frequencyData[freqIndex] / 255 : 0;
-          const gentleFreqNudge = 1 + freqValue * 0.08;
           
-          // Slower, longer waves - meditative motion
-          const wave1 = Math.sin(normalizedX * Math.PI * 2 * layer.frequency * 100 + time * layer.speed + layer.offset) * layer.amplitude;
-          const wave2 = Math.sin(normalizedX * Math.PI * 1.5 * layer.frequency * 80 + time * layer.speed * 0.6 + layer.offset * 1.5) * layer.amplitude * 0.5;
-          const wave3 = Math.sin(normalizedX * Math.PI * 2.5 * layer.frequency * 60 + time * layer.speed * 0.8 + layer.offset * 0.8) * layer.amplitude * 0.25;
-
-          // Layer-specific slow breathing
-          const layerBreathe = Math.sin(time * 0.00015 + layerIndex * 0.4) * 0.08 + 1;
+          // Single cohesive wave with long wavelength
+          const baseWave = Math.sin(normalizedX * Math.PI * 2 + time * 0.00015 + layerIndex * 0.8);
+          const secondWave = Math.sin(normalizedX * Math.PI * 3 + time * 0.0001 + layerIndex * 0.5) * 0.4;
           
-          const envelope = Math.sin(normalizedX * Math.PI) * 0.8 + 0.2;
+          // Smooth envelope - fade at edges
+          const envelope = Math.sin(normalizedX * Math.PI);
           
-          // Combine: base waves * envelope * breath LFO * soft audio * layer breathe * gentle freq nudge
-          const y = centerY + (wave1 + wave2 + wave3) * envelope * breathLFO * softAudioResponse * layerBreathe * gentleFreqNudge;
+          // Combine with breath and audio
+          const waveHeight = (baseWave + secondWave) * layer.amplitude * envelope * breathLFO * softAudioResponse;
+          
+          const y = centerY + layer.yOffset + waveHeight;
           points.push({ x, y });
         }
 
         ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
 
+        // Smooth bezier curves for fluid wave
         for (let i = 1; i < points.length - 2; i++) {
           const xc = (points[i].x + points[i + 1].x) / 2;
           const yc = (points[i].y + points[i + 1].y) / 2;
@@ -370,66 +364,21 @@ export default function EchoScreen({
           points[points.length - 1].y
         );
 
-        const gradient = ctx.createLinearGradient(0, centerY - 80, 0, centerY + 80);
-        gradient.addColorStop(0, `${layer.color}00`);
-        gradient.addColorStop(0.3, layer.color);
-        gradient.addColorStop(0.7, layer.color);
-        gradient.addColorStop(1, `${layer.color}00`);
-
-        ctx.strokeStyle = gradient;
-        ctx.lineWidth = 3;
-        ctx.globalAlpha = Math.min(layer.opacity + 0.1, 1);
-        ctx.filter = `blur(${Math.max(layer.blur - 1, 0)}px)`;
+        // Soft glow effect
+        ctx.filter = `blur(${layer.blur}px)`;
+        ctx.strokeStyle = layer.color;
+        ctx.lineWidth = 4;
+        ctx.globalAlpha = layer.opacity * 0.5;
         ctx.stroke();
 
+        // Crisp line on top
         ctx.filter = 'none';
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 2;
         ctx.globalAlpha = layer.opacity;
         ctx.stroke();
 
         ctx.restore();
       });
-
-      ctx.save();
-      const points: { x: number; y: number }[] = [];
-      const segments = 120;
-
-      const safeLevel = isNaN(audioLevel) ? 0 : audioLevel;
-      for (let i = 0; i <= segments; i++) {
-        const x = (i / segments) * width;
-        const normalizedX = i / segments;
-
-        const audioBoost = 1 + safeLevel * 2.0;
-        const wave = (Math.sin(normalizedX * Math.PI * 3 + time * 0.0004) * 40 +
-                     Math.sin(normalizedX * Math.PI * 5 + time * 0.0003) * 25 +
-                     Math.sin(normalizedX * Math.PI * 2 + time * 0.0005) * 30) * audioBoost;
-
-        const envelope = Math.sin(normalizedX * Math.PI);
-        const breathe = Math.sin(time * 0.00025) * 0.1 + 1;
-        
-        const y = centerY + wave * envelope * breathe;
-        points.push({ x, y });
-      }
-
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-
-      for (let i = 1; i < points.length - 2; i++) {
-        const xc = (points[i].x + points[i + 1].x) / 2;
-        const yc = (points[i].y + points[i + 1].y) / 2;
-        ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
-      }
-
-      const coreGradient = ctx.createLinearGradient(0, centerY - 50, 0, centerY + 50);
-      coreGradient.addColorStop(0, 'rgba(232, 228, 220, 0)');
-      coreGradient.addColorStop(0.5, 'rgba(232, 228, 220, 0.5)');
-      coreGradient.addColorStop(1, 'rgba(232, 228, 220, 0)');
-
-      ctx.strokeStyle = coreGradient;
-      ctx.lineWidth = 2.5;
-      ctx.globalAlpha = 0.75;
-      ctx.stroke();
-      ctx.restore();
     };
 
     const animate = (timestamp: number) => {
