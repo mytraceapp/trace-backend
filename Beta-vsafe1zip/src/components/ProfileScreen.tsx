@@ -47,14 +47,24 @@ export function ProfileScreen({
 
   const currentPlan = profile?.plan || selectedPlan;
   const currentPlanLabel = planLabels[currentPlan].label;
-  const userName = profile?.name || 'Your Name';
-  const userEmail = profile?.email || 'name@email.com';
   
-  const getInitial = (name: string) => {
-    const firstName = name.trim().split(' ')[0];
-    return firstName.charAt(0).toUpperCase();
+  // Use Supabase user email when logged in, fallback to profile data
+  const userName = profile?.name || 'Your Name';
+  const userEmail = user?.email || profile?.email || 'name@email.com';
+  
+  const getInitial = (name: string | undefined, email: string | undefined) => {
+    // First try to use name
+    if (name && name !== 'Your Name') {
+      const firstName = name.trim().split(' ')[0];
+      return firstName.charAt(0).toUpperCase();
+    }
+    // Fall back to email first character
+    if (email && email !== 'name@email.com') {
+      return email.charAt(0).toUpperCase();
+    }
+    return 'Y';
   };
-  const userInitial = getInitial(userName);
+  const userInitial = getInitial(userName, userEmail);
 
   const handleUpgradePlan = () => {
     setShowManagePlanPopup(false);
