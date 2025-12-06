@@ -16,14 +16,14 @@ export function AmbientAudioPlayer({
   showControls = true,
   volume = 0.4,
   startDelay = 100,
-  playbackRate = 0.80,
+  playbackRate = 0.94,
   onReady,
 }: AmbientAudioPlayerProps) {
   const { play, pause, isPlaying, isLoaded } = useAmbientAudio({
     src: '/audio/ambient-loop.mp3',
     volume,
-    fadeInDuration: 5000,
-    fadeOutDuration: 1200,
+    fadeInDuration: 4000,
+    fadeOutDuration: 1500,
     loop: true,
     startDelay,
     playbackRate,
