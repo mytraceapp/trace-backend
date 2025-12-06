@@ -45,6 +45,32 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
     resize();
     window.addEventListener('resize', resize);
 
+    const drawBackgroundGrid = () => {
+      const width = canvas.width / (window.devicePixelRatio || 1);
+      const height = canvas.height / (window.devicePixelRatio || 1);
+      const gridSize = 24;
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(107, 124, 107, 0.06)';
+      ctx.lineWidth = 0.5;
+
+      for (let x = 0; x <= width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+
+      for (let y = 0; y <= height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    };
+
     const drawRadialGrid = (time: number) => {
       const width = canvas.width / (window.devicePixelRatio || 1);
       const height = canvas.height / (window.devicePixelRatio || 1);
@@ -247,6 +273,7 @@ export default function EchoScreen({ onBack }: EchoScreenProps) {
       ctx.fillStyle = LUNA_PALETTE.charcoal;
       ctx.fillRect(0, 0, width, height);
 
+      drawBackgroundGrid();
       drawRadialGrid(timestamp);
       drawOrb(timestamp);
       drawWaveform(timestamp);
