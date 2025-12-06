@@ -434,7 +434,7 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                           {day}
                         </span>
 
-                        {/* Today indicator - glowing dot */}
+                        {/* Today indicator - single glowing dot */}
                         {isToday && (
                           <motion.div
                             className="absolute bottom-1"
@@ -442,8 +442,10 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                               width: '4px',
                               height: '4px',
                               borderRadius: '50%',
-                              background: '#8A8680',
-                              boxShadow: '0 0 6px rgba(138, 134, 128, 0.6)',
+                              background: isDark ? '#d4c4a8' : '#8A8680',
+                              boxShadow: isDark 
+                                ? '0 0 6px rgba(212, 196, 168, 0.6)' 
+                                : '0 0 6px rgba(138, 134, 128, 0.6)',
                             }}
                             animate={{
                               opacity: [0.6, 1, 0.6],
@@ -456,7 +458,7 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                           />
                         )}
 
-                        {/* Entry indicator - two tiny dots (not on today) */}
+                        {/* Entry indicator - two small dots (only on dates with entries, not on today) */}
                         {hasEntries && !isToday && (
                           <div className="absolute bottom-1 flex gap-0.5">
                             <div
@@ -464,8 +466,8 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                                 width: '3px',
                                 height: '3px',
                                 borderRadius: '50%',
-                                background: '#8A8680',
-                                opacity: 0.6,
+                                background: isDark ? '#6b7c6b' : '#8A8680',
+                                opacity: isDark ? 0.8 : 0.6,
                               }}
                             />
                             <div
@@ -473,8 +475,8 @@ export function JournalScreen({ onReturnToChat, onNavigateToActivities, onNaviga
                                 width: '3px',
                                 height: '3px',
                                 borderRadius: '50%',
-                                background: '#8A8680',
-                                opacity: 0.6,
+                                background: isDark ? '#6b7c6b' : '#8A8680',
+                                opacity: isDark ? 0.8 : 0.6,
                               }}
                             />
                           </div>
