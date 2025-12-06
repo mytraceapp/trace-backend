@@ -84,9 +84,9 @@ export default function EchoScreen({
     const fadeIn = () => {
       let vol = 0;
       const fadeInterval = setInterval(() => {
-        vol += 0.005; // Very gradual fade in
-        if (vol >= 0.83) {
-          vol = 0.83;
+        vol += 0.002; // Ultra smooth fade in over ~16 seconds
+        if (vol >= 0.80) {
+          vol = 0.80;
           clearInterval(fadeInterval);
         }
         if (audioRef.current) audioRef.current.volume = vol;
@@ -104,7 +104,7 @@ export default function EchoScreen({
       if (audioRef.current) {
         let vol = audioRef.current.volume;
         const fadeInterval = setInterval(() => {
-          vol -= 0.05;
+          vol -= 0.01; // Smooth fade out
           if (vol <= 0) {
             vol = 0;
             clearInterval(fadeInterval);
@@ -113,7 +113,7 @@ export default function EchoScreen({
           } else if (audioRef.current) {
             audioRef.current.volume = vol;
           }
-        }, 30);
+        }, 40);
       }
       // Fade out ambient soundtrack
       if (ambientAudioRef.current) {
@@ -144,7 +144,7 @@ export default function EchoScreen({
     if (audioRef.current) {
       let vol = audioRef.current.volume;
       const fadeInterval = setInterval(() => {
-        vol -= 0.05;
+        vol -= 0.008; // Very smooth fade out on exit
         if (vol <= 0) {
           vol = 0;
           clearInterval(fadeInterval);
@@ -152,7 +152,7 @@ export default function EchoScreen({
         } else if (audioRef.current) {
           audioRef.current.volume = vol;
         }
-      }, 30);
+      }, 20);
     }
     // Fade out ambient soundtrack on exit
     if (ambientAudioRef.current) {
