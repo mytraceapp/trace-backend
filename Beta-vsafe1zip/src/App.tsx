@@ -86,7 +86,12 @@ export default function App() {
         >
           {/* Global Ambient Audio - always mounted, plays on screens without their own audio */}
           {ambientAudioStarted && (
-            <AmbientAudioPlayer shouldPlay={shouldPlayAmbient} volume={ambienceVolume / 100 * 0.5} showControls={false} />
+            <AmbientAudioPlayer 
+              shouldPlay={shouldPlayAmbient} 
+              volume={ambienceVolume / 100 * 0.5} 
+              showControls={false}
+              playbackRate={currentScreen === 'auth' ? 0.82 : 0.94}
+            />
           )}
           
           {/* Conditional Screen Rendering */}

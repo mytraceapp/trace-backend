@@ -29,8 +29,21 @@ export function useAmbientAudio({
   const hasPlayedOnceRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const playbackRateRef = useRef(playbackRate);
 
   const filterChainRef = useRef<BiquadFilterNode[]>([]);
+
+  // Update playback rate dynamically
+  useEffect(() => {
+    playbackRateRef.current = playbackRate;
+    if (currentSourceRef.current) {
+      currentSourceRef.current.playbackRate.linearRampToValueAtTime(
+        playbackRate,
+        audioContextRef.current?.currentTime ? audioContextRef.current.currentTime + 2 : 0
+      );
+    }
+  }, [playbackRate]);
 
   useEffect(() => {
     const loadAudio = async () => {
@@ -110,12 +123,13 @@ export function useAmbientAudio({
     const gainNode = context.createGain();
 
     source.buffer = buffer;
-    source.playbackRate.value = playbackRate;
+    source.playbackRate.value = playbackRateRef.current;
     source.connect(gainNode);
     gainNode.connect(masterGain);
+    currentSourceRef.current = source;
 
     const now = context.currentTime;
-    const duration = buffer.duration / playbackRate;
+    const duration = buffer.duration / playbackRateRef.current;
     const fadeTime = crossfadeDuration;
 
     gainNode.gain.setValueAtTime(0, now);
