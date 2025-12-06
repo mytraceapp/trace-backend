@@ -1,41 +1,8 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { Entry, EntryType, createEntry } from '../models/entries';
+import { supabase, getTraceUserId } from '../lib/supabaseClient';
 
 const STORAGE_KEY = 'trace_entries';
-const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
-
-function filterExpiredEntries(entries: Entry[]): Entry[] {
-  const now = Date.now();
-  return entries.filter(entry => {
-    const entryTime = new Date(entry.timestamp).getTime();
-    return (now - entryTime) < TWENTY_FOUR_HOURS_MS;
-  });
-}
-
-function loadEntriesFromStorage(): Entry[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const allEntries = JSON.parse(stored);
-      const recentEntries = filterExpiredEntries(allEntries);
-      if (recentEntries.length !== allEntries.length) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(recentEntries));
-      }
-      return recentEntries;
-    }
-  } catch (e) {
-    console.error('Failed to load entries from localStorage:', e);
-  }
-  return [];
-}
-
-function saveEntriesToStorage(entries: Entry[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  } catch (e) {
-    console.error('Failed to save entries to localStorage:', e);
-  }
-}
 
 interface EntriesContextType {
   entries: Entry[];
@@ -49,20 +16,95 @@ interface EntriesContextType {
   getRecentEntries: (limit?: number) => Entry[];
   deleteEntry: (id: string) => void;
   clearAllEntries: () => void;
+  isLoading: boolean;
 }
 
 const EntriesContext = createContext<EntriesContextType | undefined>(undefined);
 
 export function EntriesProvider({ children }: { children: React.ReactNode }) {
-  const [entries, setEntries] = useState<Entry[]>(() => loadEntriesFromStorage());
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const userId = useRef<string>(getTraceUserId());
 
+  // Load entries from Supabase on mount
   useEffect(() => {
-    saveEntriesToStorage(entries);
-  }, [entries]);
+    async function loadEntries() {
+      try {
+        const { data, error } = await supabase
+          .from('entries')
+          .select('*')
+          .eq('user_id', userId.current)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error loading entries from Supabase:', error);
+          // Fallback to localStorage if Supabase fails
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            setEntries(JSON.parse(stored));
+          }
+        } else if (data) {
+          // Map Supabase data to Entry format
+          const loadedEntries: Entry[] = data.map((row: any) => ({
+            id: row.id,
+            type: row.type as EntryType,
+            title: row.title,
+            body: row.body,
+            timestamp: row.created_at,
+            sourceScreen: row.source_screen,
+            tags: row.tags,
+            metadata: row.metadata,
+          }));
+          setEntries(loadedEntries);
+        }
+      } catch (e) {
+        console.error('Failed to load entries:', e);
+        // Fallback to localStorage
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          setEntries(JSON.parse(stored));
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadEntries();
+  }, []);
+
+  // Save entry to Supabase
+  const saveEntryToSupabase = async (entry: Entry) => {
+    try {
+      const { error } = await supabase
+        .from('entries')
+        .insert({
+          id: entry.id,
+          user_id: userId.current,
+          type: entry.type,
+          title: entry.title || null,
+          body: entry.body || null,
+          source_screen: entry.sourceScreen || null,
+          tags: entry.tags || null,
+          metadata: entry.metadata || null,
+          created_at: entry.timestamp,
+        });
+
+      if (error) {
+        console.error('Error saving entry to Supabase:', error);
+        // Fallback: save to localStorage
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const currentEntries = stored ? JSON.parse(stored) : [];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([entry, ...currentEntries]));
+      }
+    } catch (e) {
+      console.error('Failed to save entry:', e);
+    }
+  };
 
   const addEntry = useCallback((entryInput: Omit<Entry, 'id' | 'timestamp'>): Entry => {
     const entry = createEntry(entryInput.type, entryInput);
     setEntries(prev => [entry, ...prev]);
+    saveEntryToSupabase(entry);
     return entry;
   }, []);
 
@@ -146,13 +188,40 @@ export function EntriesProvider({ children }: { children: React.ReactNode }) {
     return entries.slice(0, limit);
   }, [entries]);
 
-  const deleteEntry = useCallback((id: string) => {
+  const deleteEntry = useCallback(async (id: string) => {
     setEntries(prev => prev.filter(e => e.id !== id));
+    
+    try {
+      const { error } = await supabase
+        .from('entries')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId.current);
+
+      if (error) {
+        console.error('Error deleting entry from Supabase:', error);
+      }
+    } catch (e) {
+      console.error('Failed to delete entry:', e);
+    }
   }, []);
 
-  const clearAllEntries = useCallback(() => {
+  const clearAllEntries = useCallback(async () => {
     setEntries([]);
     localStorage.removeItem(STORAGE_KEY);
+    
+    try {
+      const { error } = await supabase
+        .from('entries')
+        .delete()
+        .eq('user_id', userId.current);
+
+      if (error) {
+        console.error('Error clearing entries from Supabase:', error);
+      }
+    } catch (e) {
+      console.error('Failed to clear entries:', e);
+    }
   }, []);
 
   return (
@@ -169,6 +238,7 @@ export function EntriesProvider({ children }: { children: React.ReactNode }) {
         getRecentEntries,
         deleteEntry,
         clearAllEntries,
+        isLoading,
       }}
     >
       {children}
