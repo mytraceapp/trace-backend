@@ -333,18 +333,18 @@ export default function EchoScreen({
           const x = (i / segments) * width;
           const normalizedX = i / segments;
           
-          // Sound wave style - mix of frequencies for organic audio waveform look
-          const baseWave = Math.sin(normalizedX * Math.PI * 4 + time * 0.00018 + layerIndex * 0.7);
-          const midWave = Math.sin(normalizedX * Math.PI * 7 + time * 0.00025 + layerIndex * 0.4) * 0.5;
-          const highWave = Math.sin(normalizedX * Math.PI * 12 + time * 0.0003 + layerIndex * 0.3) * 0.25;
+          // Sound wave style - softer mix with occasional peaks
+          const baseWave = Math.sin(normalizedX * Math.PI * 3 + time * 0.00015 + layerIndex * 0.7);
+          const midWave = Math.sin(normalizedX * Math.PI * 5 + time * 0.0002 + layerIndex * 0.5) * 0.35;
+          const highWave = Math.sin(normalizedX * Math.PI * 8 + time * 0.00025 + layerIndex * 0.3) * 0.15;
           
-          // Occasional sharper peaks (V shapes) using triangle-like modulation
-          const sharpness = Math.abs(Math.sin(normalizedX * Math.PI * 5 + time * 0.0002)) * 0.3;
+          // Subtle sharper peaks (V shapes) - reduced
+          const sharpness = Math.abs(Math.sin(normalizedX * Math.PI * 4 + time * 0.00015)) * 0.18;
           
           // Smooth envelope - fade at edges
           const envelope = Math.sin(normalizedX * Math.PI);
           
-          // Combine for sound wave effect
+          // Combine for softer sound wave effect
           const waveHeight = (baseWave + midWave + highWave + sharpness) * layer.amplitude * envelope * breathLFO * audioResponse;
           
           const y = centerY + layer.yOffset + waveHeight;
