@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Mic, Send } from 'lucide-react';
 import { TypingTone } from './TypingTone';
 import { BottomNav } from './BottomNav';
@@ -884,57 +884,90 @@ export function ChatScreen({
             </style>
             
             <div className="space-y-4 min-h-full flex flex-col justify-end">
-              {messages.map((msg, index) => {
-                const totalMessages = messages.length;
-                const positionFromEnd = totalMessages - 1 - index;
-                const messageOpacity = positionFromEnd >= 5 
-                  ? 0 
-                  : positionFromEnd >= 4 
-                    ? 0.05
-                    : positionFromEnd >= 3 
-                      ? 0.22
-                      : positionFromEnd >= 2 
-                        ? 0.6
-                        : positionFromEnd >= 1 
-                          ? 0.85
-                          : 1;
-                
-                return (
-                  <motion.div
-                    key={msg.id}
-                    className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                    initial={{ opacity: 0, x: msg.sender === 'user' ? 20 : -20 }}
-                    animate={{ opacity: Math.min(1, messageOpacity), x: 0 }}
-                    transition={{ delay: index * 0.1, duration: 0.6 }}
-                  >
-                    <div 
-                      className={`max-w-[75%] px-5 py-4 rounded-3xl ${
-                        msg.sender === 'user' ? 'rounded-tr-md' : 'rounded-tl-md'
-                      }`}
-                      style={{
-                        background: msg.sender === 'user' 
-                          ? '#EDE8DB' 
-                          : 'rgba(237, 232, 219, 0.15)',
-                        boxShadow: msg.sender === 'user'
-                          ? '0 2px 8px rgba(0, 0, 0, 0.1)'
-                          : '0 2px 8px rgba(0, 0, 0, 0.08)',
+              <AnimatePresence initial={false} mode="popLayout">
+                {messages.map((msg, index) => {
+                  const totalMessages = messages.length;
+                  const positionFromEnd = totalMessages - 1 - index;
+                  const messageOpacity = positionFromEnd >= 5 
+                    ? 0 
+                    : positionFromEnd >= 4 
+                      ? 0.05
+                      : positionFromEnd >= 3 
+                        ? 0.22
+                        : positionFromEnd >= 2 
+                          ? 0.6
+                          : positionFromEnd >= 1 
+                            ? 0.85
+                            : 1;
+                  
+                  return (
+                    <motion.div
+                      key={msg.id}
+                      layout
+                      className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      initial={{ 
+                        opacity: 0, 
+                        y: 20,
+                        scale: 0.95,
+                        x: msg.sender === 'user' ? 15 : -15 
+                      }}
+                      animate={{ 
+                        opacity: Math.min(1, messageOpacity), 
+                        y: 0,
+                        scale: 1,
+                        x: 0 
+                      }}
+                      exit={{ 
+                        opacity: 0, 
+                        y: -10,
+                        scale: 0.95,
+                        transition: { duration: 0.2 }
+                      }}
+                      transition={{ 
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 30,
+                        mass: 0.8,
+                        opacity: { duration: 0.4 },
+                        layout: { type: "spring", stiffness: 200, damping: 25 }
                       }}
                     >
-                      <p 
-                        className={msg.sender === 'user' ? 'text-[#6B7A6E]' : 'text-[#EDE8DB]'}
+                      <motion.div 
+                        className={`max-w-[75%] px-5 py-4 rounded-3xl ${
+                          msg.sender === 'user' ? 'rounded-tr-md' : 'rounded-tl-md'
+                        }`}
                         style={{
-                          fontSize: '14px',
-                          lineHeight: '1.5',
-                          letterSpacing: '0.01em',
-                          opacity: 0.9,
+                          background: msg.sender === 'user' 
+                            ? '#EDE8DB' 
+                            : 'rgba(237, 232, 219, 0.15)',
+                          boxShadow: msg.sender === 'user'
+                            ? '0 2px 8px rgba(0, 0, 0, 0.1)'
+                            : '0 2px 8px rgba(0, 0, 0, 0.08)',
+                        }}
+                        initial={{ scale: 0.9 }}
+                        animate={{ scale: 1 }}
+                        transition={{ 
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 25
                         }}
                       >
-                        {msg.text}
-                      </p>
-                    </div>
-                  </motion.div>
-                );
-              })}
+                        <p 
+                          className={msg.sender === 'user' ? 'text-[#6B7A6E]' : 'text-[#EDE8DB]'}
+                          style={{
+                            fontSize: '14px',
+                            lineHeight: '1.5',
+                            letterSpacing: '0.01em',
+                            opacity: 0.9,
+                          }}
+                        >
+                          {msg.text}
+                        </p>
+                      </motion.div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
               
               {/* Invisible div for auto-scroll */}
               <div ref={messagesEndRef} />
