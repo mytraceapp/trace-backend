@@ -672,6 +672,33 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
     }
   };
 
+  const getIntensityArcMessage = (messages: PatternMessage[]): string | null => {
+    if (messages.length < 3) return null;
+    
+    const thirdSize = Math.floor(messages.length / 3);
+    const startSegment = messages.slice(0, thirdSize);
+    const endSegment = messages.slice(messages.length - thirdSize);
+    
+    const avgIntensity = (segment: PatternMessage[]) => {
+      if (segment.length === 0) return 1;
+      const sum = segment.reduce((acc, m) => acc + (m.intensity ?? 1), 0);
+      return sum / segment.length;
+    };
+    
+    const startAvg = avgIntensity(startSegment);
+    const endAvg = avgIntensity(endSegment);
+    
+    if (endAvg <= startAvg - 0.5) {
+      return "Things felt a bit intense at first and softened toward the end.";
+    } else if (endAvg >= startAvg + 0.5) {
+      return "Things became a little more activated toward the end of this hour.";
+    } else {
+      return "Your emotional intensity stayed fairly steady this hour.";
+    }
+  };
+
+  const arcMessage = getIntensityArcMessage(patternMessages);
+
   const handlePatternClick = (pattern: Pattern) => {
     if (canAccessPattern(pattern.requiredTier)) {
       setActivePattern(pattern);
@@ -1205,6 +1232,39 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   }}
                 >
                   {getInsightSentence()}
+                </p>
+              </div>
+            )}
+
+            {!isLoadingMessages && arcMessage && (
+              <div
+                className="rounded-[18px] p-5"
+                style={{
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(215, 200, 181, 0.5)',
+                  border: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(43, 30, 21, 0.08)',
+                }}
+              >
+                <h3
+                  style={{
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Emotional arc
+                </h3>
+                <p
+                  style={{
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '12px',
+                    fontWeight: 300,
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {arcMessage}
                 </p>
               </div>
             )}
