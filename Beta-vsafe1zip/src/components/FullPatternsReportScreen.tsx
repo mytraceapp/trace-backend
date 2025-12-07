@@ -310,7 +310,7 @@ export function FullPatternsReportScreen({
 
       <motion.div
         className="absolute w-full text-center z-20 flex flex-col items-center"
-        style={{ top: '3%' }}
+        style={{ top: 'calc(3% + 50px)' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] }}
@@ -364,7 +364,7 @@ export function FullPatternsReportScreen({
           `}
         </style>
 
-        <div className="flex-shrink-0" style={{ height: '16%' }} />
+        <div className="flex-shrink-0" style={{ height: 'calc(16% + 50px)' }} />
 
         <div className="w-full max-w-md mx-auto px-6 flex flex-col items-center">
           <motion.div
