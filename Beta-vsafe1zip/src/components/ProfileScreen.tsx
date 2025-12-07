@@ -270,9 +270,7 @@ export function ProfileScreen({
               <motion.div
                 className="absolute inset-0 rounded-full"
                 style={{
-                  background: isDark
-                    ? 'radial-gradient(circle, rgba(180, 191, 170, 0.3) 0%, rgba(160, 175, 155, 0.15) 40%, transparent 70%)'
-                    : 'radial-gradient(circle, rgba(220, 235, 225, 0.4) 0%, rgba(200, 230, 220, 0.2) 40%, transparent 70%)',
+                  background: 'radial-gradient(circle, rgba(200, 215, 205, 0.35) 0%, rgba(180, 200, 190, 0.18) 40%, transparent 70%)',
                   filter: 'blur(12px)',
                 }}
                 animate={{
@@ -292,13 +290,13 @@ export function ProfileScreen({
                 style={{
                   background: `conic-gradient(
                     from 0deg at 50% 50%,
-                    ${isDark ? 'rgba(195, 210, 200, 0.25)' : 'rgba(220, 235, 225, 0.35)'} 0deg,
+                    rgba(200, 220, 210, 0.3) 0deg,
                     transparent 60deg,
-                    ${isDark ? 'rgba(180, 200, 190, 0.2)' : 'rgba(200, 230, 220, 0.3)'} 120deg,
+                    rgba(190, 210, 200, 0.25) 120deg,
                     transparent 180deg,
-                    ${isDark ? 'rgba(170, 190, 180, 0.15)' : 'rgba(195, 220, 210, 0.25)'} 240deg,
+                    rgba(180, 200, 190, 0.2) 240deg,
                     transparent 300deg,
-                    ${isDark ? 'rgba(195, 210, 200, 0.25)' : 'rgba(220, 235, 225, 0.35)'} 360deg
+                    rgba(200, 220, 210, 0.3) 360deg
                   )`,
                   filter: 'blur(6px)',
                 }}
@@ -319,9 +317,9 @@ export function ProfileScreen({
                   background: `conic-gradient(
                     from 45deg at 50% 50%,
                     transparent 0deg,
-                    ${isDark ? 'rgba(200, 215, 205, 0.2)' : 'rgba(230, 240, 235, 0.3)'} 90deg,
+                    rgba(210, 225, 215, 0.25) 90deg,
                     transparent 180deg,
-                    ${isDark ? 'rgba(185, 200, 190, 0.15)' : 'rgba(210, 235, 225, 0.25)'} 270deg,
+                    rgba(195, 215, 205, 0.2) 270deg,
                     transparent 360deg
                   )`,
                   filter: 'blur(8px)',
@@ -340,9 +338,7 @@ export function ProfileScreen({
               <motion.div
                 className="absolute inset-[16px] rounded-full"
                 style={{
-                  background: isDark
-                    ? 'radial-gradient(circle, rgba(210, 220, 210, 0.3) 0%, rgba(190, 205, 195, 0.15) 50%, transparent 70%)'
-                    : 'radial-gradient(circle, rgba(245, 250, 245, 0.5) 0%, rgba(230, 240, 235, 0.25) 50%, transparent 70%)',
+                  background: 'radial-gradient(circle, rgba(230, 240, 235, 0.4) 0%, rgba(210, 225, 215, 0.2) 50%, transparent 70%)',
                   filter: 'blur(4px)',
                 }}
                 animate={{
@@ -910,21 +906,19 @@ export function ProfileScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '15px',
                 fontWeight: 400,
-                color: isDark ? 'rgba(80, 75, 70, 0.85)' : 'var(--text-primary)',
+                color: 'var(--text-primary)',
                 letterSpacing: '0.02em',
               }}
             >
               About TRACE
             </h3>
 
-            <div className="space-y-2">
+            <div className="space-y-1">
               <button
                 onClick={() => setShowAboutTraceModal(true)}
-                className="w-full flex items-center justify-between py-3.5 px-5 rounded-2xl transition-all duration-200"
+                className="w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 hover:bg-black/5"
                 style={{
-                  background: isDark ? 'rgba(38, 42, 38, 0.95)' : 'var(--accent-soft)',
-                  border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
-                  boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.15)' : 'none',
+                  background: 'var(--accent-soft)',
                 }}
               >
                 <span
@@ -943,11 +937,9 @@ export function ProfileScreen({
 
               <button
                 onClick={onNavigateToTerms}
-                className="w-full flex items-center justify-between py-3.5 px-5 rounded-2xl transition-all duration-200"
+                className="w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 hover:bg-black/5"
                 style={{
-                  background: isDark ? 'rgba(38, 42, 38, 0.95)' : 'var(--accent-soft)',
-                  border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
-                  boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.15)' : 'none',
+                  background: 'var(--accent-soft)',
                 }}
               >
                 <span
@@ -966,11 +958,9 @@ export function ProfileScreen({
 
               <button
                 onClick={onNavigateToPrivacy}
-                className="w-full flex items-center justify-between py-3.5 px-5 rounded-2xl transition-all duration-200"
+                className="w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 hover:bg-black/5"
                 style={{
-                  background: isDark ? 'rgba(38, 42, 38, 0.95)' : 'var(--accent-soft)',
-                  border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
-                  boxShadow: isDark ? '0 2px 8px rgba(0, 0, 0, 0.15)' : 'none',
+                  background: 'var(--accent-soft)',
                 }}
               >
                 <span
@@ -1002,9 +992,9 @@ export function ProfileScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '12px',
                 fontWeight: 300,
-                color: isDark ? 'rgba(70, 65, 60, 0.7)' : 'var(--text-secondary)',
+                color: 'var(--text-secondary)',
                 letterSpacing: '0.01em',
-                opacity: isDark ? 1 : 0.6,
+                opacity: 0.6,
                 lineHeight: '1.5',
               }}
             >
