@@ -274,7 +274,7 @@ export function FullPatternsReportScreen({
   };
 
   const cardStyle = {
-    backgroundColor: isDark ? 'rgba(30, 32, 28, 0.76)' : 'rgba(225, 212, 195, 0.78)',
+    backgroundColor: isDark ? 'rgb(30, 32, 28)' : 'rgb(225, 212, 195)',
     borderRadius: '24px',
     padding: '24px 20px',
     boxShadow: isDark 
@@ -297,18 +297,31 @@ export function FullPatternsReportScreen({
 
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: 'transparent' }}>
-      {/* Math notebook grid texture */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: `
-            linear-gradient(${isDark ? 'rgba(45, 58, 42, 0.06)' : 'rgba(141, 161, 143, 0.12)'} 1px, transparent 1px),
-            linear-gradient(90deg, ${isDark ? 'rgba(45, 58, 42, 0.06)' : 'rgba(141, 161, 143, 0.12)'} 1px, transparent 1px)
-          `,
-          backgroundSize: '24px 24px',
-          zIndex: 0,
-        }}
-      />
+      {/* Math notebook grid overlay - day mode */}
+      {!isDark && (
+        <div 
+          className="absolute inset-0 pointer-events-none opacity-[0.25]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%238DA18F' stroke-width='1'/%3E%3C/svg%3E")`,
+            backgroundSize: '24px 24px',
+            backgroundRepeat: 'repeat',
+            zIndex: 0,
+          }}
+        />
+      )}
+      
+      {/* Math notebook grid overlay - night mode */}
+      {isDark && (
+        <div 
+          className="absolute inset-0 pointer-events-none opacity-[0.10]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%232D3A2A' stroke-width='0.5'/%3E%3C/svg%3E")`,
+            backgroundSize: '24px 24px',
+            backgroundRepeat: 'repeat',
+            zIndex: 0,
+          }}
+        />
+      )}
 
 
       <div className="relative z-10 flex flex-col h-full overflow-y-auto overflow-x-hidden pb-32" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -348,6 +361,13 @@ export function FullPatternsReportScreen({
               className="relative mx-auto"
               style={{ width: '54px', height: '54px', marginBottom: '4px' }}
             >
+              {/* Solid background to mask grid */}
+              <div 
+                className="absolute inset-[-8px] rounded-full"
+                style={{
+                  backgroundColor: isDark ? '#0E0F0D' : '#F5F1EB',
+                }}
+              />
               <div
                 className="absolute inset-0 rounded-full"
                 style={{
