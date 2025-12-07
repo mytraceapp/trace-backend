@@ -67,17 +67,17 @@ export function MazeFocusTone({ isPlaying, volume = 0.35 }: MazeFocusToneProps) 
         return { osc, oscGain, filter };
       };
 
-      createFocusPad(65.41, 0.08);
-      createFocusPad(98.00, 0.07, 3);
-      createFocusPad(130.81, 0.065, -2);
-      createFocusPad(196.00, 0.055, 5);
-      createFocusPad(261.63, 0.045, -3);
-      createFocusPad(329.63, 0.035, 2);
+      createFocusPad(68.68, 0.08);
+      createFocusPad(102.90, 0.07, 3);
+      createFocusPad(137.35, 0.065, -2);
+      createFocusPad(205.80, 0.055, 5);
+      createFocusPad(274.71, 0.045, -3);
+      createFocusPad(346.11, 0.035, 2);
 
       const lfo = audioContext.createOscillator();
       const lfoGain = audioContext.createGain();
       lfo.type = 'sine';
-      lfo.frequency.setValueAtTime(0.08, audioContext.currentTime);
+      lfo.frequency.setValueAtTime(0.084, audioContext.currentTime);
       lfoGain.gain.setValueAtTime(0.15, audioContext.currentTime);
       lfo.connect(lfoGain);
       
