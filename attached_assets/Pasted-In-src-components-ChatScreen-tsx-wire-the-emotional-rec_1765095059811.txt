@@ -1,0 +1,55 @@
+In src/components/ChatScreen.tsx, wire the emotional recall into the existing chat flow.
+	1.	Locate the function that handles sending a user message (for example handleSend, onSendMessage, or similar). It’s the function that:
+	•	updates local messages state with the new user message
+	•	calls the backend / OpenAI to get TRACE’s reply
+	•	then appends the assistant message and calls saveTraceMessage for both.
+	2.	After the assistant reply is appended and saved, but inside the same function, add logic that:
+	•	Checks hasOfferedRecallThisSession
+	•	Looks at lastHourSummary and builds a recall message with buildEmotionalRecallMessage
+	•	Only triggers after the first user message in this session
+
+Please implement a helper inside the component called maybeOfferEmotionalRecall and call it from the send handler. For example:const maybeOfferEmotionalRecall = React.useCallback(
+  async () => {
+    if (hasOfferedRecallThisSession || !lastHourSummary) return;
+
+    const text = buildEmotionalRecallMessage(lastHourSummary);
+    if (!text) return;
+
+    // Mark as used so we don’t repeat
+    setHasOfferedRecallThisSession(true);
+
+    // Give a brief pause so it feels natural
+    setTimeout(async () => {
+      const recallMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant' as const,
+        content: text,
+        createdAt: new Date().toISOString(),
+        emotion: 'calm' as const,
+        intensity: 2,
+      };
+
+      setMessages(prev => [...prev, recallMessage]);
+
+      try {
+        // Re-use existing save helper
+        await saveTraceMessage(userId, 'assistant', text, {
+          emotion: 'calm',
+          intensity: 2,
+          source: 'emotional_recall',
+        });
+      } catch (err) {
+        console.error('TRACE emotional recall: failed to save', err);
+      }
+    }, 2000);
+  },
+  [hasOfferedRecallThisSession, lastHourSummary, userId, setMessages]
+);	3.	Now call maybeOfferEmotionalRecall() right after the normal assistant response has been added to messages and saved — and only for the first user message in a session.
+
+If you already track something like hasSentFirstMessage, you can reuse it. Otherwise, create a simple state flag:const [hasUserSpokenThisSession, setHasUserSpokenThisSession] = React.useState(false);and in the send handler, after successfully processing the first user message, set it to true and then call maybeOfferEmotionalRecall() if it was previously false.
+
+The idea:
+	•	User opens chat
+	•	Sends first message
+	•	TRACE replies normally
+	•	Then maybeOfferEmotionalRecall() may add one extra, gentle message based on last-hour summary, and only once per session.
