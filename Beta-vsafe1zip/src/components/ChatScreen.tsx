@@ -70,6 +70,12 @@ export function ChatScreen({
   const [showTypewriter, setShowTypewriter] = React.useState(false);
   const [messages, setMessages] = React.useState<Message[]>([]);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  
+  // History loading state
+  const [isHistoryLoading, setIsHistoryLoading] = React.useState(true);
+  const [historyError, setHistoryError] = React.useState<string | null>(null);
+  void isHistoryLoading; // Available for UI loading indicator
+  void historyError; // Available for UI error display
 
   const userName = currentProfile?.name || null;
 
@@ -159,6 +165,9 @@ export function ChatScreen({
     if (hasLoadedRef.current) return;
     hasLoadedRef.current = true;
     
+    setIsHistoryLoading(true);
+    setHistoryError(null);
+    
     // Try to load recent messages from Supabase
     loadRecentTraceMessages((loadedMessages) => {
       if (loadedMessages.length > 0) {
@@ -183,7 +192,14 @@ export function ChatScreen({
           });
         }
       }
-    });
+    })
+      .catch((err) => {
+        console.error("Error loading TRACE history:", err);
+        setHistoryError("TRACE couldn't fully reload your recent conversation, but you can keep chatting normally.");
+      })
+      .finally(() => {
+        setIsHistoryLoading(false);
+      });
   }, [fetchAIGreeting, shouldStartGreeting]);
 
   React.useEffect(() => {
