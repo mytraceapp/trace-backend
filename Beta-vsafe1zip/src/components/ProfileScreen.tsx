@@ -262,21 +262,24 @@ export function ProfileScreen({
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3, duration: 1 }}
+          style={{ overflow: 'visible' }}
         >
-          <div className="relative" style={{ width: '64px', height: '64px' }}>
+          <div className="relative flex items-center justify-center" style={{ width: '128px', height: '128px', overflow: 'visible' }}>
             {/* Color tone ripple flow - ONLY on auto mode */}
             {theme === 'auto' && (
-              <div className="absolute inset-[-32px] rounded-full overflow-hidden pointer-events-none">
+              <>
                 {/* Outer breathing halo */}
                 <motion.div
-                  className="absolute inset-0 rounded-full"
+                  className="absolute rounded-full pointer-events-none"
                   style={{
-                    background: 'radial-gradient(circle, rgba(168, 179, 154, 0.7) 0%, rgba(150, 170, 145, 0.4) 40%, transparent 70%)',
-                    filter: 'blur(10px)',
+                    width: '120px',
+                    height: '120px',
+                    background: 'radial-gradient(circle, rgba(168, 179, 154, 0.8) 0%, rgba(150, 170, 145, 0.5) 40%, transparent 70%)',
+                    filter: 'blur(8px)',
                   }}
                   animate={{
-                    opacity: [0.6, 1, 0.6],
-                    scale: [0.9, 1.15, 0.9],
+                    opacity: [0.7, 1, 0.7],
+                    scale: [0.9, 1.2, 0.9],
                   }}
                   transition={{
                     duration: 5,
@@ -287,19 +290,21 @@ export function ProfileScreen({
                 
                 {/* Rotating swirl layer 1 */}
                 <motion.div
-                  className="absolute inset-[6px] rounded-full"
+                  className="absolute rounded-full pointer-events-none"
                   style={{
+                    width: '100px',
+                    height: '100px',
                     background: `conic-gradient(
                       from 0deg at 50% 50%,
-                      rgba(168, 179, 154, 0.6) 0deg,
+                      rgba(168, 179, 154, 0.7) 0deg,
                       transparent 60deg,
-                      rgba(150, 170, 145, 0.5) 120deg,
+                      rgba(150, 170, 145, 0.6) 120deg,
                       transparent 180deg,
-                      rgba(140, 160, 135, 0.4) 240deg,
+                      rgba(140, 160, 135, 0.5) 240deg,
                       transparent 300deg,
-                      rgba(168, 179, 154, 0.6) 360deg
+                      rgba(168, 179, 154, 0.7) 360deg
                     )`,
-                    filter: 'blur(5px)',
+                    filter: 'blur(4px)',
                   }}
                   animate={{
                     rotate: [0, 360],
@@ -313,17 +318,19 @@ export function ProfileScreen({
                 
                 {/* Rotating swirl layer 2 - counter-rotating */}
                 <motion.div
-                  className="absolute inset-[3px] rounded-full"
+                  className="absolute rounded-full pointer-events-none"
                   style={{
+                    width: '90px',
+                    height: '90px',
                     background: `conic-gradient(
                       from 45deg at 50% 50%,
                       transparent 0deg,
-                      rgba(180, 195, 170, 0.5) 90deg,
+                      rgba(180, 195, 170, 0.6) 90deg,
                       transparent 180deg,
-                      rgba(160, 180, 155, 0.4) 270deg,
+                      rgba(160, 180, 155, 0.5) 270deg,
                       transparent 360deg
                     )`,
-                    filter: 'blur(6px)',
+                    filter: 'blur(5px)',
                   }}
                   animate={{
                     rotate: [360, 0],
@@ -337,14 +344,16 @@ export function ProfileScreen({
                 
                 {/* Pulsing inner glow */}
                 <motion.div
-                  className="absolute inset-[12px] rounded-full"
+                  className="absolute rounded-full pointer-events-none"
                   style={{
-                    background: 'radial-gradient(circle, rgba(200, 215, 195, 0.7) 0%, rgba(180, 200, 175, 0.4) 50%, transparent 70%)',
-                    filter: 'blur(4px)',
+                    width: '80px',
+                    height: '80px',
+                    background: 'radial-gradient(circle, rgba(200, 215, 195, 0.8) 0%, rgba(180, 200, 175, 0.5) 50%, transparent 70%)',
+                    filter: 'blur(3px)',
                   }}
                   animate={{
                     scale: [0.85, 1.15, 0.85],
-                    opacity: [0.6, 1, 0.6],
+                    opacity: [0.7, 1, 0.7],
                   }}
                   transition={{
                     duration: 4,
@@ -352,7 +361,7 @@ export function ProfileScreen({
                     ease: "easeInOut",
                   }}
                 />
-              </div>
+              </>
             )}
             
             {/* Main initial circle */}
