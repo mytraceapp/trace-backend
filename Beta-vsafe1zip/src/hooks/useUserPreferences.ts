@@ -15,6 +15,7 @@ type UseUserPreferencesResult = {
   setNotificationsEnabled: (next: boolean) => Promise<void>;
   setReminderTime: (next: string | null) => Promise<void>;
   setHapticsEnabled: (next: boolean) => Promise<void>;
+  setLastCheckinAt: (next: string | null) => Promise<void>;
 };
 
 export function useUserPreferences(
@@ -115,6 +116,13 @@ export function useUserPreferences(
     [applyUpdate]
   );
 
+  const setLastCheckinAt = useCallback(
+    async (next: string | null) => {
+      await applyUpdate({ last_checkin_at: next });
+    },
+    [applyUpdate]
+  );
+
   return {
     preferences,
     loading,
@@ -122,5 +130,6 @@ export function useUserPreferences(
     setNotificationsEnabled,
     setReminderTime,
     setHapticsEnabled,
+    setLastCheckinAt,
   };
 }

@@ -660,26 +660,26 @@ function getPersonalizedCheckinMessage(now) {
 
   if (hour < 11) {
     const messages = [
-      "TRACE: Good morning 😊 I hope the start of your day feels gentle.",
-      "TRACE: Hi 💛 just checking in — how are you feeling this morning?",
-      "TRACE: Morning ☀️ If you want company before the day gets busy, I'm here."
+      "Good morning 😊 I hope the start of your day feels gentle.",
+      "Hi 💛 just checking in — how are you feeling this morning?",
+      "Morning ☀️ If you want company before the day gets busy, I'm here."
     ];
     return messages[Math.floor(Math.random() * messages.length)];
   }
 
   if (hour < 17) {
     const messages = [
-      "TRACE: Hey 👋 how's your afternoon going?",
-      "TRACE: Hi 💛 I hope today has been kind to you.",
-      "TRACE: Just a soft hello ✨ I'm around if you want a minute to talk."
+      "Hey 👋 how's your afternoon going?",
+      "Hi 💛 I hope today has been kind to you.",
+      "Just a soft hello ✨ I'm around if you want a minute to talk."
     ];
     return messages[Math.floor(Math.random() * messages.length)];
   }
 
   const messages = [
-    "TRACE: Hey 💛 I hope you had a good day today. I'm here if you want a quiet moment.",
-    "TRACE: Hi 😊 just stopping by to say good evening. How are you feeling tonight?",
-    "TRACE: Hope your night feels calm 🌙 I'm right here if you want to talk or unwind."
+    "Hey 💛 I hope you had a good day today. I'm here if you want a quiet moment.",
+    "Hi 😊 just stopping by to say good evening. How are you feeling tonight?",
+    "Hope your night feels calm 🌙 I'm right here if you want to talk or unwind."
   ];
   return messages[Math.floor(Math.random() * messages.length)];
 }

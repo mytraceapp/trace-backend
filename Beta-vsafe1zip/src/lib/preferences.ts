@@ -8,6 +8,7 @@ export type UserPreferences = {
   notifications_enabled: boolean;
   reminder_time: string | null;
   haptics_enabled: boolean;
+  last_checkin_at: string | null;
   updated_at: string;
 };
 
@@ -15,6 +16,7 @@ const DEFAULT_PREFERENCES: Omit<UserPreferences, "user_id" | "updated_at"> = {
   notifications_enabled: false,
   reminder_time: null,
   haptics_enabled: true,
+  last_checkin_at: null,
 };
 
 export async function getUserPreferences(
