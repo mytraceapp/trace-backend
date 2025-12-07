@@ -33,11 +33,61 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
   const [countdownStep, setCountdownStep] = useState<number | null>(3);
   const [showMainText, setShowMainText] = useState(false);
   const [sessionActive, setSessionActive] = useState(true);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Pearl Ripple is a silent visual meditation - no audio to avoid static issues
-  // Force-suspend any lingering audio contexts on mount
+  // Initialize and play ripple audio with clean fade-in
   useEffect(() => {
     suspendAllAudioContexts();
+    
+    const audio = new Audio('/audio/pearl-ripple.mp3');
+    audio.volume = 0;
+    audio.loop = true;
+    audio.playbackRate = 0.5; // Slow down by 50%
+    audioRef.current = audio;
+
+    // Start audio with gentle fade-in after countdown begins
+    const startAudio = () => {
+      audio.play().then(() => {
+        let vol = 0;
+        const fadeIn = setInterval(() => {
+          vol += 0.02;
+          if (vol >= 0.45) {
+            vol = 0.45;
+            clearInterval(fadeIn);
+          }
+          if (audioRef.current) {
+            audioRef.current.volume = vol;
+          }
+        }, 80); // Smooth 80ms steps = ~1.8s fade-in
+        fadeIntervalRef.current = fadeIn;
+      }).catch(() => {});
+    };
+
+    // Delay audio start slightly for clean transition
+    const audioTimer = setTimeout(startAudio, 500);
+
+    // Cleanup with smooth fade-out
+    return () => {
+      clearTimeout(audioTimer);
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+      }
+      if (audioRef.current) {
+        const currentAudio = audioRef.current;
+        let vol = currentAudio.volume;
+        const fadeOut = setInterval(() => {
+          vol -= 0.03;
+          if (vol <= 0) {
+            vol = 0;
+            clearInterval(fadeOut);
+            currentAudio.pause();
+            currentAudio.src = '';
+          }
+          currentAudio.volume = Math.max(0, vol);
+        }, 50); // ~0.75s fade-out
+      }
+    };
   }, []);
 
   // Countdown sequence
@@ -93,8 +143,28 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
 
   const handleEndSession = () => {
     setSessionActive(false);
-    if (onReturnToChat) onReturnToChat();
-    else if (onBack) onBack();
+    // Fade out audio before navigating
+    if (audioRef.current) {
+      const currentAudio = audioRef.current;
+      let vol = currentAudio.volume;
+      const fadeOut = setInterval(() => {
+        vol -= 0.04;
+        if (vol <= 0) {
+          vol = 0;
+          clearInterval(fadeOut);
+          currentAudio.pause();
+        }
+        currentAudio.volume = Math.max(0, vol);
+      }, 40);
+      // Navigate after fade completes
+      setTimeout(() => {
+        if (onReturnToChat) onReturnToChat();
+        else if (onBack) onBack();
+      }, 500);
+    } else {
+      if (onReturnToChat) onReturnToChat();
+      else if (onBack) onBack();
+    }
   };
 
   const getCountdownText = () => {
