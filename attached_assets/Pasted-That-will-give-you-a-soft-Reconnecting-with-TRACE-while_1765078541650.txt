@@ -1,0 +1,56 @@
+That will give you a **soft “Reconnecting with TRACE…”** while history loads, and a gentle note if it fails.
+
+---
+
+## 2️⃣ Clean up leftover test functions + centralize chat/Supabase logic
+
+Now we want to make sure there’s:
+
+- **No random testSupabase() functions** left
+- One clear “TRACE + Supabase” service file handling:
+  - `saveTraceMessage`
+  - `loadRecentTraceMessages`
+  - `getCurrentUserId` (if you have it)
+
+### 🔧 Replit AI prompt — cleanup + consolidation
+
+Use this in Replit AI at the **project root or in any file** (it will search across files):
+
+```text
+I want to clean up all leftover Supabase test code and centralize TRACE chat + Supabase logic into a single service file.
+
+Context:
+- We previously had temporary Supabase write tests (e.g., `testSupabase()`, `useEffect` that runs on mount just to insert a row).
+- We now have real helpers like `saveTraceMessage`, and possibly `loadRecentTraceMessages` and `getCurrentUserId`, most likely in a lib/service file.
+
+Please do the following:
+
+1. Search the entire project for any of these patterns:
+   - `testSupabase`
+   - comments mentioning "Supabase write test"
+   - `TRACE connection test from APP`
+
+   Remove any remaining:
+   - test functions
+   - test-only `useEffect` hooks that run on mount to insert dummy rows
+   - test console logs that are no longer needed.
+
+   Be careful NOT to delete the real message-saving logic that is used by the chat.
+
+2. Ensure that all Supabase message-related logic lives in a single service/module, for example: `src/lib/messageService.ts` (or the existing equivalent file). That file should export:
+
+   - `saveTraceMessage(userId, role, content, emotion?, intensity?)`
+   - `loadRecentTraceMessages(setMessages)`
+   - `getCurrentUserId()` (if used)
+
+   If you find direct `supabase.from("messages")` calls scattered in React components, refactor them to call these helper functions instead, keeping behavior the same.
+
+3. Make sure that React components:
+   - ONLY call these service functions (`saveTraceMessage`, `loadRecentTraceMessages`, etc.)
+   - Do NOT talk directly to Supabase themselves anymore.
+
+4. Do NOT change app routes, JSX layout, or styling. This is a cleanup/refactor only:
+   - After your changes, the app should behave exactly the same as it does now:
+     - User + assistant messages are saved.
+     - Last hour recall works.
+     - Chat sends and receives normally.

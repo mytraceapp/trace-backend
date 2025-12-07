@@ -7,7 +7,7 @@ export async function saveTraceMessage(
   emotion?: string | null,
   intensity?: number | null
 ) {
-  // Try 'trace' as the role for assistant messages
+  // Database stores 'trace' for assistant messages, 'user' for user messages
   const dbRole = role === 'assistant' ? 'trace' : role;
   console.log(`💾 Saving message - role: "${role}" → db: "${dbRole}"`);
   
