@@ -1713,12 +1713,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   marginBottom: '14px',
                 }}
               >
-                {heaviestDay 
-                  ? `This week, ${heaviestDay.dayName} seemed to feel a bit heavier than other days. If any part of that still resonates, TRACE is here — you don't have to unpack anything unless you want to.`
-                  : weeklyStitches.length > 0
-                    ? "Your week appeared fairly balanced — no single day stood out as notably heavier."
-                    : "TRACE is still gathering enough moments to notice what patterns might be there. Keep checking in whenever feels right."
-                }
+                {stressEchoesDescription}
               </p>
               {/* Faint bronze ripple */}
               <svg width="100%" height="28" viewBox="0 0 200 28">
