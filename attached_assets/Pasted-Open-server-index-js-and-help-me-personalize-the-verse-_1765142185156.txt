@@ -1,0 +1,113 @@
+Open server/index.js and help me personalize the verse-time push notifications.
+
+I already have:
+
+- A Supabase service client (using the service role key)
+- A verse-time scheduler that calls a function like getFriendlyCheckinMessage(now) to build the message
+- sendPushNotificationToUser(userId, message) wired to OneSignal
+
+I want three upgrades:
+
+1) Add a helper to get a user's first name from the profiles table.
+
+Assume I have a Supabase table called profiles where:
+- id matches auth.users.id (same as user_preferences.user_id)
+- there may be fields like first_name and/or full_name
+
+Create a helper near the other helpers:
+
+async function getUserFirstName(supabaseAdmin, userId) {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("first_name, full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  if (data.first_name && data.first_name.trim().length > 0) {
+    return data.first_name.trim();
+  }
+
+  if (data.full_name && data.full_name.trim().length > 0) {
+    const first = data.full_name.trim().split(" ")[0];
+    return first || null;
+  }
+
+  return null;
+}
+
+Use the existing Supabase *server* client (the one created with the service role key) when calling this helper inside the scheduler.
+
+2) Replace the existing generic getFriendlyCheckinMessage (or whatever it's currently called) with a new version called getPersonalizedCheckinMessage that accepts both a Date and an optional firstName:
+
+function getPersonalizedCheckinMessage(date, firstName) {
+  const hour = date.getHours();
+  const dayNames = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const day = dayNames[date.getDay()];
+  const name = firstName && firstName.length > 0 ? firstName : null;
+
+  function pick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  if (hour < 11) {
+    const messages = [
+      (n) => `Good morning${n ? " " + n : ""} 😊 how are you today?`,
+      (n) => `Morning${n ? " " + n : ""}. Just checking in as your day starts.`,
+      (n) => `Hi${n ? " " + n : ""}, hope your morning’s okay so far.`,
+    ];
+    return pick(messages)(name);
+  } else if (hour < 17) {
+    const messages = [
+      (n) => `Hey${n ? " " + n : ""} 👋 hope your day’s going okay.`,
+      (n) => `Hi${n ? " " + n : ""}, just checking in this ${day}.`,
+      (n) => `Hey${n ? " " + n : ""}, if you need a minute to breathe, I’m here.`,
+    ];
+    return pick(messages)(name);
+  } else {
+    const messages = [
+      (n) =>
+        `Good evening${n ? " " + n : ""} 💛 hope your day wasn’t too heavy.`,
+      (n) =>
+        `Hi${n ? " " + n : ""}, just saying good evening. I’m here if you feel like talking.`,
+      (n) =>
+        `Hey${n ? " " + n : ""}, winding down for ${day}? I’m around if you want to check in.`,
+    ];
+    return pick(messages)(name);
+  }
+}
+
+IMPORTANT TONE RULES:
+- TRACE should sound like a warm friend, not a therapist or coach.
+- No clinical language: no “process”, “unpack”, “nervous system”, “holding space”, etc.
+- Keep emojis light and modern (like the ones above).
+
+3) Update the verse-time scheduler to use this new personalization:
+
+Inside runVerseCheckins (or equivalent), when iterating over users to notify:
+
+- For each user row, before building the message, call:
+
+  const firstName = await getUserFirstName(supabaseServerClient, row.user_id);
+
+  (use the correct name for the existing service-role Supabase client)
+
+- Instead of calling the old getFriendlyCheckinMessage(nowInUserTz), call:
+
+  const messageText = getPersonalizedCheckinMessage(nowInUserTz, firstName);
+
+- Then pass messageText into sendPushNotificationToUser(row.user_id, messageText) as before.
+
+Make sure:
+- The scheduler still respects notifications_enabled, last_checkin_at, and time_zone.
+- If firstName is null, the messages still read naturally (e.g., “Good evening 💛 hope your day wasn’t too heavy.” with no extra spaces).
+- All new code compiles and the server starts without errors.

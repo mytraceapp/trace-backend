@@ -618,16 +618,71 @@ function isVerseTimeLocal(hour, minute) {
   );
 }
 
-function getFriendlyCheckinMessage(hour) {
+async function getUserFirstName(supabaseAdmin, userId) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .select("name")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    if (data.name && data.name.trim().length > 0) {
+      const first = data.name.trim().split(" ")[0];
+      return first || null;
+    }
+
+    return null;
+  } catch (err) {
+    console.error("[TRACE] Error getting user name:", err.message);
+    return null;
+  }
+}
+
+function getPersonalizedCheckinMessage(date, firstName) {
+  const hour = date.getHours();
+  const dayNames = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const day = dayNames[date.getDay()];
+  const name = firstName && firstName.length > 0 ? firstName : null;
+
+  function pick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
   if (hour < 11) {
-    return "Good morning 😊 how are you today?";
+    const messages = [
+      (n) => `Good morning${n ? " " + n : ""} 😊 how are you today?`,
+      (n) => `Morning${n ? " " + n : ""}. Just checking in as your day starts.`,
+      (n) => `Hi${n ? " " + n : ""}, hope your morning's okay so far.`,
+    ];
+    return pick(messages)(name);
+  } else if (hour < 17) {
+    const messages = [
+      (n) => `Hey${n ? " " + n : ""} 👋 hope your day's going okay.`,
+      (n) => `Hi${n ? " " + n : ""}, just checking in this ${day}.`,
+      (n) => `Hey${n ? " " + n : ""}, if you need a minute to breathe, I'm here.`,
+    ];
+    return pick(messages)(name);
+  } else {
+    const messages = [
+      (n) =>
+        `Good evening${n ? " " + n : ""} 💛 hope your day wasn't too heavy.`,
+      (n) =>
+        `Hi${n ? " " + n : ""}, just saying good evening. I'm here if you feel like talking.`,
+      (n) =>
+        `Hey${n ? " " + n : ""}, winding down for ${day}? I'm around if you want to check in.`,
+    ];
+    return pick(messages)(name);
   }
-
-  if (hour < 17) {
-    return "Hey 👋 hope your day's going okay.";
-  }
-
-  return "Good evening 💛 hope you had a great day.";
 }
 
 async function sendPushNotificationToUser(userId, message) {
@@ -717,7 +772,9 @@ async function runVerseCheckins() {
         continue; // Already sent today
       }
 
-      const message = getFriendlyCheckinMessage(hour);
+      const firstName = await getUserFirstName(supabaseServer, user.user_id);
+      const nowInUserTz = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+      const message = getPersonalizedCheckinMessage(nowInUserTz, firstName);
       await sendPushNotificationToUser(user.user_id, message);
       usersToUpdate.push({ user_id: user.user_id, ymd });
     }
