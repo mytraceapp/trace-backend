@@ -47,7 +47,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
     audio.crossOrigin = 'anonymous';
     audioRef.current = audio;
     
-    const CLIP_START = 10; // Skip first 10 seconds
+    const CLIP_START = 15; // Skip first 15 seconds
     
     // Set start position after first 10 seconds
     audio.currentTime = CLIP_START;
