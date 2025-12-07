@@ -293,45 +293,45 @@ const MAX_RECENT_GREETINGS = 3;
 export function getTraceGreeting(): string {
   const hour = new Date().getHours();
   
-  // Time-aware greetings
+  // Time-aware greetings - natural, not overly soft
   const morningGreetings = [
-    "Hey… how are you feeling this morning?",
-    "Good morning. How are you?",
-    "Morning… how did you sleep?",
-    "Hey there… easing into the day?",
-    "Hi. What's on your mind this morning?",
-    "Morning. I'm here when you're ready.",
-    "Hey… how's this morning treating you?",
+    "Hey. Morning.",
+    "Good morning.",
+    "Morning.",
+    "Hey there.",
+    "Hi.",
+    "Morning. I'm here.",
+    "Hey.",
   ];
   
   const afternoonGreetings = [
-    "Hey… how's your day been so far?",
-    "Hi there. Checking in. How are you?",
-    "Hey… what's been on your mind today?",
-    "Hi. How are you holding up?",
-    "Hey. Just wanted to see how you're doing.",
-    "Hi. How's the day going?",
-    "Hey there. What's happening with you?",
+    "Hey.",
+    "Hi there.",
+    "Hey. What's up?",
+    "Hi.",
+    "Hey. Good to see you.",
+    "Hi. I'm here.",
+    "Hey there.",
   ];
   
   const eveningGreetings = [
-    "Hey… how was your day?",
-    "Hi. Winding down? How are you feeling?",
-    "Evening. How are you doing right now?",
-    "Hey… ready to take a breath?",
-    "Hi there. How are you this evening?",
-    "Hey. How are you feeling tonight?",
-    "Hi. What's on your mind?",
+    "Hey.",
+    "Hi. Evening.",
+    "Evening.",
+    "Hey there.",
+    "Hi.",
+    "Hey. I'm here.",
+    "Good evening.",
   ];
   
   const lateNightGreetings = [
-    "Hey… still awake? I'm here.",
-    "Hi. Can't sleep? I'm here.",
-    "Hey… what's keeping you up?",
-    "Hi there. I'm here with you.",
-    "Hey… it's quiet. How are you feeling?",
-    "Hi. Late night. How are you?",
-    "Hey. I'm here whenever you need.",
+    "Hey. Still up?",
+    "Hi. I'm here.",
+    "Hey.",
+    "Hi there.",
+    "Hey. It's late.",
+    "Hi.",
+    "Hey. I'm here.",
   ];
   
   let greetings: string[];
