@@ -60,7 +60,7 @@ export async function loadRecentTraceMessages(
 
   const { data, error } = await supabase
     .from("messages")
-    .select("role, content, created_at")
+    .select("role, content, created_at, emotion, intensity")
     .eq("user_id", userId)
     .gte("created_at", oneHourAgo)
     .order("created_at", { ascending: true })
