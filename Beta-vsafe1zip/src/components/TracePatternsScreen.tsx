@@ -4,7 +4,7 @@ import { BottomNav } from './BottomNav';
 import { patternsData, Pattern } from '../data/patterns';
 import { usePlanTier } from '../hooks/usePlanTier';
 import { useTheme } from '../state/ThemeContext';
-import { fetchRecentMessagesForPatterns, PatternMessage, getCurrentUserId } from '../lib/messageService';
+import { fetchRecentMessagesForPatterns, PatternMessage, getCurrentUserId, saveLastHourStitch } from '../lib/messageService';
 
 interface TracePatternsScreenProps {
   onViewFull?: () => void;
@@ -644,6 +644,27 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
       setIsLoadingMessages(false);
     };
     loadMessages();
+  }, []);
+
+  // Update daily emotional stitch silently on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    async function runStitch() {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId || cancelled) return;
+        await saveLastHourStitch(userId);
+        if (!cancelled) {
+          console.log("TRACE: Stitch updated for Patterns view");
+        }
+      } catch (err) {
+        console.error("TRACE/Patterns stitch ❌", err);
+      }
+    }
+
+    runStitch();
+    return () => { cancelled = true; };
   }, []);
 
   const totalMessages = patternMessages.length;
