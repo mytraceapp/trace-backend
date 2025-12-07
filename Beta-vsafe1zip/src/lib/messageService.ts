@@ -7,8 +7,8 @@ export async function saveTraceMessage(
   emotion?: string | null,
   intensity?: number | null
 ) {
-  // Database constraint accepts 'user' and 'ai' - convert assistant to ai for storage
-  const dbRole = role === 'assistant' ? 'ai' : role;
+  // Try 'trace' as the role for assistant messages
+  const dbRole = role === 'assistant' ? 'trace' : role;
   console.log(`💾 Saving message - role: "${role}" → db: "${dbRole}"`);
   
   const { data, error } = await supabase
@@ -83,10 +83,10 @@ export async function loadRecentTraceMessages(
     return;
   }
 
-  // Convert 'ai' back to 'assistant' when loading from database
+  // Convert 'trace' or 'ai' back to 'assistant' when loading from database
   const hydrated: ChatMessage[] = (data ?? []).map((row, index) => ({
     id: `history-${index}-${row.created_at}`,
-    role: row.role === 'ai' ? 'assistant' : 'user',
+    role: (row.role === 'trace' || row.role === 'ai') ? 'assistant' : 'user',
     content: row.content,
     createdAt: row.created_at,
     emotion: row.emotion ?? null,
