@@ -14,6 +14,7 @@
     "@types/connect-pg-simple": "^7.0.3",
     "@types/express-session": "^1.18.2",
     "@types/memoizee": "^0.4.12",
+    "@types/node-cron": "^3.0.11",
     "@types/passport": "^1.0.17",
     "@types/pg": "^8.15.6",
     "connect-pg-simple": "^10.0.0",
@@ -21,6 +22,7 @@
     "drizzle-orm": "^0.45.0",
     "express-session": "^1.18.2",
     "memoizee": "^0.4.17",
+    "node-cron": "^4.2.1",
     "openid-client": "^6.8.1",
     "passport": "^0.7.0",
     "pg": "^8.16.3"

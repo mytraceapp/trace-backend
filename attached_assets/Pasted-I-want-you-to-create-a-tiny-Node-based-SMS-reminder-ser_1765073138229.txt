@@ -1,0 +1,106 @@
+I want you to create a tiny Node-based SMS reminder service for my app TRACE using Twilio.
+
+Goal:
+- Send me 2 gentle TRACE check-in texts per day:
+  - One mid-morning at 10:00am Pacific
+  - One in the early evening at 6:00pm Pacific
+
+Environment:
+- Use Node.js + TypeScript if convenient, plain JS is fine too.
+- Use the `twilio` and `node-cron` packages.
+- DO NOT hard-code my credentials or phone numbers. Use environment variables.
+
+Please do the following:
+
+1. Install dependencies:
+   - twilio
+   - node-cron
+
+2. Create a file `reminderService.ts` (or .js) with:
+
+   - Twilio setup using these environment variables:
+     - `TWILIO_ACCOUNT_SID`
+     - `TWILIO_AUTH_TOKEN`
+     - `TWILIO_FROM_NUMBER`   // my Twilio number
+     - `TRACE_TO_NUMBER`      // my personal phone
+
+   - A small helper to actually send SMS:
+
+     ```ts
+     import twilio from "twilio";
+
+     const accountSid = process.env.TWILIO_ACCOUNT_SID!;
+     const authToken = process.env.TWILIO_AUTH_TOKEN!;
+     const fromNumber = process.env.TWILIO_FROM_NUMBER!;
+     const toNumber = process.env.TRACE_TO_NUMBER!;
+
+     const client = twilio(accountSid, authToken);
+
+     export async function sendTraceSms(body: string) {
+       if (!accountSid || !authToken || !fromNumber || !toNumber) {
+         console.error("Missing Twilio env vars, cannot send SMS");
+         return;
+       }
+
+       try {
+         const res = await client.messages.create({
+           from: fromNumber,
+           to: toNumber,
+           body,
+         });
+         console.log("✅ TRACE SMS sent:", res.sid, body);
+       } catch (err) {
+         console.error("❌ Error sending TRACE SMS:", err);
+       }
+     }
+     ```
+
+   - Two specific check-in functions with TRACE-style copy:
+
+     ```ts
+     export function getMorningMessage(): string {
+       return "TRACE: Good morning. Just checking in — I’m here if you want to pause, breathe, or unpack anything from today. 💛";
+     }
+
+     export function getEveningMessage(): string {
+       return "TRACE: Hey, you made it through the day. If anything’s still sitting on your chest, we can process it together whenever you’re ready. 🤍";
+     }
+     ```
+
+3. Create `server.ts` (or `index.js`) that:
+
+   - Imports node-cron and the functions above.
+   - Schedules the reminders **using Pacific time**:
+
+     ```ts
+     import cron from "node-cron";
+     import { sendTraceSms, getMorningMessage, getEveningMessage } from "./reminderService";
+
+     // 10:00am Pacific every day
+     cron.schedule("0 10 * * *", () => {
+       console.log("⏰ Morning TRACE check-in");
+       sendTraceSms(getMorningMessage());
+     }, {
+       timezone: "America/Los_Angeles",
+     });
+
+     // 6:00pm Pacific every day
+     cron.schedule("0 18 * * *", () => {
+       console.log("⏰ Evening TRACE check-in");
+       sendTraceSms(getEveningMessage());
+     }, {
+       timezone: "America/Los_Angeles",
+     });
+
+     console.log("TRACE reminder service started.");
+     ```
+
+   - Exports or runs a simple entrypoint so that when Replit runs this repl, the cron jobs start automatically.
+
+4. Notes / comments:
+   - Add a short comment explaining that because this runs on Replit, reminders only send while the repl is awake/running. That’s fine for now.
+   - Make sure TypeScript (if used) is configured or compiled, or just keep everything in JS so “Run” just works.
+
+Finally, show me:
+- The final `package.json` scripts you added.
+- The exact command that will run the reminder service on Replit.

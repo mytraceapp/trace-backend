@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const OpenAI = require('openai');
+const cron = require('node-cron');
+const twilio = require('twilio');
 
 const app = express();
 app.use(cors());
@@ -459,3 +461,115 @@ const PORT = 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`TRACE API server running on port ${PORT}`);
 });
+
+// ============================================
+// TRACE SMS Reminder Service (Twilio + Cron)
+// ============================================
+// Note: Reminders only send while this repl is awake/running.
+// For always-on reminders, deploy as a Background Worker.
+
+let twilioClient = null;
+let twilioFromNumber = null;
+
+async function getTwilioCredentials() {
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const xReplitToken = process.env.REPL_IDENTITY 
+    ? 'repl ' + process.env.REPL_IDENTITY 
+    : process.env.WEB_REPL_RENEWAL 
+    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
+    : null;
+
+  if (!xReplitToken || !hostname) {
+    console.log('⚠️  Twilio: No Replit connector token available');
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=twilio',
+      {
+        headers: {
+          'Accept': 'application/json',
+          'X_REPLIT_TOKEN': xReplitToken
+        }
+      }
+    );
+    const data = await response.json();
+    const connectionSettings = data.items?.[0];
+
+    if (!connectionSettings?.settings?.account_sid) {
+      console.log('⚠️  Twilio: Not connected or missing credentials');
+      return null;
+    }
+    
+    return {
+      accountSid: connectionSettings.settings.account_sid,
+      apiKey: connectionSettings.settings.api_key,
+      apiKeySecret: connectionSettings.settings.api_key_secret,
+      phoneNumber: connectionSettings.settings.phone_number
+    };
+  } catch (err) {
+    console.error('❌ Twilio credentials error:', err.message);
+    return null;
+  }
+}
+
+async function initTwilioClient() {
+  if (twilioClient) return true;
+  
+  const creds = await getTwilioCredentials();
+  if (!creds) return false;
+  
+  twilioClient = twilio(creds.apiKey, creds.apiKeySecret, { accountSid: creds.accountSid });
+  twilioFromNumber = creds.phoneNumber;
+  console.log('✅ Twilio client initialized for SMS reminders');
+  return true;
+}
+
+async function sendTraceSms(body) {
+  const toNumber = process.env.TRACE_TO_NUMBER;
+  
+  if (!toNumber) {
+    console.log('⚠️  TRACE_TO_NUMBER not set - skipping SMS');
+    return;
+  }
+
+  const ready = await initTwilioClient();
+  if (!ready || !twilioClient || !twilioFromNumber) {
+    console.log('⚠️  Twilio not ready - skipping SMS');
+    return;
+  }
+
+  try {
+    const res = await twilioClient.messages.create({
+      from: twilioFromNumber,
+      to: toNumber,
+      body,
+    });
+    console.log('✅ TRACE SMS sent:', res.sid);
+  } catch (err) {
+    console.error('❌ Error sending TRACE SMS:', err.message);
+  }
+}
+
+const MORNING_MESSAGE = "TRACE: Good morning. Just checking in — I'm here if you want to pause, breathe, or unpack anything from today. 💛";
+const EVENING_MESSAGE = "TRACE: Hey, you made it through the day. If anything's still sitting on your chest, we can process it together whenever you're ready. 🤍";
+
+// Schedule: 10:00am Pacific every day
+cron.schedule('0 10 * * *', () => {
+  console.log('⏰ Morning TRACE check-in triggered');
+  sendTraceSms(MORNING_MESSAGE);
+}, {
+  timezone: 'America/Los_Angeles',
+});
+
+// Schedule: 6:00pm Pacific every day
+cron.schedule('0 18 * * *', () => {
+  console.log('⏰ Evening TRACE check-in triggered');
+  sendTraceSms(EVENING_MESSAGE);
+}, {
+  timezone: 'America/Los_Angeles',
+});
+
+console.log('📱 TRACE SMS reminders scheduled: 10am & 6pm Pacific');
+console.log('   Set TRACE_TO_NUMBER in Secrets to receive texts');

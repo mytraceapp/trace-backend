@@ -50,6 +50,7 @@
             "recharts": "^2.15.2",
             "sonner": "^2.0.3",
             "tailwind-merge": "*",
+            "twilio": "^5.10.7",
             "vaul": "^1.1.2"
       },
       "devDependencies": {
