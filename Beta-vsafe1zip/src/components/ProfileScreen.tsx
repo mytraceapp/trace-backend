@@ -910,7 +910,7 @@ export function ProfileScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '15px',
                 fontWeight: 400,
-                color: isDark ? 'rgba(200, 195, 188, 0.7)' : 'var(--text-primary)',
+                color: isDark ? 'rgba(80, 75, 70, 0.85)' : 'var(--text-primary)',
                 letterSpacing: '0.02em',
               }}
             >
@@ -1002,7 +1002,7 @@ export function ProfileScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '12px',
                 fontWeight: 300,
-                color: isDark ? 'rgba(160, 155, 148, 0.5)' : 'var(--text-secondary)',
+                color: isDark ? 'rgba(70, 65, 60, 0.7)' : 'var(--text-secondary)',
                 letterSpacing: '0.01em',
                 opacity: isDark ? 1 : 0.6,
                 lineHeight: '1.5',
