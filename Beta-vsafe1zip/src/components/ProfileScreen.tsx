@@ -265,17 +265,17 @@ export function ProfileScreen({
         >
           <div className="relative" style={{ width: '64px', height: '64px' }}>
             {/* Color tone ripple flow - looping swirls like the orb */}
-            <div className="absolute inset-[-24px] rounded-full overflow-hidden pointer-events-none">
+            <div className="absolute inset-[-32px] rounded-full overflow-hidden pointer-events-none">
               {/* Outer breathing halo */}
               <motion.div
                 className="absolute inset-0 rounded-full"
                 style={{
-                  background: 'radial-gradient(circle, rgba(200, 215, 205, 0.35) 0%, rgba(180, 200, 190, 0.18) 40%, transparent 70%)',
-                  filter: 'blur(12px)',
+                  background: 'radial-gradient(circle, rgba(168, 179, 154, 0.7) 0%, rgba(150, 170, 145, 0.4) 40%, transparent 70%)',
+                  filter: 'blur(10px)',
                 }}
                 animate={{
-                  opacity: [0.4, 0.7, 0.4],
-                  scale: [0.9, 1.1, 0.9],
+                  opacity: [0.6, 1, 0.6],
+                  scale: [0.9, 1.15, 0.9],
                 }}
                 transition={{
                   duration: 5,
@@ -286,25 +286,25 @@ export function ProfileScreen({
               
               {/* Rotating swirl layer 1 */}
               <motion.div
-                className="absolute inset-[8px] rounded-full"
+                className="absolute inset-[6px] rounded-full"
                 style={{
                   background: `conic-gradient(
                     from 0deg at 50% 50%,
-                    rgba(200, 220, 210, 0.3) 0deg,
+                    rgba(168, 179, 154, 0.6) 0deg,
                     transparent 60deg,
-                    rgba(190, 210, 200, 0.25) 120deg,
+                    rgba(150, 170, 145, 0.5) 120deg,
                     transparent 180deg,
-                    rgba(180, 200, 190, 0.2) 240deg,
+                    rgba(140, 160, 135, 0.4) 240deg,
                     transparent 300deg,
-                    rgba(200, 220, 210, 0.3) 360deg
+                    rgba(168, 179, 154, 0.6) 360deg
                   )`,
-                  filter: 'blur(6px)',
+                  filter: 'blur(5px)',
                 }}
                 animate={{
                   rotate: [0, 360],
                 }}
                 transition={{
-                  duration: 20,
+                  duration: 18,
                   repeat: Infinity,
                   ease: "linear",
                 }}
@@ -312,23 +312,23 @@ export function ProfileScreen({
               
               {/* Rotating swirl layer 2 - counter-rotating */}
               <motion.div
-                className="absolute inset-[4px] rounded-full"
+                className="absolute inset-[3px] rounded-full"
                 style={{
                   background: `conic-gradient(
                     from 45deg at 50% 50%,
                     transparent 0deg,
-                    rgba(210, 225, 215, 0.25) 90deg,
+                    rgba(180, 195, 170, 0.5) 90deg,
                     transparent 180deg,
-                    rgba(195, 215, 205, 0.2) 270deg,
+                    rgba(160, 180, 155, 0.4) 270deg,
                     transparent 360deg
                   )`,
-                  filter: 'blur(8px)',
+                  filter: 'blur(6px)',
                 }}
                 animate={{
                   rotate: [360, 0],
                 }}
                 transition={{
-                  duration: 25,
+                  duration: 22,
                   repeat: Infinity,
                   ease: "linear",
                 }}
@@ -336,14 +336,14 @@ export function ProfileScreen({
               
               {/* Pulsing inner glow */}
               <motion.div
-                className="absolute inset-[16px] rounded-full"
+                className="absolute inset-[12px] rounded-full"
                 style={{
-                  background: 'radial-gradient(circle, rgba(230, 240, 235, 0.4) 0%, rgba(210, 225, 215, 0.2) 50%, transparent 70%)',
+                  background: 'radial-gradient(circle, rgba(200, 215, 195, 0.7) 0%, rgba(180, 200, 175, 0.4) 50%, transparent 70%)',
                   filter: 'blur(4px)',
                 }}
                 animate={{
-                  scale: [0.85, 1.1, 0.85],
-                  opacity: [0.5, 0.8, 0.5],
+                  scale: [0.85, 1.15, 0.85],
+                  opacity: [0.6, 1, 0.6],
                 }}
                 transition={{
                   duration: 4,
