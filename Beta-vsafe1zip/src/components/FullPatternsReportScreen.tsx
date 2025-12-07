@@ -274,10 +274,10 @@ export function FullPatternsReportScreen({
   };
 
   const cardStyle = {
-    backgroundColor: isDark ? 'rgba(30, 32, 28, 0.95)' : 'rgba(245, 241, 235, 0.98)',
+    backgroundColor: isDark ? 'rgba(30, 32, 28, 0.95)' : 'rgba(255, 252, 248, 0.98)',
     borderRadius: '20px',
     padding: '24px 20px',
-    boxShadow: isDark ? 'none' : '0 2px 8px rgba(90, 74, 58, 0.03)',
+    boxShadow: isDark ? 'none' : '0 2px 8px rgba(90, 74, 58, 0.02)',
   };
 
   const sageCardBorder = isDark 
@@ -310,7 +310,7 @@ export function FullPatternsReportScreen({
 
       <motion.div
         className="absolute w-full text-center z-20 flex flex-col items-center"
-        style={{ top: 'calc(3% + 50px)' }}
+        style={{ top: 'calc(3% + 32px)' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] }}
@@ -364,7 +364,7 @@ export function FullPatternsReportScreen({
           `}
         </style>
 
-        <div className="flex-shrink-0" style={{ height: 'calc(16% + 50px)' }} />
+        <div className="flex-shrink-0" style={{ height: 'calc(16% + 32px)' }} />
 
         <div className="w-full max-w-md mx-auto px-6 flex flex-col items-center">
           <motion.div
