@@ -2,11 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { useTheme } from '../state/ThemeContext';
+import { useEntries } from '../state/EntriesContext';
 import { 
   getCurrentUserId, 
   saveLastHourStitch, 
   getLastHourSummary, 
-  saveTraceMessage,
   EmotionalStitch 
 } from '../lib/messageService';
 import { supabase } from '../lib/supabaseClient';
@@ -91,8 +91,9 @@ export function FullPatternsReportScreen({
 }: FullPatternsReportScreenProps) {
   const { theme } = useTheme();
   const isDark = theme === 'night';
+  const { addEmotionalNoteEntry } = useEntries();
 
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null); // Used for data fetching
   const [lastHourSummary, setLastHourSummary] = useState<HourSummary | null>(null);
   const [weeklyStitches, setWeeklyStitches] = useState<EmotionalStitch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -225,13 +226,17 @@ export function FullPatternsReportScreen({
     return getJournalingWhisper(lastHourSummary, weeklyStitches);
   }, [lastHourSummary, weeklyStitches]);
 
-  const handleSaveReflection = async () => {
-    if (!userId || !reflectionText.trim()) return;
+  const handleSaveReflection = () => {
+    if (!reflectionText.trim()) return;
 
     setIsSaving(true);
     try {
-      await saveTraceMessage(userId, 'user', reflectionText.trim());
-      setSavedMessage("Your reflection has been gently saved.");
+      addEmotionalNoteEntry(
+        'Patterns Reflection',
+        reflectionText.trim(),
+        ['calm']
+      );
+      setSavedMessage("Saved to your journal.");
       setReflectionText('');
       setTimeout(() => setSavedMessage(''), 3000);
     } catch (err) {
@@ -467,29 +472,35 @@ export function FullPatternsReportScreen({
                   }}
                 />
 
-                <div className="flex items-center gap-4 mt-4">
+                <div className="mt-4">
                   <button
                     onClick={handleSaveReflection}
                     disabled={isSaving || !reflectionText.trim()}
-                    className="px-6 py-3 rounded-[14px] transition-all duration-200 active:scale-[0.98]"
+                    className="w-full rounded-full px-8 py-4 transition-all duration-300 hover:scale-[1.01] active:scale-[0.98]"
                     style={{
-                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#D7C8B5',
-                      border: isDark
-                        ? '1px solid rgba(255, 255, 255, 0.1)'
-                        : '1px solid rgba(90, 74, 58, 0.12)',
-                      fontFamily: 'SF Pro Text, -apple-system, sans-serif',
-                      fontSize: '14px',
-                      fontWeight: 400,
-                      color: 'var(--text-primary)',
+                      background: 'var(--card)',
+                      boxShadow: 'var(--shadow)',
+                      border: '1px solid var(--border)',
                       opacity: !reflectionText.trim() ? 0.5 : 1,
                       cursor: !reflectionText.trim() ? 'default' : 'pointer',
                     }}
                   >
-                    {isSaving ? 'Saving...' : 'Save Reflection'}
+                    <span
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: 'var(--text-primary)',
+                        fontWeight: 500,
+                        fontSize: '15px',
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      {isSaving ? 'Saving...' : 'Journal'}
+                    </span>
                   </button>
 
                   {savedMessage && (
-                    <motion.span
+                    <motion.p
+                      className="text-center mt-3"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       style={{
@@ -500,7 +511,7 @@ export function FullPatternsReportScreen({
                       }}
                     >
                       {savedMessage}
-                    </motion.span>
+                    </motion.p>
                   )}
                 </div>
               </motion.section>
