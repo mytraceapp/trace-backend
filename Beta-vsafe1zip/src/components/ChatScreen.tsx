@@ -71,9 +71,6 @@ export function ChatScreen({
   const [messages, setMessages] = React.useState<Message[]>([]);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   
-  // History loading state (silent - no UI indicators per TRACE wrap principles)
-  const [, setIsHistoryLoading] = React.useState(true);
-  const [, setHistoryError] = React.useState<string | null>(null);
 
   const userName = currentProfile?.name || null;
 
@@ -156,48 +153,50 @@ export function ChatScreen({
     }
   }, [userName]);
 
-  // Load messages from Supabase (1-hour recall) on mount
+  // Load messages from Supabase (1-hour recall) on mount - silent failure
   const hasLoadedRef = React.useRef(false);
   
   React.useEffect(() => {
     if (hasLoadedRef.current) return;
     hasLoadedRef.current = true;
     
-    setIsHistoryLoading(true);
-    setHistoryError(null);
-    
-    // Try to load recent messages from Supabase
-    loadRecentTraceMessages((loadedMessages) => {
-      if (loadedMessages.length > 0) {
-        // Resume conversation with recalled messages
-        setMessages(loadedMessages);
-        setHasResponded(true);
-        setShowTypewriter(false);
-        setIsLoadingGreeting(false);
-      } else {
-        // No recent messages - start fresh with greeting
-        if (shouldStartGreeting) {
-          setDisplayedText('');
-          setCurrentIndex(0);
-          setMessages([]);
-          setHasResponded(false);
-          
-          // Fetch AI greeting then start typewriter
-          fetchAIGreeting().then(() => {
-            setTimeout(() => {
-              setShowTypewriter(true);
-            }, 500);
-          });
-        }
+    const loadHistory = async () => {
+      try {
+        await loadRecentTraceMessages((loadedMessages) => {
+          if (loadedMessages.length > 0) {
+            // Resume conversation with recalled messages
+            setMessages(loadedMessages);
+            setHasResponded(true);
+            setShowTypewriter(false);
+            setIsLoadingGreeting(false);
+          } else {
+            // No recent messages - start fresh with greeting
+            startFreshGreeting();
+          }
+        });
+      } catch {
+        // Silent failure - TRACE simply forgets and starts fresh
+        startFreshGreeting();
       }
-    })
-      .catch((err) => {
-        console.error("Error loading TRACE history:", err);
-        setHistoryError("TRACE couldn't fully reload your recent conversation, but you can keep chatting normally.");
-      })
-      .finally(() => {
-        setIsHistoryLoading(false);
-      });
+    };
+    
+    const startFreshGreeting = () => {
+      if (shouldStartGreeting) {
+        setDisplayedText('');
+        setCurrentIndex(0);
+        setMessages([]);
+        setHasResponded(false);
+        
+        // Fetch AI greeting then start typewriter
+        fetchAIGreeting().then(() => {
+          setTimeout(() => {
+            setShowTypewriter(true);
+          }, 500);
+        });
+      }
+    };
+    
+    loadHistory();
   }, [fetchAIGreeting, shouldStartGreeting]);
 
   React.useEffect(() => {
