@@ -168,10 +168,10 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
     if (!sessionActive && timeRemaining === 0 && !hasSavedRef.current) {
       hasSavedRef.current = true;
       const duration = 60 - timeRemaining;
-      addSessionEntry('PearlRipple', {
-        title: 'Pearl Ripple – Calmed',
+      addSessionEntry('Ripple', {
+        title: 'Ripple – Calmed',
         body: 'Gentle ripples of calm. You found your center.',
-        tags: ['calm', 'meditation', 'pearlripple'],
+        tags: ['calm', 'meditation', 'ripple'],
         metadata: { duration }
       });
     }

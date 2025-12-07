@@ -538,7 +538,7 @@ export default function App() {
             onClick={() => setCurrentScreen("pearlripple")}
             className="px-3 py-1 bg-blue-500 text-white rounded text-sm"
           >
-            Pearl Ripple
+            Ripple
           </button>
           <button
             onClick={() => setCurrentScreen("grounding")}

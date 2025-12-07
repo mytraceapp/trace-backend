@@ -246,7 +246,7 @@ export function detectActivitySuggestion(response: string): ActivityType {
     lastSuggestedActivity = 'powernap';
     return 'powernap';
   }
-  if (lowerResponse.includes('[pearl ripple]') || lowerResponse.includes('pearl ripple') || lowerResponse.includes('ocean sounds')) {
+  if (lowerResponse.includes('[ripple]') || lowerResponse.includes('ripple') || lowerResponse.includes('ocean sounds')) {
     lastSuggestedActivity = 'pearlripple';
     return 'pearlripple';
   }

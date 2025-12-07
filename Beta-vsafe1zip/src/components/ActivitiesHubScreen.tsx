@@ -339,7 +339,7 @@ export function ActivitiesHubScreen({
               </div>
             </motion.button>
 
-            {/* Card 5 - Pearl Ripple */}
+            {/* Card 5 - Ripple */}
             {onStartPearlRipple && (
               <motion.button
                 onClick={onStartPearlRipple}
@@ -375,7 +375,7 @@ export function ActivitiesHubScreen({
                         letterSpacing: '0.01em',
                       }}
                     >
-                      Pearl Ripple
+                      Ripple
                     </h3>
                     <p
                       style={{

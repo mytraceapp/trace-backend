@@ -396,7 +396,7 @@ export function ChatScreen({
           walking: "Let's take a gentle walk… one step at a time.",
           maze: "Let's trace the maze together… nice and slow.",
           powernap: "Rest now… I'll be here when you wake.",
-          pearlripple: "Let's listen to the waves… just breathe.",
+          pearlripple: "Let's feel the ripples… just breathe.",
           rest: "Time to rest… I'll be here when you're ready.",
           window: "Let's watch the rain together… find some peace.",
           echo: "Let's listen to the echoes… find your calm.",
