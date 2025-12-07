@@ -329,10 +329,10 @@ export function FullPatternsReportScreen({
         >
           TRACE
         </h1>
-        {/* Maze logo with subtle glow behind it */}
+        {/* Maze logo with subtle glow behind it - sized to align with 24px grid */}
         <div 
           className="relative mt-2 mx-auto"
-          style={{ width: '70px', height: '70px' }}
+          style={{ width: '72px', height: '72px' }}
         >
           {/* Subtle glow behind logo */}
           <div
