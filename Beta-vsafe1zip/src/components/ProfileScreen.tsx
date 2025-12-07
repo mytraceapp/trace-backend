@@ -274,11 +274,11 @@ export function ProfileScreen({
                   style={{
                     width: '130px',
                     height: '130px',
-                    background: 'radial-gradient(circle, rgba(210, 180, 140, 0.68) 0%, rgba(190, 160, 120, 0.44) 40%, rgba(170, 140, 100, 0.2) 60%, transparent 80%)',
+                    background: 'radial-gradient(circle, rgba(210, 180, 140, 0.54) 0%, rgba(190, 160, 120, 0.35) 40%, rgba(170, 140, 100, 0.16) 60%, transparent 80%)',
                     filter: 'blur(6px)',
                   }}
                   animate={{
-                    opacity: [0.56, 0.8, 0.56],
+                    opacity: [0.45, 0.64, 0.45],
                     scale: [0.95, 1.15, 0.95],
                   }}
                   transition={{
@@ -296,15 +296,15 @@ export function ProfileScreen({
                     height: '110px',
                     background: `conic-gradient(
                       from 0deg at 50% 50%,
-                      rgba(200, 170, 130, 0.64) 0deg,
-                      rgba(180, 150, 110, 0.32) 45deg,
+                      rgba(200, 170, 130, 0.51) 0deg,
+                      rgba(180, 150, 110, 0.26) 45deg,
                       transparent 90deg,
-                      rgba(190, 160, 120, 0.52) 135deg,
-                      rgba(175, 145, 105, 0.28) 180deg,
+                      rgba(190, 160, 120, 0.42) 135deg,
+                      rgba(175, 145, 105, 0.22) 180deg,
                       transparent 225deg,
-                      rgba(195, 165, 125, 0.44) 270deg,
-                      rgba(180, 150, 110, 0.28) 315deg,
-                      rgba(200, 170, 130, 0.64) 360deg
+                      rgba(195, 165, 125, 0.35) 270deg,
+                      rgba(180, 150, 110, 0.22) 315deg,
+                      rgba(200, 170, 130, 0.51) 360deg
                     )`,
                     filter: 'blur(3px)',
                   }}
@@ -327,11 +327,11 @@ export function ProfileScreen({
                     background: `conic-gradient(
                       from 90deg at 50% 50%,
                       transparent 0deg,
-                      rgba(205, 175, 135, 0.52) 60deg,
+                      rgba(205, 175, 135, 0.42) 60deg,
                       transparent 120deg,
-                      rgba(195, 165, 125, 0.44) 180deg,
+                      rgba(195, 165, 125, 0.35) 180deg,
                       transparent 240deg,
-                      rgba(185, 155, 115, 0.36) 300deg,
+                      rgba(185, 155, 115, 0.29) 300deg,
                       transparent 360deg
                     )`,
                     filter: 'blur(4px)',
@@ -352,12 +352,12 @@ export function ProfileScreen({
                   style={{
                     width: '85px',
                     height: '85px',
-                    background: 'radial-gradient(circle, rgba(220, 190, 150, 0.68) 0%, rgba(200, 170, 130, 0.44) 50%, transparent 75%)',
+                    background: 'radial-gradient(circle, rgba(220, 190, 150, 0.54) 0%, rgba(200, 170, 130, 0.35) 50%, transparent 75%)',
                     filter: 'blur(2px)',
                   }}
                   animate={{
                     scale: [0.9, 1.1, 0.9],
-                    opacity: [0.56, 0.8, 0.56],
+                    opacity: [0.45, 0.64, 0.45],
                   }}
                   transition={{
                     duration: 3.5,
