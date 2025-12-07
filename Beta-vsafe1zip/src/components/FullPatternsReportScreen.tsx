@@ -274,7 +274,7 @@ export function FullPatternsReportScreen({
   };
 
   const cardStyle = {
-    backgroundColor: isDark ? 'rgba(30, 32, 28, 0.95)' : 'rgba(248, 242, 235, 0.98)',
+    backgroundColor: isDark ? 'rgba(30, 32, 28, 0.95)' : 'rgba(238, 228, 216, 0.98)',
     borderRadius: '20px',
     padding: '24px 20px',
     boxShadow: isDark ? 'none' : '0 2px 8px rgba(90, 74, 58, 0.02)',
@@ -332,7 +332,7 @@ export function FullPatternsReportScreen({
         {/* Maze logo with subtle glow behind it */}
         <div 
           className="relative mt-2 mx-auto"
-          style={{ width: '70px', height: '70px' }}
+          style={{ width: '70px', height: '70px', marginLeft: '-0.25em' }}
         >
           {/* Subtle glow behind logo */}
           <div
