@@ -274,10 +274,10 @@ export function FullPatternsReportScreen({
   };
 
   const cardStyle = {
-    backgroundColor: isDark ? 'rgba(30, 32, 28, 0.95)' : 'rgba(238, 228, 216, 0.98)',
+    backgroundColor: isDark ? 'rgba(30, 32, 28, 0.95)' : 'rgba(225, 212, 195, 0.98)',
     borderRadius: '20px',
     padding: '24px 20px',
-    boxShadow: isDark ? 'none' : '0 2px 8px rgba(90, 74, 58, 0.02)',
+    boxShadow: isDark ? 'none' : '0 2px 8px rgba(90, 74, 58, 0.04)',
   };
 
   const sageCardBorder = isDark 
