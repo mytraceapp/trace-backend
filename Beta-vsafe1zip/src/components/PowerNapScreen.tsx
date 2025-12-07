@@ -664,7 +664,7 @@ export function PowerNapScreen({
           letterSpacing: '1em',
           fontSize: '11px',
           textShadow: '0 2px 5px rgba(0,0,0,0.45)',
-          textIndent: '1em',
+          paddingLeft: '1em',
         }}>
           TRACE
         </h1>

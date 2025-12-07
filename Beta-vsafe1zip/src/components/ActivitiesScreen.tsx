@@ -154,6 +154,7 @@ export function ActivitiesScreen({
           fontSize: '11px',
           textShadow: '0 0 12px rgba(237, 232, 219, 0.5), 0 0 25px rgba(237, 232, 219, 0.25), 0 2px 5px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.25)',
           opacity: 0.98,
+          paddingLeft: '1em',
         }}>
           TRACE
         </h1>

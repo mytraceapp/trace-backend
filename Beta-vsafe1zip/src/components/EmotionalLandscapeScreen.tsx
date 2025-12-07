@@ -141,6 +141,7 @@ export function EmotionalLandscapeScreen({ onReturnToChat, onViewJournal, onNavi
             letterSpacing: '1em',
             fontSize: '11px',
             opacity: 0.6,
+            paddingLeft: '1em',
           }}
         >
           TRACE

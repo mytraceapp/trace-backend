@@ -229,6 +229,7 @@ export function ProfileScreen({
               ? '0 0 25px rgba(168, 179, 154, 0.6), 0 0 50px rgba(141, 161, 143, 0.3), 0 2px 4px rgba(0,0,0,0.4)'
               : '0 0 15px rgba(106, 90, 74, 0.45), 0 0 30px rgba(106, 90, 74, 0.25), 0 2px 4px rgba(0,0,0,0.12)',
             opacity: 1,
+            paddingLeft: '1em',
           }}
         >
           TRACE

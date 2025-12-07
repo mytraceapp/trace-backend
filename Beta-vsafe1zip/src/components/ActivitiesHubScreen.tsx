@@ -75,6 +75,7 @@ export function ActivitiesHubScreen({
             opacity: 0.6,
             textTransform: 'uppercase',
             marginTop: '0.2rem',
+            paddingLeft: '1em',
           }}
         >
           TRACE

@@ -148,6 +148,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
               fontSize: '9px',
               textShadow: '0 4px 16px rgba(0,0,0,0.85), 0 2px 8px rgba(0,0,0,0.65), 0 1px 4px rgba(0,0,0,0.5), 0 0 30px rgba(237, 232, 219, 0.25)',
               opacity: 0.95,
+              paddingLeft: '1em',
             }}
           >
             TRACE
@@ -336,6 +337,7 @@ export function AuthScreen({ onCreateAccount, onLogin }: AuthScreenProps) {
                   fontSize: '11px',
                   textShadow: '0 0 15px rgba(90, 74, 58, 0.45), 0 0 30px rgba(90, 74, 58, 0.25), 0 2px 4px rgba(0,0,0,0.15)',
                   opacity: 0.9,
+                  paddingLeft: '1em',
                 }}
               >
                 TRACE

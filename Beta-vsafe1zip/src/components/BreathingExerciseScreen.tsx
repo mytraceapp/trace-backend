@@ -341,6 +341,7 @@ export function BreathingExerciseScreen({
             letterSpacing: '1em',
             fontSize: '11px',
             opacity: 0.7,
+            paddingLeft: '1em',
           }}
         >
           TRACE

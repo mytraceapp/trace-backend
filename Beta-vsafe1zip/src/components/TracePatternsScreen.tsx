@@ -1240,6 +1240,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             fontSize: '11px',
             textShadow: `0 0 15px var(--orb-glow), 0 0 30px var(--orb-glow), 0 2px 4px rgba(0,0,0,0.15)`,
             opacity: 0.88,
+            paddingLeft: '1em',
           }}
         >
           TRACE

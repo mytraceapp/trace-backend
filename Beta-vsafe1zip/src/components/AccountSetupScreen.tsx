@@ -72,6 +72,7 @@ export function AccountSetupScreen({
             fontSize: '11px',
             textShadow: '0 0 15px rgba(90, 74, 58, 0.45), 0 0 30px rgba(90, 74, 58, 0.25), 0 2px 4px rgba(0,0,0,0.15)',
             opacity: 0.9,
+            paddingLeft: '1em',
           }}
         >
           TRACE

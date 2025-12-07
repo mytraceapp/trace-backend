@@ -482,7 +482,7 @@ export function WalkingResetScreen({
           letterSpacing: '1em',
           fontSize: '11px',
           textShadow: '0 2px 5px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3)',
-          textIndent: '1em',
+          paddingLeft: '1em',
           marginBottom: '4px',
         }}>
           TRACE
