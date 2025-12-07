@@ -14,7 +14,15 @@ import {
   clearLastSuggestedActivity,
   ActivityType 
 } from '../services/traceAI';
-import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages } from '../lib/messageService';
+import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages, analyzeMessageEmotion } from '../lib/messageService';
+
+const TRACE_SUPPORT_PROMPTS = [
+  "Would it help to journal a few details about what's on your heart right now?",
+  "I can stay with you in this. Want a gentle 2-minute grounding moment together?",
+  "If anything feels like a lot, we can slow down and unpack it step by step.",
+  "I'm here. Sometimes just naming what's heavy can help it feel a little lighter.",
+  "Would a short breathing pause feel right? Just a moment to settle.",
+];
 
 interface Message {
   id: string;
@@ -65,6 +73,7 @@ export function ChatScreen({
   const { currentProfile } = useAuth();
   const [message, setMessage] = React.useState('');
   const [hasResponded, setHasResponded] = React.useState(false);
+  const [hasOfferedSupportThisSession, setHasOfferedSupportThisSession] = React.useState(false);
   const [_userMessage, setUserMessage] = React.useState('');
   void _userMessage;
   const [showTypewriter, setShowTypewriter] = React.useState(false);
@@ -411,6 +420,9 @@ export function ChatScreen({
         content: userMsg
       }]);
       
+      // Analyze user message emotion for micro-prompts
+      const userEmotion = analyzeMessageEmotion(userMsg);
+      
       // Save user message to Supabase
       getCurrentUserId().then(userId => {
         if (userId) {
@@ -454,6 +466,32 @@ export function ChatScreen({
             saveTraceMessage(userId, 'assistant', responseMessage);
           }
         });
+        
+        // Check if we should offer a gentle support micro-prompt (once per session)
+        const isHeavyOrAnxious = userEmotion.emotion === 'heavy' || userEmotion.emotion === 'anxious';
+        const isHighIntensity = userEmotion.intensity >= 3;
+        
+        if (!hasOfferedSupportThisSession && (isHeavyOrAnxious || isHighIntensity)) {
+          const supportText = TRACE_SUPPORT_PROMPTS[Math.floor(Math.random() * TRACE_SUPPORT_PROMPTS.length)];
+          
+          // Add micro-prompt after a gentle delay
+          setTimeout(() => {
+            setMessages(prev => [...prev, {
+              id: `support-${Date.now()}`,
+              role: 'assistant',
+              content: supportText
+            }]);
+            
+            // Save support message to Supabase
+            getCurrentUserId().then(userId => {
+              if (userId) {
+                saveTraceMessage(userId, 'assistant', supportText);
+              }
+            });
+          }, 2000);
+          
+          setHasOfferedSupportThisSession(true);
+        }
         
         // If should_navigate is true, navigate to the activity after showing the message
         if (activity_suggestion?.should_navigate && activity_suggestion?.name) {
