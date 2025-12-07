@@ -83,6 +83,7 @@ export function ChatScreen({
     arc: 'softening' | 'rising' | 'steady' | null;
   } | null>(null);
   const [hasOfferedRecallThisSession, setHasOfferedRecallThisSession] = React.useState(false);
+  const [hasUserSpokenThisSession, setHasUserSpokenThisSession] = React.useState(false);
   const [_userMessage, setUserMessage] = React.useState('');
   void _userMessage;
   const [showTypewriter, setShowTypewriter] = React.useState(false);
@@ -307,11 +308,46 @@ export function ChatScreen({
     };
   }, []);
 
-  // Suppress unused warnings for now - will be used in future recall logic
-  void lastHourSummary;
-  void hasOfferedRecallThisSession;
-  void setHasOfferedRecallThisSession;
-  void buildEmotionalRecallMessage;
+  // Emotional recall helper - offers a gentle check-in based on last hour's emotional arc
+  const maybeOfferEmotionalRecall = React.useCallback(
+    async () => {
+      if (hasOfferedRecallThisSession || !lastHourSummary) return;
+
+      const text = buildEmotionalRecallMessage(lastHourSummary);
+      if (!text) return;
+
+      // Mark as used so we don't repeat
+      setHasOfferedRecallThisSession(true);
+
+      // Give a brief pause so it feels natural
+      setTimeout(async () => {
+        const recallMessage: Message = {
+          id: crypto.randomUUID(),
+          role: 'assistant' as const,
+          content: text,
+          createdAt: new Date().toISOString(),
+          emotion: 'calm' as const,
+          intensity: 2,
+        };
+
+        setMessages(prev => [...prev, recallMessage]);
+
+        try {
+          const userId = await getCurrentUserId();
+          if (userId) {
+            await saveTraceMessage(userId, 'assistant', text, {
+              emotion: 'calm',
+              intensity: 2,
+              source: 'emotional_recall',
+            });
+          }
+        } catch (err) {
+          console.error('TRACE emotional recall: failed to save', err);
+        }
+      }, 2000);
+    },
+    [hasOfferedRecallThisSession, lastHourSummary, setMessages]
+  );
 
   React.useEffect(() => {
     if (showTypewriter && currentIndex < greetingText.length && !hasResponded) {
@@ -630,6 +666,12 @@ export function ChatScreen({
               navigateToActivity(activityType);
             }, 1500);
           }
+        }
+        
+        // Emotional recall - only on first user message this session
+        if (!hasUserSpokenThisSession) {
+          setHasUserSpokenThisSession(true);
+          maybeOfferEmotionalRecall();
         }
         
         // Return to idle after response settles
