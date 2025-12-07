@@ -58,17 +58,24 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         // Lowpass filter to remove harsh highs and create smoother sound
         const lowpass = audioContext.createBiquadFilter();
         lowpass.type = 'lowpass';
-        lowpass.frequency.value = 2500; // Cut harsh frequencies
-        lowpass.Q.value = 0.7;
+        lowpass.frequency.value = 1800; // Cut more harsh frequencies for smoother tone
+        lowpass.Q.value = 0.5;
+        
+        // Notch filter to remove weird mid tones
+        const notch = audioContext.createBiquadFilter();
+        notch.type = 'notch';
+        notch.frequency.value = 800; // Remove problematic mid frequency
+        notch.Q.value = 2;
         
         // Gain node for smooth volume control
         const gainNode = audioContext.createGain();
         gainNode.gain.setValueAtTime(0, audioContext.currentTime);
         gainNodeRef.current = gainNode;
         
-        // Connect: source -> lowpass -> gain -> output
+        // Connect: source -> lowpass -> notch -> gain -> output
         source.connect(lowpass);
-        lowpass.connect(gainNode);
+        lowpass.connect(notch);
+        notch.connect(gainNode);
         gainNode.connect(audioContext.destination);
         
         audio.play().then(() => {
@@ -92,8 +99,8 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
       }
     };
 
-    // Delay audio start slightly for clean transition
-    const audioTimer = setTimeout(startAudio, 500);
+    // Start audio almost immediately
+    const audioTimer = setTimeout(startAudio, 150);
 
     // Cleanup with smooth fade-out
     return () => {
