@@ -14,7 +14,7 @@ import {
   clearLastSuggestedActivity,
   ActivityType 
 } from '../services/traceAI';
-import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages } from '../lib/messageService';
+import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages, getTodayStitch } from '../lib/messageService';
 
 const TRACE_SUPPORT_PROMPTS = [
   "Things feel a bit intense right now. If you want, we can slow down and journal a little together.",
@@ -72,6 +72,7 @@ export function ChatScreen({
   const [message, setMessage] = React.useState('');
   const [hasResponded, setHasResponded] = React.useState(false);
   const [hasOfferedSupportThisSession, setHasOfferedSupportThisSession] = React.useState(false);
+  const [hasShownRecallThisSession, setHasShownRecallThisSession] = React.useState(false);
   const [_userMessage, setUserMessage] = React.useState('');
   void _userMessage;
   const [showTypewriter, setShowTypewriter] = React.useState(false);
@@ -205,6 +206,73 @@ export function ChatScreen({
     
     loadHistory();
   }, [fetchAIGreeting, shouldStartGreeting]);
+
+  // Emotional recall - gently check in if earlier today was heavy
+  React.useEffect(() => {
+    if (hasShownRecallThisSession) return;
+
+    let cancelled = false;
+
+    async function maybeShowRecall() {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId || cancelled) return;
+
+        const stitch = await getTodayStitch(userId);
+        if (!stitch || cancelled) return;
+
+        if (stitch.total < 3) return;
+
+        const total = stitch.total;
+        const heavyCount = stitch.heavy ?? 0;
+        const anxiousCount = stitch.anxious ?? 0;
+        const heavyishRatio = total > 0 ? (heavyCount + anxiousCount) / total : 0;
+        const avgIntensity = stitch.avg_intensity ?? 0;
+        const arc = stitch.arc ?? null;
+
+        const isNotable =
+          heavyishRatio >= 0.4 ||
+          avgIntensity >= 3 ||
+          arc === "rising";
+
+        if (!isNotable || cancelled) return;
+
+        let recallText: string;
+        if (heavyishRatio >= 0.4 && avgIntensity >= 3) {
+          recallText = "Earlier today felt pretty heavy. Is any of that still with you right now?";
+        } else if (arc === "rising") {
+          recallText = "Earlier today your emotions felt like they were ramping up a bit. How are you feeling coming back in?";
+        } else {
+          recallText = "I remember you checked in earlier today. How is your heart doing right now?";
+        }
+
+        const recallMessage: Message = {
+          id: `recall-${Date.now()}`,
+          role: "assistant",
+          content: recallText,
+          createdAt: new Date().toISOString(),
+          emotion: "calm",
+          intensity: 1,
+        };
+
+        setMessages((prev) => [...prev, recallMessage]);
+        setHasShownRecallThisSession(true);
+
+        // Also save to Supabase
+        saveTraceMessage(userId, "assistant", recallText);
+      } catch (err) {
+        console.error("TRACE/recallEffect ❌", err);
+      }
+    }
+
+    // Small delay to let history load first
+    const timer = setTimeout(maybeShowRecall, 1500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [hasShownRecallThisSession]);
 
   React.useEffect(() => {
     if (showTypewriter && currentIndex < greetingText.length && !hasResponded) {

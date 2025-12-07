@@ -1,5 +1,17 @@
 import { supabase } from "./supabaseClient";
 
+export type EmotionalStitch = {
+  user_id: string;
+  summary_date: string;
+  total: number;
+  calm: number;
+  flat: number;
+  heavy: number;
+  anxious: number;
+  avg_intensity: number;
+  arc: "softening" | "rising" | "steady" | null;
+};
+
 const EMOTION_KEYWORDS = {
   heavy: ["sad", "tired", "exhausted", "heavy", "overwhelmed", "numb", "hopeless", "done", "burned out"],
   anxious: ["anxious", "nervous", "worried", "panicking", "panic", "stressed", "on edge"],
@@ -316,4 +328,38 @@ export async function saveLastHourStitch(userId: string): Promise<void> {
   } else {
     console.log("TRACE/saveLastHourStitch ✅", { userId, date: today });
   }
+}
+
+export async function getTodayStitch(userId: string): Promise<EmotionalStitch | null> {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from("emotional_stitches")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("summary_date", today)
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.error("TRACE/getTodayStitch ❌", error);
+    return null;
+  }
+
+  if (!data || data.length === 0) {
+    return null;
+  }
+
+  const row = data[0];
+  return {
+    user_id: row.user_id,
+    summary_date: row.summary_date,
+    total: row.total ?? 0,
+    calm: row.calm ?? 0,
+    flat: row.flat ?? 0,
+    heavy: row.heavy ?? 0,
+    anxious: row.anxious ?? 0,
+    avg_intensity: row.avg_intensity ?? 0,
+    arc: row.arc as "softening" | "rising" | "steady" | null,
+  };
 }
