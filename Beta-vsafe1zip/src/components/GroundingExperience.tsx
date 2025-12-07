@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
-import { GroundingTone } from './GroundingTone';
 
 interface GroundingExperienceProps {
   onBack?: () => void;
@@ -55,6 +54,55 @@ export function GroundingExperience({ onBack, onComplete, onReturnToChat, onNavi
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showCompletion, setShowCompletion] = useState(false);
   const hasSavedRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fadeIntervalRef = useRef<number | null>(null);
+
+  // Audio setup with slow playback and fade transitions
+  useEffect(() => {
+    const audio = new Audio('/grounding-ambient.mp3');
+    audio.loop = true;
+    audio.volume = 0;
+    audio.playbackRate = 0.7; // Slowed down by ~30% for calmer feel
+    audioRef.current = audio;
+
+    // Fade in over 2 seconds
+    audio.play().then(() => {
+      let vol = 0;
+      const fadeIn = setInterval(() => {
+        vol += 0.02;
+        if (vol >= 0.5) {
+          audio.volume = 0.5;
+          clearInterval(fadeIn);
+        } else {
+          audio.volume = vol;
+        }
+      }, 40); // 2 second fade in
+      fadeIntervalRef.current = fadeIn as unknown as number;
+    }).catch(() => {});
+
+    return () => {
+      // Fade out on unmount
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+      }
+      if (audioRef.current) {
+        const currentVol = audioRef.current.volume;
+        let vol = currentVol;
+        const fadeOut = setInterval(() => {
+          vol -= 0.05;
+          if (vol <= 0 || !audioRef.current) {
+            if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current = null;
+            }
+            clearInterval(fadeOut);
+          } else {
+            audioRef.current!.volume = vol;
+          }
+        }, 50);
+      }
+    };
+  }, []);
 
   // Timer
   useEffect(() => {
@@ -113,9 +161,6 @@ export function GroundingExperience({ onBack, onComplete, onReturnToChat, onNavi
         background: 'linear-gradient(135deg, #FFFFFF 0%, #F8F6F3 25%, #F0EDE8 50%, #E8E4DF 75%, #E0DCD7 100%)',
       }}
     >
-      {/* Grounding vibrational tone - plays entire experience */}
-      <GroundingTone isPlaying={!showCompletion} volume={0.38} />
-      
       {/* Ambient glow base */}
       <div
         className="absolute inset-0"
