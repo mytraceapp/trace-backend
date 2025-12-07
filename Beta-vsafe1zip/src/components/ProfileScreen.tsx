@@ -254,11 +254,11 @@ export function ProfileScreen({
         </style>
 
         {/* Top spacing for TRACE title */}
-        <div className="flex-shrink-0" style={{ height: '13%' }} />
+        <div className="flex-shrink-0" style={{ height: '10%' }} />
 
         {/* Small circular monogram below TRACE */}
         <motion.div
-          className="flex justify-center mb-8"
+          className="flex justify-center mb-6"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3, duration: 1 }}
@@ -274,11 +274,11 @@ export function ProfileScreen({
                   style={{
                     width: '130px',
                     height: '130px',
-                    background: 'radial-gradient(circle, rgba(210, 180, 140, 0.54) 0%, rgba(190, 160, 120, 0.35) 40%, rgba(170, 140, 100, 0.16) 60%, transparent 80%)',
+                    background: 'radial-gradient(circle, rgba(210, 180, 140, 0.46) 0%, rgba(190, 160, 120, 0.3) 40%, rgba(170, 140, 100, 0.14) 60%, transparent 80%)',
                     filter: 'blur(6px)',
                   }}
                   animate={{
-                    opacity: [0.45, 0.64, 0.45],
+                    opacity: [0.38, 0.54, 0.38],
                     scale: [0.95, 1.15, 0.95],
                   }}
                   transition={{
@@ -296,15 +296,15 @@ export function ProfileScreen({
                     height: '110px',
                     background: `conic-gradient(
                       from 0deg at 50% 50%,
-                      rgba(200, 170, 130, 0.51) 0deg,
-                      rgba(180, 150, 110, 0.26) 45deg,
+                      rgba(200, 170, 130, 0.43) 0deg,
+                      rgba(180, 150, 110, 0.22) 45deg,
                       transparent 90deg,
-                      rgba(190, 160, 120, 0.42) 135deg,
-                      rgba(175, 145, 105, 0.22) 180deg,
+                      rgba(190, 160, 120, 0.36) 135deg,
+                      rgba(175, 145, 105, 0.19) 180deg,
                       transparent 225deg,
-                      rgba(195, 165, 125, 0.35) 270deg,
-                      rgba(180, 150, 110, 0.22) 315deg,
-                      rgba(200, 170, 130, 0.51) 360deg
+                      rgba(195, 165, 125, 0.3) 270deg,
+                      rgba(180, 150, 110, 0.19) 315deg,
+                      rgba(200, 170, 130, 0.43) 360deg
                     )`,
                     filter: 'blur(3px)',
                   }}
@@ -327,11 +327,11 @@ export function ProfileScreen({
                     background: `conic-gradient(
                       from 90deg at 50% 50%,
                       transparent 0deg,
-                      rgba(205, 175, 135, 0.42) 60deg,
+                      rgba(205, 175, 135, 0.36) 60deg,
                       transparent 120deg,
-                      rgba(195, 165, 125, 0.35) 180deg,
+                      rgba(195, 165, 125, 0.3) 180deg,
                       transparent 240deg,
-                      rgba(185, 155, 115, 0.29) 300deg,
+                      rgba(185, 155, 115, 0.25) 300deg,
                       transparent 360deg
                     )`,
                     filter: 'blur(4px)',
@@ -352,12 +352,12 @@ export function ProfileScreen({
                   style={{
                     width: '85px',
                     height: '85px',
-                    background: 'radial-gradient(circle, rgba(220, 190, 150, 0.54) 0%, rgba(200, 170, 130, 0.35) 50%, transparent 75%)',
+                    background: 'radial-gradient(circle, rgba(220, 190, 150, 0.46) 0%, rgba(200, 170, 130, 0.3) 50%, transparent 75%)',
                     filter: 'blur(2px)',
                   }}
                   animate={{
                     scale: [0.9, 1.1, 0.9],
-                    opacity: [0.45, 0.64, 0.45],
+                    opacity: [0.38, 0.54, 0.38],
                   }}
                   transition={{
                     duration: 3.5,
@@ -393,7 +393,7 @@ export function ProfileScreen({
         </motion.div>
 
         {/* Centered Content Container */}
-        <div className="w-full max-w-md mx-auto px-6 flex flex-col" style={{ marginTop: '-0.65rem' }}>
+        <div className="w-full max-w-md mx-auto px-6 flex flex-col" style={{ marginTop: '-1.9rem' }}>
           
           {/* Section 1 — Account Overview */}
           <motion.div
