@@ -1,5 +1,7 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PostgrestError } from "@supabase/postgrest-js";
+import type {
+  SupabaseClient,
+  PostgrestError,
+} from "@supabase/supabase-js";
 
 export type UserPreferences = {
   user_id: string;
@@ -23,23 +25,24 @@ export async function getUserPreferences(
     .from("user_preferences")
     .select("*")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code === "PGRST116") {
-      const { data: inserted, error: insertError } = await supabase
-        .from("user_preferences")
-        .insert({
-          user_id: userId,
-          ...DEFAULT_PREFERENCES,
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      return { data: inserted, error: insertError };
-    }
     return { data: null, error };
+  }
+
+  if (!data) {
+    const { data: inserted, error: insertError } = await supabase
+      .from("user_preferences")
+      .insert({
+        user_id: userId,
+        ...DEFAULT_PREFERENCES,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    return { data: inserted, error: insertError };
   }
 
   return { data, error: null };
