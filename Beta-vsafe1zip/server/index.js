@@ -334,6 +334,71 @@ function getFallbackResponse() {
   return fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
 }
 
+// GPT-based emotion analysis for message tagging
+async function analyzeEmotion(text) {
+  const fallback = { emotion: "neutral", intensity: 2 };
+
+  if (!text || text.trim().length === 0) {
+    return fallback;
+  }
+
+  if (!openai) {
+    return fallback;
+  }
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are an emotion tagger for an emotional wellness app.
+Return a SINGLE JSON object with:
+- "emotion": one of ["neutral","up","heavy","anxious","flat"]
+- "intensity": an integer from 1 to 5 (1 = very light, 5 = very strong).
+Do NOT add commentary or extra text.`,
+        },
+        {
+          role: "user",
+          content: text,
+        },
+      ],
+      temperature: 0,
+      max_tokens: 50,
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "";
+    const parsed = JSON.parse(raw);
+
+    const validEmotions = ["neutral", "up", "heavy", "anxious", "flat"];
+    const emotion = parsed.emotion && validEmotions.includes(parsed.emotion)
+      ? parsed.emotion
+      : "neutral";
+
+    const intensity =
+      typeof parsed.intensity === "number" && parsed.intensity >= 1 && parsed.intensity <= 5
+        ? parsed.intensity
+        : 2;
+
+    return { emotion, intensity };
+  } catch (err) {
+    console.error("TRACE emotion analysis failed:", err);
+    return fallback;
+  }
+}
+
+// Endpoint for emotion analysis
+app.post('/api/analyze-emotion', async (req, res) => {
+  try {
+    const { text } = req.body;
+    const result = await analyzeEmotion(text);
+    res.json(result);
+  } catch (error) {
+    console.error('Emotion analysis error:', error);
+    res.json({ emotion: "neutral", intensity: 2 });
+  }
+});
+
 app.post('/api/chat', async (req, res) => {
   try {
     const { messages, userName, chatStyle = 'conversation', localTime, localDay, localDate } = req.body;

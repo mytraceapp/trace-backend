@@ -8,6 +8,7 @@ const EMOTION_KEYWORDS = {
 
 const INTENSIFIERS = ["really", "very", "so", "extremely", "super", "totally"];
 
+// Keyword-based fallback for micro-prompts (synchronous, fast)
 export function analyzeMessageEmotion(content: string): { emotion: string; intensity: number } {
   const lower = content.toLowerCase();
   
@@ -35,12 +36,39 @@ export function analyzeMessageEmotion(content: string): { emotion: string; inten
   return { emotion, intensity };
 }
 
+// GPT-based emotion analysis via server endpoint
+async function analyzeEmotionGPT(content: string): Promise<{ emotion: string; intensity: number }> {
+  const fallback = { emotion: "neutral", intensity: 2 };
+  
+  try {
+    const response = await fetch('/api/analyze-emotion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: content }),
+    });
+    
+    if (!response.ok) {
+      return fallback;
+    }
+    
+    const result = await response.json();
+    return {
+      emotion: result.emotion || "neutral",
+      intensity: result.intensity || 2,
+    };
+  } catch (err) {
+    console.error("GPT emotion analysis failed, using fallback:", err);
+    return fallback;
+  }
+}
+
 export async function saveTraceMessage(
   userId: string,
   role: "user" | "assistant",
   content: string
 ) {
-  const { emotion, intensity } = analyzeMessageEmotion(content);
+  // Use GPT-based analysis for richer emotion tagging
+  const { emotion, intensity } = await analyzeEmotionGPT(content);
   
   const dbRole = role === 'assistant' ? 'trace' : role;
   
@@ -58,7 +86,9 @@ export async function saveTraceMessage(
     .select();
 
   if (error) {
-    console.error("TRACE/saveMessage ❌", error);
+    console.error("❌ TRACE Supabase save error:", error);
+  } else {
+    console.log("✅ TRACE message saved:", { role: dbRole, emotion, intensity });
   }
 
   return { data, error };
