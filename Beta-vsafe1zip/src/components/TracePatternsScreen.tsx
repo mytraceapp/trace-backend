@@ -625,6 +625,71 @@ function WeeklyRhythmInfoModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
   );
 }
 
+// Soft whisper helper - chooses gentle journaling invitation based on emotional data
+type LastHourSummaryType = {
+  total: number;
+  calm: number;
+  flat: number;
+  heavy: number;
+  anxious: number;
+  avgIntensity: number;
+  arc: "softening" | "rising" | "steady" | null;
+};
+
+function getJournalingWhisper(
+  lastHourSummary: LastHourSummaryType | null,
+  weeklyStitches: EmotionalStitch[]
+): string | null {
+  // No data = no whisper
+  if (!lastHourSummary && weeklyStitches.length === 0) return null;
+
+  const arc = lastHourSummary?.arc ?? null;
+  const avgIntensity = lastHourSummary?.avgIntensity ?? 0;
+  const total = lastHourSummary?.total ?? 0;
+
+  const todayStitch = weeklyStitches.find(
+    (s) => s.summary_date === new Date().toISOString().slice(0, 10)
+  );
+
+  const todayIsHeavyish =
+    !!todayStitch &&
+    todayStitch.total > 0 &&
+    (todayStitch.heavy + todayStitch.anxious) / todayStitch.total >= 0.4;
+
+  const hasHeavyDayThisWeek = weeklyStitches.some(
+    (s) =>
+      s.total > 0 &&
+      (s.heavy + s.anxious) / s.total >= 0.5
+  );
+
+  let options: string[] = [];
+
+  if (todayIsHeavyish || (total >= 3 && (arc === "rising" || avgIntensity >= 3))) {
+    options = [
+      "If any of this still feels alive in you, we can gently write a few lines about it together. No pressure to fix it — just giving it language.",
+      "If your heart feels full or stretched, it might help to let a few sentences land somewhere safe. I can hold space while you write.",
+    ];
+  } else if (arc === "softening" || (todayStitch && todayStitch.arc === "softening")) {
+    options = [
+      "It seemed like things eased a little over time. If you'd like, we can capture what helped you soften, so you can return to it later.",
+      "As the day unwinds, we can write down a few small things that brought you even a little bit of relief.",
+    ];
+  } else if (hasHeavyDayThisWeek) {
+    options = [
+      "If that heavier day still echoes a bit, we can gently name what it held — just a few lines, in your own words, at your own pace.",
+    ];
+  } else {
+    // Steady/neutral week
+    options = [
+      "Steady seasons matter too. If you want, we can jot down a few quiet details about what's been sustaining you lately.",
+      "If things have felt neutral or steady, we can still trace what's been quietly supporting you underneath it all.",
+    ];
+  }
+
+  if (options.length === 0) return null;
+  return options[Math.floor(Math.random() * options.length)];
+}
+
 export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToActivities, onNavigateToProfile, onNavigateToHelp, onNavigateToJournal }: TracePatternsScreenProps) {
   const [activePattern, setActivePattern] = useState<Pattern | null>(null);
   const [showUpsell, setShowUpsell] = useState(false);
@@ -1822,6 +1887,33 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               and gathered clarity in the mornings.
             </p>
           </motion.div>
+
+          {/* Journaling Whisper - gentle invitation */}
+          {(() => {
+            const whisper = getJournalingWhisper(lastHourSummary, weeklyStitches);
+            return whisper ? (
+              <motion.div
+                className="px-2 pt-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 1.2, delay: 0.8 }}
+              >
+                <p
+                  style={{
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '13px',
+                    fontWeight: 300,
+                    fontStyle: 'italic',
+                    color: isDark ? 'rgba(242, 240, 236, 0.5)' : 'rgba(90, 74, 58, 0.55)',
+                    lineHeight: 1.6,
+                    textAlign: 'center',
+                  }}
+                >
+                  {whisper}
+                </p>
+              </motion.div>
+            ) : null;
+          })()}
 
           {/* Bottom Footer Button */}
           <motion.div
