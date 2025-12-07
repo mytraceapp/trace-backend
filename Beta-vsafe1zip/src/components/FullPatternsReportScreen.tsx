@@ -250,17 +250,39 @@ export function FullPatternsReportScreen({
     fontFamily: 'SF Pro Text, -apple-system, sans-serif',
     fontSize: '15px',
     fontWeight: 300 as const,
-    color: isDark ? 'rgba(242, 240, 236, 0.85)' : 'rgba(90, 74, 58, 0.85)',
-    lineHeight: 1.7,
+    color: isDark ? 'rgba(200, 195, 188, 0.85)' : '#4C443D',
+    lineHeight: 1.65,
   };
 
   const headingStyle = {
     fontFamily: 'Playfair Display, Georgia, serif',
     fontSize: '18px',
-    fontWeight: 500 as const,
-    color: 'var(--text-primary)',
-    marginBottom: '10px',
+    fontWeight: 400 as const,
+    color: isDark ? 'rgba(242, 240, 236, 0.9)' : '#3D3830',
+    marginBottom: '0',
     letterSpacing: '0.01em',
+  };
+
+  const sageUnderline = {
+    display: 'block',
+    width: '40px',
+    height: '1px',
+    backgroundColor: isDark ? 'rgba(141, 161, 143, 0.4)' : 'rgba(141, 161, 143, 0.6)',
+    marginTop: '8px',
+    marginBottom: '16px',
+  };
+
+  const cardStyle = {
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(250, 247, 243, 0.7)',
+    borderRadius: '20px',
+    padding: '24px 20px',
+    border: isDark ? '1px solid rgba(255, 255, 255, 0.03)' : 'none',
+    boxShadow: isDark ? 'none' : '0 2px 12px rgba(90, 74, 58, 0.04)',
+  };
+
+  const paragraphContainer = {
+    maxWidth: '85%',
+    margin: '0 auto 0 0',
   };
 
   return (
@@ -363,61 +385,88 @@ export function FullPatternsReportScreen({
           ) : (
             <>
               <motion.section
-                className="mb-8 w-full text-left"
+                className="w-full text-left"
+                style={{ ...cardStyle, marginBottom: '28px' }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
               >
                 <h3 style={headingStyle}>Today</h3>
-                <p style={textStyle}>{narratives.todayNarrative}</p>
+                <span style={sageUnderline} />
+                <div style={paragraphContainer}>
+                  <p style={textStyle}>{narratives.todayNarrative}</p>
+                </div>
               </motion.section>
 
               <motion.section
-                className="mb-8 w-full text-left"
+                className="w-full text-left"
+                style={{ ...cardStyle, marginBottom: '28px' }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.6 }}
               >
                 <h3 style={headingStyle}>This Last Hour</h3>
-                <p style={textStyle}>{narratives.lastHourNarrative}</p>
+                <span style={sageUnderline} />
+                <div style={paragraphContainer}>
+                  <p style={textStyle}>{narratives.lastHourNarrative}</p>
+                </div>
               </motion.section>
 
               <motion.section
-                className="mb-8 w-full text-left"
+                className="w-full text-left"
+                style={{ ...cardStyle, marginBottom: '28px' }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.6 }}
               >
                 <h3 style={headingStyle}>Your Week</h3>
-                <p style={textStyle}>{narratives.weeklyNarrative}</p>
+                <span style={sageUnderline} />
+                <div style={paragraphContainer}>
+                  <p style={textStyle}>{narratives.weeklyNarrative}</p>
+                </div>
               </motion.section>
 
               {narratives.stressEchoNarrative && (
                 <motion.section
-                  className="mb-8 w-full text-left"
+                  className="w-full text-left"
+                  style={{ ...cardStyle, marginBottom: '28px' }}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.7, duration: 0.6 }}
                 >
                   <h3 style={headingStyle}>A Quiet Echo</h3>
-                  <p style={textStyle}>{narratives.stressEchoNarrative}</p>
+                  <span style={sageUnderline} />
+                  <div style={paragraphContainer}>
+                    <p style={textStyle}>{narratives.stressEchoNarrative}</p>
+                  </div>
                 </motion.section>
               )}
 
               {whisper && (
                 <motion.div
-                  className="mt-6 mb-8 w-full"
+                  className="w-full"
+                  style={{
+                    marginTop: '40px',
+                    marginBottom: '32px',
+                    paddingTop: '24px',
+                    paddingLeft: '12px',
+                    paddingRight: '12px',
+                  }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 1, delay: 0.8 }}
                 >
                   <p
                     style={{
-                      ...textStyle,
-                      fontSize: '14px',
+                      fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                      fontSize: '13px',
+                      fontWeight: 300,
                       fontStyle: 'italic',
-                      color: isDark ? 'rgba(242, 240, 236, 0.5)' : 'rgba(90, 74, 58, 0.55)',
+                      color: isDark ? 'rgba(180, 175, 168, 0.5)' : 'rgba(90, 80, 70, 0.45)',
+                      lineHeight: 1.7,
                       textAlign: 'center',
+                      maxWidth: '90%',
+                      margin: '0 auto',
                     }}
                   >
                     {whisper}
@@ -426,19 +475,19 @@ export function FullPatternsReportScreen({
               )}
 
               <motion.section
-                className="mt-8 pt-8 w-full"
+                className="w-full"
                 style={{
-                  borderTop: isDark
-                    ? '1px solid rgba(255, 255, 255, 0.06)'
-                    : '1px solid rgba(90, 74, 58, 0.1)',
+                  ...cardStyle,
+                  marginTop: '16px',
                 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.9 }}
               >
-                <h3 style={{ ...headingStyle, fontSize: '16px', marginBottom: '14px' }}>
+                <h3 style={{ ...headingStyle, fontSize: '16px' }}>
                   A space for your words
                 </h3>
+                <span style={sageUnderline} />
 
                 <textarea
                   value={reflectionText}
