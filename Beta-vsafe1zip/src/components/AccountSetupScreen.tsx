@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { motion } from "motion/react";
 import { Eye, EyeOff } from "lucide-react";
 import { useUser, planLabels, UserProfile } from "../state/PlanContext";

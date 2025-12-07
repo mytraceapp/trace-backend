@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { useTheme } from '../state/ThemeContext';
@@ -16,10 +15,11 @@ export function InThisSpaceScreen({
   onBackToHelp, 
   onNavigateToActivities, 
   onNavigateToProfile, 
-  onNavigateToPatterns,
+  onNavigateToPatterns: _onNavigateToPatterns,
   onNavigateToJournal,
   onReturnToChat,
 }: InThisSpaceScreenProps) {
+  void _onNavigateToPatterns;
   const { theme } = useTheme();
   const isDark = theme === 'night';
 

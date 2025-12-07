@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'motion/react';
 import { BookOpen, AlertCircle, Shield, FileText } from 'lucide-react';
 import { BottomNav } from './BottomNav';
@@ -21,12 +20,13 @@ export function HelpScreen({
   onNavigateToActivities, 
   onNavigateToJournal,
   onNavigateToProfile,
-  onNavigateToPatterns,
+  onNavigateToPatterns: _onNavigateToPatterns,
   onNavigateToInThisSpace,
   onNavigateToCrisis,
   onNavigateToPrivacy,
   onNavigateToTerms,
 }: HelpScreenProps) {
+  void _onNavigateToPatterns;
   const { theme } = useTheme();
   const isDark = theme === 'night';
 
@@ -107,7 +107,7 @@ export function HelpScreen({
           msOverflowStyle: 'none', // IE and Edge
         }}
         // Hide scrollbar for Chrome, Safari and Opera
-        onLoad={(e) => {
+        onLoad={(_e) => {
           const style = document.createElement('style');
           style.textContent = `
             .relative.z-10.flex.flex-col.h-full.pb-24::-webkit-scrollbar {

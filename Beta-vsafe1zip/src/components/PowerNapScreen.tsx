@@ -395,7 +395,8 @@ export function PowerNapScreen({
       const blur = 3 + (i % 5) * 1.5;
       const duration = 120 + (i % 60); // Much slower rotation
       const direction = i % 2 === 0 ? [0, 360] : [360, 0];
-      const delay = (i % 20) * 0.15;
+      const _delay = (i % 20) * 0.15;
+      void _delay;
       
       swirls.push(
         <motion.svg

@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'motion/react';
 import { Phone, MessageCircle, Mail } from 'lucide-react';
 import { BottomNav } from './BottomNav';
@@ -18,9 +17,10 @@ export function CrisisScreen({
   onBackToHelp, 
   onNavigateToActivities, 
   onNavigateToProfile, 
-  onNavigateToPatterns,
+  onNavigateToPatterns: _onNavigateToPatterns,
   onNavigateToJournal 
 }: CrisisScreenProps) {
+  void _onNavigateToPatterns;
   const { theme } = useTheme();
   const isDark = theme === 'night';
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'motion/react';
 import { Wind } from 'lucide-react';
 import { BottomNav } from './BottomNav';

@@ -953,7 +953,8 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
     return { dayName, date: heaviestStitch.summary_date };
   };
   
-  const heaviestDay = getHeaviestDay();
+  const _heaviestDay = getHeaviestDay();
+  void _heaviestDay;
 
   const handlePatternClick = (pattern: Pattern) => {
     if (canAccessPattern(pattern.requiredTier)) {
@@ -966,8 +967,9 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
   const peakWindowPattern = patternsData.find(p => p.key === 'peakWindow');
   const energyTidesPattern = patternsData.find(p => p.key === 'energyTides');
   const stressEchoesPattern = patternsData.find(p => p.key === 'stressEchoes');
-  // Generate warm bronze-sage hybrid orb swirls
-  const generateHybridSwirls = () => {
+  // Generate warm bronze-sage hybrid orb swirls (reserved for future use)
+  const _generateHybridSwirls = () => {
+    void _generateHybridSwirls;
     const swirls = [];
     const centerX = 160;
     const centerY = 160;

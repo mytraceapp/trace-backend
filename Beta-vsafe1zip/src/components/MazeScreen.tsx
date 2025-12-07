@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { InteractiveMaze } from './InteractiveMaze';
@@ -22,18 +22,19 @@ export function MazeScreen({
   onNavigateHelp,
 }: MazeScreenProps) {
   const { addSessionEntry } = useEntries();
-  const [traceProgress, setTraceProgress] = React.useState(0);
-  const [isCompleted, setIsCompleted] = React.useState(false);
-  const [timeElapsed, setTimeElapsed] = React.useState(0);
-  const [mazeKey, setMazeKey] = React.useState(0);
-  const hasSavedRef = React.useRef(false);
-  const audioRef = React.useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = React.useRef<AudioContext | null>(null);
-  const gainNodeRef = React.useRef<GainNode | null>(null);
+  const [_traceProgress, setTraceProgress] = useState(0);
+  void _traceProgress;
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [timeElapsed, setTimeElapsed] = useState(0);
+  const [mazeKey, setMazeKey] = useState(0);
+  const hasSavedRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
   const TOTAL_TIME = 45; // 45 seconds
 
   // Ambient audio with smooth fade-in/fade-out
-  React.useEffect(() => {
+  useEffect(() => {
     const audio = new Audio('/audio/maze-ambient.mp3');
     audio.loop = true;
     audio.playbackRate = 0.6; // Slow down for ambient feel
@@ -114,7 +115,7 @@ export function MazeScreen({
   }, []);
 
   // Timer
-  React.useEffect(() => {
+  useEffect(() => {
     if (isCompleted) return;
     
     const timer = setInterval(() => {
@@ -131,7 +132,7 @@ export function MazeScreen({
   }, [isCompleted]);
 
   // Auto-save entry when maze is completed
-  React.useEffect(() => {
+  useEffect(() => {
     if (isCompleted && !hasSavedRef.current) {
       hasSavedRef.current = true;
       const duration = Math.round(timeElapsed);
