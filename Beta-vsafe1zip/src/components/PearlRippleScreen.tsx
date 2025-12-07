@@ -112,15 +112,15 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
 
   const countdownText = getCountdownText();
 
-  // Generate multiple ripple layers - 20% faded, 35% slower
+  // Generate ripple layers - reduced count, softer edges, slower animations
   const generateRipples = () => {
     const ripples = [];
-    const rippleCount = 12;
+    const rippleCount = 6;
 
     for (let i = 0; i < rippleCount; i++) {
-      const delay = i * 1.08;  // 35% slower
-      const duration = 10.8;   // 35% slower (was 8)
-      const opacity = 0.44 - i * 0.032;  // 20% faded
+      const delay = i * 2.2;
+      const duration = 14;
+      const opacity = 0.35 - i * 0.04;
 
       ripples.push(
         <motion.div
@@ -133,13 +133,13 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
             top: '50%',
             marginLeft: '-60px',
             marginTop: '-60px',
-            border: '3px solid rgba(168, 149, 133, 0.28)',  // 20% faded
-            boxShadow: '0 0 20px rgba(168, 149, 133, 0.20), inset 0 0 20px rgba(255, 255, 255, 0.12)',  // 20% faded
+            border: '4px solid rgba(168, 149, 133, 0.18)',
+            boxShadow: '0 0 30px rgba(168, 149, 133, 0.12), inset 0 0 20px rgba(255, 255, 255, 0.08)',
+            filter: 'blur(1px)',
           }}
           animate={{
-            scale: [1, 6],
+            scale: [1, 5],
             opacity: [opacity, 0],
-            borderWidth: ['3px', '1px'],
           }}
           transition={{
             duration,
@@ -151,11 +151,11 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
       );
     }
 
-    // Add secondary geometric ripples with different timing
-    for (let i = 0; i < 8; i++) {
-      const delay = i * 1.62 + 0.54;  // 35% slower
-      const duration = 13.5;           // 35% slower (was 10)
-      const opacity = 0.36 - i * 0.04; // 20% faded
+    // Secondary ripples - fewer, softer
+    for (let i = 0; i < 4; i++) {
+      const delay = i * 3.5 + 1;
+      const duration = 16;
+      const opacity = 0.28 - i * 0.05;
 
       ripples.push(
         <motion.div
@@ -168,13 +168,13 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
             top: '50%',
             marginLeft: '-50px',
             marginTop: '-50px',
-            border: '2px solid rgba(154, 135, 120, 0.24)',  // 20% faded
-            boxShadow: '0 0 15px rgba(154, 135, 120, 0.16)',  // 20% faded
+            border: '3px solid rgba(154, 135, 120, 0.15)',
+            boxShadow: '0 0 25px rgba(154, 135, 120, 0.10)',
+            filter: 'blur(1.5px)',
           }}
           animate={{
-            scale: [1, 7],
+            scale: [1, 6],
             opacity: [opacity, 0],
-            borderWidth: ['2px', '0.5px'],
           }}
           transition={{
             duration,
@@ -189,33 +189,33 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
     return ripples;
   };
 
-  // Generate shimmer particles
+  // Generate shimmer particles - reduced count and slowed for smoother visuals
   const generateShimmers = () => {
     const shimmers = [];
-    const shimmerCount = 12;
+    const shimmerCount = 5;
 
     for (let i = 0; i < shimmerCount; i++) {
       const angle = (i * 360) / shimmerCount;
-      const distance = 150 + (i % 3) * 40;
-      const delay = i * 0.4;
-      const duration = 8 + (i % 4) * 2;
+      const distance = 140 + (i % 2) * 50;
+      const delay = i * 2.5;
+      const duration = 18 + (i % 3) * 4;
 
       shimmers.push(
         <motion.div
           key={`shimmer-${i}`}
-          className="absolute w-3 h-3 rounded-full"
+          className="absolute w-4 h-4 rounded-full"
           style={{
             left: '50%',
             top: '50%',
-            background: 'radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.3) 50%, transparent 70%)',
-            boxShadow: '0 0 20px rgba(255, 255, 255, 0.6)',
-            filter: 'blur(2px)',
+            background: 'radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.15) 50%, transparent 70%)',
+            boxShadow: '0 0 30px rgba(255, 255, 255, 0.3)',
+            filter: 'blur(4px)',
           }}
           animate={{
             x: Math.cos((angle * Math.PI) / 180) * distance,
             y: Math.sin((angle * Math.PI) / 180) * distance,
-            scale: [0.5, 1.2, 0.5],
-            opacity: [0.3, 0.8, 0.3],
+            scale: [0.6, 1, 0.6],
+            opacity: [0.2, 0.5, 0.2],
           }}
           transition={{
             duration,
