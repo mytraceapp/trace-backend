@@ -33,6 +33,7 @@ import AuthModal from "./components/AuthModal";
 import { PasscodeLockScreen } from "./components/PasscodeLockScreen";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabaseClient";
+import { initOneSignal } from "./lib/onesignalClient";
 
 export default function App() {
   const {
@@ -110,6 +111,13 @@ export default function App() {
 
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  // Initialize OneSignal when user is authenticated
+  React.useEffect(() => {
+    if (!user) return;
+    initOneSignal(user.id);
+  }, [user?.id]);
+
   const userName = profile?.name || "there";
 
   const screensWithOwnAudio = [
