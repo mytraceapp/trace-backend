@@ -210,6 +210,7 @@ export function HomeScreen({ onNavigateToAuth, onStartAmbient }: HomeScreenProps
           fontSize: '11px',
           textShadow: '0 2px 5px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3)',
           opacity: 0.95,
+          paddingLeft: '1em',
         }}>
           TRACE
         </h1>
