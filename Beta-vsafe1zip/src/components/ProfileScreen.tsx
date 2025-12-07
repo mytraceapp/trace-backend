@@ -265,16 +265,16 @@ export function ProfileScreen({
           style={{ overflow: 'visible' }}
         >
           <div className="relative flex items-center justify-center" style={{ width: '128px', height: '128px', overflow: 'visible' }}>
-            {/* Color tone ripple flow - ONLY on auto mode - matching home orb colors */}
+            {/* Color tone ripple flow - ONLY on auto mode - goldish brown tones */}
             {theme === 'auto' && (
               <>
-                {/* Outer breathing halo - visible sage glow */}
+                {/* Outer breathing halo - warm golden glow */}
                 <motion.div
                   className="absolute rounded-full pointer-events-none"
                   style={{
                     width: '130px',
                     height: '130px',
-                    background: 'radial-gradient(circle, rgba(180, 210, 195, 0.9) 0%, rgba(160, 195, 175, 0.6) 40%, rgba(140, 175, 155, 0.3) 60%, transparent 80%)',
+                    background: 'radial-gradient(circle, rgba(210, 180, 140, 0.85) 0%, rgba(190, 160, 120, 0.55) 40%, rgba(170, 140, 100, 0.25) 60%, transparent 80%)',
                     filter: 'blur(6px)',
                   }}
                   animate={{
@@ -288,7 +288,7 @@ export function ProfileScreen({
                   }}
                 />
                 
-                {/* Rotating swirl layer 1 - visible sage */}
+                {/* Rotating swirl layer 1 - golden brown */}
                 <motion.div
                   className="absolute rounded-full pointer-events-none"
                   style={{
@@ -296,15 +296,15 @@ export function ProfileScreen({
                     height: '110px',
                     background: `conic-gradient(
                       from 0deg at 50% 50%,
-                      rgba(168, 200, 180, 0.85) 0deg,
-                      rgba(140, 180, 160, 0.4) 45deg,
+                      rgba(200, 170, 130, 0.8) 0deg,
+                      rgba(180, 150, 110, 0.4) 45deg,
                       transparent 90deg,
-                      rgba(150, 190, 170, 0.7) 135deg,
-                      rgba(140, 180, 160, 0.4) 180deg,
+                      rgba(190, 160, 120, 0.65) 135deg,
+                      rgba(175, 145, 105, 0.35) 180deg,
                       transparent 225deg,
-                      rgba(160, 195, 175, 0.6) 270deg,
-                      rgba(140, 180, 160, 0.4) 315deg,
-                      rgba(168, 200, 180, 0.85) 360deg
+                      rgba(195, 165, 125, 0.55) 270deg,
+                      rgba(180, 150, 110, 0.35) 315deg,
+                      rgba(200, 170, 130, 0.8) 360deg
                     )`,
                     filter: 'blur(3px)',
                   }}
@@ -318,7 +318,7 @@ export function ProfileScreen({
                   }}
                 />
                 
-                {/* Rotating swirl layer 2 - counter-rotating */}
+                {/* Rotating swirl layer 2 - counter-rotating warm tones */}
                 <motion.div
                   className="absolute rounded-full pointer-events-none"
                   style={{
@@ -327,11 +327,11 @@ export function ProfileScreen({
                     background: `conic-gradient(
                       from 90deg at 50% 50%,
                       transparent 0deg,
-                      rgba(175, 205, 185, 0.7) 60deg,
+                      rgba(205, 175, 135, 0.65) 60deg,
                       transparent 120deg,
-                      rgba(165, 195, 175, 0.6) 180deg,
+                      rgba(195, 165, 125, 0.55) 180deg,
                       transparent 240deg,
-                      rgba(155, 185, 165, 0.5) 300deg,
+                      rgba(185, 155, 115, 0.45) 300deg,
                       transparent 360deg
                     )`,
                     filter: 'blur(4px)',
@@ -346,13 +346,13 @@ export function ProfileScreen({
                   }}
                 />
                 
-                {/* Pulsing inner glow */}
+                {/* Pulsing inner glow - warm golden center */}
                 <motion.div
                   className="absolute rounded-full pointer-events-none"
                   style={{
                     width: '85px',
                     height: '85px',
-                    background: 'radial-gradient(circle, rgba(200, 225, 210, 0.9) 0%, rgba(180, 210, 195, 0.6) 50%, transparent 75%)',
+                    background: 'radial-gradient(circle, rgba(220, 190, 150, 0.85) 0%, rgba(200, 170, 130, 0.55) 50%, transparent 75%)',
                     filter: 'blur(2px)',
                   }}
                   animate={{
