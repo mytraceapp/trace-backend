@@ -1957,7 +1957,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
           >
             <button
               onClick={onViewFull}
-              className="w-full rounded-[17px] px-8 py-5 transition-all duration-300 active:scale-[0.98]"
+              className="w-full rounded-[24px] px-8 py-5 transition-all duration-300 active:scale-[0.98]"
               style={{
                 backgroundColor: isDark ? 'rgba(30, 32, 28, 0.76)' : 'rgba(225, 212, 195, 0.78)',
                 border: isDark ? '1px solid rgba(141, 161, 143, 0.25)' : '1px solid rgba(141, 161, 143, 0.35)',
