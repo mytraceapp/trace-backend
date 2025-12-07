@@ -1,8 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
+
+// Force-stop any active audio contexts to prevent static bleed-through
+function suspendAllAudioContexts() {
+  // Access any global audio contexts and suspend them
+  if (typeof window !== 'undefined' && (window as any).audioContexts) {
+    (window as any).audioContexts.forEach((ctx: AudioContext) => {
+      if (ctx.state === 'running') {
+        ctx.suspend().catch(() => {});
+      }
+    });
+  }
+}
 
 interface PearlRippleScreenProps {
   onBack?: () => void;
@@ -14,7 +26,7 @@ interface PearlRippleScreenProps {
   onNavigateToPatterns?: () => void;
 }
 
-export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActivities, onNavigateToJournal, onNavigateToProfile, onNavigateToHelp, onNavigateToPatterns }: PearlRippleScreenProps) {
+export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActivities, onNavigateToJournal, onNavigateToProfile, onNavigateToHelp, onNavigateToPatterns: _onNavigateToPatterns }: PearlRippleScreenProps) {
   const { addSessionEntry } = useEntries();
   const [timeRemaining, setTimeRemaining] = useState(60);
   const hasSavedRef = useRef(false);
@@ -23,6 +35,10 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
   const [sessionActive, setSessionActive] = useState(true);
 
   // Pearl Ripple is a silent visual meditation - no audio to avoid static issues
+  // Force-suspend any lingering audio contexts on mount
+  useEffect(() => {
+    suspendAllAudioContexts();
+  }, []);
 
   // Countdown sequence
   useEffect(() => {
