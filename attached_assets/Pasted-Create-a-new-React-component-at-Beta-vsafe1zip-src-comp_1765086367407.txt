@@ -1,0 +1,57 @@
+Create a new React component at:
+Beta-vsafe1zip/src/components/PatternsFullReport.tsx
+
+This component should:
+
+1. Accept the current userId as a prop or fetch it internally using the same logic used in ChatScreen and PatternsScreen.
+
+2. On mount:
+   - silently call saveLastHourStitch(userId)
+   - fetch:
+     - getLastHourSummary(userId)
+     - last 7 emotional_stitches rows for that user, sorted by summary_date descending
+
+3. Using this emotional data, generate gentle narrative strings that:
+   - do NOT show metrics, counts, or percentages
+   - summarize:
+     - today’s emotional tone
+     - last hour reflection
+     - weekly rhythm
+     - stress echo if applicable
+   - choosing between grounded, supportive paragraphs using simple conditions:
+     - arc === "softening" → softening language
+     - arc === "rising" OR avgIntensity >= 3 → activated language
+     - steady → steadiness language
+     - heavyish day this week → stress echo language
+
+4. Render the narrative in a column, with:
+   - <h2> or card titles for each section
+   - <p> for each emotional paragraph
+   - muted, soft text styling (no analytics look)
+   - small top/bottom margins
+
+5. At the bottom, render exactly one journaling whisper chosen using the same conditions as before, as a muted italic text block.
+
+6. Do NOT add charts, buttons, interactive UI, or bright visual components.
+   Keep this page entirely narrative and reflective, like a gentle emotional report.
+
+7. At the end, show an optional journaling input section:
+   - A small text area
+   - A “Save Reflection” button
+   - When submitted, save reflection as a new assistant journaling message using saveTraceMessage(...)
+   - emotion: "calm"
+   - intensity: 1
+   - Zero pushing — the journaling input should feel like soft availability, not a call to action.
+
+8. After building this component, add a simple navigation button in PatternsScreen:
+   - “View Full Report”
+   - Clicking it routes to PatternsFullReport
+   - No additional complexity.
+
+Make sure tone stays:
+- grounded
+- validating
+- non-diagnostic
+- gentle
+- gender-neutral
+- narrative, not analytic.

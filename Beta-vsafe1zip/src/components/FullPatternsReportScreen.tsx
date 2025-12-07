@@ -1,8 +1,15 @@
-import React from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { BottomNav } from './BottomNav';
-import { patternsData, PatternCategory } from '../data/patterns';
 import { useTheme } from '../state/ThemeContext';
+import { 
+  getCurrentUserId, 
+  saveLastHourStitch, 
+  getLastHourSummary, 
+  saveTraceMessage,
+  EmotionalStitch 
+} from '../lib/messageService';
+import { supabase } from '../lib/supabaseClient';
 
 interface FullPatternsReportScreenProps {
   onBack: () => void;
@@ -12,7 +19,66 @@ interface FullPatternsReportScreenProps {
   onNavigateHelp?: () => void;
   onNavigateActivities?: () => void;
   onNavigatePatterns?: () => void;
-  highlightPattern?: PatternCategory;
+}
+
+type HourSummary = {
+  total: number;
+  calm: number;
+  flat: number;
+  heavy: number;
+  anxious: number;
+  avgIntensity: number;
+  arc: "softening" | "rising" | "steady" | null;
+};
+
+function getJournalingWhisper(
+  lastHourSummary: HourSummary | null,
+  weeklyStitches: EmotionalStitch[]
+): string | null {
+  if (!lastHourSummary && weeklyStitches.length === 0) return null;
+
+  const arc = lastHourSummary?.arc ?? null;
+  const avgIntensity = lastHourSummary?.avgIntensity ?? 0;
+  const total = lastHourSummary?.total ?? 0;
+
+  const todayStitch = weeklyStitches.find(
+    (s) => s.summary_date === new Date().toISOString().slice(0, 10)
+  );
+
+  const todayIsHeavyish =
+    !!todayStitch &&
+    todayStitch.total > 0 &&
+    (todayStitch.heavy + todayStitch.anxious) / todayStitch.total >= 0.4;
+
+  const hasHeavyDayThisWeek = weeklyStitches.some(
+    (s) => s.total > 0 && (s.heavy + s.anxious) / s.total >= 0.5
+  );
+
+  let options: string[] = [];
+
+  if (todayIsHeavyish || (total >= 3 && (arc === "rising" || avgIntensity >= 3))) {
+    options = [
+      "If any of this still feels alive in you, we can gently write a few lines about it together. No pressure to fix it — just giving it language.",
+      "If your heart feels full or stretched, it might help to let a few sentences land somewhere safe. I can hold space while you write.",
+    ];
+  } else if (arc === "softening" || (todayStitch && todayStitch.arc === "softening")) {
+    options = [
+      "It seemed like things eased a little over time. If you'd like, we can capture what helped you soften, so you can return to it later.",
+      "As the day unwinds, we can write down a few small things that brought you even a little bit of relief.",
+    ];
+  } else if (hasHeavyDayThisWeek) {
+    options = [
+      "If that heavier day still echoes a bit, we can gently name what it held — just a few lines, in your own words, at your own pace.",
+    ];
+  } else {
+    options = [
+      "Steady seasons matter too. If you want, we can jot down a few quiet details about what's been sustaining you lately.",
+      "If things have felt neutral or steady, we can still trace what's been quietly supporting you underneath it all.",
+    ];
+  }
+
+  if (options.length === 0) return null;
+  return options[Math.floor(Math.random() * options.length)];
 }
 
 export function FullPatternsReportScreen({
@@ -22,42 +88,178 @@ export function FullPatternsReportScreen({
   onNavigateProfile,
   onNavigateHelp,
   onNavigateActivities,
-  highlightPattern,
 }: FullPatternsReportScreenProps) {
-  // Weekly data for the rhythm map
-  const weekData = [
-    { day: 'Mon', value: 45, label: 'Quieter start' },
-    { day: 'Tue', value: 55, label: 'Building momentum' },
-    { day: 'Wed', value: 38, label: 'Midweek friction' },
-    { day: 'Thu', value: 48, label: 'Gentle recovery' },
-    { day: 'Fri', value: 68, label: 'Clear afternoon' },
-    { day: 'Sat', value: 75, label: 'Weekend resetting' },
-    { day: 'Sun', value: 62, label: 'Evening tension' },
-  ];
-
-  const behaviorSignatures = [
-    'Evening Overthinking',
-    'Midweek Burnout',
-    'Morning Sharpness',
-    'Solitude Recovery',
-    'Late-Night Clarity',
-    'Weekend Resetting',
-    'Emotional Lag Days',
-    'Stress Echo Triggers',
-  ];
-
-  const suggestions = [
-    'Protect your mornings—they\'re your window of clarity.',
-    'Midweek breaks prevent burnout.',
-    'Evenings carry mental noise; keep them light.',
-  ];
-
   const { theme } = useTheme();
   const isDark = theme === 'night';
 
+  const [userId, setUserId] = useState<string | null>(null);
+  const [lastHourSummary, setLastHourSummary] = useState<HourSummary | null>(null);
+  const [weeklyStitches, setWeeklyStitches] = useState<EmotionalStitch[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [reflectionText, setReflectionText] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedMessage, setSavedMessage] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadData() {
+      setIsLoading(true);
+      const uid = await getCurrentUserId();
+      if (!uid || cancelled) {
+        setIsLoading(false);
+        return;
+      }
+      setUserId(uid);
+
+      await saveLastHourStitch(uid);
+
+      const summary = await getLastHourSummary(uid);
+      if (!cancelled && summary) {
+        setLastHourSummary(summary as HourSummary);
+      }
+
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const startDate = sevenDaysAgo.toISOString().slice(0, 10);
+
+      const { data: stitches } = await supabase
+        .from('emotional_stitches')
+        .select('*')
+        .eq('user_id', uid)
+        .gte('summary_date', startDate)
+        .order('summary_date', { ascending: false })
+        .limit(7);
+
+      if (!cancelled && stitches) {
+        setWeeklyStitches(stitches as EmotionalStitch[]);
+      }
+
+      setIsLoading(false);
+    }
+
+    loadData();
+    return () => { cancelled = true; };
+  }, []);
+
+  const narratives = useMemo(() => {
+    const arc = lastHourSummary?.arc ?? null;
+    const avgIntensity = lastHourSummary?.avgIntensity ?? 0;
+    const total = lastHourSummary?.total ?? 0;
+
+    const todayStitch = weeklyStitches.find(
+      (s) => s.summary_date === new Date().toISOString().slice(0, 10)
+    );
+
+    const todayIsHeavyish =
+      !!todayStitch &&
+      todayStitch.total > 0 &&
+      (todayStitch.heavy + todayStitch.anxious) / todayStitch.total >= 0.4;
+
+    const hasHeavyDayThisWeek = weeklyStitches.some(
+      (s) => s.total > 0 && (s.heavy + s.anxious) / s.total >= 0.5
+    );
+
+    const heaviestDay = weeklyStitches.reduce<{ dayName: string; ratio: number } | null>((acc, s) => {
+      if (s.total === 0) return acc;
+      const ratio = (s.heavy + s.anxious) / s.total;
+      if (!acc || ratio > acc.ratio) {
+        const d = new Date(s.summary_date + 'T12:00:00');
+        return { dayName: d.toLocaleDateString('en-US', { weekday: 'long' }), ratio };
+      }
+      return acc;
+    }, null);
+
+    let todayNarrative = "";
+    if (todayIsHeavyish) {
+      todayNarrative = "Today seemed to carry a bit more weight than usual. That's okay — some days ask more of us, and it's alright to notice that without needing to fix anything.";
+    } else if (todayStitch && todayStitch.arc === "softening") {
+      todayNarrative = "It felt like today eased a little as it went on. Something in you may have found its way to soften, even if just slightly.";
+    } else if (todayStitch) {
+      todayNarrative = "Today appeared to move at its own pace — neither too heavy nor too light. Just present.";
+    } else {
+      todayNarrative = "TRACE is still gathering today's moments. As you move through the day, the shape of it will gently come into focus.";
+    }
+
+    let lastHourNarrative = "";
+    if (total === 0) {
+      lastHourNarrative = "This hour has been quiet so far. Sometimes the spaces between words are just as meaningful.";
+    } else if (arc === "softening") {
+      lastHourNarrative = "This last hour seemed to soften toward the end. Something in the rhythm of your words appeared to ease.";
+    } else if (arc === "rising" || avgIntensity >= 3) {
+      lastHourNarrative = "This last hour felt a bit more activated. Whatever was moving through you, it's okay that it showed up here.";
+    } else {
+      lastHourNarrative = "This last hour felt fairly steady. You moved through it at your own pace, and that's enough.";
+    }
+
+    let weeklyNarrative = "";
+    if (weeklyStitches.length < 3) {
+      weeklyNarrative = "TRACE is still learning your weekly rhythm. A few more days and the shape of your week will start to appear.";
+    } else {
+      const sorted = [...weeklyStitches].sort((a, b) => a.summary_date.localeCompare(b.summary_date));
+      const firstTwo = sorted.slice(0, 2);
+      const lastTwo = sorted.slice(-2);
+      const avgI = (arr: EmotionalStitch[]) => arr.reduce((s, x) => s + (x.avg_intensity ?? 2), 0) / arr.length;
+      const startAvg = avgI(firstTwo);
+      const endAvg = avgI(lastTwo);
+
+      if (endAvg <= startAvg - 0.5) {
+        weeklyNarrative = "It seemed like your week gently softened as it went on. Something in you may have found its way to ease, even if it felt subtle.";
+      } else if (endAvg >= startAvg + 0.5) {
+        weeklyNarrative = "This week felt a bit more activated toward the end. That's neither good nor bad — just the shape of things right now.";
+      } else {
+        weeklyNarrative = "Your week appeared fairly steady. The rhythm stayed mostly consistent, without sharp rises or dips.";
+      }
+    }
+
+    let stressEchoNarrative = "";
+    if (hasHeavyDayThisWeek && heaviestDay) {
+      stressEchoNarrative = `${heaviestDay.dayName} seemed to feel a bit heavier than other days this week. If any part of that still resonates, it's okay to let it rest here — you don't have to unpack anything unless you want to.`;
+    }
+
+    return { todayNarrative, lastHourNarrative, weeklyNarrative, stressEchoNarrative };
+  }, [lastHourSummary, weeklyStitches]);
+
+  const whisper = useMemo(() => {
+    return getJournalingWhisper(lastHourSummary, weeklyStitches);
+  }, [lastHourSummary, weeklyStitches]);
+
+  const handleSaveReflection = async () => {
+    if (!userId || !reflectionText.trim()) return;
+
+    setIsSaving(true);
+    try {
+      await saveTraceMessage(userId, 'user', reflectionText.trim());
+      setSavedMessage("Your reflection has been gently saved.");
+      setReflectionText('');
+      setTimeout(() => setSavedMessage(''), 3000);
+    } catch (err) {
+      console.error("TRACE/FullReport save error:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const textStyle = {
+    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+    fontSize: '15px',
+    fontWeight: 300 as const,
+    color: isDark ? 'rgba(242, 240, 236, 0.85)' : 'rgba(90, 74, 58, 0.85)',
+    lineHeight: 1.7,
+  };
+
+  const headingStyle = {
+    fontFamily: 'Playfair Display, Georgia, serif',
+    fontSize: '18px',
+    fontWeight: 500 as const,
+    color: 'var(--text-primary)',
+    marginBottom: '10px',
+    letterSpacing: '0.01em',
+  };
+
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: 'transparent' }}>
-      {/* Math notebook grid overlay - day mode */}
       {!isDark && (
         <div 
           className="fixed inset-0 pointer-events-none opacity-[0.25]"
@@ -69,7 +271,6 @@ export function FullPatternsReportScreen({
         />
       )}
       
-      {/* Math notebook grid overlay - night mode with darker green - behind content */}
       {isDark && (
         <div 
           className="fixed inset-0 pointer-events-none opacity-[0.10]"
@@ -82,7 +283,6 @@ export function FullPatternsReportScreen({
         />
       )}
 
-      {/* TRACE Brand Name - absolute position like patterns page */}
       <motion.div
         className="absolute w-full text-center z-20"
         style={{ top: '7%' }}
@@ -105,7 +305,6 @@ export function FullPatternsReportScreen({
         </h1>
       </motion.div>
 
-      {/* Scrollable Content Wrapper - Centered */}
       <div className="relative z-10 flex flex-col h-full overflow-y-auto overflow-x-hidden pb-32" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <style>
           {`
@@ -117,550 +316,225 @@ export function FullPatternsReportScreen({
 
         <div className="flex-shrink-0" style={{ height: '7%' }} />
 
-        {/* Centered Content Container */}
         <div className="w-full max-w-md mx-auto px-6 flex flex-col items-center">
-          {/* Main Title Section */}
           <motion.div
             className="text-center mb-8 w-full"
             style={{ marginTop: '32px' }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 1 }}
+            transition={{ delay: 0.3, duration: 0.8, ease: [0.22, 0.61, 0.36, 1] }}
           >
+            <button
+              onClick={onBack}
+              className="mb-6 flex items-center gap-2 transition-opacity hover:opacity-70"
+              style={{
+                fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                fontSize: '14px',
+                fontWeight: 400,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M10 12L6 8L10 4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Back to Patterns
+            </button>
+
             <h2
               style={{
                 fontFamily: 'Playfair Display, Georgia, serif',
-                fontSize: '32px',
+                fontSize: '24px',
                 fontWeight: 500,
-                letterSpacing: '0.04em',
                 color: 'var(--text-primary)',
                 marginBottom: '8px',
-                opacity: isDark ? 0.92 : 1,
+                letterSpacing: '0.01em',
               }}
             >
-              PATTERNS™
+              Your Emotional Reflection
             </h2>
             <p
               style={{
-                fontFamily: 'Georgia, serif',
-                color: 'var(--text-secondary)',
-                fontWeight: 300,
-                fontSize: '16px',
-                letterSpacing: '0.03em',
-                opacity: isDark ? 0.72 : 0.8,
-                marginBottom: '6px',
-              }}
-            >
-              Full Report
-            </p>
-            <p
-              style={{
-                fontFamily: 'Georgia, serif',
-                color: 'var(--text-secondary)',
-                fontWeight: 300,
+                ...textStyle,
                 fontSize: '14px',
-                letterSpacing: '0.03em',
-                opacity: isDark ? 0.62 : 0.7,
+                fontStyle: 'italic',
+                opacity: 0.7,
               }}
             >
-              Your week, understood in detail.
+              A gentle look at what's been moving through you.
             </p>
           </motion.div>
 
-          {/* Section 1 — Expanded Weekly Orb Insight */}
-          <motion.div
-            className="mb-10 w-full"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 1 }}
-          >
-            <div className="flex flex-col items-center">
-              {/* Large glowing orb */}
-              <motion.div
-                className="relative w-[77px] h-[77px] mb-6"
-                animate={{
-                  scale: [1, 1.05, 1],
-                  rotate: [0, 5, 0],
-                }}
-                transition={{
-                  duration: 10,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
+          {isLoading ? (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{ ...textStyle, fontStyle: 'italic', textAlign: 'center' }}
+            >
+              Gathering your moments...
+            </motion.p>
+          ) : (
+            <>
+              <motion.section
+                className="mb-8 w-full text-left"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.6 }}
               >
-                {/* Breathing glow behind orb - Night Mode only */}
-                {isDark && (
-                  <motion.div
-                    className="absolute rounded-full pointer-events-none"
-                    style={{
-                      width: '120px',
-                      height: '120px',
-                      background: `radial-gradient(circle, rgba(180, 191, 170, 0.45) 0%, rgba(160, 175, 155, 0.2) 40%, transparent 70%)`,
-                      top: '-30%',
-                      left: '-25%',
-                      transform: 'translate(-50%, -50%)',
-                      filter: 'blur(18px)',
-                    }}
-                    animate={{
-                      opacity: [0.5, 0.93, 0.5],
-                      scale: [0.9, 1.15, 0.9],
-                    }}
-                    transition={{
-                      duration: 4,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                  />
-                )}
-                
-                {/* Outer glow */}
+                <h3 style={headingStyle}>Today</h3>
+                <p style={textStyle}>{narratives.todayNarrative}</p>
+              </motion.section>
+
+              <motion.section
+                className="mb-8 w-full text-left"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.6 }}
+              >
+                <h3 style={headingStyle}>This Last Hour</h3>
+                <p style={textStyle}>{narratives.lastHourNarrative}</p>
+              </motion.section>
+
+              <motion.section
+                className="mb-8 w-full text-left"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.6 }}
+              >
+                <h3 style={headingStyle}>Your Week</h3>
+                <p style={textStyle}>{narratives.weeklyNarrative}</p>
+              </motion.section>
+
+              {narratives.stressEchoNarrative && (
+                <motion.section
+                  className="mb-8 w-full text-left"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7, duration: 0.6 }}
+                >
+                  <h3 style={headingStyle}>A Quiet Echo</h3>
+                  <p style={textStyle}>{narratives.stressEchoNarrative}</p>
+                </motion.section>
+              )}
+
+              {whisper && (
                 <motion.div
-                  className="absolute inset-[-14px] rounded-full"
-                  style={{
-                    background: isDark 
-                      ? 'radial-gradient(circle, rgba(168, 179, 154, 0.15) 0%, rgba(168, 179, 154, 0.03) 40%, transparent 70%)'
-                      : 'radial-gradient(circle, rgba(141, 161, 143, 0.13) 0%, rgba(141, 161, 143, 0.02) 40%, transparent 70%)',
-                    filter: 'blur(12px)',
-                  }}
-                  animate={{
-                    scale: [0.9, 1.2, 0.9],
-                    opacity: [0.13, 0.43, 0.13],
-                  }}
-                  transition={{
-                    duration: 6,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-                
-                {/* Main orb */}
-                <div
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    background: isDark 
-                      ? 'radial-gradient(circle at 40% 30%, rgba(180, 175, 165, 0.6) 0%, rgba(168, 179, 154, 0.35) 50%, rgba(80, 85, 75, 0.25) 100%)'
-                      : 'radial-gradient(circle at 40% 30%, rgba(215, 205, 191, 0.73) 0%, rgba(141, 161, 143, 0.43) 50%, rgba(106, 88, 75, 0.23) 100%)',
-                    boxShadow: isDark ? '0 8px 32px rgba(0, 0, 0, 0.2)' : '0 8px 32px rgba(106, 88, 75, 0.15)',
-                  }}
-                />
-
-                {/* Inner highlight */}
-                <div
-                  className="absolute top-[20%] left-[30%] w-[29px] h-[29px] rounded-full"
-                  style={{
-                    background: isDark 
-                      ? 'radial-gradient(circle, rgba(200, 195, 180, 0.4) 0%, transparent 70%)'
-                      : 'radial-gradient(circle, rgba(237, 232, 219, 0.63) 0%, transparent 70%)',
-                    filter: 'blur(8px)',
-                  }}
-                />
-              </motion.div>
-
-              {/* Overall Tone */}
-              <p
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  color: 'var(--text-primary)',
-                  fontWeight: 300,
-                  fontSize: '15px',
-                  letterSpacing: '0.02em',
-                  textAlign: 'center',
-                }}
-              >
-                <span style={{ opacity: 0.6 }}>Overall Tone: </span>
-                <span style={{ fontStyle: 'italic' }}>"Steady, reflective, and subtly rising."</span>
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Section 2 — Detailed Rhythm Map */}
-          <motion.div
-            className="mb-10 w-full"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8, duration: 1 }}
-          >
-            <div
-              className="rounded-3xl p-6"
-              style={{
-                background: isDark ? '#1e2320' : 'rgba(237, 232, 219, 0.5)',
-                boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.25)' : '0 4px 20px rgba(106, 88, 75, 0.08)',
-              }}
-            >
-              <h3
-                className="mb-4"
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  color: 'var(--text-primary)',
-                  fontWeight: 400,
-                  fontSize: '16px',
-                  letterSpacing: '0.03em',
-                }}
-              >
-                Weekly Rhythm Map
-              </h3>
-
-              {/* Graph */}
-              <div className="relative h-[180px] mb-3">
-                {/* Line graph */}
-                <svg className="absolute inset-0 w-full h-full overflow-visible" style={{ padding: '10px 5px' }}>
-                  {/* Path connecting the dots (tail) */}
-                  <motion.polyline
-                    points={weekData.map((d, i) => {
-                      const totalWidth = 100;
-                      const x = 5 + (i / (weekData.length - 1)) * (totalWidth - 10);
-                      const y = 10 + (100 - d.value) * 0.7;
-                      return `${x}%,${y}%`;
-                    }).join(' ')}
-                    fill="none"
-                    stroke={isDark ? 'rgba(200, 210, 190, 0.6)' : '#8DA18F'}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                  />
-
-                  {/* Dots at each point - misty diffused glow for night, solid for day */}
-                  {weekData.map((d, i) => {
-                    const totalWidth = 100;
-                    const x = 5 + (i / (weekData.length - 1)) * (totalWidth - 10);
-                    const y = 10 + (100 - d.value) * 0.7;
-                    return (
-                      <g key={i}>
-                        {/* Soft diffused halo for night mode - mist effect */}
-                        {isDark && (
-                          <motion.circle
-                            cx={`${x}%`}
-                            cy={`${y}%`}
-                            r="12"
-                            fill="rgba(200, 210, 195, 0.12)"
-                            filter="url(#mistBlur)"
-                            initial={{ scale: 0, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
-                          />
-                        )}
-                        <motion.circle
-                          cx={`${x}%`}
-                          cy={`${y}%`}
-                          r="4"
-                          fill={isDark ? 'rgba(195, 200, 190, 0.65)' : '#8DA18F'}
-                          stroke="none"
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ delay: 0.3 + i * 0.1, duration: 0.3 }}
-                        />
-                      </g>
-                    );
-                  })}
-                  {/* Mist blur filter for night mode dots */}
-                  <defs>
-                    <filter id="mistBlur" x="-50%" y="-50%" width="200%" height="200%">
-                      <feGaussianBlur in="SourceGraphic" stdDeviation="4" />
-                    </filter>
-                  </defs>
-                </svg>
-
-                {/* Day labels - soft whisper for emotional weather feel */}
-                <div className="absolute bottom-0 w-full flex justify-between">
-                  {weekData.map((d, i) => (
-                    <p
-                      key={i}
-                      style={{
-                        fontFamily: 'Georgia, serif',
-                        color: isDark ? 'var(--text-secondary)' : 'var(--text-secondary)',
-                        fontSize: '11px',
-                        opacity: isDark ? 0.55 : 0.7,
-                        letterSpacing: '0.08em',
-                      }}
-                    >
-                      {d.day}
-                    </p>
-                  ))}
-                </div>
-              </div>
-
-              <p
-                className="text-center"
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  color: 'var(--text-secondary)',
-                  fontWeight: 300,
-                  fontSize: '12px',
-                  letterSpacing: '0.02em',
-                  opacity: isDark ? 0.7 : 0.8,
-                }}
-              >
-                Your emotional flow across the week.
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Section 3 — Daily Breakdown Timeline */}
-          <motion.div
-            className="mb-10 w-full"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1, duration: 1 }}
-          >
-            <div
-              className="rounded-3xl p-6"
-              style={{
-                background: isDark ? '#1e2320' : 'rgba(237, 232, 219, 0.5)',
-                boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.25)' : '0 4px 20px rgba(106, 88, 75, 0.08)',
-              }}
-            >
-              <h3
-                className="mb-6"
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  color: 'var(--text-primary)',
-                  fontWeight: 400,
-                  fontSize: '16px',
-                  letterSpacing: '0.03em',
-                }}
-              >
-                Daily Breakdown
-              </h3>
-
-              {/* Vertical timeline */}
-              <div className="space-y-5">
-                {weekData.map((day, i) => (
-                  <motion.div
-                    key={i}
-                    className="flex items-center gap-4"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 1.2 + i * 0.1, duration: 0.5 }}
-                  >
-                    {/* Mini orb */}
-                    <div
-                      className="flex-shrink-0 w-10 h-10 rounded-full"
-                      style={{
-                        background: isDark 
-                          ? `radial-gradient(circle, rgba(168, 179, 154, ${day.value / 100}) 0%, rgba(168, 179, 154, ${day.value / 150}) 70%, transparent 100%)`
-                          : `radial-gradient(circle, rgba(141, 161, 143, ${day.value / 100}) 0%, rgba(141, 161, 143, ${day.value / 150}) 70%, transparent 100%)`,
-                        boxShadow: isDark ? '0 2px 8px rgba(168, 179, 154, 0.2)' : '0 2px 8px rgba(141, 161, 143, 0.2)',
-                      }}
-                    />
-
-                    {/* Day info */}
-                    <div className="flex-1">
-                      <p
-                        style={{
-                          fontFamily: 'Georgia, serif',
-                          color: 'var(--text-primary)',
-                          fontWeight: 500,
-                          fontSize: '13px',
-                          marginBottom: '2px',
-                        }}
-                      >
-                        {day.day}
-                      </p>
-                      <p
-                        style={{
-                          fontFamily: 'Georgia, serif',
-                          color: 'var(--text-secondary)',
-                          fontWeight: 300,
-                          fontSize: '12px',
-                          opacity: 0.8,
-                          fontStyle: 'italic',
-                        }}
-                      >
-                        {day.label}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Section 4 — Behavior Signatures */}
-          <motion.div
-            className="mb-10 w-full"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.2, duration: 1 }}
-          >
-            <h3
-              className="mb-4"
-              style={{
-                fontFamily: 'Georgia, serif',
-                color: 'var(--text-primary)',
-                fontWeight: 400,
-                fontSize: '16px',
-                letterSpacing: '0.03em',
-              }}
-            >
-              Behavior Signatures
-            </h3>
-
-            <div className="grid grid-cols-2 gap-3">
-              {behaviorSignatures.map((signature, i) => (
-                <motion.button
-                  key={i}
-                  className="rounded-2xl p-4 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                  style={{
-                    background: isDark ? '#232825' : '#D7CDBF',
-                    boxShadow: isDark ? '0 2px 12px rgba(0, 0, 0, 0.15)' : '0 2px 12px rgba(106, 88, 75, 0.1)',
-                  }}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 1.4 + i * 0.05, duration: 0.4 }}
+                  className="mt-6 mb-8 w-full"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 1, delay: 0.8 }}
                 >
                   <p
                     style={{
-                      fontFamily: 'Georgia, serif',
-                      color: 'var(--text-primary)',
-                      fontWeight: 400,
-                      fontSize: '13px',
-                      letterSpacing: '0.01em',
+                      ...textStyle,
+                      fontSize: '14px',
+                      fontStyle: 'italic',
+                      color: isDark ? 'rgba(242, 240, 236, 0.5)' : 'rgba(90, 74, 58, 0.55)',
+                      textAlign: 'center',
                     }}
                   >
-                    {signature}
-                  </p>
-                </motion.button>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Section 5 — Signature Insight Box */}
-          <motion.div
-            className="mb-10 w-full"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.6, duration: 1 }}
-          >
-            <div
-              className="rounded-3xl p-6"
-              style={{
-                background: isDark ? '#1e2320' : 'rgba(237, 232, 219, 0.7)',
-                boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.15)' : '0 4px 20px rgba(106, 88, 75, 0.1)',
-              }}
-            >
-              <p
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  color: 'var(--text-primary)',
-                  fontWeight: 300,
-                  fontSize: '14px',
-                  lineHeight: '1.8',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                Your rhythm shows a quiet rise in clarity, midweek emotional friction, and a weekend re-centering pattern.
-                <br /><br />
-                TRACE uses these signatures to help you understand when your mind is most open, and when it needs gentleness.
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Section 6 — Gentle Suggestions */}
-          <motion.div
-            className="mb-10 w-full"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.8, duration: 1 }}
-          >
-            <h3
-              className="mb-4"
-              style={{
-                fontFamily: 'Georgia, serif',
-                color: 'var(--text-primary)',
-                fontWeight: 400,
-                fontSize: '16px',
-                letterSpacing: '0.03em',
-              }}
-            >
-              Gentle Suggestions
-            </h3>
-
-            <div className="space-y-3">
-              {suggestions.map((suggestion, i) => (
-                <motion.div
-                  key={i}
-                  className="flex items-start gap-3"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 2 + i * 0.1, duration: 0.5 }}
-                >
-                  <div
-                    className="flex-shrink-0 w-1.5 h-1.5 rounded-full mt-2"
-                    style={{ background: isDark ? '#A8B39A' : '#8DA18F' }}
-                  />
-                  <p
-                    style={{
-                      fontFamily: 'Georgia, serif',
-                      color: 'var(--text-primary)',
-                      fontWeight: 300,
-                      fontSize: '13px',
-                      lineHeight: '1.6',
-                      letterSpacing: '0.01em',
-                      opacity: 0.9,
-                    }}
-                  >
-                    {suggestion}
+                    {whisper}
                   </p>
                 </motion.div>
-              ))}
-            </div>
-          </motion.div>
+              )}
 
-          {/* Footer Buttons */}
-          <motion.div
-            className="mb-8 w-full"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 2.2, duration: 1 }}
-          >
-            <button
-              onClick={onNavigateActivities}
-              className="w-full rounded-full px-8 py-4 mb-4 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-              style={{
-                background: isDark ? 'rgba(35, 40, 37, 0.95)' : '#EDE8DB',
-                boxShadow: isDark ? '0 4px 16px rgba(0, 0, 0, 0.15)' : '0 4px 16px rgba(106, 88, 75, 0.12)',
-              }}
-            >
-              <span
+              <motion.section
+                className="mt-8 pt-8 w-full"
                 style={{
-                  fontFamily: 'Georgia, serif',
-                  color: 'var(--text-primary)',
-                  fontWeight: 500,
-                  fontSize: '15px',
-                  letterSpacing: '0.03em',
+                  borderTop: isDark
+                    ? '1px solid rgba(255, 255, 255, 0.06)'
+                    : '1px solid rgba(90, 74, 58, 0.1)',
                 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.9 }}
               >
-                Return to Activities
-              </span>
-            </button>
+                <h3 style={{ ...headingStyle, fontSize: '16px', marginBottom: '14px' }}>
+                  A space for your words
+                </h3>
+                <p
+                  style={{
+                    ...textStyle,
+                    fontSize: '13px',
+                    marginBottom: '16px',
+                    opacity: 0.7,
+                  }}
+                >
+                  If anything feels ready to be named, you can write it here. No pressure — just soft availability.
+                </p>
 
-            <button
-              className="w-full text-center transition-opacity duration-300 hover:opacity-70"
-            >
-              <span
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  color: 'var(--text-secondary)',
-                  fontWeight: 300,
-                  fontSize: '13px',
-                  letterSpacing: '0.02em',
-                  opacity: 0.8,
-                }}
-              >
-                Export My Patterns (Studio only)
-              </span>
-            </button>
-          </motion.div>
+                <textarea
+                  value={reflectionText}
+                  onChange={(e) => setReflectionText(e.target.value)}
+                  placeholder="Whatever comes to mind..."
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: '16px',
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.6)',
+                    border: isDark
+                      ? '1px solid rgba(255, 255, 255, 0.08)'
+                      : '1px solid rgba(90, 74, 58, 0.12)',
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '15px',
+                    fontWeight: 300,
+                    color: 'var(--text-primary)',
+                    resize: 'none',
+                    outline: 'none',
+                  }}
+                />
+
+                <div className="flex items-center gap-4 mt-4">
+                  <button
+                    onClick={handleSaveReflection}
+                    disabled={isSaving || !reflectionText.trim()}
+                    className="px-6 py-3 rounded-[14px] transition-all duration-200 active:scale-[0.98]"
+                    style={{
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#D7C8B5',
+                      border: isDark
+                        ? '1px solid rgba(255, 255, 255, 0.1)'
+                        : '1px solid rgba(90, 74, 58, 0.12)',
+                      fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                      fontSize: '14px',
+                      fontWeight: 400,
+                      color: 'var(--text-primary)',
+                      opacity: !reflectionText.trim() ? 0.5 : 1,
+                      cursor: !reflectionText.trim() ? 'default' : 'pointer',
+                    }}
+                  >
+                    {isSaving ? 'Saving...' : 'Save Reflection'}
+                  </button>
+
+                  {savedMessage && (
+                    <motion.span
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      style={{
+                        ...textStyle,
+                        fontSize: '13px',
+                        fontStyle: 'italic',
+                        color: isDark ? 'rgba(180, 200, 180, 0.7)' : 'rgba(90, 120, 90, 0.7)',
+                      }}
+                    >
+                      {savedMessage}
+                    </motion.span>
+                  )}
+                </div>
+              </motion.section>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Bottom Navigation */}
       <BottomNav
-        variant="sage"
         activeScreen="activities"
+        variant="sage"
         onNavigateHome={onNavigateHome}
         onNavigateActivities={onNavigateActivities}
         onNavigateJournal={onNavigateJournal}
