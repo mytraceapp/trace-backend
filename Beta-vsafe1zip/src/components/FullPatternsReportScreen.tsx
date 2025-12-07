@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { useTheme } from '../state/ThemeContext';
 import { useEntries } from '../state/EntriesContext';
+import traceLogo from 'figma:asset/513ec3c351285cce0b15e678c8f6d864d8269d64.png';
 import { 
   getCurrentUserId, 
   saveLastHourStitch, 
@@ -301,8 +302,8 @@ export function FullPatternsReportScreen({
       />
 
       <motion.div
-        className="absolute w-full text-center z-20"
-        style={{ top: '7%' }}
+        className="absolute w-full text-center z-20 flex flex-col items-center"
+        style={{ top: '4%' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] }}
@@ -316,10 +317,22 @@ export function FullPatternsReportScreen({
             fontSize: '11px',
             textShadow: `0 0 15px var(--orb-glow), 0 0 30px var(--orb-glow), 0 2px 4px rgba(0,0,0,0.15)`,
             opacity: 0.88,
+            marginBottom: '12px',
           }}
         >
           TRACE
         </h1>
+        <img 
+          src={traceLogo} 
+          alt="TRACE" 
+          className="w-[100px] h-[100px]"
+          style={{
+            filter: isDark 
+              ? 'drop-shadow(0 4px 20px rgba(200, 195, 188, 0.2))' 
+              : 'drop-shadow(0 4px 20px rgba(90, 74, 58, 0.15))',
+            opacity: 0.9,
+          }}
+        />
       </motion.div>
 
       <div className="relative z-10 flex flex-col h-full overflow-y-auto overflow-x-hidden pb-32" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -331,7 +344,7 @@ export function FullPatternsReportScreen({
           `}
         </style>
 
-        <div className="flex-shrink-0" style={{ height: '7%' }} />
+        <div className="flex-shrink-0" style={{ height: '22%' }} />
 
         <div className="w-full max-w-md mx-auto px-6 flex flex-col items-center">
           <motion.div
