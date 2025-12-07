@@ -387,7 +387,7 @@ export function ActivitiesHubScreen({
                         lineHeight: '1.4',
                       }}
                     >
-                      One minute of flowing light.
+                      Immersive flowing light.
                     </p>
                   </div>
                 </div>
