@@ -264,94 +264,96 @@ export function ProfileScreen({
           transition={{ delay: 0.3, duration: 1 }}
         >
           <div className="relative" style={{ width: '64px', height: '64px' }}>
-            {/* Color tone ripple flow - looping swirls like the orb */}
-            <div className="absolute inset-[-32px] rounded-full overflow-hidden pointer-events-none">
-              {/* Outer breathing halo */}
-              <motion.div
-                className="absolute inset-0 rounded-full"
-                style={{
-                  background: 'radial-gradient(circle, rgba(168, 179, 154, 0.7) 0%, rgba(150, 170, 145, 0.4) 40%, transparent 70%)',
-                  filter: 'blur(10px)',
-                }}
-                animate={{
-                  opacity: [0.6, 1, 0.6],
-                  scale: [0.9, 1.15, 0.9],
-                }}
-                transition={{
-                  duration: 5,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              />
-              
-              {/* Rotating swirl layer 1 */}
-              <motion.div
-                className="absolute inset-[6px] rounded-full"
-                style={{
-                  background: `conic-gradient(
-                    from 0deg at 50% 50%,
-                    rgba(168, 179, 154, 0.6) 0deg,
-                    transparent 60deg,
-                    rgba(150, 170, 145, 0.5) 120deg,
-                    transparent 180deg,
-                    rgba(140, 160, 135, 0.4) 240deg,
-                    transparent 300deg,
-                    rgba(168, 179, 154, 0.6) 360deg
-                  )`,
-                  filter: 'blur(5px)',
-                }}
-                animate={{
-                  rotate: [0, 360],
-                }}
-                transition={{
-                  duration: 18,
-                  repeat: Infinity,
-                  ease: "linear",
-                }}
-              />
-              
-              {/* Rotating swirl layer 2 - counter-rotating */}
-              <motion.div
-                className="absolute inset-[3px] rounded-full"
-                style={{
-                  background: `conic-gradient(
-                    from 45deg at 50% 50%,
-                    transparent 0deg,
-                    rgba(180, 195, 170, 0.5) 90deg,
-                    transparent 180deg,
-                    rgba(160, 180, 155, 0.4) 270deg,
-                    transparent 360deg
-                  )`,
-                  filter: 'blur(6px)',
-                }}
-                animate={{
-                  rotate: [360, 0],
-                }}
-                transition={{
-                  duration: 22,
-                  repeat: Infinity,
-                  ease: "linear",
-                }}
-              />
-              
-              {/* Pulsing inner glow */}
-              <motion.div
-                className="absolute inset-[12px] rounded-full"
-                style={{
-                  background: 'radial-gradient(circle, rgba(200, 215, 195, 0.7) 0%, rgba(180, 200, 175, 0.4) 50%, transparent 70%)',
-                  filter: 'blur(4px)',
-                }}
-                animate={{
-                  scale: [0.85, 1.15, 0.85],
-                  opacity: [0.6, 1, 0.6],
-                }}
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              />
-            </div>
+            {/* Color tone ripple flow - ONLY on auto mode */}
+            {theme === 'auto' && (
+              <div className="absolute inset-[-32px] rounded-full overflow-hidden pointer-events-none">
+                {/* Outer breathing halo */}
+                <motion.div
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: 'radial-gradient(circle, rgba(168, 179, 154, 0.7) 0%, rgba(150, 170, 145, 0.4) 40%, transparent 70%)',
+                    filter: 'blur(10px)',
+                  }}
+                  animate={{
+                    opacity: [0.6, 1, 0.6],
+                    scale: [0.9, 1.15, 0.9],
+                  }}
+                  transition={{
+                    duration: 5,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+                
+                {/* Rotating swirl layer 1 */}
+                <motion.div
+                  className="absolute inset-[6px] rounded-full"
+                  style={{
+                    background: `conic-gradient(
+                      from 0deg at 50% 50%,
+                      rgba(168, 179, 154, 0.6) 0deg,
+                      transparent 60deg,
+                      rgba(150, 170, 145, 0.5) 120deg,
+                      transparent 180deg,
+                      rgba(140, 160, 135, 0.4) 240deg,
+                      transparent 300deg,
+                      rgba(168, 179, 154, 0.6) 360deg
+                    )`,
+                    filter: 'blur(5px)',
+                  }}
+                  animate={{
+                    rotate: [0, 360],
+                  }}
+                  transition={{
+                    duration: 18,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                />
+                
+                {/* Rotating swirl layer 2 - counter-rotating */}
+                <motion.div
+                  className="absolute inset-[3px] rounded-full"
+                  style={{
+                    background: `conic-gradient(
+                      from 45deg at 50% 50%,
+                      transparent 0deg,
+                      rgba(180, 195, 170, 0.5) 90deg,
+                      transparent 180deg,
+                      rgba(160, 180, 155, 0.4) 270deg,
+                      transparent 360deg
+                    )`,
+                    filter: 'blur(6px)',
+                  }}
+                  animate={{
+                    rotate: [360, 0],
+                  }}
+                  transition={{
+                    duration: 22,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                />
+                
+                {/* Pulsing inner glow */}
+                <motion.div
+                  className="absolute inset-[12px] rounded-full"
+                  style={{
+                    background: 'radial-gradient(circle, rgba(200, 215, 195, 0.7) 0%, rgba(180, 200, 175, 0.4) 50%, transparent 70%)',
+                    filter: 'blur(4px)',
+                  }}
+                  animate={{
+                    scale: [0.85, 1.15, 0.85],
+                    opacity: [0.6, 1, 0.6],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+              </div>
+            )}
             
             {/* Main initial circle */}
             <div
