@@ -254,7 +254,7 @@ export function ProfileScreen({
         </style>
 
         {/* Top spacing for TRACE title */}
-        <div className="flex-shrink-0" style={{ height: '10%' }} />
+        <div className="flex-shrink-0" style={{ height: '8%' }} />
 
         {/* Small circular monogram below TRACE */}
         <motion.div
