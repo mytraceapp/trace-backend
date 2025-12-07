@@ -275,7 +275,7 @@ export function FullPatternsReportScreen({
 
   const cardStyle = {
     backgroundColor: isDark ? 'rgba(30, 32, 28, 0.76)' : 'rgba(225, 212, 195, 0.78)',
-    borderRadius: '17px',
+    borderRadius: '24px',
     padding: '24px 20px',
     boxShadow: isDark 
       ? '0 2px 2px rgba(0, 0, 0, 0.08)' 
