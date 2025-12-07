@@ -186,3 +186,99 @@ export async function fetchRecentMessagesForPatterns(
 
   return data ?? [];
 }
+
+export interface LastHourSummary {
+  total: number;
+  calm: number;
+  flat: number;
+  heavy: number;
+  anxious: number;
+  avgIntensity: number;
+  arc: "softening" | "rising" | "steady" | null;
+}
+
+export async function getLastHourSummary(userId: string): Promise<LastHourSummary> {
+  const emptyResult: LastHourSummary = {
+    total: 0,
+    calm: 0,
+    flat: 0,
+    heavy: 0,
+    anxious: 0,
+    avgIntensity: 0,
+    arc: null,
+  };
+
+  try {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select("content, emotion, intensity, created_at")
+      .eq("user_id", userId)
+      .gte("created_at", oneHourAgo)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("TRACE/getLastHourSummary ❌", error);
+      return emptyResult;
+    }
+
+    if (!data || data.length === 0) {
+      return emptyResult;
+    }
+
+    const total = data.length;
+    let calm = 0, flat = 0, heavy = 0, anxious = 0;
+    let intensitySum = 0;
+
+    data.forEach((msg) => {
+      const emotion = (msg.emotion || "flat").toLowerCase();
+      if (emotion === "calm") calm++;
+      else if (emotion === "heavy") heavy++;
+      else if (emotion === "anxious") anxious++;
+      else flat++;
+
+      intensitySum += msg.intensity ?? 2;
+    });
+
+    const avgIntensity = total > 0 ? intensitySum / total : 0;
+
+    let arc: "softening" | "rising" | "steady" | null = null;
+
+    if (total >= 3) {
+      const thirdSize = Math.floor(total / 3);
+      const startSegment = data.slice(0, thirdSize);
+      const endSegment = data.slice(total - thirdSize);
+
+      const avgSegmentIntensity = (segment: typeof data) => {
+        if (segment.length === 0) return 2;
+        const sum = segment.reduce((acc, m) => acc + (m.intensity ?? 2), 0);
+        return sum / segment.length;
+      };
+
+      const avgStart = avgSegmentIntensity(startSegment);
+      const avgEnd = avgSegmentIntensity(endSegment);
+
+      if (avgEnd <= avgStart - 0.5) {
+        arc = "softening";
+      } else if (avgEnd >= avgStart + 0.5) {
+        arc = "rising";
+      } else {
+        arc = "steady";
+      }
+    }
+
+    return {
+      total,
+      calm,
+      flat,
+      heavy,
+      anxious,
+      avgIntensity: Math.round(avgIntensity * 10) / 10,
+      arc,
+    };
+  } catch (err) {
+    console.error("TRACE/getLastHourSummary ❌", err);
+    return emptyResult;
+  }
+}
