@@ -14,7 +14,7 @@ import {
   clearLastSuggestedActivity,
   ActivityType 
 } from '../services/traceAI';
-import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages, getTodayStitch } from '../lib/messageService';
+import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages, getTodayStitch, getLastHourSummary } from '../lib/messageService';
 
 const TRACE_SUPPORT_PROMPTS = [
   "Things feel a bit intense right now. If you want, we can slow down and journal a little together.",
@@ -73,6 +73,16 @@ export function ChatScreen({
   const [hasResponded, setHasResponded] = React.useState(false);
   const [hasOfferedSupportThisSession, setHasOfferedSupportThisSession] = React.useState(false);
   const [hasShownRecallThisSession, setHasShownRecallThisSession] = React.useState(false);
+  const [lastHourSummary, setLastHourSummary] = React.useState<{
+    total: number;
+    calm: number;
+    flat: number;
+    heavy: number;
+    anxious: number;
+    avgIntensity: number;
+    arc: 'softening' | 'rising' | 'steady' | null;
+  } | null>(null);
+  const [hasOfferedRecallThisSession, setHasOfferedRecallThisSession] = React.useState(false);
   const [_userMessage, setUserMessage] = React.useState('');
   void _userMessage;
   const [showTypewriter, setShowTypewriter] = React.useState(false);
@@ -273,6 +283,34 @@ export function ChatScreen({
       clearTimeout(timer);
     };
   }, [hasShownRecallThisSession]);
+
+  // Fetch last hour summary for emotional recall feature
+  React.useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId || cancelled) return;
+
+        const summary = await getLastHourSummary(userId);
+        if (!cancelled) {
+          setLastHourSummary(summary);
+        }
+      } catch (err) {
+        console.error('TRACE emotional recall: failed to load summary', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Suppress unused warnings for now - will be used in future recall logic
+  void lastHourSummary;
+  void hasOfferedRecallThisSession;
+  void setHasOfferedRecallThisSession;
 
   React.useEffect(() => {
     if (showTypewriter && currentIndex < greetingText.length && !hasResponded) {
