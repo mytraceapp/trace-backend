@@ -631,8 +631,42 @@ function getFriendlyCheckinMessage(hour) {
 }
 
 async function sendPushNotificationToUser(userId, message) {
-  // TODO: integrate actual push provider later
-  console.log("[TRACE PUSH] to user", userId, ":", message);
+  const appId = process.env.ONESIGNAL_APP_ID;
+  const apiKey = process.env.ONESIGNAL_API_KEY;
+  
+  if (!appId || !apiKey) {
+    console.log("[TRACE PUSH] OneSignal not configured - skipping notification");
+    return;
+  }
+  
+  try {
+    const response = await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${apiKey}`
+      },
+      body: JSON.stringify({
+        app_id: appId,
+        include_aliases: {
+          external_id: [userId]
+        },
+        target_channel: 'push',
+        contents: { en: message },
+        headings: { en: 'TRACE' }
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.errors) {
+      console.error("[TRACE PUSH] OneSignal error:", result.errors);
+    } else {
+      console.log("[TRACE PUSH] Sent to user", userId, "- ID:", result.id);
+    }
+  } catch (err) {
+    console.error("[TRACE PUSH] Failed to send notification:", err.message);
+  }
 }
 
 let lastProcessedKey = null;
@@ -715,6 +749,24 @@ if (supabaseServer) {
   console.log('📱 TRACE verse-time scheduler started (checks every 60s)');
   console.log('   Notifications at 9:47am, 3:16pm & 8:28pm in each user\'s local timezone');
 }
+
+// Test endpoint to send a test push notification
+app.post('/api/test-push', async (req, res) => {
+  const { userId, message } = req.body;
+  
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required' });
+  }
+  
+  const testMessage = message || 'Hey 👋 this is a test notification from TRACE!';
+  
+  try {
+    await sendPushNotificationToUser(userId, testMessage);
+    res.json({ success: true, message: 'Test notification sent' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Test endpoint to trigger verse checkin manually
 app.post('/api/test-verse-checkin', async (req, res) => {
