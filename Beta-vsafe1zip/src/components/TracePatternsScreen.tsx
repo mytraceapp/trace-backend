@@ -1293,8 +1293,8 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               </p>
             </motion.div>
 
-            {/* Original TRACE Orb - positioned right below subheader */}
-            <div className="w-full flex justify-center pt-8 pb-4">
+            {/* Original TRACE Orb - positioned right below subheader, rises from behind boxes */}
+            <div className="w-full flex justify-center pt-8 pb-4 relative z-0">
               <motion.div
                 className="relative w-[150px] h-[150px]"
                 initial={{ y: 600, opacity: 0 }}
@@ -1432,9 +1432,9 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             </div>
           </div>
 
-          {/* Last Hour Emotion Summary */}
+          {/* Last Hour Emotion Summary - z-10 so orb rises behind */}
           <motion.section
-            className="w-full space-y-3 pt-6"
+            className="w-full space-y-3 pt-6 relative z-10"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
