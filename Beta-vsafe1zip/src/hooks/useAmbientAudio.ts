@@ -11,6 +11,12 @@ interface UseAmbientAudioOptions {
   crossfadeDuration?: number;
 }
 
+// Singleton to track global ambient audio state
+const globalAmbientState = {
+  activeContext: null as AudioContext | null,
+  instanceCount: 0,
+};
+
 export function useAmbientAudio({
   src,
   volume = 0.5,
@@ -30,12 +36,22 @@ export function useAmbientAudio({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const filterChainRef = useRef<BiquadFilterNode[]>([]);
+  const instanceIdRef = useRef<number>(0);
 
   useEffect(() => {
+    // Close any existing global context before creating a new one
+    if (globalAmbientState.activeContext && globalAmbientState.activeContext.state !== 'closed') {
+      globalAmbientState.activeContext.close().catch(() => {});
+    }
+    
+    globalAmbientState.instanceCount++;
+    instanceIdRef.current = globalAmbientState.instanceCount;
+    
     const loadAudio = async () => {
       try {
         const context = new AudioContext();
         audioContextRef.current = context;
+        globalAmbientState.activeContext = context;
 
         const masterGain = context.createGain();
         masterGain.gain.value = 0;
