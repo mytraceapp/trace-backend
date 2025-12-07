@@ -28,8 +28,10 @@ export function WalkingResetScreen({
   const [currentAffirmation, setCurrentAffirmation] = React.useState(0);
   const [isComplete, setIsComplete] = React.useState(false);
   const [stepTrigger, setStepTrigger] = React.useState(0);
+  const [timerStarted, setTimerStarted] = React.useState(false);
   const hasSavedRef = React.useRef(false);
   const TOTAL_TIME = 120; // 2 minutes in seconds
+  const WARMUP_DELAY = 5000; // 5 seconds before timer starts
   const STEP_RHYTHM = 1.5; // seconds per step (gentle walking pace)
 
   // Animation controls for metronome reactivity
@@ -77,8 +79,19 @@ export function WalkingResetScreen({
     });
   }, [orbControls, glowControls, haloControls, orbPositionControls]);
 
+  // Start the timer after warmup delay
   React.useEffect(() => {
-    // Timer
+    const warmupTimer = setTimeout(() => {
+      setTimerStarted(true);
+    }, WARMUP_DELAY);
+
+    return () => clearTimeout(warmupTimer);
+  }, []);
+
+  React.useEffect(() => {
+    if (!timerStarted) return;
+
+    // Timer - only starts after warmup
     const timer = setInterval(() => {
       setTimeElapsed((prev) => {
         if (prev >= TOTAL_TIME) {
@@ -90,6 +103,13 @@ export function WalkingResetScreen({
       });
     }, 100);
 
+    return () => {
+      clearInterval(timer);
+    };
+  }, [timerStarted]);
+
+  // Step rhythm and affirmations - start immediately
+  React.useEffect(() => {
     // Step rhythm
     const stepTimer = setInterval(() => {
       setCurrentStep((prev) => (prev + 1) % 3);
@@ -105,7 +125,6 @@ export function WalkingResetScreen({
     triggerStep();
 
     return () => {
-      clearInterval(timer);
       clearInterval(stepTimer);
       clearInterval(affirmationTimer);
     };

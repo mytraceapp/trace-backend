@@ -27,7 +27,9 @@ export function PowerNapScreen({
   const hasSavedRef = React.useRef(false);
   const [wakeGently, setWakeGently] = React.useState(true);
   const [ambientTonePlaying, setAmbientTonePlaying] = React.useState(true);
+  const [timerStarted, setTimerStarted] = React.useState(false);
   const TOTAL_TIME = 300; // 5 minutes in seconds
+  const WARMUP_DELAY = 5000; // 5 seconds before timer starts
 
   // Ambient tone using Web Audio API
   const audioContextRef = React.useRef<AudioContext | null>(null);
@@ -254,8 +256,19 @@ export function PowerNapScreen({
     return audioContext;
   }, []);
 
+  // Start the timer after warmup delay
   React.useEffect(() => {
     if (!isResting) return;
+
+    const warmupTimer = setTimeout(() => {
+      setTimerStarted(true);
+    }, WARMUP_DELAY);
+
+    return () => clearTimeout(warmupTimer);
+  }, [isResting]);
+
+  React.useEffect(() => {
+    if (!isResting || !timerStarted) return;
 
     const timer = setInterval(() => {
       setTimeElapsed((prev) => {
@@ -275,7 +288,7 @@ export function PowerNapScreen({
     return () => {
       clearInterval(timer);
     };
-  }, [isResting, wakeGently, playWakeUpChime]);
+  }, [isResting, timerStarted, wakeGently, playWakeUpChime]);
 
   const timeRemaining = Math.max(Math.ceil(TOTAL_TIME - timeElapsed), 0);
   const minutesRemaining = Math.floor(timeRemaining / 60);
