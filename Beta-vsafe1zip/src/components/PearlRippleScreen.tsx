@@ -46,6 +46,19 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
     audio.playbackRate = 0.65; // Slightly faster for cleaner sound
     audio.crossOrigin = 'anonymous';
     audioRef.current = audio;
+    
+    const CLIP_START = 10; // Skip first 10 seconds
+    
+    // Set start position after first 10 seconds
+    audio.currentTime = CLIP_START;
+    
+    // Handle clean loops - reset to clip start when audio loops
+    const handleTimeUpdate = () => {
+      if (audio.currentTime < CLIP_START) {
+        audio.currentTime = CLIP_START;
+      }
+    };
+    audio.addEventListener('timeupdate', handleTimeUpdate);
 
     // Start audio with Web Audio API for smooth, clean sound
     const startAudio = () => {
@@ -111,6 +124,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
 
     // Cleanup with smooth fade-out
     return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
       if (fadeIntervalRef.current) {
         clearInterval(fadeIntervalRef.current);
       }
