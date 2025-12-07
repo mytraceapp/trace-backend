@@ -81,26 +81,26 @@ export default function App() {
   const [isLocked, setIsLocked] = React.useState(false);
   const [biometricAvailable, setBiometricAvailable] = React.useState(false);
 
-  // One-time Supabase write test (only runs when user is logged in)
+  // One-time Supabase write test
+  async function testSupabase() {
+    const { data, error } = await supabase.from("messages").insert([
+      {
+        user_id: "trace-test-app",
+        role: "user",
+        content: "TRACE connection test from APP",
+      },
+    ]);
+
+    if (error) {
+      console.error("❌ Supabase insert error", error);
+    } else {
+      console.log("✅ Message saved", data);
+    }
+  }
+
   React.useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("messages")
-      .insert([
-        {
-          user_id: user.id,
-          role: "user",
-          content: "TRACE connection test from App.tsx",
-        },
-      ])
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Supabase write test error:", error);
-        } else {
-          console.log("Supabase write test success:", data);
-        }
-      });
-  }, [user]);
+    testSupabase();
+  }, []);
   // Check if passcode is enabled on mount
   React.useEffect(() => {
     const passcode = localStorage.getItem("trace-passcode");
