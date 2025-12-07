@@ -731,32 +731,38 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
     }
   };
 
-  const getIntensityArcMessage = (messages: PatternMessage[]): string | null => {
-    if (messages.length < 3) return null;
+  // Compute weekly rhythm direction from stitches
+  const getWeeklyDirection = (): "softening" | "rising" | "steady" | null => {
+    if (weeklyStitches.length < 3) return null;
     
-    const thirdSize = Math.floor(messages.length / 3);
-    const startSegment = messages.slice(0, thirdSize);
-    const endSegment = messages.slice(messages.length - thirdSize);
+    // Sort by date ascending for proper comparison
+    const sorted = [...weeklyStitches].sort((a, b) => 
+      a.summary_date.localeCompare(b.summary_date)
+    );
     
-    const avgIntensity = (segment: PatternMessage[]) => {
-      if (segment.length === 0) return 1;
-      const sum = segment.reduce((acc, m) => acc + (m.intensity ?? 1), 0);
-      return sum / segment.length;
+    // Get first 2 and last 2 days
+    const firstTwo = sorted.slice(0, 2);
+    const lastTwo = sorted.slice(-2);
+    
+    const avgIntensity = (arr: EmotionalStitch[]) => {
+      if (arr.length === 0) return 2;
+      const sum = arr.reduce((acc, s) => acc + (s.avg_intensity ?? 2), 0);
+      return sum / arr.length;
     };
     
-    const startAvg = avgIntensity(startSegment);
-    const endAvg = avgIntensity(endSegment);
+    const startAvg = avgIntensity(firstTwo);
+    const endAvg = avgIntensity(lastTwo);
     
     if (endAvg <= startAvg - 0.5) {
-      return "Things felt a bit intense at first and softened toward the end.";
+      return "softening";
     } else if (endAvg >= startAvg + 0.5) {
-      return "Things became a little more activated toward the end of this hour.";
+      return "rising";
     } else {
-      return "Your emotional intensity stayed fairly steady this hour.";
+      return "steady";
     }
   };
-
-  const arcMessage = getIntensityArcMessage(patternMessages);
+  
+  const weeklyDirection = getWeeklyDirection();
 
   const handlePatternClick = (pattern: Pattern) => {
     if (canAccessPattern(pattern.requiredTier)) {
@@ -1295,7 +1301,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               </div>
             )}
 
-            {!isLoadingMessages && arcMessage && (
+            {!isLoadingMessages && lastHourSummary && lastHourSummary.total > 0 && lastHourSummary.arc && (
               <div
                 className="rounded-[18px] p-5"
                 style={{
@@ -1323,7 +1329,9 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                     lineHeight: 1.5,
                   }}
                 >
-                  {arcMessage}
+                  {lastHourSummary.arc === "softening" && "Things felt a bit intense at first and softened toward the end."}
+                  {lastHourSummary.arc === "rising" && "Things became a little more activated toward the end of this hour."}
+                  {lastHourSummary.arc === "steady" && "Your emotional intensity stayed fairly steady this hour."}
                 </p>
               </div>
             )}
@@ -1679,6 +1687,25 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 </linearGradient>
               </defs>
             </svg>
+            
+            {/* Weekly rhythm insight based on real data */}
+            <p
+              style={{
+                fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                fontSize: '12px',
+                fontWeight: 300,
+                color: 'var(--text-secondary)',
+                lineHeight: 1.6,
+                marginTop: '12px',
+                fontStyle: 'italic',
+              }}
+            >
+              {weeklyDirection === "softening" && "Your emotional tone has gently softened over the last few days."}
+              {weeklyDirection === "rising" && "Your emotional energy has been a bit more activated recently."}
+              {weeklyDirection === "steady" && "Your emotional rhythm has felt steady this week."}
+              {weeklyDirection === null && weeklyStitches.length === 0 && "TRACE is still learning your weekly rhythm. Keep checking in."}
+              {weeklyDirection === null && weeklyStitches.length > 0 && weeklyStitches.length < 3 && "A few more days and TRACE will start to notice your patterns."}
+            </p>
           </motion.div>
 
           {/* Behavior Signatures Section - softer approach */}
