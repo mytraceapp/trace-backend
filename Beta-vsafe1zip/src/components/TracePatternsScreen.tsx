@@ -4,7 +4,8 @@ import { BottomNav } from './BottomNav';
 import { patternsData, Pattern } from '../data/patterns';
 import { usePlanTier } from '../hooks/usePlanTier';
 import { useTheme } from '../state/ThemeContext';
-import { fetchRecentMessagesForPatterns, PatternMessage, getCurrentUserId, saveLastHourStitch } from '../lib/messageService';
+import { fetchRecentMessagesForPatterns, PatternMessage, getCurrentUserId, saveLastHourStitch, getLastHourSummary, EmotionalStitch } from '../lib/messageService';
+import { supabase } from '../lib/supabaseClient';
 
 interface TracePatternsScreenProps {
   onViewFull?: () => void;
@@ -632,6 +633,19 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
   
   const [patternMessages, setPatternMessages] = useState<PatternMessage[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
+  
+  // Emotional summary data
+  type HourSummary = {
+    total: number;
+    calm: number;
+    flat: number;
+    heavy: number;
+    anxious: number;
+    avgIntensity: number;
+    arc: "softening" | "rising" | "steady" | null;
+  };
+  const [lastHourSummary, setLastHourSummary] = useState<HourSummary | null>(null);
+  const [weeklyStitches, setWeeklyStitches] = useState<EmotionalStitch[]>([]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -646,24 +660,48 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
     loadMessages();
   }, []);
 
-  // Update daily emotional stitch silently on mount
+  // Update daily emotional stitch and fetch summaries on mount
   useEffect(() => {
     let cancelled = false;
 
-    async function runStitch() {
+    async function runStitchAndFetch() {
       try {
         const userId = await getCurrentUserId();
         if (!userId || cancelled) return;
+
+        // Update stitch first
         await saveLastHourStitch(userId);
         if (!cancelled) {
           console.log("TRACE: Stitch updated for Patterns view");
+        }
+
+        // Fetch last-hour summary
+        const summary = await getLastHourSummary(userId);
+        if (!cancelled) {
+          setLastHourSummary(summary);
+        }
+
+        // Fetch last 7 daily stitches
+        const { data: stitches, error: stitchError } = await supabase
+          .from("emotional_stitches")
+          .select("*")
+          .eq("user_id", userId)
+          .order("summary_date", { ascending: false })
+          .limit(7);
+
+        if (!cancelled) {
+          if (stitchError) {
+            console.error("TRACE/weeklyStitches ❌", stitchError);
+          } else if (stitches) {
+            setWeeklyStitches(stitches as EmotionalStitch[]);
+          }
         }
       } catch (err) {
         console.error("TRACE/Patterns stitch ❌", err);
       }
     }
 
-    runStitch();
+    runStitchAndFetch();
     return () => { cancelled = true; };
   }, []);
 
