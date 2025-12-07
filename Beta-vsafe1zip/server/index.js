@@ -768,6 +768,49 @@ app.post('/api/test-push', async (req, res) => {
   }
 });
 
+// Test endpoint to send push directly by subscription ID
+app.post('/api/test-push-direct', async (req, res) => {
+  const { subscriptionId, message } = req.body;
+  
+  if (!subscriptionId) {
+    return res.status(400).json({ error: 'subscriptionId is required' });
+  }
+  
+  const appId = process.env.VITE_ONESIGNAL_APP_ID || process.env.ONESIGNAL_APP_ID;
+  const apiKey = process.env.ONESIGNAL_API_KEY;
+  
+  if (!appId || !apiKey) {
+    return res.status(500).json({ error: 'OneSignal not configured' });
+  }
+  
+  try {
+    const response = await fetch('https://api.onesignal.com/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Key ${apiKey}`
+      },
+      body: JSON.stringify({
+        app_id: appId,
+        include_subscription_ids: [subscriptionId],
+        contents: { en: message || 'Direct test from TRACE!' },
+        headings: { en: 'TRACE' }
+      })
+    });
+    
+    const result = await response.json();
+    console.log('[TRACE PUSH DIRECT] Response:', JSON.stringify(result));
+    
+    if (result.errors) {
+      return res.status(400).json({ error: result.errors });
+    }
+    
+    res.json({ success: true, id: result.id, result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Test endpoint to trigger verse checkin manually
 app.post('/api/test-verse-checkin', async (req, res) => {
   if (!supabaseServer) {
