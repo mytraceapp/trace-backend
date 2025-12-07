@@ -311,6 +311,7 @@ export function ChatScreen({
   void lastHourSummary;
   void hasOfferedRecallThisSession;
   void setHasOfferedRecallThisSession;
+  void buildEmotionalRecallMessage;
 
   React.useEffect(() => {
     if (showTypewriter && currentIndex < greetingText.length && !hasResponded) {
@@ -1433,4 +1434,32 @@ export function ChatScreen({
 
     </div>
   );
+}
+
+// Helper function to generate emotional recall message based on last hour summary
+function buildEmotionalRecallMessage(summary: {
+  total: number;
+  calm: number;
+  flat: number;
+  heavy: number;
+  anxious: number;
+  avgIntensity: number;
+  arc: 'softening' | 'rising' | 'steady' | null;
+}): string | null {
+  if (!summary || summary.total < 3) return null;
+
+  const heavyCount = summary.heavy + summary.anxious;
+
+  // If things were clearly heavy or rising
+  if (heavyCount >= 2 || summary.arc === 'rising') {
+    return "Earlier today felt a bit loaded for you. Is any of that still sitting with you right now?";
+  }
+
+  // If things were heavy but softened
+  if (summary.arc === 'softening' && heavyCount > 0) {
+    return "Earlier today carried a little weight but seemed to ease toward the end. How does it feel as you're checking in now?";
+  }
+
+  // If things were mostly calm/steady, we stay quiet
+  return null;
 }
