@@ -1,0 +1,130 @@
+I’m building a React + TypeScript + Supabase chat app called TRACE.
+
+Context:
+- I already have a Supabase table `public.user_preferences` with:
+  - notifications_enabled (boolean)
+  - reminder_time (time, stored as 'HH:MM:SS')
+  - haptics_enabled (boolean)
+  - last_checkin_at (date)
+  - updated_at (timestamptz)
+- I also have a preferences helper module with:
+  - type UserPreferences (now including last_checkin_at: string | null)
+  - getUserPreferences(...)
+  - updateUserPreferences(...)
+- I have a React hook useUserPreferences(...) that gives me:
+  - preferences
+  - loading / error
+  - setLastCheckinAt (already wired)
+- Twilio is no longer used for reminders. Instead, I want an in-app “daily check-in” message that appears in the chat after the user’s chosen reminder_time, at most once per day.
+
+TASK:
+Please update my main Chat screen file (the component that renders the messages UI) to support a daily in-app check-in message, using the existing user_preferences fields.
+
+Requirements:
+
+1) Add a helper function at the top of the Chat screen file (outside the component) that returns a friendly, non-therapeutic check-in message based on time of day:
+
+function getPersonalizedCheckinMessage(now: Date): string {
+  const hour = now.getHours();
+
+  if (hour < 11) {
+    const messages = [
+      "Good morning 😊 I hope the start of your day feels good.",
+      "Hi 💛 just checking in... how are you feeling this morning?",
+      "Morning ☀️ if you want a little company before the day gets busy, I’m here."
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
+  }
+
+  if (hour < 17) {
+    const messages = [
+      "Hey 👋 how’s your afternoon going?",
+      "Hi 💛 I hope today has been kind to you.",
+      "Just a soft hello ✨ I’m around if you want a minute to talk."
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
+  }
+
+  const messages = [
+    "Hey 💛 I hope you had a good day today. I’m here if you want a quiet moment.",
+    "Hi 😊 just stopping by to say good evening. How are you feeling tonight?",
+    "Hope your night feels calm 🌙 I’m right here if you want to talk or unwind."
+  ];
+  return messages[Math.floor(Math.random() * messages.length)];
+}
+
+Tone rules:
+- TRACE should sound like a warm friend, not a therapist, coach, or guru.
+- No “unpack,” “process,” “put things down,” “nervous system,” or clinical language.
+
+2) In the same Chat screen file (still outside the component), add an async function runDailyCheckin that:
+
+- Accepts:
+  - supabase client
+  - current userId
+  - preferences: UserPreferences
+  - setLastCheckinAt: (date: string | null) => Promise<void> | void
+  - addLocalMessage: (msg: { role: string; content: string }) => void  (you can wire this to whatever message state the chat already uses)
+- Uses this logic:
+
+  - If preferences.notifications_enabled is false, do nothing.
+  - Compute today as YYYY-MM-DD (from new Date()).
+  - If preferences.last_checkin_at === today, do nothing (already sent today).
+  - If preferences.reminder_time is set:
+    - Parse HH:MM from it (ignore seconds)
+    - Build a Date “scheduled” for today at that time
+    - If now < scheduled, do nothing (not time yet).
+  - Otherwise (it’s enabled, it’s today, and time has passed):
+    - Call getPersonalizedCheckinMessage(now) to get the text.
+    - Immediately call addLocalMessage({ role: "system", content: text }) so it appears in the UI.
+    - Insert a new row into the messages table via Supabase with:
+      - user_id: userId
+      - role: "system" (or whatever role you use for non-user messages)
+      - content: text
+      - created_at: now
+    - Call updateUserPreferences(supabase, userId, { last_checkin_at: today })
+    - Call setLastCheckinAt(today) so local preferences state stays in sync.
+
+Make sure to import updateUserPreferences and UserPreferences from the existing preferences module using the correct relative path.
+
+3) Inside the Chat component:
+
+- Make sure you are already using useUserPreferences(supabase, user) to get:
+  - preferences
+  - prefsLoading (or whatever you named loading)
+  - setLastCheckinAt
+- Add a useEffect hook that calls runDailyCheckin once per load:
+
+Example shape (adjust to fit the actual code):
+
+useEffect(() => {
+  if (!user || !preferences || prefsLoading) return;
+
+  runDailyCheckin({
+    supabase,
+    userId: user.id,
+    preferences,
+    setLastCheckinAt,
+    addLocalMessage: (msg) =>
+      setMessages((prev) => [
+        ...prev,
+        {
+          ...msg,
+          // fill in whatever fields your message objects need, like id/createdAt
+        },
+      ]),
+  });
+}, [user?.id, preferences, prefsLoading, supabase]);
+
+The effect should:
+- Only run when user + preferences are available.
+- NOT spam multiple messages — last_checkin_at must prevent duplicates for the same day.
+- Respect whatever reminder_time is already stored in user_preferences (including values like '09:47:00', '15:16:00', '20:28:00').
+
+4) Ensure TypeScript types compile:
+- Use the existing UserPreferences type (with last_checkin_at: string | null).
+- Fix any import paths as needed.
+- Do NOT change the schema in Supabase—just wire up the logic in the Chat screen.
+
+Finally:
+Please make the minimal changes needed to support this daily in-app check-in behavior. Don’t reintroduce Twilio or SMS. This should be purely in-app messaging triggered on page load, respecting notifications_enabled, reminder_time, and last_checkin_at.
