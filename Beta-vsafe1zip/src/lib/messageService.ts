@@ -7,12 +7,15 @@ export async function saveTraceMessage(
   emotion?: string | null,
   intensity?: number | null
 ) {
+  // Database constraint only accepts 'user' and 'ai', not 'assistant'
+  const dbRole = role === 'assistant' ? 'ai' : role;
+  
   const { data, error } = await supabase
     .from("messages")
     .insert([
       {
         user_id: userId,
-        role,
+        role: dbRole,
         content,
         emotion: emotion ?? null,
         intensity: intensity ?? null,
@@ -81,7 +84,8 @@ export async function loadRecentTraceMessages(
 
   const hydrated: ChatMessage[] = (data ?? []).map((row, index) => ({
     id: `history-${index}-${row.created_at}`,
-    role: row.role as 'user' | 'assistant',
+    // Database stores 'ai' but we display as 'assistant'
+    role: row.role === 'ai' ? 'assistant' : 'user',
     content: row.content,
     createdAt: row.created_at,
     emotion: row.emotion ?? null,
