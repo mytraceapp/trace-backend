@@ -15,6 +15,82 @@ import {
   ActivityType 
 } from '../services/traceAI';
 import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages, getTodayStitch, getLastHourSummary } from '../lib/messageService';
+import { supabase } from '../lib/supabaseClient';
+import { getUserPreferences, updateUserPreferences, type UserPreferences } from '../lib/preferences';
+
+function getPersonalizedCheckinMessage(now: Date): string {
+  const hour = now.getHours();
+
+  if (hour < 11) {
+    const messages = [
+      "Good morning 😊 I hope the start of your day feels good.",
+      "Hi 💛 just checking in... how are you feeling this morning?",
+      "Morning ☀️ If you want company before the day gets busy, I'm here."
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
+  }
+
+  if (hour < 17) {
+    const messages = [
+      "Hey 👋 how's your afternoon going?",
+      "Hi 💛 I hope today has been kind to you.",
+      "Just a soft hello ✨ I'm around if you want a minute to talk."
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
+  }
+
+  const messages = [
+    "Hey 💛 I hope you had a good day today. I'm here if you want a quiet moment.",
+    "Hi 😊 just stopping by to say good evening. How are you feeling tonight?",
+    "Hope your night feels calm 🌙 I'm right here if you want to talk or unwind."
+  ];
+  return messages[Math.floor(Math.random() * messages.length)];
+}
+
+async function runDailyCheckin({
+  userId,
+  preferences,
+  addLocalMessage,
+}: {
+  userId: string;
+  preferences: UserPreferences;
+  addLocalMessage: (msg: { role: string; content: string }) => void;
+}) {
+  if (!preferences.notifications_enabled) return;
+
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+
+  if (preferences.last_checkin_at === today) return;
+
+  if (preferences.reminder_time) {
+    const [hh, mm] = preferences.reminder_time.split(":");
+    const scheduled = new Date();
+    scheduled.setHours(Number(hh), Number(mm), 0, 0);
+
+    if (now < scheduled) {
+      return;
+    }
+  }
+
+  const text = getPersonalizedCheckinMessage(now);
+
+  addLocalMessage({
+    role: "assistant",
+    content: text,
+  });
+
+  await supabase.from("messages").insert({
+    user_id: userId,
+    role: "trace",
+    content: text,
+    created_at: new Date().toISOString(),
+  });
+
+  await updateUserPreferences(supabase, userId, {
+    last_checkin_at: today,
+  });
+}
 
 const TRACE_SUPPORT_PROMPTS = [
   "Things feel a bit intense right now. If you want, we can slow down and journal a little together.",
@@ -217,6 +293,44 @@ export function ChatScreen({
     
     loadHistory();
   }, [fetchAIGreeting, shouldStartGreeting]);
+
+  // Daily check-in - one friendly message per day if notifications enabled
+  const dailyCheckinRanRef = React.useRef(false);
+  React.useEffect(() => {
+    if (dailyCheckinRanRef.current) return;
+    
+    async function maybeRunCheckin() {
+      try {
+        const userId = await getCurrentUserId();
+        if (!userId) return;
+
+        const { data: prefs } = await getUserPreferences(supabase, userId);
+        if (!prefs) return;
+
+        dailyCheckinRanRef.current = true;
+
+        await runDailyCheckin({
+          userId,
+          preferences: prefs,
+          addLocalMessage: (msg) => {
+            setMessages((prev) => [
+              ...prev,
+              { 
+                id: `checkin-${Date.now()}`,
+                role: msg.role as 'user' | 'assistant',
+                content: msg.content,
+              },
+            ]);
+            setHasResponded(true);
+          },
+        });
+      } catch (err) {
+        console.error('Daily check-in error:', err);
+      }
+    }
+
+    maybeRunCheckin();
+  }, []);
 
   // Emotional recall - gently check in if earlier today was heavy
   React.useEffect(() => {

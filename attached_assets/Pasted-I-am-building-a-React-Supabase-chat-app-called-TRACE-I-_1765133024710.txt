@@ -1,0 +1,122 @@
+I am building a React + Supabase chat app called TRACE. I need you to update my Chat screen file so that the app automatically sends ONE friendly daily check-in message into the chat if:
+
+1. user_preferences.notifications_enabled = true AND
+2. last_checkin_at != today AND
+3. if reminder_time exists, the message only sends after that time AND
+4. the message is inserted both locally into the UI and also persisted in the messages table.
+
+IMPORTANT:
+- This is NOT therapeutic language. It must sound like a friendly companion, not a coach or therapist.
+- Message tone examples:
+  - “Good morning 😊 I hope the start of your day feels good.”
+  - “Hi 💛 just checking in... how are you feeling this morning?”
+  - “Hey 👋 how’s your afternoon going?”
+  - “Hi 😊 just stopping by to say good evening. How are you feeling tonight?”
+
+STEP 1:
+In the Chat screen file (the file where messages render), at the top of the file (outside the component), add this function:
+
+function getPersonalizedCheckinMessage(now: Date): string {
+  const hour = now.getHours();
+
+  if (hour < 11) {
+    const messages = [
+      "Good morning 😊 I hope the start of your day feels gentle.",
+      "Hi 💛 just checking in — how are you feeling this morning?",
+      "Morning ☀️ if you want a little company before the day gets busy, I’m here."
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
+  }
+
+  if (hour < 17) {
+    const messages = [
+      "Hey 👋 how’s your afternoon going?",
+      "Hi 💛 I hope today has been kind to you.",
+      "Just a soft hello ✨ I’m around if you want a minute to talk."
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
+  }
+
+  const messages = [
+    "Hey 💛 I hope you had a good day today. I’m here if you want a quiet moment.",
+    "Hi 😊 just stopping by to say good evening. How are you feeling tonight?",
+    "Hope your night feels calm 🌙 I’m right here if you want to talk."
+  ];
+  return messages[Math.floor(Math.random() * messages.length)];
+}
+
+STEP 2:
+Also in that same file (above the component), add this async function. It must import updateUserPreferences from ../lib/preferences (or correct relative path):
+
+async function runDailyCheckin({
+  supabase,
+  userId,
+  preferences,
+  setLastCheckinAt,
+  addLocalMessage,
+}) {
+  if (!preferences.notifications_enabled) return;
+
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+
+  if (preferences.last_checkin_at === today) return;
+
+  if (preferences.reminder_time) {
+    const [hh, mm] = preferences.reminder_time.split(":");
+    const scheduled = new Date();
+    scheduled.setHours(Number(hh), Number(mm), 0, 0);
+
+    if (now < scheduled) {
+      return;
+    }
+  }
+
+  const text = getPersonalizedCheckinMessage(now);
+
+  addLocalMessage({
+    role: "system",
+    content: text,
+  });
+
+  await supabase.from("messages").insert({
+    user_id: userId,
+    role: "system",
+    content: text,
+    created_at: new Date().toISOString(),
+  });
+
+  await updateUserPreferences(supabase, userId, {
+    last_checkin_at: today,
+  });
+
+  await setLastCheckinAt(today);
+}
+
+STEP 3:
+Inside the Chat component, find where messages and preferences are available. Add a useEffect that invokes runDailyCheckin exactly once per day. The effect should look similar to:
+
+useEffect(() => {
+  if (!user || !preferences || prefsLoading) return;
+
+  runDailyCheckin({
+    supabase,
+    userId: user.id,
+    preferences,
+    setLastCheckinAt,
+    addLocalMessage: (msg) =>
+      setMessages((prev) => [
+        ...prev,
+        { ...msg, id: crypto.randomUUID() },
+      ]),
+  });
+}, [user?.id, preferences, prefsLoading, supabase]);
+
+IMPORTANT:
+- Only insert one check-in message per day.
+- NEVER duplicate messages if user refreshes or leaves and returns to chat.
+- MUST persist last_checkin_at in the user_preferences table.
+- MUST use optimistic UI insert so message shows instantly.
+
+Finally:
+Make sure imports are correct and adjust paths if needed so there are no TypeScript errors.
