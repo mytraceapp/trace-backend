@@ -265,8 +265,8 @@ export function ProfileScreen({
           style={{ overflow: 'visible' }}
         >
           <div className="relative flex items-center justify-center" style={{ width: '128px', height: '128px', overflow: 'visible' }}>
-            {/* Color tone ripple flow - ONLY on auto mode - goldish brown tones */}
-            {theme === 'auto' && (
+            {/* Color tone ripple flow - goldish brown tones */}
+            {(
               <>
                 {/* Outer breathing halo - warm golden glow */}
                 <motion.div
