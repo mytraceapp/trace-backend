@@ -67,15 +67,11 @@ export function ChatScreen({
   const [showTypewriter, setShowTypewriter] = React.useState(false);
   const [messages, setMessages] = React.useState<Message[]>([]);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  const hasLoadedHistoryRef = React.useRef(false);
 
   const userName = currentProfile?.name || null;
 
   // Load recent messages from last hour on mount
   React.useEffect(() => {
-    if (hasLoadedHistoryRef.current) return;
-    hasLoadedHistoryRef.current = true;
-    
     loadRecentTraceMessages(setMessages);
   }, []);
   
