@@ -28,7 +28,91 @@ export function MazeScreen({
   const [timeElapsed, setTimeElapsed] = React.useState(0);
   const [mazeKey, setMazeKey] = React.useState(0);
   const hasSavedRef = React.useRef(false);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = React.useRef<AudioContext | null>(null);
+  const gainNodeRef = React.useRef<GainNode | null>(null);
   const TOTAL_TIME = 45; // 45 seconds
+
+  // Ambient audio with smooth fade-in/fade-out
+  React.useEffect(() => {
+    const audio = new Audio('/audio/maze-ambient.mp3');
+    audio.loop = true;
+    audio.playbackRate = 0.6; // Slow down for ambient feel
+    audio.crossOrigin = 'anonymous';
+    audioRef.current = audio;
+
+    const startAudio = () => {
+      try {
+        const audioContext = new AudioContext();
+        audioContextRef.current = audioContext;
+        
+        const source = audioContext.createMediaElementSource(audio);
+        
+        // Lowpass filter for smooth ambient sound
+        const lowpass = audioContext.createBiquadFilter();
+        lowpass.type = 'lowpass';
+        lowpass.frequency.value = 2000;
+        lowpass.Q.value = 0.5;
+        
+        // Gain node for smooth volume control
+        const gainNode = audioContext.createGain();
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNodeRef.current = gainNode;
+        
+        // Connect: source -> lowpass -> gain -> output
+        source.connect(lowpass);
+        lowpass.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        audio.play().then(() => {
+          // Smooth fade-in over 3 seconds
+          gainNode.gain.linearRampToValueAtTime(0.4, audioContext.currentTime + 3);
+        }).catch(() => {});
+      } catch (e) {
+        // Fallback to basic audio
+        audio.volume = 0;
+        audio.play().then(() => {
+          let vol = 0;
+          const fadeIn = setInterval(() => {
+            vol += 0.02;
+            if (vol >= 0.4) {
+              clearInterval(fadeIn);
+            }
+            audio.volume = Math.min(vol, 0.4);
+          }, 100);
+        }).catch(() => {});
+      }
+    };
+
+    // Start audio immediately
+    startAudio();
+
+    // Cleanup with smooth fade-out
+    return () => {
+      if (gainNodeRef.current && audioContextRef.current) {
+        const ctx = audioContextRef.current;
+        const gain = gainNodeRef.current;
+        gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1);
+        setTimeout(() => {
+          audioRef.current?.pause();
+          ctx.close().catch(() => {});
+        }, 1100);
+      } else if (audioRef.current) {
+        const currentAudio = audioRef.current;
+        let vol = currentAudio.volume;
+        const fadeOut = setInterval(() => {
+          vol -= 0.04;
+          if (vol <= 0) {
+            clearInterval(fadeOut);
+            currentAudio.pause();
+            currentAudio.src = '';
+          }
+          currentAudio.volume = Math.max(0, vol);
+        }, 50);
+      }
+    };
+  }, []);
 
   // Timer
   React.useEffect(() => {
