@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { patternsData, Pattern } from '../data/patterns';
 import { usePlanTier } from '../hooks/usePlanTier';
 import { useTheme } from '../state/ThemeContext';
+import { fetchRecentMessagesForPatterns, PatternMessage, getCurrentUserId } from '../lib/messageService';
 
 interface TracePatternsScreenProps {
   onViewFull?: () => void;
@@ -628,6 +629,48 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
   const [showUpsell, setShowUpsell] = useState(false);
   const [showWeeklyRhythmInfo, setShowWeeklyRhythmInfo] = useState(false);
   const { canAccessPattern } = usePlanTier();
+  
+  const [patternMessages, setPatternMessages] = useState<PatternMessage[]>([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
+
+  useEffect(() => {
+    const loadMessages = async () => {
+      setIsLoadingMessages(true);
+      const userId = await getCurrentUserId();
+      if (userId) {
+        const msgs = await fetchRecentMessagesForPatterns(userId, 60);
+        setPatternMessages(msgs);
+      }
+      setIsLoadingMessages(false);
+    };
+    loadMessages();
+  }, []);
+
+  const totalMessages = patternMessages.length;
+  const emotionCounts = { calm: 0, flat: 0, heavy: 0, anxious: 0 };
+  patternMessages.forEach((msg) => {
+    const e = msg.emotion?.toLowerCase() || 'flat';
+    if (e in emotionCounts) {
+      emotionCounts[e as keyof typeof emotionCounts]++;
+    } else {
+      emotionCounts.flat++;
+    }
+  });
+
+  const calmPercent = totalMessages > 0 ? Math.round((emotionCounts.calm / totalMessages) * 100) : 0;
+  const flatPercent = totalMessages > 0 ? Math.round((emotionCounts.flat / totalMessages) * 100) : 0;
+  const heavyPercent = totalMessages > 0 ? Math.round((emotionCounts.heavy / totalMessages) * 100) : 0;
+  const anxiousPercent = totalMessages > 0 ? Math.round((emotionCounts.anxious / totalMessages) * 100) : 0;
+
+  const getInsightSentence = () => {
+    if (emotionCounts.heavy > 0 || emotionCounts.anxious > 0) {
+      return "You've had a few heavier moments — that's okay. Thank you for letting TRACE hold them with you.";
+    } else if (emotionCounts.calm > emotionCounts.flat) {
+      return "Overall, things have felt mostly steady and calm.";
+    } else {
+      return "Your tone has been fairly neutral — TRACE is here whenever you need more space.";
+    }
+  };
 
   const handlePatternClick = (pattern: Pattern) => {
     if (canAccessPattern(pattern.requiredTier)) {
@@ -1072,6 +1115,100 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               </motion.div>
             </div>
           </div>
+
+          {/* Last Hour Emotion Summary */}
+          <motion.section
+            className="w-full space-y-3 pt-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+          >
+            <div
+              className="rounded-[18px] p-5"
+              style={{
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(215, 200, 181, 0.5)',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(43, 30, 21, 0.08)',
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  marginBottom: '6px',
+                }}
+              >
+                Last hour with TRACE
+              </h2>
+              <p
+                style={{
+                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontSize: '12px',
+                  fontWeight: 300,
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.5,
+                }}
+              >
+                {isLoadingMessages
+                  ? "Gathering your last hour with TRACE..."
+                  : totalMessages === 0
+                  ? "No recent chat to reflect on yet. When you talk with TRACE, this space will gently summarize how you've been feeling."
+                  : `TRACE reflected on ${totalMessages} message${totalMessages === 1 ? "" : "s"} in the last hour.`}
+              </p>
+            </div>
+
+            {!isLoadingMessages && totalMessages > 0 && (
+              <div
+                className="rounded-[18px] p-5 space-y-3"
+                style={{
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(215, 200, 181, 0.5)',
+                  border: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(43, 30, 21, 0.08)',
+                }}
+              >
+                <h3
+                  style={{
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  Emotional tone (last 60 minutes)
+                </h3>
+                <ul
+                  style={{
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '12px',
+                    fontWeight: 300,
+                    color: 'var(--text-secondary)',
+                    listStyle: 'none',
+                    padding: 0,
+                    margin: 0,
+                  }}
+                  className="space-y-1"
+                >
+                  <li>Calm: {calmPercent}%</li>
+                  <li>Flat: {flatPercent}%</li>
+                  <li>Heavy: {heavyPercent}%</li>
+                  <li>Anxious: {anxiousPercent}%</li>
+                </ul>
+                <p
+                  style={{
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '12px',
+                    fontWeight: 300,
+                    fontStyle: 'italic',
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.6,
+                    paddingTop: '4px',
+                  }}
+                >
+                  {getInsightSentence()}
+                </p>
+              </div>
+            )}
+          </motion.section>
 
           {/* Pattern Cards - generous vertical spacing */}
           <motion.div

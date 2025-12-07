@@ -126,3 +126,33 @@ export async function loadRecentTraceMessages(
   console.log("TRACE/loadRecentMessages ✅", { count: hydrated.length });
   setMessages(hydrated);
 }
+
+export interface PatternMessage {
+  id: string;
+  role: string;
+  content: string;
+  emotion: string | null;
+  intensity: number | null;
+  created_at: string;
+}
+
+export async function fetchRecentMessagesForPatterns(
+  userId: string,
+  windowMinutes: number = 60
+): Promise<PatternMessage[]> {
+  const cutoff = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from("messages")
+    .select("id, role, content, emotion, intensity, created_at")
+    .eq("user_id", userId)
+    .gte("created_at", cutoff)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("TRACE/fetchPatternsMessages ❌", error);
+    return [];
+  }
+
+  return data ?? [];
+}
