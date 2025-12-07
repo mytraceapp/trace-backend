@@ -18,3 +18,14 @@ export async function saveTraceMessage(
 
   return { data, error };
 }
+
+export async function getCurrentUserId(): Promise<string | null> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError) {
+    console.error("❌ Auth error in getCurrentUserId", authError);
+    return null;
+  }
+
+  return user?.id ?? null;
+}
