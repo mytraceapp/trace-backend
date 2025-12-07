@@ -634,17 +634,21 @@ async function sendPushNotificationToUser(userId, message) {
   const appId = process.env.ONESIGNAL_APP_ID;
   const apiKey = process.env.ONESIGNAL_API_KEY;
   
+  console.log("[TRACE PUSH] App ID exists:", !!appId);
+  console.log("[TRACE PUSH] API Key exists:", !!apiKey);
+  console.log("[TRACE PUSH] API Key prefix:", apiKey?.substring(0, 15) + "...");
+  
   if (!appId || !apiKey) {
     console.log("[TRACE PUSH] OneSignal not configured - skipping notification");
     return;
   }
   
   try {
-    const response = await fetch('https://onesignal.com/api/v1/notifications', {
+    const response = await fetch('https://api.onesignal.com/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${apiKey}`
+        'Authorization': `Key ${apiKey}`
       },
       body: JSON.stringify({
         app_id: appId,
