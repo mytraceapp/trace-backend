@@ -363,3 +363,25 @@ export async function getTodayStitch(userId: string): Promise<EmotionalStitch | 
     arc: row.arc as "softening" | "rising" | "steady" | null,
   };
 }
+
+export async function getRecentStitches(
+  userId: string,
+  days: number = 7
+): Promise<EmotionalStitch[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const sinceStr = since.toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from('emotional_stitches')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('summary_date', sinceStr)
+    .order('summary_date', { ascending: true });
+
+  if (error) {
+    console.error('TRACE/getRecentStitches ❌', error);
+    return [];
+  }
+  return (data ?? []) as EmotionalStitch[];
+}
