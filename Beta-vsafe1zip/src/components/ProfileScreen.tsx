@@ -31,7 +31,7 @@ export function ProfileScreen({
   onNavigateToTerms
 }: ProfileScreenProps) {
   const { profile, selectedPlan, generateReferralCode, updatePlan, setIsUpgrading, ambienceEnabled, setAmbienceEnabled, ambienceVolume, setAmbienceVolume } = useUser();
-  const { theme, setTheme } = useTheme();
+  const { theme, effectiveTheme, setTheme } = useTheme();
   const { user, signOut, currentProfile, updateProfileData } = useAuth();
   const [showAuthModal, setShowAuthModal] = React.useState(false);
   const [showEditNameModal, setShowEditNameModal] = React.useState(false);
@@ -136,7 +136,7 @@ export function ProfileScreen({
 
   const canUpgrade = currentPlan !== 'studio';
 
-  const isDark = theme === 'night';
+  const isDark = effectiveTheme === 'night';
 
   return (
     <div 
@@ -212,7 +212,7 @@ export function ProfileScreen({
             fontWeight: 300,
             letterSpacing: '1em',
             fontSize: '11px',
-            textShadow: theme === 'night' 
+            textShadow: effectiveTheme === 'night' 
               ? '0 0 15px rgba(180, 191, 179, 0.35), 0 0 30px rgba(180, 191, 179, 0.15), 0 2px 4px rgba(0,0,0,0.2)'
               : '0 0 15px rgba(106, 90, 74, 0.45), 0 0 30px rgba(106, 90, 74, 0.25), 0 2px 4px rgba(0,0,0,0.12)',
             opacity: 0.9,
