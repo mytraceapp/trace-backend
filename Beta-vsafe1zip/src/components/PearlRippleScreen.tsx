@@ -55,11 +55,11 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         
         const source = audioContext.createMediaElementSource(audio);
         
-        // Lowpass filter to remove harsh highs and create smoother sound
+        // Lowpass filter to remove harsh highs and ringing tones
         const lowpass = audioContext.createBiquadFilter();
         lowpass.type = 'lowpass';
-        lowpass.frequency.value = 1800; // Cut more harsh frequencies for smoother tone
-        lowpass.Q.value = 0.5;
+        lowpass.frequency.value = 1200; // Cut more aggressively for no ringing
+        lowpass.Q.value = 0.3;
         
         // Notch filter to remove weird mid tones
         const notch = audioContext.createBiquadFilter();
@@ -67,15 +67,22 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         notch.frequency.value = 800; // Remove problematic mid frequency
         notch.Q.value = 2;
         
+        // High shelf to further reduce any ultra-high frequencies
+        const highShelf = audioContext.createBiquadFilter();
+        highShelf.type = 'highshelf';
+        highShelf.frequency.value = 2000;
+        highShelf.gain.value = -12; // Cut ultra highs by 12dB
+        
         // Gain node for smooth volume control
         const gainNode = audioContext.createGain();
         gainNode.gain.setValueAtTime(0, audioContext.currentTime);
         gainNodeRef.current = gainNode;
         
-        // Connect: source -> lowpass -> notch -> gain -> output
+        // Connect: source -> lowpass -> notch -> highShelf -> gain -> output
         source.connect(lowpass);
         lowpass.connect(notch);
-        notch.connect(gainNode);
+        notch.connect(highShelf);
+        highShelf.connect(gainNode);
         gainNode.connect(audioContext.destination);
         
         audio.play().then(() => {
@@ -99,12 +106,11 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
       }
     };
 
-    // Start audio almost immediately
-    const audioTimer = setTimeout(startAudio, 150);
+    // Start audio immediately
+    startAudio();
 
     // Cleanup with smooth fade-out
     return () => {
-      clearTimeout(audioTimer);
       if (fadeIntervalRef.current) {
         clearInterval(fadeIntervalRef.current);
       }
