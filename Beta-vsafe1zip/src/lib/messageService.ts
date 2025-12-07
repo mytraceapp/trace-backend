@@ -9,7 +9,6 @@ export async function saveTraceMessage(
 ) {
   // Database stores 'trace' for assistant messages, 'user' for user messages
   const dbRole = role === 'assistant' ? 'trace' : role;
-  console.log(`💾 Saving message - role: "${role}" → db: "${dbRole}"`);
   
   const { data, error } = await supabase
     .from("messages")
@@ -25,9 +24,9 @@ export async function saveTraceMessage(
     .select();
 
   if (error) {
-    console.error("❌ TRACE message save error", error);
+    console.error("TRACE/saveMessage ❌", error);
   } else {
-    console.log("✅ TRACE message saved", data);
+    console.log("TRACE/saveMessage ✅", { role, hasEmotion: !!emotion, hasIntensity: intensity != null });
   }
 
   return { data, error };
@@ -37,7 +36,7 @@ export async function getCurrentUserId(): Promise<string | null> {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError) {
-    console.error("❌ Auth error in getCurrentUserId", authError);
+    console.error("TRACE/getCurrentUserId ❌", authError);
     return null;
   }
 
@@ -58,7 +57,7 @@ export async function loadRecentTraceMessages(
 ) {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData?.user) {
-    console.error("No authenticated user for recall:", userError);
+    console.error("TRACE/loadRecentMessages ❌", userError);
     return;
   }
 
@@ -74,12 +73,11 @@ export async function loadRecentTraceMessages(
     .limit(50);
 
   if (error) {
-    console.error("Error loading recent messages:", error);
+    console.error("TRACE/loadRecentMessages ❌", error);
     return;
   }
 
   if (!data || data.length === 0) {
-    console.log("No recent messages to recall");
     return;
   }
 
@@ -93,6 +91,6 @@ export async function loadRecentTraceMessages(
     intensity: row.intensity ?? null,
   }));
 
-  console.log(`✅ Recalled ${hydrated.length} messages from last hour`);
+  console.log("TRACE/loadRecentMessages ✅", { count: hydrated.length });
   setMessages(hydrated);
 }
