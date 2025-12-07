@@ -541,7 +541,7 @@ export function FullPatternsReportScreen({
                     width: '100%',
                     padding: '14px 16px',
                     borderRadius: '16px',
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.6)',
+                    backgroundColor: isDark ? 'rgba(40, 44, 40, 0.95)' : 'rgba(255, 255, 255, 0.6)',
                     border: isDark
                       ? '1px solid rgba(255, 255, 255, 0.08)'
                       : '1px solid rgba(90, 74, 58, 0.12)',
