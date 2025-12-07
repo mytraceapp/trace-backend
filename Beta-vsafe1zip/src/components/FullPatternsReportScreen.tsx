@@ -303,7 +303,7 @@ export function FullPatternsReportScreen({
 
       <motion.div
         className="absolute w-full text-center z-20 flex flex-col items-center"
-        style={{ top: '4%' }}
+        style={{ top: '5%' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] }}
@@ -317,22 +317,35 @@ export function FullPatternsReportScreen({
             fontSize: '11px',
             textShadow: `0 0 15px var(--orb-glow), 0 0 30px var(--orb-glow), 0 2px 4px rgba(0,0,0,0.15)`,
             opacity: 0.88,
-            marginBottom: '12px',
           }}
         >
           TRACE
         </h1>
-        <img 
-          src={traceLogo} 
-          alt="TRACE" 
-          className="w-[100px] h-[100px]"
-          style={{
-            filter: isDark 
-              ? 'drop-shadow(0 4px 20px rgba(200, 195, 188, 0.2))' 
-              : 'drop-shadow(0 4px 20px rgba(90, 74, 58, 0.15))',
-            opacity: 0.9,
-          }}
-        />
+        {/* Maze logo with subtle glow behind it */}
+        <div 
+          className="relative mt-3"
+          style={{ width: '70px', height: '70px' }}
+        >
+          {/* Subtle glow behind logo */}
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: isDark 
+                ? 'radial-gradient(circle, rgba(141, 161, 143, 0.15) 0%, transparent 70%)'
+                : 'radial-gradient(circle, rgba(141, 161, 143, 0.12) 0%, transparent 70%)',
+              transform: 'scale(1.5)',
+              filter: 'blur(8px)',
+            }}
+          />
+          <img 
+            src={traceLogo} 
+            alt="" 
+            className="w-full h-full relative"
+            style={{
+              opacity: 0.7,
+            }}
+          />
+        </div>
       </motion.div>
 
       <div className="relative z-10 flex flex-col h-full overflow-y-auto overflow-x-hidden pb-32" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
