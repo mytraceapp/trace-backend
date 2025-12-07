@@ -299,8 +299,8 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         }}
       />
 
-      {/* Ripple waves container */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      {/* Ripple waves container - moved up 30px */}
+      <div className="absolute inset-0 flex items-center justify-center" style={{ marginTop: '-30px' }}>
         {generateRipples()}
       </div>
 
