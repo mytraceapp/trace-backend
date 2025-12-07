@@ -282,3 +282,38 @@ export async function getLastHourSummary(userId: string): Promise<LastHourSummar
     return emptyResult;
   }
 }
+
+export async function saveLastHourStitch(userId: string): Promise<void> {
+  const summary = await getLastHourSummary(userId);
+
+  if (summary.total === 0) {
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const payload = {
+    user_id: userId,
+    summary_date: today,
+    total: summary.total,
+    calm: summary.calm,
+    flat: summary.flat,
+    heavy: summary.heavy,
+    anxious: summary.anxious,
+    avg_intensity: summary.avgIntensity,
+    arc: summary.arc,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from("emotional_stitches")
+    .upsert(payload, {
+      onConflict: "user_id,summary_date",
+    });
+
+  if (error) {
+    console.error("TRACE/saveLastHourStitch ❌", error);
+  } else {
+    console.log("TRACE/saveLastHourStitch ✅", { userId, date: today });
+  }
+}
