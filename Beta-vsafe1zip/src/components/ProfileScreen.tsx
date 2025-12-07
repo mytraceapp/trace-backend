@@ -208,14 +208,14 @@ export function ProfileScreen({
           className="transition-all duration-200"
           style={{
             fontFamily: 'ALORE, Georgia, serif',
-            color: 'var(--text-tertiary)',
+            color: isDark ? 'rgba(220, 215, 205, 0.95)' : 'var(--text-tertiary)',
             fontWeight: 300,
             letterSpacing: '1em',
             fontSize: '11px',
-            textShadow: effectiveTheme === 'night' 
-              ? '0 0 15px rgba(180, 191, 179, 0.35), 0 0 30px rgba(180, 191, 179, 0.15), 0 2px 4px rgba(0,0,0,0.2)'
+            textShadow: isDark 
+              ? '0 0 20px rgba(200, 195, 185, 0.5), 0 0 40px rgba(180, 175, 165, 0.25), 0 2px 4px rgba(0,0,0,0.3)'
               : '0 0 15px rgba(106, 90, 74, 0.45), 0 0 30px rgba(106, 90, 74, 0.25), 0 2px 4px rgba(0,0,0,0.12)',
-            opacity: 0.9,
+            opacity: 1,
           }}
         >
           TRACE
