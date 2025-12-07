@@ -581,3 +581,31 @@ cron.schedule('23 18 * * *', () => {
 
 console.log('📱 TRACE SMS reminders scheduled: 10am & 6pm Pacific');
 console.log('   Set TRACE_TO_NUMBER in Secrets to receive texts');
+
+// Test endpoint to send SMS immediately
+app.post('/api/test-sms', async (req, res) => {
+  const testMessage = "TRACE: Just a quick hello to make sure we're connected. I'm here when you need me. 💛";
+  
+  const toNumber = process.env.TRACE_TO_NUMBER;
+  if (!toNumber) {
+    return res.status(400).json({ error: 'TRACE_TO_NUMBER not set in secrets' });
+  }
+  
+  const ready = await initTwilioClient();
+  if (!ready || !twilioClient || !twilioFromNumber) {
+    return res.status(500).json({ error: 'Twilio not ready', fromNumber: twilioFromNumber });
+  }
+  
+  try {
+    const result = await twilioClient.messages.create({
+      from: twilioFromNumber,
+      to: toNumber,
+      body: testMessage,
+    });
+    console.log('✅ Test SMS sent:', result.sid);
+    res.json({ success: true, sid: result.sid, from: twilioFromNumber, to: toNumber });
+  } catch (err) {
+    console.error('❌ Test SMS error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
