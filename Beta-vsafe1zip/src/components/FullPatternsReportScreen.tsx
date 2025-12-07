@@ -383,8 +383,8 @@ export function FullPatternsReportScreen({
                 width: 'calc(100% - 32px)',
                 height: '1px',
                 background: isDark 
-                  ? 'linear-gradient(90deg, transparent 0%, rgba(141, 161, 143, 0.1) 20%, rgba(141, 161, 143, 0.1) 80%, transparent 100%)'
-                  : 'linear-gradient(90deg, transparent 0%, rgba(141, 161, 143, 0.1) 20%, rgba(141, 161, 143, 0.1) 80%, transparent 100%)',
+                  ? 'linear-gradient(90deg, transparent 0%, rgba(120, 95, 70, 0.15) 20%, rgba(120, 95, 70, 0.15) 80%, transparent 100%)'
+                  : 'linear-gradient(90deg, transparent 0%, rgba(120, 95, 70, 0.15) 20%, rgba(120, 95, 70, 0.15) 80%, transparent 100%)',
                 marginTop: '16px',
                 marginLeft: '16px',
                 marginRight: '16px',
