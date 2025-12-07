@@ -388,7 +388,7 @@ export function FullPatternsReportScreen({
             <>
               <motion.section
                 className="w-full text-left"
-                style={{ ...cardStyle, marginBottom: '24px', border: sageCardBorder }}
+                style={{ ...cardStyle, marginBottom: '16px', border: sageCardBorder }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
@@ -402,7 +402,7 @@ export function FullPatternsReportScreen({
 
               <motion.section
                 className="w-full text-left"
-                style={{ ...cardStyle, marginBottom: '24px', border: sageCardBorder }}
+                style={{ ...cardStyle, marginBottom: '16px', border: sageCardBorder }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.6 }}
@@ -416,7 +416,7 @@ export function FullPatternsReportScreen({
 
               <motion.section
                 className="w-full text-left"
-                style={{ ...cardStyle, marginBottom: '24px', border: sageCardBorder }}
+                style={{ ...cardStyle, marginBottom: '16px', border: sageCardBorder }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.6 }}
@@ -431,7 +431,7 @@ export function FullPatternsReportScreen({
               {narratives.stressEchoNarrative && (
                 <motion.section
                   className="w-full text-left"
-                  style={{ ...cardStyle, marginBottom: '24px', border: sageCardBorder }}
+                  style={{ ...cardStyle, marginBottom: '16px', border: sageCardBorder }}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.7, duration: 0.6 }}
