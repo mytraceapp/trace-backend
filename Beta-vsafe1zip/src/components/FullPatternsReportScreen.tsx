@@ -273,11 +273,11 @@ export function FullPatternsReportScreen({
   };
 
   const cardStyle = {
-    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(250, 247, 243, 0.7)',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(235, 228, 218, 0.55)',
     borderRadius: '20px',
     padding: '24px 20px',
-    border: isDark ? '1px solid rgba(255, 255, 255, 0.03)' : 'none',
-    boxShadow: isDark ? 'none' : '0 2px 12px rgba(90, 74, 58, 0.04)',
+    border: isDark ? '1px solid rgba(255, 255, 255, 0.03)' : '1px solid rgba(180, 165, 145, 0.15)',
+    boxShadow: isDark ? 'none' : '0 2px 8px rgba(90, 74, 58, 0.03)',
   };
 
   const paragraphContainer = {
@@ -287,6 +287,19 @@ export function FullPatternsReportScreen({
 
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: 'transparent' }}>
+      {/* Math notebook grid texture */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: `
+            linear-gradient(${isDark ? 'rgba(45, 58, 42, 0.06)' : 'rgba(141, 161, 143, 0.12)'} 1px, transparent 1px),
+            linear-gradient(90deg, ${isDark ? 'rgba(45, 58, 42, 0.06)' : 'rgba(141, 161, 143, 0.12)'} 1px, transparent 1px)
+          `,
+          backgroundSize: '24px 24px',
+          zIndex: 0,
+        }}
+      />
+
       <motion.div
         className="absolute w-full text-center z-20"
         style={{ top: '7%' }}
@@ -328,28 +341,6 @@ export function FullPatternsReportScreen({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.8, ease: [0.22, 0.61, 0.36, 1] }}
           >
-            <button
-              onClick={onBack}
-              className="mb-6 flex items-center gap-2 transition-opacity hover:opacity-70"
-              style={{
-                fontFamily: 'SF Pro Text, -apple-system, sans-serif',
-                fontSize: '14px',
-                fontWeight: 400,
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M10 12L6 8L10 4"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Back to Patterns
-            </button>
-
             <h2
               style={{
                 fontFamily: 'Playfair Display, Georgia, serif',
@@ -446,9 +437,8 @@ export function FullPatternsReportScreen({
                 <motion.div
                   className="w-full"
                   style={{
-                    marginTop: '40px',
-                    marginBottom: '32px',
-                    paddingTop: '24px',
+                    marginTop: '12px',
+                    marginBottom: '24px',
                     paddingLeft: '12px',
                     paddingRight: '12px',
                   }}
@@ -560,6 +550,37 @@ export function FullPatternsReportScreen({
                   )}
                 </div>
               </motion.section>
+
+              {/* Back to Patterns button at bottom */}
+              <motion.div
+                className="w-full flex justify-center"
+                style={{ marginTop: '32px', marginBottom: '16px' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1, duration: 0.6 }}
+              >
+                <button
+                  onClick={onBack}
+                  className="flex items-center gap-2 transition-opacity hover:opacity-70"
+                  style={{
+                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontSize: '14px',
+                    fontWeight: 400,
+                    color: isDark ? 'rgba(180, 175, 168, 0.6)' : 'rgba(90, 80, 70, 0.5)',
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M10 12L6 8L10 4"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Back to Patterns
+                </button>
+              </motion.div>
             </>
           )}
         </div>
