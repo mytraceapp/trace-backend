@@ -70,10 +70,6 @@ export function ChatScreen({
 
   const userName = currentProfile?.name || null;
 
-  // Load recent messages from last hour on mount
-  React.useEffect(() => {
-    loadRecentTraceMessages(setMessages);
-  }, []);
   
   // Crossfade transition state for smooth activity navigation
   const [isTransitioning, setIsTransitioning] = React.useState(false);
@@ -153,63 +149,39 @@ export function ChatScreen({
     }
   }, [userName]);
 
-  // Chat session persistence - messages persist for 1 hour
-  const CHAT_STORAGE_KEY = 'trace_chat_session';
-  const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
+  // Load messages from Supabase (1-hour recall) on mount
+  const hasLoadedRef = React.useRef(false);
   
-  // Load saved messages on mount if within timeout
   React.useEffect(() => {
-    try {
-      const saved = localStorage.getItem(CHAT_STORAGE_KEY);
-      if (saved) {
-        const { messages: savedMessages, timestamp } = JSON.parse(saved);
-        const now = Date.now();
-        
-        // If session is still valid (within 1 hour)
-        if (now - timestamp < SESSION_TIMEOUT_MS && savedMessages.length > 0) {
-          setMessages(savedMessages);
-          setHasResponded(true);
-          setShowTypewriter(false);
-          setIsLoadingGreeting(false);
-          return; // Don't show greeting if resuming
-        } else {
-          // Clear expired session
-          localStorage.removeItem(CHAT_STORAGE_KEY);
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+    
+    // Try to load recent messages from Supabase
+    loadRecentTraceMessages((loadedMessages) => {
+      if (loadedMessages.length > 0) {
+        // Resume conversation with recalled messages
+        setMessages(loadedMessages);
+        setHasResponded(true);
+        setShowTypewriter(false);
+        setIsLoadingGreeting(false);
+      } else {
+        // No recent messages - start fresh with greeting
+        if (shouldStartGreeting) {
+          setDisplayedText('');
+          setCurrentIndex(0);
+          setMessages([]);
+          setHasResponded(false);
+          
+          // Fetch AI greeting then start typewriter
+          fetchAIGreeting().then(() => {
+            setTimeout(() => {
+              setShowTypewriter(true);
+            }, 500);
+          });
         }
       }
-    } catch (e) {
-      console.error('Error loading chat session:', e);
-    }
-    
-    // Start fresh session with AI-generated greeting
-    if (shouldStartGreeting) {
-      setDisplayedText('');
-      setCurrentIndex(0);
-      setMessages([]);
-      setHasResponded(false);
-      
-      // Fetch AI greeting then start typewriter
-      fetchAIGreeting().then(() => {
-        setTimeout(() => {
-          setShowTypewriter(true);
-        }, 500);
-      });
-    }
+    });
   }, [fetchAIGreeting, shouldStartGreeting]);
-  
-  // Save messages whenever they change
-  React.useEffect(() => {
-    if (messages.length > 0) {
-      try {
-        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({
-          messages,
-          timestamp: Date.now()
-        }));
-      } catch (e) {
-        console.error('Error saving chat session:', e);
-      }
-    }
-  }, [messages]);
 
   React.useEffect(() => {
     if (showTypewriter && currentIndex < greetingText.length && !hasResponded) {
