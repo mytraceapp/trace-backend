@@ -14,6 +14,7 @@ import {
   clearLastSuggestedActivity,
   ActivityType 
 } from '../services/traceAI';
+import { getCurrentUserId, saveTraceMessage } from '../lib/messageService';
 
 interface Message {
   id: number;
@@ -416,6 +417,13 @@ export function ChatScreen({
         text: userMsg,
         sender: 'user'
       }]);
+      
+      // Save user message to Supabase
+      getCurrentUserId().then(userId => {
+        if (userId) {
+          saveTraceMessage(userId, 'user', userMsg);
+        }
+      });
       
       setUserMessage(userMsg);
       setHasResponded(true);
