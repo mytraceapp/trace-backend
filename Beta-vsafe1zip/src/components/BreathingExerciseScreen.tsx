@@ -91,8 +91,10 @@ export function BreathingExerciseScreen({
   const [phase, setPhase] = React.useState<'inhale' | 'exhale'>('inhale');
   const [progress, setProgress] = React.useState(0);
   const [audioStarted, setAudioStarted] = React.useState(false);
+  const [timerStarted, setTimerStarted] = React.useState(false);
   const audioContextRef = React.useRef<AudioContext | null>(null);
   const TOTAL_DURATION = 30; // 30 seconds total
+  const WARMUP_DELAY = 5000; // 5 seconds before timer starts
   const BREATH_CYCLE = 6; // 3 seconds inhale + 3 seconds exhale
   const PHASE_DURATION = BREATH_CYCLE / 2; // 3 seconds per phase
 
@@ -120,8 +122,19 @@ export function BreathingExerciseScreen({
     };
   }, []);
 
+  // Start the timer after warmup delay
   React.useEffect(() => {
-    // Progress timer
+    const warmupTimer = setTimeout(() => {
+      setTimerStarted(true);
+    }, WARMUP_DELAY);
+
+    return () => clearTimeout(warmupTimer);
+  }, []);
+
+  React.useEffect(() => {
+    if (!timerStarted) return;
+
+    // Progress timer - only starts after warmup
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= TOTAL_DURATION) {
@@ -132,13 +145,18 @@ export function BreathingExerciseScreen({
       });
     }, 100);
 
-    // Breathing phase cycling
+    return () => {
+      clearInterval(progressInterval);
+    };
+  }, [timerStarted]);
+
+  // Breathing phase cycling - starts immediately so user can follow
+  React.useEffect(() => {
     const phaseInterval = setInterval(() => {
       setPhase((prev) => (prev === 'inhale' ? 'exhale' : 'inhale'));
     }, PHASE_DURATION * 1000); // Switch every 3 seconds
 
     return () => {
-      clearInterval(progressInterval);
       clearInterval(phaseInterval);
     };
   }, []);
