@@ -274,12 +274,19 @@ export function FullPatternsReportScreen({
   };
 
   const cardStyle = {
-    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(235, 228, 218, 0.55)',
+    backgroundColor: isDark ? 'rgba(30, 32, 28, 0.95)' : 'rgba(245, 241, 235, 0.98)',
     borderRadius: '20px',
     padding: '24px 20px',
-    border: isDark ? '1px solid rgba(255, 255, 255, 0.03)' : '1px solid rgba(180, 165, 145, 0.15)',
     boxShadow: isDark ? 'none' : '0 2px 8px rgba(90, 74, 58, 0.03)',
   };
+
+  const sageCardBorder = isDark 
+    ? '1px solid rgba(141, 161, 143, 0.25)' 
+    : '1px solid rgba(141, 161, 143, 0.35)';
+
+  const mochaCardBorder = isDark 
+    ? '1px solid rgba(180, 155, 130, 0.25)' 
+    : '1px solid rgba(165, 132, 107, 0.35)';
 
   const paragraphContainer = {
     maxWidth: '85%',
@@ -303,7 +310,7 @@ export function FullPatternsReportScreen({
 
       <motion.div
         className="absolute w-full text-center z-20 flex flex-col items-center"
-        style={{ top: '5%' }}
+        style={{ top: '3%' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] }}
@@ -323,7 +330,7 @@ export function FullPatternsReportScreen({
         </h1>
         {/* Maze logo with subtle glow behind it */}
         <div 
-          className="relative mt-3"
+          className="relative mt-2"
           style={{ width: '70px', height: '70px' }}
         >
           {/* Subtle glow behind logo */}
@@ -357,12 +364,12 @@ export function FullPatternsReportScreen({
           `}
         </style>
 
-        <div className="flex-shrink-0" style={{ height: '22%' }} />
+        <div className="flex-shrink-0" style={{ height: '16%' }} />
 
         <div className="w-full max-w-md mx-auto px-6 flex flex-col items-center">
           <motion.div
-            className="text-center mb-8 w-full"
-            style={{ marginTop: '32px' }}
+            className="text-center mb-6 w-full"
+            style={{ marginTop: '16px' }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.8, ease: [0.22, 0.61, 0.36, 1] }}
@@ -403,7 +410,7 @@ export function FullPatternsReportScreen({
             <>
               <motion.section
                 className="w-full text-left"
-                style={{ ...cardStyle, marginBottom: '28px' }}
+                style={{ ...cardStyle, marginBottom: '24px', border: sageCardBorder }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
@@ -417,7 +424,7 @@ export function FullPatternsReportScreen({
 
               <motion.section
                 className="w-full text-left"
-                style={{ ...cardStyle, marginBottom: '28px' }}
+                style={{ ...cardStyle, marginBottom: '24px', border: sageCardBorder }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.6 }}
@@ -431,7 +438,7 @@ export function FullPatternsReportScreen({
 
               <motion.section
                 className="w-full text-left"
-                style={{ ...cardStyle, marginBottom: '28px' }}
+                style={{ ...cardStyle, marginBottom: '24px', border: sageCardBorder }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.6 }}
@@ -446,7 +453,7 @@ export function FullPatternsReportScreen({
               {narratives.stressEchoNarrative && (
                 <motion.section
                   className="w-full text-left"
-                  style={{ ...cardStyle, marginBottom: '28px' }}
+                  style={{ ...cardStyle, marginBottom: '24px', border: sageCardBorder }}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.7, duration: 0.6 }}
@@ -495,6 +502,7 @@ export function FullPatternsReportScreen({
                 style={{
                   ...cardStyle,
                   marginTop: '16px',
+                  border: mochaCardBorder,
                 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -503,7 +511,7 @@ export function FullPatternsReportScreen({
                 <h3 style={{ ...headingStyle, fontSize: '16px' }}>
                   A space for your words
                 </h3>
-                <span style={sageUnderline} />
+                <span style={{ ...sageUnderline, backgroundColor: isDark ? 'rgba(165, 132, 107, 0.4)' : 'rgba(165, 132, 107, 0.5)' }} />
 
                 <textarea
                   value={reflectionText}
