@@ -41,9 +41,12 @@ export async function getCurrentUserId(): Promise<string | null> {
 }
 
 interface ChatMessage {
-  id: number;
-  text: string;
-  sender: 'user' | 'ai';
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+  emotion: string | null;
+  intensity: number | null;
 }
 
 export async function loadRecentTraceMessages(
@@ -76,10 +79,13 @@ export async function loadRecentTraceMessages(
     return;
   }
 
-  const hydrated: ChatMessage[] = data.map((row, index) => ({
-    id: Date.now() - (data.length - index),
-    text: row.content,
-    sender: row.role === 'user' ? 'user' : 'ai',
+  const hydrated: ChatMessage[] = (data ?? []).map((row, index) => ({
+    id: `history-${index}-${row.created_at}`,
+    role: row.role as 'user' | 'assistant',
+    content: row.content,
+    createdAt: row.created_at,
+    emotion: row.emotion ?? null,
+    intensity: row.intensity ?? null,
   }));
 
   console.log(`✅ Recalled ${hydrated.length} messages from last hour`);

@@ -17,9 +17,12 @@ import {
 import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages } from '../lib/messageService';
 
 interface Message {
-  id: number;
-  text: string;
-  sender: 'user' | 'ai';
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt?: string;
+  emotion?: string | null;
+  intensity?: number | null;
 }
 
 interface ChatScreenProps {
@@ -353,9 +356,9 @@ export function ChatScreen({
       if (lastActivity && detectUserAgreement(userMsg)) {
         // Add a brief confirmation message before navigating
         setMessages(prev => [...prev, {
-          id: Date.now(),
-          text: userMsg,
-          sender: 'user'
+          id: `user-${Date.now()}`,
+          role: 'user',
+          content: userMsg
         }]);
         
         setHasResponded(true);
@@ -375,9 +378,9 @@ export function ChatScreen({
         };
         
         setMessages(prev => [...prev, {
-          id: Date.now() + 1,
-          text: transitionMessages[lastActivity] || "Let's do this together…",
-          sender: 'ai'
+          id: `ai-${Date.now() + 1}`,
+          role: 'assistant',
+          content: transitionMessages[lastActivity] || "Let's do this together…"
         }]);
         
         // Navigate after a brief pause
@@ -390,9 +393,9 @@ export function ChatScreen({
       
       // Add user message
       setMessages(prev => [...prev, {
-        id: Date.now(),
-        text: userMsg,
-        sender: 'user'
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: userMsg
       }]);
       
       // Save user message to Supabase
@@ -427,9 +430,9 @@ export function ChatScreen({
         }
         
         setMessages(prev => [...prev, {
-          id: Date.now() + 1,
-          text: responseMessage,
-          sender: 'ai'
+          id: `ai-${Date.now() + 1}`,
+          role: 'assistant',
+          content: responseMessage
         }]);
         
         // Save TRACE's response to Supabase
@@ -457,9 +460,9 @@ export function ChatScreen({
         console.error('Error getting TRACE response:', error);
         setOrbEmotion('empathetic');
         setMessages(prev => [...prev, {
-          id: Date.now() + 1,
-          text: "I'm here with you… let me gather my thoughts for a moment.",
-          sender: 'ai'
+          id: `ai-${Date.now() + 1}`,
+          role: 'assistant',
+          content: "I'm here with you… let me gather my thoughts for a moment."
         }]);
         setTimeout(() => setOrbEmotion('idle'), 3000);
       } finally {
@@ -1071,12 +1074,12 @@ export function ChatScreen({
                     <motion.div
                       key={msg.id}
                       layout
-                      className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                       initial={{ 
                         opacity: 0, 
                         y: 20,
                         scale: 0.95,
-                        x: msg.sender === 'user' ? 15 : -15 
+                        x: msg.role === 'user' ? 15 : -15 
                       }}
                       animate={{ 
                         opacity: Math.min(1, messageOpacity), 
@@ -1100,13 +1103,13 @@ export function ChatScreen({
                     >
                       <motion.div 
                         className={`max-w-[75%] px-5 py-4 rounded-3xl ${
-                          msg.sender === 'user' ? 'rounded-tr-md' : 'rounded-tl-md'
+                          msg.role === 'user' ? 'rounded-tr-md' : 'rounded-tl-md'
                         }`}
                         style={{
-                          background: msg.sender === 'user' 
+                          background: msg.role === 'user' 
                             ? '#EDE8DB' 
                             : 'rgba(237, 232, 219, 0.15)',
-                          boxShadow: msg.sender === 'user'
+                          boxShadow: msg.role === 'user'
                             ? '0 2px 8px rgba(0, 0, 0, 0.1)'
                             : '0 2px 8px rgba(0, 0, 0, 0.08)',
                         }}
@@ -1119,7 +1122,7 @@ export function ChatScreen({
                         }}
                       >
                         <p 
-                          className={msg.sender === 'user' ? 'text-[#6B7A6E]' : 'text-[#EDE8DB]'}
+                          className={msg.role === 'user' ? 'text-[#6B7A6E]' : 'text-[#EDE8DB]'}
                           style={{
                             fontSize: '14px',
                             lineHeight: '1.5',
@@ -1127,7 +1130,7 @@ export function ChatScreen({
                             opacity: 0.9,
                           }}
                         >
-                          {msg.text}
+                          {msg.content}
                         </p>
                       </motion.div>
                     </motion.div>
