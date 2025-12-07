@@ -663,6 +663,11 @@ function getPersonalizedCheckinMessage(date, firstName) {
       (n) => `Good morning${n ? " " + n : ""} 😊 how are you today?`,
       (n) => `Morning${n ? " " + n : ""}. Just checking in as your day starts.`,
       (n) => `Hi${n ? " " + n : ""}, hope your morning's okay so far.`,
+      (n) => `Hey${n ? " " + n : ""}, how'd you sleep?`,
+      (n) => `Morning${n ? " " + n : ""} ☀️ what's on your mind today?`,
+      (n) => `Hey${n ? " " + n : ""}, just wanted to say hi before your day gets going.`,
+      (n) => `Good morning${n ? " " + n : ""}. No rush, just here if you want to talk.`,
+      (n) => `Hi${n ? " " + n : ""}, hope you're easing into ${day} okay.`,
     ];
     return pick(messages)(name);
   } else if (hour < 17) {
@@ -670,16 +675,25 @@ function getPersonalizedCheckinMessage(date, firstName) {
       (n) => `Hey${n ? " " + n : ""} 👋 hope your day's going okay.`,
       (n) => `Hi${n ? " " + n : ""}, just checking in this ${day}.`,
       (n) => `Hey${n ? " " + n : ""}, if you need a minute to breathe, I'm here.`,
+      (n) => `How's your ${day} going${n ? ", " + n : ""}?`,
+      (n) => `Hey${n ? " " + n : ""}, just thinking of you. How's it going?`,
+      (n) => `Hi${n ? " " + n : ""} 💭 anything on your mind?`,
+      (n) => `Hey${n ? " " + n : ""}, taking a break? I'm around if you want to chat.`,
+      (n) => `Just checking in${n ? ", " + n : ""}. Hope your afternoon's treating you okay.`,
+      (n) => `Hey${n ? " " + n : ""}, how are you doing right now?`,
     ];
     return pick(messages)(name);
   } else {
     const messages = [
-      (n) =>
-        `Good evening${n ? " " + n : ""} 💛 hope your day wasn't too heavy.`,
-      (n) =>
-        `Hi${n ? " " + n : ""}, just saying good evening. I'm here if you feel like talking.`,
-      (n) =>
-        `Hey${n ? " " + n : ""}, winding down for ${day}? I'm around if you want to check in.`,
+      (n) => `Good evening${n ? " " + n : ""} 💛 hope your day wasn't too heavy.`,
+      (n) => `Hi${n ? " " + n : ""}, just saying good evening. I'm here if you feel like talking.`,
+      (n) => `Hey${n ? " " + n : ""}, winding down for ${day}? I'm around if you want to check in.`,
+      (n) => `Evening${n ? ", " + n : ""} 🌙 how was your day?`,
+      (n) => `Hey${n ? " " + n : ""}, how are you feeling tonight?`,
+      (n) => `Hi${n ? " " + n : ""}, hope you're getting some time to rest.`,
+      (n) => `Hey${n ? " " + n : ""}, end of ${day}. How are you holding up?`,
+      (n) => `Good evening${n ? " " + n : ""}. Just here if you need to talk through anything.`,
+      (n) => `Hey${n ? " " + n : ""} 💜 no pressure, just wanted to check in.`,
     ];
     return pick(messages)(name);
   }
