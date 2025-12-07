@@ -1,0 +1,147 @@
+I’m building an emotional wellness app called TRACE using Node.js (server/index.js), Supabase, and a React frontend.
+
+Context:
+- Supabase has a table public.user_preferences with at least:
+  - user_id (uuid, PK, references auth.users)
+  - notifications_enabled (boolean)
+  - reminder_time (time, 'HH:MM:SS') — not required for this task
+  - haptics_enabled (boolean)
+  - last_checkin_at (date)
+  - updated_at (timestamptz)
+- I now also want to support a per-user time zone so verse-time notifications trigger at 9:47 / 3:16 / 8:28 in EACH user’s local timezone.
+- The server already has a Supabase client initialized.
+- Twilio is no longer used for reminders; I want to move toward push-style notifications instead.
+- For now, I just want the server to:
+  - run on a schedule
+  - for each user with notifications enabled:
+    - compute their local time using their stored time zone (or default)
+    - check if their local time matches one of the “easter egg” times
+    - generate a friendly check-in message
+    - and call a stub function sendPushNotificationToUser(userId, messageText) that we’ll implement as a console.log placeholder.
+
+TASK:
+Modify server/index.js (and, if needed, the Supabase schema) to add a verse-time notification scheduler that runs in each user’s local timezone.
+
+Implementation requirements:
+
+0) (Schema update if needed)
+- In Supabase, the public.user_preferences table should have a column:
+  - time_zone text NULL
+- If it does not exist, add it with:
+  - ALTER TABLE public.user_preferences ADD COLUMN time_zone text;
+- time_zone will store an IANA timezone string like "America/Los_Angeles", "Europe/London", etc.
+- If time_zone is NULL for a user, default to "America/Los_Angeles" in the server logic.
+
+1) In server/index.js:
+   - Use a simple scheduler with setInterval that runs every 60 seconds.
+   - We are NOT hard-coding specific Pacific times anymore; instead we:
+     - Look at each user’s time_zone
+     - Convert the current UTC time to that timezone
+     - Check if their local time is one of 09:47, 15:16, or 20:28.
+
+   You can use JavaScript’s Intl.DateTimeFormat with timeZone to derive the local hour/minute for each user. For example:
+
+   function getLocalHMForTimezone(timeZone: string, date: Date): { hour: number; minute: number; ymd: string } {
+     const fmt = new Intl.DateTimeFormat("en-CA", {
+       timeZone,
+       year: "numeric",
+       month: "2-digit",
+       day: "2-digit",
+       hour: "2-digit",
+       minute: "2-digit",
+       hour12: false,
+     });
+     const parts = fmt.formatToParts(date);
+     const get = (type: string) => parts.find(p => p.type === type)?.value!;
+     const year = get("year");
+     const month = get("month");
+     const day = get("day");
+     const hour = parseInt(get("hour"), 10);
+     const minute = parseInt(get("minute"), 10);
+     const ymd = `${year}-${month}-${day}`;
+     return { hour, minute, ymd };
+   }
+
+   - Add a helper function:
+
+   function isVerseTimeLocal(hour: number, minute: number): boolean {
+     return (
+       (hour === 9 && minute === 47) ||
+       (hour === 15 && minute === 16) ||
+       (hour === 20 && minute === 28)
+     );
+   }
+
+2) Add a helper function getFriendlyCheckinMessage(now: Date): string with a warm, non-therapeutic tone. It should behave similarly to the frontend version, but can be simpler:
+
+   - Morning (before 11): messages like:
+     - "Good morning 😊 just checking in. How are you feeling today?"
+   - Afternoon (11–17): messages like:
+     - "Hey 👋 hope your day’s going okay. I’m here if you need a moment."
+   - Evening (17+): messages like:
+     - "Hi 💛 just saying good evening. I’m here if you feel like talking for a bit."
+
+   Important tone rules:
+   - TRACE should sound like a warm friend, not a therapist or coach.
+   - No clinical language like “process,” “unpack,” “nervous system,” “holding space,” etc.
+
+3) Add a server-side async function runVerseCheckins() that:
+
+   - Gets the current UTC time once (const now = new Date()).
+   - Queries Supabase for all rows in public.user_preferences where:
+     - notifications_enabled = true
+
+   - For each row:
+     - Determine the user’s time zone:
+       - const tz = row.time_zone || "America/Los_Angeles";
+     - Use getLocalHMForTimezone(tz, now) to get:
+       - local hour
+       - local minute
+       - local ymd (YYYY-MM-DD)
+     - If isVerseTimeLocal(localHour, localMinute) is false for that user, skip them.
+     - If true:
+       - If row.last_checkin_at is equal to local ymd (user already got a check-in today), skip them.
+       - Otherwise:
+         - Generate a message via getFriendlyCheckinMessage(nowInLocal), where nowInLocal can be approximated by reconstructing a Date using local Y-M-D and H:M, or simply by using now but still using hour bands (morning/afternoon/evening).
+         - Call sendPushNotificationToUser(row.user_id, messageText).
+         - Update last_checkin_at to local ymd for that user in user_preferences so the user only gets ONE notification per day total, at the earliest verse time they “hit” in their local timezone.
+
+   - It's okay to:
+     - Collect all user_ids that need an update into an array and send a single UPDATE with WHERE user_id IN (...)
+     - Or update each user individually in a loop.
+
+4) Add a stub:
+
+   async function sendPushNotificationToUser(userId: string, message: string) {
+     // TODO: integrate actual push provider later
+     console.log("[TRACE PUSH] to user", userId, ":", message);
+   }
+
+   This is just a placeholder for now; do NOT integrate a real push provider yet.
+
+5) Schedule runVerseCheckins to run every 60 seconds:
+
+   - Use setInterval(() => { ... }, 60_000).
+   - To avoid double-sending within the same minute, track a module-level “last processed” key:
+     - let lastProcessedKey: string | null = null;
+     - For each tick, compute a key based on UTC minute, e.g.:
+       - const key = now.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM"
+     - If key === lastProcessedKey, return early (already processed this minute).
+     - Otherwise, set lastProcessedKey = key and continue.
+
+   - Inside that interval callback, call runVerseCheckins().
+
+6) Very important:
+   - Do NOT re-add Twilio.
+   - Keep the rest of server/index.js behavior intact.
+   - Do NOT break any existing routes or handlers.
+   - Assume columns exist or, if needed, add ONLY the time_zone column as described in step 0.
+
+The end result should be:
+- server/index.js runs a background loop every 60 seconds.
+- For each user with notifications_enabled = true:
+  - It computes their local time based on time_zone (default "America/Los_Angeles" when missing).
+  - If their local time is 09:47, 15:16, or 20:28, and last_checkin_at is not already today for their local date:
+    - It logs a friend-style “[TRACE PUSH] to user ...” message.
+    - It updates last_checkin_at to that user’s local date.
+- No external push provider yet; just the scaffold and logs, wired for user-specific time zones.

@@ -1,10 +1,24 @@
 const express = require('express');
 const cors = require('cors');
 const OpenAI = require('openai');
-const cron = require('node-cron');
-const twilio = require('twilio');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
+
+// Initialize Supabase client for server-side operations
+// IMPORTANT: Server operations require SERVICE_ROLE_KEY (not anon key) to bypass RLS
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let supabaseServer = null;
+
+if (supabaseUrl && supabaseServiceKey) {
+  supabaseServer = createClient(supabaseUrl, supabaseServiceKey);
+  console.log('Supabase server client initialized (with service role)');
+} else {
+  console.log('SUPABASE_SERVICE_ROLE_KEY not set - verse-time scheduler disabled');
+  console.log('   Add this secret to enable per-user timezone notifications');
+}
+
 app.use(cors());
 app.use(express.json());
 
@@ -565,183 +579,171 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 // ============================================
-// TRACE SMS Reminder Service (Twilio + Cron)
+// TRACE Verse-Time Notification Scheduler
 // ============================================
-// Note: Reminders only send while this repl is awake/running.
-// For always-on reminders, deploy as a Background Worker.
+// Runs every 60 seconds, checks each user's local timezone,
+// and sends push notifications at 9:47am, 3:16pm, or 8:28pm local time.
 
-let twilioClient = null;
-let twilioFromNumber = null;
-
-async function getTwilioCredentials() {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY 
-    ? 'repl ' + process.env.REPL_IDENTITY 
-    : process.env.WEB_REPL_RENEWAL 
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
-    : null;
-
-  if (!xReplitToken || !hostname) {
-    console.log('⚠️  Twilio: No Replit connector token available');
-    return null;
-  }
-
+function getLocalHMForTimezone(timeZone, date) {
   try {
-    const response = await fetch(
-      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=twilio',
-      {
-        headers: {
-          'Accept': 'application/json',
-          'X_REPLIT_TOKEN': xReplitToken
-        }
-      }
-    );
-    const data = await response.json();
-    const connectionSettings = data.items?.[0];
-
-    if (!connectionSettings?.settings?.account_sid) {
-      console.log('⚠️  Twilio: Not connected or missing credentials');
-      return null;
-    }
-    
-    return {
-      accountSid: connectionSettings.settings.account_sid,
-      apiKey: connectionSettings.settings.api_key,
-      apiKeySecret: connectionSettings.settings.api_key_secret,
-      phoneNumber: connectionSettings.settings.phone_number
-    };
-  } catch (err) {
-    console.error('❌ Twilio credentials error:', err.message);
-    return null;
-  }
-}
-
-async function initTwilioClient() {
-  if (twilioClient) return true;
-  
-  const creds = await getTwilioCredentials();
-  if (!creds) return false;
-  
-  twilioClient = twilio(creds.apiKey, creds.apiKeySecret, { accountSid: creds.accountSid });
-  // Allow override via TWILIO_FROM_NUMBER env var, fallback to integration number
-  twilioFromNumber = process.env.TWILIO_FROM_NUMBER || creds.phoneNumber;
-  console.log('✅ Twilio client initialized, FROM:', twilioFromNumber);
-  return true;
-}
-
-async function sendTraceSms(body) {
-  const toNumber = process.env.TRACE_TO_NUMBER;
-  
-  if (!toNumber) {
-    console.log('⚠️  TRACE_TO_NUMBER not set - skipping SMS');
-    return;
-  }
-
-  const ready = await initTwilioClient();
-  if (!ready || !twilioClient || !twilioFromNumber) {
-    console.log('⚠️  Twilio not ready - skipping SMS');
-    return;
-  }
-
-  try {
-    const res = await twilioClient.messages.create({
-      from: twilioFromNumber,
-      to: toNumber,
-      body,
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
     });
-    console.log('✅ TRACE SMS sent:', res.sid);
+    const parts = fmt.formatToParts(date);
+    const get = (type) => parts.find(p => p.type === type)?.value || "00";
+    const year = get("year");
+    const month = get("month");
+    const day = get("day");
+    const hour = parseInt(get("hour"), 10);
+    const minute = parseInt(get("minute"), 10);
+    const ymd = `${year}-${month}-${day}`;
+    return { hour, minute, ymd };
   } catch (err) {
-    console.error('❌ Error sending TRACE SMS:', err.message);
+    console.error('Invalid timezone:', timeZone, err.message);
+    return null;
   }
 }
 
-function getPersonalizedCheckinMessage(now) {
-  const hour = now.getHours();
+function isVerseTimeLocal(hour, minute) {
+  return (
+    (hour === 9 && minute === 47) ||
+    (hour === 15 && minute === 16) ||
+    (hour === 20 && minute === 28)
+  );
+}
 
+function getFriendlyCheckinMessage(hour) {
   if (hour < 11) {
     const messages = [
-      "Good morning 😊 I hope the start of your day feels good.",
-      "Hi 💛 just checking in... how are you feeling this morning?",
-      "Morning ☀️ If you want company before the day gets busy, I'm here."
+      "Good morning 😊 just checking in. How are you feeling today?",
+      "Hi 💛 hope your morning is off to a gentle start.",
+      "Morning ☀️ I'm here if you want company before the day gets busy."
     ];
     return messages[Math.floor(Math.random() * messages.length)];
   }
 
   if (hour < 17) {
     const messages = [
-      "Hey 👋 how's your afternoon going?",
-      "Hi 💛 I hope today has been kind to you.",
-      "Just a soft hello ✨ I'm around if you want a minute to talk."
+      "Hey 👋 hope your day's going okay. I'm here if you need a moment.",
+      "Hi 💛 just a soft hello. How's your afternoon?",
+      "Just checking in ✨ I'm around if you want to talk."
     ];
     return messages[Math.floor(Math.random() * messages.length)];
   }
 
   const messages = [
-    "Hey 💛 I hope you had a good day today. I'm here if you want a quiet moment.",
-    "Hi 😊 just stopping by to say good evening. How are you feeling tonight?",
-    "Hope your night feels calm 🌙 I'm right here if you want to talk or unwind."
+    "Hi 💛 just saying good evening. I'm here if you feel like talking for a bit.",
+    "Hey 😊 hope your day was okay. I'm here if you want a quiet moment.",
+    "Hope your night feels calm 🌙 I'm right here if you want to unwind."
   ];
   return messages[Math.floor(Math.random() * messages.length)];
 }
 
-// Default check-in times (until user updates preferences)
-// 1. Morning: 9:47 AM Pacific
-cron.schedule('47 9 * * *', () => {
+async function sendPushNotificationToUser(userId, message) {
+  // TODO: integrate actual push provider later
+  console.log("[TRACE PUSH] to user", userId, ":", message);
+}
+
+let lastProcessedKey = null;
+
+async function runVerseCheckins() {
+  if (!supabaseServer) {
+    return;
+  }
+
   const now = new Date();
-  const message = getPersonalizedCheckinMessage(now);
-  console.log('⏰ Morning TRACE check-in (9:47 AM)');
-  sendTraceSms(message);
-}, {
-  timezone: 'America/Los_Angeles',
-});
-
-// 2. Afternoon: 3:16 PM Pacific
-cron.schedule('16 15 * * *', () => {
-  const now = new Date();
-  const message = getPersonalizedCheckinMessage(now);
-  console.log('⏰ Afternoon TRACE check-in (3:16 PM)');
-  sendTraceSms(message);
-}, {
-  timezone: 'America/Los_Angeles',
-});
-
-// 3. Evening: 8:28 PM Pacific
-cron.schedule('28 20 * * *', () => {
-  const now = new Date();
-  const message = getPersonalizedCheckinMessage(now);
-  console.log('⏰ Evening TRACE check-in (8:28 PM)');
-  sendTraceSms(message);
-}, {
-  timezone: 'America/Los_Angeles',
-});
-
-console.log('📱 TRACE SMS reminders scheduled: 9:47am, 3:16pm & 8:28pm Pacific');
-console.log('   Set TRACE_TO_NUMBER in Secrets to receive texts');
-
-// Test endpoint to send SMS immediately
-app.post('/api/test-sms', async (req, res) => {
-  const testMessage = "TRACE: Just a quick hello to make sure we're connected. I'm here when you need me. 💛";
+  const key = now.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM"
   
-  const toNumber = process.env.TRACE_TO_NUMBER;
-  if (!toNumber) {
-    return res.status(400).json({ error: 'TRACE_TO_NUMBER not set in secrets' });
+  if (key === lastProcessedKey) {
+    return; // Already processed this minute
+  }
+  lastProcessedKey = key;
+
+  try {
+    const { data: users, error } = await supabaseServer
+      .from('user_preferences')
+      .select('user_id, time_zone, last_checkin_at')
+      .eq('notifications_enabled', true);
+
+    if (error) {
+      console.error('Error fetching user preferences:', error.message);
+      return;
+    }
+
+    if (!users || users.length === 0) {
+      return;
+    }
+
+    const usersToUpdate = [];
+
+    for (const user of users) {
+      const tz = user.time_zone || 'America/Los_Angeles';
+      const localTime = getLocalHMForTimezone(tz, now);
+      
+      if (!localTime) continue;
+
+      const { hour, minute, ymd } = localTime;
+
+      if (!isVerseTimeLocal(hour, minute)) {
+        continue;
+      }
+
+      if (user.last_checkin_at === ymd) {
+        continue; // Already sent today
+      }
+
+      const message = getFriendlyCheckinMessage(hour);
+      await sendPushNotificationToUser(user.user_id, message);
+      usersToUpdate.push({ user_id: user.user_id, ymd });
+    }
+
+    // Update last_checkin_at for all users who received a notification
+    for (const { user_id, ymd } of usersToUpdate) {
+      await supabaseServer
+        .from('user_preferences')
+        .update({ last_checkin_at: ymd })
+        .eq('user_id', user_id);
+    }
+
+    if (usersToUpdate.length > 0) {
+      console.log(`[TRACE] Sent verse-time notifications to ${usersToUpdate.length} user(s)`);
+    }
+  } catch (err) {
+    console.error('Error in runVerseCheckins:', err.message);
+  }
+}
+
+// Start the verse-time scheduler (runs every 60 seconds)
+if (supabaseServer) {
+  setInterval(() => {
+    runVerseCheckins().catch(err => {
+      console.error('Verse checkin error:', err.message);
+    });
+  }, 60_000);
+  
+  console.log('📱 TRACE verse-time scheduler started (checks every 60s)');
+  console.log('   Notifications at 9:47am, 3:16pm & 8:28pm in each user\'s local timezone');
+}
+
+// Test endpoint to trigger verse checkin manually
+app.post('/api/test-verse-checkin', async (req, res) => {
+  if (!supabaseServer) {
+    return res.status(500).json({ error: 'Supabase not configured' });
   }
   
-  const ready = await initTwilioClient();
-  if (!ready || !twilioClient || !twilioFromNumber) {
-    return res.status(500).json({ error: 'Twilio not ready', fromNumber: twilioFromNumber });
-  }
+  // Reset last processed key to allow immediate testing
+  lastProcessedKey = null;
   
   try {
-    const result = await twilioClient.messages.create({
-      from: twilioFromNumber,
-      to: toNumber,
-      body: testMessage,
-    });
-    console.log('✅ Test SMS sent:', result.sid);
-    res.json({ success: true, sid: result.sid, from: twilioFromNumber, to: toNumber });
+    await runVerseCheckins();
+    res.json({ success: true, message: 'Verse checkin run completed' });
   } catch (err) {
-    console.error('❌ Test SMS error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
