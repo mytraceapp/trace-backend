@@ -3,11 +3,21 @@ import { supabase } from "./supabaseClient";
 export async function saveTraceMessage(
   userId: string,
   role: "user" | "assistant",
-  content: string
+  content: string,
+  emotion?: string | null,
+  intensity?: number | null
 ) {
   const { data, error } = await supabase
     .from("messages")
-    .insert([{ user_id: userId, role, content }])
+    .insert([
+      {
+        user_id: userId,
+        role,
+        content,
+        emotion: emotion ?? null,
+        intensity: intensity ?? null,
+      },
+    ])
     .select();
 
   if (error) {
