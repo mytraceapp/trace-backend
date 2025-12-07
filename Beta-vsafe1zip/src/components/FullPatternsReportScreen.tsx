@@ -371,7 +371,7 @@ export function FullPatternsReportScreen({
                 ...textStyle,
                 fontSize: '13px',
                 fontStyle: 'italic',
-                opacity: 0.22,
+                opacity: 0.28,
               }}
             >
               A gentle look at what's been moving through you.
