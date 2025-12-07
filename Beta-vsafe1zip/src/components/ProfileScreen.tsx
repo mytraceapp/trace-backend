@@ -906,13 +906,17 @@ export function ProfileScreen({
 
           {/* Section 4 — About TRACE */}
           <motion.div
-            className="w-full mb-8"
+            className="w-full rounded-[28px] p-7 mb-5 transition-all duration-200"
+            style={{
+              background: 'var(--card)',
+              boxShadow: `0 2px 16px var(--shadow), 0 4px 24px var(--shadow)`,
+            }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.7 }}
           >
             <h3
-              className="mb-4 px-3"
+              className="mb-4"
               style={{
                 fontFamily: 'Georgia, serif',
                 fontSize: '15px',
@@ -924,13 +928,10 @@ export function ProfileScreen({
               About TRACE
             </h3>
 
-            <div className="space-y-1">
+            <div className="space-y-0">
               <button
                 onClick={() => setShowAboutTraceModal(true)}
-                className="w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 hover:bg-black/5"
-                style={{
-                  background: 'var(--accent-soft)',
-                }}
+                className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
               >
                 <span
                   style={{
@@ -948,10 +949,7 @@ export function ProfileScreen({
 
               <button
                 onClick={onNavigateToTerms}
-                className="w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 hover:bg-black/5"
-                style={{
-                  background: 'var(--accent-soft)',
-                }}
+                className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
               >
                 <span
                   style={{
@@ -969,10 +967,7 @@ export function ProfileScreen({
 
               <button
                 onClick={onNavigateToPrivacy}
-                className="w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 hover:bg-black/5"
-                style={{
-                  background: 'var(--accent-soft)',
-                }}
+                className="w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all duration-200 hover:bg-black/5"
               >
                 <span
                   style={{
