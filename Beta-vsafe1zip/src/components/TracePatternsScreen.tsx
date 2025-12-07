@@ -23,8 +23,8 @@ interface PatternModalProps {
 }
 
 function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
-  const { theme } = useTheme();
-  const isDark = theme === 'night';
+  const { effectiveTheme } = useTheme();
+  const isDark = effectiveTheme === 'night';
   
   if (!pattern) return null;
 
@@ -106,7 +106,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                 </h3>
                 <p
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '12px',
                     fontWeight: 400,
                     color: 'var(--text-secondary)',
@@ -128,7 +128,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                 >
                   <p
                     style={{
-                      fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                      fontFamily: 'Georgia, serif',
                       fontSize: '13px',
                       fontWeight: 500,
                       color: 'var(--text-primary)',
@@ -159,7 +159,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
               <div style={{ marginBottom: '14px' }}>
                 <h4
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '11px',
                     fontWeight: 600,
                     color: 'var(--text-secondary)',
@@ -175,7 +175,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                     <li
                       key={index}
                       style={{
-                        fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                        fontFamily: 'Georgia, serif',
                         fontSize: '13px',
                         fontWeight: 300,
                         color: 'var(--text-primary)',
@@ -203,7 +203,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
               <div style={{ marginBottom: '14px' }}>
                 <h4
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '11px',
                     fontWeight: 600,
                     color: 'var(--text-secondary)',
@@ -219,7 +219,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
                     <li
                       key={index}
                       style={{
-                        fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                        fontFamily: 'Georgia, serif',
                         fontSize: '13px',
                         fontWeight: 300,
                         color: 'var(--text-primary)',
@@ -258,7 +258,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
               >
                 <span
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '13px',
                     fontWeight: 500,
                     color: 'var(--accent)',
@@ -282,7 +282,7 @@ function PatternModal({ pattern, onClose, onViewFull }: PatternModalProps) {
               >
                 <span
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '14px',
                     fontWeight: 500,
                     color: 'var(--text-primary)',
@@ -306,8 +306,8 @@ interface UpsellModalProps {
 }
 
 function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
-  const { theme } = useTheme();
-  const isDark = theme === 'night';
+  const { effectiveTheme } = useTheme();
+  const isDark = effectiveTheme === 'night';
   
   if (!isOpen) return null;
 
@@ -395,7 +395,7 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
 
             <p
               style={{
-                fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                fontFamily: 'Georgia, serif',
                 fontSize: '15px',
                 fontWeight: 300,
                 color: 'var(--text-primary)',
@@ -420,7 +420,7 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
             >
               <span
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '15px',
                   fontWeight: 500,
                   color: '#FFFFFF',
@@ -442,7 +442,7 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
             >
               <span
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '14px',
                   fontWeight: 400,
                   color: 'var(--text-secondary)',
@@ -459,8 +459,8 @@ function UpsellModal({ isOpen, onClose }: UpsellModalProps) {
 }
 
 function WeeklyRhythmInfoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { theme } = useTheme();
-  const isDark = theme === 'night';
+  const { effectiveTheme } = useTheme();
+  const isDark = effectiveTheme === 'night';
   
   if (!isOpen) return null;
 
@@ -549,7 +549,7 @@ function WeeklyRhythmInfoModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
             <div className="space-y-4">
               <p
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '14px',
                   fontWeight: 300,
                   color: 'var(--text-primary)',
@@ -561,7 +561,7 @@ function WeeklyRhythmInfoModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
               
               <p
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '14px',
                   fontWeight: 300,
                   color: 'var(--text-primary)',
@@ -573,7 +573,7 @@ function WeeklyRhythmInfoModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
               
               <p
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '14px',
                   fontWeight: 300,
                   color: 'var(--text-primary)',
@@ -585,7 +585,7 @@ function WeeklyRhythmInfoModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
               
               <p
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '14px',
                   fontWeight: 400,
                   color: 'var(--text-secondary)',
@@ -608,7 +608,7 @@ function WeeklyRhythmInfoModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
             >
               <span
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '14px',
                   fontWeight: 500,
                   color: 'var(--text-primary)',
@@ -1085,8 +1085,8 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
     return particles;
   };
 
-  const { theme } = useTheme();
-  const isDark = theme === 'night';
+  const { effectiveTheme } = useTheme();
+  const isDark = effectiveTheme === 'night';
 
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: 'transparent' }}>
@@ -1351,7 +1351,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             >
               <h2
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '13px',
                   fontWeight: 600,
                   color: 'var(--text-primary)',
@@ -1362,7 +1362,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               </h2>
               <p
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '12px',
                   fontWeight: 300,
                   color: 'var(--text-secondary)',
@@ -1387,7 +1387,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               >
                 <h3
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '12px',
                     fontWeight: 600,
                     color: 'var(--text-primary)',
@@ -1397,7 +1397,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 </h3>
                 <ul
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '12px',
                     fontWeight: 300,
                     color: 'var(--text-secondary)',
@@ -1414,7 +1414,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 </ul>
                 <p
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '12px',
                     fontWeight: 300,
                     fontStyle: 'italic',
@@ -1438,7 +1438,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               >
                 <h3
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '12px',
                     fontWeight: 600,
                     color: 'var(--text-primary)',
@@ -1449,7 +1449,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 </h3>
                 <p
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '12px',
                     fontWeight: 300,
                     color: 'var(--text-secondary)',
@@ -1489,7 +1489,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                     position: 'absolute',
                     top: '12px',
                     right: '12px',
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '10px',
                     fontWeight: 500,
                     color: 'var(--accent)',
@@ -1514,7 +1514,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               </h3>
               <p
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '13px',
                   fontWeight: 300,
                   color: 'var(--text-primary)',
@@ -1557,7 +1557,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                     position: 'absolute',
                     top: '12px',
                     right: '12px',
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '10px',
                     fontWeight: 500,
                     color: 'var(--accent)',
@@ -1582,7 +1582,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               </h3>
               <p
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '13px',
                   fontWeight: 300,
                   color: 'var(--text-primary)',
@@ -1625,7 +1625,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                     position: 'absolute',
                     top: '12px',
                     right: '12px',
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '10px',
                     fontWeight: 500,
                     color: isDark ? '#C49A6C' : '#A9683A',
@@ -1653,7 +1653,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                     position: 'absolute',
                     top: '12px',
                     right: '12px',
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '10px',
                     fontWeight: 500,
                     color: 'var(--accent)',
@@ -1678,7 +1678,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               </h3>
               <p
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '13px',
                   fontWeight: 300,
                   color: 'var(--text-primary)',
@@ -1823,7 +1823,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             {/* Weekly rhythm insight based on real data */}
             <p
               style={{
-                fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                fontFamily: 'Georgia, serif',
                 fontSize: '12px',
                 fontWeight: 300,
                 color: 'var(--text-secondary)',
@@ -1875,7 +1875,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               >
                 <p
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '14px',
                     fontWeight: 400,
                     color: 'var(--text-primary)',
@@ -1933,7 +1933,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               >
                 <p
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '13px',
                     fontWeight: 300,
                     fontStyle: 'italic',
@@ -1966,7 +1966,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             >
               <span
                 style={{
-                  fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                  fontFamily: 'Georgia, serif',
                   fontSize: '15px',
                   fontWeight: 400,
                   color: 'var(--text-primary)',

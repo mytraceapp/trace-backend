@@ -90,8 +90,8 @@ export function FullPatternsReportScreen({
   onNavigateHelp,
   onNavigateActivities,
 }: FullPatternsReportScreenProps) {
-  const { theme } = useTheme();
-  const isDark = theme === 'night';
+  const { effectiveTheme } = useTheme();
+  const isDark = effectiveTheme === 'night';
   const { addEmotionalNoteEntry } = useEntries();
 
   const [userId, setUserId] = useState<string | null>(null); // Used for data fetching
@@ -248,7 +248,7 @@ export function FullPatternsReportScreen({
   };
 
   const textStyle = {
-    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+    fontFamily: 'Georgia, serif',
     fontSize: '15px',
     fontWeight: 300 as const,
     color: isDark ? 'rgba(200, 195, 188, 0.85)' : '#4C443D',
@@ -476,7 +476,7 @@ export function FullPatternsReportScreen({
                 >
                   <p
                     style={{
-                      fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                      fontFamily: 'Georgia, serif',
                       fontSize: '13px',
                       fontWeight: 300,
                       fontStyle: 'italic',
@@ -525,7 +525,7 @@ export function FullPatternsReportScreen({
                     border: isDark
                       ? '1px solid rgba(255, 255, 255, 0.08)'
                       : '1px solid rgba(90, 74, 58, 0.12)',
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '15px',
                     fontWeight: 300,
                     color: 'var(--text-primary)',
@@ -592,7 +592,7 @@ export function FullPatternsReportScreen({
                   onClick={onBack}
                   className="flex items-center gap-2 transition-opacity hover:opacity-70"
                   style={{
-                    fontFamily: 'SF Pro Text, -apple-system, sans-serif',
+                    fontFamily: 'Georgia, serif',
                     fontSize: '14px',
                     fontWeight: 400,
                     color: isDark ? 'rgba(180, 175, 168, 0.6)' : 'rgba(90, 80, 70, 0.5)',
