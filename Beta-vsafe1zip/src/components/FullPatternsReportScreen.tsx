@@ -439,22 +439,16 @@ export function FullPatternsReportScreen({
                 <h3 style={{ ...headingStyle, fontSize: '16px', marginBottom: '14px' }}>
                   A space for your words
                 </h3>
-                <p
-                  style={{
-                    ...textStyle,
-                    fontSize: '13px',
-                    marginBottom: '16px',
-                    opacity: 0.7,
-                  }}
-                >
-                  If anything feels ready to be named, you can write it here. No pressure — just soft availability.
-                </p>
 
                 <textarea
                   value={reflectionText}
-                  onChange={(e) => setReflectionText(e.target.value)}
-                  placeholder="Whatever comes to mind..."
-                  rows={4}
+                  onChange={(e) => {
+                    setReflectionText(e.target.value);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                  }}
+                  placeholder="No pressure, you can write it here."
+                  rows={3}
                   style={{
                     width: '100%',
                     padding: '14px 16px',
@@ -469,6 +463,8 @@ export function FullPatternsReportScreen({
                     color: 'var(--text-primary)',
                     resize: 'none',
                     outline: 'none',
+                    overflow: 'hidden',
+                    minHeight: '80px',
                   }}
                 />
 
