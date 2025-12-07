@@ -563,9 +563,9 @@ cron.schedule('0 10 * * *', () => {
   timezone: 'America/Los_Angeles',
 });
 
-// Schedule: 6:00pm Pacific every day
-cron.schedule('0 18 * * *', () => {
-  console.log('⏰ Evening TRACE check-in triggered');
+// Evening TRACE test check-in at 6:23 PM Pacific
+cron.schedule('23 18 * * *', () => {
+  console.log('⏰ Evening TRACE check-in (TEST)');
   sendTraceSms(EVENING_MESSAGE);
 }, {
   timezone: 'America/Los_Angeles',
