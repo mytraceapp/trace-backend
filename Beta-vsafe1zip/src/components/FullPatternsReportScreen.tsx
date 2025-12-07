@@ -308,54 +308,6 @@ export function FullPatternsReportScreen({
         }}
       />
 
-      <motion.div
-        className="absolute left-0 right-0 z-20 flex flex-col items-center justify-center"
-        style={{ top: 'calc(3% + 32px)' }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] }}
-      >
-        <h1
-          style={{
-            fontFamily: 'ALORE, Georgia, serif',
-            color: 'var(--text-primary)',
-            fontWeight: 300,
-            letterSpacing: '1em',
-            fontSize: '11px',
-            textShadow: `0 0 15px var(--orb-glow), 0 0 30px var(--orb-glow), 0 2px 4px rgba(0,0,0,0.15)`,
-            opacity: 0.88,
-            textAlign: 'center',
-            marginLeft: '0.5em',
-          }}
-        >
-          TRACE
-        </h1>
-        {/* Maze logo with subtle glow behind it - sized to align with 24px grid */}
-        <div 
-          className="relative mt-2 mx-auto"
-          style={{ width: '72px', height: '72px' }}
-        >
-          {/* Subtle glow behind logo */}
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: isDark 
-                ? 'radial-gradient(circle, rgba(141, 161, 143, 0.15) 0%, transparent 70%)'
-                : 'radial-gradient(circle, rgba(141, 161, 143, 0.12) 0%, transparent 70%)',
-              transform: 'scale(1.5)',
-              filter: 'blur(8px)',
-            }}
-          />
-          <img 
-            src={traceLogo} 
-            alt="" 
-            className="w-full h-full relative"
-            style={{
-              opacity: 0.7,
-            }}
-          />
-        </div>
-      </motion.div>
 
       <div className="relative z-10 flex flex-col h-full overflow-y-auto overflow-x-hidden pb-32" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <style>
@@ -366,7 +318,7 @@ export function FullPatternsReportScreen({
           `}
         </style>
 
-        <div className="flex-shrink-0" style={{ height: 'calc(16% + 32px)' }} />
+        <div className="flex-shrink-0" style={{ height: '8%' }} />
 
         <div className="w-full max-w-md mx-auto px-6 flex flex-col items-center">
           <motion.div
@@ -382,12 +334,36 @@ export function FullPatternsReportScreen({
                 fontSize: '24px',
                 fontWeight: 500,
                 color: 'var(--text-primary)',
-                marginBottom: '8px',
+                marginBottom: '12px',
                 letterSpacing: '0.01em',
               }}
             >
               Your Emotional Reflection
             </h2>
+            
+            {/* Subtle maze identity seal */}
+            <div 
+              className="relative mx-auto"
+              style={{ width: '54px', height: '54px', marginBottom: '12px' }}
+            >
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: isDark 
+                    ? 'radial-gradient(circle, rgba(141, 161, 143, 0.12) 0%, transparent 70%)'
+                    : 'radial-gradient(circle, rgba(141, 161, 143, 0.1) 0%, transparent 70%)',
+                  transform: 'scale(1.4)',
+                  filter: 'blur(6px)',
+                }}
+              />
+              <img 
+                src={traceLogo} 
+                alt="" 
+                className="w-full h-full relative"
+                style={{ opacity: 0.5 }}
+              />
+            </div>
+            
             <p
               style={{
                 ...textStyle,
