@@ -1,0 +1,103 @@
+In the Patterns overview screen file (e.g. src/components/PatternsScreen.tsx):
+	1.	Add this import near the others:import { getRecentStitches, EmotionalStitch } from '../lib/messageService';const [weeklyStitches, setWeeklyStitches] = React.useState<EmotionalStitch[]>([]);React.useEffect(() => {
+  if (!userId) return;
+
+  let cancelled = false;
+
+  (async () => {
+    try {
+      const stitches = await getRecentStitches(userId, 7);
+      if (!cancelled) setWeeklyStitches(stitches);
+    } catch (err) {
+      console.error('TRACE Patterns: failed to load stitches', err);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [userId]);const today = new Date().toISOString().slice(0, 10);<PatternCard
+  title="Today"
+  tag="NOW"
+  description="Some placeholder copy about today..."
+/>
+
+<PatternCard
+  title="Your Week"
+  tag="RHYTHM"
+  description="Some placeholder copy about your week..."
+/>
+
+const todayStitch = React.useMemo(() => {
+  return weeklyStitches.find((s) => s.summary_date === today) ?? null;
+}, [weeklyStitches, today]);
+
+const todayDescription = React.useMemo(() => {
+  if (!todayStitch || todayStitch.total === 0) {
+    return "TRACE will get a better read on today as you keep checking in.";
+  }
+
+  const heavyRatio =
+    (todayStitch.heavy + todayStitch.anxious) / todayStitch.total;
+
+  if (heavyRatio >= 0.5) {
+    return "Today has carried a bit more emotional weight than usual.";
+  }
+
+  if (todayStitch.arc === 'softening') {
+    return "Today started a little loaded but seems to have eased as time went on.";
+  }
+
+  if (todayStitch.arc === 'rising') {
+    return "Today’s energy has felt like it’s been building as the day moved along.";
+  }
+
+  // steady or mostly calm
+  return "Today has felt fairly steady overall — nothing too loud, nothing too flat.";
+}, [todayStitch]);
+
+const weekDescription = React.useMemo(() => {
+  if (!weeklyStitches.length) {
+    return "As more days collect here, TRACE will start to reflect how your week tends to move.";
+  }
+
+  const total = weeklyStitches.reduce((sum, s) => sum + (s.total ?? 0), 0);
+  if (total === 0) {
+    return "This week is still pretty quiet in TRACE. That’s okay.";
+  }
+
+  let heavy = 0;
+  let calm = 0;
+  let softeningDays = 0;
+  let risingDays = 0;
+
+  for (const s of weeklyStitches) {
+    heavy += (s.heavy ?? 0) + (s.anxious ?? 0);
+    calm += (s.calm ?? 0) + (s.flat ?? 0);
+    if (s.arc === 'softening') softeningDays++;
+    if (s.arc === 'rising') risingDays++;
+  }
+
+  const heavyRatio = heavy / total;
+
+  if (heavyRatio >= 0.5 || risingDays > softeningDays) {
+    return "This week has had a bit more emotional activation than usual.";
+  }
+
+  if (softeningDays > risingDays) {
+    return "Across the week, things have generally eased as the days went on.";
+  }
+
+  // mostly steady
+  return "Your week has had a pretty steady emotional pace — not too sharp, not totally flat.";
+}, [weeklyStitches]);<PatternCard
+  title="Today"
+  tag="NOW"
+  description={todayDescription}
+/>
+
+<PatternCard
+  title="Your Week"
+  tag="RHYTHM"
+  description={weekDescription}
+/>

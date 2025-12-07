@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react';
+import { audioManager } from '../lib/audioManager';
 
 interface GroundingToneProps {
   isPlaying: boolean;
   volume?: number;
 }
+
+let groundingInstanceCounter = 0;
 
 export function GroundingTone({ isPlaying, volume = 0.38 }: GroundingToneProps) {
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -13,11 +16,27 @@ export function GroundingTone({ isPlaying, volume = 0.38 }: GroundingToneProps) 
   const masterGainRef = useRef<GainNode | null>(null);
   const lfosRef = useRef<OscillatorNode[]>([]);
   const transitionIntervalRef = useRef<number | null>(null);
+  const instanceIdRef = useRef<string>('');
 
   useEffect(() => {
     if (isPlaying) {
+      groundingInstanceCounter++;
+      const instanceId = `grounding-${groundingInstanceCounter}`;
+      instanceIdRef.current = instanceId;
+      
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       audioContextRef.current = audioContext;
+      
+      // Register with audio manager - stops any other audio sources
+      audioManager.register(
+        instanceId,
+        audioContext,
+        () => {
+          oscillatorsRef.current.forEach(osc => { try { osc.stop(); } catch (e) {} });
+          lfosRef.current.forEach(lfo => { try { lfo.stop(); } catch (e) {} });
+        },
+        'activity'
+      );
 
       const masterGain = audioContext.createGain();
       masterGain.gain.setValueAtTime(0, audioContext.currentTime);
@@ -168,19 +187,13 @@ export function GroundingTone({ isPlaying, volume = 0.38 }: GroundingToneProps) 
         clearInterval(transitionIntervalRef.current);
         transitionIntervalRef.current = null;
       }
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        oscillatorsRef.current.forEach(osc => {
-          try { osc.stop(); } catch (e) {}
-        });
-        lfosRef.current.forEach(lfo => {
-          try { lfo.stop(); } catch (e) {}
-        });
-        audioContextRef.current.close().catch(() => {});
-        oscillatorsRef.current = [];
-        gainsRef.current = [];
-        filtersRef.current = [];
-        lfosRef.current = [];
+      if (instanceIdRef.current) {
+        audioManager.unregister(instanceIdRef.current);
       }
+      oscillatorsRef.current = [];
+      gainsRef.current = [];
+      filtersRef.current = [];
+      lfosRef.current = [];
     };
   }, [isPlaying, volume]);
 

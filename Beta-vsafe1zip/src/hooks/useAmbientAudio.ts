@@ -1,4 +1,5 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
+import { audioManager } from '../lib/audioManager';
 
 interface UseAmbientAudioOptions {
   src: string;
@@ -11,11 +12,7 @@ interface UseAmbientAudioOptions {
   crossfadeDuration?: number;
 }
 
-// Singleton to track global ambient audio state
-const globalAmbientState = {
-  activeContext: null as AudioContext | null,
-  instanceCount: 0,
-};
+let instanceCounter = 0;
 
 export function useAmbientAudio({
   src,
@@ -36,22 +33,17 @@ export function useAmbientAudio({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const filterChainRef = useRef<BiquadFilterNode[]>([]);
-  const instanceIdRef = useRef<number>(0);
+  const instanceIdRef = useRef<string>('');
 
   useEffect(() => {
-    // Close any existing global context before creating a new one
-    if (globalAmbientState.activeContext && globalAmbientState.activeContext.state !== 'closed') {
-      globalAmbientState.activeContext.close().catch(() => {});
-    }
-    
-    globalAmbientState.instanceCount++;
-    instanceIdRef.current = globalAmbientState.instanceCount;
+    instanceCounter++;
+    const instanceId = `ambient-${instanceCounter}`;
+    instanceIdRef.current = instanceId;
     
     const loadAudio = async () => {
       try {
         const context = new AudioContext();
         audioContextRef.current = context;
-        globalAmbientState.activeContext = context;
 
         const masterGain = context.createGain();
         masterGain.gain.value = 0;
@@ -99,14 +91,13 @@ export function useAmbientAudio({
 
     loadAudio();
 
+    const currentInstanceId = instanceId;
     return () => {
       if (loopTimeoutRef.current) {
         clearTimeout(loopTimeoutRef.current);
       }
       isPlayingRef.current = false;
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close().catch(() => {});
-      }
+      audioManager.unregister(currentInstanceId);
     };
   }, [src]);
 
@@ -163,6 +154,20 @@ export function useAmbientAudio({
         context.resume();
       }
 
+      // Register with audio manager - this will stop any other audio sources
+      audioManager.register(
+        instanceIdRef.current,
+        context,
+        () => {
+          if (loopTimeoutRef.current) {
+            clearTimeout(loopTimeoutRef.current);
+          }
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+        },
+        'ambient'
+      );
+
       isPlayingRef.current = true;
       setIsPlaying(true);
 
@@ -212,6 +217,20 @@ export function useAmbientAudio({
     if (context.state === 'suspended') {
       context.resume();
     }
+
+    // Register with audio manager - this will stop any other audio sources
+    audioManager.register(
+      instanceIdRef.current,
+      context,
+      () => {
+        if (loopTimeoutRef.current) {
+          clearTimeout(loopTimeoutRef.current);
+        }
+        isPlayingRef.current = false;
+        setIsPlaying(false);
+      },
+      'ambient'
+    );
 
     isPlayingRef.current = true;
     setIsPlaying(true);
