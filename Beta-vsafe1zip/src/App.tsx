@@ -85,7 +85,7 @@ export default function App() {
   async function testSupabase() {
     const { data, error } = await supabase.from("messages").insert([
       {
-        user_id: "trace-test-app",
+        user_id: "00000000-0000-0000-0000-000000000001",
         role: "user",
         content: "TRACE connection test from APP",
       },
