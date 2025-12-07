@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, Lock, Download, Trash2, Volume2, VolumeX, X, Copy, Check, Sun, Moon, LogIn, LogOut } from 'lucide-react';
 import { BottomNav } from './BottomNav';
@@ -8,6 +8,8 @@ import { useAuth } from '../state/AuthContext';
 import { AboutTraceModal } from './AboutTraceModal';
 import AuthModal from './AuthModal';
 import { PasscodeSettingsModal } from './PasscodeSettingsModal';
+import { useUserPreferences } from '../hooks/useUserPreferences';
+import { supabase } from '../lib/supabaseClient';
 
 interface ProfileScreenProps {
   onNavigateToActivities?: () => void;
@@ -33,6 +35,17 @@ export function ProfileScreen({
   const { profile, selectedPlan, generateReferralCode, updatePlan, setIsUpgrading, ambienceEnabled, setAmbienceEnabled, ambienceVolume, setAmbienceVolume } = useUser();
   const { theme, effectiveTheme, setTheme } = useTheme();
   const { user, signOut, currentProfile, updateProfileData } = useAuth();
+  const { preferences, timeZone, setTimeZone } = useUserPreferences(supabase, user);
+
+  useEffect(() => {
+    if (timeZone != null) return;
+    if (!preferences) return;
+
+    const guessed = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (guessed) {
+      setTimeZone(guessed);
+    }
+  }, [timeZone, preferences, setTimeZone]);
   const [showAuthModal, setShowAuthModal] = React.useState(false);
   const [showEditNameModal, setShowEditNameModal] = React.useState(false);
   const [showPasscodeSettings, setShowPasscodeSettings] = React.useState(false);
@@ -722,6 +735,33 @@ export function ProfileScreen({
                       Auto
                     </span>
                   </button>
+                </div>
+              </div>
+
+              {/* Time Zone */}
+              <div className="py-3 px-3 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <span
+                    style={{
+                      fontFamily: 'Georgia, serif',
+                      color: 'var(--text-primary)',
+                      fontSize: '14px',
+                      fontWeight: 300,
+                      letterSpacing: '0.01em',
+                    }}
+                  >
+                    Time Zone
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'Georgia, serif',
+                      color: 'var(--text-secondary)',
+                      fontSize: '13px',
+                      fontWeight: 300,
+                    }}
+                  >
+                    {timeZone ?? "Detecting..."}
+                  </span>
                 </div>
               </div>
             </div>
