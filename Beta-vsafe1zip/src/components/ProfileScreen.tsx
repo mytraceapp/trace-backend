@@ -1001,10 +1001,9 @@ export function ProfileScreen({
               style={{
                 fontFamily: 'Georgia, serif',
                 fontSize: '12px',
-                fontWeight: 400,
-                color: 'var(--text-primary)',
+                fontWeight: 500,
+                color: effectiveTheme === 'night' ? '#B8C4B0' : '#5A5A52',
                 letterSpacing: '0.01em',
-                opacity: 0.65,
                 lineHeight: '1.5',
               }}
             >
