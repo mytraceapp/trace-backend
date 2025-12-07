@@ -152,6 +152,7 @@ export async function loadRecentTraceMessages(
   }
 
   if (!data || data.length === 0) {
+    setMessages([]); // Call with empty array so greeting can start
     return;
   }
 

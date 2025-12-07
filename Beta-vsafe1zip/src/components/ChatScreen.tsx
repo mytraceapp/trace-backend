@@ -335,11 +335,7 @@ export function ChatScreen({
         try {
           const userId = await getCurrentUserId();
           if (userId) {
-            await saveTraceMessage(userId, 'assistant', text, {
-              emotion: 'calm',
-              intensity: 2,
-              source: 'emotional_recall',
-            });
+            await saveTraceMessage(userId, 'assistant', text);
           }
         } catch (err) {
           console.error('TRACE emotional recall: failed to save', err);
