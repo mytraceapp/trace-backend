@@ -655,21 +655,51 @@ async function sendTraceSms(body) {
   }
 }
 
-const MORNING_MESSAGE = "TRACE: Good morning. Just checking in — I'm here if you want to pause, breathe, or unpack anything from today. 💛";
-const EVENING_MESSAGE = "TRACE: Hey, you made it through the day. If anything's still sitting on your chest, we can process it together whenever you're ready. 🤍";
+function getPersonalizedCheckinMessage(now) {
+  const hour = now.getHours();
+
+  if (hour < 11) {
+    const messages = [
+      "TRACE: Good morning 😊 I hope the start of your day feels gentle.",
+      "TRACE: Hi 💛 just checking in — how are you feeling this morning?",
+      "TRACE: Morning ☀️ If you want company before the day gets busy, I'm here."
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
+  }
+
+  if (hour < 17) {
+    const messages = [
+      "TRACE: Hey 👋 how's your afternoon going?",
+      "TRACE: Hi 💛 I hope today has been kind to you.",
+      "TRACE: Just a soft hello ✨ I'm around if you want a minute to talk."
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
+  }
+
+  const messages = [
+    "TRACE: Hey 💛 I hope you had a good day today. I'm here if you want a quiet moment.",
+    "TRACE: Hi 😊 just stopping by to say good evening. How are you feeling tonight?",
+    "TRACE: Hope your night feels calm 🌙 I'm right here if you want to talk or unwind."
+  ];
+  return messages[Math.floor(Math.random() * messages.length)];
+}
 
 // Schedule: 10:00am Pacific every day
 cron.schedule('0 10 * * *', () => {
+  const now = new Date();
+  const message = getPersonalizedCheckinMessage(now);
   console.log('⏰ Morning TRACE check-in triggered');
-  sendTraceSms(MORNING_MESSAGE);
+  sendTraceSms(message);
 }, {
   timezone: 'America/Los_Angeles',
 });
 
-// Evening TRACE test check-in at 6:23 PM Pacific
+// Evening TRACE check-in at 6:23 PM Pacific
 cron.schedule('23 18 * * *', () => {
-  console.log('⏰ Evening TRACE check-in (TEST)');
-  sendTraceSms(EVENING_MESSAGE);
+  const now = new Date();
+  const message = getPersonalizedCheckinMessage(now);
+  console.log('⏰ Evening TRACE check-in');
+  sendTraceSms(message);
 }, {
   timezone: 'America/Los_Angeles',
 });
