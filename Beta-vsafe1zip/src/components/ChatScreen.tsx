@@ -460,6 +460,13 @@ export function ChatScreen({
           sender: 'ai'
         }]);
         
+        // Save TRACE's response to Supabase
+        getCurrentUserId().then(userId => {
+          if (userId) {
+            saveTraceMessage(userId, 'assistant', responseMessage);
+          }
+        });
+        
         // If should_navigate is true, navigate to the activity after showing the message
         if (activity_suggestion?.should_navigate && activity_suggestion?.name) {
           const activityType = mapActivityName(activity_suggestion.name);

@@ -1,0 +1,62 @@
+That gives you **1-hour recall** and we’re done with that part.
+
+---
+
+## 2️⃣ Out-of-app “TRACE text message” check-ins (SMS)
+
+For real text-style check-ins when the app is closed, you need:
+
+- A tiny backend job (Node.js script on Replit)
+- An SMS service (e.g. **Twilio**)
+- A scheduler (like `node-cron`) to send “hey, how are you?” texts every X hours
+
+### Step 2A – Tell Replit AI to set up the SMS reminder service
+
+👉 **Paste this into a *new* Replit AI prompt in the same repl or a new “trace-reminders” repl:**
+
+```text
+I want a very simple Node.js script that sends me gentle TRACE check-in text messages during the day.
+
+Please create the following in this repl:
+
+1. Add dependencies:
+   - twilio
+   - node-cron
+
+2. Create a file `reminderService.ts` (or .js if easier) that:
+
+   - Reads these environment variables:
+     - TWILIO_ACCOUNT_SID
+     - TWILIO_AUTH_TOKEN
+     - TWILIO_FROM_NUMBER   // my Twilio phone number
+     - TRACE_TO_NUMBER      // my personal phone number
+
+   - Defines an array of soft TRACE-style messages, e.g.:
+
+     ```ts
+     const TRACE_CHECKIN_MESSAGES = [
+       "TRACE: Just checking in — how are you feeling right now? 💛",
+       "TRACE: Hey, I’m still here if you need to unpack anything today.",
+       "TRACE: Tiny reset invite — want to take one deep breath with me?",
+     ];
+     ```
+
+   - Exposes a function `sendTraceCheckin()` that:
+     - Picks a random message from TRACE_CHECKIN_MESSAGES
+     - Uses the Twilio client to send an SMS from TWILIO_FROM_NUMBER to TRACE_TO_NUMBER
+
+3. Create a `server.ts` (or index.js) that:
+
+   - Imports `sendTraceCheckin`
+   - Uses `node-cron` to schedule it:
+     - For now: run every 3 hours between 9am and 9pm (my local time is US Pacific).
+     - Example cron expression: `"0 9-21/3 * * *"` and add a comment explaining it.
+
+   - Logs to the console whenever a reminder is sent or when there’s an error.
+
+4. Important:
+   - Do NOT hard-code my phone numbers or tokens.
+   - Use `process.env.*` everywhere and assume I will set the secrets in the Replit Secrets panel.
+   - Replit environments go to sleep; add a short comment explaining that the reminders only run while the repl is awake. That’s OK for now.
+
+Finally, show me the exact files you created and any npm commands you ran.
