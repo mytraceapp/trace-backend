@@ -274,7 +274,7 @@ export function FullPatternsReportScreen({
   };
 
   const cardStyle = {
-    backgroundColor: isDark ? 'rgba(30, 32, 28, 0.95)' : 'rgba(255, 252, 248, 0.98)',
+    backgroundColor: isDark ? 'rgba(30, 32, 28, 0.95)' : 'rgba(248, 242, 235, 0.98)',
     borderRadius: '20px',
     padding: '24px 20px',
     boxShadow: isDark ? 'none' : '0 2px 8px rgba(90, 74, 58, 0.02)',
@@ -309,7 +309,7 @@ export function FullPatternsReportScreen({
       />
 
       <motion.div
-        className="absolute w-full text-center z-20 flex flex-col items-center"
+        className="absolute left-0 right-0 z-20 flex flex-col items-center justify-center"
         style={{ top: 'calc(3% + 32px)' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -324,13 +324,14 @@ export function FullPatternsReportScreen({
             fontSize: '11px',
             textShadow: `0 0 15px var(--orb-glow), 0 0 30px var(--orb-glow), 0 2px 4px rgba(0,0,0,0.15)`,
             opacity: 0.88,
+            textAlign: 'center',
           }}
         >
           TRACE
         </h1>
         {/* Maze logo with subtle glow behind it */}
         <div 
-          className="relative mt-2"
+          className="relative mt-2 mx-auto"
           style={{ width: '70px', height: '70px' }}
         >
           {/* Subtle glow behind logo */}
