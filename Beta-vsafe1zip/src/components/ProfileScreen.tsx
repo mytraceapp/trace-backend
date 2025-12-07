@@ -997,10 +997,10 @@ export function ProfileScreen({
               style={{
                 fontFamily: 'Georgia, serif',
                 fontSize: '12px',
-                fontWeight: 300,
-                color: 'var(--text-secondary)',
+                fontWeight: 400,
+                color: 'var(--text-primary)',
                 letterSpacing: '0.01em',
-                opacity: 0.6,
+                opacity: 0.65,
                 lineHeight: '1.5',
               }}
             >
