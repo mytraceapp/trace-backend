@@ -652,7 +652,7 @@ function getPersonalizedCheckinMessage(date, firstName) {
     "Saturday",
   ];
   const day = dayNames[date.getDay()];
-  const name = firstName && firstName.length > 0 ? firstName : null;
+  const name = firstName && firstName.trim && firstName.trim().length > 0 ? firstName.trim() : null;
 
   function pick(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -662,12 +662,14 @@ function getPersonalizedCheckinMessage(date, firstName) {
     const messages = [
       (n) => `Good morning${n ? " " + n : ""} 😊 how are you today?`,
       (n) => `Morning${n ? " " + n : ""}. Just checking in as your day starts.`,
-      (n) => `Hi${n ? " " + n : ""}, hope your morning's okay so far.`,
+      (n) => `Hi${n ? " " + n : ""}, hope your morning's okay so far ☕`,
       (n) => `Hey${n ? " " + n : ""}, how'd you sleep?`,
       (n) => `Morning${n ? " " + n : ""} ☀️ what's on your mind today?`,
       (n) => `Hey${n ? " " + n : ""}, just wanted to say hi before your day gets going.`,
       (n) => `Good morning${n ? " " + n : ""}. No rush, just here if you want to talk.`,
       (n) => `Hi${n ? " " + n : ""}, hope you're easing into ${day} okay.`,
+      (n) => `Hey${n ? " " + n : ""}, new day. How are you feeling?`,
+      (n) => `Morning${n ? " " + n : ""}. Hope you're starting off okay.`,
     ];
     return pick(messages)(name);
   } else if (hour < 17) {
@@ -681,6 +683,8 @@ function getPersonalizedCheckinMessage(date, firstName) {
       (n) => `Hey${n ? " " + n : ""}, taking a break? I'm around if you want to chat.`,
       (n) => `Just checking in${n ? ", " + n : ""}. Hope your afternoon's treating you okay.`,
       (n) => `Hey${n ? " " + n : ""}, how are you doing right now?`,
+      (n) => `Hi${n ? " " + n : ""}, hope ${day}'s not being too rough on you.`,
+      (n) => `Hey${n ? " " + n : ""}, what's going on today?`,
     ];
     return pick(messages)(name);
   } else {
@@ -694,6 +698,8 @@ function getPersonalizedCheckinMessage(date, firstName) {
       (n) => `Hey${n ? " " + n : ""}, end of ${day}. How are you holding up?`,
       (n) => `Good evening${n ? " " + n : ""}. Just here if you need to talk through anything.`,
       (n) => `Hey${n ? " " + n : ""} 💜 no pressure, just wanted to check in.`,
+      (n) => `Hi${n ? " " + n : ""}, how was today?`,
+      (n) => `Hey${n ? " " + n : ""}, hope you can breathe a little now that the day's winding down.`,
     ];
     return pick(messages)(name);
   }
