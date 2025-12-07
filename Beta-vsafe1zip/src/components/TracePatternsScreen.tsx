@@ -723,11 +723,11 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
 
   const getInsightSentence = () => {
     if (emotionCounts.heavy > 0 || emotionCounts.anxious > 0) {
-      return "You've had a few heavier moments — that's okay. Thank you for letting TRACE hold them with you.";
+      return "It seemed like there were a few heavier moments — that's okay. Thank you for letting TRACE hold them with you.";
     } else if (emotionCounts.calm > emotionCounts.flat) {
-      return "Overall, things have felt mostly steady and calm.";
+      return "Overall, things appeared mostly steady and calm.";
     } else {
-      return "Your tone has been fairly neutral — TRACE is here whenever you need more space.";
+      return "Your tone seemed fairly neutral — TRACE is here whenever you need more space.";
     }
   };
 
@@ -1358,9 +1358,9 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                     lineHeight: 1.5,
                   }}
                 >
-                  {lastHourSummary.arc === "softening" && "Things felt a bit intense at first and softened toward the end."}
-                  {lastHourSummary.arc === "rising" && "Things became a little more activated toward the end of this hour."}
-                  {lastHourSummary.arc === "steady" && "Your emotional intensity stayed fairly steady this hour."}
+                  {lastHourSummary.arc === "softening" && "Things seemed to feel a bit intense at first, and appeared to soften toward the end."}
+                  {lastHourSummary.arc === "rising" && "It felt like things became a little more activated toward the end of this hour."}
+                  {lastHourSummary.arc === "steady" && "Your emotional rhythm seemed fairly steady this hour — at your own pace."}
                 </p>
               </div>
             )}
@@ -1589,10 +1589,10 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 }}
               >
                 {heaviestDay 
-                  ? `This week, ${heaviestDay.dayName} felt a bit heavier than other days. If anything still echoes from that day, TRACE is here to unpack it gently.`
+                  ? `This week, ${heaviestDay.dayName} seemed to feel a bit heavier than other days. If any part of that still resonates, TRACE is here — you don't have to unpack anything unless you want to.`
                   : weeklyStitches.length > 0
-                    ? "Your week felt fairly balanced — no single day stood out as heavier than others."
-                    : "TRACE is still gathering enough moments to notice patterns. Keep checking in."
+                    ? "Your week appeared fairly balanced — no single day stood out as notably heavier."
+                    : "TRACE is still gathering enough moments to notice what patterns might be there. Keep checking in whenever feels right."
                 }
               </p>
               {/* Faint bronze ripple */}
@@ -1734,11 +1734,11 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 fontStyle: 'italic',
               }}
             >
-              {weeklyDirection === "softening" && "Your emotional tone has gently softened over the last few days."}
-              {weeklyDirection === "rising" && "Your emotional energy has been a bit more activated recently."}
-              {weeklyDirection === "steady" && "Your emotional rhythm has felt steady this week."}
-              {weeklyDirection === null && weeklyStitches.length === 0 && "TRACE is still learning your weekly rhythm. Keep checking in."}
-              {weeklyDirection === null && weeklyStitches.length > 0 && weeklyStitches.length < 3 && "A few more days and TRACE will start to notice your patterns."}
+              {weeklyDirection === "softening" && "It seemed like your emotional tone gently softened over the last few days."}
+              {weeklyDirection === "rising" && "It felt like your emotional energy was a bit more activated recently."}
+              {weeklyDirection === "steady" && "Your emotional rhythm appeared fairly steady this week — at your own pace."}
+              {weeklyDirection === null && weeklyStitches.length === 0 && "TRACE is still learning your weekly rhythm. Keep checking in whenever feels right."}
+              {weeklyDirection === null && weeklyStitches.length > 0 && weeklyStitches.length < 3 && "A few more days and TRACE will start to notice what patterns might be there."}
             </p>
           </motion.div>
 
