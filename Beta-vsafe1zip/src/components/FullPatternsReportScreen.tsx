@@ -260,29 +260,6 @@ export function FullPatternsReportScreen({
 
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: 'transparent' }}>
-      {!isDark && (
-        <div 
-          className="fixed inset-0 pointer-events-none opacity-[0.25]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%238DA18F' stroke-width='1'/%3E%3C/svg%3E")`,
-            backgroundSize: '24px 24px',
-            backgroundRepeat: 'repeat',
-          }}
-        />
-      )}
-      
-      {isDark && (
-        <div 
-          className="fixed inset-0 pointer-events-none opacity-[0.10]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%232D3A2A' stroke-width='0.5'/%3E%3C/svg%3E")`,
-            backgroundSize: '24px 24px',
-            backgroundRepeat: 'repeat',
-            zIndex: 0,
-          }}
-        />
-      )}
-
       <motion.div
         className="absolute w-full text-center z-20"
         style={{ top: '7%' }}
