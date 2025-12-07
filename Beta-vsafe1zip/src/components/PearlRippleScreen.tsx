@@ -120,7 +120,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
     for (let i = 0; i < rippleCount; i++) {
       const delay = i * 2.2;
       const duration = 14;
-      const opacity = 0.35 - i * 0.04;
+      const opacity = 0.44 - i * 0.05;  // 25% more visible
 
       ripples.push(
         <motion.div
@@ -133,8 +133,8 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
             top: '50%',
             marginLeft: '-60px',
             marginTop: '-60px',
-            border: '4px solid rgba(168, 149, 133, 0.18)',
-            boxShadow: '0 0 30px rgba(168, 149, 133, 0.12), inset 0 0 20px rgba(255, 255, 255, 0.08)',
+            border: '4px solid rgba(168, 149, 133, 0.225)',  // 25% more visible
+            boxShadow: '0 0 30px rgba(168, 149, 133, 0.15), inset 0 0 20px rgba(255, 255, 255, 0.10)',  // 25% more visible
             filter: 'blur(1px)',
           }}
           animate={{
@@ -155,7 +155,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
     for (let i = 0; i < 4; i++) {
       const delay = i * 3.5 + 1;
       const duration = 16;
-      const opacity = 0.28 - i * 0.05;
+      const opacity = 0.35 - i * 0.06;  // 25% more visible
 
       ripples.push(
         <motion.div
@@ -168,8 +168,8 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
             top: '50%',
             marginLeft: '-50px',
             marginTop: '-50px',
-            border: '3px solid rgba(154, 135, 120, 0.15)',
-            boxShadow: '0 0 25px rgba(154, 135, 120, 0.10)',
+            border: '3px solid rgba(154, 135, 120, 0.19)',  // 25% more visible
+            boxShadow: '0 0 25px rgba(154, 135, 120, 0.125)',  // 25% more visible
             filter: 'blur(1.5px)',
           }}
           animate={{
@@ -251,7 +251,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         }}
       />
 
-      {/* Central glow core */}
+      {/* Central glow core - moved up 20px for visual balance */}
       <motion.div
         className="absolute rounded-full"
         style={{
@@ -260,7 +260,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
           left: '50%',
           top: '50%',
           marginLeft: '-150px',
-          marginTop: '-150px',
+          marginTop: '-170px',
           background: 'radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(248, 246, 243, 0.6) 30%, rgba(240, 237, 232, 0.3) 50%, transparent 70%)',
           filter: 'blur(60px)',
         }}
@@ -275,7 +275,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         }}
       />
 
-      {/* Secondary glow layer */}
+      {/* Secondary glow layer - moved up 20px for visual balance */}
       <motion.div
         className="absolute rounded-full"
         style={{
@@ -284,7 +284,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
           left: '50%',
           top: '50%',
           marginLeft: '-200px',
-          marginTop: '-200px',
+          marginTop: '-220px',
           background: 'radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(240, 237, 232, 0.3) 40%, transparent 65%)',
           filter: 'blur(50px)',
         }}
