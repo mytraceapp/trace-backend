@@ -33,34 +33,63 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
   const [showMainText, setShowMainText] = useState(false);
   const [sessionActive, setSessionActive] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
   const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize and play ripple audio with clean fade-in
+  // Initialize and play ripple audio with clean fade-in using Web Audio API for smooth sound
   useEffect(() => {
     suspendAllAudioContexts();
     
     const audio = new Audio('/audio/pearl-ripple.mp3');
-    audio.volume = 0;
     audio.loop = true;
-    audio.playbackRate = 0.5; // Slow down by 50%
+    audio.playbackRate = 0.65; // Slightly faster for cleaner sound
+    audio.crossOrigin = 'anonymous';
     audioRef.current = audio;
 
-    // Start audio with gentle fade-in after countdown begins
+    // Start audio with Web Audio API for smooth, clean sound
     const startAudio = () => {
-      audio.play().then(() => {
-        let vol = 0;
-        const fadeIn = setInterval(() => {
-          vol += 0.02;
-          if (vol >= 0.45) {
-            vol = 0.45;
-            clearInterval(fadeIn);
-          }
-          if (audioRef.current) {
-            audioRef.current.volume = vol;
-          }
-        }, 80); // Smooth 80ms steps = ~1.8s fade-in
-        fadeIntervalRef.current = fadeIn;
-      }).catch(() => {});
+      try {
+        const audioContext = new AudioContext();
+        audioContextRef.current = audioContext;
+        
+        const source = audioContext.createMediaElementSource(audio);
+        
+        // Lowpass filter to remove harsh highs and create smoother sound
+        const lowpass = audioContext.createBiquadFilter();
+        lowpass.type = 'lowpass';
+        lowpass.frequency.value = 2500; // Cut harsh frequencies
+        lowpass.Q.value = 0.7;
+        
+        // Gain node for smooth volume control
+        const gainNode = audioContext.createGain();
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNodeRef.current = gainNode;
+        
+        // Connect: source -> lowpass -> gain -> output
+        source.connect(lowpass);
+        lowpass.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        audio.play().then(() => {
+          // Smooth fade-in over 2 seconds
+          gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 2);
+        }).catch(() => {});
+      } catch (e) {
+        // Fallback to basic audio
+        audio.volume = 0;
+        audio.play().then(() => {
+          let vol = 0;
+          const fadeIn = setInterval(() => {
+            vol += 0.02;
+            if (vol >= 0.45) {
+              clearInterval(fadeIn);
+            }
+            audio.volume = Math.min(vol, 0.45);
+          }, 80);
+          fadeIntervalRef.current = fadeIn;
+        }).catch(() => {});
+      }
     };
 
     // Delay audio start slightly for clean transition
@@ -72,19 +101,27 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
       if (fadeIntervalRef.current) {
         clearInterval(fadeIntervalRef.current);
       }
-      if (audioRef.current) {
+      if (gainNodeRef.current && audioContextRef.current) {
+        const ctx = audioContextRef.current;
+        const gain = gainNodeRef.current;
+        gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+        setTimeout(() => {
+          audioRef.current?.pause();
+          ctx.close().catch(() => {});
+        }, 550);
+      } else if (audioRef.current) {
         const currentAudio = audioRef.current;
         let vol = currentAudio.volume;
         const fadeOut = setInterval(() => {
           vol -= 0.03;
           if (vol <= 0) {
-            vol = 0;
             clearInterval(fadeOut);
             currentAudio.pause();
             currentAudio.src = '';
           }
           currentAudio.volume = Math.max(0, vol);
-        }, 50); // ~0.75s fade-out
+        }, 50);
       }
     };
   }, []);
