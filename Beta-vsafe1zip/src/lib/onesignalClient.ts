@@ -1,7 +1,11 @@
-import OneSignal from "react-onesignal";
+declare global {
+  interface Window {
+    OneSignalDeferred?: Array<(OneSignal: any) => void>;
+    OneSignal?: any;
+  }
+}
 
 let isInitialized = false;
-let initPromise: Promise<void> | null = null;
 
 export async function initOneSignal(userId: string | null): Promise<void> {
   console.log("[OneSignal] initOneSignal called with userId:", userId);
@@ -20,48 +24,44 @@ export async function initOneSignal(userId: string | null): Promise<void> {
   }
 
   try {
-    if (!isInitialized && !initPromise) {
-      console.log("[OneSignal] Starting initialization...");
-      initPromise = OneSignal.init({
-        appId,
-        allowLocalhostAsSecureOrigin: true,
-      });
-      await initPromise;
-      isInitialized = true;
-      console.log("[OneSignal] Initialized successfully");
-    } else if (initPromise && !isInitialized) {
-      console.log("[OneSignal] Waiting for existing init...");
-      await initPromise;
-    } else {
-      console.log("[OneSignal] Already initialized");
-    }
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    
+    if (!isInitialized) {
+      console.log("[OneSignal] Starting initialization with native SDK...");
+      
+      window.OneSignalDeferred.push(async function(OneSignal: any) {
+        try {
+          await OneSignal.init({
+            appId,
+            allowLocalhostAsSecureOrigin: true,
+          });
+          console.log("[OneSignal] Initialized successfully");
+          
+          if (userId) {
+            console.log("[OneSignal] Calling login for user:", userId);
+            await OneSignal.login(userId);
+            console.log("[OneSignal] Logged in user:", userId);
+          }
 
-    if (userId) {
-      console.log("[OneSignal] Calling login for user:", userId);
-      await OneSignal.login(userId);
+          console.log("[OneSignal] Requesting notification permission...");
+          const permission = await OneSignal.Notifications.requestPermission();
+          console.log("[OneSignal] Permission result:", permission);
+          
+          const subscriptionId = OneSignal.User?.PushSubscription?.id;
+          console.log("[OneSignal] Subscription ID:", subscriptionId);
+        } catch (err: any) {
+          console.error("[OneSignal] Init error inside deferred:", err?.message || err);
+        }
+      });
+      
+      isInitialized = true;
+    } else if (userId && window.OneSignal) {
+      console.log("[OneSignal] Already initialized, logging in user:", userId);
+      await window.OneSignal.login(userId);
       console.log("[OneSignal] Logged in user:", userId);
     }
-
-    console.log("[OneSignal] Requesting notification permission...");
-    await OneSignal.Notifications.requestPermission();
-    console.log("[OneSignal] Notification permission requested");
   } catch (error: unknown) {
     const err = error as Error;
-    if (err?.message?.includes("already initialized")) {
-      console.log("[OneSignal] SDK was already initialized, continuing...");
-      isInitialized = true;
-      if (userId) {
-        try {
-          await OneSignal.login(userId);
-          console.log("[OneSignal] Logged in user:", userId);
-          await OneSignal.Notifications.requestPermission();
-          console.log("[OneSignal] Notification permission requested");
-        } catch (loginErr) {
-          console.error("[OneSignal] Login error:", loginErr);
-        }
-      }
-    } else {
-      console.error("[OneSignal] Initialization error:", err?.message || err, err);
-    }
+    console.error("[OneSignal] Initialization error:", err?.message || err, err);
   }
 }
