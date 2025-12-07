@@ -252,7 +252,7 @@ export function FullPatternsReportScreen({
     fontSize: '15px',
     fontWeight: 300 as const,
     color: isDark ? 'rgba(200, 195, 188, 0.85)' : '#4C443D',
-    lineHeight: 1.65,
+    lineHeight: 1.45,
   };
 
   const headingStyle = {
@@ -275,9 +275,11 @@ export function FullPatternsReportScreen({
 
   const cardStyle = {
     backgroundColor: isDark ? 'rgba(30, 32, 28, 0.76)' : 'rgba(225, 212, 195, 0.78)',
-    borderRadius: '20px',
+    borderRadius: '17px',
     padding: '24px 20px',
-    boxShadow: isDark ? 'none' : '0 2px 8px rgba(90, 74, 58, 0.04)',
+    boxShadow: isDark 
+      ? '0 2px 2px rgba(0, 0, 0, 0.08)' 
+      : '0 2px 2px rgba(90, 74, 58, 0.07)',
   };
 
   const sageCardBorder = isDark 
@@ -374,6 +376,21 @@ export function FullPatternsReportScreen({
             >
               A gentle look at what's been moving through you.
             </p>
+            
+            {/* Subtle anchoring line - "this is where reflection begins" */}
+            <div 
+              style={{
+                width: 'calc(100% - 32px)',
+                height: '1px',
+                background: isDark 
+                  ? 'linear-gradient(90deg, transparent 0%, rgba(141, 161, 143, 0.1) 20%, rgba(141, 161, 143, 0.1) 80%, transparent 100%)'
+                  : 'linear-gradient(90deg, transparent 0%, rgba(141, 161, 143, 0.1) 20%, rgba(141, 161, 143, 0.1) 80%, transparent 100%)',
+                marginTop: '16px',
+                marginLeft: '16px',
+                marginRight: '16px',
+                filter: 'blur(0.5px)',
+              }}
+            />
           </motion.div>
 
           {isLoading ? (
