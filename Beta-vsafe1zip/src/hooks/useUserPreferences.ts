@@ -12,10 +12,12 @@ type UseUserPreferencesResult = {
   preferences: UserPreferences | null;
   loading: boolean;
   error: string | null;
+  timeZone: string | null;
   setNotificationsEnabled: (next: boolean) => Promise<void>;
   setReminderTime: (next: string | null) => Promise<void>;
   setHapticsEnabled: (next: boolean) => Promise<void>;
   setLastCheckinAt: (next: string | null) => Promise<void>;
+  setTimeZone: (next: string | null) => Promise<void>;
 };
 
 export function useUserPreferences(
@@ -123,13 +125,22 @@ export function useUserPreferences(
     [applyUpdate]
   );
 
+  const setTimeZone = useCallback(
+    async (next: string | null) => {
+      await applyUpdate({ time_zone: next });
+    },
+    [applyUpdate]
+  );
+
   return {
     preferences,
     loading,
     error,
+    timeZone: preferences?.time_zone ?? null,
     setNotificationsEnabled,
     setReminderTime,
     setHapticsEnabled,
     setLastCheckinAt,
+    setTimeZone,
   };
 }
