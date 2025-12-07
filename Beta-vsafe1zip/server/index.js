@@ -631,12 +631,8 @@ function getFriendlyCheckinMessage(hour) {
 }
 
 async function sendPushNotificationToUser(userId, message) {
-  const appId = process.env.ONESIGNAL_APP_ID;
+  const appId = process.env.VITE_ONESIGNAL_APP_ID || process.env.ONESIGNAL_APP_ID;
   const apiKey = process.env.ONESIGNAL_API_KEY;
-  
-  console.log("[TRACE PUSH] App ID exists:", !!appId);
-  console.log("[TRACE PUSH] API Key exists:", !!apiKey);
-  console.log("[TRACE PUSH] API Key prefix:", apiKey?.substring(0, 15) + "...");
   
   if (!appId || !apiKey) {
     console.log("[TRACE PUSH] OneSignal not configured - skipping notification");
