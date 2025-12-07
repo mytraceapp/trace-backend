@@ -610,13 +610,6 @@ function getLocalHMForTimezone(timeZone, date) {
   }
 }
 
-// TEMP: TEST MODE - treat every minute as a verse time
-// REVERT THIS: Uncomment the real logic below when done testing
-function isVerseTimeLocal(hour, minute) {
-  return true;
-}
-/*
-// REAL LOGIC - uncomment this and delete the test version above
 function isVerseTimeLocal(hour, minute) {
   return (
     (hour === 9 && minute === 47) ||
@@ -624,7 +617,6 @@ function isVerseTimeLocal(hour, minute) {
     (hour === 20 && minute === 28)
   );
 }
-*/
 
 function getFriendlyCheckinMessage(hour) {
   if (hour < 11) {
