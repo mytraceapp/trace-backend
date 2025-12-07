@@ -797,6 +797,76 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
     return "TRACE is quietly watching how this hour has been feeling.";
   }, [lastHourSummary]);
 
+  // Today's date for matching stitch
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Find today's stitch from weekly data
+  const todayStitchData = React.useMemo(() => {
+    return weeklyStitches.find((s) => s.summary_date === today) ?? null;
+  }, [weeklyStitches, today]);
+
+  // Computed description for "Today" card
+  const todayDescription = React.useMemo(() => {
+    if (!todayStitchData || todayStitchData.total === 0) {
+      return "TRACE will get a better read on today as you keep checking in.";
+    }
+
+    const heavyRatio =
+      (todayStitchData.heavy + todayStitchData.anxious) / todayStitchData.total;
+
+    if (heavyRatio >= 0.5) {
+      return "Today has carried a bit more emotional weight than usual.";
+    }
+
+    if (todayStitchData.arc === 'softening') {
+      return "Today started a little loaded but seems to have eased as time went on.";
+    }
+
+    if (todayStitchData.arc === 'rising') {
+      return "Today's energy has felt like it's been building as the day moved along.";
+    }
+
+    // steady or mostly calm
+    return "Today has felt fairly steady overall — nothing too loud, nothing too flat.";
+  }, [todayStitchData]);
+
+  // Computed description for "Your Week" card
+  const weekDescription = React.useMemo(() => {
+    if (!weeklyStitches.length) {
+      return "As more days collect here, TRACE will start to reflect how your week tends to move.";
+    }
+
+    const total = weeklyStitches.reduce((sum, s) => sum + (s.total ?? 0), 0);
+    if (total === 0) {
+      return "This week is still pretty quiet in TRACE. That's okay.";
+    }
+
+    let heavy = 0;
+    let calm = 0;
+    let softeningDays = 0;
+    let risingDays = 0;
+
+    for (const s of weeklyStitches) {
+      heavy += (s.heavy ?? 0) + (s.anxious ?? 0);
+      calm += (s.calm ?? 0) + (s.flat ?? 0);
+      if (s.arc === 'softening') softeningDays++;
+      if (s.arc === 'rising') risingDays++;
+    }
+
+    const heavyRatio = heavy / total;
+
+    if (heavyRatio >= 0.5 || risingDays > softeningDays) {
+      return "This week has had a bit more emotional activation than usual.";
+    }
+
+    if (softeningDays > risingDays) {
+      return "Across the week, things have generally eased as the days went on.";
+    }
+
+    // mostly steady
+    return "Your week has had a pretty steady emotional pace — not too sharp, not totally flat.";
+  }, [weeklyStitches]);
+
   const totalMessages = patternMessages.length;
   const emotionCounts = { calm: 0, flat: 0, heavy: 0, anxious: 0 };
   patternMessages.forEach((msg) => {
@@ -1549,7 +1619,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   marginBottom: '14px',
                 }}
               >
-                {peakWindowPattern?.timeWindow ? `Your clarity gathers at ${peakWindowPattern.timeWindow}` : peakWindowPattern?.subtitle}
+                {todayDescription}
               </p>
               {/* Soft brown wavy line */}
               <svg width="100%" height="28" viewBox="0 0 200 28">
@@ -1617,7 +1687,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   marginBottom: '14px',
                 }}
               >
-                {energyTidesPattern?.subtitle || 'Midweek dips, weekend rise.'}
+                {weekDescription}
               </p>
               {/* Sage wave rhythm line */}
               <svg width="100%" height="28" viewBox="0 0 200 28">
