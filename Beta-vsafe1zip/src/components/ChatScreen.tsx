@@ -22,29 +22,14 @@ function getPersonalizedCheckinMessage(now: Date): string {
   const hour = now.getHours();
 
   if (hour < 11) {
-    const messages = [
-      "Good morning 😊 I hope the start of your day feels good.",
-      "Hi 💛 just checking in... how are you feeling this morning?",
-      "Morning ☀️ If you want company before the day gets busy, I'm here."
-    ];
-    return messages[Math.floor(Math.random() * messages.length)];
+    return "Good morning 😊 how are you today?";
   }
 
   if (hour < 17) {
-    const messages = [
-      "Hey 👋 how's your afternoon going?",
-      "Hi 💛 I hope today has been kind to you.",
-      "Just a soft hello ✨ I'm around if you want a minute to talk."
-    ];
-    return messages[Math.floor(Math.random() * messages.length)];
+    return "Hey 👋 hope your day's going okay.";
   }
 
-  const messages = [
-    "Hey 💛 I hope you had a good day today. I'm here if you want a quiet moment.",
-    "Hi 😊 just stopping by to say good evening. How are you feeling tonight?",
-    "Hope your night feels calm 🌙 I'm right here if you want to talk or unwind."
-  ];
-  return messages[Math.floor(Math.random() * messages.length)];
+  return "Good evening 💛 hope you had a great day.";
 }
 
 async function runDailyCheckin({

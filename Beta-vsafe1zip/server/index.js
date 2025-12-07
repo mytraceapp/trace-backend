@@ -620,29 +620,14 @@ function isVerseTimeLocal(hour, minute) {
 
 function getFriendlyCheckinMessage(hour) {
   if (hour < 11) {
-    const messages = [
-      "Good morning 😊 just checking in. How are you feeling today?",
-      "Hi 💛 hope your morning is off to a gentle start.",
-      "Morning ☀️ I'm here if you want company before the day gets busy."
-    ];
-    return messages[Math.floor(Math.random() * messages.length)];
+    return "Good morning 😊 how are you today?";
   }
 
   if (hour < 17) {
-    const messages = [
-      "Hey 👋 hope your day's going okay. I'm here if you need a moment.",
-      "Hi 💛 just a soft hello. How's your afternoon?",
-      "Just checking in ✨ I'm around if you want to talk."
-    ];
-    return messages[Math.floor(Math.random() * messages.length)];
+    return "Hey 👋 hope your day's going okay.";
   }
 
-  const messages = [
-    "Hi 💛 just saying good evening. I'm here if you feel like talking for a bit.",
-    "Hey 😊 hope your day was okay. I'm here if you want a quiet moment.",
-    "Hope your night feels calm 🌙 I'm right here if you want to unwind."
-  ];
-  return messages[Math.floor(Math.random() * messages.length)];
+  return "Good evening 💛 hope you had a great day.";
 }
 
 async function sendPushNotificationToUser(userId, message) {
