@@ -529,8 +529,9 @@ async function initTwilioClient() {
   if (!creds) return false;
   
   twilioClient = twilio(creds.apiKey, creds.apiKeySecret, { accountSid: creds.accountSid });
-  twilioFromNumber = creds.phoneNumber;
-  console.log('✅ Twilio client initialized for SMS reminders');
+  // Allow override via TWILIO_FROM_NUMBER env var, fallback to integration number
+  twilioFromNumber = process.env.TWILIO_FROM_NUMBER || creds.phoneNumber;
+  console.log('✅ Twilio client initialized, FROM:', twilioFromNumber);
   return true;
 }
 
