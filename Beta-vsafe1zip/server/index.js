@@ -684,27 +684,38 @@ function getPersonalizedCheckinMessage(now) {
   return messages[Math.floor(Math.random() * messages.length)];
 }
 
-// Schedule: 10:00am Pacific every day
-cron.schedule('0 10 * * *', () => {
+// Default check-in times (until user updates preferences)
+// 1. Morning: 9:47 AM Pacific
+cron.schedule('47 9 * * *', () => {
   const now = new Date();
   const message = getPersonalizedCheckinMessage(now);
-  console.log('⏰ Morning TRACE check-in triggered');
+  console.log('⏰ Morning TRACE check-in (9:47 AM)');
   sendTraceSms(message);
 }, {
   timezone: 'America/Los_Angeles',
 });
 
-// Evening TRACE check-in at 6:23 PM Pacific
-cron.schedule('23 18 * * *', () => {
+// 2. Afternoon: 3:16 PM Pacific
+cron.schedule('16 15 * * *', () => {
   const now = new Date();
   const message = getPersonalizedCheckinMessage(now);
-  console.log('⏰ Evening TRACE check-in');
+  console.log('⏰ Afternoon TRACE check-in (3:16 PM)');
   sendTraceSms(message);
 }, {
   timezone: 'America/Los_Angeles',
 });
 
-console.log('📱 TRACE SMS reminders scheduled: 10am & 6pm Pacific');
+// 3. Evening: 8:28 PM Pacific
+cron.schedule('28 20 * * *', () => {
+  const now = new Date();
+  const message = getPersonalizedCheckinMessage(now);
+  console.log('⏰ Evening TRACE check-in (8:28 PM)');
+  sendTraceSms(message);
+}, {
+  timezone: 'America/Los_Angeles',
+});
+
+console.log('📱 TRACE SMS reminders scheduled: 9:47am, 3:16pm & 8:28pm Pacific');
 console.log('   Set TRACE_TO_NUMBER in Secrets to receive texts');
 
 // Test endpoint to send SMS immediately
