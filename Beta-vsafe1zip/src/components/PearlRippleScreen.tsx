@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
 
@@ -420,22 +419,6 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         </h1>
       </motion.div>
 
-      {/* Top UI Bar */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-6 z-20">
-        {/* Back Button */}
-        <button
-          onClick={handleEndSession}
-          className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300"
-          style={{
-            background: 'rgba(255, 255, 255, 0.35)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-          }}
-        >
-          <ArrowLeft size={18} style={{ color: '#9A8778', strokeWidth: 2 }} />
-        </button>
-      </div>
 
       {/* Countdown Text Overlay - moved up 40px for cohesiveness */}
       <AnimatePresence>
