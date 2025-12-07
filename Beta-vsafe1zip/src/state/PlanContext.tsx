@@ -118,9 +118,23 @@ export function UserProvider({ children }: UserProviderProps) {
           referralCode: data.referral_code || undefined,
         });
         setSelectedPlan((data.plan as PlanTier) || 'light');
-        if (data.ambience_enabled !== null) {
+        
+        // One-time migration: if ambience was off, turn it on and save
+        // This fixes legacy profiles that had ambience disabled
+        if (data.ambience_enabled === false) {
+          console.log('Migrating profile: enabling ambience by default');
+          setAmbienceEnabledState(true);
+          // Update in Supabase
+          supabase.from('profiles').update({ 
+            ambience_enabled: true,
+            updated_at: new Date().toISOString()
+          }).eq('id', user.id).then(() => {
+            console.log('Profile ambience migrated to enabled');
+          });
+        } else if (data.ambience_enabled !== null) {
           setAmbienceEnabledState(data.ambience_enabled);
         }
+        
         if (data.ambience_volume !== null) {
           setAmbienceVolumeState(data.ambience_volume);
         }
