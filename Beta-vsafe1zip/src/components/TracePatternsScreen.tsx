@@ -764,6 +764,35 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
   
   const weeklyDirection = getWeeklyDirection();
 
+  // Find the heaviest day from weekly stitches
+  const getHeaviestDay = (): { dayName: string; date: string } | null => {
+    if (weeklyStitches.length === 0) return null;
+    
+    let heaviestStitch: EmotionalStitch | null = null;
+    let highestScore = 0;
+    
+    for (const stitch of weeklyStitches) {
+      const total = stitch.total || 1;
+      const heavyRatio = ((stitch.heavy ?? 0) + (stitch.anxious ?? 0)) / total;
+      const intensity = stitch.avg_intensity ?? 0;
+      const score = heavyRatio * 10 + intensity;
+      
+      if (score > highestScore) {
+        highestScore = score;
+        heaviestStitch = stitch;
+      }
+    }
+    
+    if (!heaviestStitch || highestScore < 2) return null;
+    
+    const date = new Date(heaviestStitch.summary_date + "T12:00:00");
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+    
+    return { dayName, date: heaviestStitch.summary_date };
+  };
+  
+  const heaviestDay = getHeaviestDay();
+
   const handlePatternClick = (pattern: Pattern) => {
     if (canAccessPattern(pattern.requiredTier)) {
       setActivePattern(pattern);
@@ -1559,7 +1588,12 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   marginBottom: '14px',
                 }}
               >
-                {stressEchoesPattern?.subtitle || 'Triggered by abrupt schedule shifts.'}
+                {heaviestDay 
+                  ? `This week, ${heaviestDay.dayName} felt a bit heavier than other days. If anything still echoes from that day, TRACE is here to unpack it gently.`
+                  : weeklyStitches.length > 0
+                    ? "Your week felt fairly balanced — no single day stood out as heavier than others."
+                    : "TRACE is still gathering enough moments to notice patterns. Keep checking in."
+                }
               </p>
               {/* Faint bronze ripple */}
               <svg width="100%" height="28" viewBox="0 0 200 28">
