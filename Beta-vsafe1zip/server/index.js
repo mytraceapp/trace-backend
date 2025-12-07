@@ -660,8 +660,8 @@ function getPersonalizedCheckinMessage(now) {
 
   if (hour < 11) {
     const messages = [
-      "Good morning 😊 I hope the start of your day feels gentle.",
-      "Hi 💛 just checking in — how are you feeling this morning?",
+      "Good morning 😊 I hope the start of your day feels good.",
+      "Hi 💛 just checking in... how are you feeling this morning?",
       "Morning ☀️ If you want company before the day gets busy, I'm here."
     ];
     return messages[Math.floor(Math.random() * messages.length)];
