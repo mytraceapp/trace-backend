@@ -9,6 +9,7 @@ export async function saveTraceMessage(
 ) {
   // Database constraint only accepts 'user' and 'ai', not 'assistant'
   const dbRole = role === 'assistant' ? 'ai' : role;
+  console.log(`💾 Saving message - input role: "${role}" → db role: "${dbRole}"`);
   
   const { data, error } = await supabase
     .from("messages")
