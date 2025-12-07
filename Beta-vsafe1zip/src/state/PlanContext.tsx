@@ -119,19 +119,8 @@ export function UserProvider({ children }: UserProviderProps) {
         });
         setSelectedPlan((data.plan as PlanTier) || 'light');
         
-        // One-time migration: if ambience was off, turn it on and save
-        // This fixes legacy profiles that had ambience disabled
-        if (data.ambience_enabled === false) {
-          console.log('Migrating profile: enabling ambience by default');
-          setAmbienceEnabledState(true);
-          // Update in Supabase
-          supabase.from('profiles').update({ 
-            ambience_enabled: true,
-            updated_at: new Date().toISOString()
-          }).eq('id', user.id).then(() => {
-            console.log('Profile ambience migrated to enabled');
-          });
-        } else if (data.ambience_enabled !== null) {
+        // Load ambience setting exactly as user set it
+        if (data.ambience_enabled !== null) {
           setAmbienceEnabledState(data.ambience_enabled);
         }
         
