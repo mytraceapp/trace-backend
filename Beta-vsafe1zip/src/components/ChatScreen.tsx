@@ -463,7 +463,7 @@ export function ChatScreen({
         // Save TRACE's response to Supabase
         getCurrentUserId().then(userId => {
           if (userId) {
-            saveTraceMessage(userId, 'assistant', responseMessage);
+            saveTraceMessage(userId, 'ai', responseMessage);
           }
         });
         

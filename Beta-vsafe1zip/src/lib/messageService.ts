@@ -2,7 +2,7 @@ import { supabase } from "./supabaseClient";
 
 export async function saveTraceMessage(
   userId: string,
-  role: "user" | "assistant",
+  role: "user" | "ai",
   content: string
 ) {
   const { data, error } = await supabase
