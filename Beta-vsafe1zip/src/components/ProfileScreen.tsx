@@ -268,95 +268,99 @@ export function ProfileScreen({
             {/* Color tone ripple flow - ONLY on auto mode - matching home orb colors */}
             {theme === 'auto' && (
               <>
-                {/* Outer breathing halo - off-white/cream like orb */}
+                {/* Outer breathing halo - visible sage glow */}
                 <motion.div
                   className="absolute rounded-full pointer-events-none"
                   style={{
-                    width: '120px',
-                    height: '120px',
-                    background: 'radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(245, 250, 245, 0.4) 40%, transparent 70%)',
-                    filter: 'blur(8px)',
+                    width: '130px',
+                    height: '130px',
+                    background: 'radial-gradient(circle, rgba(180, 210, 195, 0.9) 0%, rgba(160, 195, 175, 0.6) 40%, rgba(140, 175, 155, 0.3) 60%, transparent 80%)',
+                    filter: 'blur(6px)',
                   }}
                   animate={{
-                    opacity: [0.6, 1, 0.6],
-                    scale: [0.9, 1.2, 0.9],
+                    opacity: [0.7, 1, 0.7],
+                    scale: [0.95, 1.15, 0.95],
                   }}
                   transition={{
-                    duration: 5,
+                    duration: 4,
                     repeat: Infinity,
                     ease: "easeInOut",
                   }}
                 />
                 
-                {/* Rotating swirl layer 1 - soft sage/white like orb */}
+                {/* Rotating swirl layer 1 - visible sage */}
+                <motion.div
+                  className="absolute rounded-full pointer-events-none"
+                  style={{
+                    width: '110px',
+                    height: '110px',
+                    background: `conic-gradient(
+                      from 0deg at 50% 50%,
+                      rgba(168, 200, 180, 0.85) 0deg,
+                      rgba(140, 180, 160, 0.4) 45deg,
+                      transparent 90deg,
+                      rgba(150, 190, 170, 0.7) 135deg,
+                      rgba(140, 180, 160, 0.4) 180deg,
+                      transparent 225deg,
+                      rgba(160, 195, 175, 0.6) 270deg,
+                      rgba(140, 180, 160, 0.4) 315deg,
+                      rgba(168, 200, 180, 0.85) 360deg
+                    )`,
+                    filter: 'blur(3px)',
+                  }}
+                  animate={{
+                    rotate: [0, 360],
+                  }}
+                  transition={{
+                    duration: 15,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                />
+                
+                {/* Rotating swirl layer 2 - counter-rotating */}
                 <motion.div
                   className="absolute rounded-full pointer-events-none"
                   style={{
                     width: '100px',
                     height: '100px',
                     background: `conic-gradient(
-                      from 0deg at 50% 50%,
-                      rgba(220, 235, 225, 0.7) 0deg,
-                      transparent 60deg,
-                      rgba(200, 230, 220, 0.6) 120deg,
-                      transparent 180deg,
-                      rgba(195, 230, 225, 0.5) 240deg,
-                      transparent 300deg,
-                      rgba(220, 235, 225, 0.7) 360deg
-                    )`,
-                    filter: 'blur(4px)',
-                  }}
-                  animate={{
-                    rotate: [0, 360],
-                  }}
-                  transition={{
-                    duration: 18,
-                    repeat: Infinity,
-                    ease: "linear",
-                  }}
-                />
-                
-                {/* Rotating swirl layer 2 - counter-rotating pale sage */}
-                <motion.div
-                  className="absolute rounded-full pointer-events-none"
-                  style={{
-                    width: '90px',
-                    height: '90px',
-                    background: `conic-gradient(
-                      from 45deg at 50% 50%,
+                      from 90deg at 50% 50%,
                       transparent 0deg,
-                      rgba(230, 240, 235, 0.6) 90deg,
-                      transparent 180deg,
-                      rgba(210, 235, 225, 0.5) 270deg,
+                      rgba(175, 205, 185, 0.7) 60deg,
+                      transparent 120deg,
+                      rgba(165, 195, 175, 0.6) 180deg,
+                      transparent 240deg,
+                      rgba(155, 185, 165, 0.5) 300deg,
                       transparent 360deg
                     )`,
-                    filter: 'blur(5px)',
+                    filter: 'blur(4px)',
                   }}
                   animate={{
                     rotate: [360, 0],
                   }}
                   transition={{
-                    duration: 22,
+                    duration: 20,
                     repeat: Infinity,
                     ease: "linear",
                   }}
                 />
                 
-                {/* Pulsing inner glow - pearlescent white */}
+                {/* Pulsing inner glow */}
                 <motion.div
                   className="absolute rounded-full pointer-events-none"
                   style={{
-                    width: '80px',
-                    height: '80px',
-                    background: 'radial-gradient(circle, rgba(248, 252, 248, 0.8) 0%, rgba(230, 240, 235, 0.5) 50%, transparent 70%)',
-                    filter: 'blur(3px)',
+                    width: '85px',
+                    height: '85px',
+                    background: 'radial-gradient(circle, rgba(200, 225, 210, 0.9) 0%, rgba(180, 210, 195, 0.6) 50%, transparent 75%)',
+                    filter: 'blur(2px)',
                   }}
                   animate={{
-                    scale: [0.85, 1.15, 0.85],
-                    opacity: [0.6, 1, 0.6],
+                    scale: [0.9, 1.1, 0.9],
+                    opacity: [0.7, 1, 0.7],
                   }}
                   transition={{
-                    duration: 4,
+                    duration: 3.5,
                     repeat: Infinity,
                     ease: "easeInOut",
                   }}
