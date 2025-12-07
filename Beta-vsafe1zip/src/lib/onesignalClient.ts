@@ -30,7 +30,8 @@ export async function initOneSignal(userId: string | null): Promise<void> {
 
     await OneSignal.Notifications.requestPermission();
     console.log("[OneSignal] Notification permission requested");
-  } catch (error) {
-    console.error("[OneSignal] Initialization error:", error);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("[OneSignal] Initialization error:", err?.message || err, err);
   }
 }
