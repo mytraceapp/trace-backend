@@ -251,7 +251,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         }}
       />
 
-      {/* Central glow core - moved up 20px for visual balance */}
+      {/* Central glow core - moved up 40px for visual balance */}
       <motion.div
         className="absolute rounded-full"
         style={{
@@ -260,7 +260,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
           left: '50%',
           top: '50%',
           marginLeft: '-150px',
-          marginTop: '-170px',
+          marginTop: '-190px',
           background: 'radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(248, 246, 243, 0.6) 30%, rgba(240, 237, 232, 0.3) 50%, transparent 70%)',
           filter: 'blur(60px)',
         }}
@@ -275,7 +275,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         }}
       />
 
-      {/* Secondary glow layer - moved up 20px for visual balance */}
+      {/* Secondary glow layer - moved up 40px for visual balance */}
       <motion.div
         className="absolute rounded-full"
         style={{
@@ -284,7 +284,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
           left: '50%',
           top: '50%',
           marginLeft: '-200px',
-          marginTop: '-220px',
+          marginTop: '-240px',
           background: 'radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(240, 237, 232, 0.3) 40%, transparent 65%)',
           filter: 'blur(50px)',
         }}
@@ -391,12 +391,12 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         </div>
       </div>
 
-      {/* Countdown Text Overlay */}
+      {/* Countdown Text Overlay - moved up 40px for cohesiveness */}
       <AnimatePresence>
         {countdownStep !== null && countdownText && (
           <motion.div
             className="absolute z-10"
-            style={{ top: '42.05%', left: '50%', transform: 'translateX(-50%)' }}
+            style={{ top: '37%', left: '50%', transform: 'translateX(-50%)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -439,11 +439,12 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         )}
       </AnimatePresence>
 
-      {/* Main Text Overlay */}
+      {/* Main Text Overlay - moved up 40px for cohesiveness */}
       <AnimatePresence>
         {showMainText && (
           <motion.div
             className="absolute inset-0 flex items-center justify-center z-10"
+            style={{ marginTop: '-40px' }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
