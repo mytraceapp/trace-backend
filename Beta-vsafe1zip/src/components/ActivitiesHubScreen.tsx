@@ -280,7 +280,7 @@ export function ActivitiesHubScreen({
                       lineHeight: '1.4',
                     }}
                   >
-                    One minute of slow-paced movement.
+                    Two minutes of slow-paced movement.
                   </p>
                 </div>
               </div>
