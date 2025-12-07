@@ -1,13 +1,47 @@
 import { supabase } from "./supabaseClient";
 
+const EMOTION_KEYWORDS = {
+  heavy: ["sad", "tired", "exhausted", "heavy", "overwhelmed", "numb", "hopeless", "done", "burned out"],
+  anxious: ["anxious", "nervous", "worried", "panicking", "panic", "stressed", "on edge"],
+  calm: ["calm", "peaceful", "okay", "fine", "grounded", "steady", "relieved"],
+};
+
+const INTENSIFIERS = ["really", "very", "so", "extremely", "super", "totally"];
+
+export function analyzeMessageEmotion(content: string): { emotion: string; intensity: number } {
+  const lower = content.toLowerCase();
+  
+  let emotion = "flat";
+  if (EMOTION_KEYWORDS.heavy.some(kw => lower.includes(kw))) {
+    emotion = "heavy";
+  } else if (EMOTION_KEYWORDS.anxious.some(kw => lower.includes(kw))) {
+    emotion = "anxious";
+  } else if (EMOTION_KEYWORDS.calm.some(kw => lower.includes(kw))) {
+    emotion = "calm";
+  }
+  
+  let intensity = 1;
+  if (content.length > 180) intensity = Math.max(intensity, 2);
+  
+  const hasExclamation = content.includes("!");
+  const hasQuestion = content.includes("?");
+  const hasAllCaps = /\b[A-Z]{3,}\b/.test(content);
+  const hasIntensifier = INTENSIFIERS.some(w => lower.includes(w));
+  
+  if (hasExclamation || hasQuestion || hasAllCaps || hasIntensifier) {
+    intensity = Math.min(intensity + 1, 3);
+  }
+  
+  return { emotion, intensity };
+}
+
 export async function saveTraceMessage(
   userId: string,
   role: "user" | "assistant",
-  content: string,
-  emotion?: string | null,
-  intensity?: number | null
+  content: string
 ) {
-  // Database stores 'trace' for assistant messages, 'user' for user messages
+  const { emotion, intensity } = analyzeMessageEmotion(content);
+  
   const dbRole = role === 'assistant' ? 'trace' : role;
   
   const { data, error } = await supabase
@@ -17,16 +51,14 @@ export async function saveTraceMessage(
         user_id: userId,
         role: dbRole,
         content,
-        emotion: emotion ?? null,
-        intensity: intensity ?? null,
+        emotion,
+        intensity,
       },
     ])
     .select();
 
   if (error) {
     console.error("TRACE/saveMessage ❌", error);
-  } else {
-    console.log("TRACE/saveMessage ✅", { role, hasEmotion: !!emotion, hasIntensity: intensity != null });
   }
 
   return { data, error };

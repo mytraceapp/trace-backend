@@ -1,0 +1,38 @@
+I want to add very simple emotional tagging to every message saved in Supabase.
+
+Current setup:
+	•	This is a Vite + React + TypeScript project.
+	•	We already have Supabase wired, with a messages table that includes:
+	•	id
+	•	user_id
+	•	role (“user” or “assistant”)
+	•	content (text)
+	•	emotion (text, currently NULL)
+	•	intensity (integer, currently NULL)
+	•	The app is already saving chat messages to Supabase when the chat runs.
+	•	There is a helper/service function that does the insert (something like saveTraceMessage, saveMessageToSupabase, or similar). Please find that function and reuse it instead of creating a second one.
+
+What I want you to implement:
+	1.	Create a small helper that infers emotion + intensity from the message content:
+	•	Put this in the same service or utility file that handles Supabase message saving (for example src/services/traceMessages.ts or similar – use the actual path in this project).
+	•	Name it analyzeMessageEmotion(content: string): { emotion: string; intensity: number }.
+	•	Use simple rule-based logic:
+	•	Define keyword lists (case-insensitive):
+	•	heavy: ["sad", "tired", "exhausted", "heavy", "overwhelmed", "numb", "hopeless", "done", "burned out"]
+	•	anxious: ["anxious", "nervous", "worried", "panicking", "panic", "stressed", "on edge"]
+	•	calm: ["calm", "peaceful", "okay", "fine", "grounded", "steady", "relieved"]
+	•	Determine emotion in this priority order:
+	•	if it matches any heavy keyword → "heavy"
+	•	else if it matches any anxious keyword → "anxious"
+	•	else if it matches any calm keyword → "calm"
+	•	else → "flat"
+	•	Determine intensity (1–3):
+	•	Start at 1.
+	•	If the content length > 180 characters, bump to at least 2.
+	•	If it contains !, ?, ALL CAPS words (length ≥ 3), or intensifiers like "really", "very", "so" (e.g. "so tired") then bump up by 1.
+	•	Cap at 3.
+	•	So final intensity is 1, 2, or 3.
+	2.	Integrate this into the existing message-saving logic:
+	•	Find the function that writes to Supabase messages table (e.g. .from("messages").insert([...])).
+	•	Before inserting, call analyzeMessageEmotion(content) to get { emotion, intensity }.
+	•	Include these fields in the insert:
