@@ -14,7 +14,7 @@ interface AmbientAudioPlayerProps {
 export function AmbientAudioPlayer({
   shouldPlay = false,
   showControls = true,
-  volume = 0.4,
+  volume = 0.32,
   startDelay = 100,
   playbackRate = 0.94,
   onReady,
