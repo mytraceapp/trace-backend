@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 export type PlanTier = 'light' | 'premium' | 'studio';
