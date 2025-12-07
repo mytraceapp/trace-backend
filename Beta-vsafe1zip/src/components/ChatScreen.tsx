@@ -71,9 +71,9 @@ export function ChatScreen({
   const [messages, setMessages] = React.useState<Message[]>([]);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   
-  // History loading state
-  const [isHistoryLoading, setIsHistoryLoading] = React.useState(true);
-  const [historyError, setHistoryError] = React.useState<string | null>(null);
+  // History loading state (silent - no UI indicators per TRACE wrap principles)
+  const [, setIsHistoryLoading] = React.useState(true);
+  const [, setHistoryError] = React.useState<string | null>(null);
 
   const userName = currentProfile?.name || null;
 
@@ -1068,16 +1068,6 @@ export function ChatScreen({
             </style>
             
             <div className="space-y-4 min-h-full flex flex-col justify-end">
-              {isHistoryLoading && (
-                <div className="text-xs text-neutral-400 mb-2 text-center">
-                  Reconnecting with TRACE…
-                </div>
-              )}
-              {historyError && (
-                <div className="text-xs text-amber-400 mb-2 text-center">
-                  {historyError}
-                </div>
-              )}
               <AnimatePresence initial={false} mode="popLayout">
                 {messages.map((msg, index) => {
                   const totalMessages = messages.length;
