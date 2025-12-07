@@ -272,8 +272,8 @@ export function ProfileScreen({
                 <motion.div
                   className="absolute rounded-full pointer-events-none"
                   style={{
-                    width: '130px',
-                    height: '130px',
+                    width: '110px',
+                    height: '110px',
                     background: 'radial-gradient(circle, rgba(210, 180, 140, 0.39) 0%, rgba(190, 160, 120, 0.26) 40%, rgba(170, 140, 100, 0.11) 60%, transparent 80%)',
                     filter: 'blur(6px)',
                   }}
@@ -292,8 +292,8 @@ export function ProfileScreen({
                 <motion.div
                   className="absolute rounded-full pointer-events-none"
                   style={{
-                    width: '110px',
-                    height: '110px',
+                    width: '94px',
+                    height: '94px',
                     background: `conic-gradient(
                       from 0deg at 50% 50%,
                       rgba(200, 170, 130, 0.36) 0deg,
@@ -322,8 +322,8 @@ export function ProfileScreen({
                 <motion.div
                   className="absolute rounded-full pointer-events-none"
                   style={{
-                    width: '100px',
-                    height: '100px',
+                    width: '85px',
+                    height: '85px',
                     background: `conic-gradient(
                       from 90deg at 50% 50%,
                       transparent 0deg,
@@ -350,8 +350,8 @@ export function ProfileScreen({
                 <motion.div
                   className="absolute rounded-full pointer-events-none"
                   style={{
-                    width: '85px',
-                    height: '85px',
+                    width: '72px',
+                    height: '72px',
                     background: 'radial-gradient(circle, rgba(220, 190, 150, 0.39) 0%, rgba(200, 170, 130, 0.26) 50%, transparent 75%)',
                     filter: 'blur(2px)',
                   }}
