@@ -334,7 +334,7 @@ export function FullPatternsReportScreen({
                 fontSize: '24px',
                 fontWeight: 500,
                 color: 'var(--text-primary)',
-                marginBottom: '12px',
+                marginBottom: '6px',
                 letterSpacing: '0.01em',
               }}
             >
@@ -344,7 +344,7 @@ export function FullPatternsReportScreen({
             {/* Subtle maze identity seal */}
             <div 
               className="relative mx-auto"
-              style={{ width: '54px', height: '54px', marginBottom: '12px' }}
+              style={{ width: '54px', height: '54px', marginBottom: '4px' }}
             >
               <div
                 className="absolute inset-0 rounded-full"
@@ -367,9 +367,9 @@ export function FullPatternsReportScreen({
             <p
               style={{
                 ...textStyle,
-                fontSize: '14px',
+                fontSize: '13px',
                 fontStyle: 'italic',
-                opacity: 0.7,
+                opacity: 0.56,
               }}
             >
               A gentle look at what's been moving through you.
