@@ -322,7 +322,7 @@ export function FullPatternsReportScreen({
 
         <div className="w-full max-w-md mx-auto px-6 flex flex-col items-center">
           <motion.div
-            className="text-center mb-6 w-full"
+            className="text-center mb-4 w-full"
             style={{ marginTop: '16px' }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
