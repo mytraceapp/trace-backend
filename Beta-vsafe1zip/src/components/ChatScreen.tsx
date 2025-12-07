@@ -74,7 +74,6 @@ export function ChatScreen({
   // History loading state
   const [isHistoryLoading, setIsHistoryLoading] = React.useState(true);
   const [historyError, setHistoryError] = React.useState<string | null>(null);
-  void historyError; // Available for UI error display
 
   const userName = currentProfile?.name || null;
 
@@ -1072,6 +1071,11 @@ export function ChatScreen({
               {isHistoryLoading && (
                 <div className="text-xs text-neutral-400 mb-2 text-center">
                   Reconnecting with TRACE…
+                </div>
+              )}
+              {historyError && (
+                <div className="text-xs text-amber-400 mb-2 text-center">
+                  {historyError}
                 </div>
               )}
               <AnimatePresence initial={false} mode="popLayout">
