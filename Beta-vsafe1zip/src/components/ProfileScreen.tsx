@@ -208,12 +208,12 @@ export function ProfileScreen({
           className="transition-all duration-200"
           style={{
             fontFamily: 'ALORE, Georgia, serif',
-            color: isDark ? 'rgba(220, 215, 205, 0.95)' : 'var(--text-tertiary)',
+            color: isDark ? '#A8B39A' : 'var(--text-tertiary)',
             fontWeight: 300,
             letterSpacing: '1em',
             fontSize: '11px',
             textShadow: isDark 
-              ? '0 0 20px rgba(200, 195, 185, 0.5), 0 0 40px rgba(180, 175, 165, 0.25), 0 2px 4px rgba(0,0,0,0.3)'
+              ? '0 0 25px rgba(168, 179, 154, 0.6), 0 0 50px rgba(141, 161, 143, 0.3), 0 2px 4px rgba(0,0,0,0.4)'
               : '0 0 15px rgba(106, 90, 74, 0.45), 0 0 30px rgba(106, 90, 74, 0.25), 0 2px 4px rgba(0,0,0,0.12)',
             opacity: 1,
           }}
@@ -840,7 +840,7 @@ export function ProfileScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '15px',
                 fontWeight: 400,
-                color: 'var(--text-primary)',
+                color: isDark ? '#A8B39A' : 'var(--text-primary)',
                 letterSpacing: '0.02em',
               }}
             >
@@ -852,13 +852,14 @@ export function ProfileScreen({
                 onClick={() => setShowAboutTraceModal(true)}
                 className="w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 hover:bg-black/5"
                 style={{
-                  background: 'var(--accent-soft)',
+                  background: isDark ? 'rgba(141, 161, 143, 0.15)' : 'var(--accent-soft)',
+                  border: isDark ? '1px solid rgba(141, 161, 143, 0.25)' : 'none',
                 }}
               >
                 <span
                   style={{
                     fontFamily: 'Georgia, serif',
-                    color: 'var(--text-primary)',
+                    color: isDark ? '#B8C4AA' : 'var(--text-primary)',
                     fontSize: '14px',
                     fontWeight: 300,
                     letterSpacing: '0.01em',
@@ -866,20 +867,21 @@ export function ProfileScreen({
                 >
                   How TRACE Works
                 </span>
-                <ChevronRight size={16} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
+                <ChevronRight size={16} style={{ color: isDark ? '#A8B39A' : 'var(--text-secondary)', strokeWidth: 1.5 }} />
               </button>
 
               <button
                 onClick={onNavigateToTerms}
                 className="w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 hover:bg-black/5"
                 style={{
-                  background: 'var(--accent-soft)',
+                  background: isDark ? 'rgba(141, 161, 143, 0.15)' : 'var(--accent-soft)',
+                  border: isDark ? '1px solid rgba(141, 161, 143, 0.25)' : 'none',
                 }}
               >
                 <span
                   style={{
                     fontFamily: 'Georgia, serif',
-                    color: 'var(--text-primary)',
+                    color: isDark ? '#B8C4AA' : 'var(--text-primary)',
                     fontSize: '14px',
                     fontWeight: 300,
                     letterSpacing: '0.01em',
@@ -887,20 +889,21 @@ export function ProfileScreen({
                 >
                   Terms & Safety Commitment
                 </span>
-                <ChevronRight size={16} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
+                <ChevronRight size={16} style={{ color: isDark ? '#A8B39A' : 'var(--text-secondary)', strokeWidth: 1.5 }} />
               </button>
 
               <button
                 onClick={onNavigateToPrivacy}
                 className="w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 hover:bg-black/5"
                 style={{
-                  background: 'var(--accent-soft)',
+                  background: isDark ? 'rgba(141, 161, 143, 0.15)' : 'var(--accent-soft)',
+                  border: isDark ? '1px solid rgba(141, 161, 143, 0.25)' : 'none',
                 }}
               >
                 <span
                   style={{
                     fontFamily: 'Georgia, serif',
-                    color: 'var(--text-primary)',
+                    color: isDark ? '#B8C4AA' : 'var(--text-primary)',
                     fontSize: '14px',
                     fontWeight: 300,
                     letterSpacing: '0.01em',
@@ -908,7 +911,7 @@ export function ProfileScreen({
                 >
                   Privacy & Your Data
                 </span>
-                <ChevronRight size={16} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
+                <ChevronRight size={16} style={{ color: isDark ? '#A8B39A' : 'var(--text-secondary)', strokeWidth: 1.5 }} />
               </button>
             </div>
           </motion.div>
