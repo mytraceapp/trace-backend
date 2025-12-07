@@ -2,18 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
+import { audioManager } from '../lib/audioManager';
 
-// Force-stop any active audio contexts to prevent static bleed-through
-function suspendAllAudioContexts() {
-  // Access any global audio contexts and suspend them
-  if (typeof window !== 'undefined' && (window as any).audioContexts) {
-    (window as any).audioContexts.forEach((ctx: AudioContext) => {
-      if (ctx.state === 'running') {
-        ctx.suspend().catch(() => {});
-      }
-    });
-  }
-}
+let pearlRippleInstanceCounter = 0;
 
 interface PearlRippleScreenProps {
   onBack?: () => void;
@@ -36,10 +27,13 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
   const audioContextRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const instanceIdRef = useRef<string>('');
 
   // Initialize and play ripple audio with clean fade-in using Web Audio API for smooth sound
   useEffect(() => {
-    suspendAllAudioContexts();
+    pearlRippleInstanceCounter++;
+    const instanceId = `pearl-ripple-${pearlRippleInstanceCounter}`;
+    instanceIdRef.current = instanceId;
     
     const audio = new Audio('/audio/pearl-ripple.mp3');
     audio.loop = true;
@@ -65,6 +59,9 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
       try {
         const audioContext = new AudioContext();
         audioContextRef.current = audioContext;
+        
+        // Register with audio manager - stops any other audio sources
+        audioManager.register(instanceId, audioContext, () => {}, 'activity');
         
         const source = audioContext.createMediaElementSource(audio);
         
@@ -135,7 +132,9 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
         setTimeout(() => {
           audioRef.current?.pause();
-          ctx.close().catch(() => {});
+          if (instanceIdRef.current) {
+            audioManager.unregister(instanceIdRef.current);
+          }
         }, 550);
       } else if (audioRef.current) {
         const currentAudio = audioRef.current;

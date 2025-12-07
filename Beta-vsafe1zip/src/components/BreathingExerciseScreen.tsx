@@ -1,6 +1,9 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BottomNav } from './BottomNav';
+import { audioManager } from '../lib/audioManager';
+
+let breathingInstanceCounter = 0;
 
 interface BreathingExerciseScreenProps {
   onFinish: () => void;
@@ -93,6 +96,7 @@ export function BreathingExerciseScreen({
   const [audioStarted, setAudioStarted] = React.useState(false);
   const [timerStarted, setTimerStarted] = React.useState(false);
   const audioContextRef = React.useRef<AudioContext | null>(null);
+  const instanceIdRef = React.useRef<string>('');
   const TOTAL_DURATION = 30; // 30 seconds total
   const WARMUP_DELAY = 5000; // 5 seconds before timer starts
   const BREATH_CYCLE = 6; // 3 seconds inhale + 3 seconds exhale
@@ -101,7 +105,16 @@ export function BreathingExerciseScreen({
   // Initialize audio context on user interaction
   const startAudio = React.useCallback(() => {
     if (!audioStarted) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      breathingInstanceCounter++;
+      const instanceId = `breathing-${breathingInstanceCounter}`;
+      instanceIdRef.current = instanceId;
+      
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = ctx;
+      
+      // Register with audio manager - stops any other audio sources
+      audioManager.register(instanceId, ctx, () => {}, 'activity');
+      
       setAudioStarted(true);
     }
   }, [audioStarted]);
@@ -116,8 +129,8 @@ export function BreathingExerciseScreen({
   // Cleanup audio context
   React.useEffect(() => {
     return () => {
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close().catch(() => {});
+      if (instanceIdRef.current) {
+        audioManager.unregister(instanceIdRef.current);
       }
     };
   }, []);

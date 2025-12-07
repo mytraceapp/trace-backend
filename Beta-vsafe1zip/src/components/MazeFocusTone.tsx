@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react';
+import { audioManager } from '../lib/audioManager';
 
 interface MazeFocusToneProps {
   isPlaying: boolean;
   volume?: number;
 }
+
+let mazeInstanceCounter = 0;
 
 export function MazeFocusTone({ isPlaying, volume = 0.35 }: MazeFocusToneProps) {
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -11,11 +14,27 @@ export function MazeFocusTone({ isPlaying, volume = 0.35 }: MazeFocusToneProps) 
   const gainsRef = useRef<GainNode[]>([]);
   const masterGainRef = useRef<GainNode | null>(null);
   const lfoRef = useRef<OscillatorNode | null>(null);
+  const instanceIdRef = useRef<string>('');
 
   useEffect(() => {
     if (isPlaying) {
+      mazeInstanceCounter++;
+      const instanceId = `maze-${mazeInstanceCounter}`;
+      instanceIdRef.current = instanceId;
+      
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       audioContextRef.current = audioContext;
+      
+      // Register with audio manager - stops any other audio sources
+      audioManager.register(
+        instanceId,
+        audioContext,
+        () => {
+          oscillatorsRef.current.forEach(osc => { try { osc.stop(); } catch (e) {} });
+          if (lfoRef.current) { try { lfoRef.current.stop(); } catch (e) {} }
+        },
+        'activity'
+      );
 
       const masterGain = audioContext.createGain();
       masterGain.gain.setValueAtTime(0, audioContext.currentTime);
@@ -102,17 +121,11 @@ export function MazeFocusTone({ isPlaying, volume = 0.35 }: MazeFocusToneProps) 
     }
 
     return () => {
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        oscillatorsRef.current.forEach(osc => {
-          try { osc.stop(); } catch (e) {}
-        });
-        if (lfoRef.current) {
-          try { lfoRef.current.stop(); } catch (e) {}
-        }
-        audioContextRef.current.close().catch(() => {});
-        oscillatorsRef.current = [];
-        gainsRef.current = [];
+      if (instanceIdRef.current) {
+        audioManager.unregister(instanceIdRef.current);
       }
+      oscillatorsRef.current = [];
+      gainsRef.current = [];
     };
   }, [isPlaying, volume]);
 

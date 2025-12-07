@@ -1,9 +1,12 @@
 import React from 'react';
+import { audioManager } from '../lib/audioManager';
 
 interface WalkingAmbientSoundProps {
   isPlaying: boolean;
   stepTrigger?: number;
 }
+
+let walkingInstanceCounter = 0;
 
 export function WalkingAmbientSound({ isPlaying, stepTrigger = 0 }: WalkingAmbientSoundProps) {
   const audioContextRef = React.useRef<AudioContext | null>(null);
@@ -11,6 +14,7 @@ export function WalkingAmbientSound({ isPlaying, stepTrigger = 0 }: WalkingAmbie
   const windNoiseRef = React.useRef<AudioBufferSourceNode | null>(null);
   const leavesNoiseRef = React.useRef<AudioBufferSourceNode | null>(null);
   const isInitializedRef = React.useRef(false);
+  const instanceIdRef = React.useRef<string>('');
 
   const createNoiseBuffer = React.useCallback((ctx: AudioContext, type: 'white' | 'pink' | 'brown') => {
     const bufferSize = ctx.sampleRate * 4;
@@ -112,8 +116,15 @@ export function WalkingAmbientSound({ isPlaying, stepTrigger = 0 }: WalkingAmbie
     const initAudio = () => {
       if (isInitializedRef.current) return;
       
+      walkingInstanceCounter++;
+      const instanceId = `walking-${walkingInstanceCounter}`;
+      instanceIdRef.current = instanceId;
+      
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
       audioContextRef.current = ctx;
+      
+      // Register with audio manager - stops any other audio sources
+      audioManager.register(instanceId, ctx, () => {}, 'activity');
       
       const masterGain = ctx.createGain();
       masterGain.gain.value = 0.7;
@@ -190,8 +201,8 @@ export function WalkingAmbientSound({ isPlaying, stepTrigger = 0 }: WalkingAmbie
       if (leavesNoiseRef.current) {
         try { leavesNoiseRef.current.stop(); } catch {}
       }
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close().catch(() => {});
+      if (instanceIdRef.current) {
+        audioManager.unregister(instanceIdRef.current);
       }
       isInitializedRef.current = false;
     };
