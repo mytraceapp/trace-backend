@@ -770,6 +770,33 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
     return () => { cancelled = true; };
   }, []);
 
+  // Computed description for Stress Echoes card based on last-hour emotional arc
+  const stressEchoesDescription = React.useMemo(() => {
+    if (!lastHourSummary || lastHourSummary.total < 3) {
+      return "TRACE will start noticing patterns as you keep talking.";
+    }
+
+    const heavyCount = lastHourSummary.heavy + lastHourSummary.anxious;
+
+    // Very weighty / activated hour
+    if (heavyCount >= 2 || lastHourSummary.arc === 'rising') {
+      return "This last stretch has carried a bit more weight than usual.";
+    }
+
+    // Things were heavy but eased
+    if (lastHourSummary.arc === 'softening' && heavyCount > 0) {
+      return "Some of today's weight seems to have eased a little as time went on.";
+    }
+
+    // Pretty steady / neutral
+    if (lastHourSummary.arc === 'steady') {
+      return "This hour has been fairly steady — nothing too loud, nothing too flat.";
+    }
+
+    // Generic fallback
+    return "TRACE is quietly watching how this hour has been feeling.";
+  }, [lastHourSummary]);
+
   const totalMessages = patternMessages.length;
   const emotionCounts = { calm: 0, flat: 0, heavy: 0, anxious: 0 };
   patternMessages.forEach((msg) => {
