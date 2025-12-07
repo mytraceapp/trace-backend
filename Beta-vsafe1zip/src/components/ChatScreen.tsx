@@ -14,14 +14,12 @@ import {
   clearLastSuggestedActivity,
   ActivityType 
 } from '../services/traceAI';
-import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages, analyzeMessageEmotion } from '../lib/messageService';
+import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages } from '../lib/messageService';
 
 const TRACE_SUPPORT_PROMPTS = [
-  "Would it help to journal a few details about what's on your heart right now?",
-  "I can stay with you in this. Want a gentle 2-minute grounding moment together?",
-  "If anything feels like a lot, we can slow down and unpack it step by step.",
-  "I'm here. Sometimes just naming what's heavy can help it feel a little lighter.",
-  "Would a short breathing pause feel right? Just a moment to settle.",
+  "Things feel a bit intense right now. If you want, we can slow down and journal a little together.",
+  "I'm here with you. Would a short grounding moment or a few written thoughts help right now?",
+  "It's okay if this feels like a lot. We can unpack it gently, one step at a time, if you'd like.",
 ];
 
 interface Message {
@@ -420,9 +418,6 @@ export function ChatScreen({
         content: userMsg
       }]);
       
-      // Analyze user message emotion for micro-prompts
-      const userEmotion = analyzeMessageEmotion(userMsg);
-      
       // Save user message to Supabase
       getCurrentUserId().then(userId => {
         if (userId) {
@@ -468,30 +463,55 @@ export function ChatScreen({
         });
         
         // Check if we should offer a gentle support micro-prompt (once per session)
-        const isHeavyOrAnxious = userEmotion.emotion === 'heavy' || userEmotion.emotion === 'anxious';
-        const isHighIntensity = userEmotion.intensity >= 3;
-        
-        if (!hasOfferedSupportThisSession && (isHeavyOrAnxious || isHighIntensity)) {
-          const supportText = TRACE_SUPPORT_PROMPTS[Math.floor(Math.random() * TRACE_SUPPORT_PROMPTS.length)];
+        // Get the updated messages including the new user message and AI response
+        setMessages(prev => {
+          const updatedMessages = prev;
           
-          // Add micro-prompt after a gentle delay
-          setTimeout(() => {
-            setMessages(prev => [...prev, {
-              id: `support-${Date.now()}`,
-              role: 'assistant',
-              content: supportText
-            }]);
-            
-            // Save support message to Supabase
-            getCurrentUserId().then(userId => {
-              if (userId) {
-                saveTraceMessage(userId, 'assistant', supportText);
-              }
+          // Get last 3 user messages
+          const lastUserMessages = updatedMessages
+            .filter((m) => m.role === 'user')
+            .slice(-3);
+          
+          // Only trigger if we have 3 user messages and haven't offered support yet
+          if (lastUserMessages.length === 3 && !hasOfferedSupportThisSession) {
+            const allHeavyOrAnxiousAndStrong = lastUserMessages.every((m) => {
+              const emotion = m.emotion ?? 'neutral';
+              const intensity = typeof m.intensity === 'number' ? m.intensity : 2;
+              const isHeavyOrAnxious = emotion === 'heavy' || emotion === 'anxious';
+              const isHighIntensity = intensity >= 4;
+              return isHeavyOrAnxious && isHighIntensity;
             });
-          }, 2000);
+            
+            if (allHeavyOrAnxiousAndStrong) {
+              const supportText = TRACE_SUPPORT_PROMPTS[Math.floor(Math.random() * TRACE_SUPPORT_PROMPTS.length)];
+              
+              // Add micro-prompt after a gentle delay
+              setTimeout(() => {
+                const supportMessage: Message = {
+                  id: `support-${Date.now()}`,
+                  role: 'assistant',
+                  content: supportText,
+                  createdAt: new Date().toISOString(),
+                  emotion: 'calm',
+                  intensity: 1,
+                };
+                
+                setMessages(p => [...p, supportMessage]);
+                
+                // Save support message to Supabase
+                getCurrentUserId().then(userId => {
+                  if (userId) {
+                    saveTraceMessage(userId, 'assistant', supportText);
+                  }
+                });
+              }, 2000);
+              
+              setHasOfferedSupportThisSession(true);
+            }
+          }
           
-          setHasOfferedSupportThisSession(true);
-        }
+          return updatedMessages;
+        });
         
         // If should_navigate is true, navigate to the activity after showing the message
         if (activity_suggestion?.should_navigate && activity_suggestion?.name) {
