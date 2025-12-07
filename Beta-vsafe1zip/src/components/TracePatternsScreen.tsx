@@ -1093,11 +1093,12 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
       {/* Math notebook grid overlay - day mode */}
       {!isDark && (
         <div 
-          className="fixed inset-0 pointer-events-none opacity-[0.25]"
+          className="absolute inset-0 pointer-events-none opacity-[0.25]"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%238DA18F' stroke-width='1'/%3E%3C/svg%3E")`,
             backgroundSize: '24px 24px',
             backgroundRepeat: 'repeat',
+            zIndex: -1,
           }}
         />
       )}
@@ -1105,12 +1106,12 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
       {/* Math notebook grid overlay - night mode */}
       {isDark && (
         <div 
-          className="fixed inset-0 pointer-events-none opacity-[0.10]"
+          className="absolute inset-0 pointer-events-none opacity-[0.10]"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 24 0 L 0 0 0 24' fill='none' stroke='%232D3A2A' stroke-width='0.5'/%3E%3C/svg%3E")`,
             backgroundSize: '24px 24px',
             backgroundRepeat: 'repeat',
-            zIndex: 0,
+            zIndex: -1,
           }}
         />
       )}
@@ -1216,6 +1217,13 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                   },
                 }}
               >
+                {/* Solid background circle to mask grid */}
+                <div 
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    backgroundColor: isDark ? '#0E0F0D' : '#F5F1EB',
+                  }}
+                />
                 {/* Faint glowing halo around orb */}
                 <motion.div
                   className="absolute inset-[-60px] rounded-full"
@@ -1337,7 +1345,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             <div
               className="rounded-[18px] p-5"
               style={{
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(215, 200, 181, 0.5)',
+                backgroundColor: isDark ? 'rgba(14, 15, 13, 0.95)' : 'rgba(233, 226, 216, 0.98)',
                 border: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(43, 30, 21, 0.08)',
               }}
             >
@@ -1373,7 +1381,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               <div
                 className="rounded-[18px] p-5 space-y-3"
                 style={{
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(215, 200, 181, 0.5)',
+                  backgroundColor: isDark ? 'rgba(14, 15, 13, 0.95)' : 'rgba(233, 226, 216, 0.98)',
                   border: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(43, 30, 21, 0.08)',
                 }}
               >
@@ -1424,7 +1432,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
               <div
                 className="rounded-[18px] p-5"
                 style={{
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(215, 200, 181, 0.5)',
+                  backgroundColor: isDark ? 'rgba(14, 15, 13, 0.95)' : 'rgba(233, 226, 216, 0.98)',
                   border: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(43, 30, 21, 0.08)',
                 }}
               >
@@ -1467,7 +1475,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             <motion.div
               className="rounded-[22px] p-6 cursor-pointer relative"
               style={{
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#D7C8B5',
+                backgroundColor: isDark ? 'rgba(14, 15, 13, 0.95)' : '#D7C8B5',
                 border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(43, 30, 21, 0.1)',
                 boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1)' : '0 2px 8px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.01)',
               }}
@@ -1535,7 +1543,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             <motion.div
               className="rounded-[22px] p-6 cursor-pointer relative"
               style={{
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#D7C8B5',
+                backgroundColor: isDark ? 'rgba(14, 15, 13, 0.95)' : '#D7C8B5',
                 border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(43, 30, 21, 0.1)',
                 boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1)' : '0 2px 8px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.01)',
               }}
@@ -1603,7 +1611,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
             <motion.div
               className="rounded-[22px] p-6 cursor-pointer relative"
               style={{
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#D7C8B5',
+                backgroundColor: isDark ? 'rgba(14, 15, 13, 0.95)' : '#D7C8B5',
                 border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(43, 30, 21, 0.1)',
                 boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1)' : '0 2px 8px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.01)',
               }}
@@ -1717,7 +1725,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
           <motion.div
             className="rounded-[22px] p-6 mt-8"
             style={{
-              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#E9E2D8',
+              backgroundColor: isDark ? 'rgba(14, 15, 13, 0.95)' : '#E9E2D8',
               border: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(43, 30, 21, 0.08)',
               boxShadow: isDark ? '0 3px 12px rgba(0,0,0,0.1)' : '0 3px 12px rgba(0,0,0,0.02)',
             }}
@@ -1857,7 +1865,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 key={signature}
                 className="rounded-[18px] px-5 py-4"
                 style={{
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#E9E2D8',
+                  backgroundColor: isDark ? 'rgba(14, 15, 13, 0.95)' : '#E9E2D8',
                   border: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(43, 30, 21, 0.09)',
                   boxShadow: isDark ? 'inset 0 1px 2px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.08)' : 'inset 0 1px 2px rgba(0,0,0,0.03), 0 1px 4px rgba(0,0,0,0.02)',
                 }}
@@ -1884,7 +1892,7 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
           <motion.div
             className="rounded-[22px] p-8 mt-6"
             style={{
-              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : '#F2EFEA',
+              backgroundColor: isDark ? 'rgba(14, 15, 13, 0.95)' : '#F2EFEA',
               border: isDark ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid rgba(43, 30, 21, 0.08)',
               boxShadow: isDark ? '0 4px 16px rgba(0,0,0,0.1)' : '0 4px 16px rgba(0,0,0,0.03)',
             }}
