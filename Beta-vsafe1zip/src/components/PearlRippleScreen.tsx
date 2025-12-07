@@ -300,11 +300,6 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
     return shimmers;
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
 
   return (
     <div
@@ -440,25 +435,6 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         >
           <ArrowLeft size={18} style={{ color: '#9A8778', strokeWidth: 2 }} />
         </button>
-
-        {/* Timer */}
-        <div
-          className="px-5 py-2.5 rounded-full"
-          style={{
-            background: 'rgba(255, 255, 255, 0.35)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-            fontFamily: 'Georgia, serif',
-            fontSize: '14px',
-            fontWeight: 300,
-            color: '#9A8778',
-            letterSpacing: '0.05em',
-            filter: 'blur(0.4px)',
-          }}
-        >
-          {formatTime(timeRemaining)}
-        </div>
       </div>
 
       {/* Countdown Text Overlay - moved up 40px for cohesiveness */}
