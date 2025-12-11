@@ -69,110 +69,97 @@ export function RisingScreen({
       baseColors.forEach(hex => {
         const base = new THREE.Color(hex);
         result.push(base);
-        // Lighter version
-        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0xffffff), 0.3));
-        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0xffffff), 0.5));
-        // Darker version
-        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0x000000), 0.2));
-        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0x000000), 0.35));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0xffffff), 0.25));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0xffffff), 0.45));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0x000000), 0.15));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0x000000), 0.3));
       });
       return result;
     };
 
     // Vibes palette with ambient variations
     const colorFamilies = [
-      // Teal family (cluster 0) - bursts FIRST
-      createVariations([0x3D6B6E, 0x4A7C7E, 0x5A8B8D, 0x2D5558]),
-      // Sage family (cluster 1) - bursts SECOND
-      createVariations([0x6B9E8C, 0x7AAE9C, 0x5A8E7C, 0x8ABEA8]),
-      // Orange family (cluster 2) - bursts THIRD
-      createVariations([0xD97B3D, 0xE88B4D, 0xC96B2D, 0xF09B5D]),
-      // Cream family (cluster 3) - bursts FOURTH
-      createVariations([0xF5EFE6, 0xE8DED1, 0xD4C9BC, 0xEDE4D8]),
+      createVariations([0x3D6B6E, 0x4A7C7E, 0x5A8B8D, 0x2D5558]), // Teal - TOP
+      createVariations([0x6B9E8C, 0x7AAE9C, 0x5A8E7C, 0x8ABEA8]), // Sage - RIGHT
+      createVariations([0xD97B3D, 0xE88B4D, 0xC96B2D, 0xF09B5D]), // Orange - BOTTOM
+      createVariations([0xF5EFE6, 0xE8DED1, 0xD4C9BC, 0xEDE4D8]), // Cream - LEFT
     ];
 
-    // Burst delay for each cluster (sequential bursting)
-    const clusterDelays = [0.0, 1.8, 3.6, 5.4]; // Each cluster starts 1.8s after previous
+    // Burst timing for sequential appearance
+    const clusterBurstDelays = [0.0, 2.0, 4.0, 6.0];
     
-    // More particles to fill the screen
-    const particleCount = 18000;
+    // Screen-filling particles that STAY in their cluster area
+    const particleCount = 20000;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const colorAttrib = new Float32Array(particleCount * 3);
     const sizes = new Float32Array(particleCount);
-    const velocities = new Float32Array(particleCount * 3);
-    const startTimes = new Float32Array(particleCount);
-    const lifespans = new Float32Array(particleCount);
-    const origins = new Float32Array(particleCount * 3);
+    const homePositions = new Float32Array(particleCount * 3); // Where they settle
     const phases = new Float32Array(particleCount);
+    const rotationSpeeds = new Float32Array(particleCount);
     const clusterIds = new Float32Array(particleCount);
+    const burstProgress = new Float32Array(particleCount);
 
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
       
-      // Assign to a color cluster (0-3)
       const cluster = Math.floor(Math.random() * 4);
       clusterIds[i] = cluster;
       
-      // All particles start at CENTER
-      origins[i3] = 0;
-      origins[i3 + 1] = 0;
-      origins[i3 + 2] = -5;
+      // Home positions - where particles STAY and rotate
+      // Each cluster fills a quadrant of the screen
+      let homeX = 0, homeY = 0;
+      const spreadX = 25 + Math.random() * 20;
+      const spreadY = 20 + Math.random() * 18;
       
+      switch (cluster) {
+        case 0: // Teal - TOP area
+          homeX = (Math.random() - 0.5) * 50;
+          homeY = 8 + Math.random() * spreadY;
+          break;
+        case 1: // Sage - RIGHT area
+          homeX = 10 + Math.random() * spreadX;
+          homeY = (Math.random() - 0.5) * 45;
+          break;
+        case 2: // Orange - BOTTOM area
+          homeX = (Math.random() - 0.5) * 50;
+          homeY = -8 - Math.random() * spreadY;
+          break;
+        case 3: // Cream - LEFT area
+          homeX = -10 - Math.random() * spreadX;
+          homeY = (Math.random() - 0.5) * 45;
+          break;
+      }
+      
+      homePositions[i3] = homeX;
+      homePositions[i3 + 1] = homeY;
+      homePositions[i3 + 2] = -5 + Math.random() * 30;
+      
+      // Start at center (will burst out to home position)
       positions[i3] = 0;
       positions[i3 + 1] = 0;
       positions[i3 + 2] = -5;
 
-      // Direction based on cluster - spread wider to fill screen
-      const speed = 12 + Math.random() * 28;
-      const spread = (Math.random() - 0.5) * 20;
-      const towardCamera = 15 + Math.random() * 35;
-      
-      let vx = 0, vy = 0;
-      switch (cluster) {
-        case 0: // Teal goes UP
-          vx = spread;
-          vy = speed;
-          break;
-        case 1: // Sage goes RIGHT
-          vx = speed;
-          vy = spread;
-          break;
-        case 2: // Orange goes DOWN
-          vx = spread;
-          vy = -speed;
-          break;
-        case 3: // Cream goes LEFT
-          vx = -speed;
-          vy = spread;
-          break;
-      }
-      
-      velocities[i3] = vx;
-      velocities[i3 + 1] = vy;
-      velocities[i3 + 2] = towardCamera;
-
-      // Color from the cluster's family (with ambient variations)
+      // Color from the cluster's family
       const family = colorFamilies[cluster];
       const color = family[Math.floor(Math.random() * family.length)];
       colorAttrib[i3] = color.r;
       colorAttrib[i3 + 1] = color.g;
       colorAttrib[i3 + 2] = color.b;
 
-      // Varied sizes - bigger for more screen coverage
+      // Varied sizes
       const sizeType = Math.random();
-      if (sizeType < 0.1) {
-        sizes[i] = 6 + Math.random() * 8;
-      } else if (sizeType < 0.3) {
-        sizes[i] = 3 + Math.random() * 4;
+      if (sizeType < 0.08) {
+        sizes[i] = 5 + Math.random() * 7;
+      } else if (sizeType < 0.25) {
+        sizes[i] = 2.5 + Math.random() * 3.5;
       } else {
-        sizes[i] = 0.8 + Math.random() * 2.2;
+        sizes[i] = 0.6 + Math.random() * 2;
       }
 
-      // Start times within each cluster's burst window
-      startTimes[i] = clusterDelays[cluster] + Math.random() * 1.5;
-      lifespans[i] = 4.0 + Math.random() * 3.0;
       phases[i] = Math.random() * Math.PI * 2;
+      rotationSpeeds[i] = 0.3 + Math.random() * 0.6;
+      burstProgress[i] = Math.random() * 0.5; // Stagger within cluster
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -197,13 +184,11 @@ export function RisingScreen({
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           
           float sizeAtten = size * u_pixelRatio * (300.0 / -mvPosition.z);
-          gl_PointSize = clamp(sizeAtten, 1.0, 140.0);
+          gl_PointSize = clamp(sizeAtten, 1.0, 130.0);
           
-          // Alpha based on distance from center - invisible at center
+          // Full opacity once in place
           float distFromCenter = length(position.xy);
-          float zProgress = smoothstep(-5.0, 40.0, position.z);
-          
-          vAlpha = smoothstep(0.0, 4.0, distFromCenter) * smoothstep(-5.0, 3.0, position.z) * (1.0 - zProgress * 0.4);
+          vAlpha = smoothstep(0.0, 3.0, distFromCenter) * 0.9;
           
           gl_Position = projectionMatrix * mvPosition;
         }
@@ -218,12 +203,12 @@ export function RisingScreen({
           
           float alpha = smoothstep(0.5, 0.0, dist) * vAlpha;
           
-          float glow = exp(-dist * 2.8) * 0.35;
-          vec3 finalColor = vColor + vec3(1.0) * glow * 0.12;
+          float glow = exp(-dist * 2.5) * 0.3;
+          vec3 finalColor = vColor + vec3(1.0) * glow * 0.1;
           
-          if (alpha < 0.008) discard;
+          if (alpha < 0.005) discard;
           
-          gl_FragColor = vec4(finalColor, alpha * 0.92);
+          gl_FragColor = vec4(finalColor, alpha);
         }
       `,
       transparent: true,
@@ -235,74 +220,40 @@ export function RisingScreen({
     const particles = new THREE.Points(geometry, material);
     scene.add(particles);
 
-    // Phone frame (subtle)
-    const frameHeight = 35;
-    const frameWidth = frameHeight * (width / height) * 0.85;
-    const frameShape = new THREE.Shape();
-    const cornerRadius = 2;
-    const hw = frameWidth / 2;
-    const hh = frameHeight / 2;
-    
-    frameShape.moveTo(-hw + cornerRadius, -hh);
-    frameShape.lineTo(hw - cornerRadius, -hh);
-    frameShape.quadraticCurveTo(hw, -hh, hw, -hh + cornerRadius);
-    frameShape.lineTo(hw, hh - cornerRadius);
-    frameShape.quadraticCurveTo(hw, hh, hw - cornerRadius, hh);
-    frameShape.lineTo(-hw + cornerRadius, hh);
-    frameShape.quadraticCurveTo(-hw, hh, -hw, hh - cornerRadius);
-    frameShape.lineTo(-hw, -hh + cornerRadius);
-    frameShape.quadraticCurveTo(-hw, -hh, -hw + cornerRadius, -hh);
-
-    const framePoints = frameShape.getPoints(50);
-    const frameGeometry = new THREE.BufferGeometry().setFromPoints(
-      framePoints.map(p => new THREE.Vector3(p.x, p.y, 0))
-    );
-    const frameMaterial = new THREE.LineBasicMaterial({ 
-      color: 0xdddddd, 
-      transparent: true, 
-      opacity: 0.25 
-    });
-    const frameLine = new THREE.LineLoop(frameGeometry, frameMaterial);
-    scene.add(frameLine);
-
-    // Edge grain particles with sequential timing
-    const grainCount = 3000;
+    // Grain particles - also stay in their areas
+    const grainCount = 4000;
     const grainGeometry = new THREE.BufferGeometry();
     const grainPositions = new Float32Array(grainCount * 3);
     const grainColors = new Float32Array(grainCount * 3);
     const grainSizes = new Float32Array(grainCount);
-    const grainVelocities = new Float32Array(grainCount * 3);
-    const grainStarts = new Float32Array(grainCount);
-    const grainLifes = new Float32Array(grainCount);
-    const grainOrigins = new Float32Array(grainCount * 3);
+    const grainHomes = new Float32Array(grainCount * 3);
+    const grainPhases = new Float32Array(grainCount);
+    const grainClusters = new Float32Array(grainCount);
 
     for (let i = 0; i < grainCount; i++) {
       const i3 = i * 3;
       
-      grainOrigins[i3] = 0;
-      grainOrigins[i3 + 1] = 0;
-      grainOrigins[i3 + 2] = 0;
+      const cluster = Math.floor(Math.random() * 4);
+      grainClusters[i] = cluster;
+      
+      let gHomeX = 0, gHomeY = 0;
+      const gSpreadX = 28 + Math.random() * 15;
+      const gSpreadY = 22 + Math.random() * 12;
+      
+      switch (cluster) {
+        case 0: gHomeX = (Math.random() - 0.5) * 55; gHomeY = 5 + Math.random() * gSpreadY; break;
+        case 1: gHomeX = 8 + Math.random() * gSpreadX; gHomeY = (Math.random() - 0.5) * 50; break;
+        case 2: gHomeX = (Math.random() - 0.5) * 55; gHomeY = -5 - Math.random() * gSpreadY; break;
+        case 3: gHomeX = -8 - Math.random() * gSpreadX; gHomeY = (Math.random() - 0.5) * 50; break;
+      }
+      
+      grainHomes[i3] = gHomeX;
+      grainHomes[i3 + 1] = gHomeY;
+      grainHomes[i3 + 2] = Math.random() * 20;
       
       grainPositions[i3] = 0;
       grainPositions[i3 + 1] = 0;
       grainPositions[i3 + 2] = 0;
-      
-      const cluster = Math.floor(Math.random() * 4);
-      
-      const gSpeed = 8 + Math.random() * 18;
-      const gSpread = (Math.random() - 0.5) * 14;
-      
-      let gvx = 0, gvy = 0;
-      switch (cluster) {
-        case 0: gvx = gSpread; gvy = gSpeed; break;
-        case 1: gvx = gSpeed; gvy = gSpread; break;
-        case 2: gvx = gSpread; gvy = -gSpeed; break;
-        case 3: gvx = -gSpeed; gvy = gSpread; break;
-      }
-      
-      grainVelocities[i3] = gvx;
-      grainVelocities[i3 + 1] = gvy;
-      grainVelocities[i3 + 2] = 8 + Math.random() * 16;
       
       const family = colorFamilies[cluster];
       const gColor = family[Math.floor(Math.random() * family.length)];
@@ -310,9 +261,8 @@ export function RisingScreen({
       grainColors[i3 + 1] = gColor.g;
       grainColors[i3 + 2] = gColor.b;
       
-      grainSizes[i] = 0.4 + Math.random() * 1.2;
-      grainStarts[i] = clusterDelays[cluster] + Math.random() * 1.5;
-      grainLifes[i] = 3.5 + Math.random() * 2.5;
+      grainSizes[i] = 0.3 + Math.random() * 1.0;
+      grainPhases[i] = Math.random() * Math.PI * 2;
     }
 
     grainGeometry.setAttribute('position', new THREE.BufferAttribute(grainPositions, 3));
@@ -336,7 +286,7 @@ export function RisingScreen({
           gl_PointSize = size * u_pixelRatio * (180.0 / -mvPosition.z);
           
           float distFromCenter = length(position.xy);
-          vAlpha = smoothstep(0.0, 3.0, distFromCenter) * smoothstep(-2.0, 6.0, position.z) * 0.65;
+          vAlpha = smoothstep(0.0, 2.0, distFromCenter) * 0.6;
           
           gl_Position = projectionMatrix * mvPosition;
         }
@@ -363,9 +313,6 @@ export function RisingScreen({
     scene.add(grainParticles);
 
     startTimeRef.current = performance.now();
-    
-    // Total cycle time for all clusters to burst sequentially
-    const totalCycleTime = 12.0;
 
     const animate = () => {
       animationRef.current = requestAnimationFrame(animate);
@@ -373,8 +320,8 @@ export function RisingScreen({
       setTimeElapsed(Math.floor(elapsed));
 
       if (cameraRef.current) {
-        cameraRef.current.position.x = tiltRef.current.x * 6;
-        cameraRef.current.position.y = tiltRef.current.y * 4;
+        cameraRef.current.position.x = tiltRef.current.x * 5;
+        cameraRef.current.position.y = tiltRef.current.y * 3;
         cameraRef.current.lookAt(0, 0, 0);
       }
 
@@ -385,62 +332,78 @@ export function RisingScreen({
 
       for (let i = 0; i < posCount; i++) {
         const i3 = i * 3;
+        const cluster = clusterIds[i];
         
-        // Use modulo for continuous looping
-        const cycleElapsed = elapsed % totalCycleTime;
-        const particleTime = cycleElapsed - startTimes[i];
-
-        if (particleTime >= 0) {
-          const lifeProgress = Math.min(particleTime / lifespans[i], 1.0);
+        // Calculate burst progress for this cluster
+        const clusterDelay = clusterBurstDelays[cluster];
+        const timeSinceBurst = elapsed - clusterDelay - burstProgress[i] * 1.5;
+        
+        // Smooth burst out to home position over 3 seconds
+        const burstT = Math.max(0, Math.min(1, timeSinceBurst / 3.0));
+        const easeOut = 1.0 - Math.pow(1.0 - burstT, 3);
+        
+        // Interpolate from center to home position
+        const homeX = homePositions[i3];
+        const homeY = homePositions[i3 + 1];
+        const homeZ = homePositions[i3 + 2];
+        
+        // Current position based on burst progress
+        let currentX = homeX * easeOut;
+        let currentY = homeY * easeOut;
+        let currentZ = -5 + (homeZ + 5) * easeOut;
+        
+        // Once burst complete, add rotation/swirl within cluster area
+        if (burstT >= 1.0) {
+          const rotTime = elapsed * rotationSpeeds[i];
+          const rotRadius = 2 + Math.sin(phases[i] * 3) * 1.5;
           
-          // Smooth slow easing
-          const easeOut = 1.0 - Math.pow(1.0 - Math.min(lifeProgress * 1.1, 1.0), 2.5);
+          // Gentle rotation around home position
+          currentX += Math.sin(rotTime + phases[i]) * rotRadius;
+          currentY += Math.cos(rotTime + phases[i] * 1.3) * rotRadius;
+          currentZ += Math.sin(rotTime * 0.5 + phases[i]) * 1.5;
           
-          posAttr[i3] = origins[i3] + velocities[i3] * particleTime * easeOut * 0.85;
-          posAttr[i3 + 1] = origins[i3 + 1] + velocities[i3 + 1] * particleTime * easeOut * 0.85;
-          posAttr[i3 + 2] = origins[i3 + 2] + velocities[i3 + 2] * particleTime * easeOut * 0.85;
-          
-          // Gentle drift after burst
-          if (lifeProgress > 0.6) {
-            const driftProgress = (lifeProgress - 0.6) / 0.4;
-            const driftForce = Math.pow(driftProgress, 1.8) * 6;
-            
-            posAttr[i3] += Math.sin(phases[i] * 4 + elapsed * 1.5) * driftForce;
-            posAttr[i3 + 1] += Math.cos(phases[i] * 3 + elapsed * 1.8) * driftForce;
-          }
-          
-          // Subtle wobble
-          const wobble = Math.sin(elapsed * 1.2 + phases[i]) * 0.25;
-          posAttr[i3] += wobble;
-        } else {
-          // Not yet started - stay at center (invisible)
-          posAttr[i3] = origins[i3];
-          posAttr[i3 + 1] = origins[i3 + 1];
-          posAttr[i3 + 2] = origins[i3 + 2];
+          // Gentle drift
+          currentX += Math.sin(elapsed * 0.3 + phases[i] * 2) * 1.0;
+          currentY += Math.cos(elapsed * 0.25 + phases[i] * 1.5) * 0.8;
         }
+        
+        posAttr[i3] = currentX;
+        posAttr[i3 + 1] = currentY;
+        posAttr[i3 + 2] = currentZ;
       }
       particles.geometry.attributes.position.needsUpdate = true;
 
-      // Update grain with same sequential timing
+      // Update grain with same logic
       const grainPos = grainParticles.geometry.attributes.position.array as Float32Array;
       const grainCnt = grainPos.length / 3;
       
       for (let i = 0; i < grainCnt; i++) {
         const i3 = i * 3;
-        const cycleElapsed = elapsed % totalCycleTime;
-        const pTime = cycleElapsed - grainStarts[i];
+        const cluster = grainClusters[i];
         
-        if (pTime >= 0) {
-          const life = Math.min(pTime / grainLifes[i], 1.0);
-          const ease = 1.0 - Math.pow(1.0 - Math.min(life * 1.2, 1.0), 2.5);
-          grainPos[i3] = grainOrigins[i3] + grainVelocities[i3] * pTime * ease * 0.85;
-          grainPos[i3 + 1] = grainOrigins[i3 + 1] + grainVelocities[i3 + 1] * pTime * ease * 0.85;
-          grainPos[i3 + 2] = grainOrigins[i3 + 2] + grainVelocities[i3 + 2] * pTime * ease * 0.85;
-        } else {
-          grainPos[i3] = grainOrigins[i3];
-          grainPos[i3 + 1] = grainOrigins[i3 + 1];
-          grainPos[i3 + 2] = grainOrigins[i3 + 2];
+        const clusterDelay = clusterBurstDelays[cluster];
+        const timeSinceBurst = elapsed - clusterDelay - (grainPhases[i] / Math.PI) * 1.5;
+        
+        const burstT = Math.max(0, Math.min(1, timeSinceBurst / 3.0));
+        const easeOut = 1.0 - Math.pow(1.0 - burstT, 3);
+        
+        const gHomeX = grainHomes[i3];
+        const gHomeY = grainHomes[i3 + 1];
+        const gHomeZ = grainHomes[i3 + 2];
+        
+        let gX = gHomeX * easeOut;
+        let gY = gHomeY * easeOut;
+        let gZ = gHomeZ * easeOut;
+        
+        if (burstT >= 1.0) {
+          const rotTime = elapsed * 0.4;
+          gX += Math.sin(rotTime + grainPhases[i]) * 1.5;
+          gY += Math.cos(rotTime + grainPhases[i] * 1.2) * 1.2;
         }
+        
+        grainPos[i3] = gX;
+        grainPos[i3 + 1] = gY;
+        grainPos[i3 + 2] = gZ;
       }
       grainParticles.geometry.attributes.position.needsUpdate = true;
       
@@ -464,8 +427,6 @@ export function RisingScreen({
       window.removeEventListener('resize', handleResize);
       geometry.dispose();
       material.dispose();
-      frameGeometry.dispose();
-      frameMaterial.dispose();
       grainGeometry.dispose();
       grainMaterial.dispose();
       if (rendererRef.current) {
