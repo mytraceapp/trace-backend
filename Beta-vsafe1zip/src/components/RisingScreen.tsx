@@ -67,20 +67,37 @@ export function RisingScreen({
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Vibrant color palette - like the reference burst
+    // TRACE color palette ONLY - mocha, sage, olive, cream, gold, amber, warm earth tones
     const colors = [
-      new THREE.Color(0xE91E63), // pink
-      new THREE.Color(0x9C27B0), // purple
-      new THREE.Color(0x3F51B5), // indigo
-      new THREE.Color(0x2196F3), // blue
-      new THREE.Color(0x00BCD4), // cyan
-      new THREE.Color(0x4CAF50), // green
-      new THREE.Color(0xFFEB3B), // yellow
-      new THREE.Color(0xFF9800), // orange
-      new THREE.Color(0xFF5722), // deep orange
-      new THREE.Color(0x8C9E85), // sage (TRACE)
-      new THREE.Color(0x94695B), // mocha (TRACE)
-      new THREE.Color(0xF2EBD9), // cream (TRACE)
+      // Sage family
+      new THREE.Color(0x8C9E85), // sage
+      new THREE.Color(0xA8B5A0), // light sage
+      new THREE.Color(0x6B7D65), // deep sage
+      new THREE.Color(0x7A8B74), // muted sage
+      new THREE.Color(0x9CAF94), // soft sage
+      // Olive family
+      new THREE.Color(0x6B6B4E), // olive
+      new THREE.Color(0x808066), // light olive
+      new THREE.Color(0x5C5C42), // deep olive
+      new THREE.Color(0x9A9A7A), // pale olive
+      // Mocha family
+      new THREE.Color(0x94695B), // mocha
+      new THREE.Color(0x7A5548), // deep mocha
+      new THREE.Color(0xA67C5B), // warm mocha
+      new THREE.Color(0x8B6B5A), // soft mocha
+      new THREE.Color(0xB8907A), // light mocha
+      // Cream/Gold family
+      new THREE.Color(0xF2EBD9), // cream
+      new THREE.Color(0xE8DFD0), // warm cream
+      new THREE.Color(0xD4C4B5), // dusty cream
+      new THREE.Color(0xC4B896), // gold cream
+      new THREE.Color(0xD9C9A5), // soft gold
+      new THREE.Color(0xCCB88C), // muted gold
+      // Amber/Warm tones
+      new THREE.Color(0xB8976B), // amber
+      new THREE.Color(0xA68B5B), // warm amber
+      new THREE.Color(0xC9A87C), // light amber
+      new THREE.Color(0x9E8A6D), // dusty amber
     ];
 
     // Screen-within-screen dimensions (phone aspect ratio)
@@ -88,8 +105,8 @@ export function RisingScreen({
     const frameHeight = 35;
     const frameWidth = frameHeight * aspectRatio * 0.85;
     
-    // Main burst particle system - dramatic colorful explosion
-    const particleCount = 6000;
+    // Main burst particle system - MUCH fuller with more particles
+    const particleCount = 10000;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const colorAttrib = new Float32Array(particleCount * 3);
@@ -99,6 +116,7 @@ export function RisingScreen({
     const lifespans = new Float32Array(particleCount);
     const origins = new Float32Array(particleCount * 3);
     const phases = new Float32Array(particleCount);
+    const directions = new Float32Array(particleCount); // 0=up, 1=down, 2=left, 3=right, 4=outward
 
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
@@ -115,36 +133,62 @@ export function RisingScreen({
       positions[i3 + 1] = startY;
       positions[i3 + 2] = -5;
 
-      // Velocity - dramatic burst outward from center
-      const angle = Math.atan2(startY, startX);
-      const burstSpeed = 8 + Math.random() * 20;
-      const towardCamera = 20 + Math.random() * 35;
+      // MULTI-DIRECTIONAL burst - different particles go different directions
+      const direction = Math.floor(Math.random() * 5);
+      directions[i] = direction;
       
-      // Add swirl motion
-      const swirlAngle = angle + (Math.random() - 0.5) * 1.5;
+      const speed = 10 + Math.random() * 25;
+      const towardCamera = 15 + Math.random() * 30;
       
-      velocities[i3] = Math.cos(swirlAngle) * burstSpeed;
-      velocities[i3 + 1] = Math.sin(swirlAngle) * burstSpeed;
+      // Add variation based on direction
+      let vx = 0, vy = 0;
+      switch (direction) {
+        case 0: // UP
+          vx = (Math.random() - 0.5) * 8;
+          vy = speed;
+          break;
+        case 1: // DOWN
+          vx = (Math.random() - 0.5) * 8;
+          vy = -speed;
+          break;
+        case 2: // LEFT
+          vx = -speed;
+          vy = (Math.random() - 0.5) * 8;
+          break;
+        case 3: // RIGHT
+          vx = speed;
+          vy = (Math.random() - 0.5) * 8;
+          break;
+        case 4: // OUTWARD from center
+          const angle = Math.atan2(startY, startX);
+          vx = Math.cos(angle) * speed;
+          vy = Math.sin(angle) * speed;
+          break;
+      }
+      
+      // Add swirl
+      velocities[i3] = vx + (Math.random() - 0.5) * 5;
+      velocities[i3 + 1] = vy + (Math.random() - 0.5) * 5;
       velocities[i3 + 2] = towardCamera;
 
-      // Vibrant random color
+      // Only TRACE colors
       const color = colors[Math.floor(Math.random() * colors.length)];
       colorAttrib[i3] = color.r;
       colorAttrib[i3 + 1] = color.g;
       colorAttrib[i3 + 2] = color.b;
 
-      // Varied sizes - some large color blobs, some fine grain
+      // Varied sizes for fuller effect
       const sizeType = Math.random();
-      if (sizeType < 0.2) {
-        sizes[i] = 4 + Math.random() * 6; // Large blobs
-      } else if (sizeType < 0.5) {
-        sizes[i] = 2 + Math.random() * 3; // Medium
+      if (sizeType < 0.15) {
+        sizes[i] = 5 + Math.random() * 7; // Large blobs
+      } else if (sizeType < 0.4) {
+        sizes[i] = 2.5 + Math.random() * 3.5; // Medium
       } else {
-        sizes[i] = 0.5 + Math.random() * 1.5; // Fine grain
+        sizes[i] = 0.5 + Math.random() * 2; // Fine grain
       }
 
       // Staggered start for continuous effect
-      startTimes[i] = Math.random() * 3.0;
+      startTimes[i] = Math.random() * 4.0;
       lifespans[i] = 2.0 + Math.random() * 2.5;
       phases[i] = Math.random() * Math.PI * 2;
     }
@@ -170,12 +214,12 @@ export function RisingScreen({
           
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           
-          // Size attenuation - dramatic size increase as particles approach
-          float sizeAtten = size * u_pixelRatio * (300.0 / -mvPosition.z);
-          gl_PointSize = clamp(sizeAtten, 2.0, 150.0);
+          // Size attenuation
+          float sizeAtten = size * u_pixelRatio * (280.0 / -mvPosition.z);
+          gl_PointSize = clamp(sizeAtten, 2.0, 140.0);
           
-          // Alpha - fade as very close
-          vAlpha = smoothstep(90.0, 30.0, position.z) * smoothstep(-10.0, 5.0, position.z);
+          // Alpha fade
+          vAlpha = smoothstep(85.0, 25.0, position.z) * smoothstep(-10.0, 5.0, position.z);
           
           gl_Position = projectionMatrix * mvPosition;
         }
@@ -188,16 +232,16 @@ export function RisingScreen({
           vec2 center = gl_PointCoord - 0.5;
           float dist = length(center);
           
-          // Soft blob with glow
+          // Soft blob
           float alpha = smoothstep(0.5, 0.0, dist) * vAlpha;
           
-          // Inner glow for vibrancy
-          float glow = exp(-dist * 3.0) * 0.8;
-          vec3 finalColor = vColor + vec3(1.0) * glow * 0.3;
+          // Subtle glow
+          float glow = exp(-dist * 3.5) * 0.5;
+          vec3 finalColor = vColor + vec3(1.0) * glow * 0.2;
           
           if (alpha < 0.01) discard;
           
-          gl_FragColor = vec4(finalColor, alpha * 0.9);
+          gl_FragColor = vec4(finalColor, alpha * 0.85);
         }
       `,
       transparent: true,
@@ -232,13 +276,13 @@ export function RisingScreen({
     const frameMaterial = new THREE.LineBasicMaterial({ 
       color: 0xdddddd, 
       transparent: true, 
-      opacity: 0.5 
+      opacity: 0.4 
     });
     const frameLine = new THREE.LineLoop(frameGeometry, frameMaterial);
     scene.add(frameLine);
 
-    // Grain dust around edges
-    const grainCount = 1500;
+    // Edge grain particles - more for fuller effect
+    const grainCount = 2500;
     const grainGeometry = new THREE.BufferGeometry();
     const grainPositions = new Float32Array(grainCount * 3);
     const grainColors = new Float32Array(grainCount * 3);
@@ -247,6 +291,7 @@ export function RisingScreen({
     const grainStarts = new Float32Array(grainCount);
     const grainLifes = new Float32Array(grainCount);
     const grainOrigins = new Float32Array(grainCount * 3);
+    const grainDirs = new Float32Array(grainCount);
 
     for (let i = 0; i < grainCount; i++) {
       const i3 = i * 3;
@@ -254,10 +299,10 @@ export function RisingScreen({
       // Start at frame edges
       const edge = Math.floor(Math.random() * 4);
       let gx, gy;
-      if (edge === 0) { gx = (Math.random() - 0.5) * frameWidth; gy = hh + Math.random() * 3; }
-      else if (edge === 1) { gx = (Math.random() - 0.5) * frameWidth; gy = -hh - Math.random() * 3; }
-      else if (edge === 2) { gx = hw + Math.random() * 3; gy = (Math.random() - 0.5) * frameHeight; }
-      else { gx = -hw - Math.random() * 3; gy = (Math.random() - 0.5) * frameHeight; }
+      if (edge === 0) { gx = (Math.random() - 0.5) * frameWidth; gy = hh + Math.random() * 2; }
+      else if (edge === 1) { gx = (Math.random() - 0.5) * frameWidth; gy = -hh - Math.random() * 2; }
+      else if (edge === 2) { gx = hw + Math.random() * 2; gy = (Math.random() - 0.5) * frameHeight; }
+      else { gx = -hw - Math.random() * 2; gy = (Math.random() - 0.5) * frameHeight; }
       
       grainOrigins[i3] = gx;
       grainOrigins[i3 + 1] = gy;
@@ -267,19 +312,29 @@ export function RisingScreen({
       grainPositions[i3 + 1] = gy;
       grainPositions[i3 + 2] = 0;
       
-      // Outward velocity from edge
-      const gAngle = Math.atan2(gy, gx);
-      const gSpeed = 3 + Math.random() * 8;
-      grainVelocities[i3] = Math.cos(gAngle) * gSpeed;
-      grainVelocities[i3 + 1] = Math.sin(gAngle) * gSpeed;
-      grainVelocities[i3 + 2] = 5 + Math.random() * 15;
+      // Multi-directional grain
+      const dir = Math.floor(Math.random() * 4);
+      grainDirs[i] = dir;
+      const gSpeed = 4 + Math.random() * 10;
+      
+      let gvx = 0, gvy = 0;
+      switch (dir) {
+        case 0: gvx = 0; gvy = gSpeed; break;
+        case 1: gvx = 0; gvy = -gSpeed; break;
+        case 2: gvx = -gSpeed; gvy = 0; break;
+        case 3: gvx = gSpeed; gvy = 0; break;
+      }
+      
+      grainVelocities[i3] = gvx + (Math.random() - 0.5) * 3;
+      grainVelocities[i3 + 1] = gvy + (Math.random() - 0.5) * 3;
+      grainVelocities[i3 + 2] = 8 + Math.random() * 15;
       
       const gColor = colors[Math.floor(Math.random() * colors.length)];
       grainColors[i3] = gColor.r;
       grainColors[i3 + 1] = gColor.g;
       grainColors[i3 + 2] = gColor.b;
       
-      grainSizes[i] = 0.3 + Math.random() * 1.0;
+      grainSizes[i] = 0.3 + Math.random() * 1.2;
       grainStarts[i] = Math.random() * 4.0;
       grainLifes[i] = 1.5 + Math.random() * 2.0;
     }
@@ -302,8 +357,8 @@ export function RisingScreen({
         void main() {
           vColor = color;
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = size * u_pixelRatio * (200.0 / -mvPosition.z);
-          vAlpha = smoothstep(60.0, 10.0, position.z);
+          gl_PointSize = size * u_pixelRatio * (180.0 / -mvPosition.z);
+          vAlpha = smoothstep(55.0, 10.0, position.z);
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
@@ -314,7 +369,7 @@ export function RisingScreen({
         void main() {
           vec2 center = gl_PointCoord - 0.5;
           float dist = length(center);
-          float alpha = smoothstep(0.5, 0.1, dist) * vAlpha * 0.7;
+          float alpha = smoothstep(0.5, 0.1, dist) * vAlpha * 0.6;
           if (alpha < 0.01) discard;
           gl_FragColor = vec4(vColor, alpha);
         }
@@ -351,7 +406,7 @@ export function RisingScreen({
       for (let i = 0; i < posCount; i++) {
         const i3 = i * 3;
         
-        const cycleTime = 3.5;
+        const cycleTime = 4.0;
         const particleTime = (elapsed - startTimes[i] + cycleTime) % cycleTime;
         const lifeProgress = particleTime / lifespans[i];
 
@@ -364,9 +419,9 @@ export function RisingScreen({
           posAttr[i3 + 2] = origins[i3 + 2] + velocities[i3 + 2] * particleTime * easeOut;
           
           // Explosion scatter at end
-          if (lifeProgress > 0.65) {
-            const explodeProgress = (lifeProgress - 0.65) / 0.35;
-            const explodeForce = Math.pow(explodeProgress, 1.5) * 20;
+          if (lifeProgress > 0.6) {
+            const explodeProgress = (lifeProgress - 0.6) / 0.4;
+            const explodeForce = Math.pow(explodeProgress, 1.5) * 18;
             
             posAttr[i3] += Math.sin(phases[i] * 7 + elapsed * 4) * explodeForce;
             posAttr[i3 + 1] += Math.cos(phases[i] * 5 + elapsed * 5) * explodeForce;
@@ -374,7 +429,7 @@ export function RisingScreen({
           }
           
           // Swirl wobble
-          const wobble = Math.sin(elapsed * 3 + phases[i]) * 0.5;
+          const wobble = Math.sin(elapsed * 2.5 + phases[i]) * 0.4;
           posAttr[i3] += wobble;
         } else {
           posAttr[i3] = origins[i3];
@@ -494,16 +549,16 @@ export function RisingScreen({
         style={{ zIndex: 1 }}
       />
 
-      {/* Title - centered in the middle, fades out after 7 seconds */}
+      {/* Title - EXACTLY centered in the middle of the page */}
       <AnimatePresence>
         {showTitle && (
           <motion.div
-            className="absolute z-10 text-center pointer-events-none"
+            className="absolute z-10 pointer-events-none"
             style={{
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: '100%',
+              textAlign: 'center',
             }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
