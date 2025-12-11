@@ -26,7 +26,6 @@ export function RisingScreen({
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const animationRef = useRef<number>(0);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const startTimeRef = useRef<number>(0);
   const hasSavedRef = useRef(false);
   const tiltRef = useRef({ x: 0, y: 0 });
@@ -36,7 +35,6 @@ export function RisingScreen({
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showTitle, setShowTitle] = useState(true);
 
-  // Fade out title after 7 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowTitle(false);
@@ -51,414 +49,196 @@ export function RisingScreen({
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    // Scene setup - WHITE background
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xffffff);
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+    camera.position.z = 1;
 
-    // Perspective camera
-    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
-    camera.position.z = 50;
-    cameraRef.current = camera;
-
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Vibes reference palette - teal, sage, orange, cream (NO browns/golds)
-    const colors = [
-      // Deep Teal family
-      new THREE.Color(0x3D6B6E), // deep teal
-      new THREE.Color(0x4A7C7E), // teal
-      new THREE.Color(0x5A8B8D), // medium teal
-      new THREE.Color(0x2D5558), // dark teal
-      new THREE.Color(0x6A9B9E), // light teal
-      // Sage/Seafoam Green family
-      new THREE.Color(0x6B9E8C), // sage seafoam
-      new THREE.Color(0x7AAE9C), // light sage
-      new THREE.Color(0x5A8E7C), // medium sage
-      new THREE.Color(0x8ABEA8), // pale sage
-      new THREE.Color(0x4A7E6C), // deep sage
-      // Orange/Coral family
-      new THREE.Color(0xD97B3D), // vibrant orange
-      new THREE.Color(0xE88B4D), // coral orange
-      new THREE.Color(0xC96B2D), // deep orange
-      new THREE.Color(0xF09B5D), // light coral
-      new THREE.Color(0xB85B1D), // burnt orange
-      // Cream/Sand family
-      new THREE.Color(0xF5EFE6), // cream
-      new THREE.Color(0xE8DED1), // warm cream
-      new THREE.Color(0xD4C9BC), // sand
-      new THREE.Color(0xFAF6F0), // light cream
-      new THREE.Color(0xEDE4D8), // soft cream
-    ];
+    const uniforms = {
+      u_time: { value: 0.0 },
+      u_resolution: { value: new THREE.Vector2(width, height) },
+      u_tilt: { value: new THREE.Vector2(0.0, 0.0) }
+    };
 
-    // Screen-within-screen dimensions (phone aspect ratio)
-    const aspectRatio = width / height;
-    const frameHeight = 35;
-    const frameWidth = frameHeight * aspectRatio * 0.85;
-    
-    // Main burst particle system - MUCH fuller with more particles
-    const particleCount = 10000;
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
-    const colorAttrib = new Float32Array(particleCount * 3);
-    const sizes = new Float32Array(particleCount);
-    const velocities = new Float32Array(particleCount * 3);
-    const startTimes = new Float32Array(particleCount);
-    const lifespans = new Float32Array(particleCount);
-    const origins = new Float32Array(particleCount * 3);
-    const phases = new Float32Array(particleCount);
-    const directions = new Float32Array(particleCount); // 0=up, 1=down, 2=left, 3=right, 4=outward
+    const geometry = new THREE.PlaneGeometry(2, 2);
 
-    for (let i = 0; i < particleCount; i++) {
-      const i3 = i * 3;
-      
-      // Start positions - within the phone-shaped frame
-      const startX = (Math.random() - 0.5) * frameWidth * 0.95;
-      const startY = (Math.random() - 0.5) * frameHeight * 0.95;
-      
-      origins[i3] = startX;
-      origins[i3 + 1] = startY;
-      origins[i3 + 2] = -5;
-      
-      positions[i3] = startX;
-      positions[i3 + 1] = startY;
-      positions[i3 + 2] = -5;
+    // Smooth nebula burst shader with Vibes palette
+    const fragmentShader = `
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      uniform vec2 u_tilt;
 
-      // MULTI-DIRECTIONAL burst - different particles go different directions
-      const direction = Math.floor(Math.random() * 5);
-      directions[i] = direction;
-      
-      const speed = 10 + Math.random() * 25;
-      const towardCamera = 15 + Math.random() * 30;
-      
-      // Add variation based on direction
-      let vx = 0, vy = 0;
-      switch (direction) {
-        case 0: // UP
-          vx = (Math.random() - 0.5) * 8;
-          vy = speed;
-          break;
-        case 1: // DOWN
-          vx = (Math.random() - 0.5) * 8;
-          vy = -speed;
-          break;
-        case 2: // LEFT
-          vx = -speed;
-          vy = (Math.random() - 0.5) * 8;
-          break;
-        case 3: // RIGHT
-          vx = speed;
-          vy = (Math.random() - 0.5) * 8;
-          break;
-        case 4: // OUTWARD from center
-          const angle = Math.atan2(startY, startX);
-          vx = Math.cos(angle) * speed;
-          vy = Math.sin(angle) * speed;
-          break;
-      }
-      
-      // Add swirl
-      velocities[i3] = vx + (Math.random() - 0.5) * 5;
-      velocities[i3 + 1] = vy + (Math.random() - 0.5) * 5;
-      velocities[i3 + 2] = towardCamera;
-
-      // Only TRACE colors
-      const color = colors[Math.floor(Math.random() * colors.length)];
-      colorAttrib[i3] = color.r;
-      colorAttrib[i3 + 1] = color.g;
-      colorAttrib[i3 + 2] = color.b;
-
-      // Varied sizes for fuller effect
-      const sizeType = Math.random();
-      if (sizeType < 0.15) {
-        sizes[i] = 5 + Math.random() * 7; // Large blobs
-      } else if (sizeType < 0.4) {
-        sizes[i] = 2.5 + Math.random() * 3.5; // Medium
-      } else {
-        sizes[i] = 0.5 + Math.random() * 2; // Fine grain
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(23.43, 47.13))) * 34942.234);
       }
 
-      // Staggered start for continuous effect
-      startTimes[i] = Math.random() * 4.0;
-      lifespans[i] = 2.0 + Math.random() * 2.5;
-      phases[i] = Math.random() * Math.PI * 2;
-    }
+      float noise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        float a = hash(i);
+        float b = hash(i + vec2(1.0, 0.0));
+        float c = hash(i + vec2(0.0, 1.0));
+        float d = hash(i + vec2(1.0, 1.0));
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+      }
 
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colorAttrib, 3));
-    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+      float fbm(vec2 p) {
+        float value = 0.0;
+        float amplitude = 0.5;
+        for (int i = 0; i < 5; i++) {
+          value += amplitude * noise(p);
+          p *= 2.0;
+          amplitude *= 0.5;
+        }
+        return value;
+      }
+
+      void main() {
+        vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+        vec2 p = (uv - 0.5) * 2.0;
+        p.x *= u_resolution.x / u_resolution.y;
+
+        // Subtle tilt response
+        p.x += u_tilt.x * 0.15;
+        p.y += u_tilt.y * 0.15;
+
+        float t = u_time;
+
+        // Smooth burst: starts compressed, expands outward over 4 seconds
+        float burst = smoothstep(0.0, 4.0, t);
+        float scale = mix(0.1, 1.0, burst);
+
+        // Multi-directional flow using angle
+        float angle = atan(p.y, p.x);
+        float r = length(p);
+
+        // Scaled coordinates for expansion
+        vec2 q = p / scale;
+
+        // Flowing swirl motion - multiple directions
+        float flowSpeed = 0.4;
+        q += 0.2 * sin(2.5 * q.yx + t * flowSpeed);
+        q += 0.15 * sin(3.2 * q.xy - t * flowSpeed * 0.8);
+        q += 0.1 * cos(1.8 * q.yx + t * flowSpeed * 1.2);
+
+        // Direction-based distortion for multi-directional burst
+        float dirUp = smoothstep(0.3, -0.8, q.y) * smoothstep(-0.5, 0.5, abs(q.x));
+        float dirDown = smoothstep(-0.3, 0.8, q.y) * smoothstep(-0.5, 0.5, abs(q.x));
+        float dirLeft = smoothstep(0.3, -0.8, q.x) * smoothstep(-0.5, 0.5, abs(q.y));
+        float dirRight = smoothstep(-0.3, 0.8, q.x) * smoothstep(-0.5, 0.5, abs(q.y));
+
+        float rq = length(q);
+
+        // Core glow and outer halo
+        float core = exp(-rq * rq * 2.5);
+        float halo = exp(-rq * rq * 0.8);
+        float outer = exp(-rq * rq * 0.3);
+
+        // Vibes palette - teal, sage, orange, cream
+        vec3 teal = vec3(0.24, 0.42, 0.43);      // Deep teal
+        vec3 sage = vec3(0.42, 0.62, 0.55);      // Sage seafoam
+        vec3 orange = vec3(0.85, 0.48, 0.24);    // Vibrant coral orange
+        vec3 cream = vec3(0.96, 0.94, 0.90);     // Soft cream
+        vec3 bg = vec3(1.0, 1.0, 1.0);           // White background
+
+        vec3 color = bg;
+
+        // Smooth angle-based color blending for unified look
+        float band1 = 0.5 + 0.5 * sin(angle * 1.5 + t * 0.25);
+        float band2 = 0.5 + 0.5 * cos(angle * 2.0 - t * 0.3);
+        float band3 = 0.5 + 0.5 * sin(angle * 0.8 + t * 0.15 + 1.5);
+
+        // Layer colors smoothly
+        vec3 blend1 = mix(teal, sage, band1);
+        vec3 blend2 = mix(orange, cream, band2);
+        vec3 blend3 = mix(sage, orange, band3);
+
+        // Combine with depth layers
+        color = mix(color, blend1, core * 0.95);
+        color = mix(color, blend2, halo * 0.7);
+        color = mix(color, blend3, outer * 0.4);
+
+        // Soft flowing texture
+        float n = fbm(q * 2.5 + t * 0.15);
+        color += (n - 0.5) * 0.08 * halo;
+
+        // Gentle grain for organic feel
+        float grain = hash(uv * 500.0 + t) * 0.03;
+        color += grain * halo;
+
+        // Soft vignette to unify the burst
+        float v = smoothstep(1.6, 0.2, length(p));
+        color = mix(bg, color, v);
+
+        // Phone frame shape (subtle)
+        float frameX = smoothstep(0.38, 0.42, abs(p.x));
+        float frameY = smoothstep(0.75, 0.80, abs(p.y));
+        float frame = max(frameX, frameY);
+        
+        // Particles/dust overlay
+        float dust = 0.0;
+        for (float i = 0.0; i < 80.0; i++) {
+          vec2 dustPos = vec2(
+            hash(vec2(i, 0.0)) - 0.5,
+            hash(vec2(0.0, i)) - 0.5
+          ) * 2.0;
+          
+          // Multi-directional particle movement
+          float dir = hash(vec2(i, i));
+          float particleTime = mod(t + hash(vec2(i * 2.0, 0.0)) * 4.0, 4.0);
+          float particleBurst = smoothstep(0.0, 2.0, particleTime);
+          
+          vec2 velocity;
+          if (dir < 0.2) velocity = vec2(0.0, 1.0);        // Up
+          else if (dir < 0.4) velocity = vec2(0.0, -1.0);  // Down
+          else if (dir < 0.6) velocity = vec2(-1.0, 0.0);  // Left
+          else if (dir < 0.8) velocity = vec2(1.0, 0.0);   // Right
+          else velocity = normalize(dustPos);              // Outward
+          
+          dustPos += velocity * particleBurst * 0.8;
+          
+          float size = hash(vec2(i * 3.0, 0.0)) * 0.015 + 0.003;
+          float d = length(p - dustPos);
+          float alpha = smoothstep(size, size * 0.3, d) * (1.0 - particleBurst * 0.7);
+          
+          // Color the dust particles
+          vec3 dustColor = mix(mix(teal, sage, hash(vec2(i, 1.0))), 
+                              mix(orange, cream, hash(vec2(i, 2.0))), 
+                              hash(vec2(i, 3.0)));
+          color = mix(color, dustColor, alpha * 0.6);
+        }
+
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `;
 
     const material = new THREE.ShaderMaterial({
-      uniforms: {
-        u_time: { value: 0 },
-        u_pixelRatio: { value: renderer.getPixelRatio() }
-      },
-      vertexShader: `
-        attribute float size;
-        varying vec3 vColor;
-        varying float vAlpha;
-        uniform float u_time;
-        uniform float u_pixelRatio;
-        
-        void main() {
-          vColor = color;
-          
-          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          
-          // Size attenuation
-          float sizeAtten = size * u_pixelRatio * (280.0 / -mvPosition.z);
-          gl_PointSize = clamp(sizeAtten, 2.0, 140.0);
-          
-          // Alpha fade
-          vAlpha = smoothstep(85.0, 25.0, position.z) * smoothstep(-10.0, 5.0, position.z);
-          
-          gl_Position = projectionMatrix * mvPosition;
-        }
-      `,
-      fragmentShader: `
-        varying vec3 vColor;
-        varying float vAlpha;
-        
-        void main() {
-          vec2 center = gl_PointCoord - 0.5;
-          float dist = length(center);
-          
-          // Soft blob
-          float alpha = smoothstep(0.5, 0.0, dist) * vAlpha;
-          
-          // Subtle glow
-          float glow = exp(-dist * 3.5) * 0.5;
-          vec3 finalColor = vColor + vec3(1.0) * glow * 0.2;
-          
-          if (alpha < 0.01) discard;
-          
-          gl_FragColor = vec4(finalColor, alpha * 0.85);
-        }
-      `,
-      transparent: true,
-      blending: THREE.NormalBlending,
-      depthWrite: false,
-      vertexColors: true
+      uniforms,
+      fragmentShader,
+      vertexShader: `void main() { gl_Position = vec4(position, 1.0); }`
     });
 
-    const particles = new THREE.Points(geometry, material);
-    scene.add(particles);
-
-    // Draw phone-screen frame with rounded corners
-    const frameShape = new THREE.Shape();
-    const cornerRadius = 2;
-    const hw = frameWidth / 2;
-    const hh = frameHeight / 2;
-    
-    frameShape.moveTo(-hw + cornerRadius, -hh);
-    frameShape.lineTo(hw - cornerRadius, -hh);
-    frameShape.quadraticCurveTo(hw, -hh, hw, -hh + cornerRadius);
-    frameShape.lineTo(hw, hh - cornerRadius);
-    frameShape.quadraticCurveTo(hw, hh, hw - cornerRadius, hh);
-    frameShape.lineTo(-hw + cornerRadius, hh);
-    frameShape.quadraticCurveTo(-hw, hh, -hw, hh - cornerRadius);
-    frameShape.lineTo(-hw, -hh + cornerRadius);
-    frameShape.quadraticCurveTo(-hw, -hh, -hw + cornerRadius, -hh);
-
-    const framePoints = frameShape.getPoints(50);
-    const frameGeometry = new THREE.BufferGeometry().setFromPoints(
-      framePoints.map(p => new THREE.Vector3(p.x, p.y, 0))
-    );
-    const frameMaterial = new THREE.LineBasicMaterial({ 
-      color: 0xdddddd, 
-      transparent: true, 
-      opacity: 0.4 
-    });
-    const frameLine = new THREE.LineLoop(frameGeometry, frameMaterial);
-    scene.add(frameLine);
-
-    // Edge grain particles - more for fuller effect
-    const grainCount = 2500;
-    const grainGeometry = new THREE.BufferGeometry();
-    const grainPositions = new Float32Array(grainCount * 3);
-    const grainColors = new Float32Array(grainCount * 3);
-    const grainSizes = new Float32Array(grainCount);
-    const grainVelocities = new Float32Array(grainCount * 3);
-    const grainStarts = new Float32Array(grainCount);
-    const grainLifes = new Float32Array(grainCount);
-    const grainOrigins = new Float32Array(grainCount * 3);
-    const grainDirs = new Float32Array(grainCount);
-
-    for (let i = 0; i < grainCount; i++) {
-      const i3 = i * 3;
-      
-      // Start at frame edges
-      const edge = Math.floor(Math.random() * 4);
-      let gx, gy;
-      if (edge === 0) { gx = (Math.random() - 0.5) * frameWidth; gy = hh + Math.random() * 2; }
-      else if (edge === 1) { gx = (Math.random() - 0.5) * frameWidth; gy = -hh - Math.random() * 2; }
-      else if (edge === 2) { gx = hw + Math.random() * 2; gy = (Math.random() - 0.5) * frameHeight; }
-      else { gx = -hw - Math.random() * 2; gy = (Math.random() - 0.5) * frameHeight; }
-      
-      grainOrigins[i3] = gx;
-      grainOrigins[i3 + 1] = gy;
-      grainOrigins[i3 + 2] = 0;
-      
-      grainPositions[i3] = gx;
-      grainPositions[i3 + 1] = gy;
-      grainPositions[i3 + 2] = 0;
-      
-      // Multi-directional grain
-      const dir = Math.floor(Math.random() * 4);
-      grainDirs[i] = dir;
-      const gSpeed = 4 + Math.random() * 10;
-      
-      let gvx = 0, gvy = 0;
-      switch (dir) {
-        case 0: gvx = 0; gvy = gSpeed; break;
-        case 1: gvx = 0; gvy = -gSpeed; break;
-        case 2: gvx = -gSpeed; gvy = 0; break;
-        case 3: gvx = gSpeed; gvy = 0; break;
-      }
-      
-      grainVelocities[i3] = gvx + (Math.random() - 0.5) * 3;
-      grainVelocities[i3 + 1] = gvy + (Math.random() - 0.5) * 3;
-      grainVelocities[i3 + 2] = 8 + Math.random() * 15;
-      
-      const gColor = colors[Math.floor(Math.random() * colors.length)];
-      grainColors[i3] = gColor.r;
-      grainColors[i3 + 1] = gColor.g;
-      grainColors[i3 + 2] = gColor.b;
-      
-      grainSizes[i] = 0.3 + Math.random() * 1.2;
-      grainStarts[i] = Math.random() * 4.0;
-      grainLifes[i] = 1.5 + Math.random() * 2.0;
-    }
-
-    grainGeometry.setAttribute('position', new THREE.BufferAttribute(grainPositions, 3));
-    grainGeometry.setAttribute('color', new THREE.BufferAttribute(grainColors, 3));
-    grainGeometry.setAttribute('size', new THREE.BufferAttribute(grainSizes, 1));
-
-    const grainMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        u_time: { value: 0 },
-        u_pixelRatio: { value: renderer.getPixelRatio() }
-      },
-      vertexShader: `
-        attribute float size;
-        varying vec3 vColor;
-        varying float vAlpha;
-        uniform float u_pixelRatio;
-        
-        void main() {
-          vColor = color;
-          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = size * u_pixelRatio * (180.0 / -mvPosition.z);
-          vAlpha = smoothstep(55.0, 10.0, position.z);
-          gl_Position = projectionMatrix * mvPosition;
-        }
-      `,
-      fragmentShader: `
-        varying vec3 vColor;
-        varying float vAlpha;
-        
-        void main() {
-          vec2 center = gl_PointCoord - 0.5;
-          float dist = length(center);
-          float alpha = smoothstep(0.5, 0.1, dist) * vAlpha * 0.6;
-          if (alpha < 0.01) discard;
-          gl_FragColor = vec4(vColor, alpha);
-        }
-      `,
-      transparent: true,
-      blending: THREE.NormalBlending,
-      depthWrite: false,
-      vertexColors: true
-    });
-
-    const grainParticles = new THREE.Points(grainGeometry, grainMaterial);
-    scene.add(grainParticles);
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
 
     startTimeRef.current = performance.now();
 
     const animate = () => {
       animationRef.current = requestAnimationFrame(animate);
-      const elapsed = (performance.now() - startTimeRef.current) / 1000.0;
+      const now = performance.now();
+      const elapsed = (now - startTimeRef.current) / 1000.0;
+      
       setTimeElapsed(Math.floor(elapsed));
-
-      // Apply tilt to camera
-      if (cameraRef.current) {
-        cameraRef.current.position.x = tiltRef.current.x * 8;
-        cameraRef.current.position.y = tiltRef.current.y * 5;
-        cameraRef.current.lookAt(0, 0, 0);
-      }
-
-      // Update main particles
-      const posAttr = particles.geometry.attributes.position.array as Float32Array;
-      const posCount = posAttr.length / 3;
       
-      (material as THREE.ShaderMaterial).uniforms.u_time.value = elapsed;
-
-      for (let i = 0; i < posCount; i++) {
-        const i3 = i * 3;
-        
-        const cycleTime = 4.0;
-        const particleTime = (elapsed - startTimes[i] + cycleTime) % cycleTime;
-        const lifeProgress = particleTime / lifespans[i];
-
-        if (lifeProgress >= 0 && lifeProgress < 1.0) {
-          // Smooth easing for dramatic burst
-          const easeOut = 1.0 - Math.pow(1.0 - Math.min(lifeProgress * 1.3, 1.0), 4);
-          
-          posAttr[i3] = origins[i3] + velocities[i3] * particleTime * easeOut;
-          posAttr[i3 + 1] = origins[i3 + 1] + velocities[i3 + 1] * particleTime * easeOut;
-          posAttr[i3 + 2] = origins[i3 + 2] + velocities[i3 + 2] * particleTime * easeOut;
-          
-          // Explosion scatter at end
-          if (lifeProgress > 0.6) {
-            const explodeProgress = (lifeProgress - 0.6) / 0.4;
-            const explodeForce = Math.pow(explodeProgress, 1.5) * 18;
-            
-            posAttr[i3] += Math.sin(phases[i] * 7 + elapsed * 4) * explodeForce;
-            posAttr[i3 + 1] += Math.cos(phases[i] * 5 + elapsed * 5) * explodeForce;
-            posAttr[i3 + 2] += Math.sin(phases[i] * 3 + elapsed * 3) * explodeForce * 0.3;
-          }
-          
-          // Swirl wobble
-          const wobble = Math.sin(elapsed * 2.5 + phases[i]) * 0.4;
-          posAttr[i3] += wobble;
-        } else {
-          posAttr[i3] = origins[i3];
-          posAttr[i3 + 1] = origins[i3 + 1];
-          posAttr[i3 + 2] = origins[i3 + 2];
-        }
-      }
-      particles.geometry.attributes.position.needsUpdate = true;
-
-      // Update grain particles
-      const grainPos = grainParticles.geometry.attributes.position.array as Float32Array;
-      const grainCnt = grainPos.length / 3;
+      uniforms.u_time.value = elapsed;
+      uniforms.u_tilt.value.set(tiltRef.current.x, tiltRef.current.y);
       
-      for (let i = 0; i < grainCnt; i++) {
-        const i3 = i * 3;
-        const cycleTime = 4.0;
-        const pTime = (elapsed - grainStarts[i] + cycleTime) % cycleTime;
-        const life = pTime / grainLifes[i];
-        
-        if (life >= 0 && life < 1.0) {
-          const ease = 1.0 - Math.pow(1.0 - Math.min(life * 1.5, 1.0), 3);
-          grainPos[i3] = grainOrigins[i3] + grainVelocities[i3] * pTime * ease;
-          grainPos[i3 + 1] = grainOrigins[i3 + 1] + grainVelocities[i3 + 1] * pTime * ease;
-          grainPos[i3 + 2] = grainOrigins[i3 + 2] + grainVelocities[i3 + 2] * pTime * ease;
-        } else {
-          grainPos[i3] = grainOrigins[i3];
-          grainPos[i3 + 1] = grainOrigins[i3 + 1];
-          grainPos[i3 + 2] = grainOrigins[i3 + 2];
-        }
-      }
-      grainParticles.geometry.attributes.position.needsUpdate = true;
-      
-      (grainMaterial as THREE.ShaderMaterial).uniforms.u_time.value = elapsed;
-
       renderer.render(scene, camera);
     };
     animate();
@@ -467,8 +247,7 @@ export function RisingScreen({
       const w = container.clientWidth;
       const h = container.clientHeight;
       renderer.setSize(w, h);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      uniforms.u_resolution.value.set(w, h);
     };
     window.addEventListener('resize', handleResize);
 
@@ -477,10 +256,6 @@ export function RisingScreen({
       window.removeEventListener('resize', handleResize);
       geometry.dispose();
       material.dispose();
-      frameGeometry.dispose();
-      frameMaterial.dispose();
-      grainGeometry.dispose();
-      grainMaterial.dispose();
       if (rendererRef.current) {
         rendererRef.current.dispose();
         if (container.contains(rendererRef.current.domElement)) {
@@ -494,8 +269,9 @@ export function RisingScreen({
     if (!tiltEnabled) return;
 
     const handleTilt = (e: DeviceOrientationEvent) => {
-      tiltRef.current.x = (e.gamma || 0) / 25;
-      tiltRef.current.y = (e.beta || 0) / 25;
+      const maxTilt = 15.0;
+      tiltRef.current.x = Math.max(-1, Math.min(1, (e.gamma || 0) / maxTilt));
+      tiltRef.current.y = Math.max(-1, Math.min(1, (e.beta || 0) / maxTilt));
     };
 
     window.addEventListener('deviceorientation', handleTilt);
@@ -523,7 +299,6 @@ export function RisingScreen({
     }
   };
 
-  // Auto-save entry after 10 seconds
   useEffect(() => {
     if (timeElapsed >= 10 && !hasSavedRef.current) {
       hasSavedRef.current = true;
@@ -544,7 +319,6 @@ export function RisingScreen({
         style={{ zIndex: 1 }}
       />
 
-      {/* Title - EXACTLY centered in the middle of the page */}
       <AnimatePresence>
         {showTitle && (
           <motion.div
@@ -589,7 +363,6 @@ export function RisingScreen({
         )}
       </AnimatePresence>
 
-      {/* Tilt button - exactly centered above nav bar */}
       <AnimatePresence>
         {showTiltButton && (
           <motion.button
@@ -620,7 +393,6 @@ export function RisingScreen({
         )}
       </AnimatePresence>
 
-      {/* Bottom Nav - at the very bottom */}
       <div className="absolute bottom-0 left-0 right-0 z-30">
         <BottomNav
           activeScreen="activities"

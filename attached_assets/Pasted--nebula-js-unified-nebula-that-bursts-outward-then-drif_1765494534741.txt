@@ -1,0 +1,154 @@
+// nebula.js – unified nebula that "bursts" outward, then drifts
+
+const width = window.innerWidth;
+const height = window.innerHeight;
+
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+camera.position.z = 1;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(width, height);
+document.body.appendChild(renderer.domElement);
+
+const uniforms = {
+  u_time: { value: 0.0 },
+  u_resolution: { value: new THREE.Vector2(width, height) },
+  u_tilt: { value: new THREE.Vector2(0.0, 0.0) }
+};
+
+const geometry = new THREE.PlaneGeometry(2, 2);
+
+const fragmentShader = `
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform vec2 u_tilt;
+
+// tiny hash/noise just for texture
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(23.43, 47.13))) * 34942.234);
+}
+
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(a, b, u.x) +
+         (c - a) * u.y * (1.0 - u.x) +
+         (d - b) * u.x * u.y;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+  vec2 p = (uv - 0.5) * 2.0;
+
+  // subtle tilt
+  p.x += u_tilt.x * 0.2;
+  p.y += u_tilt.y * 0.2;
+
+  float t = u_time;
+
+  // ---- BURST LOGIC ----
+  // burst goes 0 -> 1 over first ~3s, then stays at 1
+  float burst = smoothstep(0.0, 3.0, t);
+  // start very small (0.15) and expand to full scale (1.0)
+  float scale = mix(0.15, 1.0, burst);
+
+  // scaled coords (small cluster at start, then growing)
+  vec2 q = p * scale;
+
+  // gentle swirl so it doesn't feel rigid
+  q += 0.15 * sin(2.0 * q.yx + t * 0.6);
+  q += 0.10 * sin(3.0 * q.xy - t * 0.4);
+
+  float r = length(q);
+
+  // central "core" and outer halo
+  float core  = exp(-r * r * 3.0);   // bright center
+  float halo  = exp(-r * r * 1.5);   // softer outside
+
+  // TRACE-ish palette (tweak as you like)
+  vec3 col1 = vec3(0.16, 0.78, 0.72); // aqua / sage
+  vec3 col2 = vec3(0.90, 0.68, 0.45); // warm amber
+  vec3 col3 = vec3(0.52, 0.52, 0.80); // muted lavender
+  vec3 bg   = vec3(0.03, 0.04, 0.09); // deep charcoal
+
+  // base color
+  vec3 color = bg;
+
+  // mix colors based on angle to keep it unified, not speckled
+  float angle = atan(q.y, q.x);              // -pi to pi
+  float band  = 0.5 + 0.5 * sin(angle * 2.0 + t * 0.3);
+
+  vec3 blend1 = mix(col1, col2, band);
+  vec3 blend2 = mix(col2, col3, 1.0 - band);
+
+  color += blend1 * core;
+  color += blend2 * halo * 0.9;
+
+  // soft texture, not dots
+  float n = noise(q * 3.0 + t * 0.25);
+  color += (n - 0.5) * 0.05;
+
+  // vignette so it feels like a single, united mass
+  float v = smoothstep(1.4, 0.35, length(p));
+  color *= v;
+
+  gl_FragColor = vec4(color, 1.0);
+}
+`;
+
+const material = new THREE.ShaderMaterial({
+  uniforms,
+  fragmentShader,
+  vertexShader: `void main() { gl_Position = vec4(position, 1.0); }`
+});
+
+const mesh = new THREE.Mesh(geometry, material);
+scene.add(mesh);
+
+let start = performance.now();
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  uniforms.u_time.value = (now - start) / 1000.0;
+  renderer.render(scene, camera);
+}
+animate();
+
+// resize
+window.addEventListener('resize', () => {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  renderer.setSize(w, h);
+  uniforms.u_resolution.value.set(w, h);
+});
+
+// tilt (kept very soft)
+const btnMotion = document.getElementById('btnMotion');
+
+function handleOrientation(e) {
+  const maxTilt = 15.0;
+  const tiltX = THREE.MathUtils.clamp(e.gamma || 0, -maxTilt, maxTilt) / maxTilt;
+  const tiltY = THREE.MathUtils.clamp(e.beta || 0, -maxTilt, maxTilt) / maxTilt;
+  uniforms.u_tilt.value.set(tiltX, tiltY);
+}
+
+btnMotion.addEventListener('click', () => {
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(state => {
+      if (state === 'granted') {
+        window.addEventListener('deviceorientation', handleOrientation);
+        btnMotion.style.display = 'none';
+      }
+    }).catch(console.error);
+  } else {
+    window.addEventListener('deviceorientation', handleOrientation);
+    btnMotion.style.display = 'none';
+  }
+});
