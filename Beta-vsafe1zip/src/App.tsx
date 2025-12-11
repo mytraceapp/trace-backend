@@ -15,7 +15,7 @@ import { PearlRippleScreen } from "./components/PearlRippleScreen";
 import { GroundingExperience } from "./components/GroundingExperience";
 import { RainWindowScreen } from "./components/RainWindowScreen";
 import EchoScreen from "./components/EchoScreen";
-import { NebulaScreen } from "./components/NebulaScreen";
+import { RisingScreen } from "./components/RisingScreen";
 import { JournalScreen } from "./components/JournalScreen";
 import { EntriesScreen } from "./components/EntriesScreen";
 import { TracePatternsScreen } from "./components/TracePatternsScreen";
@@ -63,7 +63,7 @@ export default function App() {
     | "grounding"
     | "rainwindow"
     | "echo"
-    | "nebula"
+    | "rising"
     | "journal"
     | "entries"
     | "patterns"
@@ -133,7 +133,7 @@ export default function App() {
     "maze",
     "rainwindow",
     "echo",
-    "nebula",
+    "rising",
   ];
   const shouldPlayAmbient =
     ambientAudioStarted &&
@@ -280,7 +280,7 @@ export default function App() {
               onStartGrounding={() => setCurrentScreen("grounding")}
               onStartRainWindow={() => setCurrentScreen("rainwindow")}
               onStartEcho={() => setCurrentScreen("echo")}
-              onStartNebula={() => setCurrentScreen("nebula")}
+              onStartRising={() => setCurrentScreen("rising")}
               onReturnToChat={() => setCurrentScreen("chat")}
               onNavigateToPatterns={() => setCurrentScreen("patterns")}
               onNavigateToJournal={() => setCurrentScreen("entries")}
@@ -367,8 +367,8 @@ export default function App() {
               onNavigateToHelp={() => setCurrentScreen("help")}
             />
           )}
-          {currentScreen === "nebula" && (
-            <NebulaScreen
+          {currentScreen === "rising" && (
+            <RisingScreen
               onBack={() => setCurrentScreen("activitieshub")}
               onReturnToChat={() => setCurrentScreen("chat")}
               onNavigateToActivities={() => setCurrentScreen("activitieshub")}
@@ -579,6 +579,12 @@ export default function App() {
             className="px-3 py-1 bg-blue-500 text-white rounded text-sm"
           >
             Echo
+          </button>
+          <button
+            onClick={() => setCurrentScreen("rising")}
+            className="px-3 py-1 bg-blue-500 text-white rounded text-sm"
+          >
+            Rising
           </button>
           <button
             onClick={() => setCurrentScreen("entries")}

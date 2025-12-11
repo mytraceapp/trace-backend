@@ -5,7 +5,7 @@ import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
 import * as THREE from 'three';
 
-interface NebulaScreenProps {
+interface RisingScreenProps {
   onBack: () => void;
   onReturnToChat: () => void;
   onNavigateToActivities: () => void;
@@ -14,14 +14,14 @@ interface NebulaScreenProps {
   onNavigateToHelp: () => void;
 }
 
-export function NebulaScreen({
+export function RisingScreen({
   onBack,
   onReturnToChat,
   onNavigateToActivities,
   onNavigateToJournal,
   onNavigateToProfile,
   onNavigateToHelp,
-}: NebulaScreenProps) {
+}: RisingScreenProps) {
   const { addSessionEntry } = useEntries();
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -69,48 +69,147 @@ export function NebulaScreen({
       uniform float u_time;
       uniform vec2 u_tilt;
 
-      float noise(vec2 p) {
-        return sin(p.x * 1.5) * sin(p.y * 1.5) * 0.5 + 
-               sin(p.x * 0.7 + p.y * 1.3) * 0.3 +
-               sin(p.x * 2.1 - p.y * 0.9) * 0.2;
+      // Hash function for pseudo-random values
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
       }
 
+      // 2D noise
+      float noise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        
+        float a = hash(i);
+        float b = hash(i + vec2(1.0, 0.0));
+        float c = hash(i + vec2(0.0, 1.0));
+        float d = hash(i + vec2(1.0, 1.0));
+        
+        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+      }
+
+      // Fractal Brownian Motion for organic movement
       float fbm(vec2 p) {
         float value = 0.0;
         float amplitude = 0.5;
-        for (int i = 0; i < 4; i++) {
-          value += amplitude * noise(p);
-          p *= 2.0;
+        float frequency = 1.0;
+        for (int i = 0; i < 6; i++) {
+          value += amplitude * noise(p * frequency);
+          frequency *= 2.0;
           amplitude *= 0.5;
         }
         return value;
       }
 
-      void main() {
-        vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-        vec2 p = (uv - 0.5) * 2.0;
+      // Particle burst function
+      float particles(vec2 uv, float time) {
+        float particles = 0.0;
         
-        p.x += u_tilt.x * 0.15;
-        p.y += u_tilt.y * 0.15;
+        for (float i = 0.0; i < 80.0; i++) {
+          vec2 seed = vec2(i * 0.127, i * 0.269);
+          
+          // Particle position with burst motion from center
+          float angle = hash(seed) * 6.28318 + time * 0.3;
+          float radius = hash(seed + 0.5) * 0.8 + fbm(seed + time * 0.1) * 0.4;
+          radius *= 0.5 + 0.5 * sin(time * 0.5 + i * 0.1);
+          
+          vec2 particlePos = vec2(cos(angle), sin(angle)) * radius;
+          particlePos += u_tilt * 0.3; // Tilt response
+          
+          // Add swirling motion
+          float swirl = sin(time * 0.2 + i * 0.3) * 0.2;
+          particlePos.x += cos(time * 0.15 + hash(seed) * 6.28) * swirl;
+          particlePos.y += sin(time * 0.12 + hash(seed + 1.0) * 6.28) * swirl;
+          
+          float dist = length(uv - particlePos);
+          float size = 0.003 + hash(seed + 0.3) * 0.008;
+          
+          // Soft particle glow
+          particles += smoothstep(size * 3.0, 0.0, dist) * (0.3 + 0.7 * hash(seed + 0.7));
+        }
+        
+        return particles;
+      }
 
-        float t = u_time * 0.02;
+      // Dust field with tilt response
+      float dustField(vec2 uv, float time) {
+        vec2 p = uv + u_tilt * 0.2;
+        float dust = 0.0;
+        
+        for (float i = 0.0; i < 5.0; i++) {
+          vec2 offset = vec2(
+            sin(time * 0.1 + i * 1.3) * 0.3,
+            cos(time * 0.08 + i * 1.7) * 0.3
+          );
+          float layer = fbm((p + offset) * (2.0 + i * 0.5) + time * 0.05);
+          dust += layer * (0.3 - i * 0.04);
+        }
+        
+        return dust;
+      }
 
-        float n = fbm(p * 1.2 + vec2(t * 0.3, t * 0.2))
-                + fbm(p * 2.4 - vec2(t * 0.15, t * 0.25)) * 0.5
-                + fbm(p * 0.8 + vec2(t * 0.1, -t * 0.1)) * 0.25;
-
-        vec3 colA = vec3(0.02, 0.03, 0.08);
-        vec3 colB = vec3(0.12, 0.18, 0.32);
-        vec3 colC = vec3(0.25, 0.45, 0.65);
-        vec3 colD = vec3(0.65, 0.50, 0.35);
-
-        vec3 color = mix(colA, colB, smoothstep(-0.8, 0.2, n));
-        color = mix(color, colC, smoothstep(0.0, 0.8, n));
-        color = mix(color, colD, smoothstep(0.6, 1.2, n) * 0.4);
-
-        float vignette = 1.0 - length(p) * 0.3;
+      void main() {
+        vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.x, u_resolution.y);
+        
+        float t = u_time;
+        
+        // TRACE color palette - sage, mocha, ambient cream
+        vec3 sage = vec3(0.55, 0.62, 0.52);        // Soft sage green
+        vec3 mocha = vec3(0.58, 0.42, 0.32);       // Warm mocha brown
+        vec3 cream = vec3(0.95, 0.92, 0.85);       // Ambient cream
+        vec3 deepSage = vec3(0.35, 0.42, 0.35);    // Deep sage
+        vec3 warmTan = vec3(0.72, 0.58, 0.45);     // Warm tan
+        vec3 dusty = vec3(0.75, 0.70, 0.62);       // Dusty neutral
+        
+        // Background - dark charcoal with warmth
+        vec3 bgColor = vec3(0.06, 0.06, 0.07);
+        
+        // Create dust field
+        float dust = dustField(uv, t);
+        
+        // Create particle bursts
+        float p = particles(uv, t);
+        
+        // Central burst glow
+        float centralGlow = exp(-length(uv + u_tilt * 0.1) * 1.5);
+        centralGlow *= 0.6 + 0.4 * sin(t * 0.3);
+        
+        // Color mixing based on position and time
+        float colorMix1 = fbm(uv * 2.0 + t * 0.1);
+        float colorMix2 = fbm(uv * 1.5 - t * 0.08 + 5.0);
+        float colorMix3 = fbm(uv * 3.0 + vec2(t * 0.05, -t * 0.07));
+        
+        // Build color layers
+        vec3 color = bgColor;
+        
+        // Add dust field with color variation
+        vec3 dustColor = mix(deepSage, mocha, colorMix1);
+        dustColor = mix(dustColor, sage, colorMix2 * 0.5);
+        color += dustColor * dust * 0.4;
+        
+        // Add particle bursts
+        vec3 particleColor = mix(cream, warmTan, colorMix2);
+        particleColor = mix(particleColor, sage, colorMix3 * 0.3);
+        color += particleColor * p * 0.8;
+        
+        // Add central glow
+        vec3 glowColor = mix(mocha, cream, 0.5 + 0.5 * sin(t * 0.2));
+        glowColor = mix(glowColor, sage, colorMix1 * 0.4);
+        color += glowColor * centralGlow * 0.5;
+        
+        // Add shimmer highlights
+        float shimmer = noise(uv * 50.0 + t * 2.0) * noise(uv * 30.0 - t);
+        shimmer *= smoothstep(0.6, 1.0, p + dust * 0.5);
+        color += cream * shimmer * 0.3;
+        
+        // Subtle vignette
+        float vignette = 1.0 - length(uv) * 0.4;
         color *= vignette;
-
+        
+        // Boost saturation slightly
+        float gray = dot(color, vec3(0.299, 0.587, 0.114));
+        color = mix(vec3(gray), color, 1.2);
+        
         gl_FragColor = vec4(color, 1.0);
       }
     `;
@@ -166,8 +265,8 @@ export function NebulaScreen({
 
     const handleTilt = (e: DeviceOrientationEvent) => {
       if (uniformsRef.current) {
-        const tx = (e.gamma || 0) / 30;
-        const ty = (e.beta || 0) / 30;
+        const tx = (e.gamma || 0) / 25;
+        const ty = (e.beta || 0) / 25;
         uniformsRef.current.u_tilt.value.set(tx, ty);
       }
     };
@@ -200,10 +299,10 @@ export function NebulaScreen({
   const handleBack = () => {
     if (!hasSavedRef.current && timeElapsed >= 10) {
       hasSavedRef.current = true;
-      addSessionEntry('Nebula', {
-        title: 'Nebula – Settled',
+      addSessionEntry('Rising', {
+        title: 'Rising – Grounded',
         body: 'You took a moment to let stillness find you.',
-        tags: ['calm', 'ambient', 'nebula'],
+        tags: ['calm', 'ambient', 'rising'],
         metadata: { duration: timeElapsed }
       });
     }
@@ -211,7 +310,7 @@ export function NebulaScreen({
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden" style={{ background: '#020308' }}>
+    <div className="relative w-full h-full overflow-hidden" style={{ background: '#0F0F11' }}>
       <div 
         ref={containerRef} 
         className="absolute inset-0"
@@ -222,7 +321,7 @@ export function NebulaScreen({
         <div
           className="absolute inset-0"
           style={{
-            background: 'radial-gradient(ellipse at center, transparent 0%, rgba(2,3,8,0.4) 100%)',
+            background: 'radial-gradient(ellipse at center, transparent 0%, rgba(15,15,17,0.3) 100%)',
           }}
         />
       </div>
@@ -267,20 +366,20 @@ export function NebulaScreen({
             fontFamily: 'Georgia, serif',
             fontSize: '32px',
             fontWeight: 400,
-            color: 'rgba(232, 232, 255, 0.95)',
+            color: 'rgba(245, 240, 230, 0.95)',
             letterSpacing: '0.02em',
             margin: 0,
             textShadow: '0 2px 20px rgba(0,0,0,0.5)',
           }}
         >
-          Nebula
+          Rising
         </h1>
         <p
           style={{
             fontFamily: 'Georgia, serif',
             fontSize: '15px',
             fontWeight: 300,
-            color: 'rgba(232, 232, 255, 0.65)',
+            color: 'rgba(245, 240, 230, 0.65)',
             marginTop: '10px',
             letterSpacing: '0.01em',
           }}

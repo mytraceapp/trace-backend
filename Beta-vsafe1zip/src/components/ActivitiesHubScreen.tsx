@@ -12,7 +12,7 @@ interface ActivitiesHubScreenProps {
   onStartGrounding?: () => void;
   onStartRainWindow: () => void;
   onStartEcho?: () => void;
-  onStartNebula?: () => void;
+  onStartRising?: () => void;
   onReturnToChat: () => void;
   onNavigateToPatterns?: () => void;
   onNavigateToJournal?: () => void;
@@ -29,7 +29,7 @@ export function ActivitiesHubScreen({
   onStartGrounding,
   onStartRainWindow,
   onStartEcho,
-  onStartNebula,
+  onStartRising,
   onReturnToChat,
   onNavigateToPatterns,
   onNavigateToJournal,
@@ -574,10 +574,10 @@ export function ActivitiesHubScreen({
               </motion.button>
             )}
 
-            {/* Card 9 - Nebula */}
-            {onStartNebula && (
+            {/* Card 9 - Rising */}
+            {onStartRising && (
               <motion.button
-                onClick={onStartNebula}
+                onClick={onStartRising}
                 className="rounded-[24px] p-5 transition-all duration-300 active:scale-[0.97]"
                 style={{
                   background: 'linear-gradient(135deg, #2A2D3A 0%, #1E2028 100%)',
@@ -610,7 +610,7 @@ export function ActivitiesHubScreen({
                         letterSpacing: '0.01em',
                       }}
                     >
-                      Nebula
+                      Rising
                     </h3>
                     <p
                       style={{
