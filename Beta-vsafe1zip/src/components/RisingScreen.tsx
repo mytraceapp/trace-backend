@@ -96,19 +96,19 @@ export function RisingScreen({
       return arr;
     };
 
-    // Burst timing - no gap, 25% slower
-    const burstDuration = 6.25; // 25% slower than 5.0
-    const clusterBurstTime = burstDuration; // No gap between bursts
+    // 25% slower, no gap between bursts
+    const burstDuration = 6.25;
+    const clusterBurstTime = burstDuration; // No gap
     const fullCycleDuration = 4 * clusterBurstTime;
 
-    // Pre-generate random sequences for many cycles
+    // Pre-generate random sequences
     const randomSequences: number[][] = [];
     for (let i = 0; i < 100; i++) {
       randomSequences.push(generateRandomSequence());
     }
 
     // ============================================
-    // DENSE BACKGROUND PARTICLES - Always floating
+    // DENSE BACKGROUND PARTICLES
     // ============================================
     const bgParticleCount = 20000;
     const bgGeometry = new THREE.BufferGeometry();
@@ -206,7 +206,7 @@ export function RisingScreen({
     scene.add(bgParticles);
 
     // ============================================
-    // BURST PARTICLES - Random sequence, pop in place
+    // BURST PARTICLES - Random sequence, from center
     // ============================================
     const particleCount = 32000;
     const geometry = new THREE.BufferGeometry();
@@ -252,10 +252,10 @@ export function RisingScreen({
       homePositions[i3 + 1] = homeY;
       homePositions[i3 + 2] = -12 + Math.random() * 55;
       
-      // Start at home position (invisible until burst)
-      positions[i3] = homeX;
-      positions[i3 + 1] = homeY;
-      positions[i3 + 2] = homePositions[i3 + 2];
+      // Start at center
+      positions[i3] = 0;
+      positions[i3 + 1] = 0;
+      positions[i3 + 2] = -12;
 
       const family = colorFamilies[cluster];
       const color = family[Math.floor(Math.random() * family.length)];
@@ -276,7 +276,7 @@ export function RisingScreen({
 
       phases[i] = Math.random() * Math.PI * 2;
       rotationSpeeds[i] = 0.12 + Math.random() * 0.35;
-      burstOffsets[i] = Math.random() * 2.5; // Stagger within cluster
+      burstOffsets[i] = Math.random() * 3.0;
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -292,20 +292,19 @@ export function RisingScreen({
         attribute float size;
         varying vec3 vColor;
         varying float vAlpha;
-        varying float vSize;
         uniform float u_time;
         uniform float u_pixelRatio;
         
         void main() {
           vColor = color;
-          vSize = size;
           
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           
           float sizeAtten = size * u_pixelRatio * (360.0 / -mvPosition.z);
           gl_PointSize = clamp(sizeAtten, 1.0, 180.0);
           
-          vAlpha = 1.0;
+          float distFromCenter = length(position.xy);
+          vAlpha = smoothstep(0.0, 2.0, distFromCenter) * 0.96;
           
           gl_Position = projectionMatrix * mvPosition;
         }
@@ -313,7 +312,6 @@ export function RisingScreen({
       fragmentShader: `
         varying vec3 vColor;
         varying float vAlpha;
-        varying float vSize;
         
         void main() {
           vec2 center = gl_PointCoord - 0.5;
@@ -370,9 +368,9 @@ export function RisingScreen({
       grainHomes[i3 + 1] = gHomeY;
       grainHomes[i3 + 2] = Math.random() * 35;
       
-      grainPositions[i3] = gHomeX;
-      grainPositions[i3 + 1] = gHomeY;
-      grainPositions[i3 + 2] = grainHomes[i3 + 2];
+      grainPositions[i3] = 0;
+      grainPositions[i3 + 1] = 0;
+      grainPositions[i3 + 2] = 0;
       
       const family = colorFamilies[cluster];
       const gColor = family[Math.floor(Math.random() * family.length)];
@@ -382,7 +380,7 @@ export function RisingScreen({
       
       grainSizes[i] = 0.2 + Math.random() * 0.9;
       grainPhases[i] = Math.random() * Math.PI * 2;
-      grainBurstOffsets[i] = Math.random() * 2.5;
+      grainBurstOffsets[i] = Math.random() * 3.0;
     }
 
     grainGeometry.setAttribute('position', new THREE.BufferAttribute(grainPositions, 3));
@@ -404,7 +402,10 @@ export function RisingScreen({
           vColor = color;
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           gl_PointSize = size * u_pixelRatio * (240.0 / -mvPosition.z);
-          vAlpha = 1.0;
+          
+          float distFromCenter = length(position.xy);
+          vAlpha = smoothstep(0.0, 1.5, distFromCenter) * 0.5;
+          
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
@@ -428,10 +429,6 @@ export function RisingScreen({
 
     const grainParticles = new THREE.Points(grainGeometry, grainMaterial);
     scene.add(grainParticles);
-
-    // Track particle alphas for pop-in effect
-    const particleAlphas = new Float32Array(particleCount);
-    const grainAlphas = new Float32Array(grainCount);
 
     startTimeRef.current = performance.now();
 
@@ -466,9 +463,8 @@ export function RisingScreen({
       const cycleTime = elapsed % fullCycleDuration;
       const currentSequence = randomSequences[cycleIndex % randomSequences.length];
 
-      // Animate main burst particles - pop in place with random sequence
+      // Animate main burst particles
       const posAttr = particles.geometry.attributes.position.array as Float32Array;
-      const sizeAttr = particles.geometry.attributes.size.array as Float32Array;
       const posCount = posAttr.length / 3;
       
       (material as THREE.ShaderMaterial).uniforms.u_time.value = elapsed;
@@ -484,8 +480,8 @@ export function RisingScreen({
         
         let timeSinceBurst = cycleTime - particleStartTime;
         
-        // Handle wrap-around
-        if (timeSinceBurst < -fullCycleDuration + burstDuration + 3) {
+        // Handle wrap-around for continuous looping
+        if (timeSinceBurst < -fullCycleDuration + burstDuration + 4) {
           timeSinceBurst += fullCycleDuration;
         }
         
@@ -494,22 +490,23 @@ export function RisingScreen({
         const homeZ = homePositions[i3 + 2];
         
         if (timeSinceBurst < 0) {
-          // Not yet burst - invisible (size 0)
-          particleAlphas[i] = 0;
-        } else {
-          // Pop in effect - scale from 0 to full size
-          const popDuration = 0.8;
-          const popT = Math.min(1.0, timeSinceBurst / popDuration);
-          const popEase = 1.0 - Math.pow(1.0 - popT, 3);
-          particleAlphas[i] = popEase;
+          // Not yet burst - stay at center
+          posAttr[i3] = 0;
+          posAttr[i3 + 1] = 0;
+          posAttr[i3 + 2] = -12;
+          continue;
         }
         
-        // Position with floating motion
-        let currentX = homeX;
-        let currentY = homeY;
-        let currentZ = homeZ;
+        // Burst from center to destination
+        const burstT = Math.min(1.0, timeSinceBurst / burstDuration);
+        const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.3);
         
-        if (particleAlphas[i] > 0.1) {
+        let currentX = homeX * easeOut;
+        let currentY = homeY * easeOut;
+        let currentZ = -12 + (homeZ + 12) * easeOut;
+        
+        // Once settled, add floating motion
+        if (burstT >= 0.6) {
           const rotTime = elapsed * rotationSpeeds[i];
           const rotRadius = 1.0 + Math.sin(phases[i] * 3) * 0.8;
           
@@ -524,16 +521,11 @@ export function RisingScreen({
         posAttr[i3] = currentX;
         posAttr[i3 + 1] = currentY;
         posAttr[i3 + 2] = currentZ;
-        
-        // Scale size by alpha for pop effect
-        sizeAttr[i] = sizes[i] * particleAlphas[i];
       }
       particles.geometry.attributes.position.needsUpdate = true;
-      particles.geometry.attributes.size.needsUpdate = true;
 
       // Update grain with same logic
       const grainPos = grainParticles.geometry.attributes.position.array as Float32Array;
-      const grainSizeAttr = grainParticles.geometry.attributes.size.array as Float32Array;
       const grainCnt = grainPos.length / 3;
       
       for (let i = 0; i < grainCnt; i++) {
@@ -546,7 +538,7 @@ export function RisingScreen({
         
         let timeSinceBurst = cycleTime - particleStartTime;
         
-        if (timeSinceBurst < -fullCycleDuration + burstDuration + 3) {
+        if (timeSinceBurst < -fullCycleDuration + burstDuration + 4) {
           timeSinceBurst += fullCycleDuration;
         }
         
@@ -555,17 +547,20 @@ export function RisingScreen({
         const gHomeZ = grainHomes[i3 + 2];
         
         if (timeSinceBurst < 0) {
-          grainAlphas[i] = 0;
-        } else {
-          const popT = Math.min(1.0, timeSinceBurst / 0.6);
-          grainAlphas[i] = 1.0 - Math.pow(1.0 - popT, 3);
+          grainPos[i3] = 0;
+          grainPos[i3 + 1] = 0;
+          grainPos[i3 + 2] = 0;
+          continue;
         }
         
-        let gX = gHomeX;
-        let gY = gHomeY;
-        let gZ = gHomeZ;
+        const burstT = Math.min(1.0, timeSinceBurst / burstDuration);
+        const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.3);
         
-        if (grainAlphas[i] > 0.1) {
+        let gX = gHomeX * easeOut;
+        let gY = gHomeY * easeOut;
+        let gZ = gHomeZ * easeOut;
+        
+        if (burstT >= 0.6) {
           const rotTime = elapsed * 0.22;
           gX += Math.sin(rotTime + grainPhases[i]) * 0.8;
           gY += Math.cos(rotTime + grainPhases[i] * 1.2) * 0.6;
@@ -574,11 +569,8 @@ export function RisingScreen({
         grainPos[i3] = gX;
         grainPos[i3 + 1] = gY;
         grainPos[i3 + 2] = gZ;
-        
-        grainSizeAttr[i] = grainSizes[i] * grainAlphas[i];
       }
       grainParticles.geometry.attributes.position.needsUpdate = true;
-      grainParticles.geometry.attributes.size.needsUpdate = true;
       
       (grainMaterial as THREE.ShaderMaterial).uniforms.u_time.value = elapsed;
 
