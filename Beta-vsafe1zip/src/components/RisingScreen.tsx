@@ -63,42 +63,45 @@ export function RisingScreen({
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Helper to create lighter/darker ambient variations
-    const createVariations = (baseColors: number[]): THREE.Color[] => {
+    // Extended ambient color variations
+    const createRichVariations = (baseColors: number[]): THREE.Color[] => {
       const result: THREE.Color[] = [];
       baseColors.forEach(hex => {
         const base = new THREE.Color(hex);
         result.push(base);
-        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0xffffff), 0.25));
-        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0xffffff), 0.45));
-        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0x000000), 0.15));
-        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0x000000), 0.3));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0xffffff), 0.15));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0xffffff), 0.3));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0xffffff), 0.5));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0xffffff), 0.7));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0x000000), 0.1));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0x000000), 0.25));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0x000000), 0.4));
       });
       return result;
     };
 
-    // Vibes palette with ambient variations
+    // Rich Vibes palette with many ambient variations
     const colorFamilies = [
-      createVariations([0x3D6B6E, 0x4A7C7E, 0x5A8B8D, 0x2D5558]), // Teal - TOP
-      createVariations([0x6B9E8C, 0x7AAE9C, 0x5A8E7C, 0x8ABEA8]), // Sage - RIGHT
-      createVariations([0xD97B3D, 0xE88B4D, 0xC96B2D, 0xF09B5D]), // Orange - BOTTOM
-      createVariations([0xF5EFE6, 0xE8DED1, 0xD4C9BC, 0xEDE4D8]), // Cream - LEFT
+      createRichVariations([0x3D6B6E, 0x4A7C7E, 0x5A8B8D, 0x2D5558, 0x6A9B9E, 0x1E4548]), // Teal
+      createRichVariations([0x6B9E8C, 0x7AAE9C, 0x5A8E7C, 0x8ABEA8, 0x4A7E6C, 0x9DCEB8]), // Sage
+      createRichVariations([0xD97B3D, 0xE88B4D, 0xC96B2D, 0xF09B5D, 0xB85B1D, 0xF5AB6D]), // Orange
+      createRichVariations([0xF5EFE6, 0xE8DED1, 0xD4C9BC, 0xEDE4D8, 0xFAF6F0, 0xC9BEB1]), // Cream
     ];
 
-    // Burst timing for sequential appearance
-    const clusterBurstDelays = [0.0, 2.0, 4.0, 6.0];
+    // Sequential burst timing - each cluster bursts in sequence
+    const clusterBurstDelays = [0.0, 2.5, 5.0, 7.5];
     
-    // Screen-filling particles that STAY in their cluster area
-    const particleCount = 20000;
+    // Many more particles to fill the entire screen
+    const particleCount = 28000;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const colorAttrib = new Float32Array(particleCount * 3);
     const sizes = new Float32Array(particleCount);
-    const homePositions = new Float32Array(particleCount * 3); // Where they settle
+    const homePositions = new Float32Array(particleCount * 3);
     const phases = new Float32Array(particleCount);
     const rotationSpeeds = new Float32Array(particleCount);
     const clusterIds = new Float32Array(particleCount);
-    const burstProgress = new Float32Array(particleCount);
+    const burstOffsets = new Float32Array(particleCount);
 
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
@@ -106,60 +109,58 @@ export function RisingScreen({
       const cluster = Math.floor(Math.random() * 4);
       clusterIds[i] = cluster;
       
-      // Home positions - where particles STAY and rotate
-      // Each cluster fills a quadrant of the screen
+      // Home positions - fill entire screen, overlapping at edges
       let homeX = 0, homeY = 0;
-      const spreadX = 25 + Math.random() * 20;
-      const spreadY = 20 + Math.random() * 18;
+      const spreadX = 35 + Math.random() * 25;
+      const spreadY = 30 + Math.random() * 20;
       
       switch (cluster) {
-        case 0: // Teal - TOP area
-          homeX = (Math.random() - 0.5) * 50;
-          homeY = 8 + Math.random() * spreadY;
+        case 0: // Teal - TOP area (extends wide)
+          homeX = (Math.random() - 0.5) * 70;
+          homeY = 5 + Math.random() * spreadY;
           break;
-        case 1: // Sage - RIGHT area
-          homeX = 10 + Math.random() * spreadX;
-          homeY = (Math.random() - 0.5) * 45;
+        case 1: // Sage - RIGHT area (extends tall)
+          homeX = 8 + Math.random() * spreadX;
+          homeY = (Math.random() - 0.5) * 65;
           break;
-        case 2: // Orange - BOTTOM area
-          homeX = (Math.random() - 0.5) * 50;
-          homeY = -8 - Math.random() * spreadY;
+        case 2: // Orange - BOTTOM area (extends wide)
+          homeX = (Math.random() - 0.5) * 70;
+          homeY = -5 - Math.random() * spreadY;
           break;
-        case 3: // Cream - LEFT area
-          homeX = -10 - Math.random() * spreadX;
-          homeY = (Math.random() - 0.5) * 45;
+        case 3: // Cream - LEFT area (extends tall)
+          homeX = -8 - Math.random() * spreadX;
+          homeY = (Math.random() - 0.5) * 65;
           break;
       }
       
       homePositions[i3] = homeX;
       homePositions[i3 + 1] = homeY;
-      homePositions[i3 + 2] = -5 + Math.random() * 30;
+      homePositions[i3 + 2] = -8 + Math.random() * 40;
       
-      // Start at center (will burst out to home position)
       positions[i3] = 0;
       positions[i3 + 1] = 0;
-      positions[i3 + 2] = -5;
+      positions[i3 + 2] = -8;
 
-      // Color from the cluster's family
       const family = colorFamilies[cluster];
       const color = family[Math.floor(Math.random() * family.length)];
       colorAttrib[i3] = color.r;
       colorAttrib[i3 + 1] = color.g;
       colorAttrib[i3 + 2] = color.b;
 
-      // Varied sizes
       const sizeType = Math.random();
-      if (sizeType < 0.08) {
-        sizes[i] = 5 + Math.random() * 7;
-      } else if (sizeType < 0.25) {
-        sizes[i] = 2.5 + Math.random() * 3.5;
+      if (sizeType < 0.06) {
+        sizes[i] = 6 + Math.random() * 8;
+      } else if (sizeType < 0.2) {
+        sizes[i] = 3 + Math.random() * 4;
+      } else if (sizeType < 0.5) {
+        sizes[i] = 1.5 + Math.random() * 2.5;
       } else {
-        sizes[i] = 0.6 + Math.random() * 2;
+        sizes[i] = 0.5 + Math.random() * 1.5;
       }
 
       phases[i] = Math.random() * Math.PI * 2;
-      rotationSpeeds[i] = 0.3 + Math.random() * 0.6;
-      burstProgress[i] = Math.random() * 0.5; // Stagger within cluster
+      rotationSpeeds[i] = 0.2 + Math.random() * 0.5;
+      burstOffsets[i] = Math.random() * 2.0; // Stagger within each cluster
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -183,12 +184,11 @@ export function RisingScreen({
           
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           
-          float sizeAtten = size * u_pixelRatio * (300.0 / -mvPosition.z);
-          gl_PointSize = clamp(sizeAtten, 1.0, 130.0);
+          float sizeAtten = size * u_pixelRatio * (320.0 / -mvPosition.z);
+          gl_PointSize = clamp(sizeAtten, 1.0, 150.0);
           
-          // Full opacity once in place
           float distFromCenter = length(position.xy);
-          vAlpha = smoothstep(0.0, 3.0, distFromCenter) * 0.9;
+          vAlpha = smoothstep(0.0, 2.5, distFromCenter) * 0.92;
           
           gl_Position = projectionMatrix * mvPosition;
         }
@@ -203,10 +203,10 @@ export function RisingScreen({
           
           float alpha = smoothstep(0.5, 0.0, dist) * vAlpha;
           
-          float glow = exp(-dist * 2.5) * 0.3;
-          vec3 finalColor = vColor + vec3(1.0) * glow * 0.1;
+          float glow = exp(-dist * 2.2) * 0.28;
+          vec3 finalColor = vColor + vec3(1.0) * glow * 0.08;
           
-          if (alpha < 0.005) discard;
+          if (alpha < 0.004) discard;
           
           gl_FragColor = vec4(finalColor, alpha);
         }
@@ -220,8 +220,8 @@ export function RisingScreen({
     const particles = new THREE.Points(geometry, material);
     scene.add(particles);
 
-    // Grain particles - also stay in their areas
-    const grainCount = 4000;
+    // More grain particles
+    const grainCount = 6000;
     const grainGeometry = new THREE.BufferGeometry();
     const grainPositions = new Float32Array(grainCount * 3);
     const grainColors = new Float32Array(grainCount * 3);
@@ -229,6 +229,7 @@ export function RisingScreen({
     const grainHomes = new Float32Array(grainCount * 3);
     const grainPhases = new Float32Array(grainCount);
     const grainClusters = new Float32Array(grainCount);
+    const grainBurstOffsets = new Float32Array(grainCount);
 
     for (let i = 0; i < grainCount; i++) {
       const i3 = i * 3;
@@ -237,19 +238,19 @@ export function RisingScreen({
       grainClusters[i] = cluster;
       
       let gHomeX = 0, gHomeY = 0;
-      const gSpreadX = 28 + Math.random() * 15;
-      const gSpreadY = 22 + Math.random() * 12;
+      const gSpreadX = 38 + Math.random() * 20;
+      const gSpreadY = 32 + Math.random() * 16;
       
       switch (cluster) {
-        case 0: gHomeX = (Math.random() - 0.5) * 55; gHomeY = 5 + Math.random() * gSpreadY; break;
-        case 1: gHomeX = 8 + Math.random() * gSpreadX; gHomeY = (Math.random() - 0.5) * 50; break;
-        case 2: gHomeX = (Math.random() - 0.5) * 55; gHomeY = -5 - Math.random() * gSpreadY; break;
-        case 3: gHomeX = -8 - Math.random() * gSpreadX; gHomeY = (Math.random() - 0.5) * 50; break;
+        case 0: gHomeX = (Math.random() - 0.5) * 75; gHomeY = 3 + Math.random() * gSpreadY; break;
+        case 1: gHomeX = 5 + Math.random() * gSpreadX; gHomeY = (Math.random() - 0.5) * 70; break;
+        case 2: gHomeX = (Math.random() - 0.5) * 75; gHomeY = -3 - Math.random() * gSpreadY; break;
+        case 3: gHomeX = -5 - Math.random() * gSpreadX; gHomeY = (Math.random() - 0.5) * 70; break;
       }
       
       grainHomes[i3] = gHomeX;
       grainHomes[i3 + 1] = gHomeY;
-      grainHomes[i3 + 2] = Math.random() * 20;
+      grainHomes[i3 + 2] = Math.random() * 25;
       
       grainPositions[i3] = 0;
       grainPositions[i3 + 1] = 0;
@@ -261,8 +262,9 @@ export function RisingScreen({
       grainColors[i3 + 1] = gColor.g;
       grainColors[i3 + 2] = gColor.b;
       
-      grainSizes[i] = 0.3 + Math.random() * 1.0;
+      grainSizes[i] = 0.25 + Math.random() * 0.9;
       grainPhases[i] = Math.random() * Math.PI * 2;
+      grainBurstOffsets[i] = Math.random() * 2.0;
     }
 
     grainGeometry.setAttribute('position', new THREE.BufferAttribute(grainPositions, 3));
@@ -283,10 +285,10 @@ export function RisingScreen({
         void main() {
           vColor = color;
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = size * u_pixelRatio * (180.0 / -mvPosition.z);
+          gl_PointSize = size * u_pixelRatio * (200.0 / -mvPosition.z);
           
           float distFromCenter = length(position.xy);
-          vAlpha = smoothstep(0.0, 2.0, distFromCenter) * 0.6;
+          vAlpha = smoothstep(0.0, 2.0, distFromCenter) * 0.55;
           
           gl_Position = projectionMatrix * mvPosition;
         }
@@ -334,37 +336,52 @@ export function RisingScreen({
         const i3 = i * 3;
         const cluster = clusterIds[i];
         
-        // Calculate burst progress for this cluster
         const clusterDelay = clusterBurstDelays[cluster];
-        const timeSinceBurst = elapsed - clusterDelay - burstProgress[i] * 1.5;
+        const particleDelay = clusterDelay + burstOffsets[i];
         
-        // Smooth burst out to home position over 3 seconds
-        const burstT = Math.max(0, Math.min(1, timeSinceBurst / 3.0));
-        const easeOut = 1.0 - Math.pow(1.0 - burstT, 3);
+        // Check if particle has ever burst (based on elapsed time)
+        const totalTimeSinceBurst = elapsed - particleDelay;
+        const hasEverBurst = totalTimeSinceBurst >= 0;
         
-        // Interpolate from center to home position
+        // For first cycle, use absolute time; after that, particles stay in place
+        if (!hasEverBurst) {
+          // Not yet burst - stay at center
+          posAttr[i3] = 0;
+          posAttr[i3 + 1] = 0;
+          posAttr[i3 + 2] = -8;
+          continue;
+        }
+        
+        // Calculate burst progress (caps at 1.0 once fully out)
+        const burstDuration = 3.5;
+        const burstT = Math.min(1.0, totalTimeSinceBurst / burstDuration);
+        const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.8);
+        
         const homeX = homePositions[i3];
         const homeY = homePositions[i3 + 1];
         const homeZ = homePositions[i3 + 2];
         
-        // Current position based on burst progress
         let currentX = homeX * easeOut;
         let currentY = homeY * easeOut;
-        let currentZ = -5 + (homeZ + 5) * easeOut;
+        let currentZ = -8 + (homeZ + 8) * easeOut;
         
-        // Once burst complete, add rotation/swirl within cluster area
-        if (burstT >= 1.0) {
+        // Once in place, add continuous rotation/swirl
+        if (burstT >= 0.8) {
           const rotTime = elapsed * rotationSpeeds[i];
-          const rotRadius = 2 + Math.sin(phases[i] * 3) * 1.5;
+          const rotRadius = 1.5 + Math.sin(phases[i] * 3) * 1.2;
           
-          // Gentle rotation around home position
           currentX += Math.sin(rotTime + phases[i]) * rotRadius;
           currentY += Math.cos(rotTime + phases[i] * 1.3) * rotRadius;
-          currentZ += Math.sin(rotTime * 0.5 + phases[i]) * 1.5;
+          currentZ += Math.sin(rotTime * 0.4 + phases[i]) * 1.0;
           
-          // Gentle drift
-          currentX += Math.sin(elapsed * 0.3 + phases[i] * 2) * 1.0;
-          currentY += Math.cos(elapsed * 0.25 + phases[i] * 1.5) * 0.8;
+          // Gentle organic drift
+          currentX += Math.sin(elapsed * 0.2 + phases[i] * 2) * 0.8;
+          currentY += Math.cos(elapsed * 0.18 + phases[i] * 1.5) * 0.6;
+          
+          // Subtle pulse
+          const pulse = 1.0 + Math.sin(elapsed * 0.5 + phases[i]) * 0.03;
+          currentX *= pulse;
+          currentY *= pulse;
         }
         
         posAttr[i3] = currentX;
@@ -382,10 +399,18 @@ export function RisingScreen({
         const cluster = grainClusters[i];
         
         const clusterDelay = clusterBurstDelays[cluster];
-        const timeSinceBurst = elapsed - clusterDelay - (grainPhases[i] / Math.PI) * 1.5;
+        const particleDelay = clusterDelay + grainBurstOffsets[i];
+        const totalTimeSinceBurst = elapsed - particleDelay;
         
-        const burstT = Math.max(0, Math.min(1, timeSinceBurst / 3.0));
-        const easeOut = 1.0 - Math.pow(1.0 - burstT, 3);
+        if (totalTimeSinceBurst < 0) {
+          grainPos[i3] = 0;
+          grainPos[i3 + 1] = 0;
+          grainPos[i3 + 2] = 0;
+          continue;
+        }
+        
+        const burstT = Math.min(1.0, totalTimeSinceBurst / 3.5);
+        const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.8);
         
         const gHomeX = grainHomes[i3];
         const gHomeY = grainHomes[i3 + 1];
@@ -395,10 +420,10 @@ export function RisingScreen({
         let gY = gHomeY * easeOut;
         let gZ = gHomeZ * easeOut;
         
-        if (burstT >= 1.0) {
-          const rotTime = elapsed * 0.4;
-          gX += Math.sin(rotTime + grainPhases[i]) * 1.5;
-          gY += Math.cos(rotTime + grainPhases[i] * 1.2) * 1.2;
+        if (burstT >= 0.8) {
+          const rotTime = elapsed * 0.35;
+          gX += Math.sin(rotTime + grainPhases[i]) * 1.2;
+          gY += Math.cos(rotTime + grainPhases[i] * 1.2) * 1.0;
         }
         
         grainPos[i3] = gX;
