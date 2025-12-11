@@ -1,0 +1,99 @@
+// --- Setup ---
+const width = window.innerWidth;
+const height = window.innerHeight;
+
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1,1,1,-1,0.1,10);
+camera.position.z = 1;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(width, height);
+document.body.appendChild(renderer.domElement);
+
+// uniforms
+const uniforms = {
+  u_time: { value: 0.0 },
+  u_resolution: { value: new THREE.Vector2(width, height) },
+  u_tilt: { value: new THREE.Vector2(0.0, 0.0) }
+};
+
+// geometry
+const geometry = new THREE.PlaneGeometry(2,2);
+
+// fragment shader (slow-moving nebula)
+const fragmentShader = `
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform vec2 u_tilt;
+
+float noise(vec2 p){
+  return sin(p.x)*sin(p.y);
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+
+  vec2 p = (uv - 0.5) * 2.0;
+
+  p.x += u_tilt.x * 0.15;
+  p.y += u_tilt.y * 0.15;
+
+  float t = u_time * 0.03;   // <<< SLOW MOVEMENT
+
+  float n = noise(p*1.8 + vec2(t*0.4, t*0.2))
+          + noise(p*3.2 - vec2(t*0.1, t*0.3))*0.5;
+
+  // TRACE palette blend
+  vec3 colA = vec3(0.10,0.12,0.28);
+  vec3 colB = vec3(0.35,0.68,0.82);
+  vec3 colC = vec3(0.92,0.72,0.48);
+
+  vec3 color = mix(colA, colB, smoothstep(-1.0, 1.0, n));
+  color = mix(color, colC, smoothstep(0.3, 1.2, n));
+
+  gl_FragColor = vec4(color, 1.0);
+}
+`;
+
+const material = new THREE.ShaderMaterial({
+  uniforms,
+  fragmentShader,
+  vertexShader: `void main(){gl_Position = vec4(position,1.0);}`
+});
+
+const mesh = new THREE.Mesh(geometry, material);
+scene.add(mesh);
+
+// animation
+let start = performance.now();
+
+function animate(){
+  requestAnimationFrame(animate);
+  uniforms.u_time.value = (performance.now() - start) / 1000.0;
+  renderer.render(scene,camera);
+}
+animate();
+
+// tilt
+function handleTilt(e){
+  const tx = (e.gamma || 0) / 30;
+  const ty = (e.beta || 0) / 30;
+  uniforms.u_tilt.value.set(tx, ty);
+}
+
+document.getElementById("btnMotion").onclick = () => {
+  if (
+    typeof DeviceOrientationEvent !== "undefined" &&
+    DeviceOrientationEvent.requestPermission
+  ) {
+    DeviceOrientationEvent.requestPermission().then((res) => {
+      if (res === "granted") {
+        window.addEventListener("deviceorientation", handleTilt);
+        btnMotion.style.display = "none";
+      }
+    });
+  } else {
+    window.addEventListener("deviceorientation", handleTilt);
+    btnMotion.style.display = "none";
+  }
+};
