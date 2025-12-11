@@ -67,37 +67,32 @@ export function RisingScreen({
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // TRACE color palette ONLY - mocha, sage, olive, cream, gold, amber, warm earth tones
+    // Vibes reference palette - teal, sage, orange, cream (NO browns/golds)
     const colors = [
-      // Sage family
-      new THREE.Color(0x8C9E85), // sage
-      new THREE.Color(0xA8B5A0), // light sage
-      new THREE.Color(0x6B7D65), // deep sage
-      new THREE.Color(0x7A8B74), // muted sage
-      new THREE.Color(0x9CAF94), // soft sage
-      // Olive family
-      new THREE.Color(0x6B6B4E), // olive
-      new THREE.Color(0x808066), // light olive
-      new THREE.Color(0x5C5C42), // deep olive
-      new THREE.Color(0x9A9A7A), // pale olive
-      // Mocha family
-      new THREE.Color(0x94695B), // mocha
-      new THREE.Color(0x7A5548), // deep mocha
-      new THREE.Color(0xA67C5B), // warm mocha
-      new THREE.Color(0x8B6B5A), // soft mocha
-      new THREE.Color(0xB8907A), // light mocha
-      // Cream/Gold family
-      new THREE.Color(0xF2EBD9), // cream
-      new THREE.Color(0xE8DFD0), // warm cream
-      new THREE.Color(0xD4C4B5), // dusty cream
-      new THREE.Color(0xC4B896), // gold cream
-      new THREE.Color(0xD9C9A5), // soft gold
-      new THREE.Color(0xCCB88C), // muted gold
-      // Amber/Warm tones
-      new THREE.Color(0xB8976B), // amber
-      new THREE.Color(0xA68B5B), // warm amber
-      new THREE.Color(0xC9A87C), // light amber
-      new THREE.Color(0x9E8A6D), // dusty amber
+      // Deep Teal family
+      new THREE.Color(0x3D6B6E), // deep teal
+      new THREE.Color(0x4A7C7E), // teal
+      new THREE.Color(0x5A8B8D), // medium teal
+      new THREE.Color(0x2D5558), // dark teal
+      new THREE.Color(0x6A9B9E), // light teal
+      // Sage/Seafoam Green family
+      new THREE.Color(0x6B9E8C), // sage seafoam
+      new THREE.Color(0x7AAE9C), // light sage
+      new THREE.Color(0x5A8E7C), // medium sage
+      new THREE.Color(0x8ABEA8), // pale sage
+      new THREE.Color(0x4A7E6C), // deep sage
+      // Orange/Coral family
+      new THREE.Color(0xD97B3D), // vibrant orange
+      new THREE.Color(0xE88B4D), // coral orange
+      new THREE.Color(0xC96B2D), // deep orange
+      new THREE.Color(0xF09B5D), // light coral
+      new THREE.Color(0xB85B1D), // burnt orange
+      // Cream/Sand family
+      new THREE.Color(0xF5EFE6), // cream
+      new THREE.Color(0xE8DED1), // warm cream
+      new THREE.Color(0xD4C9BC), // sand
+      new THREE.Color(0xFAF6F0), // light cream
+      new THREE.Color(0xEDE4D8), // soft cream
     ];
 
     // Screen-within-screen dimensions (phone aspect ratio)
