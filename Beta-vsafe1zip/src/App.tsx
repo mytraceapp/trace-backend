@@ -15,6 +15,7 @@ import { PearlRippleScreen } from "./components/PearlRippleScreen";
 import { GroundingExperience } from "./components/GroundingExperience";
 import { RainWindowScreen } from "./components/RainWindowScreen";
 import EchoScreen from "./components/EchoScreen";
+import { NebulaScreen } from "./components/NebulaScreen";
 import { JournalScreen } from "./components/JournalScreen";
 import { EntriesScreen } from "./components/EntriesScreen";
 import { TracePatternsScreen } from "./components/TracePatternsScreen";
@@ -62,6 +63,7 @@ export default function App() {
     | "grounding"
     | "rainwindow"
     | "echo"
+    | "nebula"
     | "journal"
     | "entries"
     | "patterns"
@@ -131,6 +133,7 @@ export default function App() {
     "maze",
     "rainwindow",
     "echo",
+    "nebula",
   ];
   const shouldPlayAmbient =
     ambientAudioStarted &&
@@ -277,6 +280,7 @@ export default function App() {
               onStartGrounding={() => setCurrentScreen("grounding")}
               onStartRainWindow={() => setCurrentScreen("rainwindow")}
               onStartEcho={() => setCurrentScreen("echo")}
+              onStartNebula={() => setCurrentScreen("nebula")}
               onReturnToChat={() => setCurrentScreen("chat")}
               onNavigateToPatterns={() => setCurrentScreen("patterns")}
               onNavigateToJournal={() => setCurrentScreen("entries")}
@@ -355,6 +359,16 @@ export default function App() {
           )}
           {currentScreen === "echo" && (
             <EchoScreen
+              onBack={() => setCurrentScreen("activitieshub")}
+              onReturnToChat={() => setCurrentScreen("chat")}
+              onNavigateToActivities={() => setCurrentScreen("activitieshub")}
+              onNavigateToJournal={() => setCurrentScreen("entries")}
+              onNavigateToProfile={() => setCurrentScreen("profile")}
+              onNavigateToHelp={() => setCurrentScreen("help")}
+            />
+          )}
+          {currentScreen === "nebula" && (
+            <NebulaScreen
               onBack={() => setCurrentScreen("activitieshub")}
               onReturnToChat={() => setCurrentScreen("chat")}
               onNavigateToActivities={() => setCurrentScreen("activitieshub")}

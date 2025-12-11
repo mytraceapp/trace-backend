@@ -75,6 +75,13 @@ Preferred communication style: Simple, everyday language.
 - Progressive disclosure with smooth transitions between steps
 - Calming ambient tones synchronized to user progression
 
+**Nebula**
+- Full-screen WebGL shader animation using Three.js
+- Slow, continuous nebula-style color movement with procedural noise
+- Device tilt support via DeviceOrientation API for subtle parallax effect
+- Dark charcoal background with soft blue/bronze color palette
+- Auto-saves session entry after 10+ seconds of viewing
+
 **Other Activities**: Power Nap (5-minute timer with gentle wake alarm), Pearl Ripple (1-minute ocean wave immersion), Walking Reset
 
 **Design Rationale**: Activities are designed to be short (45 seconds to 5 minutes) to reduce commitment anxiety and increase completion rates. Each activity auto-saves to the Entries system upon completion.
