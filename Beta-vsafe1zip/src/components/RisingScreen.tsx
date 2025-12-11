@@ -69,12 +69,20 @@ export function RisingScreen({
       uniform float u_time;
       uniform vec2 u_tilt;
 
-      // Hash function for pseudo-random values
+      // High quality hash
       float hash(vec2 p) {
-        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+        vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+        p3 += dot(p3, p3.yzx + 33.33);
+        return fract((p3.x + p3.y) * p3.z);
       }
 
-      // 2D noise
+      float hash3(vec3 p) {
+        p = fract(p * 0.1031);
+        p += dot(p, p.zyx + 31.32);
+        return fract((p.x + p.y) * p.z);
+      }
+
+      // Smooth noise
       float noise(vec2 p) {
         vec2 i = floor(p);
         vec2 f = fract(p);
@@ -88,7 +96,7 @@ export function RisingScreen({
         return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
       }
 
-      // Fractal Brownian Motion for organic movement
+      // FBM for organic shapes
       float fbm(vec2 p) {
         float value = 0.0;
         float amplitude = 0.5;
@@ -101,114 +109,156 @@ export function RisingScreen({
         return value;
       }
 
-      // Particle burst function
-      float particles(vec2 uv, float time) {
-        float particles = 0.0;
-        
-        for (float i = 0.0; i < 80.0; i++) {
-          vec2 seed = vec2(i * 0.127, i * 0.269);
-          
-          // Particle position with burst motion from center
-          float angle = hash(seed) * 6.28318 + time * 0.3;
-          float radius = hash(seed + 0.5) * 0.8 + fbm(seed + time * 0.1) * 0.4;
-          radius *= 0.5 + 0.5 * sin(time * 0.5 + i * 0.1);
-          
-          vec2 particlePos = vec2(cos(angle), sin(angle)) * radius;
-          particlePos += u_tilt * 0.3; // Tilt response
-          
-          // Add swirling motion
-          float swirl = sin(time * 0.2 + i * 0.3) * 0.2;
-          particlePos.x += cos(time * 0.15 + hash(seed) * 6.28) * swirl;
-          particlePos.y += sin(time * 0.12 + hash(seed + 1.0) * 6.28) * swirl;
-          
-          float dist = length(uv - particlePos);
-          float size = 0.003 + hash(seed + 0.3) * 0.008;
-          
-          // Soft particle glow
-          particles += smoothstep(size * 3.0, 0.0, dist) * (0.3 + 0.7 * hash(seed + 0.7));
+      // Voronoi for grain texture
+      float voronoi(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        float minDist = 1.0;
+        for (int x = -1; x <= 1; x++) {
+          for (int y = -1; y <= 1; y++) {
+            vec2 neighbor = vec2(float(x), float(y));
+            vec2 point = vec2(hash(i + neighbor), hash(i + neighbor + 100.0));
+            vec2 diff = neighbor + point - f;
+            minDist = min(minDist, length(diff));
+          }
         }
-        
-        return particles;
-      }
-
-      // Dust field with tilt response
-      float dustField(vec2 uv, float time) {
-        vec2 p = uv + u_tilt * 0.2;
-        float dust = 0.0;
-        
-        for (float i = 0.0; i < 5.0; i++) {
-          vec2 offset = vec2(
-            sin(time * 0.1 + i * 1.3) * 0.3,
-            cos(time * 0.08 + i * 1.7) * 0.3
-          );
-          float layer = fbm((p + offset) * (2.0 + i * 0.5) + time * 0.05);
-          dust += layer * (0.3 - i * 0.04);
-        }
-        
-        return dust;
+        return minDist;
       }
 
       void main() {
-        vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.x, u_resolution.y);
+        vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+        vec2 center = vec2(0.5, 0.5);
         
-        float t = u_time;
+        // Apply tilt offset
+        vec2 tiltOffset = u_tilt * 0.08;
+        uv += tiltOffset;
         
-        // TRACE color palette - sage, mocha, ambient cream
-        vec3 sage = vec3(0.55, 0.62, 0.52);        // Soft sage green
-        vec3 mocha = vec3(0.58, 0.42, 0.32);       // Warm mocha brown
-        vec3 cream = vec3(0.95, 0.92, 0.85);       // Ambient cream
-        vec3 deepSage = vec3(0.35, 0.42, 0.35);    // Deep sage
-        vec3 warmTan = vec3(0.72, 0.58, 0.45);     // Warm tan
-        vec3 dusty = vec3(0.75, 0.70, 0.62);       // Dusty neutral
+        float t = u_time * 0.4;
         
-        // Background - dark charcoal with warmth
-        vec3 bgColor = vec3(0.06, 0.06, 0.07);
+        // TRACE color palette - sage, mocha, cream
+        vec3 sage = vec3(0.55, 0.65, 0.50);
+        vec3 deepSage = vec3(0.35, 0.45, 0.32);
+        vec3 mocha = vec3(0.62, 0.45, 0.35);
+        vec3 darkMocha = vec3(0.45, 0.30, 0.22);
+        vec3 cream = vec3(0.96, 0.93, 0.86);
+        vec3 warmCream = vec3(0.92, 0.85, 0.72);
+        vec3 dusty = vec3(0.78, 0.72, 0.65);
         
-        // Create dust field
-        float dust = dustField(uv, t);
+        // Background
+        vec3 bgColor = vec3(0.05, 0.05, 0.06);
         
-        // Create particle bursts
-        float p = particles(uv, t);
-        
-        // Central burst glow
-        float centralGlow = exp(-length(uv + u_tilt * 0.1) * 1.5);
-        centralGlow *= 0.6 + 0.4 * sin(t * 0.3);
-        
-        // Color mixing based on position and time
-        float colorMix1 = fbm(uv * 2.0 + t * 0.1);
-        float colorMix2 = fbm(uv * 1.5 - t * 0.08 + 5.0);
-        float colorMix3 = fbm(uv * 3.0 + vec2(t * 0.05, -t * 0.07));
-        
-        // Build color layers
         vec3 color = bgColor;
+        float totalIntensity = 0.0;
         
-        // Add dust field with color variation
-        vec3 dustColor = mix(deepSage, mocha, colorMix1);
-        dustColor = mix(dustColor, sage, colorMix2 * 0.5);
-        color += dustColor * dust * 0.4;
+        // Create multiple explosive color bursts
+        for (float i = 0.0; i < 8.0; i++) {
+          // Each burst has unique timing and position
+          float burstPhase = t * 0.3 + i * 0.785;
+          float burstCycle = fract(burstPhase * 0.15);
+          
+          // Burst center position - moves around
+          vec2 burstCenter = center;
+          burstCenter.x += sin(t * 0.2 + i * 1.2) * 0.15 + sin(i * 2.3) * 0.1;
+          burstCenter.y += cos(t * 0.15 + i * 0.9) * 0.12 + cos(i * 1.7) * 0.08;
+          burstCenter += tiltOffset * 0.5;
+          
+          vec2 toCenter = uv - burstCenter;
+          float dist = length(toCenter);
+          float angle = atan(toCenter.y, toCenter.x);
+          
+          // Explosive burst pattern - expanding waves
+          float burstWave = sin(dist * 15.0 - burstPhase * 2.0 + angle * 3.0);
+          burstWave *= exp(-dist * 2.5);
+          
+          // Organic shape distortion
+          float organic = fbm(uv * 3.0 + vec2(cos(burstPhase), sin(burstPhase)) * 0.5);
+          float shape = smoothstep(0.6 + organic * 0.3, 0.0, dist);
+          
+          // Swirling internal motion
+          float swirl = fbm(vec2(angle * 2.0 + t * 0.3, dist * 4.0 - t * 0.5) + i);
+          
+          // Color selection based on burst index
+          vec3 burstColor;
+          float colorIndex = mod(i, 4.0);
+          if (colorIndex < 1.0) {
+            burstColor = mix(sage, cream, swirl);
+          } else if (colorIndex < 2.0) {
+            burstColor = mix(mocha, warmCream, swirl);
+          } else if (colorIndex < 3.0) {
+            burstColor = mix(deepSage, dusty, swirl);
+          } else {
+            burstColor = mix(darkMocha, sage, swirl);
+          }
+          
+          // Add color variation within burst
+          burstColor = mix(burstColor, cream, smoothstep(0.3, 0.0, dist) * 0.4);
+          
+          // Intensity falloff
+          float intensity = shape * (0.5 + 0.5 * burstWave);
+          intensity *= 0.7 + 0.3 * sin(burstPhase + i);
+          
+          color += burstColor * intensity * 0.35;
+          totalIntensity += intensity;
+        }
         
-        // Add particle bursts
-        vec3 particleColor = mix(cream, warmTan, colorMix2);
-        particleColor = mix(particleColor, sage, colorMix3 * 0.3);
-        color += particleColor * p * 0.8;
+        // Add secondary smaller bursts
+        for (float j = 0.0; j < 12.0; j++) {
+          float phase = t * 0.5 + j * 0.523;
+          
+          vec2 pos = center;
+          pos.x += sin(phase * 0.7 + j * 1.1) * 0.25;
+          pos.y += cos(phase * 0.6 + j * 0.8) * 0.2;
+          pos += tiltOffset * 0.3;
+          
+          float d = length(uv - pos);
+          float burst = exp(-d * 8.0) * (0.5 + 0.5 * sin(phase * 2.0));
+          
+          vec3 col = mod(j, 3.0) < 1.0 ? sage : (mod(j, 3.0) < 2.0 ? mocha : cream);
+          color += col * burst * 0.25;
+        }
         
-        // Add central glow
-        vec3 glowColor = mix(mocha, cream, 0.5 + 0.5 * sin(t * 0.2));
-        glowColor = mix(glowColor, sage, colorMix1 * 0.4);
-        color += glowColor * centralGlow * 0.5;
+        // Add grain/dust particles around edges
+        float grain = 0.0;
+        for (float k = 0.0; k < 150.0; k++) {
+          vec2 seed = vec2(hash(vec2(k, 0.0)), hash(vec2(0.0, k)));
+          
+          // Particles move outward from bursts
+          float particleTime = t * 0.3 + k * 0.1;
+          float radius = 0.1 + fract(particleTime * 0.2 + seed.x) * 0.6;
+          float pAngle = seed.y * 6.28318 + particleTime * 0.2;
+          
+          vec2 particlePos = center + vec2(cos(pAngle), sin(pAngle)) * radius;
+          particlePos += tiltOffset * (0.2 + seed.x * 0.3);
+          particlePos.x += sin(particleTime + k) * 0.05;
+          particlePos.y += cos(particleTime * 1.1 + k) * 0.04;
+          
+          float pDist = length(uv - particlePos);
+          float pSize = 0.002 + seed.x * 0.004;
+          
+          float particle = smoothstep(pSize * 2.0, 0.0, pDist);
+          particle *= 0.3 + 0.7 * seed.y;
+          
+          grain += particle;
+        }
         
-        // Add shimmer highlights
-        float shimmer = noise(uv * 50.0 + t * 2.0) * noise(uv * 30.0 - t);
-        shimmer *= smoothstep(0.6, 1.0, p + dust * 0.5);
-        color += cream * shimmer * 0.3;
+        // Add grain with cream color
+        color += cream * grain * 0.4;
+        
+        // Edge dust cloud
+        float edgeDist = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+        float edgeDust = fbm(uv * 8.0 + t * 0.1) * smoothstep(0.2, 0.0, edgeDist);
+        color += dusty * edgeDust * 0.15;
+        
+        // Fine grain texture overlay
+        float fineGrain = hash(uv * u_resolution.xy + t * 100.0);
+        color += (fineGrain - 0.5) * 0.03;
         
         // Subtle vignette
-        float vignette = 1.0 - length(uv) * 0.4;
+        float vignette = 1.0 - length(uv - center) * 0.3;
         color *= vignette;
         
-        // Boost saturation slightly
-        float gray = dot(color, vec3(0.299, 0.587, 0.114));
-        color = mix(vec3(gray), color, 1.2);
+        // Ensure colors stay vibrant
+        color = max(color, bgColor);
         
         gl_FragColor = vec4(color, 1.0);
       }
@@ -265,8 +315,8 @@ export function RisingScreen({
 
     const handleTilt = (e: DeviceOrientationEvent) => {
       if (uniformsRef.current) {
-        const tx = (e.gamma || 0) / 25;
-        const ty = (e.beta || 0) / 25;
+        const tx = (e.gamma || 0) / 20;
+        const ty = (e.beta || 0) / 20;
         uniformsRef.current.u_tilt.value.set(tx, ty);
       }
     };
@@ -310,21 +360,12 @@ export function RisingScreen({
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden" style={{ background: '#0F0F11' }}>
+    <div className="relative w-full h-full overflow-hidden" style={{ background: '#0D0D0F' }}>
       <div 
         ref={containerRef} 
         className="absolute inset-0"
         style={{ zIndex: 1 }}
       />
-
-      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2 }}>
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(ellipse at center, transparent 0%, rgba(15,15,17,0.3) 100%)',
-          }}
-        />
-      </div>
 
       <motion.button
         onClick={handleBack}
@@ -353,7 +394,7 @@ export function RisingScreen({
       <motion.div
         className="absolute z-10 text-center"
         style={{
-          top: '42%',
+          top: '38%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
         }}
