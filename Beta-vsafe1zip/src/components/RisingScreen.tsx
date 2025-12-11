@@ -26,13 +26,11 @@ export function RisingScreen({
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const animationRef = useRef<number>(0);
-  const uniformsRef = useRef<{
-    u_time: { value: number };
-    u_resolution: { value: THREE.Vector2 };
-    u_tilt: { value: THREE.Vector2 };
-  } | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const startTimeRef = useRef<number>(0);
   const hasSavedRef = useRef(false);
+  const tiltRef = useRef({ x: 0, y: 0 });
   
   const [tiltEnabled, setTiltEnabled] = useState(false);
   const [showTiltButton, setShowTiltButton] = useState(true);
@@ -45,247 +43,293 @@ export function RisingScreen({
     const width = container.clientWidth;
     const height = container.clientHeight;
 
+    // Scene setup
     const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
-    camera.position.z = 1;
+    scene.background = new THREE.Color(0x0a0a0c);
+    sceneRef.current = scene;
 
+    // Perspective camera - particles will fly toward this
+    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    camera.position.z = 30;
+    cameraRef.current = camera;
+
+    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    const uniforms = {
-      u_time: { value: 0.0 },
-      u_resolution: { value: new THREE.Vector2(width, height) },
-      u_tilt: { value: new THREE.Vector2(0.0, 0.0) }
+    // TRACE color palette
+    const colors = [
+      new THREE.Color(0x8C9E85), // sage
+      new THREE.Color(0x94695B), // mocha
+      new THREE.Color(0xF2EBD9), // cream
+      new THREE.Color(0xA8B5A0), // light sage
+      new THREE.Color(0xD4C4B5), // warm cream
+      new THREE.Color(0x6B7D65), // deep sage
+      new THREE.Color(0x7A5548), // deep mocha
+    ];
+
+    // Create multiple burst particle systems
+    const particleSystems: {
+      points: THREE.Points;
+      velocities: Float32Array;
+      startTimes: Float32Array;
+      lifespans: Float32Array;
+      origins: Float32Array;
+    }[] = [];
+
+    const createBurstSystem = (particleCount: number, baseSpeed: number, size: number) => {
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(particleCount * 3);
+      const colorAttrib = new Float32Array(particleCount * 3);
+      const sizes = new Float32Array(particleCount);
+      const velocities = new Float32Array(particleCount * 3);
+      const startTimes = new Float32Array(particleCount);
+      const lifespans = new Float32Array(particleCount);
+      const origins = new Float32Array(particleCount * 3);
+
+      for (let i = 0; i < particleCount; i++) {
+        const i3 = i * 3;
+        
+        // Start at center with slight random offset
+        origins[i3] = (Math.random() - 0.5) * 4;
+        origins[i3 + 1] = (Math.random() - 0.5) * 4;
+        origins[i3 + 2] = -50 + Math.random() * 20; // Start behind
+        
+        positions[i3] = origins[i3];
+        positions[i3 + 1] = origins[i3 + 1];
+        positions[i3 + 2] = origins[i3 + 2];
+
+        // Velocity - burst outward in all directions, biased toward camera (+Z)
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(Math.random() * 2 - 1);
+        const speed = baseSpeed * (0.5 + Math.random() * 1.0);
+        
+        velocities[i3] = Math.sin(phi) * Math.cos(theta) * speed * 0.6;
+        velocities[i3 + 1] = Math.sin(phi) * Math.sin(theta) * speed * 0.6;
+        velocities[i3 + 2] = Math.abs(Math.cos(phi)) * speed * 1.5 + speed * 0.5; // Bias toward camera
+
+        // Random color from palette
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        colorAttrib[i3] = color.r;
+        colorAttrib[i3 + 1] = color.g;
+        colorAttrib[i3 + 2] = color.b;
+
+        // Random size with variation
+        sizes[i] = size * (0.3 + Math.random() * 1.0);
+
+        // Staggered start times for continuous effect
+        startTimes[i] = Math.random() * 3.0;
+        lifespans[i] = 2.0 + Math.random() * 2.0;
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colorAttrib, 3));
+      geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+      const material = new THREE.ShaderMaterial({
+        uniforms: {
+          u_time: { value: 0 },
+          u_pixelRatio: { value: renderer.getPixelRatio() }
+        },
+        vertexShader: `
+          attribute float size;
+          varying vec3 vColor;
+          varying float vAlpha;
+          uniform float u_time;
+          uniform float u_pixelRatio;
+          
+          void main() {
+            vColor = color;
+            
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            
+            // Size attenuation - particles get bigger as they come closer
+            float sizeAtten = size * u_pixelRatio * (300.0 / -mvPosition.z);
+            gl_PointSize = clamp(sizeAtten, 1.0, 100.0);
+            
+            // Alpha based on distance
+            float dist = length(position.xy);
+            vAlpha = smoothstep(80.0, 0.0, dist) * smoothstep(-10.0, 30.0, position.z);
+            
+            gl_Position = projectionMatrix * mvPosition;
+          }
+        `,
+        fragmentShader: `
+          varying vec3 vColor;
+          varying float vAlpha;
+          
+          void main() {
+            // Soft circular particle
+            vec2 center = gl_PointCoord - 0.5;
+            float dist = length(center);
+            float alpha = smoothstep(0.5, 0.1, dist) * vAlpha;
+            
+            // Add glow
+            float glow = exp(-dist * 3.0) * 0.5;
+            
+            vec3 finalColor = vColor + vColor * glow;
+            
+            if (alpha < 0.01) discard;
+            
+            gl_FragColor = vec4(finalColor, alpha);
+          }
+        `,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        vertexColors: true
+      });
+
+      const points = new THREE.Points(geometry, material);
+      scene.add(points);
+
+      return { points, velocities, startTimes, lifespans, origins };
     };
-    uniformsRef.current = uniforms;
 
-    const geometry = new THREE.PlaneGeometry(2, 2);
+    // Create main burst system - large colorful particles
+    particleSystems.push(createBurstSystem(800, 15, 3.0));
+    
+    // Create secondary system - medium particles for depth
+    particleSystems.push(createBurstSystem(1200, 20, 2.0));
+    
+    // Create dust system - fine grain particles
+    particleSystems.push(createBurstSystem(2000, 25, 1.0));
 
-    const fragmentShader = `
-      uniform vec2 u_resolution;
-      uniform float u_time;
-      uniform vec2 u_tilt;
+    // Create ambient floating particles
+    const ambientGeometry = new THREE.BufferGeometry();
+    const ambientCount = 500;
+    const ambientPositions = new Float32Array(ambientCount * 3);
+    const ambientColors = new Float32Array(ambientCount * 3);
+    const ambientSizes = new Float32Array(ambientCount);
 
-      // High quality hash
-      float hash(vec2 p) {
-        vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-        p3 += dot(p3, p3.yzx + 33.33);
-        return fract((p3.x + p3.y) * p3.z);
-      }
+    for (let i = 0; i < ambientCount; i++) {
+      const i3 = i * 3;
+      ambientPositions[i3] = (Math.random() - 0.5) * 100;
+      ambientPositions[i3 + 1] = (Math.random() - 0.5) * 100;
+      ambientPositions[i3 + 2] = (Math.random() - 0.5) * 100;
+      
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      ambientColors[i3] = color.r;
+      ambientColors[i3 + 1] = color.g;
+      ambientColors[i3 + 2] = color.b;
+      
+      ambientSizes[i] = 0.5 + Math.random() * 1.5;
+    }
 
-      float hash3(vec3 p) {
-        p = fract(p * 0.1031);
-        p += dot(p, p.zyx + 31.32);
-        return fract((p.x + p.y) * p.z);
-      }
+    ambientGeometry.setAttribute('position', new THREE.BufferAttribute(ambientPositions, 3));
+    ambientGeometry.setAttribute('color', new THREE.BufferAttribute(ambientColors, 3));
+    ambientGeometry.setAttribute('size', new THREE.BufferAttribute(ambientSizes, 1));
 
-      // Smooth noise
-      float noise(vec2 p) {
-        vec2 i = floor(p);
-        vec2 f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
+    const ambientMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        u_time: { value: 0 },
+        u_pixelRatio: { value: renderer.getPixelRatio() }
+      },
+      vertexShader: `
+        attribute float size;
+        varying vec3 vColor;
+        varying float vAlpha;
+        uniform float u_time;
+        uniform float u_pixelRatio;
         
-        float a = hash(i);
-        float b = hash(i + vec2(1.0, 0.0));
-        float c = hash(i + vec2(0.0, 1.0));
-        float d = hash(i + vec2(1.0, 1.0));
-        
-        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-      }
-
-      // FBM for organic shapes
-      float fbm(vec2 p) {
-        float value = 0.0;
-        float amplitude = 0.5;
-        float frequency = 1.0;
-        for (int i = 0; i < 6; i++) {
-          value += amplitude * noise(p * frequency);
-          frequency *= 2.0;
-          amplitude *= 0.5;
+        void main() {
+          vColor = color;
+          
+          // Gentle floating motion
+          vec3 pos = position;
+          pos.x += sin(u_time * 0.3 + position.y * 0.1) * 2.0;
+          pos.y += cos(u_time * 0.2 + position.x * 0.1) * 2.0;
+          pos.z += sin(u_time * 0.1 + position.z * 0.1) * 1.0;
+          
+          vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+          gl_PointSize = size * u_pixelRatio * (200.0 / -mvPosition.z);
+          
+          vAlpha = 0.3;
+          
+          gl_Position = projectionMatrix * mvPosition;
         }
-        return value;
-      }
-
-      // Voronoi for grain texture
-      float voronoi(vec2 p) {
-        vec2 i = floor(p);
-        vec2 f = fract(p);
-        float minDist = 1.0;
-        for (int x = -1; x <= 1; x++) {
-          for (int y = -1; y <= 1; y++) {
-            vec2 neighbor = vec2(float(x), float(y));
-            vec2 point = vec2(hash(i + neighbor), hash(i + neighbor + 100.0));
-            vec2 diff = neighbor + point - f;
-            minDist = min(minDist, length(diff));
-          }
+      `,
+      fragmentShader: `
+        varying vec3 vColor;
+        varying float vAlpha;
+        
+        void main() {
+          vec2 center = gl_PointCoord - 0.5;
+          float dist = length(center);
+          float alpha = smoothstep(0.5, 0.2, dist) * vAlpha;
+          
+          if (alpha < 0.01) discard;
+          
+          gl_FragColor = vec4(vColor, alpha);
         }
-        return minDist;
-      }
-
-      void main() {
-        vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-        vec2 center = vec2(0.5, 0.5);
-        
-        // Apply tilt offset
-        vec2 tiltOffset = u_tilt * 0.08;
-        uv += tiltOffset;
-        
-        float t = u_time * 0.4;
-        
-        // TRACE color palette - sage, mocha, cream
-        vec3 sage = vec3(0.55, 0.65, 0.50);
-        vec3 deepSage = vec3(0.35, 0.45, 0.32);
-        vec3 mocha = vec3(0.62, 0.45, 0.35);
-        vec3 darkMocha = vec3(0.45, 0.30, 0.22);
-        vec3 cream = vec3(0.96, 0.93, 0.86);
-        vec3 warmCream = vec3(0.92, 0.85, 0.72);
-        vec3 dusty = vec3(0.78, 0.72, 0.65);
-        
-        // Background
-        vec3 bgColor = vec3(0.05, 0.05, 0.06);
-        
-        vec3 color = bgColor;
-        float totalIntensity = 0.0;
-        
-        // Create multiple explosive color bursts
-        for (float i = 0.0; i < 8.0; i++) {
-          // Each burst has unique timing and position
-          float burstPhase = t * 0.3 + i * 0.785;
-          float burstCycle = fract(burstPhase * 0.15);
-          
-          // Burst center position - moves around
-          vec2 burstCenter = center;
-          burstCenter.x += sin(t * 0.2 + i * 1.2) * 0.15 + sin(i * 2.3) * 0.1;
-          burstCenter.y += cos(t * 0.15 + i * 0.9) * 0.12 + cos(i * 1.7) * 0.08;
-          burstCenter += tiltOffset * 0.5;
-          
-          vec2 toCenter = uv - burstCenter;
-          float dist = length(toCenter);
-          float angle = atan(toCenter.y, toCenter.x);
-          
-          // Explosive burst pattern - expanding waves
-          float burstWave = sin(dist * 15.0 - burstPhase * 2.0 + angle * 3.0);
-          burstWave *= exp(-dist * 2.5);
-          
-          // Organic shape distortion
-          float organic = fbm(uv * 3.0 + vec2(cos(burstPhase), sin(burstPhase)) * 0.5);
-          float shape = smoothstep(0.6 + organic * 0.3, 0.0, dist);
-          
-          // Swirling internal motion
-          float swirl = fbm(vec2(angle * 2.0 + t * 0.3, dist * 4.0 - t * 0.5) + i);
-          
-          // Color selection based on burst index
-          vec3 burstColor;
-          float colorIndex = mod(i, 4.0);
-          if (colorIndex < 1.0) {
-            burstColor = mix(sage, cream, swirl);
-          } else if (colorIndex < 2.0) {
-            burstColor = mix(mocha, warmCream, swirl);
-          } else if (colorIndex < 3.0) {
-            burstColor = mix(deepSage, dusty, swirl);
-          } else {
-            burstColor = mix(darkMocha, sage, swirl);
-          }
-          
-          // Add color variation within burst
-          burstColor = mix(burstColor, cream, smoothstep(0.3, 0.0, dist) * 0.4);
-          
-          // Intensity falloff
-          float intensity = shape * (0.5 + 0.5 * burstWave);
-          intensity *= 0.7 + 0.3 * sin(burstPhase + i);
-          
-          color += burstColor * intensity * 0.35;
-          totalIntensity += intensity;
-        }
-        
-        // Add secondary smaller bursts
-        for (float j = 0.0; j < 12.0; j++) {
-          float phase = t * 0.5 + j * 0.523;
-          
-          vec2 pos = center;
-          pos.x += sin(phase * 0.7 + j * 1.1) * 0.25;
-          pos.y += cos(phase * 0.6 + j * 0.8) * 0.2;
-          pos += tiltOffset * 0.3;
-          
-          float d = length(uv - pos);
-          float burst = exp(-d * 8.0) * (0.5 + 0.5 * sin(phase * 2.0));
-          
-          vec3 col = mod(j, 3.0) < 1.0 ? sage : (mod(j, 3.0) < 2.0 ? mocha : cream);
-          color += col * burst * 0.25;
-        }
-        
-        // Add grain/dust particles around edges
-        float grain = 0.0;
-        for (float k = 0.0; k < 150.0; k++) {
-          vec2 seed = vec2(hash(vec2(k, 0.0)), hash(vec2(0.0, k)));
-          
-          // Particles move outward from bursts
-          float particleTime = t * 0.3 + k * 0.1;
-          float radius = 0.1 + fract(particleTime * 0.2 + seed.x) * 0.6;
-          float pAngle = seed.y * 6.28318 + particleTime * 0.2;
-          
-          vec2 particlePos = center + vec2(cos(pAngle), sin(pAngle)) * radius;
-          particlePos += tiltOffset * (0.2 + seed.x * 0.3);
-          particlePos.x += sin(particleTime + k) * 0.05;
-          particlePos.y += cos(particleTime * 1.1 + k) * 0.04;
-          
-          float pDist = length(uv - particlePos);
-          float pSize = 0.002 + seed.x * 0.004;
-          
-          float particle = smoothstep(pSize * 2.0, 0.0, pDist);
-          particle *= 0.3 + 0.7 * seed.y;
-          
-          grain += particle;
-        }
-        
-        // Add grain with cream color
-        color += cream * grain * 0.4;
-        
-        // Edge dust cloud
-        float edgeDist = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
-        float edgeDust = fbm(uv * 8.0 + t * 0.1) * smoothstep(0.2, 0.0, edgeDist);
-        color += dusty * edgeDust * 0.15;
-        
-        // Fine grain texture overlay
-        float fineGrain = hash(uv * u_resolution.xy + t * 100.0);
-        color += (fineGrain - 0.5) * 0.03;
-        
-        // Subtle vignette
-        float vignette = 1.0 - length(uv - center) * 0.3;
-        color *= vignette;
-        
-        // Ensure colors stay vibrant
-        color = max(color, bgColor);
-        
-        gl_FragColor = vec4(color, 1.0);
-      }
-    `;
-
-    const vertexShader = `
-      void main() {
-        gl_Position = vec4(position, 1.0);
-      }
-    `;
-
-    const material = new THREE.ShaderMaterial({
-      uniforms,
-      fragmentShader,
-      vertexShader
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      vertexColors: true
     });
 
-    const mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
+    const ambientParticles = new THREE.Points(ambientGeometry, ambientMaterial);
+    scene.add(ambientParticles);
 
     startTimeRef.current = performance.now();
 
     const animate = () => {
       animationRef.current = requestAnimationFrame(animate);
       const elapsed = (performance.now() - startTimeRef.current) / 1000.0;
-      uniforms.u_time.value = elapsed;
       setTimeElapsed(Math.floor(elapsed));
+
+      // Apply tilt to camera
+      if (cameraRef.current) {
+        cameraRef.current.position.x = tiltRef.current.x * 5;
+        cameraRef.current.position.y = tiltRef.current.y * 3;
+        cameraRef.current.lookAt(0, 0, 0);
+      }
+
+      // Update particle systems
+      particleSystems.forEach((system) => {
+        const positions = system.points.geometry.attributes.position.array as Float32Array;
+        const particleCount = positions.length / 3;
+        
+        (system.points.material as THREE.ShaderMaterial).uniforms.u_time.value = elapsed;
+
+        for (let i = 0; i < particleCount; i++) {
+          const i3 = i * 3;
+          
+          // Calculate particle age with loop
+          const cycleTime = 3.0; // Burst cycle duration
+          const particleTime = (elapsed - system.startTimes[i]) % cycleTime;
+          const lifeProgress = particleTime / system.lifespans[i];
+
+          if (lifeProgress < 1.0 && lifeProgress >= 0) {
+            // Particle is alive - update position
+            const easeOut = 1.0 - Math.pow(1.0 - lifeProgress, 2);
+            
+            positions[i3] = system.origins[i3] + system.velocities[i3] * particleTime * easeOut;
+            positions[i3 + 1] = system.origins[i3 + 1] + system.velocities[i3 + 1] * particleTime * easeOut;
+            positions[i3 + 2] = system.origins[i3 + 2] + system.velocities[i3 + 2] * particleTime * easeOut;
+            
+            // Add wobble
+            const wobble = Math.sin(elapsed * 3 + i) * 0.5;
+            positions[i3] += wobble;
+            positions[i3 + 1] += wobble * 0.5;
+          } else {
+            // Reset particle to origin for next burst
+            positions[i3] = system.origins[i3];
+            positions[i3 + 1] = system.origins[i3 + 1];
+            positions[i3 + 2] = system.origins[i3 + 2];
+          }
+        }
+
+        system.points.geometry.attributes.position.needsUpdate = true;
+      });
+
+      // Update ambient material time
+      (ambientMaterial as THREE.ShaderMaterial).uniforms.u_time.value = elapsed;
+
       renderer.render(scene, camera);
     };
     animate();
@@ -294,13 +338,20 @@ export function RisingScreen({
       const w = container.clientWidth;
       const h = container.clientHeight;
       renderer.setSize(w, h);
-      uniforms.u_resolution.value.set(w, h);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
     };
     window.addEventListener('resize', handleResize);
 
     return () => {
       cancelAnimationFrame(animationRef.current);
       window.removeEventListener('resize', handleResize);
+      particleSystems.forEach(system => {
+        system.points.geometry.dispose();
+        (system.points.material as THREE.Material).dispose();
+      });
+      ambientGeometry.dispose();
+      ambientMaterial.dispose();
       if (rendererRef.current) {
         rendererRef.current.dispose();
         if (container.contains(rendererRef.current.domElement)) {
@@ -314,11 +365,8 @@ export function RisingScreen({
     if (!tiltEnabled) return;
 
     const handleTilt = (e: DeviceOrientationEvent) => {
-      if (uniformsRef.current) {
-        const tx = (e.gamma || 0) / 20;
-        const ty = (e.beta || 0) / 20;
-        uniformsRef.current.u_tilt.value.set(tx, ty);
-      }
+      tiltRef.current.x = (e.gamma || 0) / 30;
+      tiltRef.current.y = (e.beta || 0) / 30;
     };
 
     window.addEventListener('deviceorientation', handleTilt);
@@ -360,7 +408,7 @@ export function RisingScreen({
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden" style={{ background: '#0D0D0F' }}>
+    <div className="relative w-full h-full overflow-hidden" style={{ background: '#0a0a0c' }}>
       <div 
         ref={containerRef} 
         className="absolute inset-0"
