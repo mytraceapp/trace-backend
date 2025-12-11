@@ -63,47 +63,39 @@ export function RisingScreen({
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Vibes palette - clustered by color family
+    // Helper to create lighter/darker ambient variations
+    const createVariations = (baseColors: number[]): THREE.Color[] => {
+      const result: THREE.Color[] = [];
+      baseColors.forEach(hex => {
+        const base = new THREE.Color(hex);
+        result.push(base);
+        // Lighter version
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0xffffff), 0.3));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0xffffff), 0.5));
+        // Darker version
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0x000000), 0.2));
+        result.push(new THREE.Color().copy(base).lerp(new THREE.Color(0x000000), 0.35));
+      });
+      return result;
+    };
+
+    // Vibes palette with ambient variations
     const colorFamilies = [
-      // Teal family - cluster 0 (UP direction)
-      [
-        new THREE.Color(0x3D6B6E),
-        new THREE.Color(0x4A7C7E),
-        new THREE.Color(0x5A8B8D),
-        new THREE.Color(0x2D5558),
-        new THREE.Color(0x6A9B9E),
-      ],
-      // Sage family - cluster 1 (RIGHT direction)
-      [
-        new THREE.Color(0x6B9E8C),
-        new THREE.Color(0x7AAE9C),
-        new THREE.Color(0x5A8E7C),
-        new THREE.Color(0x8ABEA8),
-        new THREE.Color(0x4A7E6C),
-      ],
-      // Orange family - cluster 2 (DOWN direction)
-      [
-        new THREE.Color(0xD97B3D),
-        new THREE.Color(0xE88B4D),
-        new THREE.Color(0xC96B2D),
-        new THREE.Color(0xF09B5D),
-        new THREE.Color(0xB85B1D),
-      ],
-      // Cream family - cluster 3 (LEFT direction)
-      [
-        new THREE.Color(0xF5EFE6),
-        new THREE.Color(0xE8DED1),
-        new THREE.Color(0xD4C9BC),
-        new THREE.Color(0xFAF6F0),
-        new THREE.Color(0xEDE4D8),
-      ],
+      // Teal family (cluster 0) - bursts FIRST
+      createVariations([0x3D6B6E, 0x4A7C7E, 0x5A8B8D, 0x2D5558]),
+      // Sage family (cluster 1) - bursts SECOND
+      createVariations([0x6B9E8C, 0x7AAE9C, 0x5A8E7C, 0x8ABEA8]),
+      // Orange family (cluster 2) - bursts THIRD
+      createVariations([0xD97B3D, 0xE88B4D, 0xC96B2D, 0xF09B5D]),
+      // Cream family (cluster 3) - bursts FOURTH
+      createVariations([0xF5EFE6, 0xE8DED1, 0xD4C9BC, 0xEDE4D8]),
     ];
 
-    const frameHeight = 35;
-    const frameWidth = frameHeight * (width / height) * 0.85;
+    // Burst delay for each cluster (sequential bursting)
+    const clusterDelays = [0.0, 1.8, 3.6, 5.4]; // Each cluster starts 1.8s after previous
     
-    // Main particles - clustered by color, start invisible at center
-    const particleCount = 12000;
+    // More particles to fill the screen
+    const particleCount = 18000;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const colorAttrib = new Float32Array(particleCount * 3);
@@ -122,7 +114,7 @@ export function RisingScreen({
       const cluster = Math.floor(Math.random() * 4);
       clusterIds[i] = cluster;
       
-      // All particles start at CENTER (invisible until burst)
+      // All particles start at CENTER
       origins[i3] = 0;
       origins[i3 + 1] = 0;
       origins[i3 + 2] = -5;
@@ -131,10 +123,10 @@ export function RisingScreen({
       positions[i3 + 1] = 0;
       positions[i3 + 2] = -5;
 
-      // Direction based on cluster - each color family goes a different direction
-      const speed = 8 + Math.random() * 18;
-      const spread = (Math.random() - 0.5) * 12;
-      const towardCamera = 12 + Math.random() * 25;
+      // Direction based on cluster - spread wider to fill screen
+      const speed = 12 + Math.random() * 28;
+      const spread = (Math.random() - 0.5) * 20;
+      const towardCamera = 15 + Math.random() * 35;
       
       let vx = 0, vy = 0;
       switch (cluster) {
@@ -160,26 +152,26 @@ export function RisingScreen({
       velocities[i3 + 1] = vy;
       velocities[i3 + 2] = towardCamera;
 
-      // Color from the cluster's family
+      // Color from the cluster's family (with ambient variations)
       const family = colorFamilies[cluster];
       const color = family[Math.floor(Math.random() * family.length)];
       colorAttrib[i3] = color.r;
       colorAttrib[i3 + 1] = color.g;
       colorAttrib[i3 + 2] = color.b;
 
-      // Varied sizes
+      // Varied sizes - bigger for more screen coverage
       const sizeType = Math.random();
-      if (sizeType < 0.12) {
-        sizes[i] = 5 + Math.random() * 6;
-      } else if (sizeType < 0.35) {
-        sizes[i] = 2.5 + Math.random() * 3;
+      if (sizeType < 0.1) {
+        sizes[i] = 6 + Math.random() * 8;
+      } else if (sizeType < 0.3) {
+        sizes[i] = 3 + Math.random() * 4;
       } else {
-        sizes[i] = 0.6 + Math.random() * 1.8;
+        sizes[i] = 0.8 + Math.random() * 2.2;
       }
 
-      // Staggered slow burst
-      startTimes[i] = Math.random() * 3.0;
-      lifespans[i] = 3.0 + Math.random() * 2.5;
+      // Start times within each cluster's burst window
+      startTimes[i] = clusterDelays[cluster] + Math.random() * 1.5;
+      lifespans[i] = 4.0 + Math.random() * 3.0;
       phases[i] = Math.random() * Math.PI * 2;
     }
 
@@ -204,15 +196,14 @@ export function RisingScreen({
           
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           
-          float sizeAtten = size * u_pixelRatio * (280.0 / -mvPosition.z);
-          gl_PointSize = clamp(sizeAtten, 1.0, 120.0);
+          float sizeAtten = size * u_pixelRatio * (300.0 / -mvPosition.z);
+          gl_PointSize = clamp(sizeAtten, 1.0, 140.0);
           
-          // Alpha based on distance from center - invisible at center, visible when moving out
+          // Alpha based on distance from center - invisible at center
           float distFromCenter = length(position.xy);
-          float zProgress = smoothstep(-5.0, 30.0, position.z);
+          float zProgress = smoothstep(-5.0, 40.0, position.z);
           
-          // Only visible once burst out from center
-          vAlpha = smoothstep(0.0, 5.0, distFromCenter) * smoothstep(-5.0, 5.0, position.z) * (1.0 - zProgress * 0.3);
+          vAlpha = smoothstep(0.0, 4.0, distFromCenter) * smoothstep(-5.0, 3.0, position.z) * (1.0 - zProgress * 0.4);
           
           gl_Position = projectionMatrix * mvPosition;
         }
@@ -227,12 +218,12 @@ export function RisingScreen({
           
           float alpha = smoothstep(0.5, 0.0, dist) * vAlpha;
           
-          float glow = exp(-dist * 3.0) * 0.4;
-          vec3 finalColor = vColor + vec3(1.0) * glow * 0.15;
+          float glow = exp(-dist * 2.8) * 0.35;
+          vec3 finalColor = vColor + vec3(1.0) * glow * 0.12;
           
-          if (alpha < 0.01) discard;
+          if (alpha < 0.008) discard;
           
-          gl_FragColor = vec4(finalColor, alpha * 0.9);
+          gl_FragColor = vec4(finalColor, alpha * 0.92);
         }
       `,
       transparent: true,
@@ -244,7 +235,9 @@ export function RisingScreen({
     const particles = new THREE.Points(geometry, material);
     scene.add(particles);
 
-    // Phone frame
+    // Phone frame (subtle)
+    const frameHeight = 35;
+    const frameWidth = frameHeight * (width / height) * 0.85;
     const frameShape = new THREE.Shape();
     const cornerRadius = 2;
     const hw = frameWidth / 2;
@@ -267,13 +260,13 @@ export function RisingScreen({
     const frameMaterial = new THREE.LineBasicMaterial({ 
       color: 0xdddddd, 
       transparent: true, 
-      opacity: 0.3 
+      opacity: 0.25 
     });
     const frameLine = new THREE.LineLoop(frameGeometry, frameMaterial);
     scene.add(frameLine);
 
-    // Edge grain particles
-    const grainCount = 2000;
+    // Edge grain particles with sequential timing
+    const grainCount = 3000;
     const grainGeometry = new THREE.BufferGeometry();
     const grainPositions = new Float32Array(grainCount * 3);
     const grainColors = new Float32Array(grainCount * 3);
@@ -282,12 +275,10 @@ export function RisingScreen({
     const grainStarts = new Float32Array(grainCount);
     const grainLifes = new Float32Array(grainCount);
     const grainOrigins = new Float32Array(grainCount * 3);
-    const grainClusters = new Float32Array(grainCount);
 
     for (let i = 0; i < grainCount; i++) {
       const i3 = i * 3;
       
-      // Start at center
       grainOrigins[i3] = 0;
       grainOrigins[i3 + 1] = 0;
       grainOrigins[i3 + 2] = 0;
@@ -297,10 +288,9 @@ export function RisingScreen({
       grainPositions[i3 + 2] = 0;
       
       const cluster = Math.floor(Math.random() * 4);
-      grainClusters[i] = cluster;
       
-      const gSpeed = 5 + Math.random() * 12;
-      const gSpread = (Math.random() - 0.5) * 8;
+      const gSpeed = 8 + Math.random() * 18;
+      const gSpread = (Math.random() - 0.5) * 14;
       
       let gvx = 0, gvy = 0;
       switch (cluster) {
@@ -312,7 +302,7 @@ export function RisingScreen({
       
       grainVelocities[i3] = gvx;
       grainVelocities[i3 + 1] = gvy;
-      grainVelocities[i3 + 2] = 6 + Math.random() * 12;
+      grainVelocities[i3 + 2] = 8 + Math.random() * 16;
       
       const family = colorFamilies[cluster];
       const gColor = family[Math.floor(Math.random() * family.length)];
@@ -320,9 +310,9 @@ export function RisingScreen({
       grainColors[i3 + 1] = gColor.g;
       grainColors[i3 + 2] = gColor.b;
       
-      grainSizes[i] = 0.3 + Math.random() * 1.0;
-      grainStarts[i] = Math.random() * 3.5;
-      grainLifes[i] = 2.5 + Math.random() * 2.0;
+      grainSizes[i] = 0.4 + Math.random() * 1.2;
+      grainStarts[i] = clusterDelays[cluster] + Math.random() * 1.5;
+      grainLifes[i] = 3.5 + Math.random() * 2.5;
     }
 
     grainGeometry.setAttribute('position', new THREE.BufferAttribute(grainPositions, 3));
@@ -343,10 +333,10 @@ export function RisingScreen({
         void main() {
           vColor = color;
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = size * u_pixelRatio * (160.0 / -mvPosition.z);
+          gl_PointSize = size * u_pixelRatio * (180.0 / -mvPosition.z);
           
           float distFromCenter = length(position.xy);
-          vAlpha = smoothstep(0.0, 3.0, distFromCenter) * smoothstep(-2.0, 8.0, position.z) * 0.7;
+          vAlpha = smoothstep(0.0, 3.0, distFromCenter) * smoothstep(-2.0, 6.0, position.z) * 0.65;
           
           gl_Position = projectionMatrix * mvPosition;
         }
@@ -373,6 +363,9 @@ export function RisingScreen({
     scene.add(grainParticles);
 
     startTimeRef.current = performance.now();
+    
+    // Total cycle time for all clusters to burst sequentially
+    const totalCycleTime = 12.0;
 
     const animate = () => {
       animationRef.current = requestAnimationFrame(animate);
@@ -393,31 +386,34 @@ export function RisingScreen({
       for (let i = 0; i < posCount; i++) {
         const i3 = i * 3;
         
-        const cycleTime = 5.5;
-        const particleTime = (elapsed - startTimes[i] + cycleTime) % cycleTime;
-        const lifeProgress = particleTime / lifespans[i];
+        // Use modulo for continuous looping
+        const cycleElapsed = elapsed % totalCycleTime;
+        const particleTime = cycleElapsed - startTimes[i];
 
-        if (lifeProgress >= 0 && lifeProgress < 1.0) {
-          // Very smooth, slow easing for gentle burst
-          const easeOut = 1.0 - Math.pow(1.0 - Math.min(lifeProgress * 1.2, 1.0), 3);
+        if (particleTime >= 0) {
+          const lifeProgress = Math.min(particleTime / lifespans[i], 1.0);
           
-          posAttr[i3] = origins[i3] + velocities[i3] * particleTime * easeOut;
-          posAttr[i3 + 1] = origins[i3 + 1] + velocities[i3 + 1] * particleTime * easeOut;
-          posAttr[i3 + 2] = origins[i3 + 2] + velocities[i3 + 2] * particleTime * easeOut;
+          // Smooth slow easing
+          const easeOut = 1.0 - Math.pow(1.0 - Math.min(lifeProgress * 1.1, 1.0), 2.5);
           
-          // Gentle scatter at end
-          if (lifeProgress > 0.7) {
-            const scatterProgress = (lifeProgress - 0.7) / 0.3;
-            const scatterForce = Math.pow(scatterProgress, 2) * 8;
+          posAttr[i3] = origins[i3] + velocities[i3] * particleTime * easeOut * 0.85;
+          posAttr[i3 + 1] = origins[i3 + 1] + velocities[i3 + 1] * particleTime * easeOut * 0.85;
+          posAttr[i3 + 2] = origins[i3 + 2] + velocities[i3 + 2] * particleTime * easeOut * 0.85;
+          
+          // Gentle drift after burst
+          if (lifeProgress > 0.6) {
+            const driftProgress = (lifeProgress - 0.6) / 0.4;
+            const driftForce = Math.pow(driftProgress, 1.8) * 6;
             
-            posAttr[i3] += Math.sin(phases[i] * 5 + elapsed * 2) * scatterForce;
-            posAttr[i3 + 1] += Math.cos(phases[i] * 4 + elapsed * 2.5) * scatterForce;
+            posAttr[i3] += Math.sin(phases[i] * 4 + elapsed * 1.5) * driftForce;
+            posAttr[i3 + 1] += Math.cos(phases[i] * 3 + elapsed * 1.8) * driftForce;
           }
           
           // Subtle wobble
-          const wobble = Math.sin(elapsed * 1.5 + phases[i]) * 0.3;
+          const wobble = Math.sin(elapsed * 1.2 + phases[i]) * 0.25;
           posAttr[i3] += wobble;
         } else {
+          // Not yet started - stay at center (invisible)
           posAttr[i3] = origins[i3];
           posAttr[i3 + 1] = origins[i3 + 1];
           posAttr[i3 + 2] = origins[i3 + 2];
@@ -425,21 +421,21 @@ export function RisingScreen({
       }
       particles.geometry.attributes.position.needsUpdate = true;
 
-      // Update grain
+      // Update grain with same sequential timing
       const grainPos = grainParticles.geometry.attributes.position.array as Float32Array;
       const grainCnt = grainPos.length / 3;
       
       for (let i = 0; i < grainCnt; i++) {
         const i3 = i * 3;
-        const cycleTime = 5.5;
-        const pTime = (elapsed - grainStarts[i] + cycleTime) % cycleTime;
-        const life = pTime / grainLifes[i];
+        const cycleElapsed = elapsed % totalCycleTime;
+        const pTime = cycleElapsed - grainStarts[i];
         
-        if (life >= 0 && life < 1.0) {
-          const ease = 1.0 - Math.pow(1.0 - Math.min(life * 1.3, 1.0), 3);
-          grainPos[i3] = grainOrigins[i3] + grainVelocities[i3] * pTime * ease;
-          grainPos[i3 + 1] = grainOrigins[i3 + 1] + grainVelocities[i3 + 1] * pTime * ease;
-          grainPos[i3 + 2] = grainOrigins[i3 + 2] + grainVelocities[i3 + 2] * pTime * ease;
+        if (pTime >= 0) {
+          const life = Math.min(pTime / grainLifes[i], 1.0);
+          const ease = 1.0 - Math.pow(1.0 - Math.min(life * 1.2, 1.0), 2.5);
+          grainPos[i3] = grainOrigins[i3] + grainVelocities[i3] * pTime * ease * 0.85;
+          grainPos[i3 + 1] = grainOrigins[i3 + 1] + grainVelocities[i3 + 1] * pTime * ease * 0.85;
+          grainPos[i3 + 2] = grainOrigins[i3 + 2] + grainVelocities[i3 + 2] * pTime * ease * 0.85;
         } else {
           grainPos[i3] = grainOrigins[i3];
           grainPos[i3 + 1] = grainOrigins[i3 + 1];
