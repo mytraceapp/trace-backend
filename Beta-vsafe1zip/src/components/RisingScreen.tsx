@@ -86,10 +86,26 @@ export function RisingScreen({
       createRichVariations([0xF5EFE6, 0xE8DED1, 0xD4C9BC, 0xEDE4D8, 0xFAF6F0, 0xC9BEB1]), // Cream
     ];
 
-    // Sequential cluster burst timing - loops forever
-    const clusterBurstDuration = 4.0; // Time for each cluster to burst
-    const clusterGap = 3.5; // Gap between cluster bursts
-    const fullCycleDuration = 4 * (clusterBurstDuration + clusterGap); // Full cycle for all 4 clusters
+    // Generate random sequence for each cycle
+    const generateRandomSequence = (): number[] => {
+      const arr = [0, 1, 2, 3];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    };
+
+    // Burst timing - no gap, 25% slower
+    const burstDuration = 6.25; // 25% slower than 5.0
+    const clusterBurstTime = burstDuration; // No gap between bursts
+    const fullCycleDuration = 4 * clusterBurstTime;
+
+    // Pre-generate random sequences for many cycles
+    const randomSequences: number[][] = [];
+    for (let i = 0; i < 100; i++) {
+      randomSequences.push(generateRandomSequence());
+    }
 
     // ============================================
     // DENSE BACKGROUND PARTICLES - Always floating
@@ -106,7 +122,6 @@ export function RisingScreen({
       const i3 = i * 3;
       const cluster = Math.floor(Math.random() * 4);
       
-      // Spread across entire screen with cluster bias
       let homeX = (Math.random() - 0.5) * 95;
       let homeY = (Math.random() - 0.5) * 80;
       
@@ -191,7 +206,7 @@ export function RisingScreen({
     scene.add(bgParticles);
 
     // ============================================
-    // BURST PARTICLES - Sequential clusters, looping forever
+    // BURST PARTICLES - Random sequence, pop in place
     // ============================================
     const particleCount = 32000;
     const geometry = new THREE.BufferGeometry();
@@ -210,7 +225,6 @@ export function RisingScreen({
       const cluster = Math.floor(Math.random() * 4);
       clusterIds[i] = cluster;
       
-      // Strong cluster positioning
       let homeX = 0, homeY = 0;
       const spreadX = 30 + Math.random() * 25;
       const spreadY = 25 + Math.random() * 22;
@@ -238,9 +252,10 @@ export function RisingScreen({
       homePositions[i3 + 1] = homeY;
       homePositions[i3 + 2] = -12 + Math.random() * 55;
       
-      positions[i3] = 0;
-      positions[i3 + 1] = 0;
-      positions[i3 + 2] = -12;
+      // Start at home position (invisible until burst)
+      positions[i3] = homeX;
+      positions[i3 + 1] = homeY;
+      positions[i3 + 2] = homePositions[i3 + 2];
 
       const family = colorFamilies[cluster];
       const color = family[Math.floor(Math.random() * family.length)];
@@ -261,7 +276,7 @@ export function RisingScreen({
 
       phases[i] = Math.random() * Math.PI * 2;
       rotationSpeeds[i] = 0.12 + Math.random() * 0.35;
-      burstOffsets[i] = Math.random() * 2.8; // Stagger within cluster
+      burstOffsets[i] = Math.random() * 2.5; // Stagger within cluster
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -277,19 +292,20 @@ export function RisingScreen({
         attribute float size;
         varying vec3 vColor;
         varying float vAlpha;
+        varying float vSize;
         uniform float u_time;
         uniform float u_pixelRatio;
         
         void main() {
           vColor = color;
+          vSize = size;
           
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           
           float sizeAtten = size * u_pixelRatio * (360.0 / -mvPosition.z);
           gl_PointSize = clamp(sizeAtten, 1.0, 180.0);
           
-          float distFromCenter = length(position.xy);
-          vAlpha = smoothstep(0.0, 2.0, distFromCenter) * 0.96;
+          vAlpha = 1.0;
           
           gl_Position = projectionMatrix * mvPosition;
         }
@@ -297,6 +313,7 @@ export function RisingScreen({
       fragmentShader: `
         varying vec3 vColor;
         varying float vAlpha;
+        varying float vSize;
         
         void main() {
           vec2 center = gl_PointCoord - 0.5;
@@ -321,7 +338,7 @@ export function RisingScreen({
     const particles = new THREE.Points(geometry, material);
     scene.add(particles);
 
-    // Grain particles with cluster bursting
+    // Grain particles
     const grainCount = 10000;
     const grainGeometry = new THREE.BufferGeometry();
     const grainPositions = new Float32Array(grainCount * 3);
@@ -353,9 +370,9 @@ export function RisingScreen({
       grainHomes[i3 + 1] = gHomeY;
       grainHomes[i3 + 2] = Math.random() * 35;
       
-      grainPositions[i3] = 0;
-      grainPositions[i3 + 1] = 0;
-      grainPositions[i3 + 2] = 0;
+      grainPositions[i3] = gHomeX;
+      grainPositions[i3 + 1] = gHomeY;
+      grainPositions[i3 + 2] = grainHomes[i3 + 2];
       
       const family = colorFamilies[cluster];
       const gColor = family[Math.floor(Math.random() * family.length)];
@@ -365,7 +382,7 @@ export function RisingScreen({
       
       grainSizes[i] = 0.2 + Math.random() * 0.9;
       grainPhases[i] = Math.random() * Math.PI * 2;
-      grainBurstOffsets[i] = Math.random() * 2.8;
+      grainBurstOffsets[i] = Math.random() * 2.5;
     }
 
     grainGeometry.setAttribute('position', new THREE.BufferAttribute(grainPositions, 3));
@@ -387,10 +404,7 @@ export function RisingScreen({
           vColor = color;
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           gl_PointSize = size * u_pixelRatio * (240.0 / -mvPosition.z);
-          
-          float distFromCenter = length(position.xy);
-          vAlpha = smoothstep(0.0, 1.5, distFromCenter) * 0.5;
-          
+          vAlpha = 1.0;
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
@@ -415,6 +429,10 @@ export function RisingScreen({
     const grainParticles = new THREE.Points(grainGeometry, grainMaterial);
     scene.add(grainParticles);
 
+    // Track particle alphas for pop-in effect
+    const particleAlphas = new Float32Array(particleCount);
+    const grainAlphas = new Float32Array(grainCount);
+
     startTimeRef.current = performance.now();
 
     const animate = () => {
@@ -436,7 +454,6 @@ export function RisingScreen({
         const homeY = bgHomePositions[i3 + 1];
         const homeZ = bgHomePositions[i3 + 2];
         
-        // Continuous floating motion
         bgPosAttr[i3] = homeX + Math.sin(elapsed * 0.22 + bgPhases[i]) * 2.2;
         bgPosAttr[i3 + 1] = homeY + Math.cos(elapsed * 0.18 + bgPhases[i] * 1.2) * 1.8;
         bgPosAttr[i3 + 2] = homeZ + Math.sin(elapsed * 0.12 + bgPhases[i] * 0.8) * 1.2;
@@ -444,11 +461,14 @@ export function RisingScreen({
       bgParticles.geometry.attributes.position.needsUpdate = true;
       (bgMaterial as THREE.ShaderMaterial).uniforms.u_time.value = elapsed;
 
-      // Calculate which cluster is currently bursting (loops forever)
+      // Get current cycle and random sequence
+      const cycleIndex = Math.floor(elapsed / fullCycleDuration);
       const cycleTime = elapsed % fullCycleDuration;
-      
-      // Animate main burst particles - sequential by cluster
+      const currentSequence = randomSequences[cycleIndex % randomSequences.length];
+
+      // Animate main burst particles - pop in place with random sequence
       const posAttr = particles.geometry.attributes.position.array as Float32Array;
+      const sizeAttr = particles.geometry.attributes.size.array as Float32Array;
       const posCount = posAttr.length / 3;
       
       (material as THREE.ShaderMaterial).uniforms.u_time.value = elapsed;
@@ -457,41 +477,39 @@ export function RisingScreen({
         const i3 = i * 3;
         const cluster = clusterIds[i];
         
-        // Calculate when this cluster should burst in the cycle
-        const clusterStartTime = cluster * (clusterBurstDuration + clusterGap);
+        // Find this cluster's position in the random sequence
+        const sequencePosition = currentSequence.indexOf(cluster);
+        const clusterStartTime = sequencePosition * clusterBurstTime;
         const particleStartTime = clusterStartTime + burstOffsets[i];
         
-        // Time since this particle should burst (within current cycle)
         let timeSinceBurst = cycleTime - particleStartTime;
         
-        // Handle wrap-around for continuous looping
-        if (timeSinceBurst < -fullCycleDuration + clusterBurstDuration + 3) {
+        // Handle wrap-around
+        if (timeSinceBurst < -fullCycleDuration + burstDuration + 3) {
           timeSinceBurst += fullCycleDuration;
         }
-        
-        if (timeSinceBurst < 0) {
-          // Not yet burst in this cycle - stay at center (invisible)
-          posAttr[i3] = 0;
-          posAttr[i3 + 1] = 0;
-          posAttr[i3 + 2] = -12;
-          continue;
-        }
-        
-        // Burst progress (20% slower)
-        const burstDuration = 5.0;
-        const burstT = Math.min(1.0, timeSinceBurst / burstDuration);
-        const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.3);
         
         const homeX = homePositions[i3];
         const homeY = homePositions[i3 + 1];
         const homeZ = homePositions[i3 + 2];
         
-        let currentX = homeX * easeOut;
-        let currentY = homeY * easeOut;
-        let currentZ = -12 + (homeZ + 12) * easeOut;
+        if (timeSinceBurst < 0) {
+          // Not yet burst - invisible (size 0)
+          particleAlphas[i] = 0;
+        } else {
+          // Pop in effect - scale from 0 to full size
+          const popDuration = 0.8;
+          const popT = Math.min(1.0, timeSinceBurst / popDuration);
+          const popEase = 1.0 - Math.pow(1.0 - popT, 3);
+          particleAlphas[i] = popEase;
+        }
         
-        // Once settled, add rotation
-        if (burstT >= 0.65) {
+        // Position with floating motion
+        let currentX = homeX;
+        let currentY = homeY;
+        let currentZ = homeZ;
+        
+        if (particleAlphas[i] > 0.1) {
           const rotTime = elapsed * rotationSpeeds[i];
           const rotRadius = 1.0 + Math.sin(phases[i] * 3) * 0.8;
           
@@ -506,45 +524,48 @@ export function RisingScreen({
         posAttr[i3] = currentX;
         posAttr[i3 + 1] = currentY;
         posAttr[i3 + 2] = currentZ;
+        
+        // Scale size by alpha for pop effect
+        sizeAttr[i] = sizes[i] * particleAlphas[i];
       }
       particles.geometry.attributes.position.needsUpdate = true;
+      particles.geometry.attributes.size.needsUpdate = true;
 
-      // Update grain with same sequential timing
+      // Update grain with same logic
       const grainPos = grainParticles.geometry.attributes.position.array as Float32Array;
+      const grainSizeAttr = grainParticles.geometry.attributes.size.array as Float32Array;
       const grainCnt = grainPos.length / 3;
       
       for (let i = 0; i < grainCnt; i++) {
         const i3 = i * 3;
         const cluster = grainClusters[i];
         
-        const clusterStartTime = cluster * (clusterBurstDuration + clusterGap);
+        const sequencePosition = currentSequence.indexOf(cluster);
+        const clusterStartTime = sequencePosition * clusterBurstTime;
         const particleStartTime = clusterStartTime + grainBurstOffsets[i];
         
         let timeSinceBurst = cycleTime - particleStartTime;
         
-        if (timeSinceBurst < -fullCycleDuration + clusterBurstDuration + 3) {
+        if (timeSinceBurst < -fullCycleDuration + burstDuration + 3) {
           timeSinceBurst += fullCycleDuration;
         }
-        
-        if (timeSinceBurst < 0) {
-          grainPos[i3] = 0;
-          grainPos[i3 + 1] = 0;
-          grainPos[i3 + 2] = 0;
-          continue;
-        }
-        
-        const burstT = Math.min(1.0, timeSinceBurst / 5.0);
-        const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.3);
         
         const gHomeX = grainHomes[i3];
         const gHomeY = grainHomes[i3 + 1];
         const gHomeZ = grainHomes[i3 + 2];
         
-        let gX = gHomeX * easeOut;
-        let gY = gHomeY * easeOut;
-        let gZ = gHomeZ * easeOut;
+        if (timeSinceBurst < 0) {
+          grainAlphas[i] = 0;
+        } else {
+          const popT = Math.min(1.0, timeSinceBurst / 0.6);
+          grainAlphas[i] = 1.0 - Math.pow(1.0 - popT, 3);
+        }
         
-        if (burstT >= 0.65) {
+        let gX = gHomeX;
+        let gY = gHomeY;
+        let gZ = gHomeZ;
+        
+        if (grainAlphas[i] > 0.1) {
           const rotTime = elapsed * 0.22;
           gX += Math.sin(rotTime + grainPhases[i]) * 0.8;
           gY += Math.cos(rotTime + grainPhases[i] * 1.2) * 0.6;
@@ -553,8 +574,11 @@ export function RisingScreen({
         grainPos[i3] = gX;
         grainPos[i3 + 1] = gY;
         grainPos[i3 + 2] = gZ;
+        
+        grainSizeAttr[i] = grainSizes[i] * grainAlphas[i];
       }
       grainParticles.geometry.attributes.position.needsUpdate = true;
+      grainParticles.geometry.attributes.size.needsUpdate = true;
       
       (grainMaterial as THREE.ShaderMaterial).uniforms.u_time.value = elapsed;
 
