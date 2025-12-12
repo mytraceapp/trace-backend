@@ -777,7 +777,7 @@ export function RisingScreen({
         style={{ zIndex: 1 }}
       />
 
-      {/* TRACE Brand Name at top - same as Home page */}
+      {/* TRACE Brand Name at top - cream/white with strong glow for visibility */}
       <motion.div
         className="absolute z-10 w-full text-center pointer-events-none"
         style={{ top: '7%' }}
@@ -787,12 +787,11 @@ export function RisingScreen({
       >
         <h1 style={{ 
           fontFamily: 'ALORE, Georgia, serif',
-          color: '#5A4A3A',
-          fontWeight: 300,
+          color: '#FAF6F0',
+          fontWeight: 400,
           letterSpacing: '1em',
           fontSize: '11px',
-          textShadow: '0 0 15px rgba(90, 74, 58, 0.6), 0 0 30px rgba(90, 74, 58, 0.35), 0 2px 4px rgba(0,0,0,0.2)',
-          opacity: 0.92,
+          textShadow: '0 0 20px rgba(255, 255, 255, 0.9), 0 0 40px rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3)',
           paddingLeft: '1em',
         }}>
           TRACE
@@ -804,7 +803,7 @@ export function RisingScreen({
           <motion.div
             className="absolute z-10 pointer-events-none"
             style={{
-              top: '50%',
+              top: '38%',
               left: 0,
               right: 0,
               display: 'flex',
