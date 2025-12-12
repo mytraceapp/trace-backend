@@ -47,7 +47,7 @@ function RippleRing({ index, cx, cy, baseDelay, isSecondary = false }: RippleRin
   
   const duration = isSecondary ? 16000 : 14000;
   const delay = isSecondary ? (index * 3500 + 1000) : (index * 2200);
-  const startRadius = isSecondary ? 50 : 60;
+  const startRadius = isSecondary ? 35 : 42;
   const maxScale = isSecondary ? 6 : 5;
   const baseOpacity = isSecondary ? (0.35 - index * 0.06) : (0.44 - index * 0.05);
   const strokeWidth = isSecondary ? 2 : 3;
@@ -116,7 +116,7 @@ export default function RippleActivityScreen() {
   const centralGlowOpacity = useSharedValue(0.6);
 
   const centerX = SCREEN_WIDTH / 2;
-  const centerY = SCREEN_HEIGHT * 0.38;
+  const centerY = SCREEN_HEIGHT * 0.45;
 
   useEffect(() => {
     const loadAndPlayAudio = async () => {
@@ -299,12 +299,12 @@ export default function RippleActivityScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={[styles.ambientGlow, { top: centerY - 200, left: centerX - 200 }]} />
+      <View style={[styles.ambientGlow, { top: centerY - 140, left: centerX - 140 }]} />
 
       <Animated.View 
         style={[
           styles.centralGlow, 
-          { top: centerY - 150, left: centerX - 150 },
+          { top: centerY - 105, left: centerX - 105 },
           centralGlowStyle
         ]} 
       />
@@ -417,16 +417,16 @@ const styles = StyleSheet.create({
   },
   ambientGlow: {
     position: 'absolute',
-    width: 400,
-    height: 400,
-    borderRadius: 200,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
     backgroundColor: 'rgba(255, 255, 255, 0.4)',
   },
   centralGlow: {
     position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
+    width: 210,
+    height: 210,
+    borderRadius: 105,
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
   },
   fixedHeader: {
