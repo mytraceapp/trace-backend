@@ -501,7 +501,7 @@ export function BubbleScreen({
         </motion.div>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 z-30">
+      <div className="absolute bottom-0 left-0 right-0 z-30">
         <BottomNav
           activeScreen="activities"
           onNavigateHome={onReturnToChat}

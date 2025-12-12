@@ -519,7 +519,7 @@ export default function App() {
           <button onClick={() => setCurrentScreen("rainwindow")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Rain Window</button>
           <button onClick={() => setCurrentScreen("echo")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Echo</button>
           <button onClick={() => setCurrentScreen("rising")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Rising</button>
-          <button onClick={() => setCurrentScreen("bubble")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Bubble</button>
+          <button onClick={() => setCurrentScreen("bubble")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Drift</button>
           <button onClick={() => setCurrentScreen("entries")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Entries</button>
           <button onClick={() => setCurrentScreen("journal")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Journal</button>
           <button onClick={() => setCurrentScreen("patterns")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Patterns</button>

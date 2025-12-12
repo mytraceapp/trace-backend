@@ -943,9 +943,11 @@ export function PowerNapScreen({
       >
         <button 
           onClick={() => {
-            setIsResting(false);
-            setIsAwake(true);
             setAmbientTonePlaying(false);
+            setTimeout(() => {
+              setIsResting(false);
+              setIsAwake(true);
+            }, 600);
           }}
           className="w-full rounded-full px-8 py-4 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
           style={{
