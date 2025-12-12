@@ -143,81 +143,95 @@ export function RisingScreen({
           float vignette = 1.0 - length(vUv - 0.5) * 0.3;
           bgColor *= vignette;
           
-          // Color palette - luxurious muted tones
-          vec3 sageGlow = vec3(0.75, 0.85, 0.78);
-          vec3 roseGlow = vec3(0.92, 0.82, 0.80);
-          vec3 goldGlow = vec3(0.95, 0.90, 0.78);
-          vec3 pearlGlow = vec3(0.94, 0.93, 0.91);
+          // Color palette - VIBRANT saturated tones
+          vec3 sageGlow = vec3(0.4, 0.75, 0.55);      // Rich teal-sage
+          vec3 roseGlow = vec3(0.95, 0.55, 0.65);     // Vibrant rose
+          vec3 goldGlow = vec3(1.0, 0.8, 0.4);        // Bright gold
+          vec3 pearlGlow = vec3(0.95, 0.92, 1.0);     // Luminous pearl
+          vec3 coralGlow = vec3(1.0, 0.6, 0.5);       // Warm coral
           
           vec3 color = bgColor;
           float totalGlow = 0.0;
           
-          // Orb 1 - Large sage aura
+          // Orb 1 - Large sage aura with bright core
           vec2 c1 = vec2(
             0.35 * aspect + sin(t * 0.5) * 0.15 * aspect,
             0.65 + cos(t * 0.4) * 0.12
           );
-          float orb1 = glowOrb(uv, c1, 0.38);
-          color += sageGlow * orb1 * 0.35;
+          float orb1 = glowOrb(uv, c1, 0.4);
+          color += sageGlow * orb1 * 0.7;
           totalGlow += orb1;
           
           // Light rays from orb 1
-          for (float i = 0.0; i < 4.0; i++) {
-            float angle = t * 0.2 + i * 1.57;
-            color += sageGlow * lightRay(uv, c1, angle, 0.04, 0.5) * 0.7;
+          for (float i = 0.0; i < 5.0; i++) {
+            float angle = t * 0.25 + i * 1.256;
+            color += sageGlow * lightRay(uv, c1, angle, 0.05, 0.6) * 1.2;
           }
           
-          // Orb 2 - Medium rose aura
+          // Orb 2 - Vibrant rose aura
           vec2 c2 = vec2(
             0.65 * aspect + sin(t * 0.7 + 2.0) * 0.18 * aspect,
             0.35 + cos(t * 0.5 + 1.5) * 0.15
           );
-          float orb2 = glowOrb(uv, c2, 0.32);
-          color += roseGlow * orb2 * 0.32;
+          float orb2 = glowOrb(uv, c2, 0.35);
+          color += roseGlow * orb2 * 0.65;
           totalGlow += orb2;
           
           // Light rays from orb 2
-          for (float i = 0.0; i < 3.0; i++) {
-            float angle = -t * 0.15 + i * 2.094 + 0.5;
-            color += roseGlow * lightRay(uv, c2, angle, 0.035, 0.45) * 0.6;
+          for (float i = 0.0; i < 4.0; i++) {
+            float angle = -t * 0.2 + i * 1.57 + 0.5;
+            color += roseGlow * lightRay(uv, c2, angle, 0.045, 0.55) * 1.0;
           }
           
-          // Orb 3 - Small golden accent
+          // Orb 3 - Bright golden accent
           vec2 c3 = vec2(
             0.5 * aspect + sin(t * 0.9 + 4.0) * 0.22 * aspect,
             0.5 + cos(t * 0.6 + 3.0) * 0.2
           );
-          float orb3 = glowOrb(uv, c3, 0.26);
-          color += goldGlow * orb3 * 0.28;
+          float orb3 = glowOrb(uv, c3, 0.3);
+          color += goldGlow * orb3 * 0.6;
           totalGlow += orb3;
+          
+          // Light rays from gold orb
+          for (float i = 0.0; i < 3.0; i++) {
+            float angle = t * 0.3 + i * 2.094;
+            color += goldGlow * lightRay(uv, c3, angle, 0.04, 0.5) * 0.9;
+          }
           
           // Orb 4 - Pearl highlight top
           vec2 c4 = vec2(
             0.4 * aspect + sin(t * 0.4 + 1.0) * 0.12 * aspect,
             0.78 + cos(t * 0.35 + 2.5) * 0.08
           );
-          float orb4 = glowOrb(uv, c4, 0.24);
-          color += pearlGlow * orb4 * 0.22;
+          float orb4 = glowOrb(uv, c4, 0.28);
+          color += pearlGlow * orb4 * 0.5;
           
-          // Orb 5 - Sage bottom accent
+          // Orb 5 - Coral bottom accent
           vec2 c5 = vec2(
             0.6 * aspect + sin(t * 0.55 + 5.0) * 0.16 * aspect,
             0.22 + cos(t * 0.45 + 4.0) * 0.1
           );
-          float orb5 = glowOrb(uv, c5, 0.28);
-          color += sageGlow * orb5 * 0.28;
+          float orb5 = glowOrb(uv, c5, 0.32);
+          color += coralGlow * orb5 * 0.55;
           
-          // Subtle color field gradients
+          // Light rays from coral
+          for (float i = 0.0; i < 3.0; i++) {
+            float angle = -t * 0.18 + i * 2.094 + 1.0;
+            color += coralGlow * lightRay(uv, c5, angle, 0.04, 0.45) * 0.8;
+          }
+          
+          // Vibrant color field gradients
           float fieldNoise = snoise(uv * 1.5 + t * 0.2) * 0.5 + 0.5;
           vec3 fieldColor = mix(sageGlow, roseGlow, fieldNoise);
-          color += fieldColor * 0.05;
+          color += fieldColor * 0.1;
           
-          // Premium bloom effect - soft overall glow
-          float bloomIntensity = totalGlow * 0.12;
+          // Strong bloom effect
+          float bloomIntensity = totalGlow * 0.2;
           color += vec3(1.0, 0.98, 0.95) * bloomIntensity;
           
-          // Ensure colors stay in premium range
-          color = clamp(color, 0.0, 1.0);
+          // Tone mapping instead of hard clamp - preserves HDR feel
+          float exposure = 1.2;
+          color = 1.0 - exp(-color * exposure);
           
           // Subtle film grain for texture
           float grain = snoise(uv * 200.0 + t * 10.0) * 0.015;
@@ -847,29 +861,15 @@ export function RisingScreen({
             exit={{ opacity: 0, y: -10 }}
             transition={{ delay: 0.5, duration: 1.2, ease: [0.22, 0.61, 0.36, 1] }}
           >
-            <h1
-              style={{
-                fontFamily: 'Georgia, serif',
-                fontSize: '36px',
-                fontWeight: 400,
-                color: '#FAF6F0',
-                letterSpacing: '0.02em',
-                margin: 0,
-                textShadow: '0 0 20px rgba(255, 255, 255, 0.9), 0 0 40px rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3)',
-              }}
-            >
-              Rising
-            </h1>
             <p
               style={{
                 fontFamily: 'Georgia, serif',
-                fontSize: '16px',
-                fontWeight: 300,
+                fontSize: '22px',
+                fontWeight: 400,
                 color: '#FAF6F0',
-                marginTop: '12px',
-                letterSpacing: '0.01em',
-                textShadow: '0 0 15px rgba(255, 255, 255, 0.7), 0 0 30px rgba(255, 255, 255, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25)',
-                opacity: 0.9,
+                margin: 0,
+                letterSpacing: '0.02em',
+                textShadow: '0 0 20px rgba(255, 255, 255, 0.9), 0 0 40px rgba(255, 255, 255, 0.6), 0 2px 4px rgba(0, 0, 0, 0.3)',
               }}
             >
               Let this moment settle you.

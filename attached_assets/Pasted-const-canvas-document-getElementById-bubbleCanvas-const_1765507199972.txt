@@ -1,0 +1,232 @@
+const canvas = document.getElementById("bubbleCanvas");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+  canvas.width = window.innerWidth * devicePixelRatio;
+  canvas.height = window.innerHeight * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+resize();
+window.addEventListener("resize", resize);
+
+const bubbles = [];
+const popped = [];
+
+const POP_RADIUS_MULTIPLIER = 1.6; // how big burst gets
+const POP_DURATION = 180;          // ms
+
+// ----- create initial grid of bubbles near top -----
+function initBubbles() {
+  bubbles.length = 0;
+  const cols = 7;  // fewer = bigger bubbles, more = smaller
+  const rows = 6;
+  const padding = 12;
+  const radius = Math.min(canvas.width / devicePixelRatio, canvas.height / devicePixelRatio) / (cols * 2.2);
+
+  const startY = radius + 10;
+  const totalWidth = cols * (radius * 2 + padding) - padding;
+  const offsetX = (canvas.width / devicePixelRatio - totalWidth) / 2;
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const x = offsetX + col * (radius * 2 + padding) + radius;
+      const y = startY + row * (radius * 2 + padding);
+
+      bubbles.push({
+        x,
+        y,
+        radius,
+        vx: (Math.random() - 0.5) * 0.1, // small horizontal drift
+        vy: 0,
+        resting: false
+      });
+    }
+  }
+}
+initBubbles();
+
+// ----- physics + settling -----
+const gravity = 0.12;       // pull down
+const damping = 0.98;       // slow things
+const floorBounce = 0.3;    // how much they bounce at bottom
+
+function updatePhysics(dt) {
+  const width = canvas.width / devicePixelRatio;
+  const height = canvas.height / devicePixelRatio;
+
+  for (let i = 0; i < bubbles.length; i++) {
+    const b = bubbles[i];
+    if (b.resting) continue;
+
+    // apply gravity
+    b.vy += gravity * dt;
+
+    // gentle side-to-side sway
+    b.vx += Math.sin((Date.now() / 1000 + i) * 0.4) * 0.002;
+
+    // apply velocity
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+
+    // side bounds
+    if (b.x - b.radius < 0) {
+      b.x = b.radius;
+      b.vx *= -0.5;
+    }
+    if (b.x + b.radius > width) {
+      b.x = width - b.radius;
+      b.vx *= -0.5;
+    }
+
+    // floor
+    const floorY = height - b.radius - 20;
+    if (b.y + b.radius > floorY) {
+      b.y = floorY - 0.01;
+      b.vy *= -floorBounce;
+
+      // if movement is tiny, mark as resting
+      if (Math.abs(b.vy) < 0.05) {
+        b.vy = 0;
+        b.vx *= 0.95;
+        b.resting = true;
+      }
+    }
+
+    // simple damping
+    b.vx *= damping;
+    b.vy *= damping;
+  }
+}
+
+// ----- drawing with soft pearl shadows -----
+function drawBubble(b) {
+  const r = b.radius;
+
+  // shadow/glow
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+  ctx.closePath();
+
+  const gradient = ctx.createRadialGradient(
+    b.x - r * 0.4, b.y - r * 0.4, r * 0.2,
+    b.x, b.y, r
+  );
+  gradient.addColorStop(0, "rgba(255,255,255,0.98)");
+  gradient.addColorStop(0.5, "rgba(245,245,245,0.9)");
+  gradient.addColorStop(1, "rgba(220,220,220,0.8)");
+
+  ctx.fillStyle = gradient;
+  ctx.shadowColor = "rgba(0,0,0,0.22)";
+  ctx.shadowBlur = r * 0.6;
+  ctx.shadowOffsetY = r * 0.3;
+  ctx.fill();
+  ctx.restore();
+}
+
+// ----- burst animation when popped -----
+function drawPopped(p) {
+  const progress = (Date.now() - p.startTime) / POP_DURATION;
+  if (progress >= 1) return false;
+
+  const ease = 1 - Math.pow(1 - progress, 2); // ease-out
+  const r = p.radius * (1 + ease * (POP_RADIUS_MULTIPLIER - 1));
+  const alpha = 1 - ease;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.closePath();
+
+  const gradient = ctx.createRadialGradient(
+    p.x - r * 0.4, p.y - r * 0.4, r * 0.2,
+    p.x, p.y, r
+  );
+  gradient.addColorStop(0, `rgba(255,255,255,${alpha})`);
+  gradient.addColorStop(0.5, `rgba(245,245,245,${alpha * 0.8})`);
+  gradient.addColorStop(1, `rgba(220,220,220,${alpha * 0.0})`);
+
+  ctx.fillStyle = gradient;
+  ctx.fill();
+  ctx.restore();
+
+  return true;
+}
+
+// ----- pop interaction + haptics -----
+const popSound = document.getElementById("popSound");
+
+function popAt(x, y) {
+  // find topmost bubble under that point
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    const b = bubbles[i];
+    const dx = x - b.x;
+    const dy = y - b.y;
+    if (dx * dx + dy * dy <= b.radius * b.radius) {
+      // create popped animation
+      popped.push({
+        x: b.x,
+        y: b.y,
+        radius: b.radius,
+        startTime: Date.now()
+      });
+
+      // remove bubble
+      bubbles.splice(i, 1);
+
+      // sound
+      if (popSound) {
+        popSound.currentTime = 0;
+        popSound.play().catch(() => {});
+      }
+
+      // haptics (supported mostly on Android / some browsers)
+      if (navigator.vibrate) {
+        navigator.vibrate(15); // short buzz
+      }
+
+      break;
+    }
+  }
+}
+
+canvas.addEventListener("pointerdown", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left);
+  const y = (e.clientY - rect.top);
+  popAt(x, y);
+});
+
+// ----- main loop -----
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min((now - last) / 16.67, 2); // dt in "frames" (~60fps)
+  last = now;
+
+  updatePhysics(dt);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // background gradient to match your sage palette
+  const w = canvas.width / devicePixelRatio;
+  const h = canvas.height / devicePixelRatio;
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+  bgGrad.addColorStop(0, "#f5f6f3");
+  bgGrad.addColorStop(1, "#d3d7cd");
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, w, h);
+
+  // draw bubbles
+  for (const b of bubbles) {
+    drawBubble(b);
+  }
+
+  // draw popped animations & clean up finished ones
+  for (let i = popped.length - 1; i >= 0; i--) {
+    const still = drawPopped(popped[i]);
+    if (!still) popped.splice(i, 1);
+  }
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
