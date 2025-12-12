@@ -505,9 +505,10 @@ export function BubbleScreen({
       )}
       </motion.div>
 
-      <div className="absolute bottom-0 left-0 right-0 z-30">
+      <div className="absolute bottom-0 left-0 right-0 z-50" style={{ background: 'inherit' }}>
         <BottomNav
           activeScreen="activities"
+          variant="sage-fixed"
           onNavigateHome={onReturnToChat}
           onNavigateActivities={onNavigateToActivities}
           onNavigateJournal={onNavigateToJournal}
