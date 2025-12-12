@@ -36,12 +36,66 @@ export function RisingScreen({
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showTitle, setShowTitle] = useState(true);
   const [isExiting, setIsExiting] = useState(false);
+  const windChimesRef = useRef<HTMLAudioElement | null>(null);
+  const windChimesFadeRef = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowTitle(false);
     }, 7000);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Wind chimes ambient audio with 1.5s delay and fade in
+  useEffect(() => {
+    const windChimes = new Audio('/audio/wind-chimes.mp3');
+    windChimes.loop = true;
+    windChimes.volume = 0;
+    windChimesRef.current = windChimes;
+
+    // Start after 1.5 second delay
+    const delayTimer = setTimeout(() => {
+      windChimes.play().catch(console.error);
+      
+      // Fade in over 2 seconds to volume 0.35
+      let currentVolume = 0;
+      const targetVolume = 0.35;
+      const fadeStep = targetVolume / 40; // 40 steps over 2 seconds (50ms each)
+      
+      const fadeIn = setInterval(() => {
+        currentVolume += fadeStep;
+        if (currentVolume >= targetVolume) {
+          currentVolume = targetVolume;
+          clearInterval(fadeIn);
+        }
+        if (windChimesRef.current) {
+          windChimesRef.current.volume = currentVolume;
+        }
+      }, 50);
+      
+      windChimesFadeRef.current = fadeIn as unknown as number;
+    }, 1500);
+
+    return () => {
+      clearTimeout(delayTimer);
+      if (windChimesFadeRef.current) {
+        clearInterval(windChimesFadeRef.current);
+      }
+      // Fade out on cleanup
+      if (windChimesRef.current) {
+        const audio = windChimesRef.current;
+        let vol = audio.volume;
+        const fadeOut = setInterval(() => {
+          vol -= 0.05;
+          if (vol <= 0) {
+            vol = 0;
+            audio.pause();
+            clearInterval(fadeOut);
+          }
+          audio.volume = Math.max(0, vol);
+        }, 50);
+      }
+    };
   }, []);
 
   useEffect(() => {

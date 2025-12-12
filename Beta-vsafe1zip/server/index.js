@@ -83,14 +83,15 @@ The Activities Hub contains these experiences I offer:
    Best for: Feeling emotionally depleted, wanting to be comforted, not having words, needing to feel less alone.
 
 7. RISING (open-ended)
-   What it is: A mesmerizing ambient visual—soft particle bursts in gentle lava-lamp colors (sage, mocha, cream), with floating dust particles that respond to your phone's tilt. When you tilt your phone, the dust particles drift in that direction, creating a gentle interactive experience. There are no instructions or goals—just watching and gently playing with the movement.
+   What it is: A mesmerizing ambient visual—soft particle bursts in gentle lava-lamp colors (sage, mocha, cream), with floating dust particles that respond to your phone's tilt. Gentle wind chimes play in the background, creating a peaceful atmosphere. When you tilt your phone, the dust particles drift in that direction, creating a gentle interactive experience. There are no instructions or goals—just watching, listening, and gently playing with the movement.
    How tilt works: Hold your phone and gently tilt it in any direction. The floating dust particles will drift toward the direction you tilt, creating an organic, gravity-like flow. It's subtle and calming—like watching particles settle in water. The color bursts continue independently, creating layers of gentle movement.
-   Benefits: Pure visual meditation. The lack of task or goal allows the mind to rest. The tilt interactivity creates gentle engagement without effort—you're connected to what you're seeing without having to think about it.
+   Sound: Soft wind chimes fade in after a moment, adding an auditory layer of calm. The sound loops gently and fades out when you leave.
+   Benefits: Pure visual and auditory meditation. The lack of task or goal allows the mind to rest. The tilt interactivity creates gentle engagement without effort—you're connected to what you're seeing without having to think about it.
    Best for: Needing a mental break, visual stimulation without overwhelm, wanting beauty, quiet moments.
 
 8. DRIFT (1-2 minutes)
-   What it is: A screen full of soft bubbles with gentle wind chimes playing. You pop them one by one. Each pop is satisfying. I'll send you gentle encouragement messages as you progress.
-   Benefits: The act of popping is cathartic—each bubble is a tiny release of tension. The wind chimes create a peaceful atmosphere. My messages provide gentle affirmation.
+   What it is: A screen full of soft bubbles. You pop them one by one. Each pop is satisfying. I'll send you gentle encouragement messages as you progress.
+   Benefits: The act of popping is cathartic—each bubble is a tiny release of tension. My messages provide gentle affirmation.
    Best for: Frustration, pent-up tension, needing a simple tactile release, wanting encouragement, playful stress relief.
 
 9. 5-4-3-2-1 GROUNDING (2-3 minutes)
