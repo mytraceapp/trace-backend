@@ -91,16 +91,16 @@ export default function EchoScreen({
     };
 
     const fadeIn = () => {
-      let vol = 0.82; // Start at 82% so voice is present immediately
+      let vol = 0; // Start silent for smooth fade
       if (audioRef.current) audioRef.current.volume = vol;
       const fadeInterval = setInterval(() => {
-        vol += 0.003; // Smooth fade to target volume
-        if (vol >= 0.89) { // Max at 89%
-          vol = 0.89;
+        vol += 0.005; // Smooth fade to target volume
+        if (vol >= 0.08) { // Match normalized voice level
+          vol = 0.08;
           clearInterval(fadeInterval);
         }
         if (audioRef.current) audioRef.current.volume = vol;
-      }, 40);
+      }, 50);
 
       // Gradually ease playback speed from 0.88 to 0.95 over first 18 seconds
       let currentRate = 0.88;

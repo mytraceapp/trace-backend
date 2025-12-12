@@ -108,13 +108,13 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         voiceAudio.play().then(() => {
           let vol = 0;
           const fadeIn = setInterval(() => {
-            vol += 0.01;
-            if (vol >= 0.15) {
-              vol = 0.15; // Voice slightly louder than ambient but still normalized
+            vol += 0.005;
+            if (vol >= 0.08) {
+              vol = 0.08; // Match Echo voice level for consistency
               clearInterval(fadeIn);
             }
             voiceAudio.volume = vol;
-          }, 100);
+          }, 50);
           
           analyzeAudio();
         }).catch(() => {});
@@ -122,13 +122,13 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         voiceAudio.play().then(() => {
           let vol = 0;
           const fadeIn = setInterval(() => {
-            vol += 0.01;
-            if (vol >= 0.15) {
-              vol = 0.15; // Voice slightly louder than ambient but still normalized
+            vol += 0.005;
+            if (vol >= 0.08) {
+              vol = 0.08; // Match Echo voice level for consistency
               clearInterval(fadeIn);
             }
             voiceAudio.volume = vol;
-          }, 100);
+          }, 50);
         }).catch(() => {});
       }
     };
@@ -205,9 +205,9 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         let vol = 0;
         audioRef.current.volume = 0;
         const fadeIn = setInterval(() => {
-          vol += 0.01;
-          if (vol >= 0.15) {
-            vol = 0.15; // Voice slightly louder than ambient but still normalized
+          vol += 0.005;
+          if (vol >= 0.08) {
+            vol = 0.08; // Match Echo voice level for consistency
             clearInterval(fadeIn);
           }
           if (audioRef.current) audioRef.current.volume = vol;
