@@ -136,7 +136,7 @@ export default function RippleActivityScreen() {
           { 
             isLooping: true, 
             volume: 0,
-            positionMillis: 15000,
+            positionMillis: 0,
             rate: 0.84,
             shouldCorrectPitch: true,
           }
@@ -153,15 +153,15 @@ export default function RippleActivityScreen() {
         setTimeout(async () => {
           if (isMounted && soundRef.current) {
             await soundRef.current.playAsync();
-            for (let i = 1; i <= 10; i++) {
+            for (let i = 1; i <= 20; i++) {
               setTimeout(async () => {
                 if (isMounted && soundRef.current) {
-                  await soundRef.current.setVolumeAsync(0.035 * i);
+                  await soundRef.current.setVolumeAsync(0.018 * i);
                 }
-              }, i * 200);
+              }, i * 250);
             }
           }
-        }, 2500);
+        }, 2000);
       } catch (error) {
         console.log('Audio loading error:', error);
       }
