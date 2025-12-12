@@ -232,7 +232,8 @@ export default function ActivitiesScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#E5DDD2', '#D5CBBF']}
+        colors={['#EDE5DA', '#D8CDBF', '#C9BBAA']}
+        locations={[0, 0.6, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
