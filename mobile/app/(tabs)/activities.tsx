@@ -9,7 +9,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 16;
 const SCREEN_PADDING = 24;
 const CARD_WIDTH = (SCREEN_WIDTH - SCREEN_PADDING * 2 - CARD_GAP) / 2;
-const CARD_CONTENT_HEIGHT = 160;
+const CARD_CONTENT_HEIGHT = 200;
 const CARD_PADDING = 20;
 
 const dayColors = {
@@ -39,7 +39,7 @@ const ACTIVITIES = [
     description: 'A calming 30-second reset.',
     Icon: Wind,
     iconColor: '#4B4B4B',
-    gradientColors: ['#F4F1EC', '#EEEBE6'] as [string, string],
+    gradientColors: ['#FFFFFF', '#FAF9F7'] as [string, string],
     iconBgColors: ['rgba(138, 134, 128, 0.12)', 'rgba(138, 134, 128, 0.06)'] as [string, string],
     descColor: '#8A8680',
     customIcon: null,
@@ -83,7 +83,7 @@ const ACTIVITIES = [
     description: 'Immersive flowing light.',
     Icon: Droplets,
     iconColor: '#9A8778',
-    gradientColors: ['#FDFCFB', '#F5F3F0'] as [string, string],
+    gradientColors: ['#FFFFFF', '#FAF8F5'] as [string, string],
     iconBgColors: ['rgba(190, 185, 180, 0.15)', 'rgba(190, 185, 180, 0.08)'] as [string, string],
     descColor: '#8A8680',
     customIcon: null,
@@ -94,7 +94,7 @@ const ACTIVITIES = [
     description: 'Connect with your surroundings.',
     Icon: Hand,
     iconColor: '#9A8778',
-    gradientColors: ['#FDFCFB', '#F5F3F0'] as [string, string],
+    gradientColors: ['#FFFFFF', '#FAF8F5'] as [string, string],
     iconBgColors: ['rgba(190, 185, 180, 0.15)', 'rgba(190, 185, 180, 0.08)'] as [string, string],
     descColor: '#8A8680',
     customIcon: null,
@@ -232,7 +232,7 @@ export default function ActivitiesScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#F6F1EA', '#E2DDD4']}
+        colors={['#E5DDD2', '#D5CBBF']}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -427,9 +427,9 @@ const styles = StyleSheet.create({
     }),
   },
   patternsGradient: {
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingVertical: 18,
     alignItems: 'center',
+    width: '100%',
   },
   patternsText: {
     fontSize: 15,
