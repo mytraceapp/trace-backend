@@ -54,9 +54,9 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
     const scrollProgress = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
     
     if (bgAudioRef.current) {
-      const baseVolume = 0.15;
-      const volumeBoost = scrollProgress * 0.08;
-      bgAudioRef.current.volume = Math.min(baseVolume + volumeBoost, 0.25);
+      const baseVolume = 0.10;
+      const volumeBoost = scrollProgress * 0.02;
+      bgAudioRef.current.volume = Math.min(baseVolume + volumeBoost, 0.12); // Match global volume standard
       
       const baseRate = 0.85;
       const rateBoost = scrollProgress * 0.03;
@@ -82,8 +82,8 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         let bgVol = 0;
         const bgFadeIn = setInterval(() => {
           bgVol += 0.01;
-          if (bgVol >= 0.15) {
-            bgVol = 0.15;
+          if (bgVol >= 0.10) {
+            bgVol = 0.10; // Match global volume standard
             clearInterval(bgFadeIn);
           }
           bgAudio.volume = bgVol;
@@ -108,9 +108,9 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         voiceAudio.play().then(() => {
           let vol = 0;
           const fadeIn = setInterval(() => {
-            vol += 0.05;
-            if (vol >= 0.9) {
-              vol = 0.9;
+            vol += 0.01;
+            if (vol >= 0.15) {
+              vol = 0.15; // Voice slightly louder than ambient but still normalized
               clearInterval(fadeIn);
             }
             voiceAudio.volume = vol;
@@ -122,9 +122,9 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         voiceAudio.play().then(() => {
           let vol = 0;
           const fadeIn = setInterval(() => {
-            vol += 0.05;
-            if (vol >= 0.9) {
-              vol = 0.9;
+            vol += 0.01;
+            if (vol >= 0.15) {
+              vol = 0.15; // Voice slightly louder than ambient but still normalized
               clearInterval(fadeIn);
             }
             voiceAudio.volume = vol;
@@ -205,9 +205,9 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         let vol = 0;
         audioRef.current.volume = 0;
         const fadeIn = setInterval(() => {
-          vol += 0.1;
-          if (vol >= 0.9) {
-            vol = 0.9;
+          vol += 0.01;
+          if (vol >= 0.15) {
+            vol = 0.15; // Voice slightly louder than ambient but still normalized
             clearInterval(fadeIn);
           }
           if (audioRef.current) audioRef.current.volume = vol;
@@ -232,9 +232,9 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         let vol = 0;
         bgAudioRef.current.volume = 0;
         const fadeIn = setInterval(() => {
-          vol += 0.02;
-          if (vol >= 0.15) {
-            vol = 0.15;
+          vol += 0.01;
+          if (vol >= 0.10) {
+            vol = 0.10; // Match global volume standard
             clearInterval(fadeIn);
           }
           if (bgAudioRef.current) bgAudioRef.current.volume = vol;
