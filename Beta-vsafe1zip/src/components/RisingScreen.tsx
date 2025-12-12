@@ -51,7 +51,7 @@ export function RisingScreen({
     const windChimes = new Audio('/audio/wind-chimes.mp3');
     windChimes.loop = true;
     windChimes.volume = 0;
-    windChimes.playbackRate = 0.85; // Slow down to match dreamy visual tempo
+    windChimes.playbackRate = 0.80; // Slow down more to match dreamy visual tempo
     windChimesRef.current = windChimes;
 
     // Start after 1.5 second delay
