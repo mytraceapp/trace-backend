@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
-import traceLogo from 'figma:asset/513ec3c351285cce0b15e678c8f6d864d8269d64.png';
 
 interface RainWindowScreenProps {
   onReturnToChat: () => void;
@@ -252,24 +251,26 @@ export function RainWindowScreen({
         }}
       />
 
-      {/* TRACE Logo - top center */}
+      {/* TRACE Brand Name - top center, same as Home page */}
       <motion.div
-        className="absolute z-20 w-full flex justify-center"
-        style={{ top: '55px' }}
+        className="absolute z-20 w-full text-center"
+        style={{ top: '7%' }}
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1, delay: 0.2 }}
       >
-        <img 
-          src={traceLogo} 
-          alt="TRACE" 
-          style={{
-            width: '36px',
-            height: '36px',
-            filter: 'drop-shadow(0 2px 12px rgba(0,0,0,0.4)) brightness(1.8)',
-            opacity: 0.75,
-          }}
-        />
+        <h1 style={{ 
+          fontFamily: 'ALORE, Georgia, serif',
+          color: '#EDE8DB',
+          fontWeight: 300,
+          letterSpacing: '1em',
+          fontSize: '11px',
+          textShadow: '0 2px 5px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3)',
+          opacity: 0.95,
+          paddingLeft: '1em',
+        }}>
+          TRACE
+        </h1>
       </motion.div>
 
       {/* Quiet Mode Toast */}

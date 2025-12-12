@@ -521,16 +521,39 @@ app.post('/api/greeting', async (req, res) => {
     console.log('Time context:', localTime, localDay, localDate);
     
     if (!openai) {
-      // Fallback greetings when no API key
-      const fallbackGreetings = [
-        userName ? `Hi ${userName}. I'm glad you're here.` : "Hi. I'm glad you're here.",
-        "Whenever you're ready.",
-        "I'm here with you.",
-      ];
+      // Fallback greetings when no API key - warm and welcoming
+      const hour = new Date().getHours();
+      let fallbackGreetings;
+      
+      if (hour >= 5 && hour < 12) {
+        fallbackGreetings = [
+          userName ? `Good morning, ${userName}. I hope today treats you gently.` : "Good morning. I hope today treats you gently.",
+          userName ? `Morning, ${userName}. It's nice to see you here.` : "Morning. It's nice to see you here.",
+          userName ? `Hey, ${userName}. I hope you slept well.` : "Hey. I hope you slept well.",
+        ];
+      } else if (hour >= 12 && hour < 17) {
+        fallbackGreetings = [
+          userName ? `Hey, ${userName}. I hope your day's been kind to you.` : "Hey. I hope your day's been kind to you.",
+          userName ? `Hi, ${userName}. It's good to see you.` : "Hi. It's good to see you.",
+          userName ? `Good afternoon, ${userName}. I'm here if you'd like some company.` : "Good afternoon. I'm here if you'd like some company.",
+        ];
+      } else if (hour >= 17 && hour < 22) {
+        fallbackGreetings = [
+          userName ? `Hey, ${userName}. I hope today was gentle on you.` : "Hey. I hope today was gentle on you.",
+          userName ? `Good evening, ${userName}. It's nice to see you.` : "Good evening. It's nice to see you.",
+          userName ? `Hi, ${userName}. I hope you're winding down okay.` : "Hi. I hope you're winding down okay.",
+        ];
+      } else {
+        fallbackGreetings = [
+          userName ? `Hey, ${userName}. It's late—I hope you're okay.` : "Hey. It's late—I hope you're okay.",
+          userName ? `Hi, ${userName}. I'm here if you need some company.` : "Hi. I'm here if you need some company.",
+          userName ? `Hey, ${userName}. I'm here—no pressure to talk.` : "Hey. I'm here—no pressure to talk.",
+        ];
+      }
       return res.json({ greeting: fallbackGreetings[Math.floor(Math.random() * fallbackGreetings.length)] });
     }
     
-    const greetingPrompt = `You are TRACE, a calm companion. Generate a single welcome message.
+    const greetingPrompt = `You are TRACE, a warm and welcoming companion. Generate a single welcome message.
 
 Context:
 - User's name: ${userName || 'unknown (don\'t mention their name)'}
@@ -538,25 +561,27 @@ Context:
 - Day: ${localDay || 'unknown'}
 
 Guidelines:
-- Keep it SHORT - one sentence, under 8 words ideally
-- Sound natural, not therapeutic or overly soft
-- Don't ask emotional questions like "how is your heart" or "how are you feeling"
-- Be aware of time of day naturally
-- Simple is better than poetic
-- Feel like a real friend, not a wellness app
+- Be WARM and WELCOMING - make them feel genuinely glad to be here
+- Two sentences is ideal - a greeting plus something caring
+- Express hope for their wellbeing or acknowledge the time of day warmly
+- Sound like a thoughtful friend who's genuinely happy to see them
+- Don't ask questions - just welcome them with warmth
 
-GOOD examples:
-- "Hey ${userName || 'there'}."
-- "Good evening."
-- "Morning."
-- "Hey. I'm here."
+GOOD examples (warm, welcoming, inviting):
+- "Good morning${userName ? ', ' + userName : ''}. I hope today treats you gently."
+- "Hey${userName ? ', ' + userName : ''}. It's nice to see you here."
+- "Good afternoon. I hope your day is going well."
+- "Evening${userName ? ', ' + userName : ''}. I'm glad you're here."
+- "Hi${userName ? ', ' + userName : ''}. I hope you're finding some peace today."
+- "Hey. I hope your week is being kind to you."
+- "Good morning. Take your time settling in—I'm here."
+
+BAD examples (too short/cold - AVOID these):
+- "Hey."
 - "Hi."
-
-BAD examples (too soft/therapeutic - AVOID these):
-- "How is your heart today?"
-- "What's stirring within you?"
-- "I'm here to hold space for you"
-- "How are you feeling right now?"
+- "Morning."
+- "Good evening."
+- Any single word or very brief greeting
 
 Respond with ONLY the greeting text. No quotation marks.`;
 

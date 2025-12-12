@@ -62,21 +62,20 @@ export function ActivitiesHubScreen({
         }}
       />
 
-      {/* TRACE Brand - Fixed */}
+      {/* TRACE Brand - Fixed, same as PearlRipple */}
       <div className="sticky top-0 left-0 right-0 z-40 text-center pointer-events-none transition-colors duration-300" style={{ paddingTop: '55px', paddingBottom: '12px', background: `linear-gradient(to bottom, var(--bg), var(--bg), transparent)` }}>
         <motion.h1
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 1.2, ease: [0.22, 0.61, 0.36, 1] }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] }}
           style={{
             fontFamily: 'ALORE, Georgia, serif',
-            color: 'var(--text-tertiary)',
+            color: '#5A4A3A',
             fontWeight: 300,
             letterSpacing: '1em',
-            fontSize: '10px',
-            opacity: 0.6,
-            textTransform: 'uppercase',
-            marginTop: '0.2rem',
+            fontSize: '11px',
+            textShadow: '0 0 15px rgba(90, 74, 58, 0.45), 0 0 30px rgba(90, 74, 58, 0.25), 0 2px 4px rgba(0,0,0,0.15)',
+            opacity: 0.88,
             paddingLeft: '1em',
           }}
         >
