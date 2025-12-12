@@ -51,7 +51,6 @@ export function RisingScreen({
     const height = container.clientHeight;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xffffff);
 
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
     camera.position.z = 50;
@@ -62,6 +61,149 @@ export function RisingScreen({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+
+    // ============================================
+    // LAVA LAMP BACKGROUND - Fullscreen shader quad
+    // ============================================
+    const lavaGeometry = new THREE.PlaneGeometry(2, 2);
+    const lavaMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        u_time: { value: 0 },
+        u_resolution: { value: new THREE.Vector2(width, height) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float u_time;
+        uniform vec2 u_resolution;
+        varying vec2 vUv;
+        
+        // Simplex noise functions
+        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+        
+        float snoise(vec2 v) {
+          const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+          vec2 i = floor(v + dot(v, C.yy));
+          vec2 x0 = v - i + dot(i, C.xx);
+          vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+          vec4 x12 = x0.xyxy + C.xxzz;
+          x12.xy -= i1;
+          i = mod289(i);
+          vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+          vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+          m = m*m; m = m*m;
+          vec3 x = 2.0 * fract(p * C.www) - 1.0;
+          vec3 h = abs(x) - 0.5;
+          vec3 ox = floor(x + 0.5);
+          vec3 a0 = x - ox;
+          m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+          vec3 g;
+          g.x = a0.x * x0.x + h.x * x0.y;
+          g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+          return 130.0 * dot(m, g);
+        }
+        
+        // Metaball-like blob function
+        float blob(vec2 uv, vec2 center, float radius, float softness) {
+          float d = length(uv - center);
+          return smoothstep(radius + softness, radius - softness, d);
+        }
+        
+        void main() {
+          vec2 uv = vUv;
+          float aspect = u_resolution.x / u_resolution.y;
+          uv.x *= aspect;
+          
+          float t = u_time * 0.08; // Very slow movement
+          
+          // Multiple floating blobs with different speeds and sizes
+          float blobs = 0.0;
+          
+          // Blob 1 - Large, slow
+          vec2 c1 = vec2(
+            0.3 * aspect + sin(t * 0.7) * 0.25 * aspect,
+            0.7 + cos(t * 0.5) * 0.2
+          );
+          blobs += blob(uv, c1, 0.28, 0.15);
+          
+          // Blob 2 - Medium
+          vec2 c2 = vec2(
+            0.7 * aspect + sin(t * 0.9 + 1.5) * 0.22 * aspect,
+            0.4 + cos(t * 0.6 + 2.0) * 0.25
+          );
+          blobs += blob(uv, c2, 0.22, 0.12);
+          
+          // Blob 3 - Small, faster
+          vec2 c3 = vec2(
+            0.5 * aspect + sin(t * 1.1 + 3.0) * 0.3 * aspect,
+            0.3 + cos(t * 0.8 + 1.0) * 0.22
+          );
+          blobs += blob(uv, c3, 0.18, 0.1);
+          
+          // Blob 4 - Large bottom
+          vec2 c4 = vec2(
+            0.4 * aspect + sin(t * 0.5 + 4.5) * 0.2 * aspect,
+            0.2 + cos(t * 0.7 + 3.5) * 0.15
+          );
+          blobs += blob(uv, c4, 0.25, 0.14);
+          
+          // Blob 5 - Medium top
+          vec2 c5 = vec2(
+            0.6 * aspect + sin(t * 0.8 + 2.5) * 0.25 * aspect,
+            0.8 + cos(t * 0.4 + 5.0) * 0.12
+          );
+          blobs += blob(uv, c5, 0.2, 0.11);
+          
+          // Blob 6 - Small wanderer
+          vec2 c6 = vec2(
+            0.25 * aspect + sin(t * 1.3 + 6.0) * 0.35 * aspect,
+            0.5 + cos(t * 0.9 + 4.0) * 0.3
+          );
+          blobs += blob(uv, c6, 0.15, 0.09);
+          
+          // Blob 7 - Another large one
+          vec2 c7 = vec2(
+            0.75 * aspect + sin(t * 0.6 + 1.0) * 0.2 * aspect,
+            0.6 + cos(t * 0.55 + 2.5) * 0.2
+          );
+          blobs += blob(uv, c7, 0.24, 0.13);
+          
+          // Add noise for organic distortion
+          float noise = snoise(uv * 2.0 + t * 0.3) * 0.15;
+          blobs += noise * 0.3;
+          
+          // Smooth threshold for lava lamp look
+          blobs = smoothstep(0.4, 0.9, blobs);
+          
+          // Colors - soft muted palette
+          vec3 bgColor = vec3(0.98, 0.96, 0.93); // Warm white
+          vec3 blobColor1 = vec3(0.85, 0.92, 0.88); // Very soft sage
+          vec3 blobColor2 = vec3(0.90, 0.88, 0.84); // Soft cream
+          
+          // Mix blob colors based on position
+          float colorMix = sin(uv.y * 3.0 + t * 0.5) * 0.5 + 0.5;
+          vec3 blobColor = mix(blobColor1, blobColor2, colorMix);
+          
+          // Final color
+          vec3 color = mix(bgColor, blobColor, blobs * 0.4);
+          
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `,
+      depthWrite: false,
+      depthTest: false
+    });
+    
+    const lavaQuad = new THREE.Mesh(lavaGeometry, lavaMaterial);
+    lavaQuad.renderOrder = -1;
+    scene.add(lavaQuad);
 
     const createRichVariations = (baseColors: number[]): THREE.Color[] => {
       const result: THREE.Color[] = [];
@@ -80,19 +222,18 @@ export function RisingScreen({
     };
 
     const colorFamilies = [
-      createRichVariations([0x3D6B6E, 0x4A7C7E, 0x5A8B8D, 0x2D5558, 0x6A9B9E, 0x1E4548]), // Teal
-      createRichVariations([0x6B9E8C, 0x7AAE9C, 0x5A8E7C, 0x8ABEA8, 0x4A7E6C, 0x9DCEB8]), // Sage
-      createRichVariations([0xD97B3D, 0xE88B4D, 0xC96B2D, 0xF09B5D, 0xB85B1D, 0xF5AB6D]), // Orange
-      createRichVariations([0xF5EFE6, 0xE8DED1, 0xD4C9BC, 0xEDE4D8, 0xFAF6F0, 0xC9BEB1]), // Cream
+      createRichVariations([0x3D6B6E, 0x4A7C7E, 0x5A8B8D, 0x2D5558, 0x6A9B9E, 0x1E4548]),
+      createRichVariations([0x6B9E8C, 0x7AAE9C, 0x5A8E7C, 0x8ABEA8, 0x4A7E6C, 0x9DCEB8]),
+      createRichVariations([0xD97B3D, 0xE88B4D, 0xC96B2D, 0xF09B5D, 0xB85B1D, 0xF5AB6D]),
+      createRichVariations([0xF5EFE6, 0xE8DED1, 0xD4C9BC, 0xEDE4D8, 0xFAF6F0, 0xC9BEB1]),
     ];
 
-    // Sequential cluster burst timing - loops forever
-    const clusterBurstDuration = 4.0; // Time for each cluster to burst
-    const clusterGap = 3.5; // Gap between cluster bursts
-    const fullCycleDuration = 4 * (clusterBurstDuration + clusterGap); // Full cycle for all 4 clusters
+    const clusterBurstDuration = 4.0;
+    const clusterGap = 3.5;
+    const fullCycleDuration = 4 * (clusterBurstDuration + clusterGap);
 
     // ============================================
-    // DENSE BACKGROUND PARTICLES - Always floating
+    // DENSE BACKGROUND PARTICLES
     // ============================================
     const bgParticleCount = 20000;
     const bgGeometry = new THREE.BufferGeometry();
@@ -106,7 +247,6 @@ export function RisingScreen({
       const i3 = i * 3;
       const cluster = Math.floor(Math.random() * 4);
       
-      // Spread across entire screen with cluster bias
       let homeX = (Math.random() - 0.5) * 95;
       let homeY = (Math.random() - 0.5) * 80;
       
@@ -191,7 +331,7 @@ export function RisingScreen({
     scene.add(bgParticles);
 
     // ============================================
-    // BURST PARTICLES - Sequential clusters, looping forever
+    // BURST PARTICLES
     // ============================================
     const particleCount = 32000;
     const geometry = new THREE.BufferGeometry();
@@ -210,25 +350,24 @@ export function RisingScreen({
       const cluster = Math.floor(Math.random() * 4);
       clusterIds[i] = cluster;
       
-      // Strong cluster positioning
       let homeX = 0, homeY = 0;
       const spreadX = 30 + Math.random() * 25;
       const spreadY = 25 + Math.random() * 22;
       
       switch (cluster) {
-        case 0: // Teal - TOP
+        case 0:
           homeX = (Math.random() - 0.5) * 75;
           homeY = 6 + Math.random() * spreadY;
           break;
-        case 1: // Sage - RIGHT
+        case 1:
           homeX = 10 + Math.random() * spreadX;
           homeY = (Math.random() - 0.5) * 68;
           break;
-        case 2: // Orange - BOTTOM
+        case 2:
           homeX = (Math.random() - 0.5) * 75;
           homeY = -6 - Math.random() * spreadY;
           break;
-        case 3: // Cream - LEFT
+        case 3:
           homeX = -10 - Math.random() * spreadX;
           homeY = (Math.random() - 0.5) * 68;
           break;
@@ -261,7 +400,7 @@ export function RisingScreen({
 
       phases[i] = Math.random() * Math.PI * 2;
       rotationSpeeds[i] = 0.12 + Math.random() * 0.35;
-      burstOffsets[i] = Math.random() * 2.8; // Stagger within cluster
+      burstOffsets[i] = Math.random() * 2.8;
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -321,7 +460,7 @@ export function RisingScreen({
     const particles = new THREE.Points(geometry, material);
     scene.add(particles);
 
-    // Grain particles with cluster bursting
+    // Grain particles
     const grainCount = 10000;
     const grainGeometry = new THREE.BufferGeometry();
     const grainPositions = new Float32Array(grainCount * 3);
@@ -428,7 +567,10 @@ export function RisingScreen({
         cameraRef.current.lookAt(0, 0, 0);
       }
 
-      // Animate background particles - always floating
+      // Update lava lamp shader
+      (lavaMaterial as THREE.ShaderMaterial).uniforms.u_time.value = elapsed;
+
+      // Animate background particles
       const bgPosAttr = bgParticles.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < bgParticleCount; i++) {
         const i3 = i * 3;
@@ -436,7 +578,6 @@ export function RisingScreen({
         const homeY = bgHomePositions[i3 + 1];
         const homeZ = bgHomePositions[i3 + 2];
         
-        // Continuous floating motion
         bgPosAttr[i3] = homeX + Math.sin(elapsed * 0.22 + bgPhases[i]) * 2.2;
         bgPosAttr[i3 + 1] = homeY + Math.cos(elapsed * 0.18 + bgPhases[i] * 1.2) * 1.8;
         bgPosAttr[i3 + 2] = homeZ + Math.sin(elapsed * 0.12 + bgPhases[i] * 0.8) * 1.2;
@@ -444,10 +585,8 @@ export function RisingScreen({
       bgParticles.geometry.attributes.position.needsUpdate = true;
       (bgMaterial as THREE.ShaderMaterial).uniforms.u_time.value = elapsed;
 
-      // Calculate which cluster is currently bursting (loops forever)
       const cycleTime = elapsed % fullCycleDuration;
       
-      // Animate main burst particles - sequential by cluster
       const posAttr = particles.geometry.attributes.position.array as Float32Array;
       const posCount = posAttr.length / 3;
       
@@ -457,27 +596,22 @@ export function RisingScreen({
         const i3 = i * 3;
         const cluster = clusterIds[i];
         
-        // Calculate when this cluster should burst in the cycle
         const clusterStartTime = cluster * (clusterBurstDuration + clusterGap);
         const particleStartTime = clusterStartTime + burstOffsets[i];
         
-        // Time since this particle should burst (within current cycle)
         let timeSinceBurst = cycleTime - particleStartTime;
         
-        // Handle wrap-around for continuous looping
         if (timeSinceBurst < -fullCycleDuration + clusterBurstDuration + 3) {
           timeSinceBurst += fullCycleDuration;
         }
         
         if (timeSinceBurst < 0) {
-          // Not yet burst in this cycle - stay at center (invisible)
           posAttr[i3] = 0;
           posAttr[i3 + 1] = 0;
           posAttr[i3 + 2] = -12;
           continue;
         }
         
-        // Burst progress (20% slower)
         const burstDuration = 5.0;
         const burstT = Math.min(1.0, timeSinceBurst / burstDuration);
         const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.3);
@@ -490,7 +624,6 @@ export function RisingScreen({
         let currentY = homeY * easeOut;
         let currentZ = -12 + (homeZ + 12) * easeOut;
         
-        // Once settled, add rotation
         if (burstT >= 0.65) {
           const rotTime = elapsed * rotationSpeeds[i];
           const rotRadius = 1.0 + Math.sin(phases[i] * 3) * 0.8;
@@ -509,7 +642,6 @@ export function RisingScreen({
       }
       particles.geometry.attributes.position.needsUpdate = true;
 
-      // Update grain with same sequential timing
       const grainPos = grainParticles.geometry.attributes.position.array as Float32Array;
       const grainCnt = grainPos.length / 3;
       
@@ -568,6 +700,7 @@ export function RisingScreen({
       renderer.setSize(w, h);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      (lavaMaterial as THREE.ShaderMaterial).uniforms.u_resolution.value.set(w, h);
     };
     window.addEventListener('resize', handleResize);
 
@@ -580,6 +713,8 @@ export function RisingScreen({
       bgMaterial.dispose();
       grainGeometry.dispose();
       grainMaterial.dispose();
+      lavaGeometry.dispose();
+      lavaMaterial.dispose();
       if (rendererRef.current) {
         rendererRef.current.dispose();
         if (container.contains(rendererRef.current.domElement)) {
