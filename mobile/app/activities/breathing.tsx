@@ -286,6 +286,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     paddingTop: 8,
+    paddingHorizontal: 0,
   },
   tabItem: {
     alignItems: 'center',
