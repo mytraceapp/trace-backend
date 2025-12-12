@@ -94,9 +94,9 @@ export default function EchoScreen({
       let vol = 0; // Start silent for smooth fade
       if (audioRef.current) audioRef.current.volume = vol;
       const fadeInterval = setInterval(() => {
-        vol += 0.01; // Smooth fade to target volume
-        if (vol >= 0.20) { // Voice level - audible but not jarring
-          vol = 0.20;
+        vol += 0.008; // Smooth fade to target volume
+        if (vol >= 0.12) { // Voice level - soft and gentle
+          vol = 0.12;
           clearInterval(fadeInterval);
         }
         if (audioRef.current) audioRef.current.volume = vol;
