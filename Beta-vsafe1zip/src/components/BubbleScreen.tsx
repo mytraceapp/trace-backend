@@ -19,6 +19,14 @@ interface Bubble {
   popped: boolean;
 }
 
+const encouragementMessages = [
+  "Each pop releases a little tension…",
+  "You're doing something good for yourself.",
+  "There's no rush here.",
+  "Let each pop feel satisfying.",
+  "This moment is yours.",
+];
+
 export function BubbleScreen({
   onBack: _onBack,
   onReturnToChat,
@@ -32,11 +40,23 @@ export function BubbleScreen({
   const [poppedCount, setPoppedCount] = useState(0);
   const hasSavedRef = useRef(false);
   const startTimeRef = useRef<number>(Date.now());
+  const popAudioRef = useRef<HTMLAudioElement | null>(null);
+  
+  const [showEncouragement, setShowEncouragement] = useState(false);
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+  const [displayedText, setDisplayedText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const encouragementShownRef = useRef(false);
 
   const bubbleSize = 48;
   const cols = 9;
   const topOffset = 0;
   const bottomOffset = 70;
+
+  useEffect(() => {
+    popAudioRef.current = new Audio('/attached_assets/happy-pop-3-185288_1765505175295.mp3');
+    popAudioRef.current.volume = 0.35;
+  }, []);
 
   useEffect(() => {
     const screenHeight = 844;
@@ -67,10 +87,56 @@ export function BubbleScreen({
     );
     setPoppedCount(prev => prev + 1);
     
+    if (popAudioRef.current) {
+      popAudioRef.current.currentTime = 0;
+      popAudioRef.current.play().catch(() => {});
+    }
+    
     if (navigator.vibrate) {
       navigator.vibrate(12);
     }
   };
+
+  useEffect(() => {
+    const totalBubbles = bubbles.length;
+    const poppedPercentage = totalBubbles > 0 ? (poppedCount / totalBubbles) * 100 : 0;
+    
+    if (!encouragementShownRef.current && poppedPercentage >= 30) {
+      encouragementShownRef.current = true;
+      setShowEncouragement(true);
+      setCurrentMessageIndex(0);
+      setIsTyping(true);
+    }
+  }, [poppedCount, bubbles.length]);
+
+  useEffect(() => {
+    if (!isTyping || !showEncouragement) return;
+    
+    const message = encouragementMessages[currentMessageIndex];
+    let charIndex = 0;
+    setDisplayedText('');
+    
+    const typeInterval = setInterval(() => {
+      if (charIndex < message.length) {
+        setDisplayedText(message.slice(0, charIndex + 1));
+        charIndex++;
+      } else {
+        clearInterval(typeInterval);
+        
+        setTimeout(() => {
+          if (currentMessageIndex < encouragementMessages.length - 1) {
+            setCurrentMessageIndex(prev => prev + 1);
+          } else {
+            setTimeout(() => {
+              setIsTyping(false);
+            }, 2000);
+          }
+        }, 2500);
+      }
+    }, 50);
+    
+    return () => clearInterval(typeInterval);
+  }, [currentMessageIndex, isTyping, showEncouragement]);
 
   useEffect(() => {
     const timeElapsed = (Date.now() - startTimeRef.current) / 1000;
@@ -91,6 +157,11 @@ export function BubbleScreen({
     setPoppedCount(0);
     startTimeRef.current = Date.now();
     hasSavedRef.current = false;
+    encouragementShownRef.current = false;
+    setShowEncouragement(false);
+    setCurrentMessageIndex(0);
+    setDisplayedText('');
+    setIsTyping(false);
   };
 
   const getBubblePosition = (row: number, col: number) => {
@@ -109,9 +180,54 @@ export function BubbleScreen({
     <div 
       className="relative w-full h-full overflow-hidden"
       style={{ 
-        background: 'linear-gradient(to bottom, #E8E4E0 0%, #D8D4D0 50%, #C8C4C0 100%)' 
+        background: 'linear-gradient(to bottom, #F5F1EB 0%, #E8E4DC 18%, #D8DCD5 45%, #C5CABE 78%, #B4BFB3 100%)' 
       }}
     >
+      <div 
+        className="absolute inset-0 pointer-events-none z-0"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+          opacity: 0.03,
+        }}
+      />
+
+      <AnimatePresence>
+        {showEncouragement && displayedText && (
+          <motion.div
+            className="absolute z-15 w-full flex justify-center px-8"
+            style={{ top: '45%', transform: 'translateY(-50%)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <motion.p
+              className="text-center"
+              style={{
+                fontFamily: 'Georgia, serif',
+                fontSize: '20px',
+                fontWeight: 400,
+                color: 'rgba(90, 74, 58, 0.9)',
+                letterSpacing: '0.01em',
+                lineHeight: 1.6,
+                textShadow: '0 1px 2px rgba(255, 255, 255, 0.8)',
+              }}
+            >
+              {displayedText}
+              {isTyping && (
+                <motion.span
+                  animate={{ opacity: [1, 0] }}
+                  transition={{ duration: 0.5, repeat: Infinity, repeatType: 'reverse' }}
+                >
+                  |
+                </motion.span>
+              )}
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="absolute inset-0 z-10" style={{ bottom: '70px' }}>
         {bubbles.map((bubble) => {
           const pos = getBubblePosition(bubble.row, bubble.col);
