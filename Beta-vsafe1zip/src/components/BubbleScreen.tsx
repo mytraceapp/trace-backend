@@ -14,11 +14,10 @@ interface BubbleScreenProps {
 
 interface Bubble {
   id: number;
-  x: number;
-  y: number;
-  size: number;
+  row: number;
+  col: number;
   popped: boolean;
-  delay: number;
+  popTime: number | null;
 }
 
 export function BubbleScreen({
@@ -35,6 +34,13 @@ export function BubbleScreen({
   const [showTitle, setShowTitle] = useState(true);
   const hasSavedRef = useRef(false);
   const startTimeRef = useRef<number>(Date.now());
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const bubbleSize = 48;
+  const gap = 4;
+  const cols = 7;
+  const topOffset = 100;
+  const bottomOffset = 80;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -44,29 +50,23 @@ export function BubbleScreen({
   }, []);
 
   useEffect(() => {
-    const newBubbles: Bubble[] = [];
-    const rows = 10;
-    const cols = 6;
-    const bubbleSize = 48;
-    const gapX = 56;
-    const gapY = 56;
-    const offsetX = 20;
-    const offsetY = 140;
+    const screenHeight = 844;
+    const availableHeight = screenHeight - topOffset - bottomOffset;
+    const rowHeight = bubbleSize + gap;
+    const rows = Math.floor(availableHeight / rowHeight);
     
+    const newBubbles: Bubble[] = [];
     let id = 0;
+    
     for (let row = 0; row < rows; row++) {
-      const rowOffset = row % 2 === 0 ? 0 : gapX / 2;
-      for (let col = 0; col < cols; col++) {
-        const x = offsetX + col * gapX + rowOffset;
-        const y = offsetY + row * gapY;
-        const sizeVariation = 0.85 + Math.random() * 0.3;
+      const colsInRow = row % 2 === 0 ? cols : cols - 1;
+      for (let col = 0; col < colsInRow; col++) {
         newBubbles.push({
           id: id++,
-          x,
-          y,
-          size: bubbleSize * sizeVariation,
+          row,
+          col,
           popped: false,
-          delay: Math.random() * 0.5,
+          popTime: null,
         });
       }
     }
@@ -75,7 +75,7 @@ export function BubbleScreen({
 
   const popBubble = (id: number) => {
     setBubbles(prev => 
-      prev.map(b => b.id === id ? { ...b, popped: true } : b)
+      prev.map(b => b.id === id ? { ...b, popped: true, popTime: Date.now() } : b)
     );
     setPoppedCount(prev => prev + 1);
     
@@ -96,17 +96,30 @@ export function BubbleScreen({
         metadata: { duration: Math.round(timeElapsed), poppedCount }
       });
     }
-  }, [poppedCount, bubbles.length, addSessionEntry]);
+  }, [poppedCount, addSessionEntry]);
 
   const resetBubbles = () => {
-    setBubbles(prev => prev.map(b => ({ ...b, popped: false })));
+    setBubbles(prev => prev.map(b => ({ ...b, popped: false, popTime: null })));
     setPoppedCount(0);
     startTimeRef.current = Date.now();
     hasSavedRef.current = false;
   };
 
+  const getBubblePosition = (row: number, col: number) => {
+    const totalRowWidth = cols * bubbleSize + (cols - 1) * gap;
+    const screenWidth = 366;
+    const startX = (screenWidth - totalRowWidth) / 2;
+    const rowOffset = row % 2 === 0 ? 0 : (bubbleSize + gap) / 2;
+    
+    return {
+      x: startX + col * (bubbleSize + gap) + rowOffset,
+      y: topOffset + row * (bubbleSize + gap),
+    };
+  };
+
   return (
     <div 
+      ref={containerRef}
       className="relative w-full h-full overflow-hidden"
       style={{ 
         background: 'linear-gradient(to bottom, #F5F1EB 0%, #E8E4DC 18%, #D8DCD5 45%, #C5CABE 78%, #B4BFB3 100%)' 
@@ -147,8 +160,8 @@ export function BubbleScreen({
       <AnimatePresence>
         {showTitle && (
           <motion.div
-            className="absolute z-10 w-full text-center pointer-events-none"
-            style={{ top: '14%' }}
+            className="absolute z-30 w-full text-center pointer-events-none"
+            style={{ top: '45%', transform: 'translateY(-50%)' }}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -159,9 +172,10 @@ export function BubbleScreen({
                 fontFamily: 'Georgia, serif',
                 color: '#5A4A3A',
                 fontWeight: 400,
-                fontSize: '22px',
-                letterSpacing: '0.01em',
+                fontSize: '26px',
+                letterSpacing: '0.02em',
                 marginBottom: '8px',
+                textShadow: '0 2px 10px rgba(255,255,255,0.5)',
               }}
             >
               Bubble
@@ -169,9 +183,9 @@ export function BubbleScreen({
             <p
               style={{
                 fontFamily: 'Georgia, serif',
-                color: '#8A7A6A',
+                color: '#7A6A5A',
                 fontWeight: 300,
-                fontSize: '14px',
+                fontSize: '15px',
                 letterSpacing: '0.01em',
                 lineHeight: '1.5',
               }}
@@ -182,78 +196,111 @@ export function BubbleScreen({
         )}
       </AnimatePresence>
 
-      <div className="absolute inset-0 z-10" style={{ paddingBottom: '80px' }}>
-        {bubbles.map((bubble) => (
-          <motion.div
-            key={bubble.id}
-            className="absolute cursor-pointer"
-            style={{
-              left: bubble.x,
-              top: bubble.y,
-              width: bubble.size,
-              height: bubble.size,
-            }}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ 
-              opacity: bubble.popped ? 0 : 1, 
-              scale: bubble.popped ? 1.3 : 1 
-            }}
-            transition={{ 
-              delay: bubble.delay,
-              duration: bubble.popped ? 0.15 : 0.4,
-              ease: bubble.popped ? 'easeOut' : [0.22, 0.61, 0.36, 1]
-            }}
-            onClick={() => !bubble.popped && popBubble(bubble.id)}
-            onTouchStart={() => !bubble.popped && popBubble(bubble.id)}
-            whileHover={{ scale: bubble.popped ? 1.3 : 1.08 }}
-            whileTap={{ scale: 0.9 }}
-          >
+      <div className="absolute inset-0 z-10" style={{ bottom: '80px' }}>
+        {bubbles.map((bubble) => {
+          const pos = getBubblePosition(bubble.row, bubble.col);
+          return (
             <div
-              className="w-full h-full rounded-full"
+              key={bubble.id}
+              className="absolute"
               style={{
-                background: `radial-gradient(circle at 30% 30%, 
-                  rgba(255, 255, 255, 0.95) 0%, 
-                  rgba(255, 255, 255, 0.6) 20%,
-                  rgba(220, 230, 225, 0.5) 40%,
-                  rgba(180, 200, 190, 0.4) 60%,
-                  rgba(150, 175, 165, 0.3) 80%,
-                  rgba(130, 155, 145, 0.2) 100%)`,
-                boxShadow: `
-                  inset 0 0 ${bubble.size * 0.15}px rgba(255, 255, 255, 0.8),
-                  inset ${bubble.size * 0.1}px ${bubble.size * 0.1}px ${bubble.size * 0.2}px rgba(255, 255, 255, 0.9),
-                  inset -${bubble.size * 0.05}px -${bubble.size * 0.05}px ${bubble.size * 0.1}px rgba(100, 130, 120, 0.2),
-                  0 ${bubble.size * 0.1}px ${bubble.size * 0.3}px rgba(90, 100, 95, 0.15),
-                  0 ${bubble.size * 0.02}px ${bubble.size * 0.05}px rgba(90, 100, 95, 0.1)
-                `,
-                border: '1px solid rgba(255, 255, 255, 0.6)',
+                left: pos.x,
+                top: pos.y,
+                width: bubbleSize,
+                height: bubbleSize,
               }}
             >
-              <div
-                className="absolute rounded-full"
-                style={{
-                  top: '15%',
-                  left: '20%',
-                  width: '25%',
-                  height: '20%',
-                  background: 'rgba(255, 255, 255, 0.9)',
-                  filter: 'blur(2px)',
-                  transform: 'rotate(-30deg)',
+              <AnimatePresence>
+                {bubble.popped && (
+                  <motion.div
+                    className="absolute rounded-full pointer-events-none"
+                    style={{
+                      left: '50%',
+                      top: '50%',
+                      width: bubbleSize,
+                      height: bubbleSize,
+                      marginLeft: -bubbleSize / 2,
+                      marginTop: -bubbleSize / 2,
+                      border: '2px solid rgba(139, 109, 82, 0.6)',
+                      background: 'transparent',
+                    }}
+                    initial={{ scale: 1, opacity: 0.8 }}
+                    animate={{ scale: 2.5, opacity: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                  />
+                )}
+              </AnimatePresence>
+
+              <motion.div
+                className="w-full h-full cursor-pointer"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ 
+                  opacity: bubble.popped ? 0 : 1, 
+                  scale: bubble.popped ? 0.5 : 1,
+                  backgroundColor: bubble.popped ? 'rgba(139, 109, 82, 0.4)' : 'transparent',
                 }}
-              />
-              <div
-                className="absolute rounded-full"
-                style={{
-                  top: '25%',
-                  left: '35%',
-                  width: '10%',
-                  height: '8%',
-                  background: 'rgba(255, 255, 255, 0.7)',
-                  filter: 'blur(1px)',
+                transition={{ 
+                  duration: bubble.popped ? 0.2 : 0.3,
+                  delay: bubble.popped ? 0 : bubble.id * 0.008,
+                  ease: bubble.popped ? 'easeOut' : [0.22, 0.61, 0.36, 1]
                 }}
-              />
+                onClick={() => !bubble.popped && popBubble(bubble.id)}
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  if (!bubble.popped) popBubble(bubble.id);
+                }}
+                whileHover={{ scale: bubble.popped ? 0.5 : 1.05 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <div
+                  className="w-full h-full rounded-full relative"
+                  style={{
+                    background: `radial-gradient(circle at 30% 30%, 
+                      rgba(255, 255, 255, 0.98) 0%, 
+                      rgba(255, 255, 255, 0.7) 15%,
+                      rgba(235, 240, 238, 0.55) 35%,
+                      rgba(200, 215, 210, 0.45) 55%,
+                      rgba(170, 190, 185, 0.35) 75%,
+                      rgba(150, 170, 165, 0.25) 100%)`,
+                    boxShadow: `
+                      inset 0 0 8px rgba(255, 255, 255, 0.9),
+                      inset 6px 6px 12px rgba(255, 255, 255, 0.95),
+                      inset -3px -3px 8px rgba(120, 145, 140, 0.15),
+                      0 4px 12px rgba(100, 115, 110, 0.12),
+                      0 1px 3px rgba(100, 115, 110, 0.08)
+                    `,
+                    border: '1px solid rgba(255, 255, 255, 0.7)',
+                  }}
+                >
+                  <div
+                    className="absolute rounded-full"
+                    style={{
+                      top: '12%',
+                      left: '18%',
+                      width: '30%',
+                      height: '22%',
+                      background: 'rgba(255, 255, 255, 0.95)',
+                      filter: 'blur(1.5px)',
+                      transform: 'rotate(-25deg)',
+                    }}
+                  />
+                  <div
+                    className="absolute rounded-full"
+                    style={{
+                      top: '22%',
+                      left: '38%',
+                      width: '12%',
+                      height: '10%',
+                      background: 'rgba(255, 255, 255, 0.8)',
+                      filter: 'blur(1px)',
+                    }}
+                  />
+                </div>
+              </motion.div>
             </div>
-          </motion.div>
-        ))}
+          );
+        })}
       </div>
 
       {poppedCount > 0 && poppedCount === bubbles.length && (
