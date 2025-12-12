@@ -27,9 +27,9 @@ function TabBarBackground() {
     <View style={StyleSheet.absoluteFill}>
       <LinearGradient
         colors={[
-          'rgba(168, 181, 170, 0.70)',
-          'rgba(158, 173, 160, 0.90)',
-          'rgba(148, 165, 150, 1.0)',
+          'rgba(168, 181, 170, 0.63)',
+          'rgba(158, 173, 160, 0.83)',
+          'rgba(148, 165, 150, 0.93)',
           'rgba(138, 158, 142, 1.0)',
           'rgba(128, 150, 134, 1.0)',
         ]}
@@ -134,6 +134,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
     minWidth: 50,
+    marginTop: 6,
   },
   tabLabel: {
     fontSize: 10,
