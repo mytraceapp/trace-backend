@@ -264,6 +264,15 @@ export function BubbleScreen({
 
   const allPopped = bubbles.length > 0 && bubbles.every(b => b.popped);
 
+  useEffect(() => {
+    if (allPopped) {
+      const timer = setTimeout(() => {
+        onReturnToChat();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [allPopped, onReturnToChat]);
+
   return (
     <div 
       className="relative w-full h-full overflow-hidden"
