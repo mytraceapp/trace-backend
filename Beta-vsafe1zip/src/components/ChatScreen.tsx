@@ -687,6 +687,11 @@ export function ChatScreen({
           }
         }
         
+        // Add a thoughtful pause before responding (2-3.5 seconds)
+        // This makes TRACE feel like it's thinking, not instantly answering
+        const thinkingDelay = 2000 + Math.random() * 1500;
+        await new Promise(resolve => setTimeout(resolve, thinkingDelay));
+        
         setMessages(prev => [...prev, {
           id: `ai-${Date.now() + 1}`,
           role: 'assistant',

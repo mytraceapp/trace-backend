@@ -4,6 +4,7 @@ import { Move } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
 import * as THREE from 'three';
+import traceLogo from 'figma:asset/513ec3c351285cce0b15e678c8f6d864d8269d64.png';
 
 interface RisingScreenProps {
   onBack: () => void;
@@ -228,8 +229,8 @@ export function RisingScreen({
       createRichVariations([0xF5EFE6, 0xE8DED1, 0xD4C9BC, 0xEDE4D8, 0xFAF6F0, 0xC9BEB1]),
     ];
 
-    const clusterBurstDuration = 8.0; // 50% slower
-    const clusterGap = 5.0; // Longer gap between clusters
+    const clusterBurstDuration = 11.0; // 30% slower than before
+    const clusterGap = 0.8; // Minimal gap - flows continuously
     const fullCycleDuration = 4 * (clusterBurstDuration + clusterGap);
 
     // ============================================
@@ -400,7 +401,7 @@ export function RisingScreen({
 
       phases[i] = Math.random() * Math.PI * 2;
       rotationSpeeds[i] = 0.12 + Math.random() * 0.35;
-      burstOffsets[i] = Math.random() * 4.0; // Wider stagger for slower burst
+      burstOffsets[i] = Math.random() * 5.5; // Wider stagger for slower burst
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -504,7 +505,7 @@ export function RisingScreen({
       
       grainSizes[i] = 0.2 + Math.random() * 0.9;
       grainPhases[i] = Math.random() * Math.PI * 2;
-      grainBurstOffsets[i] = Math.random() * 4.0;
+      grainBurstOffsets[i] = Math.random() * 5.5;
     }
 
     grainGeometry.setAttribute('position', new THREE.BufferAttribute(grainPositions, 3));
@@ -612,7 +613,7 @@ export function RisingScreen({
           continue;
         }
         
-        const burstDuration = 10.0; // 50% slower burst
+        const burstDuration = 14.0; // 30% slower burst
         const burstT = Math.min(1.0, timeSinceBurst / burstDuration);
         const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.3);
         
@@ -665,7 +666,7 @@ export function RisingScreen({
           continue;
         }
         
-        const burstT = Math.min(1.0, timeSinceBurst / 10.0);
+        const burstT = Math.min(1.0, timeSinceBurst / 14.0);
         const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.3);
         
         const gHomeX = grainHomes[i3];
@@ -777,12 +778,38 @@ export function RisingScreen({
         style={{ zIndex: 1 }}
       />
 
+      {/* TRACE Logo - Fixed at top */}
+      <motion.div
+        className="absolute z-10 pointer-events-none"
+        style={{
+          top: '55px',
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 1.2, ease: [0.22, 0.61, 0.36, 1] }}
+      >
+        <img 
+          src={traceLogo} 
+          alt="TRACE" 
+          style={{
+            width: '36px',
+            height: '36px',
+            filter: 'drop-shadow(0 2px 12px rgba(0,0,0,0.15))',
+            opacity: 0.8,
+          }}
+        />
+      </motion.div>
+
       <AnimatePresence>
         {showTitle && (
           <motion.div
             className="absolute z-10 pointer-events-none"
             style={{
-              top: '42%',
+              top: '50%',
               left: 0,
               right: 0,
               display: 'flex',
@@ -790,6 +817,7 @@ export function RisingScreen({
               alignItems: 'center',
               justifyContent: 'center',
               textAlign: 'center',
+              transform: 'translateY(-50%)',
             }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

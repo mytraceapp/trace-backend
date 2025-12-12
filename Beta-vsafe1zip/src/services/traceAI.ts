@@ -293,45 +293,45 @@ const MAX_RECENT_GREETINGS = 3;
 export function getTraceGreeting(): string {
   const hour = new Date().getHours();
   
-  // Time-aware greetings - natural, not overly soft
+  // Time-aware greetings - warm, welcoming, inviting
   const morningGreetings = [
-    "Hey. Morning.",
-    "Good morning.",
-    "Morning.",
-    "Hey there.",
-    "Hi.",
-    "Morning. I'm here.",
-    "Hey.",
+    "Good morning. I hope today treats you gently.",
+    "Morning. It's nice to see you here.",
+    "Hey. I hope you slept well.",
+    "Good morning. Take your time settling in.",
+    "Morning. I'm glad you're here.",
+    "Hi. I hope your day is starting softly.",
+    "Good morning. No rush—I'm here whenever you're ready.",
   ];
   
   const afternoonGreetings = [
-    "Hey.",
-    "Hi there.",
-    "Hey. What's up?",
-    "Hi.",
-    "Hey. Good to see you.",
-    "Hi. I'm here.",
-    "Hey there.",
+    "Hey. I hope your day's been kind to you.",
+    "Hi. It's good to see you.",
+    "Hey there. How's your day going so far?",
+    "Hi. I'm glad you stopped by.",
+    "Hey. I hope you're finding some moments of ease today.",
+    "Good afternoon. I'm here if you'd like some company.",
+    "Hi. Take a breath—I'm here.",
   ];
   
   const eveningGreetings = [
-    "Hey.",
-    "Hi. Evening.",
-    "Evening.",
-    "Hey there.",
-    "Hi.",
-    "Hey. I'm here.",
-    "Good evening.",
+    "Hey. I hope today was gentle on you.",
+    "Good evening. It's nice to see you.",
+    "Hi. I hope you're winding down okay.",
+    "Evening. How are you feeling?",
+    "Hey. I'm glad you're here.",
+    "Hi there. I hope your evening is peaceful.",
+    "Good evening. Take your time—I'm here.",
   ];
   
   const lateNightGreetings = [
-    "Hey. Still up?",
-    "Hi. I'm here.",
-    "Hey.",
-    "Hi there.",
-    "Hey. It's late.",
-    "Hi.",
-    "Hey. I'm here.",
+    "Hey. It's late—I hope you're okay.",
+    "Hi. I'm here if you need some company.",
+    "Hey. Can't sleep, or just winding down?",
+    "Hi there. I hope the night is treating you gently.",
+    "Hey. I'm here—no pressure to talk if you don't want to.",
+    "Hi. Take your time. I'm not going anywhere.",
+    "Hey. Whatever's on your mind, I'm here.",
   ];
   
   let greetings: string[];
