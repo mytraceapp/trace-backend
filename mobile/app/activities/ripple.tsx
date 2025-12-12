@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Dimensions, Platform } from 'react-n
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Home, Activity, BookOpen, User, HelpCircle } from 'lucide-react-native';
+import ActivityTabBar from '../../components/ActivityTabBar';
 import { useFonts } from 'expo-font';
 import { Audio } from 'expo-av';
 import Svg, { Circle } from 'react-native-svg';
@@ -370,43 +370,7 @@ export default function RippleActivityScreen() {
         </Pressable>
       </View>
 
-      <View style={[styles.tabBar, { paddingBottom: bottomPadding, height: TAB_BAR_HEIGHT + bottomPadding }]}>
-        <LinearGradient
-          colors={[
-            'rgba(168, 181, 170, 0.673)',
-            'rgba(158, 173, 160, 0.873)',
-            'rgba(148, 165, 150, 0.973)',
-            'rgba(138, 158, 142, 1.0)',
-            'rgba(128, 150, 134, 1.0)',
-          ]}
-          locations={[0, 0.25, 0.5, 0.75, 1]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.tabBarContent}>
-          <Pressable style={styles.tabItem} onPress={() => router.replace('/(tabs)/chat')}>
-            <Home size={18} color="#E8E5DE" strokeWidth={1.5} />
-            <Text style={styles.tabLabel}>Home</Text>
-          </Pressable>
-          <Pressable style={styles.tabItem} onPress={() => router.replace('/(tabs)/activities')}>
-            <Activity size={18} color="#E8E5DE" strokeWidth={1.5} />
-            <Text style={styles.tabLabel}>Activity</Text>
-          </Pressable>
-          <Pressable style={styles.tabItem} onPress={() => router.replace('/(tabs)/entries')}>
-            <BookOpen size={18} color="#E8E5DE" strokeWidth={1.5} />
-            <Text style={styles.tabLabel}>Entries</Text>
-          </Pressable>
-          <Pressable style={styles.tabItem} onPress={() => router.replace('/(tabs)/profile')}>
-            <User size={18} color="#E8E5DE" strokeWidth={1.5} />
-            <Text style={styles.tabLabel}>Profile</Text>
-          </Pressable>
-          <Pressable style={styles.tabItem} onPress={() => router.replace('/(tabs)/journal')}>
-            <HelpCircle size={18} color="#E8E5DE" strokeWidth={1.5} />
-            <Text style={styles.tabLabel}>Help</Text>
-          </Pressable>
-        </View>
-      </View>
+      <ActivityTabBar />
     </View>
   );
 }
@@ -517,33 +481,5 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     color: 'rgba(154, 135, 120, 0.85)',
     letterSpacing: 1.5,
-  },
-  tabBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingTop: 8,
-  },
-  tabBarContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-start',
-    flex: 1,
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    minWidth: 50,
-    marginTop: 20,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontWeight: '400',
-    letterSpacing: 0.3,
-    textAlign: 'center',
-    color: '#E8E5DE',
-    fontFamily: 'Georgia',
   },
 });
