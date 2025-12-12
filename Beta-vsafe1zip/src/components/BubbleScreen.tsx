@@ -124,14 +124,10 @@ export function BubbleScreen({
         clearInterval(typeInterval);
         
         setTimeout(() => {
-          if (currentMessageIndex < encouragementMessages.length - 1) {
-            setCurrentMessageIndex(prev => prev + 1);
-          } else {
-            setTimeout(() => {
-              setIsTyping(false);
-            }, 2000);
-          }
-        }, 2500);
+          setCurrentMessageIndex(prev => 
+            prev < encouragementMessages.length - 1 ? prev + 1 : 0
+          );
+        }, 3000);
       }
     }, 50);
     
