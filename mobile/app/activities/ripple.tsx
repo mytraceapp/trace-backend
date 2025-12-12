@@ -338,7 +338,7 @@ export default function RippleActivityScreen() {
       </View>
 
       {countdownStep !== null && (
-        <Animated.View style={[styles.countdownContainer, { top: centerY - 60 }, countdownAnimatedStyle]}>
+        <Animated.View style={[styles.countdownContainer, { top: centerY - 40 }, countdownAnimatedStyle]}>
           <Text style={[styles.countdownNumber, { fontFamily: canelaFont }]}>
             {COUNTDOWN_STEPS[countdownStep].number}
           </Text>
