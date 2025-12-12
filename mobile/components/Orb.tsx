@@ -31,8 +31,10 @@ try {
   ColorMatrix = Skia.ColorMatrix;
   Fill = Skia.Fill;
   SkiaAvailable = true;
+  console.log('[Orb] Skia loaded successfully - using Skia renderer');
 } catch (e) {
   SkiaAvailable = false;
+  console.log('[Orb] Skia not available - using fallback renderer');
 }
 
 interface OrbProps {
