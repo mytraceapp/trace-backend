@@ -278,15 +278,16 @@ export function BubbleScreen({
   }, [allPopped, onReturnToChat]);
 
   return (
-    <motion.div 
-      className="relative w-full h-full overflow-hidden"
-      style={{ 
-        background: 'linear-gradient(to bottom, #F5F1EB 0%, #E8E4DC 18%, #D8DCD5 45%, #C5CABE 78%, #B4BFB3 100%)' 
-      }}
-      initial={{ opacity: 1 }}
-      animate={{ opacity: isExiting ? 0 : 1 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div className="relative w-full h-full overflow-hidden">
+      <motion.div 
+        className="absolute inset-0"
+        style={{ 
+          background: 'linear-gradient(to bottom, #F5F1EB 0%, #E8E4DC 18%, #D8DCD5 45%, #C5CABE 78%, #B4BFB3 100%)' 
+        }}
+        initial={{ opacity: 1 }}
+        animate={{ opacity: isExiting ? 0 : 1 }}
+        transition={{ duration: 0.5 }}
+      >
       <div 
         className="absolute inset-0 pointer-events-none z-0"
         style={{
@@ -500,6 +501,7 @@ export function BubbleScreen({
           </motion.button>
         </motion.div>
       )}
+      </motion.div>
 
       <div className="absolute bottom-0 left-0 right-0 z-30">
         <BottomNav
@@ -511,6 +513,6 @@ export function BubbleScreen({
           onNavigateHelp={onNavigateToHelp}
         />
       </div>
-    </motion.div>
+    </div>
   );
 }
