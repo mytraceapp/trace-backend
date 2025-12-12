@@ -499,6 +499,40 @@ export default function App() {
         <div className="absolute top-[24px] left-1/2 -translate-x-1/2 w-[126px] h-[37px] bg-black rounded-full z-50" />
       </div>
 
+      {/* Dev Navigation */}
+      <div className="fixed bottom-4 left-4 bg-white p-4 rounded-lg shadow-lg max-w-xs z-50">
+        <h3 className="font-bold mb-2">Dev Navigation</h3>
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => setCurrentScreen("home")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Home</button>
+          <button onClick={() => setCurrentScreen("auth")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Auth</button>
+          <button onClick={() => setCurrentScreen("accountsetup")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Setup</button>
+          <button onClick={() => setCurrentScreen("payment")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Payment</button>
+          <button onClick={() => setCurrentScreen("onboarding")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Onboarding</button>
+          <button onClick={() => setCurrentScreen("chat")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Chat</button>
+          <button onClick={() => setCurrentScreen("activitieshub")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Activities</button>
+          <button onClick={() => setCurrentScreen("breathing")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Breathing</button>
+          <button onClick={() => setCurrentScreen("maze")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Maze</button>
+          <button onClick={() => setCurrentScreen("walking")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Walking</button>
+          <button onClick={() => setCurrentScreen("powernap")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Power Nap</button>
+          <button onClick={() => setCurrentScreen("pearlripple")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Ripple</button>
+          <button onClick={() => setCurrentScreen("grounding")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Grounding</button>
+          <button onClick={() => setCurrentScreen("rainwindow")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Rain Window</button>
+          <button onClick={() => setCurrentScreen("echo")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Echo</button>
+          <button onClick={() => setCurrentScreen("rising")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Rising</button>
+          <button onClick={() => setCurrentScreen("bubble")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Bubble</button>
+          <button onClick={() => setCurrentScreen("entries")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Entries</button>
+          <button onClick={() => setCurrentScreen("journal")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Journal</button>
+          <button onClick={() => setCurrentScreen("patterns")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Patterns</button>
+          <button onClick={() => setCurrentScreen("fullpatterns")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Full Patterns</button>
+          <button onClick={() => setCurrentScreen("help")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Help</button>
+          <button onClick={() => setCurrentScreen("profile")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Profile</button>
+          <button onClick={() => setCurrentScreen("inthisspace")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">In This Space</button>
+          <button onClick={() => setCurrentScreen("crisis")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Crisis</button>
+          <button onClick={() => setCurrentScreen("privacy")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Privacy</button>
+          <button onClick={() => setCurrentScreen("terms")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Terms</button>
+        </div>
+      </div>
+
       {/* Auth Modal - sits above all screens */}
       <AuthModal
         isOpen={showAuthModal}
