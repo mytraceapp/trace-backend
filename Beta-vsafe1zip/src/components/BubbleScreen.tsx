@@ -79,6 +79,8 @@ export function BubbleScreen({
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     
+    console.log('Fetching AI encouragement messages...');
+    
     try {
       const response = await fetch('/api/bubble-encouragement', {
         method: 'POST',
@@ -88,13 +90,18 @@ export function BubbleScreen({
       
       if (response.ok) {
         const data = await response.json();
+        console.log('Received AI messages:', data.messages);
         if (data.messages && data.messages.length > 0) {
           setAiMessages(data.messages);
+        } else {
+          throw new Error('No messages received');
         }
+      } else {
+        throw new Error(`API error: ${response.status}`);
       }
     } catch (error) {
       console.error('Failed to fetch AI encouragement:', error);
-      setAiMessages([
+      const fallbackMessages = [
         "Each pop is a tiny release.",
         "You're giving yourself permission to pause.",
         "There's something calming about this rhythm.",
@@ -103,7 +110,9 @@ export function BubbleScreen({
         "Notice how satisfying each one feels.",
         "You're doing something gentle for yourself.",
         "Stay as long as you need.",
-      ]);
+      ];
+      console.log('Using fallback messages');
+      setAiMessages(fallbackMessages);
     }
   }, []);
 
