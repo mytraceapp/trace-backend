@@ -78,7 +78,7 @@ export function BubbleScreen({
     setBubbles(newBubbles);
   }, []);
 
-  const fetchAiEncouragement = useCallback(async () => {
+  const fetchAiEncouragement = useCallback(async (append: boolean = false) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     
@@ -92,7 +92,11 @@ export function BubbleScreen({
       if (response.ok) {
         const data = await response.json();
         if (data.messages && data.messages.length > 0) {
-          setAiMessages(data.messages);
+          if (append) {
+            setAiMessages(prev => [...prev, ...data.messages]);
+          } else {
+            setAiMessages(data.messages);
+          }
         } else {
           throw new Error('No messages received');
         }
@@ -111,8 +115,13 @@ export function BubbleScreen({
         "You're doing something gentle for yourself.",
         "Stay as long as you need.",
       ];
-      setAiMessages(fallbackMessages);
+      if (append) {
+        setAiMessages(prev => [...prev, ...fallbackMessages]);
+      } else {
+        setAiMessages(fallbackMessages);
+      }
     }
+    fetchingRef.current = false;
   }, []);
 
   const popBubble = (id: number) => {
@@ -181,15 +190,17 @@ export function BubbleScreen({
         clearInterval(typeInterval);
         
         setTimeout(() => {
-          if (currentAiIndex < aiMessages.length - 1) {
-            setCurrentAiIndex(prev => prev + 1);
+          const nextIndex = currentAiIndex + 1;
+          if (nextIndex >= aiMessages.length - 2) {
+            fetchAiEncouragement(true);
           }
+          setCurrentAiIndex(nextIndex);
         }, 4000);
       }
     }, 45);
     
     return () => clearInterval(typeInterval);
-  }, [currentAiIndex, isTyping, showEncouragement, aiMessages]);
+  }, [currentAiIndex, isTyping, showEncouragement, aiMessages, fetchAiEncouragement]);
 
   useEffect(() => {
     const timeElapsed = (Date.now() - startTimeRef.current) / 1000;

@@ -872,6 +872,8 @@ export function RisingScreen({
                 fontWeight: 400,
                 color: 'rgba(250, 246, 240, 0.7)',
                 margin: 0,
+                padding: '0 20px',
+                width: '100%',
                 letterSpacing: '0.02em',
                 textShadow: '0 0 20px rgba(255, 255, 255, 0.6), 0 0 40px rgba(255, 255, 255, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)',
               }}
