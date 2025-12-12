@@ -365,7 +365,7 @@ export function ActivitiesHubScreen({
                       background: 'linear-gradient(135deg, rgba(190, 185, 180, 0.15) 0%, rgba(190, 185, 180, 0.08) 100%)',
                     }}
                   >
-                    <Droplets size={20} style={{ color: '#7BA3A8' }} strokeWidth={1.5} />
+                    <Droplets size={20} style={{ color: '#9A8778' }} strokeWidth={1.5} />
                   </div>
 
                   <div className="flex-1 flex flex-col items-start justify-end text-left">
@@ -581,9 +581,9 @@ export function ActivitiesHubScreen({
                 onClick={onStartRising}
                 className="rounded-[24px] p-5 transition-all duration-300 active:scale-[0.97]"
                 style={{
-                  background: 'linear-gradient(135deg, #8FA38F 0%, #7A8E7A 100%)',
-                  boxShadow: '0 8px 24px rgba(75, 75, 75, 0.12), 0 2px 8px rgba(75, 75, 75, 0.06), inset 0 1px 2px rgba(255, 255, 255, 0.2)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  background: 'linear-gradient(135deg, #FDFCFB 0%, #F5F3F0 100%)',
+                  boxShadow: '0 8px 24px rgba(75, 75, 75, 0.08), 0 2px 8px rgba(75, 75, 75, 0.04), inset 0 1px 2px rgba(255, 255, 255, 0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.5)',
                 }}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -594,10 +594,10 @@ export function ActivitiesHubScreen({
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.12) 100%)',
+                      background: 'linear-gradient(135deg, rgba(190, 185, 180, 0.15) 0%, rgba(190, 185, 180, 0.08) 100%)',
                     }}
                   >
-                    <Sunrise size={20} style={{ color: '#FAF6F0' }} strokeWidth={1.5} />
+                    <Sunrise size={20} style={{ color: '#9A8778' }} strokeWidth={1.5} />
                   </div>
 
                   <div className="flex-1 flex flex-col items-start justify-end text-left">
@@ -605,7 +605,7 @@ export function ActivitiesHubScreen({
                       className="mb-1"
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: '#FAF6F0',
+                        color: '#4B4B4B',
                         fontWeight: 500,
                         fontSize: '16px',
                         letterSpacing: '0.01em',
@@ -616,7 +616,7 @@ export function ActivitiesHubScreen({
                     <p
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: 'rgba(250, 246, 240, 0.7)',
+                        color: '#8A8680',
                         fontWeight: 300,
                         fontSize: '12px',
                         letterSpacing: '0.005em',
@@ -652,7 +652,7 @@ export function ActivitiesHubScreen({
                       background: 'linear-gradient(135deg, rgba(138, 134, 128, 0.12) 0%, rgba(138, 134, 128, 0.06) 100%)',
                     }}
                   >
-                    <Circle size={20} style={{ color: '#7A8580' }} strokeWidth={1.5} />
+                    <Circle size={20} style={{ color: '#9A8778' }} strokeWidth={1.5} />
                   </div>
 
                   <div className="flex-1 flex flex-col items-start justify-end text-left">
