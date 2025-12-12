@@ -74,8 +74,8 @@ export default function TabLayout() {
         tabBarItemStyle: {
           borderTopWidth: 0,
         },
-        tabBarActiveTintColor: colors.tabBar.activeIcon,
-        tabBarInactiveTintColor: colors.tabBar.inactiveIcon,
+        tabBarActiveTintColor: '#E8E5DE',
+        tabBarInactiveTintColor: '#E8E5DE',
         tabBarShowLabel: false,
       }}
     >
@@ -134,12 +134,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
     minWidth: 50,
-    marginTop: 10,
+    marginTop: 16,
   },
   tabLabel: {
     fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 0.1,
+    fontWeight: '400',
+    letterSpacing: 0.3,
     textAlign: 'center',
+    fontFamily: 'System',
   },
 });
