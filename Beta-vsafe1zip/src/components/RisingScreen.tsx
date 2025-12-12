@@ -110,10 +110,23 @@ export function RisingScreen({
           return 130.0 * dot(m, g);
         }
         
-        // Metaball-like blob function
-        float blob(vec2 uv, vec2 center, float radius, float softness) {
+        // Soft glowing orb with bloom effect
+        float glowOrb(vec2 uv, vec2 center, float radius) {
           float d = length(uv - center);
-          return smoothstep(radius + softness, radius - softness, d);
+          float core = smoothstep(radius, radius * 0.3, d);
+          float glow = exp(-d * d / (radius * radius * 2.0)) * 0.8;
+          float bloom = exp(-d / (radius * 3.0)) * 0.3;
+          return core * 0.6 + glow + bloom;
+        }
+        
+        // Light ray emanating from orb
+        float lightRay(vec2 uv, vec2 center, float angle, float width, float length) {
+          vec2 dir = vec2(cos(angle), sin(angle));
+          vec2 toPoint = uv - center;
+          float along = dot(toPoint, dir);
+          float perp = abs(dot(toPoint, vec2(-dir.y, dir.x)));
+          float ray = smoothstep(width, 0.0, perp) * smoothstep(length, 0.0, along) * smoothstep(-0.02, 0.1, along);
+          return ray * 0.15;
         }
         
         void main() {
@@ -121,78 +134,94 @@ export function RisingScreen({
           float aspect = u_resolution.x / u_resolution.y;
           uv.x *= aspect;
           
-          float t = u_time * 0.08; // Very slow movement
+          float t = u_time * 0.06;
           
-          // Multiple floating blobs with different speeds and sizes
-          float blobs = 0.0;
+          // Premium warm cream background
+          vec3 bgColor = vec3(0.988, 0.973, 0.953);
           
-          // Blob 1 - Large, slow
+          // Subtle radial gradient for depth
+          float vignette = 1.0 - length(vUv - 0.5) * 0.3;
+          bgColor *= vignette;
+          
+          // Color palette - luxurious muted tones
+          vec3 sageGlow = vec3(0.75, 0.85, 0.78);
+          vec3 roseGlow = vec3(0.92, 0.82, 0.80);
+          vec3 goldGlow = vec3(0.95, 0.90, 0.78);
+          vec3 pearlGlow = vec3(0.94, 0.93, 0.91);
+          
+          vec3 color = bgColor;
+          float totalGlow = 0.0;
+          
+          // Orb 1 - Large sage aura
           vec2 c1 = vec2(
-            0.3 * aspect + sin(t * 0.7) * 0.25 * aspect,
-            0.7 + cos(t * 0.5) * 0.2
+            0.35 * aspect + sin(t * 0.5) * 0.15 * aspect,
+            0.65 + cos(t * 0.4) * 0.12
           );
-          blobs += blob(uv, c1, 0.28, 0.15);
+          float orb1 = glowOrb(uv, c1, 0.35);
+          color += sageGlow * orb1 * 0.25;
+          totalGlow += orb1;
           
-          // Blob 2 - Medium
+          // Light rays from orb 1
+          for (float i = 0.0; i < 3.0; i++) {
+            float angle = t * 0.2 + i * 2.094;
+            color += sageGlow * lightRay(uv, c1, angle, 0.03, 0.4) * 0.5;
+          }
+          
+          // Orb 2 - Medium rose aura
           vec2 c2 = vec2(
-            0.7 * aspect + sin(t * 0.9 + 1.5) * 0.22 * aspect,
-            0.4 + cos(t * 0.6 + 2.0) * 0.25
+            0.65 * aspect + sin(t * 0.7 + 2.0) * 0.18 * aspect,
+            0.35 + cos(t * 0.5 + 1.5) * 0.15
           );
-          blobs += blob(uv, c2, 0.22, 0.12);
+          float orb2 = glowOrb(uv, c2, 0.28);
+          color += roseGlow * orb2 * 0.22;
+          totalGlow += orb2;
           
-          // Blob 3 - Small, faster
+          // Light rays from orb 2
+          for (float i = 0.0; i < 2.0; i++) {
+            float angle = -t * 0.15 + i * 3.14159 + 0.5;
+            color += roseGlow * lightRay(uv, c2, angle, 0.025, 0.35) * 0.4;
+          }
+          
+          // Orb 3 - Small golden accent
           vec2 c3 = vec2(
-            0.5 * aspect + sin(t * 1.1 + 3.0) * 0.3 * aspect,
-            0.3 + cos(t * 0.8 + 1.0) * 0.22
+            0.5 * aspect + sin(t * 0.9 + 4.0) * 0.22 * aspect,
+            0.5 + cos(t * 0.6 + 3.0) * 0.2
           );
-          blobs += blob(uv, c3, 0.18, 0.1);
+          float orb3 = glowOrb(uv, c3, 0.22);
+          color += goldGlow * orb3 * 0.18;
+          totalGlow += orb3;
           
-          // Blob 4 - Large bottom
+          // Orb 4 - Pearl highlight top
           vec2 c4 = vec2(
-            0.4 * aspect + sin(t * 0.5 + 4.5) * 0.2 * aspect,
-            0.2 + cos(t * 0.7 + 3.5) * 0.15
+            0.4 * aspect + sin(t * 0.4 + 1.0) * 0.12 * aspect,
+            0.78 + cos(t * 0.35 + 2.5) * 0.08
           );
-          blobs += blob(uv, c4, 0.25, 0.14);
+          float orb4 = glowOrb(uv, c4, 0.2);
+          color += pearlGlow * orb4 * 0.15;
           
-          // Blob 5 - Medium top
+          // Orb 5 - Sage bottom accent
           vec2 c5 = vec2(
-            0.6 * aspect + sin(t * 0.8 + 2.5) * 0.25 * aspect,
-            0.8 + cos(t * 0.4 + 5.0) * 0.12
+            0.6 * aspect + sin(t * 0.55 + 5.0) * 0.16 * aspect,
+            0.22 + cos(t * 0.45 + 4.0) * 0.1
           );
-          blobs += blob(uv, c5, 0.2, 0.11);
+          float orb5 = glowOrb(uv, c5, 0.24);
+          color += sageGlow * orb5 * 0.2;
           
-          // Blob 6 - Small wanderer
-          vec2 c6 = vec2(
-            0.25 * aspect + sin(t * 1.3 + 6.0) * 0.35 * aspect,
-            0.5 + cos(t * 0.9 + 4.0) * 0.3
-          );
-          blobs += blob(uv, c6, 0.15, 0.09);
+          // Subtle color field gradients
+          float fieldNoise = snoise(uv * 1.5 + t * 0.2) * 0.5 + 0.5;
+          vec3 fieldColor = mix(sageGlow, roseGlow, fieldNoise);
+          color += fieldColor * 0.03;
           
-          // Blob 7 - Another large one
-          vec2 c7 = vec2(
-            0.75 * aspect + sin(t * 0.6 + 1.0) * 0.2 * aspect,
-            0.6 + cos(t * 0.55 + 2.5) * 0.2
-          );
-          blobs += blob(uv, c7, 0.24, 0.13);
+          // Premium bloom effect - soft overall glow
+          float bloomIntensity = totalGlow * 0.08;
+          color += vec3(1.0, 0.98, 0.95) * bloomIntensity;
           
-          // Add noise for organic distortion
-          float noise = snoise(uv * 2.0 + t * 0.3) * 0.15;
-          blobs += noise * 0.3;
+          // Ensure colors stay in premium range
+          color = clamp(color, 0.0, 1.0);
           
-          // Smooth threshold for lava lamp look
-          blobs = smoothstep(0.4, 0.9, blobs);
-          
-          // Colors - soft muted palette
-          vec3 bgColor = vec3(0.98, 0.96, 0.93); // Warm white
-          vec3 blobColor1 = vec3(0.85, 0.92, 0.88); // Very soft sage
-          vec3 blobColor2 = vec3(0.90, 0.88, 0.84); // Soft cream
-          
-          // Mix blob colors based on position
-          float colorMix = sin(uv.y * 3.0 + t * 0.5) * 0.5 + 0.5;
-          vec3 blobColor = mix(blobColor1, blobColor2, colorMix);
-          
-          // Final color
-          vec3 color = mix(bgColor, blobColor, blobs * 0.4);
+          // Subtle film grain for texture
+          float grain = snoise(uv * 200.0 + t * 10.0) * 0.015;
+          color += grain;
           
           gl_FragColor = vec4(color, 1.0);
         }
