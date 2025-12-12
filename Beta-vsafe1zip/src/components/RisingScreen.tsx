@@ -613,6 +613,10 @@ export function RisingScreen({
       // Update lava lamp shader
       (lavaMaterial as THREE.ShaderMaterial).uniforms.u_time.value = elapsed;
 
+      // Get tilt offset for particles
+      const tiltOffsetX = tiltRef.current.x * 15;
+      const tiltOffsetY = tiltRef.current.y * 10;
+
       // Animate background particles
       const bgPosAttr = bgParticles.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < bgParticleCount; i++) {
@@ -621,8 +625,8 @@ export function RisingScreen({
         const homeY = bgHomePositions[i3 + 1];
         const homeZ = bgHomePositions[i3 + 2];
         
-        bgPosAttr[i3] = homeX + Math.sin(elapsed * 0.22 + bgPhases[i]) * 2.2;
-        bgPosAttr[i3 + 1] = homeY + Math.cos(elapsed * 0.18 + bgPhases[i] * 1.2) * 1.8;
+        bgPosAttr[i3] = homeX + Math.sin(elapsed * 0.22 + bgPhases[i]) * 2.2 + tiltOffsetX;
+        bgPosAttr[i3 + 1] = homeY + Math.cos(elapsed * 0.18 + bgPhases[i] * 1.2) * 1.8 + tiltOffsetY;
         bgPosAttr[i3 + 2] = homeZ + Math.sin(elapsed * 0.12 + bgPhases[i] * 0.8) * 1.2;
       }
       bgParticles.geometry.attributes.position.needsUpdate = true;
@@ -679,8 +683,8 @@ export function RisingScreen({
           currentY += Math.cos(elapsed * 0.08 + phases[i] * 1.5) * 0.4;
         }
         
-        posAttr[i3] = currentX;
-        posAttr[i3 + 1] = currentY;
+        posAttr[i3] = currentX + tiltOffsetX;
+        posAttr[i3 + 1] = currentY + tiltOffsetY;
         posAttr[i3 + 2] = currentZ;
       }
       particles.geometry.attributes.position.needsUpdate = true;
@@ -725,8 +729,8 @@ export function RisingScreen({
           gY += Math.cos(rotTime + grainPhases[i] * 1.2) * 0.6;
         }
         
-        grainPos[i3] = gX;
-        grainPos[i3 + 1] = gY;
+        grainPos[i3] = gX + tiltOffsetX;
+        grainPos[i3 + 1] = gY + tiltOffsetY;
         grainPos[i3 + 2] = gZ;
       }
       grainParticles.geometry.attributes.position.needsUpdate = true;
@@ -864,12 +868,12 @@ export function RisingScreen({
             <p
               style={{
                 fontFamily: 'Georgia, serif',
-                fontSize: '22px',
+                fontSize: '16px',
                 fontWeight: 400,
-                color: '#FAF6F0',
+                color: 'rgba(250, 246, 240, 0.7)',
                 margin: 0,
                 letterSpacing: '0.02em',
-                textShadow: '0 0 20px rgba(255, 255, 255, 0.9), 0 0 40px rgba(255, 255, 255, 0.6), 0 2px 4px rgba(0, 0, 0, 0.3)',
+                textShadow: '0 0 20px rgba(255, 255, 255, 0.6), 0 0 40px rgba(255, 255, 255, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)',
               }}
             >
               Let this moment settle you.
