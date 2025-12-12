@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Wind, Compass, Footprints, Moon, Droplets, Hand, Activity, Sunrise, Circle } from 'lucide-react-native';
 import { useFonts } from 'expo-font';
+import { useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 
 import { Colors } from '../../constants/colors';
@@ -210,6 +211,7 @@ function ActivityCard({
 
 export default function ActivitiesScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   
   const [fontsLoaded] = useFonts({
     'Alore': require('../../assets/fonts/Alore-Regular.otf'),
@@ -217,7 +219,7 @@ export default function ActivitiesScreen() {
   });
 
   const handleActivityPress = (activityId: string) => {
-    console.log(`Opening activity: ${activityId}`);
+    router.push(`/activities/${activityId}`);
   };
 
   const handlePatternsPress = () => {
