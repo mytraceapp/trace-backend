@@ -228,8 +228,8 @@ export function RisingScreen({
       createRichVariations([0xF5EFE6, 0xE8DED1, 0xD4C9BC, 0xEDE4D8, 0xFAF6F0, 0xC9BEB1]),
     ];
 
-    const clusterBurstDuration = 4.0;
-    const clusterGap = 3.5;
+    const clusterBurstDuration = 8.0; // 50% slower
+    const clusterGap = 5.0; // Longer gap between clusters
     const fullCycleDuration = 4 * (clusterBurstDuration + clusterGap);
 
     // ============================================
@@ -400,7 +400,7 @@ export function RisingScreen({
 
       phases[i] = Math.random() * Math.PI * 2;
       rotationSpeeds[i] = 0.12 + Math.random() * 0.35;
-      burstOffsets[i] = Math.random() * 2.8;
+      burstOffsets[i] = Math.random() * 4.0; // Wider stagger for slower burst
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -504,7 +504,7 @@ export function RisingScreen({
       
       grainSizes[i] = 0.2 + Math.random() * 0.9;
       grainPhases[i] = Math.random() * Math.PI * 2;
-      grainBurstOffsets[i] = Math.random() * 2.8;
+      grainBurstOffsets[i] = Math.random() * 4.0;
     }
 
     grainGeometry.setAttribute('position', new THREE.BufferAttribute(grainPositions, 3));
@@ -612,7 +612,7 @@ export function RisingScreen({
           continue;
         }
         
-        const burstDuration = 5.0;
+        const burstDuration = 10.0; // 50% slower burst
         const burstT = Math.min(1.0, timeSinceBurst / burstDuration);
         const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.3);
         
@@ -665,7 +665,7 @@ export function RisingScreen({
           continue;
         }
         
-        const burstT = Math.min(1.0, timeSinceBurst / 5.0);
+        const burstT = Math.min(1.0, timeSinceBurst / 10.0);
         const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.3);
         
         const gHomeX = grainHomes[i3];
@@ -782,9 +782,13 @@ export function RisingScreen({
           <motion.div
             className="absolute z-10 pointer-events-none"
             style={{
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
+              top: '42%',
+              left: 0,
+              right: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
               textAlign: 'center',
             }}
             initial={{ opacity: 0, y: 20 }}
