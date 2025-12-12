@@ -51,7 +51,7 @@ export function RisingScreen({
     const windChimes = new Audio('/audio/wind-chimes.mp3');
     windChimes.loop = true;
     windChimes.volume = 0;
-    windChimes.playbackRate = 0.42; // Ultra slow dreamy effect (another 20% slower)
+    windChimes.playbackRate = 0.32; // Ultra slow dreamy effect (another 25% slower)
     windChimesRef.current = windChimes;
 
     // Start after 1.5 second delay

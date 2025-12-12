@@ -30,7 +30,6 @@ export function BubbleScreen({
   onNavigateToHelp,
 }: BubbleScreenProps) {
   const { addSessionEntry } = useEntries();
-  const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [poppedCount, setPoppedCount] = useState(0);
   const hasSavedRef = useRef(false);
   const startTimeRef = useRef<number>(Date.now());
@@ -50,12 +49,8 @@ export function BubbleScreen({
   const topOffset = 0;
   const bottomOffset = 70;
 
-  useEffect(() => {
-    popAudioRef.current = new Audio('/sounds/bubble-pop.mp3');
-    popAudioRef.current.volume = 0.35;
-  }, []);
-
-  useEffect(() => {
+  // Create bubbles synchronously to avoid post-mount re-render that blocks BottomNav animation
+  const [bubbles, setBubbles] = useState<Bubble[]>(() => {
     const screenHeight = 844;
     const availableHeight = screenHeight - topOffset - bottomOffset;
     const rowHeight = bubbleSize * 0.86;
@@ -76,7 +71,12 @@ export function BubbleScreen({
         });
       }
     }
-    setBubbles(newBubbles);
+    return newBubbles;
+  });
+
+  useEffect(() => {
+    popAudioRef.current = new Audio('/sounds/bubble-pop.mp3');
+    popAudioRef.current.volume = 0.35;
   }, []);
 
   const fetchAiEncouragement = useCallback(async (append: boolean = false) => {
