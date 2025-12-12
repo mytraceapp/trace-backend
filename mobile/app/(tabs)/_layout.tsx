@@ -134,12 +134,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
     minWidth: 50,
-    marginTop: 16,
+    marginTop: 18,
   },
   tabLabel: {
-    fontSize: 12,
-    fontWeight: '200',
-    letterSpacing: 0.8,
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 0.3,
     textAlign: 'center',
+    fontFamily: 'Georgia',
   },
 });
