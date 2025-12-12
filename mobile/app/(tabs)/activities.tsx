@@ -1,13 +1,13 @@
 import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Wind, Compass, Footprints, Moon, Droplets, Hand } from 'lucide-react-native';
+import { Wind, Compass, Footprints, Moon, Droplets, Hand, Activity, Sunrise, Circle } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 16;
 const SCREEN_PADDING = 24;
 const CARD_WIDTH = (SCREEN_WIDTH - SCREEN_PADDING * 2 - CARD_GAP) / 2;
-const CARD_CONTENT_HEIGHT = 160;
+const CARD_CONTENT_HEIGHT = 180;
 const CARD_PADDING = 20;
 
 const dayColors = {
@@ -76,6 +76,46 @@ const ACTIVITIES = [
     iconColor: '#9A8778',
     gradientColors: ['#FDFCFB', '#F5F3F0'] as [string, string],
     iconBgColors: ['rgba(190, 185, 180, 0.15)', 'rgba(190, 185, 180, 0.08)'] as [string, string],
+    descColor: '#8A8680',
+  },
+  {
+    id: 'window',
+    title: 'Window',
+    description: 'Watch the rain. Drift away.',
+    Icon: Droplets,
+    iconColor: '#6B6358',
+    gradientColors: ['#C9C3BA', '#B8B2A8'] as [string, string],
+    iconBgColors: ['rgba(120, 110, 100, 0.18)', 'rgba(120, 110, 100, 0.09)'] as [string, string],
+    descColor: '#6B6761',
+  },
+  {
+    id: 'echo',
+    title: 'Echo',
+    description: 'Gentle waves of calm.',
+    Icon: Activity,
+    iconColor: '#9A8778',
+    gradientColors: ['#D8D4CD', '#D0CCC5'] as [string, string],
+    iconBgColors: ['rgba(107, 124, 107, 0.18)', 'rgba(107, 124, 107, 0.08)'] as [string, string],
+    descColor: '#6B6761',
+  },
+  {
+    id: 'rising',
+    title: 'Rising',
+    description: 'Gentle energy to start fresh.',
+    Icon: Sunrise,
+    iconColor: '#9A8778',
+    gradientColors: ['#E5E1DA', '#DDD9D2'] as [string, string],
+    iconBgColors: ['rgba(154, 135, 120, 0.18)', 'rgba(154, 135, 120, 0.09)'] as [string, string],
+    descColor: '#8A8680',
+  },
+  {
+    id: 'bubble',
+    title: 'Drift',
+    description: 'Float with soft bubbles.',
+    Icon: Circle,
+    iconColor: '#9A8778',
+    gradientColors: ['#F0EDE8', '#E8E5E0'] as [string, string],
+    iconBgColors: ['rgba(154, 135, 120, 0.15)', 'rgba(154, 135, 120, 0.08)'] as [string, string],
     descColor: '#8A8680',
   },
 ];
@@ -152,15 +192,15 @@ export default function ActivitiesScreen() {
   return (
     <View style={styles.container}>
       {/* Fixed TRACE Header - positioned right under earpiece */}
-      <View style={[styles.fixedHeader, { paddingTop: Math.max(insets.top, 20) + 35 }]}>
-        <Text style={styles.traceLabel}>TRACE</Text>
+      <View style={[styles.fixedHeader, { paddingTop: Math.max(insets.top, 20) + 8 }]}>
+        <Text style={styles.traceLabel}>T R A C E</Text>
       </View>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: Math.max(insets.top, 20) + 55, paddingBottom: 140 },
+          { paddingTop: Math.max(insets.top, 20) + 45, paddingBottom: 140 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -230,8 +270,7 @@ const styles = StyleSheet.create({
     fontFamily: serifFont,
     fontSize: 11,
     fontWeight: '300',
-    letterSpacing: 11,
-    paddingLeft: 11,
+    letterSpacing: 4,
     color: dayColors.traceBrand,
     opacity: 0.88,
   },
