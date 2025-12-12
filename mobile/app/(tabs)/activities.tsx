@@ -1,17 +1,19 @@
 import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Wind, Compass, Footprints, Moon, Droplets, Hand, TrendingUp, ChevronRight } from 'lucide-react-native';
+import { Wind, Compass, Footprints, Moon, Droplets, Hand } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 16;
 const SCREEN_PADDING = 24;
 const CARD_WIDTH = (SCREEN_WIDTH - SCREEN_PADDING * 2 - CARD_GAP) / 2;
+const CARD_CONTENT_HEIGHT = 160;
+const CARD_PADDING = 20;
 
 const dayColors = {
   bg: '#EBE7E1',
-  textPrimary: '#3D3D3D',
-  textSecondary: '#7A7570',
+  textPrimary: '#4B4B4B',
+  textSecondary: '#8A8680',
   traceBrand: '#5A4A3A',
 };
 
@@ -21,60 +23,60 @@ const ACTIVITIES = [
     title: 'Breathing',
     description: 'A calming 30-second reset.',
     Icon: Wind,
-    iconColor: '#5A5550',
-    gradientColors: ['#FAFAFA', '#F5F3F0'] as [string, string],
-    iconBgColors: ['rgba(90, 85, 80, 0.08)', 'rgba(90, 85, 80, 0.04)'] as [string, string],
-    descColor: '#8A8580',
+    iconColor: '#4B4B4B',
+    gradientColors: ['#F4F1EC', '#EEEBE6'] as [string, string],
+    iconBgColors: ['rgba(138, 134, 128, 0.12)', 'rgba(138, 134, 128, 0.06)'] as [string, string],
+    descColor: '#8A8680',
   },
   {
     id: 'maze',
     title: 'Trace the Maze',
     description: 'Slow your mind with gentle tracing.',
     Icon: Compass,
-    iconColor: '#7A7570',
-    gradientColors: ['#C8C2BA', '#C0BAB2'] as [string, string],
-    iconBgColors: ['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0.2)'] as [string, string],
-    descColor: '#5A5550',
+    iconColor: '#A29485',
+    gradientColors: ['#D3CFC8', '#CCC8C1'] as [string, string],
+    iconBgColors: ['rgba(162, 148, 133, 0.2)', 'rgba(162, 148, 133, 0.1)'] as [string, string],
+    descColor: '#6B6761',
   },
   {
     id: 'walking',
     title: 'Walking Reset',
     description: 'Two minutes of slow-paced movement.',
     Icon: Footprints,
-    iconColor: '#5A5550',
-    gradientColors: ['#CCC6BE', '#C4BEB6'] as [string, string],
-    iconBgColors: ['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0.18)'] as [string, string],
-    descColor: '#5A5550',
+    iconColor: '#4B4B4B',
+    gradientColors: ['#DDD9D2', '#D3CFC8'] as [string, string],
+    iconBgColors: ['rgba(138, 134, 128, 0.15)', 'rgba(138, 134, 128, 0.08)'] as [string, string],
+    descColor: '#8A8680',
   },
   {
     id: 'rest',
     title: 'Rest',
     description: 'Five minutes of quiet stillness.',
     Icon: Moon,
-    iconColor: '#7A7570',
-    gradientColors: ['#D8D4CE', '#D0CCC6'] as [string, string],
-    iconBgColors: ['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0.2)'] as [string, string],
-    descColor: '#6A6560',
+    iconColor: '#4B4B4B',
+    gradientColors: ['#E8E4DD', '#DDD9D2'] as [string, string],
+    iconBgColors: ['rgba(138, 134, 128, 0.18)', 'rgba(138, 134, 128, 0.09)'] as [string, string],
+    descColor: '#8A8680',
   },
   {
     id: 'ripple',
     title: 'Ripple',
     description: 'Immersive flowing light.',
     Icon: Droplets,
-    iconColor: '#8A7A6A',
-    gradientColors: ['#FAFAFA', '#F5F3F0'] as [string, string],
-    iconBgColors: ['rgba(138, 122, 106, 0.1)', 'rgba(138, 122, 106, 0.05)'] as [string, string],
-    descColor: '#8A8580',
+    iconColor: '#9A8778',
+    gradientColors: ['#FDFCFB', '#F5F3F0'] as [string, string],
+    iconBgColors: ['rgba(190, 185, 180, 0.15)', 'rgba(190, 185, 180, 0.08)'] as [string, string],
+    descColor: '#8A8680',
   },
   {
     id: 'grounding',
     title: 'Grounding',
     description: 'Connect with your surroundings.',
     Icon: Hand,
-    iconColor: '#8A7A6A',
-    gradientColors: ['#FAFAFA', '#F5F3F0'] as [string, string],
-    iconBgColors: ['rgba(138, 122, 106, 0.1)', 'rgba(138, 122, 106, 0.05)'] as [string, string],
-    descColor: '#8A8580',
+    iconColor: '#9A8778',
+    gradientColors: ['#FDFCFB', '#F5F3F0'] as [string, string],
+    iconBgColors: ['rgba(190, 185, 180, 0.15)', 'rgba(190, 185, 180, 0.08)'] as [string, string],
+    descColor: '#8A8680',
   },
 ];
 
@@ -149,16 +151,16 @@ export default function ActivitiesScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Fixed TRACE Header */}
-      <View style={[styles.fixedHeader, { paddingTop: insets.top + 10 }]}>
-        <Text style={styles.traceLabel}>T R A C E</Text>
+      {/* Fixed TRACE Header - positioned right under earpiece */}
+      <View style={[styles.fixedHeader, { paddingTop: Math.max(insets.top, 20) + 35 }]}>
+        <Text style={styles.traceLabel}>TRACE</Text>
       </View>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + 50, paddingBottom: 140 },
+          { paddingTop: Math.max(insets.top, 20) + 55, paddingBottom: 140 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -185,30 +187,21 @@ export default function ActivitiesScreen() {
           ))}
         </View>
 
-        {/* Patterns Section */}
+        {/* View Patterns Button - rounded pill style */}
         <Pressable
           style={({ pressed }) => [
-            styles.patternsCard,
+            styles.patternsButton,
             { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }
           ]}
           onPress={handlePatternsPress}
         >
           <LinearGradient
-            colors={['#A8B5A0', '#9AAD92']}
+            colors={['#D3CFC8', '#CCC8C1']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.patternsGradient}
           >
-            <View style={styles.patternsContent}>
-              <View style={styles.patternsIconContainer}>
-                <TrendingUp size={24} color="#FFFFFF" strokeWidth={1.5} />
-              </View>
-              <View style={styles.patternsTextContainer}>
-                <Text style={styles.patternsTitle}>Patterns</Text>
-                <Text style={styles.patternsDescription}>Discover your emotional rhythms and insights.</Text>
-              </View>
-              <ChevronRight size={20} color="rgba(255,255,255,0.7)" strokeWidth={2} />
-            </View>
+            <Text style={styles.patternsText}>View Patterns</Text>
           </LinearGradient>
         </Pressable>
       </ScrollView>
@@ -230,15 +223,17 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 40,
     alignItems: 'center',
-    paddingBottom: 8,
+    paddingBottom: 12,
     backgroundColor: 'transparent',
   },
   traceLabel: {
+    fontFamily: serifFont,
     fontSize: 11,
     fontWeight: '300',
-    letterSpacing: 8,
+    letterSpacing: 11,
+    paddingLeft: 11,
     color: dayColors.traceBrand,
-    opacity: 0.7,
+    opacity: 0.88,
   },
   scrollView: {
     flex: 1,
@@ -247,23 +242,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_PADDING,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 32,
     alignItems: 'center',
+    paddingHorizontal: SCREEN_PADDING,
+    marginTop: -6,
   },
   title: {
     fontFamily: serifFont,
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '400',
-    marginBottom: 6,
+    marginBottom: 2,
     color: dayColors.textPrimary,
-    letterSpacing: -0.5,
+    letterSpacing: -0.56,
   },
   subtitle: {
     fontFamily: serifFont,
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '300',
     color: dayColors.textSecondary,
-    letterSpacing: 0.2,
+    letterSpacing: 0.15,
   },
   grid: {
     flexDirection: 'row',
@@ -276,9 +273,11 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     borderRadius: 24,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
     ...Platform.select({
       ios: {
-        shadowColor: 'rgba(60, 60, 60, 1)',
+        shadowColor: 'rgba(75, 75, 75, 1)',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.08,
         shadowRadius: 24,
@@ -289,12 +288,13 @@ const styles = StyleSheet.create({
     }),
   },
   cardGradient: {
-    padding: 20,
+    padding: CARD_PADDING,
   },
   cardContent: {
-    height: 160,
+    height: CARD_CONTENT_HEIGHT,
     flexDirection: 'column',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   iconContainer: {
     width: 48,
@@ -308,66 +308,48 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontFamily: serifFont,
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '500',
     marginBottom: 4,
     color: dayColors.textPrimary,
-    letterSpacing: 0.1,
+    letterSpacing: 0.16,
   },
   cardDescription: {
     fontFamily: serifFont,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '300',
-    letterSpacing: 0.05,
-    lineHeight: 20,
+    letterSpacing: 0.06,
+    lineHeight: 16.8,
   },
-  patternsCard: {
-    marginTop: 24,
-    borderRadius: 20,
+  patternsButton: {
+    marginTop: 32,
+    marginBottom: 24,
+    borderRadius: 9999,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     ...Platform.select({
       ios: {
-        shadowColor: 'rgba(60, 80, 60, 1)',
+        shadowColor: 'rgba(75, 75, 75, 1)',
         shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.15,
-        shadowRadius: 16,
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
       },
       android: {
-        elevation: 5,
+        elevation: 4,
       },
     }),
   },
   patternsGradient: {
-    padding: 20,
-  },
-  patternsContent: {
-    flexDirection: 'row',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
     alignItems: 'center',
   },
-  patternsIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  patternsTextContainer: {
-    flex: 1,
-  },
-  patternsTitle: {
+  patternsText: {
     fontFamily: serifFont,
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  patternsDescription: {
-    fontFamily: serifFont,
-    fontSize: 13,
-    fontWeight: '300',
-    color: 'rgba(255, 255, 255, 0.85)',
-    lineHeight: 18,
+    fontSize: 15,
+    fontWeight: '500',
+    color: dayColors.textPrimary,
+    letterSpacing: 0.3,
   },
 });
