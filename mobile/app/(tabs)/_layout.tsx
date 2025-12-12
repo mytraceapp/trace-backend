@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { useColorScheme, StyleSheet, View, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Typography, BorderRadius } from '../../constants/theme';
 
 type TabIconProps = {
@@ -18,6 +19,17 @@ function TabIcon({ focused, color, label }: TabIconProps) {
   );
 }
 
+function TabBarBackground() {
+  return (
+    <LinearGradient
+      colors={['rgba(200, 190, 175, 0.95)', 'rgba(180, 168, 150, 0.98)']}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+      style={StyleSheet.absoluteFill}
+    />
+  );
+}
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
@@ -28,8 +40,9 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarBackground: () => <TabBarBackground />,
         tabBarStyle: {
-          backgroundColor: colors.card,
+          backgroundColor: 'transparent',
           borderTopWidth: 0,
           paddingTop: Spacing.sm,
           paddingBottom: insets.bottom > 0 ? insets.bottom : Spacing.md,
@@ -43,8 +56,8 @@ export default function TabLayout() {
           shadowRadius: 12,
           elevation: 8,
         },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textTertiary,
+        tabBarActiveTintColor: '#4B4B4B',
+        tabBarInactiveTintColor: '#8A8680',
         tabBarShowLabel: false,
       }}
     >
@@ -62,7 +75,7 @@ export default function TabLayout() {
         options={{
           title: 'Activities',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon focused={focused} color={color} label="Activities" />
+            <TabIcon focused={focused} color={color} label="Activ" />
           ),
         }}
       />
@@ -71,7 +84,7 @@ export default function TabLayout() {
         options={{
           title: 'Journal',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon focused={focused} color={color} label="Journal" />
+            <TabIcon focused={focused} color={color} label="Journ" />
           ),
         }}
       />
@@ -80,7 +93,7 @@ export default function TabLayout() {
         options={{
           title: 'Entries',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon focused={focused} color={color} label="Entries" />
+            <TabIcon focused={focused} color={color} label="Entri" />
           ),
         }}
       />
@@ -89,7 +102,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon focused={focused} color={color} label="Profile" />
+            <TabIcon focused={focused} color={color} label="Profi" />
           ),
         }}
       />

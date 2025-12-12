@@ -9,7 +9,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 16;
 const SCREEN_PADDING = 24;
 const CARD_WIDTH = (SCREEN_WIDTH - SCREEN_PADDING * 2 - CARD_GAP) / 2;
-const CARD_CONTENT_HEIGHT = 200;
+const CARD_CONTENT_HEIGHT = 175;
 const CARD_PADDING = 20;
 
 const dayColors = {
