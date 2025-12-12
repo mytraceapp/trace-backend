@@ -27,14 +27,13 @@ function TabBarBackground() {
     <View style={StyleSheet.absoluteFill}>
       <LinearGradient
         colors={[
-          'rgba(245, 241, 235, 0)',
-          'rgba(245, 241, 235, 0.3)',
-          'rgba(232, 228, 222, 0.55)',
-          'rgba(200, 207, 201, 0.65)',
-          'rgba(168, 181, 170, 0.7)',
-          'rgba(143, 163, 149, 0.75)',
+          'rgba(168, 181, 170, 0)',
+          'rgba(158, 173, 160, 0.4)',
+          'rgba(148, 165, 150, 0.6)',
+          'rgba(138, 158, 142, 0.7)',
+          'rgba(128, 150, 134, 0.75)',
         ]}
-        locations={[0, 0.15, 0.35, 0.55, 0.75, 1]}
+        locations={[0, 0.25, 0.5, 0.75, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
