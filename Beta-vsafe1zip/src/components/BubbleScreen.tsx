@@ -133,16 +133,14 @@ export function BubbleScreen({
   };
 
   useEffect(() => {
-    const totalBubbles = bubbles.length;
-    const poppedPercentage = totalBubbles > 0 ? (poppedCount / totalBubbles) * 100 : 0;
-    
-    if (!encouragementShownRef.current && poppedPercentage >= 15) {
+    if (!encouragementShownRef.current && poppedCount >= 20) {
+      console.log('Triggering encouragement at', poppedCount, 'pops');
       encouragementShownRef.current = true;
       fetchAiEncouragement();
       setShowEncouragement(true);
       setIsTyping(true);
     }
-  }, [poppedCount, bubbles.length, fetchAiEncouragement]);
+  }, [poppedCount, fetchAiEncouragement]);
 
   useEffect(() => {
     if (!isTyping || !showEncouragement || aiMessages.length === 0) return;
