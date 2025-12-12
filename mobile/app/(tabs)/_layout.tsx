@@ -16,8 +16,8 @@ type TabIconProps = {
 function TabIcon({ focused, color, label, Icon }: TabIconProps) {
   return (
     <View style={styles.tabIconContainer}>
-      <Icon size={22} color={color} strokeWidth={1.5} />
-      <Text style={[styles.tabLabel, { color, opacity: focused ? 1 : 0.7 }]}>{label}</Text>
+      <Icon size={18} color={color} strokeWidth={1.5} />
+      <Text style={[styles.tabLabel, { color, opacity: focused ? 1 : 0.7 }]} numberOfLines={1}>{label}</Text>
     </View>
   );
 }
@@ -27,8 +27,8 @@ function TabBarBackground() {
     <View style={StyleSheet.absoluteFill}>
       <LinearGradient
         colors={[
-          'rgba(168, 181, 170, 0.80)',
-          'rgba(158, 173, 160, 1.0)',
+          'rgba(168, 181, 170, 0.70)',
+          'rgba(158, 173, 160, 0.90)',
           'rgba(148, 165, 150, 1.0)',
           'rgba(138, 158, 142, 1.0)',
           'rgba(128, 150, 134, 1.0)',
@@ -132,11 +132,13 @@ const styles = StyleSheet.create({
   tabIconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 2,
+    minWidth: 50,
   },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500',
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
+    textAlign: 'center',
   },
 });
