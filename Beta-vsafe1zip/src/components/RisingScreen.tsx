@@ -46,21 +46,22 @@ export function RisingScreen({
     return () => clearTimeout(timer);
   }, []);
 
-  // Wind chimes ambient audio with 1.5s delay and fade in
+  // Wind chimes ambient audio with 1.5s delay, slowed playback, and gentle fade in
   useEffect(() => {
     const windChimes = new Audio('/audio/wind-chimes.mp3');
     windChimes.loop = true;
     windChimes.volume = 0;
+    windChimes.playbackRate = 0.85; // Slow down to match dreamy visual tempo
     windChimesRef.current = windChimes;
 
     // Start after 1.5 second delay
     const delayTimer = setTimeout(() => {
       windChimes.play().catch(console.error);
       
-      // Fade in over 2 seconds to volume 0.35
+      // Fade in over 3.5 seconds to volume 0.35 (slower, more spacious)
       let currentVolume = 0;
       const targetVolume = 0.35;
-      const fadeStep = targetVolume / 40; // 40 steps over 2 seconds (50ms each)
+      const fadeStep = targetVolume / 70; // 70 steps over 3.5 seconds (50ms each)
       
       const fadeIn = setInterval(() => {
         currentVolume += fadeStep;
@@ -81,12 +82,12 @@ export function RisingScreen({
       if (windChimesFadeRef.current) {
         clearInterval(windChimesFadeRef.current);
       }
-      // Fade out on cleanup
+      // Gentle fade out on cleanup (matches the spacious feel)
       if (windChimesRef.current) {
         const audio = windChimesRef.current;
         let vol = audio.volume;
         const fadeOut = setInterval(() => {
-          vol -= 0.05;
+          vol -= 0.025; // Slower fade out
           if (vol <= 0) {
             vol = 0;
             audio.pause();
