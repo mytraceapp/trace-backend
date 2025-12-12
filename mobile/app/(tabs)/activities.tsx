@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   traceLabel: {
     fontFamily: serifFont,
     fontSize: 11,
-    fontWeight: '300',
+    fontWeight: '200',
     letterSpacing: 11,
     paddingLeft: 11,
     color: dayColors.traceBrand,
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: serifFont,
     fontSize: 28,
-    fontWeight: '400',
+    fontWeight: '300',
     marginBottom: 2,
     color: dayColors.textPrimary,
     letterSpacing: -0.56,
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: serifFont,
     fontSize: 15,
-    fontWeight: '300',
+    fontWeight: '200',
     color: dayColors.textSecondary,
     letterSpacing: 0.15,
   },
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontFamily: serifFont,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '400',
     marginBottom: 4,
     color: dayColors.textPrimary,
     letterSpacing: 0.16,
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontFamily: serifFont,
     fontSize: 12,
-    fontWeight: '300',
+    fontWeight: '200',
     letterSpacing: 0.06,
     lineHeight: 16.8,
   },
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   patternsText: {
     fontFamily: serifFont,
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '400',
     color: dayColors.textPrimary,
     letterSpacing: 0.3,
   },
