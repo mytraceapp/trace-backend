@@ -97,7 +97,7 @@ export function BubbleScreen({
     const overlap = bubbleSize * 0.08;
     const effectiveSize = bubbleSize - overlap;
     const rowOffset = row % 2 === 0 ? 0 : effectiveSize / 2;
-    const startX = -effectiveSize / 4;
+    const startX = -bubbleSize / 2;
     
     return {
       x: startX + col * effectiveSize + rowOffset,
