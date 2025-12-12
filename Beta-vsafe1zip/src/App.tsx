@@ -16,6 +16,7 @@ import { GroundingExperience } from "./components/GroundingExperience";
 import { RainWindowScreen } from "./components/RainWindowScreen";
 import EchoScreen from "./components/EchoScreen";
 import { RisingScreen } from "./components/RisingScreen";
+import { BubbleScreen } from "./components/BubbleScreen";
 import { JournalScreen } from "./components/JournalScreen";
 import { EntriesScreen } from "./components/EntriesScreen";
 import { TracePatternsScreen } from "./components/TracePatternsScreen";
@@ -64,6 +65,7 @@ export default function App() {
     | "rainwindow"
     | "echo"
     | "rising"
+    | "bubble"
     | "journal"
     | "entries"
     | "patterns"
@@ -281,6 +283,7 @@ export default function App() {
               onStartRainWindow={() => setCurrentScreen("rainwindow")}
               onStartEcho={() => setCurrentScreen("echo")}
               onStartRising={() => setCurrentScreen("rising")}
+              onStartBubble={() => setCurrentScreen("bubble")}
               onReturnToChat={() => setCurrentScreen("chat")}
               onNavigateToPatterns={() => setCurrentScreen("patterns")}
               onNavigateToJournal={() => setCurrentScreen("entries")}
@@ -369,6 +372,16 @@ export default function App() {
           )}
           {currentScreen === "rising" && (
             <RisingScreen
+              onBack={() => setCurrentScreen("activitieshub")}
+              onReturnToChat={() => setCurrentScreen("chat")}
+              onNavigateToActivities={() => setCurrentScreen("activitieshub")}
+              onNavigateToJournal={() => setCurrentScreen("entries")}
+              onNavigateToProfile={() => setCurrentScreen("profile")}
+              onNavigateToHelp={() => setCurrentScreen("help")}
+            />
+          )}
+          {currentScreen === "bubble" && (
+            <BubbleScreen
               onBack={() => setCurrentScreen("activitieshub")}
               onReturnToChat={() => setCurrentScreen("chat")}
               onNavigateToActivities={() => setCurrentScreen("activitieshub")}
@@ -585,6 +598,12 @@ export default function App() {
             className="px-3 py-1 bg-blue-500 text-white rounded text-sm"
           >
             Rising
+          </button>
+          <button
+            onClick={() => setCurrentScreen("bubble")}
+            className="px-3 py-1 bg-blue-500 text-white rounded text-sm"
+          >
+            Bubble
           </button>
           <button
             onClick={() => setCurrentScreen("entries")}

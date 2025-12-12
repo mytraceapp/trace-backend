@@ -823,10 +823,10 @@ export function RisingScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '36px',
                 fontWeight: 400,
-                color: 'rgba(60, 60, 60, 0.9)',
+                color: '#FAF6F0',
                 letterSpacing: '0.02em',
                 margin: 0,
-                textShadow: '0 2px 20px rgba(255,255,255,0.8)',
+                textShadow: '0 0 20px rgba(255, 255, 255, 0.9), 0 0 40px rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3)',
               }}
             >
               Rising
@@ -836,9 +836,11 @@ export function RisingScreen({
                 fontFamily: 'Georgia, serif',
                 fontSize: '16px',
                 fontWeight: 300,
-                color: 'rgba(80, 80, 80, 0.7)',
+                color: '#FAF6F0',
                 marginTop: '12px',
                 letterSpacing: '0.01em',
+                textShadow: '0 0 15px rgba(255, 255, 255, 0.7), 0 0 30px rgba(255, 255, 255, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25)',
+                opacity: 0.9,
               }}
             >
               Let this moment settle you.

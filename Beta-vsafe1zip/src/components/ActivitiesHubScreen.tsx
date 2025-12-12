@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Wind, Compass, Footprints, Moon, Sparkles, Hand, Activity, Stars } from 'lucide-react';
+import { Wind, Compass, Footprints, Moon, Sparkles, Hand, Activity, Stars, Circle } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useTheme } from '../state/ThemeContext';
 
@@ -13,6 +13,7 @@ interface ActivitiesHubScreenProps {
   onStartRainWindow: () => void;
   onStartEcho?: () => void;
   onStartRising?: () => void;
+  onStartBubble?: () => void;
   onReturnToChat: () => void;
   onNavigateToPatterns?: () => void;
   onNavigateToJournal?: () => void;
@@ -30,6 +31,7 @@ export function ActivitiesHubScreen({
   onStartRainWindow,
   onStartEcho,
   onStartRising,
+  onStartBubble,
   onReturnToChat,
   onNavigateToPatterns,
   onNavigateToJournal,
@@ -622,6 +624,61 @@ export function ActivitiesHubScreen({
                       }}
                     >
                       A calming ambient moment.
+                    </p>
+                  </div>
+                </div>
+              </motion.button>
+            )}
+
+            {/* Card 10 - Bubble */}
+            {onStartBubble && (
+              <motion.button
+                onClick={onStartBubble}
+                className="rounded-[24px] p-5 transition-all duration-300 active:scale-[0.97]"
+                style={{
+                  background: 'linear-gradient(135deg, #F5F1EB 0%, #E8E4DC 100%)',
+                  boxShadow: '0 8px 24px rgba(75, 75, 75, 0.08), 0 2px 8px rgba(75, 75, 75, 0.04), inset 0 1px 2px rgba(255, 255, 255, 0.5)',
+                  border: '1px solid rgba(255, 255, 255, 0.4)',
+                }}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.4, duration: 0.8 }}
+                whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+              >
+                <div className="flex flex-col items-start gap-3 h-[160px]">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(138, 134, 128, 0.12) 0%, rgba(138, 134, 128, 0.06) 100%)',
+                    }}
+                  >
+                    <Circle size={20} style={{ color: '#7A8580' }} strokeWidth={1.5} />
+                  </div>
+
+                  <div className="flex-1 flex flex-col items-start justify-end text-left">
+                    <h3
+                      className="mb-1"
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: '#4B4B4B',
+                        fontWeight: 500,
+                        fontSize: '16px',
+                        letterSpacing: '0.01em',
+                      }}
+                    >
+                      Bubble
+                    </h3>
+                    <p
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: '#8A8680',
+                        fontWeight: 300,
+                        fontSize: '12px',
+                        letterSpacing: '0.005em',
+                        lineHeight: '1.4',
+                      }}
+                    >
+                      Pop away the tension.
                     </p>
                   </div>
                 </div>
