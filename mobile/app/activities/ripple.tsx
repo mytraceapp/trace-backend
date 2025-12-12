@@ -137,7 +137,7 @@ export default function RippleActivityScreen() {
             isLooping: false, 
             volume: 0,
             positionMillis: 0,
-            rate: 0.85,
+            rate: 0.55,
             shouldCorrectPitch: true,
           }
         );
@@ -159,17 +159,17 @@ export default function RippleActivityScreen() {
         setTimeout(async () => {
           if (isMounted && soundRef.current) {
             await soundRef.current.playAsync();
-            const maxVolume = 0.35;
-            for (let i = 1; i <= 10; i++) {
+            const maxVolume = 0.28;
+            for (let i = 1; i <= 20; i++) {
               setTimeout(async () => {
                 if (isMounted && soundRef.current) {
-                  const vol = Math.min((maxVolume / 10) * i, maxVolume);
+                  const vol = Math.min((maxVolume / 20) * i, maxVolume);
                   await soundRef.current.setVolumeAsync(vol);
                 }
-              }, i * 200);
+              }, i * 150);
             }
           }
-        }, 2000);
+        }, 500);
       } catch (error) {
         console.log('Audio loading error:', error);
       }
