@@ -7,11 +7,11 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 16;
 const SCREEN_PADDING = 24;
 const CARD_WIDTH = (SCREEN_WIDTH - SCREEN_PADDING * 2 - CARD_GAP) / 2;
-const CARD_CONTENT_HEIGHT = 180;
+const CARD_CONTENT_HEIGHT = 160;
 const CARD_PADDING = 20;
 
 const dayColors = {
-  bg: '#EBE7E1',
+  bg: '#E8E4DD',
   textPrimary: '#4B4B4B',
   textSecondary: '#8A8680',
   traceBrand: '#5A4A3A',
@@ -111,7 +111,7 @@ const ACTIVITIES = [
   {
     id: 'bubble',
     title: 'Drift',
-    description: 'Float with soft bubbles.',
+    description: 'Release pressure. Pop the tension.',
     Icon: Circle,
     iconColor: '#9A8778',
     gradientColors: ['#F0EDE8', '#E8E5E0'] as [string, string],
@@ -191,16 +191,16 @@ export default function ActivitiesScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Fixed TRACE Header - positioned right under earpiece */}
-      <View style={[styles.fixedHeader, { paddingTop: Math.max(insets.top, 20) + 8 }]}>
-        <Text style={styles.traceLabel}>T R A C E</Text>
+      {/* Fixed TRACE Header - positioned right under earpiece/notch */}
+      <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
+        <Text style={styles.traceLabel}>TRACE</Text>
       </View>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: Math.max(insets.top, 20) + 45, paddingBottom: 140 },
+          { paddingTop: insets.top + 40, paddingBottom: 140 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -227,7 +227,7 @@ export default function ActivitiesScreen() {
           ))}
         </View>
 
-        {/* View Patterns Button - rounded pill style */}
+        {/* View Patterns Button - full width rounded pill matching web */}
         <Pressable
           style={({ pressed }) => [
             styles.patternsButton,
@@ -270,9 +270,13 @@ const styles = StyleSheet.create({
     fontFamily: serifFont,
     fontSize: 11,
     fontWeight: '300',
-    letterSpacing: 4,
+    letterSpacing: 11,
+    paddingLeft: 11,
     color: dayColors.traceBrand,
     opacity: 0.88,
+    textShadowColor: 'rgba(90, 74, 58, 0.45)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 15,
   },
   scrollView: {
     flex: 1,
