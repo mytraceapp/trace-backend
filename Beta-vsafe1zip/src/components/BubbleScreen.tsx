@@ -250,7 +250,7 @@ export function BubbleScreen({
       {showEncouragement && displayedText && (
         <motion.div
           className="absolute w-full flex justify-center px-6 pointer-events-none"
-          style={{ bottom: '90px', zIndex: 40 }}
+          style={{ top: '45%', transform: 'translateY(-50%)', zIndex: 5 }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
@@ -260,27 +260,18 @@ export function BubbleScreen({
             className="text-center"
             style={{
               fontFamily: 'Georgia, serif',
-              fontSize: '16px',
+              fontSize: '20px',
               fontWeight: 400,
-              color: 'rgba(90, 74, 58, 0.9)',
-              letterSpacing: '0.01em',
-              lineHeight: 1.5,
-              textShadow: '0 1px 2px rgba(255, 255, 255, 0.95)',
-              maxWidth: '320px',
+              color: 'rgba(90, 74, 58, 0.95)',
+              letterSpacing: '0.02em',
+              lineHeight: 1.6,
+              maxWidth: '300px',
             }}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
           >
             {displayedText}
-            {isTyping && displayedText.length < (aiMessages[currentAiIndex]?.length || 0) && (
-              <motion.span
-                animate={{ opacity: [1, 0] }}
-                transition={{ duration: 0.5, repeat: Infinity, repeatType: 'reverse' }}
-              >
-                |
-              </motion.span>
-            )}
           </motion.p>
         </motion.div>
       )}
