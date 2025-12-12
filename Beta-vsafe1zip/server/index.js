@@ -442,6 +442,77 @@ app.post('/api/analyze-emotion', async (req, res) => {
   }
 });
 
+// Bubble activity encouragement messages - AI generated
+app.post('/api/bubble-encouragement', async (req, res) => {
+  try {
+    const { count = 8 } = req.body;
+    
+    if (!openai) {
+      return res.json({
+        messages: [
+          "Each pop is a tiny release.",
+          "You're giving yourself permission to pause.",
+          "There's something calming about this rhythm.",
+          "Let each pop carry away a little tension.",
+          "This moment belongs to you.",
+          "Notice how satisfying each one feels.",
+          "You're doing something gentle for yourself.",
+          "Stay as long as you need.",
+        ]
+      });
+    }
+    
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are TRACE, a calm emotional wellness companion. Generate ${count} unique, original encouragement messages for someone popping bubble wrap as a calming activity.
+
+Guidelines:
+- Each message should be 6-12 words, short and gentle
+- Make them feel intuitive, warm, and genuinely encouraging
+- Focus on the sensory experience, self-care, releasing tension, being present
+- Vary the themes: some about the action, some about the person, some about the moment
+- Never repeat similar phrases or use the same structure twice
+- Sound like a wise, calm friend - not a meditation app
+- No questions, just gentle statements
+- Each message should feel fresh and unique
+
+Return ONLY a JSON array of strings, nothing else.
+Example format: ["Message one.", "Message two.", "Message three."]`
+        },
+        {
+          role: "user",
+          content: `Generate ${count} unique bubble popping encouragement messages.`
+        }
+      ],
+      temperature: 0.9,
+      max_tokens: 400,
+    });
+    
+    const raw = completion.choices[0]?.message?.content ?? "[]";
+    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const messages = JSON.parse(cleaned);
+    
+    res.json({ messages });
+  } catch (error) {
+    console.error('Bubble encouragement error:', error);
+    res.json({
+      messages: [
+        "Each pop is a tiny release.",
+        "You're giving yourself permission to pause.",
+        "There's something calming about this rhythm.",
+        "Let each pop carry away a little tension.",
+        "This moment belongs to you.",
+        "Notice how satisfying each one feels.",
+        "You're doing something gentle for yourself.",
+        "Stay as long as you need.",
+      ]
+    });
+  }
+});
+
 app.post('/api/chat', async (req, res) => {
   try {
     const { messages, userName, chatStyle = 'conversation', localTime, localDay, localDate } = req.body;

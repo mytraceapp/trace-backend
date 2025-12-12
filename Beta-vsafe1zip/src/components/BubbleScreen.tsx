@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
@@ -19,14 +19,6 @@ interface Bubble {
   popped: boolean;
 }
 
-const encouragementMessages = [
-  "Each pop releases a little tension…",
-  "You're doing something good for yourself.",
-  "There's no rush here.",
-  "Let each pop feel satisfying.",
-  "This moment is yours.",
-];
-
 export function BubbleScreen({
   onBack: _onBack,
   onReturnToChat,
@@ -43,10 +35,12 @@ export function BubbleScreen({
   const popAudioRef = useRef<HTMLAudioElement | null>(null);
   
   const [showEncouragement, setShowEncouragement] = useState(false);
-  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [aiMessages, setAiMessages] = useState<string[]>([]);
+  const [currentAiIndex, setCurrentAiIndex] = useState(0);
   const encouragementShownRef = useRef(false);
+  const fetchingRef = useRef(false);
 
   const bubbleSize = 48;
   const cols = 9;
@@ -81,6 +75,38 @@ export function BubbleScreen({
     setBubbles(newBubbles);
   }, []);
 
+  const fetchAiEncouragement = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    
+    try {
+      const response = await fetch('/api/bubble-encouragement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: 8 }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.messages && data.messages.length > 0) {
+          setAiMessages(data.messages);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch AI encouragement:', error);
+      setAiMessages([
+        "Each pop is a tiny release.",
+        "You're giving yourself permission to pause.",
+        "There's something calming about this rhythm.",
+        "Let each pop carry away a little tension.",
+        "This moment belongs to you.",
+        "Notice how satisfying each one feels.",
+        "You're doing something gentle for yourself.",
+        "Stay as long as you need.",
+      ]);
+    }
+  }, []);
+
   const popBubble = (id: number) => {
     setBubbles(prev => 
       prev.map(b => b.id === id ? { ...b, popped: true } : b)
@@ -103,16 +129,18 @@ export function BubbleScreen({
     
     if (!encouragementShownRef.current && poppedPercentage >= 15) {
       encouragementShownRef.current = true;
+      fetchAiEncouragement();
       setShowEncouragement(true);
-      setCurrentMessageIndex(0);
       setIsTyping(true);
     }
-  }, [poppedCount, bubbles.length]);
+  }, [poppedCount, bubbles.length, fetchAiEncouragement]);
 
   useEffect(() => {
-    if (!isTyping || !showEncouragement) return;
+    if (!isTyping || !showEncouragement || aiMessages.length === 0) return;
     
-    const message = encouragementMessages[currentMessageIndex];
+    const message = aiMessages[currentAiIndex];
+    if (!message) return;
+    
     let charIndex = 0;
     setDisplayedText('');
     
@@ -124,15 +152,15 @@ export function BubbleScreen({
         clearInterval(typeInterval);
         
         setTimeout(() => {
-          setCurrentMessageIndex(prev => 
-            prev < encouragementMessages.length - 1 ? prev + 1 : 0
-          );
-        }, 3000);
+          if (currentAiIndex < aiMessages.length - 1) {
+            setCurrentAiIndex(prev => prev + 1);
+          }
+        }, 4000);
       }
-    }, 50);
+    }, 45);
     
     return () => clearInterval(typeInterval);
-  }, [currentMessageIndex, isTyping, showEncouragement]);
+  }, [currentAiIndex, isTyping, showEncouragement, aiMessages]);
 
   useEffect(() => {
     const timeElapsed = (Date.now() - startTimeRef.current) / 1000;
@@ -154,10 +182,12 @@ export function BubbleScreen({
     startTimeRef.current = Date.now();
     hasSavedRef.current = false;
     encouragementShownRef.current = false;
+    fetchingRef.current = false;
     setShowEncouragement(false);
-    setCurrentMessageIndex(0);
+    setCurrentAiIndex(0);
     setDisplayedText('');
     setIsTyping(false);
+    setAiMessages([]);
   };
 
   const getBubblePosition = (row: number, col: number) => {
@@ -189,20 +219,22 @@ export function BubbleScreen({
       />
 
       <motion.div
-        className="absolute w-full text-center"
-        style={{ top: '7%', zIndex: 50 }}
+        className="absolute w-full text-center z-20"
+        style={{ top: '7%' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
+        transition={{ delay: 0.2, duration: 1.5, ease: [0.22, 0.61, 0.36, 1] }}
       >
         <h1
           style={{
-            fontFamily: 'Georgia, serif',
-            fontSize: '14px',
-            fontWeight: 400,
-            letterSpacing: '0.35em',
-            color: 'rgba(90, 74, 58, 0.7)',
-            textTransform: 'uppercase',
+            fontFamily: 'ALORE, Georgia, serif',
+            color: 'rgba(90, 74, 58, 0.88)',
+            fontWeight: 300,
+            letterSpacing: '1em',
+            fontSize: '11px',
+            textShadow: '0 0 15px rgba(180, 160, 140, 0.3), 0 0 30px rgba(180, 160, 140, 0.2), 0 2px 4px rgba(0,0,0,0.15)',
+            opacity: 0.88,
+            paddingLeft: '1em',
           }}
         >
           TRACE
@@ -218,6 +250,7 @@ export function BubbleScreen({
           transition={{ duration: 0.5 }}
         >
           <motion.p
+            key={currentAiIndex}
             className="text-center"
             style={{
               fontFamily: 'Georgia, serif',
@@ -228,9 +261,12 @@ export function BubbleScreen({
               lineHeight: 1.6,
               textShadow: '0 1px 3px rgba(255, 255, 255, 0.9)',
             }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
           >
             {displayedText}
-            {isTyping && (
+            {isTyping && displayedText.length < (aiMessages[currentAiIndex]?.length || 0) && (
               <motion.span
                 animate={{ opacity: [1, 0] }}
                 transition={{ duration: 0.5, repeat: Infinity, repeatType: 'reverse' }}
