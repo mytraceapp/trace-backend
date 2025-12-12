@@ -80,7 +80,7 @@ export default function BreathingActivityScreen() {
   const handleFinish = () => {
     if (progressInterval.current) clearInterval(progressInterval.current);
     if (phaseInterval.current) clearInterval(phaseInterval.current);
-    router.back();
+    router.replace('/(tabs)/chat');
   };
 
   const TAB_BAR_HEIGHT = 60;

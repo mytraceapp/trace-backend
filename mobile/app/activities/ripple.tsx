@@ -281,7 +281,7 @@ export default function RippleActivityScreen() {
     }
     
     setTimeout(() => {
-      router.back();
+      router.replace('/(tabs)/chat');
     }, 500);
   };
 
