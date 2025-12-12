@@ -12,12 +12,13 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 
-import { FontFamily, TraceWordmark, BodyText } from '../../constants/typography';
+import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { Shadows } from '../../constants/shadows';
+import Orb from '../../components/Orb';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const ORB_SIZE = 180;
+const ORB_SIZE = 200;
 
 const TOTAL_DURATION = 30;
 const PHASE_DURATION = 3000;
@@ -102,12 +103,7 @@ export default function BreathingActivityScreen() {
 
       <View style={styles.orbContainer}>
         <Animated.View style={[styles.orbWrapper, animatedOrbStyle]}>
-          <View style={styles.ring5} />
-          <View style={styles.ring4} />
-          <View style={styles.ring3} />
-          <View style={styles.ring2} />
-          <View style={styles.ring1} />
-          <View style={styles.orbCenter} />
+          <Orb size={ORB_SIZE} />
         </Animated.View>
       </View>
 
@@ -215,51 +211,8 @@ const styles = StyleSheet.create({
     marginTop: -20,
   },
   orbWrapper: {
-    width: ORB_SIZE + 200,
-    height: ORB_SIZE + 200,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  ring5: {
-    position: 'absolute',
-    width: ORB_SIZE + 180,
-    height: ORB_SIZE + 180,
-    borderRadius: (ORB_SIZE + 180) / 2,
-    backgroundColor: 'rgba(127, 145, 130, 0.25)',
-  },
-  ring4: {
-    position: 'absolute',
-    width: ORB_SIZE + 140,
-    height: ORB_SIZE + 140,
-    borderRadius: (ORB_SIZE + 140) / 2,
-    backgroundColor: 'rgba(140, 158, 143, 0.3)',
-  },
-  ring3: {
-    position: 'absolute',
-    width: ORB_SIZE + 100,
-    height: ORB_SIZE + 100,
-    borderRadius: (ORB_SIZE + 100) / 2,
-    backgroundColor: 'rgba(155, 172, 158, 0.35)',
-  },
-  ring2: {
-    position: 'absolute',
-    width: ORB_SIZE + 60,
-    height: ORB_SIZE + 60,
-    borderRadius: (ORB_SIZE + 60) / 2,
-    backgroundColor: 'rgba(175, 190, 178, 0.4)',
-  },
-  ring1: {
-    position: 'absolute',
-    width: ORB_SIZE + 25,
-    height: ORB_SIZE + 25,
-    borderRadius: (ORB_SIZE + 25) / 2,
-    backgroundColor: 'rgba(200, 210, 202, 0.5)',
-  },
-  orbCenter: {
-    width: ORB_SIZE,
-    height: ORB_SIZE,
-    borderRadius: ORB_SIZE / 2,
-    backgroundColor: 'rgba(215, 225, 218, 0.7)',
   },
   contentBelow: {
     paddingHorizontal: 32,
