@@ -320,8 +320,8 @@ const styles = StyleSheet.create({
   traceLabel: {
     fontSize: 11,
     fontWeight: '300',
-    letterSpacing: 11,
-    paddingLeft: 11,
+    letterSpacing: 14,
+    paddingLeft: 14,
     color: dayColors.traceBrand,
     opacity: 0.88,
     textShadowColor: 'rgba(90, 74, 58, 0.45)',
@@ -407,8 +407,9 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: 12,
     fontWeight: '300',
-    letterSpacing: 0.06,
-    lineHeight: 16.8,
+    letterSpacing: 0.1,
+    lineHeight: 18,
+    opacity: 0.75,
   },
   patternsButton: {
     marginTop: 32,
