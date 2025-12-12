@@ -253,13 +253,13 @@ export function ChatScreen({
             setShowTypewriter(false);
             setIsLoadingGreeting(false);
           } else {
-            // No recent messages - start fresh with greeting
-            startFreshGreeting();
+            // No recent messages - stay quiet, let user start conversation
+            setIsLoadingGreeting(false);
           }
         });
       } catch {
-        // Silent failure - TRACE simply forgets and starts fresh
-        startFreshGreeting();
+        // Silent failure - stay quiet, let user start conversation
+        setIsLoadingGreeting(false);
       }
     };
     

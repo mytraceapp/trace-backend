@@ -264,30 +264,8 @@ export function BubbleScreen({
   };
 
   const allPopped = bubbles.length > 0 && bubbles.every(b => b.popped);
-  const returnTimerRef = useRef<number | null>(null);
-  const hasStartedExitRef = useRef(false);
-
-  useEffect(() => {
-    if (allPopped && !hasStartedExitRef.current) {
-      hasStartedExitRef.current = true;
-      
-      // Wait 1.5s, then start exit animation
-      returnTimerRef.current = window.setTimeout(() => {
-        setIsExiting(true);
-        
-        // Wait for exit animation (0.5s), then return to chat
-        window.setTimeout(() => {
-          onReturnToChat();
-        }, 500);
-      }, 1500);
-    }
-    
-    return () => {
-      if (returnTimerRef.current) {
-        window.clearTimeout(returnTimerRef.current);
-      }
-    };
-  }, [allPopped, onReturnToChat]);
+  
+  // No auto-return - let user choose to "Pop again" or navigate away manually
 
   return (
     <div 
