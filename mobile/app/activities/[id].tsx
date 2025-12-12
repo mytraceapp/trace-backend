@@ -162,6 +162,8 @@ export default function ActivityDetailScreen() {
       router.push('/activities/ripple');
     } else if (id === 'rising') {
       router.push('/activities/rising');
+    } else if (id === 'bubble') {
+      router.push('/activities/drift');
     } else {
       console.log(`Starting ${id} activity...`);
     }
