@@ -265,7 +265,22 @@ export function BubbleScreen({
 
   const allPopped = bubbles.length > 0 && bubbles.every(b => b.popped);
   
-  // No auto-return - let user choose to "Pop again" or navigate away manually
+  // When all bubbles are popped, immediately stop messages and go to chat
+  useEffect(() => {
+    if (allPopped) {
+      // Stop all encouragement messaging immediately
+      setShowEncouragement(false);
+      setIsTyping(false);
+      setDisplayedText('');
+      
+      // Transition to chat after brief moment
+      setIsExiting(true);
+      const timer = setTimeout(() => {
+        onReturnToChat();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [allPopped, onReturnToChat]);
 
   return (
     <div 
@@ -464,35 +479,6 @@ export function BubbleScreen({
         })}
       </div>
 
-      {allPopped && (
-        <motion.div
-          className="absolute z-20 w-full text-center"
-          style={{ top: '50%', transform: 'translateY(-50%)' }}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <motion.button
-            onClick={resetBubbles}
-            className="px-8 py-4 rounded-full"
-            style={{
-              background: 'rgba(90, 74, 58, 0.9)',
-              color: '#FAF6F0',
-              fontFamily: 'Georgia, serif',
-              fontSize: '16px',
-              fontWeight: 400,
-              letterSpacing: '0.02em',
-              boxShadow: '0 6px 24px rgba(90, 74, 58, 0.4)',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            Pop again
-          </motion.button>
-        </motion.div>
-      )}
       </motion.div>
 
       <div 
