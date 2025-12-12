@@ -868,7 +868,7 @@ export function RisingScreen({
             <p
               style={{
                 fontFamily: 'Georgia, serif',
-                fontSize: '16px',
+                fontSize: '19px',
                 fontWeight: 400,
                 color: 'rgba(250, 246, 240, 0.7)',
                 margin: 0,
