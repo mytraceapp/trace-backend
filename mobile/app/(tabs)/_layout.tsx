@@ -22,7 +22,7 @@ function TabIcon({ focused, color, label }: TabIconProps) {
 function TabBarBackground() {
   return (
     <LinearGradient
-      colors={['rgba(200, 190, 175, 0.95)', 'rgba(180, 168, 150, 0.98)']}
+      colors={['rgba(215, 205, 190, 0.96)', 'rgba(195, 182, 165, 0.98)']}
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
       style={StyleSheet.absoluteFill}

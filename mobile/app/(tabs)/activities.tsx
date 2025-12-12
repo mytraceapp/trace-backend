@@ -226,7 +226,7 @@ export default function ActivitiesScreen() {
     console.log('Opening Patterns');
   };
 
-  const serifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
+  const serifFont = Platform.select({ ios: 'Baskerville', android: 'serif' }) || 'Baskerville';
   const aloreFont = fontsLoaded ? 'Alore' : serifFont;
 
   return (
