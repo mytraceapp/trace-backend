@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '300',
     letterSpacing: 14,
-    paddingLeft: 14,
+    marginLeft: 7,
     color: dayColors.traceBrand,
     opacity: 0.88,
     textShadowColor: 'rgba(90, 74, 58, 0.45)',
