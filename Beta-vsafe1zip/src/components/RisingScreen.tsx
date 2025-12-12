@@ -228,9 +228,9 @@ export function RisingScreen({
       createRichVariations([0xF5EFE6, 0xE8DED1, 0xD4C9BC, 0xEDE4D8, 0xFAF6F0, 0xC9BEB1]),
     ];
 
-    const clusterBurstDuration = 14.0; // 25% slower than before
-    const clusterGap = 0.3; // Near-zero gap - flows continuously
-    const fullCycleDuration = 4 * (clusterBurstDuration + clusterGap);
+    const clusterBurstDuration = 22.75; // 30% slower than before (17.5 * 1.3)
+    const clusterGap = 0; // No gap - flows seamlessly
+    const fullCycleDuration = 4 * clusterBurstDuration;
 
     // ============================================
     // DENSE BACKGROUND PARTICLES
@@ -400,7 +400,7 @@ export function RisingScreen({
 
       phases[i] = Math.random() * Math.PI * 2;
       rotationSpeeds[i] = 0.12 + Math.random() * 0.35;
-      burstOffsets[i] = Math.random() * 7.0; // Wider stagger for slower burst
+      burstOffsets[i] = Math.random() * 9.0; // Wider stagger for slower burst
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -504,7 +504,7 @@ export function RisingScreen({
       
       grainSizes[i] = 0.2 + Math.random() * 0.9;
       grainPhases[i] = Math.random() * Math.PI * 2;
-      grainBurstOffsets[i] = Math.random() * 7.0;
+      grainBurstOffsets[i] = Math.random() * 9.0;
     }
 
     grainGeometry.setAttribute('position', new THREE.BufferAttribute(grainPositions, 3));
@@ -612,7 +612,7 @@ export function RisingScreen({
           continue;
         }
         
-        const burstDuration = 17.5; // 25% slower burst
+        const burstDuration = 22.75; // 30% slower burst
         const burstT = Math.min(1.0, timeSinceBurst / burstDuration);
         const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.3);
         
@@ -665,7 +665,7 @@ export function RisingScreen({
           continue;
         }
         
-        const burstT = Math.min(1.0, timeSinceBurst / 17.5);
+        const burstT = Math.min(1.0, timeSinceBurst / 22.75);
         const easeOut = 1.0 - Math.pow(1.0 - burstT, 2.3);
         
         const gHomeX = grainHomes[i3];
@@ -787,12 +787,12 @@ export function RisingScreen({
       >
         <h1 style={{ 
           fontFamily: 'ALORE, Georgia, serif',
-          color: 'rgba(60, 60, 60, 0.85)',
+          color: '#5A4A3A',
           fontWeight: 300,
           letterSpacing: '1em',
           fontSize: '11px',
-          textShadow: '0 2px 5px rgba(255,255,255,0.6), 0 1px 2px rgba(0,0,0,0.15)',
-          opacity: 0.95,
+          textShadow: '0 0 15px rgba(90, 74, 58, 0.6), 0 0 30px rgba(90, 74, 58, 0.35), 0 2px 4px rgba(0,0,0,0.2)',
+          opacity: 0.92,
           paddingLeft: '1em',
         }}>
           TRACE

@@ -8,7 +8,7 @@ interface GroundingToneProps {
 
 let groundingInstanceCounter = 0;
 
-export function GroundingTone({ isPlaying, volume = 0.38 }: GroundingToneProps) {
+export function GroundingTone({ isPlaying, volume = 0.12 }: GroundingToneProps) { // -18 to -20 LUFS for ambient pads
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const gainsRef = useRef<GainNode[]>([]);

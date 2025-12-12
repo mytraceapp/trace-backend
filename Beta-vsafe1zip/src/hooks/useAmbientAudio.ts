@@ -16,7 +16,7 @@ let instanceCounter = 0;
 
 export function useAmbientAudio({
   src,
-  volume = 0.5,
+  volume = 0.12, // -18 to -20 LUFS for ambient pads
   fadeInDuration = 2000,
   fadeOutDuration = 400,
   loop = true,

@@ -50,7 +50,8 @@ export function TypingTone({ playing, currentChar }: TypingToneProps) {
     noise.buffer = buffer;
     
     const noiseGain = audioContext.createGain();
-    noiseGain.gain.setValueAtTime(0.05 + Math.random() * 0.03, now);
+    // Chimes/event sounds - never peak louder than -3 dB (0.7)
+    noiseGain.gain.setValueAtTime(0.04 + Math.random() * 0.02, now);
     noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
     
     const filter = audioContext.createBiquadFilter();
@@ -69,7 +70,8 @@ export function TypingTone({ playing, currentChar }: TypingToneProps) {
     click.type = 'triangle';
     
     const clickGain = audioContext.createGain();
-    clickGain.gain.setValueAtTime(0.02, now);
+    // Keep click subtle - well under -3 dB peak
+    clickGain.gain.setValueAtTime(0.015, now);
     clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
     
     click.connect(clickGain);

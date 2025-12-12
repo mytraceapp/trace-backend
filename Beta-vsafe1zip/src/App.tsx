@@ -178,7 +178,7 @@ export default function App() {
           {ambientAudioStarted && (
             <AmbientAudioPlayer
               shouldPlay={shouldPlayAmbient}
-              volume={(ambienceVolume / 100) * 0.5}
+              volume={(ambienceVolume / 100) * 0.12}
               showControls={false}
               playbackRate={0.9}
             />

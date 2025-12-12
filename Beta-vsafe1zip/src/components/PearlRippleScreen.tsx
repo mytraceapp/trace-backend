@@ -97,7 +97,7 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
         
         audio.play().then(() => {
           // Smooth fade-in over 2 seconds
-          gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 2);
+          gainNode.gain.linearRampToValueAtTime(0.12, audioContext.currentTime + 2); // -18 to -20 LUFS for ambient pads
         }).catch(() => {});
       } catch (e) {
         // Fallback to basic audio
@@ -106,10 +106,10 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
           let vol = 0;
           const fadeIn = setInterval(() => {
             vol += 0.02;
-            if (vol >= 0.45) {
+            if (vol >= 0.12) {
               clearInterval(fadeIn);
             }
-            audio.volume = Math.min(vol, 0.45);
+            audio.volume = Math.min(vol, 0.12); // -18 to -20 LUFS for ambient pads
           }, 80);
           fadeIntervalRef.current = fadeIn;
         }).catch(() => {});

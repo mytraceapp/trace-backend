@@ -14,7 +14,7 @@ interface AmbientAudioPlayerProps {
 export function AmbientAudioPlayer({
   shouldPlay = false,
   showControls = true,
-  volume = 0.32,
+  volume = 0.12, // -18 to -20 LUFS for ambient pads
   startDelay = 100,
   playbackRate = 0.94,
   onReady,

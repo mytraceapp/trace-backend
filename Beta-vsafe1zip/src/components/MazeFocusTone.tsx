@@ -8,7 +8,7 @@ interface MazeFocusToneProps {
 
 let mazeInstanceCounter = 0;
 
-export function MazeFocusTone({ isPlaying, volume = 0.35 }: MazeFocusToneProps) {
+export function MazeFocusTone({ isPlaying, volume = 0.12 }: MazeFocusToneProps) { // -18 to -20 LUFS for ambient pads
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const gainsRef = useRef<GainNode[]>([]);
