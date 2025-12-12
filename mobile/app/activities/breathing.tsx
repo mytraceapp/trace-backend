@@ -279,11 +279,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    paddingTop: 8,
   },
   tabBarContent: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flex: 1,
   },
   tabItem: {

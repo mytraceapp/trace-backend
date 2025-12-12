@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   endButtonText: {
     fontSize: 14,
     fontWeight: '300',
-    color: '#9A8778',
+    color: 'rgba(154, 135, 120, 0.85)',
     letterSpacing: 1.5,
   },
   tabBar: {
@@ -523,11 +523,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    paddingTop: 8,
   },
   tabBarContent: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flex: 1,
   },
   tabItem: {
