@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Platform } f
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Wind, Compass, Footprints, Moon, Droplets, Hand, Activity, Sunrise, Circle } from 'lucide-react-native';
-import { useFonts } from 'expo-font';
+import { useFonts, loadAsync } from 'expo-font';
 import Svg, { Path } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -216,6 +216,7 @@ export default function ActivitiesScreen() {
   
   const [fontsLoaded] = useFonts({
     'Alore': require('../../assets/fonts/Alore-Regular.otf'),
+    'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
   });
 
   const handleActivityPress = (activityId: string) => {
@@ -226,8 +227,9 @@ export default function ActivitiesScreen() {
     console.log('Opening Patterns');
   };
 
-  const serifFont = Platform.select({ ios: 'Baskerville', android: 'serif' }) || 'Baskerville';
-  const aloreFont = fontsLoaded ? 'Alore' : serifFont;
+  const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
+  const canelaFont = fontsLoaded ? 'Canela' : fallbackSerifFont;
+  const aloreFont = fontsLoaded ? 'Alore' : fallbackSerifFont;
 
   return (
     <View style={styles.container}>
@@ -254,8 +256,8 @@ export default function ActivitiesScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={[styles.title, { fontFamily: serifFont }]}>Activities</Text>
-          <Text style={[styles.subtitle, { fontFamily: serifFont }]}>Choose what feels right.</Text>
+          <Text style={[styles.title, { fontFamily: canelaFont }]}>Activities</Text>
+          <Text style={[styles.subtitle, { fontFamily: canelaFont }]}>Choose what feels right.</Text>
         </View>
 
         <View style={styles.grid}>
@@ -270,7 +272,7 @@ export default function ActivitiesScreen() {
               iconBgColors={activity.iconBgColors}
               descColor={activity.descColor}
               customIcon={activity.customIcon}
-              fontFamily={serifFont}
+              fontFamily={canelaFont}
               onPress={() => handleActivityPress(activity.id)}
             />
           ))}
@@ -289,7 +291,7 @@ export default function ActivitiesScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.patternsGradient}
           >
-            <Text style={[styles.patternsText, { fontFamily: serifFont }]}>View Patterns</Text>
+            <Text style={[styles.patternsText, { fontFamily: canelaFont }]}>View Patterns</Text>
           </LinearGradient>
         </Pressable>
       </ScrollView>
