@@ -12,10 +12,12 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 
-import { FontFamily } from '../../constants/typography';
+import { FontFamily, TraceWordmark, BodyText } from '../../constants/typography';
+import { Spacing } from '../../constants/spacing';
+import { Shadows } from '../../constants/shadows';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const ORB_SIZE = 240;
+const ORB_SIZE = 180;
 
 const TOTAL_DURATION = 30;
 const PHASE_DURATION = 3000;
@@ -38,7 +40,6 @@ export default function BreathingActivityScreen() {
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
 
   const orbScale = useSharedValue(1);
-  const glowOpacity = useSharedValue(0.6);
 
   useEffect(() => {
     progressInterval.current = setInterval(() => {
@@ -63,20 +64,14 @@ export default function BreathingActivityScreen() {
 
   useEffect(() => {
     if (phase === 'inhale') {
-      orbScale.value = withTiming(0.9, { duration: PHASE_DURATION, easing: Easing.inOut(Easing.ease) });
-      glowOpacity.value = withTiming(0.5, { duration: PHASE_DURATION, easing: Easing.inOut(Easing.ease) });
+      orbScale.value = withTiming(0.92, { duration: PHASE_DURATION, easing: Easing.inOut(Easing.ease) });
     } else {
-      orbScale.value = withTiming(1.1, { duration: PHASE_DURATION, easing: Easing.inOut(Easing.ease) });
-      glowOpacity.value = withTiming(0.8, { duration: PHASE_DURATION, easing: Easing.inOut(Easing.ease) });
+      orbScale.value = withTiming(1.08, { duration: PHASE_DURATION, easing: Easing.inOut(Easing.ease) });
     }
   }, [phase]);
 
   const animatedOrbStyle = useAnimatedStyle(() => ({
     transform: [{ scale: orbScale.value }],
-  }));
-
-  const animatedGlowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
   }));
 
   const progressPercentage = (progress / TOTAL_DURATION) * 100;
@@ -101,15 +96,18 @@ export default function BreathingActivityScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
+      <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
         <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
       </View>
 
       <View style={styles.orbContainer}>
-        <Animated.View style={[styles.outerGlow, animatedGlowStyle]} />
-        <Animated.View style={[styles.middleGlow, animatedGlowStyle]} />
         <Animated.View style={[styles.orbWrapper, animatedOrbStyle]}>
-          <View style={styles.orb} />
+          <View style={styles.ring5} />
+          <View style={styles.ring4} />
+          <View style={styles.ring3} />
+          <View style={styles.ring2} />
+          <View style={styles.ring1} />
+          <View style={styles.orbCenter} />
         </Animated.View>
       </View>
 
@@ -191,48 +189,77 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 40,
     alignItems: 'center',
-    paddingBottom: 8,
+    paddingBottom: Spacing.md,
+    backgroundColor: 'transparent',
   },
   traceLabel: {
-    fontSize: 14,
-    fontWeight: '300',
-    letterSpacing: 4,
+    fontSize: TraceWordmark.fontSize,
+    fontWeight: TraceWordmark.fontWeight,
+    letterSpacing: TraceWordmark.letterSpacing,
+    marginLeft: TraceWordmark.marginLeft,
     color: '#EDE8DB',
     opacity: 0.7,
+    ...Shadows.traceWordmark,
   },
   orbContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -40,
+    marginTop: -20,
   },
-  outerGlow: {
+  orbWrapper: {
+    width: ORB_SIZE + 200,
+    height: ORB_SIZE + 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ring5: {
     position: 'absolute',
-    width: ORB_SIZE + 120,
-    height: ORB_SIZE + 120,
-    borderRadius: (ORB_SIZE + 120) / 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    width: ORB_SIZE + 180,
+    height: ORB_SIZE + 180,
+    borderRadius: (ORB_SIZE + 180) / 2,
+    backgroundColor: 'rgba(127, 145, 130, 0.25)',
   },
-  middleGlow: {
+  ring4: {
+    position: 'absolute',
+    width: ORB_SIZE + 140,
+    height: ORB_SIZE + 140,
+    borderRadius: (ORB_SIZE + 140) / 2,
+    backgroundColor: 'rgba(140, 158, 143, 0.3)',
+  },
+  ring3: {
+    position: 'absolute',
+    width: ORB_SIZE + 100,
+    height: ORB_SIZE + 100,
+    borderRadius: (ORB_SIZE + 100) / 2,
+    backgroundColor: 'rgba(155, 172, 158, 0.35)',
+  },
+  ring2: {
     position: 'absolute',
     width: ORB_SIZE + 60,
     height: ORB_SIZE + 60,
     borderRadius: (ORB_SIZE + 60) / 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(175, 190, 178, 0.4)',
   },
-  orbWrapper: {
+  ring1: {
+    position: 'absolute',
+    width: ORB_SIZE + 25,
+    height: ORB_SIZE + 25,
+    borderRadius: (ORB_SIZE + 25) / 2,
+    backgroundColor: 'rgba(200, 210, 202, 0.5)',
+  },
+  orbCenter: {
     width: ORB_SIZE,
     height: ORB_SIZE,
     borderRadius: ORB_SIZE / 2,
-    overflow: 'hidden',
-  },
-  orb: {
-    width: '100%',
-    height: '100%',
-    borderRadius: ORB_SIZE / 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: 'rgba(215, 225, 218, 0.7)',
   },
   contentBelow: {
     paddingHorizontal: 32,
@@ -255,7 +282,7 @@ const styles = StyleSheet.create({
   timerText: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#EDE8DB',
+    color: '#4B4B4B',
     textAlign: 'center',
     marginTop: 12,
     letterSpacing: 0.5,
@@ -263,7 +290,7 @@ const styles = StyleSheet.create({
   guidanceText: {
     fontSize: 16,
     fontWeight: '400',
-    color: '#EDE8DB',
+    color: '#4B4B4B',
     textAlign: 'center',
     marginTop: 8,
     letterSpacing: 0.3,
@@ -271,8 +298,8 @@ const styles = StyleSheet.create({
   soundPrompt: {
     fontSize: 12,
     fontWeight: '400',
-    color: '#EDE8DB',
-    opacity: 0.6,
+    color: '#6B6761',
+    opacity: 0.7,
     textAlign: 'center',
     marginTop: 32,
     letterSpacing: 0.3,
