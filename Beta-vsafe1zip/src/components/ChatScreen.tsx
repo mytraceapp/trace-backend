@@ -320,82 +320,9 @@ export function ChatScreen({
     maybeRunCheckin();
   }, []);
 
-  // Emotional recall - gently check in if earlier today was heavy
-  // Uses localStorage tracking to prevent repetition across sessions
-  React.useEffect(() => {
-    if (hasShownRecallThisSession) return;
-    
-    // Check cooldown - only show recall once every 6 hours
-    if (!canShowRecallPrompt()) return;
-
-    let cancelled = false;
-
-    async function maybeShowRecall() {
-      try {
-        const userId = await getCurrentUserId();
-        if (!userId || cancelled) return;
-
-        const stitch = await getTodayStitch(userId);
-        if (!stitch || cancelled) return;
-
-        if (stitch.total < 3) return;
-
-        const total = stitch.total;
-        const heavyCount = stitch.heavy ?? 0;
-        const anxiousCount = stitch.anxious ?? 0;
-        const heavyishRatio = total > 0 ? (heavyCount + anxiousCount) / total : 0;
-        const avgIntensity = stitch.avg_intensity ?? 0;
-        const arc = stitch.arc ?? null;
-
-        const isNotable =
-          heavyishRatio >= 0.4 ||
-          avgIntensity >= 3 ||
-          arc === "rising";
-
-        if (!isNotable || cancelled) return;
-
-        let recallText: string;
-        if (heavyishRatio >= 0.4 && avgIntensity >= 3) {
-          recallText = "Earlier today felt pretty heavy. Is any of that still with you right now?";
-        } else if (arc === "rising") {
-          recallText = "Earlier today your emotions felt like they were ramping up a bit. How are you feeling coming back in?";
-        } else {
-          recallText = "I noticed you checked in earlier. How are things sitting with you now?";
-        }
-
-        const recallMessage: Message = {
-          id: `recall-${Date.now()}`,
-          role: "assistant",
-          content: recallText,
-          createdAt: new Date().toISOString(),
-          emotion: "calm",
-          intensity: 1,
-        };
-
-        setMessages((prev) => [...prev, recallMessage]);
-        setHasShownRecallThisSession(true);
-        
-        // Mark recall as shown in localStorage (6 hour cooldown)
-        markRecallPromptShown();
-        
-        // Add to conversation history so AI knows it already asked this
-        addAssistantMessageToHistory(recallText);
-
-        // Also save to Supabase
-        saveTraceMessage(userId, "assistant", recallText);
-      } catch (err) {
-        console.error("TRACE/recallEffect ❌", err);
-      }
-    }
-
-    // Small delay to let history load first
-    const timer = setTimeout(maybeShowRecall, 1500);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [hasShownRecallThisSession]);
+  // Emotional recall - DISABLED to prevent repetitive questions
+  // The AI's existing conversation history handles emotional continuity naturally
+  // React.useEffect(() => { ... }, [hasShownRecallThisSession]);
 
   // Fetch last hour summary for emotional recall feature
   React.useEffect(() => {
@@ -420,47 +347,14 @@ export function ChatScreen({
     };
   }, []);
 
-  // Emotional recall helper - offers a gentle check-in based on last hour's emotional arc
-  // This is disabled since we now use the main recall effect with proper cooldown
+  // Emotional recall helper - DISABLED to prevent repetitive questions
+  // The AI's natural conversation flow handles emotional continuity
   const maybeOfferEmotionalRecall = React.useCallback(
     async () => {
-      // Skip if already shown or if cooldown hasn't elapsed
-      if (hasOfferedRecallThisSession || !lastHourSummary || !canShowRecallPrompt()) return;
-
-      const text = buildEmotionalRecallMessage(lastHourSummary);
-      if (!text) return;
-
-      // Mark as used so we don't repeat
-      setHasOfferedRecallThisSession(true);
-      markRecallPromptShown();
-
-      // Give a brief pause so it feels natural
-      setTimeout(async () => {
-        const recallMessage: Message = {
-          id: crypto.randomUUID(),
-          role: 'assistant' as const,
-          content: text,
-          createdAt: new Date().toISOString(),
-          emotion: 'calm' as const,
-          intensity: 2,
-        };
-
-        setMessages(prev => [...prev, recallMessage]);
-        
-        // Add to conversation history so AI knows it already asked this
-        addAssistantMessageToHistory(text);
-
-        try {
-          const userId = await getCurrentUserId();
-          if (userId) {
-            await saveTraceMessage(userId, 'assistant', text);
-          }
-        } catch (err) {
-          console.error('TRACE emotional recall: failed to save', err);
-        }
-      }, 2000);
+      // Completely disabled - return immediately
+      return;
     },
-    [hasOfferedRecallThisSession, lastHourSummary, setMessages]
+    []
   );
 
   React.useEffect(() => {
