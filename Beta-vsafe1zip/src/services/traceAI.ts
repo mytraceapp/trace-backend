@@ -208,6 +208,37 @@ export function reloadConversationFromStorage(): ChatMessage[] {
   return [...conversationHistory];
 }
 
+// Add an assistant message to history (for auto-injected messages like recall prompts)
+// This ensures the AI knows what it already asked
+export function addAssistantMessageToHistory(message: string): void {
+  conversationHistory.push({
+    role: 'assistant',
+    content: message,
+  });
+  
+  if (conversationHistory.length > MAX_CONVERSATION_HISTORY) {
+    conversationHistory = conversationHistory.slice(-MAX_CONVERSATION_HISTORY);
+  }
+  
+  saveConversationHistory(conversationHistory);
+}
+
+// Track last recall prompt time to prevent repetition
+const RECALL_COOLDOWN_KEY = 'trace_last_recall_time';
+const RECALL_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+export function canShowRecallPrompt(): boolean {
+  const lastRecall = localStorage.getItem(RECALL_COOLDOWN_KEY);
+  if (!lastRecall) return true;
+  
+  const elapsed = Date.now() - parseInt(lastRecall, 10);
+  return elapsed >= RECALL_COOLDOWN_MS;
+}
+
+export function markRecallPromptShown(): void {
+  localStorage.setItem(RECALL_COOLDOWN_KEY, Date.now().toString());
+}
+
 // Activity types that TRACE can suggest
 export type ActivityType = 'breathing' | 'grounding' | 'walking' | 'maze' | 'powernap' | 'pearlripple' | 'window' | 'echo' | 'rest' | null;
 

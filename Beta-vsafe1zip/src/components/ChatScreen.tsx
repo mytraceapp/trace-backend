@@ -12,6 +12,9 @@ import {
   detectUserAgreement, 
   getLastSuggestedActivity,
   clearLastSuggestedActivity,
+  addAssistantMessageToHistory,
+  canShowRecallPrompt,
+  markRecallPromptShown,
   ActivityType 
 } from '../services/traceAI';
 import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages, getTodayStitch, getLastHourSummary } from '../lib/messageService';
@@ -318,8 +321,12 @@ export function ChatScreen({
   }, []);
 
   // Emotional recall - gently check in if earlier today was heavy
+  // Uses localStorage tracking to prevent repetition across sessions
   React.useEffect(() => {
     if (hasShownRecallThisSession) return;
+    
+    // Check cooldown - only show recall once every 6 hours
+    if (!canShowRecallPrompt()) return;
 
     let cancelled = false;
 
@@ -353,7 +360,7 @@ export function ChatScreen({
         } else if (arc === "rising") {
           recallText = "Earlier today your emotions felt like they were ramping up a bit. How are you feeling coming back in?";
         } else {
-          recallText = "I remember you checked in earlier today. How is your heart doing right now?";
+          recallText = "I noticed you checked in earlier. How are things sitting with you now?";
         }
 
         const recallMessage: Message = {
@@ -367,6 +374,12 @@ export function ChatScreen({
 
         setMessages((prev) => [...prev, recallMessage]);
         setHasShownRecallThisSession(true);
+        
+        // Mark recall as shown in localStorage (6 hour cooldown)
+        markRecallPromptShown();
+        
+        // Add to conversation history so AI knows it already asked this
+        addAssistantMessageToHistory(recallText);
 
         // Also save to Supabase
         saveTraceMessage(userId, "assistant", recallText);
@@ -408,15 +421,18 @@ export function ChatScreen({
   }, []);
 
   // Emotional recall helper - offers a gentle check-in based on last hour's emotional arc
+  // This is disabled since we now use the main recall effect with proper cooldown
   const maybeOfferEmotionalRecall = React.useCallback(
     async () => {
-      if (hasOfferedRecallThisSession || !lastHourSummary) return;
+      // Skip if already shown or if cooldown hasn't elapsed
+      if (hasOfferedRecallThisSession || !lastHourSummary || !canShowRecallPrompt()) return;
 
       const text = buildEmotionalRecallMessage(lastHourSummary);
       if (!text) return;
 
       // Mark as used so we don't repeat
       setHasOfferedRecallThisSession(true);
+      markRecallPromptShown();
 
       // Give a brief pause so it feels natural
       setTimeout(async () => {
@@ -430,6 +446,9 @@ export function ChatScreen({
         };
 
         setMessages(prev => [...prev, recallMessage]);
+        
+        // Add to conversation history so AI knows it already asked this
+        addAssistantMessageToHistory(text);
 
         try {
           const userId = await getCurrentUserId();
