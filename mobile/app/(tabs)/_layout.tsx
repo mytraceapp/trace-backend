@@ -2,22 +2,22 @@ import { Tabs } from 'expo-router';
 import { useColorScheme, StyleSheet, View, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { Home, Activity, BookOpen, User, HelpCircle } from 'lucide-react-native';
 import { Colors } from '../../constants/colors';
-import { Spacing } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 
 type TabIconProps = {
   focused: boolean;
   color: string;
   label: string;
+  Icon: typeof Home;
 };
 
-function TabIcon({ focused, color, label }: TabIconProps) {
+function TabIcon({ focused, color, label, Icon }: TabIconProps) {
   return (
     <View style={styles.tabIconContainer}>
-      <View style={[styles.tabDot, { backgroundColor: focused ? color : 'transparent' }]} />
-      <Text style={[styles.tabLabel, { color, opacity: focused ? 1 : 0.6 }]}>{label}</Text>
+      <Icon size={22} color={color} strokeWidth={1.5} />
+      <Text style={[styles.tabLabel, { color, opacity: focused ? 1 : 0.7 }]}>{label}</Text>
     </View>
   );
 }
@@ -27,8 +27,8 @@ function TabBarBackground() {
     <View style={StyleSheet.absoluteFill}>
       <LinearGradient
         colors={[
-          'rgba(168, 181, 170, 0.55)',
-          'rgba(158, 173, 160, 0.95)',
+          'rgba(168, 181, 170, 0.80)',
+          'rgba(158, 173, 160, 1.0)',
           'rgba(148, 165, 150, 1.0)',
           'rgba(138, 158, 142, 1.0)',
           'rgba(128, 150, 134, 1.0)',
@@ -48,7 +48,7 @@ export default function TabLayout() {
   const theme = colorScheme === 'dark' ? 'night' : 'day';
   const colors = Colors[theme];
 
-  const TAB_BAR_HEIGHT = 56;
+  const TAB_BAR_HEIGHT = 60;
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
 
   return (
@@ -61,7 +61,7 @@ export default function TabLayout() {
           borderTopWidth: 0,
           borderWidth: 0,
           borderColor: 'transparent',
-          paddingTop: 6,
+          paddingTop: 8,
           paddingBottom: bottomPadding,
           height: TAB_BAR_HEIGHT + bottomPadding,
           position: 'absolute',
@@ -82,27 +82,18 @@ export default function TabLayout() {
       <Tabs.Screen
         name="chat"
         options={{
-          title: 'Chat',
+          title: 'Home',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon focused={focused} color={color} label="Chat" />
+            <TabIcon focused={focused} color={color} label="Home" Icon={Home} />
           ),
         }}
       />
       <Tabs.Screen
         name="activities"
         options={{
-          title: 'Activities',
+          title: 'Activity',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon focused={focused} color={color} label="Activ" />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="journal"
-        options={{
-          title: 'Journal',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon focused={focused} color={color} label="Journ" />
+            <TabIcon focused={focused} color={color} label="Activity" Icon={Activity} />
           ),
         }}
       />
@@ -111,7 +102,7 @@ export default function TabLayout() {
         options={{
           title: 'Entries',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon focused={focused} color={color} label="Entri" />
+            <TabIcon focused={focused} color={color} label="Entries" Icon={BookOpen} />
           ),
         }}
       />
@@ -120,7 +111,16 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon focused={focused} color={color} label="Profi" />
+            <TabIcon focused={focused} color={color} label="Profile" Icon={User} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="journal"
+        options={{
+          title: 'Help',
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon focused={focused} color={color} label="Help" Icon={HelpCircle} />
           ),
         }}
       />
@@ -132,16 +132,11 @@ const styles = StyleSheet.create({
   tabIconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 2,
-  },
-  tabDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginBottom: 3,
+    gap: 4,
   },
   tabLabel: {
-    fontSize: Typography.fontSize.xs,
+    fontSize: 11,
     fontWeight: '500',
+    letterSpacing: 0.2,
   },
 });
