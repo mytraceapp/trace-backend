@@ -2,7 +2,10 @@ import { Tabs } from 'expo-router';
 import { useColorScheme, StyleSheet, View, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, Typography, BorderRadius } from '../../constants/theme';
+import { BlurView } from 'expo-blur';
+import { Colors } from '../../constants/colors';
+import { Spacing } from '../../constants/spacing';
+import { Typography } from '../../constants/typography';
 
 type TabIconProps = {
   focused: boolean;
@@ -21,19 +24,22 @@ function TabIcon({ focused, color, label }: TabIconProps) {
 
 function TabBarBackground() {
   return (
-    <LinearGradient
-      colors={[
-        'rgba(245, 241, 235, 0.65)',
-        'rgba(232, 228, 222, 0.65)',
-        'rgba(200, 207, 201, 0.65)',
-        'rgba(168, 181, 170, 0.65)',
-        'rgba(143, 163, 149, 0.65)',
-      ]}
-      locations={[0, 0.2, 0.5, 0.75, 1]}
-      start={{ x: 0.5, y: 0 }}
-      end={{ x: 0.5, y: 1 }}
-      style={StyleSheet.absoluteFill}
-    />
+    <View style={StyleSheet.absoluteFill}>
+      <LinearGradient
+        colors={[
+          'rgba(245, 241, 235, 0)',
+          'rgba(245, 241, 235, 0.3)',
+          'rgba(232, 228, 222, 0.55)',
+          'rgba(200, 207, 201, 0.65)',
+          'rgba(168, 181, 170, 0.7)',
+          'rgba(143, 163, 149, 0.75)',
+        ]}
+        locations={[0, 0.15, 0.35, 0.55, 0.75, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+    </View>
   );
 }
 
@@ -42,6 +48,9 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const theme = colorScheme === 'dark' ? 'night' : 'day';
   const colors = Colors[theme];
+
+  const TAB_BAR_HEIGHT = 56;
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
 
   return (
     <Tabs
@@ -53,20 +62,21 @@ export default function TabLayout() {
           borderTopWidth: 0,
           borderWidth: 0,
           borderColor: 'transparent',
-          paddingTop: Spacing.md,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : Spacing.md,
-          height: 90 + (insets.bottom > 0 ? insets.bottom : Spacing.md),
+          paddingTop: 6,
+          paddingBottom: bottomPadding,
+          height: TAB_BAR_HEIGHT + bottomPadding,
           position: 'absolute',
           elevation: 0,
           shadowColor: 'transparent',
           shadowOpacity: 0,
           shadowRadius: 0,
+          shadowOffset: { width: 0, height: 0 },
         },
         tabBarItemStyle: {
           borderTopWidth: 0,
         },
-        tabBarActiveTintColor: '#EDE8DB',
-        tabBarInactiveTintColor: 'rgba(237, 232, 219, 0.6)',
+        tabBarActiveTintColor: colors.tabBar.activeIcon,
+        tabBarInactiveTintColor: colors.tabBar.inactiveIcon,
         tabBarShowLabel: false,
       }}
     >
@@ -123,16 +133,16 @@ const styles = StyleSheet.create({
   tabIconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 4,
+    paddingTop: 2,
   },
   tabDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   tabLabel: {
     fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontWeight: '500',
   },
 });
