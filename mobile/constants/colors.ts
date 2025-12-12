@@ -1,0 +1,46 @@
+export const Colors = {
+  day: {
+    bg: '#F5F1EB',
+    bgSoft: '#E8E4DC',
+    card: 'rgba(255, 255, 255, 0.92)',
+    cardMuted: '#C9BCB0',
+    cardAlt: 'rgba(201, 188, 176, 0.55)',
+    border: 'rgba(138, 122, 106, 0.12)',
+    textPrimary: '#5A4A3A',
+    textSecondary: '#8A7A6A',
+    textTertiary: '#9A8A7A',
+    textMuted: '#A09080',
+    accent: '#8DA18F',
+    accentSoft: 'rgba(141, 161, 143, 0.15)',
+    inputBg: '#E8E4DC',
+    iconContainer: 'rgba(201, 188, 176, 0.4)',
+    iconColor: '#8A7A6A',
+    danger: '#C49080',
+  },
+  night: {
+    bg: '#0E0F0D',
+    bgSoft: '#1A1C1A',
+    card: 'rgba(38, 42, 38, 0.92)',
+    cardMuted: 'rgba(48, 52, 48, 0.6)',
+    cardAlt: 'rgba(32, 36, 32, 0.88)',
+    border: 'rgba(255, 255, 255, 0.1)',
+    textPrimary: '#F2F0EC',
+    textSecondary: '#C7C5C0',
+    textTertiary: '#A8A6A2',
+    textMuted: '#888884',
+    accent: '#A8B39A',
+    accentSoft: 'rgba(168, 179, 154, 0.15)',
+    inputBg: '#2A2C2A',
+    iconContainer: 'rgba(168, 179, 154, 0.2)',
+    iconColor: '#A8B39A',
+    danger: '#C49080',
+  },
+  shared: {
+    white: '#FFFFFF',
+    black: '#000000',
+    transparent: 'transparent',
+  },
+};
+
+export type ThemeColors = typeof Colors.day;
+export type ColorScheme = 'day' | 'night';

@@ -1,32 +1,106 @@
-import { View, Text, StyleSheet, ScrollView, useColorScheme, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useColorScheme, Pressable, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Typography, Spacing, BorderRadius } from '../../constants/theme';
+import { Colors, Spacing, CardSpacing, ScreenPadding, BorderRadius, CardRadius, Shadows, Typography, LetterSpacing, FontFamily, FontSize, FontWeight } from '../../constants';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_GAP = CardSpacing.gridGap;
+const CARD_WIDTH = (SCREEN_WIDTH - ScreenPadding.horizontal * 2 - CARD_GAP) / 2;
+
+const ACTIVITIES = [
+  {
+    id: 'breathing',
+    title: 'Breathing',
+    description: 'A calming 30-second reset.',
+    icon: '≋',
+    variant: 'light' as const,
+  },
+  {
+    id: 'maze',
+    title: 'Trace the Maze',
+    description: 'Slow your mind with gentle tracing.',
+    icon: '◎',
+    variant: 'muted' as const,
+  },
+  {
+    id: 'walking',
+    title: 'Walking Reset',
+    description: 'Two minutes of slow-paced movement.',
+    icon: '❝❞',
+    variant: 'muted' as const,
+  },
+  {
+    id: 'rest',
+    title: 'Rest',
+    description: 'Five minutes of quiet stillness.',
+    icon: '☽',
+    variant: 'light' as const,
+  },
+  {
+    id: 'ripple',
+    title: 'Ripple',
+    description: 'Watch gentle waves expand.',
+    icon: '◠',
+    variant: 'light' as const,
+  },
+  {
+    id: 'grounding',
+    title: 'Grounding',
+    description: '5-4-3-2-1 sensory awareness.',
+    icon: '✋',
+    variant: 'muted' as const,
+  },
+  {
+    id: 'rising',
+    title: 'Rising',
+    description: 'Gentle particles ascending.',
+    icon: '✧',
+    variant: 'muted' as const,
+  },
+  {
+    id: 'drift',
+    title: 'Drift',
+    description: 'Pop calming bubbles.',
+    icon: '○',
+    variant: 'light' as const,
+  },
+];
+
+type ActivityVariant = 'light' | 'muted';
 
 type ActivityCardProps = {
   title: string;
-  subtitle: string;
-  duration: string;
-  colors: typeof Colors.night;
+  description: string;
+  icon: string;
+  variant: ActivityVariant;
+  colors: typeof Colors.day;
   onPress?: () => void;
 };
 
-function ActivityCard({ title, subtitle, duration, colors, onPress }: ActivityCardProps) {
+function ActivityCard({ title, description, icon, variant, colors, onPress }: ActivityCardProps) {
+  const cardBg = variant === 'light' ? colors.card : colors.cardAlt;
+  const iconBg = variant === 'light' 
+    ? colors.iconContainer 
+    : 'rgba(255, 255, 255, 0.35)';
+  
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.activityCard,
-        { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
+        styles.card,
+        { 
+          backgroundColor: cardBg,
+          opacity: pressed ? 0.9 : 1,
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+        },
+        Shadows.card,
       ]}
       onPress={onPress}
     >
-      <View style={styles.activityIconContainer}>
-        <View style={[styles.activityIcon, { backgroundColor: Colors.shared.activityIcon }]} />
+      <View style={[styles.iconContainer, { backgroundColor: iconBg }]}>
+        <Text style={[styles.iconText, { color: colors.iconColor }]}>{icon}</Text>
       </View>
-      <View style={styles.activityContent}>
-        <Text style={[styles.activityTitle, { color: colors.textPrimary }]}>{title}</Text>
-        <Text style={[styles.activitySubtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
-      </View>
-      <Text style={[styles.activityDuration, { color: colors.textTertiary }]}>{duration}</Text>
+      
+      <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{title}</Text>
+      <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>{description}</Text>
     </Pressable>
   );
 }
@@ -37,16 +111,9 @@ export default function ActivitiesScreen() {
   const theme = colorScheme === 'dark' ? 'night' : 'day';
   const colors = Colors[theme];
 
-  const activities = [
-    { title: 'Rising', subtitle: 'Watch gentle particles rise', duration: '2 min' },
-    { title: 'Drift', subtitle: 'Pop calming bubbles', duration: '2 min' },
-    { title: 'Breathing', subtitle: 'Guided breath work', duration: '3 min' },
-    { title: 'Grounding', subtitle: '5-4-3-2-1 sensory exercise', duration: '5 min' },
-    { title: 'Pearl Ripple', subtitle: 'Ocean wave immersion', duration: '1 min' },
-    { title: 'Maze', subtitle: 'Trace a calming path', duration: '2 min' },
-    { title: 'Echo', subtitle: 'Reflect and release', duration: '3 min' },
-    { title: 'Power Nap', subtitle: 'Quick rest with gentle wake', duration: '5 min' },
-  ];
+  const handleActivityPress = (activityId: string) => {
+    console.log(`Opening activity: ${activityId}`);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -54,26 +121,28 @@ export default function ActivitiesScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + Spacing.lg, paddingBottom: 100 },
+          { paddingTop: insets.top + Spacing.xl, paddingBottom: 120 },
         ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
+          <Text style={[styles.traceLabel, { color: colors.textMuted }]}>TRACE</Text>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Activities</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Find a moment of calm
+            Choose what feels right.
           </Text>
         </View>
 
-        <View style={styles.activitiesGrid}>
-          {activities.map((activity, index) => (
+        <View style={styles.grid}>
+          {ACTIVITIES.map((activity) => (
             <ActivityCard
-              key={index}
+              key={activity.id}
               title={activity.title}
-              subtitle={activity.subtitle}
-              duration={activity.duration}
+              description={activity.description}
+              icon={activity.icon}
+              variant={activity.variant}
               colors={colors}
-              onPress={() => console.log(`Opening ${activity.title}`)}
+              onPress={() => handleActivityPress(activity.id)}
             />
           ))}
         </View>
@@ -90,57 +159,65 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.base,
+    paddingHorizontal: ScreenPadding.horizontal,
   },
   header: {
-    marginBottom: Spacing.xl,
-    paddingHorizontal: Spacing.sm,
+    marginBottom: Spacing['2xl'],
+    alignItems: 'center',
+  },
+  traceLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+    letterSpacing: LetterSpacing.trace,
+    marginBottom: Spacing.sm,
+    textTransform: 'uppercase',
   },
   title: {
-    fontSize: Typography.fontSize['2xl'],
-    fontWeight: Typography.fontWeight.semibold,
+    fontFamily: FontFamily.serif,
+    fontSize: FontSize['4xl'],
+    fontWeight: FontWeight.normal,
     marginBottom: Spacing.xs,
   },
   subtitle: {
-    fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.normal,
+    fontFamily: FontFamily.sans,
+    fontSize: FontSize.base,
+    fontWeight: FontWeight.normal,
   },
-  activitiesGrid: {
-    gap: Spacing.md,
-  },
-  activityCard: {
+  grid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.base,
-    borderRadius: BorderRadius.lg,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: CARD_GAP,
   },
-  activityIconContainer: {
+  card: {
+    width: CARD_WIDTH,
+    minHeight: CARD_WIDTH * 1.1,
+    borderRadius: CardRadius.card,
+    padding: CardSpacing.padding,
+    justifyContent: 'flex-start',
+  },
+  iconContainer: {
     width: 48,
     height: 48,
-    borderRadius: BorderRadius.md,
-    backgroundColor: 'rgba(154, 135, 120, 0.15)',
+    borderRadius: CardRadius.iconContainer,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.md,
+    marginBottom: CardSpacing.iconMargin,
   },
-  activityIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  iconText: {
+    fontSize: 20,
   },
-  activityContent: {
-    flex: 1,
+  cardTitle: {
+    fontFamily: FontFamily.serif,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.semibold,
+    marginBottom: Spacing.xs,
+    lineHeight: FontSize.lg * 1.3,
   },
-  activityTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.medium,
-    marginBottom: 2,
-  },
-  activitySubtitle: {
-    fontSize: Typography.fontSize.sm,
-  },
-  activityDuration: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
+  cardDescription: {
+    fontFamily: FontFamily.sans,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.normal,
+    lineHeight: FontSize.sm * 1.5,
   },
 });
