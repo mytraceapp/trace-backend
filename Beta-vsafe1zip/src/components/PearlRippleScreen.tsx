@@ -116,11 +116,14 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
       }
     };
 
-    // Start audio immediately
-    startAudio();
+    // Start audio after 2.5 second delay for smooth fade-in
+    const audioDelayTimeout = setTimeout(() => {
+      startAudio();
+    }, 2500);
 
     // Cleanup with smooth fade-out
     return () => {
+      clearTimeout(audioDelayTimeout);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       if (fadeIntervalRef.current) {
         clearInterval(fadeIntervalRef.current);
