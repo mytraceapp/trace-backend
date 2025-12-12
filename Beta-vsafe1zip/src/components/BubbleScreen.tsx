@@ -33,22 +33,22 @@ export function BubbleScreen({
   const hasSavedRef = useRef(false);
   const startTimeRef = useRef<number>(Date.now());
 
-  const bubbleSize = 52;
-  const cols = 7;
+  const bubbleSize = 48;
+  const cols = 9;
   const topOffset = 0;
   const bottomOffset = 70;
 
   useEffect(() => {
     const screenHeight = 844;
     const availableHeight = screenHeight - topOffset - bottomOffset;
-    const rowHeight = bubbleSize * 0.88;
+    const rowHeight = bubbleSize * 0.86;
     const rows = Math.ceil(availableHeight / rowHeight) + 1;
     
     const newBubbles: Bubble[] = [];
     let id = 0;
     
     for (let row = 0; row < rows; row++) {
-      const colsInRow = row % 2 === 0 ? cols : cols - 1;
+      const colsInRow = row % 2 === 0 ? cols : cols;
       for (let col = 0; col < colsInRow; col++) {
         newBubbles.push({
           id: id++,
@@ -94,14 +94,14 @@ export function BubbleScreen({
   };
 
   const getBubblePosition = (row: number, col: number) => {
-    const screenWidth = 390;
-    const totalRowWidth = cols * bubbleSize;
-    const startX = (screenWidth - totalRowWidth) / 2;
-    const rowOffset = row % 2 === 0 ? 0 : bubbleSize / 2;
+    const overlap = bubbleSize * 0.08;
+    const effectiveSize = bubbleSize - overlap;
+    const rowOffset = row % 2 === 0 ? 0 : effectiveSize / 2;
+    const startX = -effectiveSize / 4;
     
     return {
-      x: startX + col * bubbleSize + rowOffset,
-      y: topOffset + row * (bubbleSize * 0.88),
+      x: startX + col * effectiveSize + rowOffset,
+      y: topOffset + row * (bubbleSize * 0.86),
     };
   };
 
