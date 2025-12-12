@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Pressable, Dimensions, Platform } from 'react-n
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import ActivityTabBar from '../../components/ActivityTabBar';
 import { useFonts } from 'expo-font';
 import { Audio } from 'expo-av';
 import Svg, { Circle } from 'react-native-svg';
@@ -138,7 +137,7 @@ export default function RippleActivityScreen() {
             isLooping: true, 
             volume: 0,
             positionMillis: 15000,
-            rate: 0.65,
+            rate: 0.45,
             shouldCorrectPitch: true,
           }
         );
@@ -383,7 +382,6 @@ export default function RippleActivityScreen() {
         </Pressable>
       </View>
 
-      <ActivityTabBar />
     </View>
   );
 }

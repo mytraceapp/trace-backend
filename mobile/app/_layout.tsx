@@ -28,6 +28,22 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen 
+            name="activities/ripple" 
+            options={{ 
+              headerShown: false,
+              presentation: 'containedTransparentModal',
+              animation: 'fade',
+            }} 
+          />
+          <Stack.Screen 
+            name="activities/breathing" 
+            options={{ 
+              headerShown: false,
+              presentation: 'containedTransparentModal',
+              animation: 'fade',
+            }} 
+          />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

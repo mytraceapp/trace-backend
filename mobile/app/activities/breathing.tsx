@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Pressable, Dimensions, Platform } from 'react-n
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import ActivityTabBar from '../../components/ActivityTabBar';
 import { useFonts } from 'expo-font';
 import Animated, {
   useSharedValue,
@@ -140,7 +139,6 @@ export default function BreathingActivityScreen() {
         </Pressable>
       </View>
 
-      <ActivityTabBar />
     </View>
   );
 }
