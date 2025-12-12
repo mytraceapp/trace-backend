@@ -2,6 +2,8 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Platform } f
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Wind, Compass, Footprints, Moon, Droplets, Hand, Activity, Sunrise, Circle } from 'lucide-react-native';
+import { useFonts } from 'expo-font';
+import Svg, { Path } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 16;
@@ -11,11 +13,24 @@ const CARD_CONTENT_HEIGHT = 160;
 const CARD_PADDING = 20;
 
 const dayColors = {
-  bg: '#E8E4DD',
   textPrimary: '#4B4B4B',
   textSecondary: '#8A8680',
   traceBrand: '#5A4A3A',
 };
+
+function RainDropIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 2.5C12 2.5 5 10 5 14.5C5 18.366 8.134 21.5 12 21.5C15.866 21.5 19 18.366 19 14.5C19 10 12 2.5 12 2.5Z"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 const ACTIVITIES = [
   {
@@ -27,6 +42,7 @@ const ACTIVITIES = [
     gradientColors: ['#F4F1EC', '#EEEBE6'] as [string, string],
     iconBgColors: ['rgba(138, 134, 128, 0.12)', 'rgba(138, 134, 128, 0.06)'] as [string, string],
     descColor: '#8A8680',
+    customIcon: null,
   },
   {
     id: 'maze',
@@ -37,6 +53,7 @@ const ACTIVITIES = [
     gradientColors: ['#D3CFC8', '#CCC8C1'] as [string, string],
     iconBgColors: ['rgba(162, 148, 133, 0.2)', 'rgba(162, 148, 133, 0.1)'] as [string, string],
     descColor: '#6B6761',
+    customIcon: null,
   },
   {
     id: 'walking',
@@ -47,6 +64,7 @@ const ACTIVITIES = [
     gradientColors: ['#DDD9D2', '#D3CFC8'] as [string, string],
     iconBgColors: ['rgba(138, 134, 128, 0.15)', 'rgba(138, 134, 128, 0.08)'] as [string, string],
     descColor: '#8A8680',
+    customIcon: null,
   },
   {
     id: 'rest',
@@ -57,6 +75,7 @@ const ACTIVITIES = [
     gradientColors: ['#E8E4DD', '#DDD9D2'] as [string, string],
     iconBgColors: ['rgba(138, 134, 128, 0.18)', 'rgba(138, 134, 128, 0.09)'] as [string, string],
     descColor: '#8A8680',
+    customIcon: null,
   },
   {
     id: 'ripple',
@@ -67,6 +86,7 @@ const ACTIVITIES = [
     gradientColors: ['#FDFCFB', '#F5F3F0'] as [string, string],
     iconBgColors: ['rgba(190, 185, 180, 0.15)', 'rgba(190, 185, 180, 0.08)'] as [string, string],
     descColor: '#8A8680',
+    customIcon: null,
   },
   {
     id: 'grounding',
@@ -77,16 +97,18 @@ const ACTIVITIES = [
     gradientColors: ['#FDFCFB', '#F5F3F0'] as [string, string],
     iconBgColors: ['rgba(190, 185, 180, 0.15)', 'rgba(190, 185, 180, 0.08)'] as [string, string],
     descColor: '#8A8680',
+    customIcon: null,
   },
   {
     id: 'window',
     title: 'Window',
     description: 'Watch the rain. Drift away.',
-    Icon: Droplets,
+    Icon: null,
     iconColor: '#6B6358',
     gradientColors: ['#C9C3BA', '#B8B2A8'] as [string, string],
     iconBgColors: ['rgba(120, 110, 100, 0.18)', 'rgba(120, 110, 100, 0.09)'] as [string, string],
     descColor: '#6B6761',
+    customIcon: 'raindrop',
   },
   {
     id: 'echo',
@@ -97,6 +119,7 @@ const ACTIVITIES = [
     gradientColors: ['#D8D4CD', '#D0CCC5'] as [string, string],
     iconBgColors: ['rgba(107, 124, 107, 0.18)', 'rgba(107, 124, 107, 0.08)'] as [string, string],
     descColor: '#6B6761',
+    customIcon: null,
   },
   {
     id: 'rising',
@@ -104,9 +127,10 @@ const ACTIVITIES = [
     description: 'Gentle energy to start fresh.',
     Icon: Sunrise,
     iconColor: '#9A8778',
-    gradientColors: ['#E5E1DA', '#DDD9D2'] as [string, string],
+    gradientColors: ['#F3EFE7', '#E6E1D9'] as [string, string],
     iconBgColors: ['rgba(154, 135, 120, 0.18)', 'rgba(154, 135, 120, 0.09)'] as [string, string],
     descColor: '#8A8680',
+    customIcon: null,
   },
   {
     id: 'bubble',
@@ -114,21 +138,24 @@ const ACTIVITIES = [
     description: 'Release pressure. Pop the tension.',
     Icon: Circle,
     iconColor: '#9A8778',
-    gradientColors: ['#F0EDE8', '#E8E5E0'] as [string, string],
+    gradientColors: ['#ECE9E4', '#E5E2DD'] as [string, string],
     iconBgColors: ['rgba(154, 135, 120, 0.15)', 'rgba(154, 135, 120, 0.08)'] as [string, string],
     descColor: '#8A8680',
+    customIcon: null,
   },
 ];
 
 type ActivityCardProps = {
   title: string;
   description: string;
-  Icon: typeof Wind;
+  Icon: typeof Wind | null;
   iconColor: string;
   gradientColors: [string, string];
   iconBgColors: [string, string];
   descColor: string;
+  customIcon?: string | null;
   onPress?: () => void;
+  fontFamily: string;
 };
 
 function ActivityCard({ 
@@ -139,7 +166,9 @@ function ActivityCard({
   gradientColors, 
   iconBgColors,
   descColor,
-  onPress 
+  customIcon,
+  onPress,
+  fontFamily,
 }: ActivityCardProps) {
   return (
     <Pressable
@@ -165,12 +194,16 @@ function ActivityCard({
             end={{ x: 1, y: 1 }}
             style={styles.iconContainer}
           >
-            <Icon size={20} color={iconColor} strokeWidth={1.5} />
+            {customIcon === 'raindrop' ? (
+              <RainDropIcon color={iconColor} />
+            ) : Icon ? (
+              <Icon size={20} color={iconColor} strokeWidth={1.5} />
+            ) : null}
           </LinearGradient>
           
           <View style={styles.textContainer}>
-            <Text style={styles.cardTitle}>{title}</Text>
-            <Text style={[styles.cardDescription, { color: descColor }]}>{description}</Text>
+            <Text style={[styles.cardTitle, { fontFamily }]}>{title}</Text>
+            <Text style={[styles.cardDescription, { color: descColor, fontFamily }]}>{description}</Text>
           </View>
         </View>
       </LinearGradient>
@@ -180,6 +213,10 @@ function ActivityCard({
 
 export default function ActivitiesScreen() {
   const insets = useSafeAreaInsets();
+  
+  const [fontsLoaded] = useFonts({
+    'Alore': require('../../assets/fonts/Alore-Regular.otf'),
+  });
 
   const handleActivityPress = (activityId: string) => {
     console.log(`Opening activity: ${activityId}`);
@@ -189,11 +226,22 @@ export default function ActivitiesScreen() {
     console.log('Opening Patterns');
   };
 
+  const serifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
+  const aloreFont = fontsLoaded ? 'Alore' : serifFont;
+
   return (
     <View style={styles.container}>
-      {/* Fixed TRACE Header - positioned right under earpiece/notch */}
+      <LinearGradient
+        colors={['#F6F1EA', '#E2DDD4']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      <View style={[styles.vignetteOverlay, StyleSheet.absoluteFill]} pointerEvents="none" />
+
       <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
-        <Text style={styles.traceLabel}>TRACE</Text>
+        <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
       </View>
 
       <ScrollView
@@ -204,13 +252,11 @@ export default function ActivitiesScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Title Section */}
         <View style={styles.header}>
-          <Text style={styles.title}>Activities</Text>
-          <Text style={styles.subtitle}>Choose what feels right.</Text>
+          <Text style={[styles.title, { fontFamily: serifFont }]}>Activities</Text>
+          <Text style={[styles.subtitle, { fontFamily: serifFont }]}>Choose what feels right.</Text>
         </View>
 
-        {/* Activities Grid */}
         <View style={styles.grid}>
           {ACTIVITIES.map((activity) => (
             <ActivityCard
@@ -222,12 +268,13 @@ export default function ActivitiesScreen() {
               gradientColors={activity.gradientColors}
               iconBgColors={activity.iconBgColors}
               descColor={activity.descColor}
+              customIcon={activity.customIcon}
+              fontFamily={serifFont}
               onPress={() => handleActivityPress(activity.id)}
             />
           ))}
         </View>
 
-        {/* View Patterns Button - full width rounded pill matching web */}
         <Pressable
           style={({ pressed }) => [
             styles.patternsButton,
@@ -236,12 +283,12 @@ export default function ActivitiesScreen() {
           onPress={handlePatternsPress}
         >
           <LinearGradient
-            colors={['#D3CFC8', '#CCC8C1']}
+            colors={['#CFCAC2', '#C3BDB4']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.patternsGradient}
           >
-            <Text style={styles.patternsText}>View Patterns</Text>
+            <Text style={[styles.patternsText, { fontFamily: serifFont }]}>View Patterns</Text>
           </LinearGradient>
         </Pressable>
       </ScrollView>
@@ -249,12 +296,13 @@ export default function ActivitiesScreen() {
   );
 }
 
-const serifFont = Platform.select({ ios: 'Georgia', android: 'serif' });
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: dayColors.bg,
+  },
+  vignetteOverlay: {
+    backgroundColor: 'transparent',
+    opacity: 0.05,
   },
   fixedHeader: {
     position: 'absolute',
@@ -267,9 +315,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   traceLabel: {
-    fontFamily: serifFont,
     fontSize: 11,
-    fontWeight: '200',
+    fontWeight: '300',
     letterSpacing: 11,
     paddingLeft: 11,
     color: dayColors.traceBrand,
@@ -291,17 +338,15 @@ const styles = StyleSheet.create({
     marginTop: -6,
   },
   title: {
-    fontFamily: serifFont,
     fontSize: 28,
-    fontWeight: '300',
+    fontWeight: '400',
     marginBottom: 2,
     color: dayColors.textPrimary,
     letterSpacing: -0.56,
   },
   subtitle: {
-    fontFamily: serifFont,
     fontSize: 15,
-    fontWeight: '200',
+    fontWeight: '300',
     color: dayColors.textSecondary,
     letterSpacing: 0.15,
   },
@@ -317,7 +362,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     ...Platform.select({
       ios: {
         shadowColor: 'rgba(75, 75, 75, 1)',
@@ -350,17 +395,15 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   cardTitle: {
-    fontFamily: serifFont,
     fontSize: 16,
-    fontWeight: '400',
+    fontWeight: '500',
     marginBottom: 4,
     color: dayColors.textPrimary,
     letterSpacing: 0.16,
   },
   cardDescription: {
-    fontFamily: serifFont,
     fontSize: 12,
-    fontWeight: '200',
+    fontWeight: '300',
     letterSpacing: 0.06,
     lineHeight: 16.8,
   },
@@ -370,7 +413,7 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.35)',
     ...Platform.select({
       ios: {
         shadowColor: 'rgba(75, 75, 75, 1)',
@@ -389,9 +432,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   patternsText: {
-    fontFamily: serifFont,
     fontSize: 15,
-    fontWeight: '400',
+    fontWeight: '500',
     color: dayColors.textPrimary,
     letterSpacing: 0.3,
   },
