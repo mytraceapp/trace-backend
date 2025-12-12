@@ -108,9 +108,9 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         voiceAudio.play().then(() => {
           let vol = 0;
           const fadeIn = setInterval(() => {
-            vol += 0.005;
-            if (vol >= 0.08) {
-              vol = 0.08; // Match Echo voice level for consistency
+            vol += 0.01;
+            if (vol >= 0.20) {
+              vol = 0.20; // Match Echo voice level for consistency
               clearInterval(fadeIn);
             }
             voiceAudio.volume = vol;
@@ -122,9 +122,9 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         voiceAudio.play().then(() => {
           let vol = 0;
           const fadeIn = setInterval(() => {
-            vol += 0.005;
-            if (vol >= 0.08) {
-              vol = 0.08; // Match Echo voice level for consistency
+            vol += 0.01;
+            if (vol >= 0.20) {
+              vol = 0.20; // Match Echo voice level for consistency
               clearInterval(fadeIn);
             }
             voiceAudio.volume = vol;
@@ -205,9 +205,9 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
         let vol = 0;
         audioRef.current.volume = 0;
         const fadeIn = setInterval(() => {
-          vol += 0.005;
-          if (vol >= 0.08) {
-            vol = 0.08; // Match Echo voice level for consistency
+          vol += 0.01;
+          if (vol >= 0.20) {
+            vol = 0.20; // Match Echo voice level for consistency
             clearInterval(fadeIn);
           }
           if (audioRef.current) audioRef.current.volume = vol;

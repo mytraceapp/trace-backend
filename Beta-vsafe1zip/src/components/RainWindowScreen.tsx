@@ -23,7 +23,7 @@ export function RainWindowScreen({
   const [showCompletion, setShowCompletion] = useState(false);
   const [introVisible, setIntroVisible] = useState(true);
   const [videoOpacity, setVideoOpacity] = useState(1);
-  const [volume, setVolume] = useState(0.12); // -18 to -20 LUFS for ambient pads
+  const [volume, setVolume] = useState(0.35); // Ambient level
   const [quietMode, setQuietMode] = useState(false);
   const [quietToast, setQuietToast] = useState<string | null>(null);
   const timerRef = useRef<number | null>(null);

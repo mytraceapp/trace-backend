@@ -44,7 +44,7 @@ export default function EchoScreen({
     audio.volume = 0;
     audio.loop = false;
     audio.crossOrigin = 'anonymous';
-    audio.playbackRate = 0.88; // Start slower for gentle entry
+    audio.playbackRate = 0.80; // Slower for better pacing
     audioRef.current = audio;
 
     // Auto-navigate to chat 2 seconds after TRACE finishes speaking
@@ -94,17 +94,17 @@ export default function EchoScreen({
       let vol = 0; // Start silent for smooth fade
       if (audioRef.current) audioRef.current.volume = vol;
       const fadeInterval = setInterval(() => {
-        vol += 0.005; // Smooth fade to target volume
-        if (vol >= 0.08) { // Match normalized voice level
-          vol = 0.08;
+        vol += 0.01; // Smooth fade to target volume
+        if (vol >= 0.20) { // Voice level - audible but not jarring
+          vol = 0.20;
           clearInterval(fadeInterval);
         }
         if (audioRef.current) audioRef.current.volume = vol;
       }, 50);
 
-      // Gradually ease playback speed from 0.88 to 0.95 over first 18 seconds
-      let currentRate = 0.88;
-      const targetRate = 0.95;
+      // Gradually ease playback speed from 0.80 to 0.85 over first 18 seconds
+      let currentRate = 0.80;
+      const targetRate = 0.85;
       const rateEaseInterval = setInterval(() => {
         currentRate += 0.001;
         if (currentRate >= targetRate) {

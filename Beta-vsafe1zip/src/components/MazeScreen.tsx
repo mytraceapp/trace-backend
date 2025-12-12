@@ -66,7 +66,7 @@ export function MazeScreen({
         
         audio.play().then(() => {
           // Smooth fade-in over 3 seconds
-          gainNode.gain.linearRampToValueAtTime(0.12, audioContext.currentTime + 3); // -18 to -20 LUFS for ambient pads
+          gainNode.gain.linearRampToValueAtTime(0.35, audioContext.currentTime + 3); // Ambient level
         }).catch(() => {});
       } catch (e) {
         // Fallback to basic audio
@@ -75,10 +75,10 @@ export function MazeScreen({
           let vol = 0;
           const fadeIn = setInterval(() => {
             vol += 0.02;
-            if (vol >= 0.12) {
+            if (vol >= 0.35) {
               clearInterval(fadeIn);
             }
-            audio.volume = Math.min(vol, 0.12); // -18 to -20 LUFS for ambient pads
+            audio.volume = Math.min(vol, 0.35); // Ambient level
           }, 100);
         }).catch(() => {});
       }
