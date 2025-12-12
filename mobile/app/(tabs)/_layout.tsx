@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
     minWidth: 50,
-    marginTop: 18,
+    marginTop: 20,
   },
   tabLabel: {
     fontSize: 10,
