@@ -133,8 +133,7 @@ export function BubbleScreen({
   };
 
   useEffect(() => {
-    if (!encouragementShownRef.current && poppedCount >= 20) {
-      console.log('Triggering encouragement at', poppedCount, 'pops');
+    if (!encouragementShownRef.current && poppedCount >= 10) {
       encouragementShownRef.current = true;
       fetchAiEncouragement();
       setShowEncouragement(true);
@@ -250,8 +249,8 @@ export function BubbleScreen({
 
       {showEncouragement && displayedText && (
         <motion.div
-          className="absolute w-full flex justify-center px-8 pointer-events-none"
-          style={{ top: '45%', transform: 'translateY(-50%)', zIndex: 40 }}
+          className="absolute w-full flex justify-center px-6 pointer-events-none"
+          style={{ bottom: '90px', zIndex: 40 }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
@@ -261,14 +260,15 @@ export function BubbleScreen({
             className="text-center"
             style={{
               fontFamily: 'Georgia, serif',
-              fontSize: '18px',
+              fontSize: '16px',
               fontWeight: 400,
-              color: 'rgba(90, 74, 58, 0.85)',
+              color: 'rgba(90, 74, 58, 0.9)',
               letterSpacing: '0.01em',
-              lineHeight: 1.6,
-              textShadow: '0 1px 3px rgba(255, 255, 255, 0.9)',
+              lineHeight: 1.5,
+              textShadow: '0 1px 2px rgba(255, 255, 255, 0.95)',
+              maxWidth: '320px',
             }}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
