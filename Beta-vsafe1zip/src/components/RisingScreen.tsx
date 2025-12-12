@@ -35,6 +35,7 @@ export function RisingScreen({
   const [showTiltButton, setShowTiltButton] = useState(true);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showTitle, setShowTitle] = useState(true);
+  const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -817,7 +818,13 @@ export function RisingScreen({
   }, [timeElapsed, addSessionEntry]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden" style={{ background: '#ffffff' }}>
+    <motion.div 
+      className="relative w-full h-full overflow-hidden" 
+      style={{ background: '#ffffff' }}
+      initial={{ opacity: 1 }}
+      animate={{ opacity: isExiting ? 0 : 1 }}
+      transition={{ duration: 0.5 }}
+    >
       <div 
         ref={containerRef} 
         className="absolute inset-0"
@@ -924,6 +931,6 @@ export function RisingScreen({
           onNavigateHelp={onNavigateToHelp}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }

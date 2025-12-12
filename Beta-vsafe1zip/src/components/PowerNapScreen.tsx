@@ -28,6 +28,7 @@ export function PowerNapScreen({
   const [wakeGently, setWakeGently] = React.useState(true);
   const [ambientTonePlaying, setAmbientTonePlaying] = React.useState(true);
   const [timerStarted, setTimerStarted] = React.useState(false);
+  const [isExiting, setIsExiting] = React.useState(false);
   const TOTAL_TIME = 300; // 5 minutes in seconds
   const WARMUP_DELAY = 5000; // 5 seconds before timer starts
 
@@ -538,7 +539,13 @@ export function PowerNapScreen({
   // Wake-up screen
   if (isAwake) {
     return (
-      <div className="relative w-full h-full flex flex-col items-center justify-center" style={{ backgroundColor: '#9AB09C' }}>
+      <motion.div 
+        className="relative w-full h-full flex flex-col items-center justify-center" 
+        style={{ backgroundColor: '#9AB09C' }}
+        initial={{ opacity: 1 }}
+        animate={{ opacity: isExiting ? 0 : 1 }}
+        transition={{ duration: 0.5 }}
+      >
         {/* Vignette */}
         <div 
           className="absolute inset-0 pointer-events-none" 
@@ -597,7 +604,12 @@ export function PowerNapScreen({
           transition={{ delay: 1.5, duration: 1 }}
         >
           <button 
-            onClick={onReturnToChat}
+            onClick={() => {
+              setIsExiting(true);
+              setTimeout(() => {
+                if (onReturnToChat) onReturnToChat();
+              }, 500);
+            }}
             className="w-full rounded-full px-8 py-4 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
             style={{
               background: '#EDE8DB',
@@ -617,13 +629,19 @@ export function PowerNapScreen({
             </span>
           </button>
         </motion.div>
-      </div>
+      </motion.div>
     );
   }
 
   // Resting screen
   return (
-    <div className="relative w-full h-full flex flex-col" style={{ backgroundColor: '#8FA293' }}>
+    <motion.div 
+      className="relative w-full h-full flex flex-col" 
+      style={{ backgroundColor: '#8FA293' }}
+      initial={{ opacity: 1 }}
+      animate={{ opacity: isExiting ? 0 : 1 }}
+      transition={{ duration: 0.5 }}
+    >
       {/* Background gradient */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
@@ -961,6 +979,6 @@ export function PowerNapScreen({
           onNavigateHelp={onNavigateHelp}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }

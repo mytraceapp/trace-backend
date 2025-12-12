@@ -35,6 +35,7 @@ export function BubbleScreen({
   const hasSavedRef = useRef(false);
   const startTimeRef = useRef<number>(Date.now());
   const popAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [isExiting, setIsExiting] = useState(false);
   
   const [showEncouragement, setShowEncouragement] = useState(false);
   const [displayedText, setDisplayedText] = useState('');
@@ -267,18 +268,24 @@ export function BubbleScreen({
   useEffect(() => {
     if (allPopped) {
       const timer = setTimeout(() => {
-        onReturnToChat();
+        setIsExiting(true);
+        setTimeout(() => {
+          onReturnToChat();
+        }, 500);
       }, 1500);
       return () => clearTimeout(timer);
     }
   }, [allPopped, onReturnToChat]);
 
   return (
-    <div 
+    <motion.div 
       className="relative w-full h-full overflow-hidden"
       style={{ 
         background: 'linear-gradient(to bottom, #F5F1EB 0%, #E8E4DC 18%, #D8DCD5 45%, #C5CABE 78%, #B4BFB3 100%)' 
       }}
+      initial={{ opacity: 1 }}
+      animate={{ opacity: isExiting ? 0 : 1 }}
+      transition={{ duration: 0.5 }}
     >
       <div 
         className="absolute inset-0 pointer-events-none z-0"
@@ -494,7 +501,7 @@ export function BubbleScreen({
         </motion.div>
       )}
 
-      <div className="absolute bottom-0 left-0 right-0 z-30">
+      <div className="fixed bottom-0 left-0 right-0 z-30">
         <BottomNav
           activeScreen="activities"
           onNavigateHome={onReturnToChat}
@@ -504,6 +511,6 @@ export function BubbleScreen({
           onNavigateHelp={onNavigateToHelp}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }
