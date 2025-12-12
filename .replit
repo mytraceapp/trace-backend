@@ -23,6 +23,10 @@ args = "Frontend"
 task = "workflow.run"
 args = "Backend API"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Mobile App"
+
 [[workflows.workflow]]
 name = "Frontend"
 author = "agent"
@@ -47,6 +51,17 @@ waitForPort = 3001
 [workflows.workflow.metadata]
 outputType = "console"
 
+[[workflows.workflow]]
+name = "Mobile App"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd mobile && npx expo start --tunnel"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[ports]]
 localPort = 3001
 externalPort = 3001
@@ -58,6 +73,10 @@ externalPort = 80
 [[ports]]
 localPort = 5001
 externalPort = 3003
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
 
 [userenv]
 
