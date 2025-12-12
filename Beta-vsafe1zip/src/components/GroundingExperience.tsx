@@ -259,7 +259,7 @@ export function GroundingExperience({ onBack, onComplete, onReturnToChat, onNavi
           <motion.div
             key={currentStep}
             className="absolute inset-0 flex flex-col items-center justify-center px-8"
-            style={{ marginTop: '-5%' }}
+            style={{ marginTop: '-23%' }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
