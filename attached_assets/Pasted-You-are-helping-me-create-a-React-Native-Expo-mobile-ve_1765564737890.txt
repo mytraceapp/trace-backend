@@ -1,0 +1,48 @@
+You are helping me create a React Native Expo mobile version of my existing web app TRACE inside this same Replit, without changing the current web app.
+
+Goal
+	•	Keep the existing web app intact.
+	•	Scaffold a new Expo mobile app inside a new folder: /mobile
+	•	Then translate screens from the existing web app into the mobile app screen-by-screen while preserving the exact look/feel and behavior.
+
+Non-negotiables / Guardrails
+	1.	Do not modify or break the existing web app files or workflows. Treat them as read-only reference.
+	2.	Do not redesign. Match TRACE’s pacing, softness, spacing, and typography as closely as possible.
+	3.	No feature creep. Only implement what exists today, except items I explicitly approve (referrals later).
+	4.	Keep it portable: standard Expo project inside /mobile that can be exported later (no Replit-only services).
+	5.	Test on iPhone via Expo Go as early as possible.
+
+Required stack (highest quality, Expo-first)
+
+Inside /mobile, set up:
+	•	Expo React Native + TypeScript
+	•	expo-router (preferred) or React Navigation if needed
+	•	react-native-reanimated + react-native-gesture-handler
+	•	expo-av for ambient audio + chime
+	•	@shopify/react-native-skia for bubbles/particles/rising visuals (use Skia first; avoid OpenGL unless absolutely necessary)
+	•	@supabase/supabase-js to connect to my existing Supabase backend (reuse existing schema and API patterns)
+
+Implementation steps
+
+Step A — Scaffold only (first)
+	1.	Create /mobile
+	2.	Initialize an Expo TypeScript project inside /mobile
+	3.	Install and configure the required libraries above
+	4.	Create a clean folder structure in /mobile:
+	•	/mobile/app (routes/screens)
+	•	/mobile/components
+	•	/mobile/lib (supabase client, helpers)
+	•	/mobile/constants (theme tokens)
+	•	/mobile/assets (audio/images)
+	5.	Add a placeholder Activities Hub screen/route.
+	6.	Confirm the mobile app runs locally in Replit and can be opened on iPhone via Expo Go (QR).
+
+Step B — Translation workflow (after scaffold)
+
+After scaffold is working, we will translate screens one at a time:
+	•	You will ask me which screen to port next.
+	•	You will reference the existing web code in this repo to recreate it in React Native.
+
+Start now
+
+Begin with Step A (scaffold only). Do not translate screens yet until the Expo app is running.
