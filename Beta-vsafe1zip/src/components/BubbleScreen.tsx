@@ -54,7 +54,7 @@ export function BubbleScreen({
   const bottomOffset = 70;
 
   useEffect(() => {
-    popAudioRef.current = new Audio('/attached_assets/happy-pop-3-185288_1765505175295.mp3');
+    popAudioRef.current = new Audio('/sounds/bubble-pop.mp3');
     popAudioRef.current.volume = 0.35;
   }, []);
 
@@ -101,7 +101,7 @@ export function BubbleScreen({
     const totalBubbles = bubbles.length;
     const poppedPercentage = totalBubbles > 0 ? (poppedCount / totalBubbles) * 100 : 0;
     
-    if (!encouragementShownRef.current && poppedPercentage >= 30) {
+    if (!encouragementShownRef.current && poppedPercentage >= 15) {
       encouragementShownRef.current = true;
       setShowEncouragement(true);
       setCurrentMessageIndex(0);
