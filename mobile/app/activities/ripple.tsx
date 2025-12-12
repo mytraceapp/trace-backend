@@ -529,8 +529,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     flex: 1,
-    paddingTop: 8,
-    paddingHorizontal: 0,
   },
   tabItem: {
     alignItems: 'center',
