@@ -4,16 +4,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Wind, Compass, Footprints, Moon, Droplets, Hand, TrendingUp, ChevronRight } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_GAP = 14;
-const SCREEN_PADDING = 20;
+const CARD_GAP = 16;
+const SCREEN_PADDING = 24;
 const CARD_WIDTH = (SCREEN_WIDTH - SCREEN_PADDING * 2 - CARD_GAP) / 2;
-const CARD_CONTENT_HEIGHT = 150;
 
 const dayColors = {
-  bg: '#EDE9E3',
+  bg: '#EBE7E1',
   textPrimary: '#3D3D3D',
   textSecondary: '#7A7570',
-  textMuted: '#6B6761',
   traceBrand: '#5A4A3A',
 };
 
@@ -26,7 +24,6 @@ const ACTIVITIES = [
     iconColor: '#5A5550',
     gradientColors: ['#FAFAFA', '#F5F3F0'] as [string, string],
     iconBgColors: ['rgba(90, 85, 80, 0.08)', 'rgba(90, 85, 80, 0.04)'] as [string, string],
-    borderColor: 'rgba(255, 255, 255, 0.6)',
     descColor: '#8A8580',
   },
   {
@@ -37,7 +34,6 @@ const ACTIVITIES = [
     iconColor: '#7A7570',
     gradientColors: ['#C8C2BA', '#C0BAB2'] as [string, string],
     iconBgColors: ['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0.2)'] as [string, string],
-    borderColor: 'rgba(255, 255, 255, 0.25)',
     descColor: '#5A5550',
   },
   {
@@ -48,7 +44,6 @@ const ACTIVITIES = [
     iconColor: '#5A5550',
     gradientColors: ['#CCC6BE', '#C4BEB6'] as [string, string],
     iconBgColors: ['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0.18)'] as [string, string],
-    borderColor: 'rgba(255, 255, 255, 0.28)',
     descColor: '#5A5550',
   },
   {
@@ -59,7 +54,6 @@ const ACTIVITIES = [
     iconColor: '#7A7570',
     gradientColors: ['#D8D4CE', '#D0CCC6'] as [string, string],
     iconBgColors: ['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0.2)'] as [string, string],
-    borderColor: 'rgba(255, 255, 255, 0.35)',
     descColor: '#6A6560',
   },
   {
@@ -70,7 +64,6 @@ const ACTIVITIES = [
     iconColor: '#8A7A6A',
     gradientColors: ['#FAFAFA', '#F5F3F0'] as [string, string],
     iconBgColors: ['rgba(138, 122, 106, 0.1)', 'rgba(138, 122, 106, 0.05)'] as [string, string],
-    borderColor: 'rgba(255, 255, 255, 0.6)',
     descColor: '#8A8580',
   },
   {
@@ -81,7 +74,6 @@ const ACTIVITIES = [
     iconColor: '#8A7A6A',
     gradientColors: ['#FAFAFA', '#F5F3F0'] as [string, string],
     iconBgColors: ['rgba(138, 122, 106, 0.1)', 'rgba(138, 122, 106, 0.05)'] as [string, string],
-    borderColor: 'rgba(255, 255, 255, 0.6)',
     descColor: '#8A8580',
   },
 ];
@@ -93,7 +85,6 @@ type ActivityCardProps = {
   iconColor: string;
   gradientColors: [string, string];
   iconBgColors: [string, string];
-  borderColor: string;
   descColor: string;
   onPress?: () => void;
 };
@@ -105,7 +96,6 @@ function ActivityCard({
   iconColor, 
   gradientColors, 
   iconBgColors,
-  borderColor,
   descColor,
   onPress 
 }: ActivityCardProps) {
@@ -116,7 +106,6 @@ function ActivityCard({
         { 
           opacity: pressed ? 0.95 : 1,
           transform: [{ scale: pressed ? 0.97 : 1 }],
-          borderColor: borderColor,
         },
       ]}
       onPress={onPress}
@@ -134,7 +123,7 @@ function ActivityCard({
             end={{ x: 1, y: 1 }}
             style={styles.iconContainer}
           >
-            <Icon size={22} color={iconColor} strokeWidth={1.5} />
+            <Icon size={20} color={iconColor} strokeWidth={1.5} />
           </LinearGradient>
           
           <View style={styles.textContainer}>
@@ -161,7 +150,7 @@ export default function ActivitiesScreen() {
   return (
     <View style={styles.container}>
       {/* Fixed TRACE Header */}
-      <View style={[styles.fixedHeader, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.fixedHeader, { paddingTop: insets.top + 10 }]}>
         <Text style={styles.traceLabel}>T R A C E</Text>
       </View>
 
@@ -169,7 +158,7 @@ export default function ActivitiesScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + 48, paddingBottom: 140 },
+          { paddingTop: insets.top + 50, paddingBottom: 140 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -190,7 +179,6 @@ export default function ActivitiesScreen() {
               iconColor={activity.iconColor}
               gradientColors={activity.gradientColors}
               iconBgColors={activity.iconBgColors}
-              borderColor={activity.borderColor}
               descColor={activity.descColor}
               onPress={() => handleActivityPress(activity.id)}
             />
@@ -248,9 +236,9 @@ const styles = StyleSheet.create({
   traceLabel: {
     fontSize: 11,
     fontWeight: '300',
-    letterSpacing: 6,
+    letterSpacing: 8,
     color: dayColors.traceBrand,
-    opacity: 0.75,
+    opacity: 0.7,
   },
   scrollView: {
     flex: 1,
@@ -259,20 +247,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_PADDING,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: 24,
     alignItems: 'center',
   },
   title: {
     fontFamily: serifFont,
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: '400',
-    marginBottom: 4,
+    marginBottom: 6,
     color: dayColors.textPrimary,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontFamily: serifFont,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '300',
     color: dayColors.textSecondary,
     letterSpacing: 0.2,
@@ -281,19 +269,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: CARD_GAP,
+    rowGap: CARD_GAP,
+    columnGap: CARD_GAP,
   },
   card: {
     width: CARD_WIDTH,
     borderRadius: 24,
     overflow: 'hidden',
-    borderWidth: 1,
     ...Platform.select({
       ios: {
         shadowColor: 'rgba(60, 60, 60, 1)',
-        shadowOffset: { width: 0, height: 6 },
+        shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.08,
-        shadowRadius: 20,
+        shadowRadius: 24,
       },
       android: {
         elevation: 4,
@@ -301,10 +289,11 @@ const styles = StyleSheet.create({
     }),
   },
   cardGradient: {
-    padding: 18,
+    padding: 20,
   },
   cardContent: {
-    height: CARD_CONTENT_HEIGHT,
+    height: 160,
+    flexDirection: 'column',
     justifyContent: 'space-between',
   },
   iconContainer: {
@@ -319,7 +308,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontFamily: serifFont,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,
     color: dayColors.textPrimary,
@@ -327,13 +316,13 @@ const styles = StyleSheet.create({
   },
   cardDescription: {
     fontFamily: serifFont,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '300',
     letterSpacing: 0.05,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   patternsCard: {
-    marginTop: 20,
+    marginTop: 24,
     borderRadius: 20,
     overflow: 'hidden',
     ...Platform.select({
