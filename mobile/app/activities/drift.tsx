@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,10 +9,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
   Easing,
   runOnJS,
-  interpolate,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -60,31 +58,16 @@ interface HaloEffect {
 function Bubble({ 
   data, 
   onPop,
-  targetRow,
 }: { 
   data: BubbleData; 
   onPop: (id: string, x: number, y: number) => void;
-  targetRow: number;
 }) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
-  const translateY = useSharedValue(0);
   
   const isOddRow = data.row % 2 === 1;
   const baseX = OFFSET_X + data.col * (BUBBLE_SIZE + BUBBLE_GAP) + (isOddRow ? BUBBLE_SIZE / 2 : 0);
   const baseY = 80 + data.row * (BUBBLE_SIZE * 0.85);
-  
-  const rowDiff = targetRow - data.row;
-  
-  useEffect(() => {
-    if (rowDiff > 0 && !data.popped) {
-      translateY.value = withSpring(rowDiff * (BUBBLE_SIZE * 0.85), {
-        damping: 20,
-        stiffness: 120,
-        mass: 0.8,
-      });
-    }
-  }, [targetRow, data.popped]);
   
   useEffect(() => {
     if (data.popped) {
@@ -94,16 +77,13 @@ function Bubble({
   }, [data.popped]);
   
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value },
-      { scale: scale.value },
-    ],
+    transform: [{ scale: scale.value }],
     opacity: opacity.value,
   }));
   
   const handlePress = () => {
     if (!data.popped) {
-      onPop(data.id, baseX + BUBBLE_SIZE / 2, baseY + BUBBLE_SIZE / 2 + translateY.value);
+      onPop(data.id, baseX + BUBBLE_SIZE / 2, baseY + BUBBLE_SIZE / 2);
     }
   };
   
@@ -210,43 +190,6 @@ export default function DriftScreen() {
   const messageOpacity = useSharedValue(0);
   const helperOpacity = useSharedValue(1);
   
-  const columnHeights = useMemo(() => {
-    const heights: { [key: string]: number } = {};
-    for (let col = 0; col < COLS; col++) {
-      heights[`even-${col}`] = 0;
-      heights[`odd-${col}`] = 0;
-    }
-    
-    bubbles.forEach(bubble => {
-      if (bubble.popped) {
-        const isOddRow = bubble.row % 2 === 1;
-        const key = `${isOddRow ? 'odd' : 'even'}-${bubble.col}`;
-        heights[key]++;
-      }
-    });
-    
-    return heights;
-  }, [bubbles]);
-  
-  const getTargetRow = useCallback((bubble: BubbleData) => {
-    if (bubble.popped) return bubble.row;
-    
-    const isOddRow = bubble.row % 2 === 1;
-    const key = `${isOddRow ? 'odd' : 'even'}-${bubble.col}`;
-    
-    let poppedBelow = 0;
-    bubbles.forEach(b => {
-      if (b.col === bubble.col && 
-          b.row > bubble.row && 
-          b.row % 2 === bubble.row % 2 && 
-          b.popped) {
-        poppedBelow++;
-      }
-    });
-    
-    return bubble.row + poppedBelow;
-  }, [bubbles]);
-  
   const handlePop = useCallback((id: string, x: number, y: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
@@ -331,7 +274,6 @@ export default function DriftScreen() {
             key={bubble.id}
             data={bubble}
             onPop={handlePop}
-            targetRow={getTargetRow(bubble)}
           />
         ))}
       </View>
