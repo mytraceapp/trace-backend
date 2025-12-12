@@ -505,7 +505,13 @@ export function BubbleScreen({
       )}
       </motion.div>
 
-      <div className="absolute bottom-0 left-0 right-0 z-50" style={{ background: 'inherit' }}>
+      <div 
+        className="absolute bottom-0 left-0 right-0 z-50"
+        style={{ 
+          background: '#B4BFB3',
+          paddingTop: '8px',
+        }}
+      >
         <BottomNav
           activeScreen="activities"
           variant="sage-fixed"
