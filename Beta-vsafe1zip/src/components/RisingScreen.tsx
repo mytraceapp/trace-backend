@@ -110,23 +110,23 @@ export function RisingScreen({
           return 130.0 * dot(m, g);
         }
         
-        // Soft glowing orb with bloom effect
+        // Soft glowing orb with bloom effect - 30% stronger
         float glowOrb(vec2 uv, vec2 center, float radius) {
           float d = length(uv - center);
-          float core = smoothstep(radius, radius * 0.3, d);
-          float glow = exp(-d * d / (radius * radius * 2.0)) * 0.8;
-          float bloom = exp(-d / (radius * 3.0)) * 0.3;
-          return core * 0.6 + glow + bloom;
+          float core = smoothstep(radius, radius * 0.2, d);
+          float glow = exp(-d * d / (radius * radius * 1.5)) * 1.2;
+          float bloom = exp(-d / (radius * 4.0)) * 0.5;
+          return core * 0.8 + glow + bloom;
         }
         
-        // Light ray emanating from orb
+        // Light ray emanating from orb - 30% stronger
         float lightRay(vec2 uv, vec2 center, float angle, float width, float length) {
           vec2 dir = vec2(cos(angle), sin(angle));
           vec2 toPoint = uv - center;
           float along = dot(toPoint, dir);
           float perp = abs(dot(toPoint, vec2(-dir.y, dir.x)));
           float ray = smoothstep(width, 0.0, perp) * smoothstep(length, 0.0, along) * smoothstep(-0.02, 0.1, along);
-          return ray * 0.15;
+          return ray * 0.25;
         }
         
         void main() {
@@ -157,14 +157,14 @@ export function RisingScreen({
             0.35 * aspect + sin(t * 0.5) * 0.15 * aspect,
             0.65 + cos(t * 0.4) * 0.12
           );
-          float orb1 = glowOrb(uv, c1, 0.35);
-          color += sageGlow * orb1 * 0.25;
+          float orb1 = glowOrb(uv, c1, 0.38);
+          color += sageGlow * orb1 * 0.35;
           totalGlow += orb1;
           
           // Light rays from orb 1
-          for (float i = 0.0; i < 3.0; i++) {
-            float angle = t * 0.2 + i * 2.094;
-            color += sageGlow * lightRay(uv, c1, angle, 0.03, 0.4) * 0.5;
+          for (float i = 0.0; i < 4.0; i++) {
+            float angle = t * 0.2 + i * 1.57;
+            color += sageGlow * lightRay(uv, c1, angle, 0.04, 0.5) * 0.7;
           }
           
           // Orb 2 - Medium rose aura
@@ -172,14 +172,14 @@ export function RisingScreen({
             0.65 * aspect + sin(t * 0.7 + 2.0) * 0.18 * aspect,
             0.35 + cos(t * 0.5 + 1.5) * 0.15
           );
-          float orb2 = glowOrb(uv, c2, 0.28);
-          color += roseGlow * orb2 * 0.22;
+          float orb2 = glowOrb(uv, c2, 0.32);
+          color += roseGlow * orb2 * 0.32;
           totalGlow += orb2;
           
           // Light rays from orb 2
-          for (float i = 0.0; i < 2.0; i++) {
-            float angle = -t * 0.15 + i * 3.14159 + 0.5;
-            color += roseGlow * lightRay(uv, c2, angle, 0.025, 0.35) * 0.4;
+          for (float i = 0.0; i < 3.0; i++) {
+            float angle = -t * 0.15 + i * 2.094 + 0.5;
+            color += roseGlow * lightRay(uv, c2, angle, 0.035, 0.45) * 0.6;
           }
           
           // Orb 3 - Small golden accent
@@ -187,8 +187,8 @@ export function RisingScreen({
             0.5 * aspect + sin(t * 0.9 + 4.0) * 0.22 * aspect,
             0.5 + cos(t * 0.6 + 3.0) * 0.2
           );
-          float orb3 = glowOrb(uv, c3, 0.22);
-          color += goldGlow * orb3 * 0.18;
+          float orb3 = glowOrb(uv, c3, 0.26);
+          color += goldGlow * orb3 * 0.28;
           totalGlow += orb3;
           
           // Orb 4 - Pearl highlight top
@@ -196,24 +196,24 @@ export function RisingScreen({
             0.4 * aspect + sin(t * 0.4 + 1.0) * 0.12 * aspect,
             0.78 + cos(t * 0.35 + 2.5) * 0.08
           );
-          float orb4 = glowOrb(uv, c4, 0.2);
-          color += pearlGlow * orb4 * 0.15;
+          float orb4 = glowOrb(uv, c4, 0.24);
+          color += pearlGlow * orb4 * 0.22;
           
           // Orb 5 - Sage bottom accent
           vec2 c5 = vec2(
             0.6 * aspect + sin(t * 0.55 + 5.0) * 0.16 * aspect,
             0.22 + cos(t * 0.45 + 4.0) * 0.1
           );
-          float orb5 = glowOrb(uv, c5, 0.24);
-          color += sageGlow * orb5 * 0.2;
+          float orb5 = glowOrb(uv, c5, 0.28);
+          color += sageGlow * orb5 * 0.28;
           
           // Subtle color field gradients
           float fieldNoise = snoise(uv * 1.5 + t * 0.2) * 0.5 + 0.5;
           vec3 fieldColor = mix(sageGlow, roseGlow, fieldNoise);
-          color += fieldColor * 0.03;
+          color += fieldColor * 0.05;
           
           // Premium bloom effect - soft overall glow
-          float bloomIntensity = totalGlow * 0.08;
+          float bloomIntensity = totalGlow * 0.12;
           color += vec3(1.0, 0.98, 0.95) * bloomIntensity;
           
           // Ensure colors stay in premium range
