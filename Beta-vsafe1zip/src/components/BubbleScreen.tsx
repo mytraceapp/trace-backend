@@ -217,40 +217,6 @@ export function BubbleScreen({
     }
   }, [poppedCount, addSessionEntry]);
 
-  const resetBubbles = () => {
-    const screenHeight = 844;
-    const availableHeight = screenHeight - topOffset - bottomOffset;
-    const rowHeight = bubbleSize * 0.86;
-    const rows = Math.ceil(availableHeight / rowHeight) + 1;
-    
-    const newBubbles: Bubble[] = [];
-    let id = 0;
-    
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        newBubbles.push({
-          id: id++,
-          row,
-          col,
-          popped: false,
-          falling: false,
-          targetRow: row,
-        });
-      }
-    }
-    setBubbles(newBubbles);
-    setPoppedCount(0);
-    startTimeRef.current = Date.now();
-    hasSavedRef.current = false;
-    encouragementShownRef.current = false;
-    fetchingRef.current = false;
-    setShowEncouragement(false);
-    setCurrentAiIndex(0);
-    setDisplayedText('');
-    setIsTyping(false);
-    setAiMessages([]);
-  };
-
   const getBubblePosition = (row: number, col: number, targetRow: number) => {
     const overlap = bubbleSize * 0.08;
     const effectiveSize = bubbleSize - overlap;
