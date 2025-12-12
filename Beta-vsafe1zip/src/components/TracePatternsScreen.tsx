@@ -1515,6 +1515,19 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 <p
                   style={{
                     fontFamily: 'Georgia, serif',
+                    fontSize: '10px',
+                    fontWeight: 300,
+                    color: 'var(--text-secondary)',
+                    opacity: 0.7,
+                    lineHeight: 1.5,
+                    paddingTop: '8px',
+                  }}
+                >
+                  Emotional tone is based on the language of your message, not the moments you log.
+                </p>
+                <p
+                  style={{
+                    fontFamily: 'Georgia, serif',
                     fontSize: '12px',
                     fontWeight: 300,
                     fontStyle: 'italic',

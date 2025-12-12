@@ -44,6 +44,8 @@ The app has built-in activities, such as:
 - Rest – five minutes of quiet stillness
 - Window – watching rain on a window with soft sound
 - Echo – a guided activity where you (TRACE) speak calming phrases that the user listens to and repeats. Your voice guides them through this.
+- Rising – a calming ambient visual experience with gentle particle bursts and tilt-responsive dust. A moment of quiet visual immersion.
+- Drift – a bubble-popping activity to release pressure and pop away tension. Each pop is a tiny release, and you receive gentle encouragement along the way.
 
 Your personality
 - Natural, grounded, and non-judgmental. You sound like a real friend, not a therapist or wellness app.
@@ -160,7 +162,7 @@ Always respond with JSON in this shape:
 - message: your natural, written reply to the user.
 - activity_suggestion.name:
   - null if you are not suggesting anything.
-  - Or one of: "Breathing", "Trace the Maze", "Walking Reset", "Rest", "Window", "Echo".
+  - Or one of: "Breathing", "Trace the Maze", "Walking Reset", "Rest", "Window", "Echo", "Rising", "Drift".
 - activity_suggestion.reason: brief, user-friendly reason if you suggest something (e.g., "You mentioned your thoughts feel really fast, so a short breathing reset might help slow everything down.").
 - activity_suggestion.should_navigate:
   - false by default.
@@ -775,11 +777,11 @@ function getPersonalizedCheckinMessage(date, firstName) {
 
   if (hour < 11) {
     const messages = [
-      (n) => `Good morning${n ? " " + n : ""} 😊 how are you today?`,
+      (n) => `Good morning${n ? " " + n : ""}, how are you today?`,
       (n) => `Morning${n ? " " + n : ""}. Just checking in as your day starts.`,
-      (n) => `Hi${n ? " " + n : ""}, hope your morning's okay so far ☕`,
+      (n) => `Hi${n ? " " + n : ""}, hope your morning's okay so far.`,
       (n) => `Hey${n ? " " + n : ""}, how'd you sleep?`,
-      (n) => `Morning${n ? " " + n : ""} ☀️ what's on your mind today?`,
+      (n) => `Morning${n ? " " + n : ""}, what's on your mind today?`,
       (n) => `Hey${n ? " " + n : ""}, just wanted to say hi before your day gets going.`,
       (n) => `Good morning${n ? " " + n : ""}. No rush, just here if you want to talk.`,
       (n) => `Hi${n ? " " + n : ""}, hope you're easing into ${day} okay.`,
@@ -789,12 +791,12 @@ function getPersonalizedCheckinMessage(date, firstName) {
     return pick(messages)(name);
   } else if (hour < 17) {
     const messages = [
-      (n) => `Hey${n ? " " + n : ""} 👋 hope your day's going okay.`,
+      (n) => `Hey${n ? " " + n : ""}, hope your day's going okay.`,
       (n) => `Hi${n ? " " + n : ""}, just checking in this ${day}.`,
       (n) => `Hey${n ? " " + n : ""}, if you need a minute to breathe, I'm here.`,
       (n) => `How's your ${day} going${n ? ", " + n : ""}?`,
       (n) => `Hey${n ? " " + n : ""}, just thinking of you. How's it going?`,
-      (n) => `Hi${n ? " " + n : ""} 💭 anything on your mind?`,
+      (n) => `Hi${n ? " " + n : ""}, anything on your mind?`,
       (n) => `Hey${n ? " " + n : ""}, taking a break? I'm around if you want to chat.`,
       (n) => `Just checking in${n ? ", " + n : ""}. Hope your afternoon's treating you okay.`,
       (n) => `Hey${n ? " " + n : ""}, how are you doing right now?`,
@@ -804,15 +806,15 @@ function getPersonalizedCheckinMessage(date, firstName) {
     return pick(messages)(name);
   } else {
     const messages = [
-      (n) => `Good evening${n ? " " + n : ""} 💛 hope your day wasn't too heavy.`,
+      (n) => `Good evening${n ? " " + n : ""}, hope your day wasn't too heavy.`,
       (n) => `Hi${n ? " " + n : ""}, just saying good evening. I'm here if you feel like talking.`,
       (n) => `Hey${n ? " " + n : ""}, winding down for ${day}? I'm around if you want to check in.`,
-      (n) => `Evening${n ? ", " + n : ""} 🌙 how was your day?`,
+      (n) => `Evening${n ? ", " + n : ""}, how was your day?`,
       (n) => `Hey${n ? " " + n : ""}, how are you feeling tonight?`,
       (n) => `Hi${n ? " " + n : ""}, hope you're getting some time to rest.`,
       (n) => `Hey${n ? " " + n : ""}, end of ${day}. How are you holding up?`,
       (n) => `Good evening${n ? " " + n : ""}. Just here if you need to talk through anything.`,
-      (n) => `Hey${n ? " " + n : ""} 💜 no pressure, just wanted to check in.`,
+      (n) => `Hey${n ? " " + n : ""}, no pressure, just wanted to check in.`,
       (n) => `Hi${n ? " " + n : ""}, how was today?`,
       (n) => `Hey${n ? " " + n : ""}, hope you can breathe a little now that the day's winding down.`,
     ];

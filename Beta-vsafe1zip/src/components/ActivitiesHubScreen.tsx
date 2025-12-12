@@ -542,7 +542,7 @@ export function ActivitiesHubScreen({
                       background: 'linear-gradient(135deg, rgba(107, 124, 107, 0.18) 0%, rgba(107, 124, 107, 0.08) 100%)',
                     }}
                   >
-                    <Activity size={20} style={{ color: '#6b7c6b' }} strokeWidth={1.5} />
+                    <Activity size={20} style={{ color: '#9A8778' }} strokeWidth={1.5} />
                   </div>
 
                   <div className="flex-1 flex flex-col items-start justify-end text-left">
@@ -630,7 +630,7 @@ export function ActivitiesHubScreen({
               </motion.button>
             )}
 
-            {/* Card 10 - Bubble */}
+            {/* Card 10 - Drift */}
             {onStartBubble && (
               <motion.button
                 onClick={onStartBubble}
@@ -666,7 +666,7 @@ export function ActivitiesHubScreen({
                         letterSpacing: '0.01em',
                       }}
                     >
-                      Bubble
+                      Drift
                     </h3>
                     <p
                       style={{
@@ -678,7 +678,7 @@ export function ActivitiesHubScreen({
                         lineHeight: '1.4',
                       }}
                     >
-                      Pop away the tension.
+                      Release pressure. Pop the tension.
                     </p>
                   </div>
                 </div>
