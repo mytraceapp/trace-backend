@@ -137,10 +137,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   tabLabel: {
-    fontSize: 10,
-    fontWeight: '400',
-    letterSpacing: 0.3,
+    fontSize: 11,
+    fontWeight: '300',
+    letterSpacing: 0.5,
     textAlign: 'center',
-    fontFamily: 'System',
   },
 });
