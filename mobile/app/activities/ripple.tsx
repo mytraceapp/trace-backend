@@ -119,6 +119,9 @@ export default function RippleActivityScreen() {
   const centerY = SCREEN_HEIGHT * 0.45;
 
   useEffect(() => {
+    let isMounted = true;
+    let localSound: Audio.Sound | null = null;
+
     const loadAndPlayAudio = async () => {
       try {
         await Audio.setAudioModeAsync({
@@ -126,6 +129,8 @@ export default function RippleActivityScreen() {
           staysActiveInBackground: false,
           shouldDuckAndroid: true,
         });
+
+        if (!isMounted) return;
 
         const { sound } = await Audio.Sound.createAsync(
           require('../../assets/audio/pearl-ripple.mp3'),
@@ -137,14 +142,21 @@ export default function RippleActivityScreen() {
             shouldCorrectPitch: true,
           }
         );
+        
+        if (!isMounted) {
+          await sound.unloadAsync();
+          return;
+        }
+        
+        localSound = sound;
         soundRef.current = sound;
 
         setTimeout(async () => {
-          if (soundRef.current) {
+          if (isMounted && soundRef.current) {
             await soundRef.current.playAsync();
             for (let i = 1; i <= 10; i++) {
               setTimeout(async () => {
-                if (soundRef.current) {
+                if (isMounted && soundRef.current) {
                   await soundRef.current.setVolumeAsync(0.035 * i);
                 }
               }, i * 200);
@@ -159,25 +171,26 @@ export default function RippleActivityScreen() {
     loadAndPlayAudio();
 
     return () => {
+      isMounted = false;
       const fadeOutAndUnload = async () => {
-        if (soundRef.current) {
+        const soundToClean = localSound || soundRef.current;
+        if (soundToClean) {
           try {
-            const status = await soundRef.current.getStatusAsync();
+            const status = await soundToClean.getStatusAsync();
             if (status.isLoaded) {
               const currentVolume = status.volume || 0.35;
               for (let i = 10; i >= 0; i--) {
                 await new Promise(resolve => setTimeout(resolve, 50));
-                if (soundRef.current) {
-                  await soundRef.current.setVolumeAsync(currentVolume * (i / 10));
-                }
+                await soundToClean.setVolumeAsync(currentVolume * (i / 10));
               }
-              await soundRef.current.stopAsync();
-              await soundRef.current.unloadAsync();
+              await soundToClean.stopAsync();
+              await soundToClean.unloadAsync();
             }
           } catch (error) {
             console.log('Audio cleanup error:', error);
           }
         }
+        soundRef.current = null;
       };
       fadeOutAndUnload();
     };
