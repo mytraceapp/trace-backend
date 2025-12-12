@@ -67,7 +67,7 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
   useEffect(() => {
     const voiceAudio = new Audio('/audio/trace-intro.mp3');
     voiceAudio.volume = 0;
-    voiceAudio.playbackRate = 1.05;
+    voiceAudio.playbackRate = 0.92; // Slightly slower for calm pacing (between normal and Echo's 0.80)
     voiceAudio.crossOrigin = 'anonymous';
     audioRef.current = voiceAudio;
 
