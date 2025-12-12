@@ -1,10 +1,13 @@
 import { View, Text, StyleSheet, ScrollView, useColorScheme, Pressable, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Spacing, CardSpacing, ScreenPadding, BorderRadius, CardRadius, Shadows, Typography, LetterSpacing, FontFamily, FontSize, FontWeight } from '../../constants';
+import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_GAP = CardSpacing.gridGap;
-const CARD_WIDTH = (SCREEN_WIDTH - ScreenPadding.horizontal * 2 - CARD_GAP) / 2;
+const CARD_GAP = 14;
+const SCREEN_PADDING = 20;
+const CARD_WIDTH = (SCREEN_WIDTH - SCREEN_PADDING * 2 - CARD_GAP) / 2;
+const CARD_RADIUS = 24;
+const ICON_RADIUS = 20;
 
 const ACTIVITIES = [
   {
@@ -159,29 +162,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: ScreenPadding.horizontal,
+    paddingHorizontal: SCREEN_PADDING,
   },
   header: {
     marginBottom: Spacing['2xl'],
     alignItems: 'center',
   },
   traceLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-    letterSpacing: LetterSpacing.trace,
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.medium,
+    letterSpacing: 4,
     marginBottom: Spacing.sm,
     textTransform: 'uppercase',
   },
   title: {
-    fontFamily: FontFamily.serif,
-    fontSize: FontSize['4xl'],
-    fontWeight: FontWeight.normal,
+    fontFamily: Typography.fontFamily.serif,
+    fontSize: Typography.fontSize['4xl'],
+    fontWeight: Typography.fontWeight.normal,
     marginBottom: Spacing.xs,
   },
   subtitle: {
-    fontFamily: FontFamily.sans,
-    fontSize: FontSize.base,
-    fontWeight: FontWeight.normal,
+    fontFamily: Typography.fontFamily.sans,
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.normal,
   },
   grid: {
     flexDirection: 'row',
@@ -192,32 +195,32 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     minHeight: CARD_WIDTH * 1.1,
-    borderRadius: CardRadius.card,
-    padding: CardSpacing.padding,
+    borderRadius: CARD_RADIUS,
+    padding: 20,
     justifyContent: 'flex-start',
   },
   iconContainer: {
     width: 48,
     height: 48,
-    borderRadius: CardRadius.iconContainer,
+    borderRadius: ICON_RADIUS,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: CardSpacing.iconMargin,
+    marginBottom: 16,
   },
   iconText: {
     fontSize: 20,
   },
   cardTitle: {
-    fontFamily: FontFamily.serif,
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.semibold,
+    fontFamily: Typography.fontFamily.serif,
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.xs,
-    lineHeight: FontSize.lg * 1.3,
+    lineHeight: Typography.fontSize.lg * 1.3,
   },
   cardDescription: {
-    fontFamily: FontFamily.sans,
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.normal,
-    lineHeight: FontSize.sm * 1.5,
+    fontFamily: Typography.fontFamily.sans,
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.normal,
+    lineHeight: Typography.fontSize.sm * 1.5,
   },
 });
