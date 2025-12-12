@@ -137,7 +137,7 @@ export default function RippleActivityScreen() {
             isLooping: true, 
             volume: 0,
             positionMillis: 15000,
-            rate: 0.45,
+            rate: 0.9,
             shouldCorrectPitch: true,
           }
         );
