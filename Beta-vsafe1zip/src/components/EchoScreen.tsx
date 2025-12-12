@@ -84,7 +84,33 @@ export default function EchoScreen({
       analyserRef.current = analyser;
       
       const source = audioContext.createMediaElementSource(audio);
-      source.connect(analyser);
+      
+      // Voice smoothing filters - makes AI voice sound more natural and warm
+      // Lowpass filter to soften harsh high frequencies
+      const lowpass = audioContext.createBiquadFilter();
+      lowpass.type = 'lowpass';
+      lowpass.frequency.value = 4500; // Keep voice clarity, cut harshness
+      lowpass.Q.value = 0.5;
+      
+      // Gentle warmth boost in lower mids
+      const warmth = audioContext.createBiquadFilter();
+      warmth.type = 'peaking';
+      warmth.frequency.value = 250; // Warm chest tones
+      warmth.gain.value = 2.5;
+      warmth.Q.value = 0.8;
+      
+      // Reduce sibilance (harsh 's' sounds)
+      const deSibilance = audioContext.createBiquadFilter();
+      deSibilance.type = 'peaking';
+      deSibilance.frequency.value = 6000; // Sibilance range
+      deSibilance.gain.value = -3; // Reduce by 3dB
+      deSibilance.Q.value = 1.5;
+      
+      // Chain: source -> lowpass -> warmth -> deSibilance -> analyser -> output
+      source.connect(lowpass);
+      lowpass.connect(warmth);
+      warmth.connect(deSibilance);
+      deSibilance.connect(analyser);
       analyser.connect(audioContext.destination);
       
       audioDataRef.current = new Uint8Array(analyser.frequencyBinCount);
