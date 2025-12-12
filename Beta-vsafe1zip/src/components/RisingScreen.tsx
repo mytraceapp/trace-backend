@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Move } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
+import { htmlAudioManager } from '../lib/htmlAudioManager';
 import * as THREE from 'three';
 
 interface RisingScreenProps {
@@ -48,11 +49,17 @@ export function RisingScreen({
 
   // Wind chimes ambient audio with 1.5s delay, slowed playback, and gentle fade in
   useEffect(() => {
+    // Stop any other screen's audio first
+    htmlAudioManager.stopAll();
+    
     const windChimes = new Audio('/audio/wind-chimes.mp3');
     windChimes.loop = true;
     windChimes.volume = 0;
     windChimes.playbackRate = 0.32; // Ultra slow dreamy effect (another 25% slower)
     windChimesRef.current = windChimes;
+    
+    // Register with audio manager
+    htmlAudioManager.register('rising', [windChimes]);
 
     // Start after 1.5 second delay
     const delayTimer = setTimeout(() => {
@@ -92,6 +99,7 @@ export function RisingScreen({
             vol = 0;
             audio.pause();
             clearInterval(fadeOut);
+            htmlAudioManager.unregister('rising');
           }
           audio.volume = Math.max(0, vol);
         }, 50);

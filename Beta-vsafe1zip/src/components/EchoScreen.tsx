@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BottomNav } from './BottomNav';
+import { htmlAudioManager } from '../lib/htmlAudioManager';
 
 interface EchoScreenProps {
   onBack: () => void;
@@ -40,6 +41,9 @@ export default function EchoScreen({
   const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
+    // Stop any other screen's audio first
+    htmlAudioManager.stopAll();
+    
     const audio = new Audio('/audio/trace-echo.mp3');
     audio.volume = 0;
     audio.loop = false;
@@ -60,6 +64,9 @@ export default function EchoScreen({
     ambientAudio.volume = 0;
     ambientAudio.playbackRate = 0.88;
     ambientAudioRef.current = ambientAudio;
+    
+    // Register both audios with manager
+    htmlAudioManager.register('echo', [audio, ambientAudio]);
     
     ambientAudio.play().then(() => {
       // Smooth fade in to fill the space

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { InteractiveMaze } from './InteractiveMaze';
 import { useEntries } from '../state/EntriesContext';
+import { htmlAudioManager } from '../lib/htmlAudioManager';
 
 interface MazeScreenProps {
   onReturnToChat: () => void;
@@ -35,11 +36,17 @@ export function MazeScreen({
 
   // Ambient audio with smooth fade-in/fade-out
   useEffect(() => {
+    // Stop any other screen's audio first
+    htmlAudioManager.stopAll();
+    
     const audio = new Audio('/audio/maze-ambient.mp3');
     audio.loop = true;
     audio.playbackRate = 0.6; // Slow down for ambient feel
     audio.crossOrigin = 'anonymous';
     audioRef.current = audio;
+    
+    // Register with audio manager
+    htmlAudioManager.register('maze', [audio]);
 
     const startAudio = () => {
       try {

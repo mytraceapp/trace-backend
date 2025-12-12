@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
 import { audioManager } from '../lib/audioManager';
+import { htmlAudioManager } from '../lib/htmlAudioManager';
 
 let pearlRippleInstanceCounter = 0;
 
@@ -31,6 +32,9 @@ export function PearlRippleScreen({ onBack, onReturnToChat, onNavigateToActiviti
 
   // Initialize and play ripple audio with clean fade-in using Web Audio API for smooth sound
   useEffect(() => {
+    // Stop any other screen's HTML audio first
+    htmlAudioManager.stopAll();
+    
     pearlRippleInstanceCounter++;
     const instanceId = `pearl-ripple-${pearlRippleInstanceCounter}`;
     instanceIdRef.current = instanceId;

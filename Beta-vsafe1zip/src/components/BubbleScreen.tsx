@@ -264,17 +264,29 @@ export function BubbleScreen({
   };
 
   const allPopped = bubbles.length > 0 && bubbles.every(b => b.popped);
+  const returnTimerRef = useRef<number | null>(null);
+  const hasStartedExitRef = useRef(false);
 
   useEffect(() => {
-    if (allPopped) {
-      const timer = setTimeout(() => {
+    if (allPopped && !hasStartedExitRef.current) {
+      hasStartedExitRef.current = true;
+      
+      // Wait 1.5s, then start exit animation
+      returnTimerRef.current = window.setTimeout(() => {
         setIsExiting(true);
-        setTimeout(() => {
+        
+        // Wait for exit animation (0.5s), then return to chat
+        window.setTimeout(() => {
           onReturnToChat();
         }, 500);
       }, 1500);
-      return () => clearTimeout(timer);
     }
+    
+    return () => {
+      if (returnTimerRef.current) {
+        window.clearTimeout(returnTimerRef.current);
+      }
+    };
   }, [allPopped, onReturnToChat]);
 
   return (

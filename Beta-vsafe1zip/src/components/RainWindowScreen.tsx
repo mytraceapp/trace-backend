@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BottomNav } from './BottomNav';
 import { useEntries } from '../state/EntriesContext';
+import { htmlAudioManager } from '../lib/htmlAudioManager';
 
 interface RainWindowScreenProps {
   onReturnToChat: () => void;
@@ -57,6 +58,9 @@ export function RainWindowScreen({
 
   // Real rain audio slowed for dreamy effect
   const startRainAudio = useCallback(() => {
+    // Stop any other screen's audio first
+    htmlAudioManager.stopAll();
+    
     if (!audioRef.current) {
       const audio = new Audio('/audio/rain-ambient.mp3');
       audio.loop = true;
@@ -64,6 +68,9 @@ export function RainWindowScreen({
       audio.playbackRate = 0.575; // 57.5% speed
       audio.preservesPitch = false;
       audioRef.current = audio;
+      
+      // Register with audio manager
+      htmlAudioManager.register('rain-window', [audio]);
     }
     
     const audio = audioRef.current;
