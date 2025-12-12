@@ -601,7 +601,14 @@ Example format: ["Message one.", "Message two.", "Message three."]`
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { messages, userName, chatStyle = 'conversation', localTime, localDay, localDate } = req.body;
+    const { messages: rawMessages, userName, chatStyle = 'conversation', localTime, localDay, localDate } = req.body;
+    
+    // Filter out garbage/corrupted messages from history (empty or whitespace-only content)
+    const messages = (rawMessages || []).filter(msg => {
+      const content = (msg.content || '').trim();
+      // Keep message only if it has meaningful content (not just whitespace/newlines)
+      return content.length > 0 && !/^\s*$/.test(content);
+    });
     
     console.log('Received messages:', JSON.stringify(messages, null, 2));
     console.log('User name:', userName);
@@ -658,9 +665,22 @@ Important: When you've already said you'll start an activity and should_navigate
     } catch (e) {
       console.error('Failed to parse JSON response:', e);
       parsed = {
-        message: rawContent,
+        message: '',
         activity_suggestion: { name: null, reason: null, should_navigate: false }
       };
+    }
+    
+    // Check if message is empty or just whitespace - provide fallback
+    const messageText = (parsed.message || '').trim();
+    if (!messageText) {
+      console.log('Empty response received, using fallback');
+      const fallbacks = [
+        "I'm here with you. What's on your mind?",
+        "mm, take your time. I'm listening.",
+        "I'm here. No pressure to talk, but I'm listening if you'd like to.",
+        "that's a meaningful question. I think the answer is different for everyone, but I'm here to help you find yours.",
+      ];
+      parsed.message = fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
     
     console.log('TRACE says:', parsed.message);
