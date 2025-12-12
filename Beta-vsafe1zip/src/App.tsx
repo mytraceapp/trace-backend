@@ -37,56 +37,6 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabaseClient";
 import { initOneSignal } from "./lib/onesignalClient";
 
-type ScreenType = "home" | "auth" | "accountsetup" | "payment" | "onboarding" | "chat" | "activities" | "activitieshub" | "breathing" | "maze" | "walking" | "powernap" | "pearlripple" | "grounding" | "rainwindow" | "echo" | "rising" | "bubble" | "journal" | "entries" | "patterns" | "fullpatterns" | "help" | "inthisspace" | "crisis" | "privacy" | "terms" | "profile";
-
-function DevNavigation({ currentScreen, setCurrentScreen }: { currentScreen: ScreenType; setCurrentScreen: (s: ScreenType) => void }) {
-  const [isMinimized, setIsMinimized] = React.useState(false);
-  
-  const screens: { key: ScreenType; label: string }[] = [
-    { key: "home", label: "Home" }, { key: "auth", label: "Auth" }, { key: "accountsetup", label: "Setup" },
-    { key: "payment", label: "Payment" }, { key: "onboarding", label: "Onboarding" }, { key: "chat", label: "Chat" },
-    { key: "activitieshub", label: "Activities" }, { key: "breathing", label: "Breathing" }, { key: "maze", label: "Maze" },
-    { key: "walking", label: "Walking" }, { key: "powernap", label: "Power Nap" }, { key: "pearlripple", label: "Ripple" },
-    { key: "grounding", label: "Grounding" }, { key: "rainwindow", label: "Rain" }, { key: "echo", label: "Echo" },
-    { key: "rising", label: "Rising" }, { key: "bubble", label: "Bubble" }, { key: "entries", label: "Entries" },
-    { key: "journal", label: "Journal" }, { key: "patterns", label: "Patterns" }, { key: "fullpatterns", label: "Full Patterns" },
-    { key: "help", label: "Help" }, { key: "profile", label: "Profile" }, { key: "inthisspace", label: "In This Space" },
-    { key: "crisis", label: "Crisis" }, { key: "privacy", label: "Privacy" }, { key: "terms", label: "Terms" },
-  ];
-
-  if (isMinimized) {
-    return (
-      <button
-        onClick={() => setIsMinimized(false)}
-        className="fixed bottom-4 left-4 w-10 h-10 bg-blue-500 text-white rounded-full shadow-lg z-50 flex items-center justify-center text-lg font-bold"
-        title="Open Dev Navigation"
-      >
-        +
-      </button>
-    );
-  }
-
-  return (
-    <div className="fixed bottom-4 left-4 bg-white p-3 rounded-lg shadow-lg max-w-xs z-50 max-h-[80vh] overflow-y-auto">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="font-bold text-sm">Dev Nav</h3>
-        <button onClick={() => setIsMinimized(true)} className="text-gray-500 hover:text-gray-700 text-lg leading-none">&minus;</button>
-      </div>
-      <div className="grid grid-cols-3 gap-1">
-        {screens.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setCurrentScreen(key)}
-            className={`px-2 py-1 rounded text-xs ${currentScreen === key ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function App() {
   const {
     selectedPlan,
@@ -549,8 +499,39 @@ export default function App() {
         <div className="absolute top-[24px] left-1/2 -translate-x-1/2 w-[126px] h-[37px] bg-black rounded-full z-50" />
       </div>
 
-      {/* Dev Navigation - Collapsible */}
-      <DevNavigation currentScreen={currentScreen} setCurrentScreen={setCurrentScreen} />
+      {/* Dev Navigation */}
+      <div className="fixed bottom-4 left-4 bg-white p-4 rounded-lg shadow-lg max-w-xs z-50">
+        <h3 className="font-bold mb-2">Dev Navigation</h3>
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => setCurrentScreen("home")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Home</button>
+          <button onClick={() => setCurrentScreen("auth")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Auth</button>
+          <button onClick={() => setCurrentScreen("accountsetup")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Setup</button>
+          <button onClick={() => setCurrentScreen("payment")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Payment</button>
+          <button onClick={() => setCurrentScreen("onboarding")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Onboarding</button>
+          <button onClick={() => setCurrentScreen("chat")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Chat</button>
+          <button onClick={() => setCurrentScreen("activitieshub")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Activities</button>
+          <button onClick={() => setCurrentScreen("breathing")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Breathing</button>
+          <button onClick={() => setCurrentScreen("maze")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Maze</button>
+          <button onClick={() => setCurrentScreen("walking")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Walking</button>
+          <button onClick={() => setCurrentScreen("powernap")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Power Nap</button>
+          <button onClick={() => setCurrentScreen("pearlripple")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Ripple</button>
+          <button onClick={() => setCurrentScreen("grounding")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Grounding</button>
+          <button onClick={() => setCurrentScreen("rainwindow")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Rain Window</button>
+          <button onClick={() => setCurrentScreen("echo")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Echo</button>
+          <button onClick={() => setCurrentScreen("rising")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Rising</button>
+          <button onClick={() => setCurrentScreen("bubble")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Bubble</button>
+          <button onClick={() => setCurrentScreen("entries")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Entries</button>
+          <button onClick={() => setCurrentScreen("journal")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Journal</button>
+          <button onClick={() => setCurrentScreen("patterns")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Patterns</button>
+          <button onClick={() => setCurrentScreen("fullpatterns")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Full Patterns</button>
+          <button onClick={() => setCurrentScreen("help")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Help</button>
+          <button onClick={() => setCurrentScreen("profile")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Profile</button>
+          <button onClick={() => setCurrentScreen("inthisspace")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">In This Space</button>
+          <button onClick={() => setCurrentScreen("crisis")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Crisis</button>
+          <button onClick={() => setCurrentScreen("privacy")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Privacy</button>
+          <button onClick={() => setCurrentScreen("terms")} className="px-3 py-1 bg-blue-500 text-white rounded text-sm">Terms</button>
+        </div>
+      </div>
 
       {/* Auth Modal - sits above all screens */}
       <AuthModal

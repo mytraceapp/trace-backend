@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Wind, Compass, Footprints, Moon, Sparkles, Hand, Activity, Stars, Circle } from 'lucide-react';
+import { Wind, Compass, Footprints, Moon, Hand, Activity, Circle, Droplets, Sunrise } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useTheme } from '../state/ThemeContext';
 
@@ -365,7 +365,7 @@ export function ActivitiesHubScreen({
                       background: 'linear-gradient(135deg, rgba(190, 185, 180, 0.15) 0%, rgba(190, 185, 180, 0.08) 100%)',
                     }}
                   >
-                    <Sparkles size={20} style={{ color: '#9A8778' }} strokeWidth={1.5} />
+                    <Droplets size={20} style={{ color: '#7BA3A8' }} strokeWidth={1.5} />
                   </div>
 
                   <div className="flex-1 flex flex-col items-start justify-end text-left">
@@ -581,9 +581,9 @@ export function ActivitiesHubScreen({
                 onClick={onStartRising}
                 className="rounded-[24px] p-5 transition-all duration-300 active:scale-[0.97]"
                 style={{
-                  background: 'linear-gradient(135deg, #2A2D3A 0%, #1E2028 100%)',
-                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 1px 2px rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  background: 'linear-gradient(135deg, #8FA38F 0%, #7A8E7A 100%)',
+                  boxShadow: '0 8px 24px rgba(75, 75, 75, 0.12), 0 2px 8px rgba(75, 75, 75, 0.06), inset 0 1px 2px rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
                 }}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -594,10 +594,10 @@ export function ActivitiesHubScreen({
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(90, 115, 150, 0.25) 0%, rgba(90, 115, 150, 0.12) 100%)',
+                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.12) 100%)',
                     }}
                   >
-                    <Stars size={20} style={{ color: '#8BA5C8' }} strokeWidth={1.5} />
+                    <Sunrise size={20} style={{ color: '#FAF6F0' }} strokeWidth={1.5} />
                   </div>
 
                   <div className="flex-1 flex flex-col items-start justify-end text-left">
@@ -605,7 +605,7 @@ export function ActivitiesHubScreen({
                       className="mb-1"
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: '#E8E8FF',
+                        color: '#FAF6F0',
                         fontWeight: 500,
                         fontSize: '16px',
                         letterSpacing: '0.01em',
@@ -616,7 +616,7 @@ export function ActivitiesHubScreen({
                     <p
                       style={{
                         fontFamily: 'Georgia, serif',
-                        color: 'rgba(232, 232, 255, 0.6)',
+                        color: 'rgba(250, 246, 240, 0.7)',
                         fontWeight: 300,
                         fontSize: '12px',
                         letterSpacing: '0.005em',
