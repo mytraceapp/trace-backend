@@ -132,12 +132,12 @@ export default function RippleActivityScreen() {
         if (!isMounted) return;
 
         const { sound } = await Audio.Sound.createAsync(
-          require('../../assets/audio/pearl-ripple.mp3'),
+          require('../../assets/audio/ripple-ambient.mp3'),
           { 
-            isLooping: true, 
+            isLooping: false, 
             volume: 0,
             positionMillis: 0,
-            rate: 0.84,
+            rate: 0.85,
             shouldCorrectPitch: true,
           }
         );
@@ -150,15 +150,23 @@ export default function RippleActivityScreen() {
         localSound = sound;
         soundRef.current = sound;
 
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish && isMounted) {
+            router.replace('/(tabs)/chat');
+          }
+        });
+
         setTimeout(async () => {
           if (isMounted && soundRef.current) {
             await soundRef.current.playAsync();
-            for (let i = 1; i <= 20; i++) {
+            const maxVolume = 0.35;
+            for (let i = 1; i <= 10; i++) {
               setTimeout(async () => {
                 if (isMounted && soundRef.current) {
-                  await soundRef.current.setVolumeAsync(0.018 * i);
+                  const vol = Math.min((maxVolume / 10) * i, maxVolume);
+                  await soundRef.current.setVolumeAsync(vol);
                 }
-              }, i * 250);
+              }, i * 200);
             }
           }
         }, 2000);
