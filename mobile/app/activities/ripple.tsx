@@ -47,8 +47,8 @@ function RippleRing({ index, cx, cy, baseDelay, isSecondary = false }: RippleRin
   
   const duration = isSecondary ? 16000 : 14000;
   const delay = isSecondary ? (index * 3500 + 1000) : (index * 2200);
-  const startRadius = isSecondary ? 35 : 42;
-  const maxScale = isSecondary ? 6 : 5;
+  const startRadius = isSecondary ? 30 : 35;
+  const maxScale = isSecondary ? 8 : 7;
   const baseOpacity = isSecondary ? (0.35 - index * 0.06) : (0.44 - index * 0.05);
   const strokeWidth = isSecondary ? 2 : 3;
   const strokeColor = isSecondary 
@@ -311,7 +311,7 @@ export default function RippleActivityScreen() {
 
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT}>
-          {[0, 1, 2, 3, 4, 5].map((i) => (
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
             <RippleRing 
               key={`primary-${i}`} 
               index={i} 
@@ -320,7 +320,7 @@ export default function RippleActivityScreen() {
               baseDelay={0}
             />
           ))}
-          {[0, 1, 2, 3].map((i) => (
+          {[0, 1, 2, 3, 4, 5].map((i) => (
             <RippleRing 
               key={`secondary-${i}`} 
               index={i} 
@@ -338,7 +338,7 @@ export default function RippleActivityScreen() {
       </View>
 
       {countdownStep !== null && (
-        <Animated.View style={[styles.countdownContainer, { top: centerY - 40 }, countdownAnimatedStyle]}>
+        <Animated.View style={[styles.countdownContainer, { top: centerY - 34 }, countdownAnimatedStyle]}>
           <Text style={[styles.countdownNumber, { fontFamily: canelaFont }]}>
             {COUNTDOWN_STEPS[countdownStep].number}
           </Text>
@@ -527,9 +527,9 @@ const styles = StyleSheet.create({
   tabBarContent: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flex: 1,
-    paddingTop: 8,
+    paddingTop: 0,
   },
   tabItem: {
     alignItems: 'center',
