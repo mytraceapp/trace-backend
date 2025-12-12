@@ -192,41 +192,59 @@ export function BubbleScreen({
         }}
       />
 
-      <AnimatePresence>
-        {showEncouragement && displayedText && (
-          <motion.div
-            className="absolute z-15 w-full flex justify-center px-8"
-            style={{ top: '45%', transform: 'translateY(-50%)' }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
+      <motion.div
+        className="absolute w-full text-center"
+        style={{ top: '7%', zIndex: 50 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8 }}
+      >
+        <h1
+          style={{
+            fontFamily: 'Georgia, serif',
+            fontSize: '14px',
+            fontWeight: 400,
+            letterSpacing: '0.35em',
+            color: 'rgba(90, 74, 58, 0.7)',
+            textTransform: 'uppercase',
+          }}
+        >
+          TRACE
+        </h1>
+      </motion.div>
+
+      {showEncouragement && displayedText && (
+        <motion.div
+          className="absolute w-full flex justify-center px-8 pointer-events-none"
+          style={{ top: '45%', transform: 'translateY(-50%)', zIndex: 40 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <motion.p
+            className="text-center"
+            style={{
+              fontFamily: 'Georgia, serif',
+              fontSize: '18px',
+              fontWeight: 400,
+              color: 'rgba(90, 74, 58, 0.85)',
+              letterSpacing: '0.01em',
+              lineHeight: 1.6,
+              textShadow: '0 1px 3px rgba(255, 255, 255, 0.9)',
+            }}
           >
-            <motion.p
-              className="text-center"
-              style={{
-                fontFamily: 'Georgia, serif',
-                fontSize: '20px',
-                fontWeight: 400,
-                color: 'rgba(90, 74, 58, 0.9)',
-                letterSpacing: '0.01em',
-                lineHeight: 1.6,
-                textShadow: '0 1px 2px rgba(255, 255, 255, 0.8)',
-              }}
-            >
-              {displayedText}
-              {isTyping && (
-                <motion.span
-                  animate={{ opacity: [1, 0] }}
-                  transition={{ duration: 0.5, repeat: Infinity, repeatType: 'reverse' }}
-                >
-                  |
-                </motion.span>
-              )}
-            </motion.p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {displayedText}
+            {isTyping && (
+              <motion.span
+                animate={{ opacity: [1, 0] }}
+                transition={{ duration: 0.5, repeat: Infinity, repeatType: 'reverse' }}
+              >
+                |
+              </motion.span>
+            )}
+          </motion.p>
+        </motion.div>
+      )}
 
       <div className="absolute inset-0 z-10" style={{ bottom: '70px' }}>
         {bubbles.map((bubble) => {
