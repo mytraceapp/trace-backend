@@ -1,13 +1,22 @@
-import { View, Text, StyleSheet, ScrollView, useColorScheme, Pressable, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 14;
 const SCREEN_PADDING = 20;
 const CARD_WIDTH = (SCREEN_WIDTH - SCREEN_PADDING * 2 - CARD_GAP) / 2;
-const CARD_RADIUS = 24;
-const ICON_RADIUS = 20;
+
+const dayColors = {
+  bg: '#F5F1EB',
+  cardLight: 'rgba(255, 255, 255, 0.92)',
+  cardMuted: '#C9BCB0',
+  textPrimary: '#5A4A3A',
+  textSecondary: '#8A7A6A',
+  textMuted: '#A09080',
+  iconBgLight: 'rgba(201, 188, 176, 0.4)',
+  iconBgMuted: 'rgba(255, 255, 255, 0.45)',
+  iconColor: '#8A7A6A',
+};
 
 const ACTIVITIES = [
   {
@@ -75,15 +84,12 @@ type ActivityCardProps = {
   description: string;
   icon: string;
   variant: ActivityVariant;
-  colors: typeof Colors.day;
   onPress?: () => void;
 };
 
-function ActivityCard({ title, description, icon, variant, colors, onPress }: ActivityCardProps) {
-  const cardBg = variant === 'light' ? colors.card : colors.cardAlt;
-  const iconBg = variant === 'light' 
-    ? colors.iconContainer 
-    : 'rgba(255, 255, 255, 0.35)';
+function ActivityCard({ title, description, icon, variant, onPress }: ActivityCardProps) {
+  const cardBg = variant === 'light' ? dayColors.cardLight : dayColors.cardMuted;
+  const iconBg = variant === 'light' ? dayColors.iconBgLight : dayColors.iconBgMuted;
   
   return (
     <Pressable
@@ -94,46 +100,40 @@ function ActivityCard({ title, description, icon, variant, colors, onPress }: Ac
           opacity: pressed ? 0.9 : 1,
           transform: [{ scale: pressed ? 0.98 : 1 }],
         },
-        Shadows.card,
       ]}
       onPress={onPress}
     >
       <View style={[styles.iconContainer, { backgroundColor: iconBg }]}>
-        <Text style={[styles.iconText, { color: colors.iconColor }]}>{icon}</Text>
+        <Text style={styles.iconText}>{icon}</Text>
       </View>
       
-      <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{title}</Text>
-      <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>{description}</Text>
+      <Text style={styles.cardTitle}>{title}</Text>
+      <Text style={styles.cardDescription}>{description}</Text>
     </Pressable>
   );
 }
 
 export default function ActivitiesScreen() {
-  const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
-  const theme = colorScheme === 'dark' ? 'night' : 'day';
-  const colors = Colors[theme];
 
   const handleActivityPress = (activityId: string) => {
     console.log(`Opening activity: ${activityId}`);
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+    <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + Spacing.xl, paddingBottom: 120 },
+          { paddingTop: insets.top + 24, paddingBottom: 120 },
         ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={[styles.traceLabel, { color: colors.textMuted }]}>TRACE</Text>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Activities</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Choose what feels right.
-          </Text>
+          <Text style={styles.traceLabel}>TRACE</Text>
+          <Text style={styles.title}>Activities</Text>
+          <Text style={styles.subtitle}>Choose what feels right.</Text>
         </View>
 
         <View style={styles.grid}>
@@ -144,7 +144,6 @@ export default function ActivitiesScreen() {
               description={activity.description}
               icon={activity.icon}
               variant={activity.variant}
-              colors={colors}
               onPress={() => handleActivityPress(activity.id)}
             />
           ))}
@@ -154,9 +153,13 @@ export default function ActivitiesScreen() {
   );
 }
 
+const serifFont = Platform.select({ ios: 'Georgia', android: 'serif' });
+const sansFont = Platform.select({ ios: 'System', android: 'Roboto' });
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: dayColors.bg,
   },
   scrollView: {
     flex: 1,
@@ -165,26 +168,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: SCREEN_PADDING,
   },
   header: {
-    marginBottom: Spacing['2xl'],
+    marginBottom: 32,
     alignItems: 'center',
   },
   traceLabel: {
-    fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.medium,
+    fontSize: 12,
+    fontWeight: '500',
     letterSpacing: 4,
-    marginBottom: Spacing.sm,
-    textTransform: 'uppercase',
+    marginBottom: 8,
+    color: dayColors.textMuted,
   },
   title: {
-    fontFamily: Typography.fontFamily.serif,
-    fontSize: Typography.fontSize['4xl'],
-    fontWeight: Typography.fontWeight.normal,
-    marginBottom: Spacing.xs,
+    fontFamily: serifFont,
+    fontSize: 32,
+    fontWeight: '400',
+    marginBottom: 4,
+    color: dayColors.textPrimary,
   },
   subtitle: {
-    fontFamily: Typography.fontFamily.sans,
-    fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.normal,
+    fontFamily: sansFont,
+    fontSize: 16,
+    fontWeight: '400',
+    color: dayColors.textSecondary,
   },
   grid: {
     flexDirection: 'row',
@@ -194,33 +199,47 @@ const styles = StyleSheet.create({
   },
   card: {
     width: CARD_WIDTH,
-    minHeight: CARD_WIDTH * 1.1,
-    borderRadius: CARD_RADIUS,
+    minHeight: CARD_WIDTH * 1.15,
+    borderRadius: 24,
     padding: 20,
     justifyContent: 'flex-start',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#5A4A3A',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   iconContainer: {
     width: 48,
     height: 48,
-    borderRadius: ICON_RADIUS,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   iconText: {
     fontSize: 20,
+    color: dayColors.iconColor,
   },
   cardTitle: {
-    fontFamily: Typography.fontFamily.serif,
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    marginBottom: Spacing.xs,
-    lineHeight: Typography.fontSize.lg * 1.3,
+    fontFamily: serifFont,
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+    color: dayColors.textPrimary,
+    lineHeight: 24,
   },
   cardDescription: {
-    fontFamily: Typography.fontFamily.sans,
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.normal,
-    lineHeight: Typography.fontSize.sm * 1.5,
+    fontFamily: sansFont,
+    fontSize: 14,
+    fontWeight: '400',
+    color: dayColors.textSecondary,
+    lineHeight: 21,
   },
 });
