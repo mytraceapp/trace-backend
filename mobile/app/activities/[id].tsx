@@ -158,6 +158,10 @@ export default function ActivityDetailScreen() {
   const handleBegin = () => {
     if (id === 'breathing') {
       router.push('/activities/breathing');
+    } else if (id === 'ripple') {
+      router.push('/activities/ripple');
+    } else if (id === 'rising') {
+      router.push('/activities/rising');
     } else {
       console.log(`Starting ${id} activity...`);
     }
