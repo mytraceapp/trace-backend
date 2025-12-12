@@ -65,7 +65,7 @@ export function ActivitiesHubScreen({
       />
 
       {/* TRACE Brand - Fixed, same as PearlRipple */}
-      <div className="sticky top-0 left-0 right-0 z-40 text-center pointer-events-none transition-colors duration-300" style={{ paddingTop: '55px', paddingBottom: '12px', background: `linear-gradient(to bottom, var(--bg), var(--bg), transparent)` }}>
+      <div className="sticky top-0 left-0 right-0 z-40 text-center pointer-events-none transition-colors duration-300" style={{ paddingTop: '55px', paddingBottom: '12px' }}>
         <motion.h1
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
