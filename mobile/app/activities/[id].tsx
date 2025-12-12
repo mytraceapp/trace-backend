@@ -155,6 +155,14 @@ export default function ActivityDetailScreen() {
 
   const { title, description, duration, instruction, Icon, customIcon, gradientColors, iconColor } = activity;
 
+  const handleBegin = () => {
+    if (id === 'breathing') {
+      router.push('/activities/breathing');
+    } else {
+      console.log(`Starting ${id} activity...`);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -209,7 +217,7 @@ export default function ActivityDetailScreen() {
             styles.startButton,
             { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }
           ]}
-          onPress={() => console.log(`Starting ${id} activity...`)}
+          onPress={handleBegin}
         >
           <LinearGradient
             colors={['#8A9B8C', '#7A8B7C']}
