@@ -1,0 +1,549 @@
+import { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, Dimensions, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Home, Activity, BookOpen, User, HelpCircle } from 'lucide-react-native';
+import { useFonts } from 'expo-font';
+import { Audio } from 'expo-av';
+import Svg, { Circle } from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedProps,
+  withTiming,
+  withSequence,
+  withDelay,
+  withRepeat,
+  Easing,
+  runOnJS,
+  interpolate,
+} from 'react-native-reanimated';
+
+import { FontFamily, TraceWordmark } from '../../constants/typography';
+import { Spacing } from '../../constants/spacing';
+import { Shadows } from '../../constants/shadows';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+const TOTAL_DURATION = 60;
+const COUNTDOWN_STEPS = [
+  { number: '3', instruction: 'Inhale slowly' },
+  { number: '2', instruction: 'Drop your shoulders' },
+  { number: '1', instruction: 'Let everything soften' },
+];
+
+interface RippleRingProps {
+  index: number;
+  cx: number;
+  cy: number;
+  baseDelay: number;
+  isSecondary?: boolean;
+}
+
+function RippleRing({ index, cx, cy, baseDelay, isSecondary = false }: RippleRingProps) {
+  const progress = useSharedValue(0);
+  
+  const duration = isSecondary ? 16000 : 14000;
+  const delay = isSecondary ? (index * 3500 + 1000) : (index * 2200);
+  const startRadius = isSecondary ? 50 : 60;
+  const maxScale = isSecondary ? 6 : 5;
+  const baseOpacity = isSecondary ? (0.35 - index * 0.06) : (0.44 - index * 0.05);
+  const strokeWidth = isSecondary ? 2 : 3;
+  const strokeColor = isSecondary 
+    ? 'rgba(154, 135, 120, 0.19)' 
+    : 'rgba(168, 149, 133, 0.225)';
+
+  useEffect(() => {
+    const startAnimation = () => {
+      progress.value = 0;
+      progress.value = withRepeat(
+        withDelay(
+          delay + baseDelay,
+          withTiming(1, { duration, easing: Easing.out(Easing.cubic) })
+        ),
+        -1,
+        false
+      );
+    };
+    startAnimation();
+  }, []);
+
+  const animatedProps = useAnimatedProps(() => {
+    const scale = interpolate(progress.value, [0, 1], [1, maxScale]);
+    const opacity = interpolate(progress.value, [0, 0.1, 1], [0, baseOpacity, 0]);
+    return {
+      r: startRadius * scale,
+      opacity,
+    };
+  });
+
+  return (
+    <AnimatedCircle
+      cx={cx}
+      cy={cy}
+      stroke={strokeColor}
+      strokeWidth={strokeWidth}
+      fill="transparent"
+      animatedProps={animatedProps}
+    />
+  );
+}
+
+export default function RippleActivityScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [countdownStep, setCountdownStep] = useState<number | null>(0);
+  const [showMainText, setShowMainText] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(TOTAL_DURATION);
+  const [sessionActive, setSessionActive] = useState(true);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [fontsLoaded] = useFonts({
+    'Alore': require('../../assets/fonts/Alore-Regular.otf'),
+    'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
+  });
+
+  const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
+  const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
+  const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
+
+  const countdownOpacity = useSharedValue(1);
+  const mainTextOpacity = useSharedValue(0);
+  const centralGlowScale = useSharedValue(1);
+  const centralGlowOpacity = useSharedValue(0.6);
+
+  const centerX = SCREEN_WIDTH / 2;
+  const centerY = SCREEN_HEIGHT * 0.38;
+
+  useEffect(() => {
+    const loadAndPlayAudio = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+        });
+
+        const { sound } = await Audio.Sound.createAsync(
+          require('../../assets/audio/pearl-ripple.mp3'),
+          { 
+            isLooping: true, 
+            volume: 0,
+            positionMillis: 15000,
+            rate: 0.65,
+            shouldCorrectPitch: true,
+          }
+        );
+        soundRef.current = sound;
+
+        setTimeout(async () => {
+          if (soundRef.current) {
+            await soundRef.current.playAsync();
+            for (let i = 1; i <= 10; i++) {
+              setTimeout(async () => {
+                if (soundRef.current) {
+                  await soundRef.current.setVolumeAsync(0.035 * i);
+                }
+              }, i * 200);
+            }
+          }
+        }, 2500);
+      } catch (error) {
+        console.log('Audio loading error:', error);
+      }
+    };
+
+    loadAndPlayAudio();
+
+    return () => {
+      const fadeOutAndUnload = async () => {
+        if (soundRef.current) {
+          try {
+            const status = await soundRef.current.getStatusAsync();
+            if (status.isLoaded) {
+              const currentVolume = status.volume || 0.35;
+              for (let i = 10; i >= 0; i--) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+                if (soundRef.current) {
+                  await soundRef.current.setVolumeAsync(currentVolume * (i / 10));
+                }
+              }
+              await soundRef.current.stopAsync();
+              await soundRef.current.unloadAsync();
+            }
+          } catch (error) {
+            console.log('Audio cleanup error:', error);
+          }
+        }
+      };
+      fadeOutAndUnload();
+    };
+  }, []);
+
+  useEffect(() => {
+    centralGlowScale.value = withRepeat(
+      withSequence(
+        withTiming(1.15, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+    centralGlowOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.85, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.6, { duration: 3000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  useEffect(() => {
+    if (countdownStep === null) return;
+
+    const timer = setTimeout(() => {
+      if (countdownStep < 2) {
+        countdownOpacity.value = withTiming(0, { duration: 400 }, () => {
+          runOnJS(setCountdownStep)(countdownStep + 1);
+          countdownOpacity.value = withTiming(1, { duration: 400 });
+        });
+      } else {
+        countdownOpacity.value = withTiming(0, { duration: 500 }, () => {
+          runOnJS(setCountdownStep)(null);
+          runOnJS(setShowMainText)(true);
+          mainTextOpacity.value = withTiming(1, { duration: 1500 });
+          
+          setTimeout(() => {
+            mainTextOpacity.value = withTiming(0, { duration: 1500 }, () => {
+              runOnJS(setShowMainText)(false);
+            });
+          }, 6000);
+        });
+      }
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [countdownStep]);
+
+  useEffect(() => {
+    if (!sessionActive || timeRemaining <= 0) return;
+
+    timerRef.current = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          setSessionActive(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [sessionActive]);
+
+  const handleEndSession = async () => {
+    setSessionActive(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+    
+    if (soundRef.current) {
+      try {
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded) {
+          const currentVolume = status.volume || 0.35;
+          for (let i = 10; i >= 0; i--) {
+            await new Promise(resolve => setTimeout(resolve, 40));
+            if (soundRef.current) {
+              await soundRef.current.setVolumeAsync(currentVolume * (i / 10));
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Fade out error:', error);
+      }
+    }
+    
+    setTimeout(() => {
+      router.back();
+    }, 500);
+  };
+
+  const countdownAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: countdownOpacity.value,
+  }));
+
+  const mainTextAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: mainTextOpacity.value,
+  }));
+
+  const centralGlowStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: centralGlowScale.value }],
+    opacity: centralGlowOpacity.value,
+  }));
+
+  const TAB_BAR_HEIGHT = 60;
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
+
+  return (
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#FFFFFF', '#F8F6F3', '#F0EDE8', '#E8E4DF', '#E0DCD7']}
+        locations={[0, 0.25, 0.5, 0.75, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <View style={[styles.ambientGlow, { top: centerY - 200, left: centerX - 200 }]} />
+
+      <Animated.View 
+        style={[
+          styles.centralGlow, 
+          { top: centerY - 150, left: centerX - 150 },
+          centralGlowStyle
+        ]} 
+      />
+
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT}>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <RippleRing 
+              key={`primary-${i}`} 
+              index={i} 
+              cx={centerX} 
+              cy={centerY}
+              baseDelay={0}
+            />
+          ))}
+          {[0, 1, 2, 3].map((i) => (
+            <RippleRing 
+              key={`secondary-${i}`} 
+              index={i} 
+              cx={centerX} 
+              cy={centerY}
+              baseDelay={0}
+              isSecondary
+            />
+          ))}
+        </Svg>
+      </View>
+
+      <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
+        <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
+      </View>
+
+      {countdownStep !== null && (
+        <Animated.View style={[styles.countdownContainer, { top: centerY - 60 }, countdownAnimatedStyle]}>
+          <Text style={[styles.countdownNumber, { fontFamily: canelaFont }]}>
+            {COUNTDOWN_STEPS[countdownStep].number}
+          </Text>
+          <Text style={[styles.countdownInstruction, { fontFamily: canelaFont }]}>
+            {COUNTDOWN_STEPS[countdownStep].instruction}
+          </Text>
+        </Animated.View>
+      )}
+
+      {showMainText && (
+        <Animated.View style={[styles.mainTextContainer, { top: centerY - 30 }, mainTextAnimatedStyle]}>
+          <Text style={[styles.mainText, { fontFamily: canelaFont }]}>
+            Let this moment take over.
+          </Text>
+        </Animated.View>
+      )}
+
+      <View style={[styles.endButtonContainer, { bottom: TAB_BAR_HEIGHT + bottomPadding + 30 }]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.endButton,
+            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+          ]}
+          onPress={handleEndSession}
+        >
+          <Text style={[styles.endButtonText, { fontFamily: canelaFont }]}>
+            End Session
+          </Text>
+        </Pressable>
+      </View>
+
+      <View style={[styles.tabBar, { paddingBottom: bottomPadding, height: TAB_BAR_HEIGHT + bottomPadding }]}>
+        <LinearGradient
+          colors={[
+            'rgba(168, 181, 170, 0.673)',
+            'rgba(158, 173, 160, 0.873)',
+            'rgba(148, 165, 150, 0.973)',
+            'rgba(138, 158, 142, 1.0)',
+            'rgba(128, 150, 134, 1.0)',
+          ]}
+          locations={[0, 0.25, 0.5, 0.75, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.tabBarContent}>
+          <Pressable style={styles.tabItem} onPress={() => router.replace('/(tabs)/chat')}>
+            <Home size={18} color="#E8E5DE" strokeWidth={1.5} />
+            <Text style={styles.tabLabel}>Home</Text>
+          </Pressable>
+          <Pressable style={styles.tabItem} onPress={() => router.replace('/(tabs)/activities')}>
+            <Activity size={18} color="#E8E5DE" strokeWidth={1.5} />
+            <Text style={styles.tabLabel}>Activity</Text>
+          </Pressable>
+          <Pressable style={styles.tabItem} onPress={() => router.replace('/(tabs)/entries')}>
+            <BookOpen size={18} color="#E8E5DE" strokeWidth={1.5} />
+            <Text style={styles.tabLabel}>Entries</Text>
+          </Pressable>
+          <Pressable style={styles.tabItem} onPress={() => router.replace('/(tabs)/profile')}>
+            <User size={18} color="#E8E5DE" strokeWidth={1.5} />
+            <Text style={styles.tabLabel}>Profile</Text>
+          </Pressable>
+          <Pressable style={styles.tabItem} onPress={() => router.replace('/(tabs)/journal')}>
+            <HelpCircle size={18} color="#E8E5DE" strokeWidth={1.5} />
+            <Text style={styles.tabLabel}>Help</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  ambientGlow: {
+    position: 'absolute',
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  centralGlow: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+  },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 40,
+    alignItems: 'center',
+    paddingBottom: Spacing.md,
+    backgroundColor: 'transparent',
+  },
+  traceLabel: {
+    fontSize: TraceWordmark.fontSize,
+    fontWeight: TraceWordmark.fontWeight,
+    letterSpacing: TraceWordmark.letterSpacing,
+    marginLeft: TraceWordmark.marginLeft,
+    color: '#5A4A3A',
+    opacity: 0.88,
+    ...Shadows.traceWordmark,
+  },
+  countdownContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  countdownNumber: {
+    fontSize: 72,
+    fontWeight: '300',
+    color: '#9A8778',
+    letterSpacing: 2,
+    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 20,
+    marginBottom: 16,
+  },
+  countdownInstruction: {
+    fontSize: 18,
+    fontWeight: '300',
+    color: '#A89585',
+    letterSpacing: 1.5,
+    textShadowColor: 'rgba(255, 255, 255, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 10,
+  },
+  mainTextContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    zIndex: 10,
+  },
+  mainText: {
+    fontSize: 22,
+    fontWeight: '300',
+    color: '#9A8778',
+    letterSpacing: 1.5,
+    lineHeight: 32,
+    textAlign: 'center',
+    textShadowColor: 'rgba(255, 255, 255, 0.7)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 15,
+  },
+  endButtonContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  endButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 32,
+  },
+  endButtonText: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#9A8778',
+    letterSpacing: 1.5,
+  },
+  tabBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  tabBarContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    flex: 1,
+    paddingTop: 8,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    minWidth: 50,
+    marginTop: 20,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '400',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+    color: '#E8E5DE',
+    fontFamily: 'Georgia',
+  },
+});
