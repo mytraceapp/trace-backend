@@ -23,11 +23,11 @@ function TabBarBackground() {
   return (
     <LinearGradient
       colors={[
-        '#F5F1EB',
-        '#E8E4DE',
-        '#C8CFC9',
-        '#A8B5AA',
-        '#8FA395',
+        'rgba(245, 241, 235, 0.65)',
+        'rgba(232, 228, 222, 0.65)',
+        'rgba(200, 207, 201, 0.65)',
+        'rgba(168, 181, 170, 0.65)',
+        'rgba(143, 163, 149, 0.65)',
       ]}
       locations={[0, 0.2, 0.5, 0.75, 1]}
       start={{ x: 0.5, y: 0 }}

@@ -6,12 +6,11 @@ export const BorderRadius = {
   lg: 16,
   xl: 20,
   '2xl': 24,
-  '3xl': 28,
-  '4xl': 32,
+  '3xl': 32,
   full: 9999,
+  card: 24,
+  iconContainer: 24,
+  button: 9999,
 };
 
-export const CardRadius = {
-  card: 24,
-  iconContainer: 20,
-};
+export default BorderRadius;

@@ -8,73 +8,86 @@ export const Shadows = {
     shadowRadius: 0,
     elevation: 0,
   },
-  soft: Platform.select({
-    ios: {
-      shadowColor: '#5A4A3A',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
-    },
-    android: {
-      elevation: 2,
-    },
-  }) as object,
   card: Platform.select({
     ios: {
-      shadowColor: '#5A4A3A',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 16,
-    },
-    android: {
-      elevation: 4,
-    },
-  }) as object,
-  cardElevated: Platform.select({
-    ios: {
-      shadowColor: '#5A4A3A',
+      shadowColor: 'rgba(75, 75, 75, 1)',
       shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.12,
+      shadowOpacity: 0.08,
       shadowRadius: 24,
     },
     android: {
-      elevation: 8,
+      elevation: 4,
     },
-  }) as object,
-  iconContainer: Platform.select({
+  }),
+  cardSubtle: Platform.select({
     ios: {
-      shadowColor: '#5A4A3A',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-    },
-    android: {
-      elevation: 1,
-    },
-  }) as object,
-};
-
-export const ShadowsNight = {
-  soft: Platform.select({
-    ios: {
-      shadowColor: '#000000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
+      shadowColor: 'rgba(75, 75, 75, 1)',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.05,
+      shadowRadius: 16,
     },
     android: {
       elevation: 2,
     },
-  }) as object,
-  card: Platform.select({
+  }),
+  button: Platform.select({
     ios: {
-      shadowColor: '#000000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.4,
-      shadowRadius: 16,
+      shadowColor: 'rgba(75, 75, 75, 1)',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.1,
+      shadowRadius: 20,
     },
     android: {
       elevation: 4,
     },
-  }) as object,
+  }),
+  traceWordmark: {
+    textShadowColor: 'rgba(90, 74, 58, 0.45)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 15,
+  },
 };
+
+export const ShadowsNight = {
+  none: Shadows.none,
+  card: Platform.select({
+    ios: {
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 24,
+    },
+    android: {
+      elevation: 6,
+    },
+  }),
+  cardSubtle: Platform.select({
+    ios: {
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 16,
+    },
+    android: {
+      elevation: 3,
+    },
+  }),
+  button: Platform.select({
+    ios: {
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.35,
+      shadowRadius: 20,
+    },
+    android: {
+      elevation: 5,
+    },
+  }),
+  traceWordmark: {
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 15,
+  },
+};
+
+export default Shadows;

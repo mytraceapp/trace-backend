@@ -1,20 +1,29 @@
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Typography, Spacing } from '../../constants/theme';
+import { Colors } from '../../constants/colors';
+import { Spacing } from '../../constants/spacing';
+import { ScreenTitle, BodyText, FontFamily } from '../../constants/typography';
+import { useFonts } from 'expo-font';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
-  const theme = colorScheme === 'dark' ? 'night' : 'day';
-  const colors = Colors[theme];
+  const theme = colorScheme === 'dark' ? Colors.night : Colors.day;
+
+  const [fontsLoaded] = useFonts({
+    'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
+  });
+
+  const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
+  const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={styles.content}>
-        <Text style={[styles.placeholder, { color: colors.textSecondary }]}>
+        <Text style={[styles.placeholder, { color: theme.textPrimary, fontFamily: canelaFont }]}>
           Profile
         </Text>
-        <Text style={[styles.subtitle, { color: colors.textTertiary }]}>
+        <Text style={[styles.subtitle, { color: theme.textSecondary, fontFamily: canelaFont }]}>
           Coming soon
         </Text>
       </View>
@@ -33,11 +42,11 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
   },
   placeholder: {
-    fontSize: Typography.fontSize.xl,
-    fontWeight: Typography.fontWeight.medium,
+    fontSize: ScreenTitle.fontSize,
+    fontWeight: ScreenTitle.fontWeight,
     marginBottom: Spacing.sm,
   },
   subtitle: {
-    fontSize: Typography.fontSize.base,
+    fontSize: BodyText.fontSize,
   },
 });

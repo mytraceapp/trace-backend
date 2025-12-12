@@ -2,21 +2,18 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Platform } f
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Wind, Compass, Footprints, Moon, Droplets, Hand, Activity, Sunrise, Circle } from 'lucide-react-native';
-import { useFonts, loadAsync } from 'expo-font';
+import { useFonts } from 'expo-font';
 import Svg, { Path } from 'react-native-svg';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_GAP = 16;
-const SCREEN_PADDING = 24;
-const CARD_WIDTH = (SCREEN_WIDTH - SCREEN_PADDING * 2 - CARD_GAP) / 2;
-const CARD_CONTENT_HEIGHT = 175;
-const CARD_PADDING = 20;
+import { Colors } from '../../constants/colors';
+import { TraceWordmark, CardTitle, MetaText, ScreenTitle, BodyText, FontFamily } from '../../constants/typography';
+import { Spacing } from '../../constants/spacing';
+import { BorderRadius } from '../../constants/radius';
+import { Shadows } from '../../constants/shadows';
 
-const dayColors = {
-  textPrimary: '#4B4B4B',
-  textSecondary: '#8A8680',
-  traceBrand: '#5A4A3A',
-};
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = (SCREEN_WIDTH - Spacing.screenPadding * 2 - Spacing.cardGap) / 2;
+const CARD_CONTENT_HEIGHT = 175;
 
 function RainDropIcon({ color }: { color: string }) {
   return (
@@ -38,10 +35,10 @@ const ACTIVITIES = [
     title: 'Breathing',
     description: 'A calming 30-second reset.',
     Icon: Wind,
-    iconColor: '#4B4B4B',
-    gradientColors: ['#FFFFFF', '#FAF9F7'] as [string, string],
+    iconColor: Colors.day.textPrimary,
+    gradientColors: [Colors.day.cardWhite, Colors.day.cardCream] as [string, string],
     iconBgColors: ['rgba(138, 134, 128, 0.12)', 'rgba(138, 134, 128, 0.06)'] as [string, string],
-    descColor: '#8A8680',
+    descColor: Colors.day.textSecondary,
     customIcon: null,
   },
   {
@@ -50,7 +47,7 @@ const ACTIVITIES = [
     description: 'Slow your mind with gentle tracing.',
     Icon: Compass,
     iconColor: '#A29485',
-    gradientColors: ['#D3CFC8', '#CCC8C1'] as [string, string],
+    gradientColors: [Colors.day.cardMuted, '#CCC8C1'] as [string, string],
     iconBgColors: ['rgba(162, 148, 133, 0.2)', 'rgba(162, 148, 133, 0.1)'] as [string, string],
     descColor: '#6B6761',
     customIcon: null,
@@ -60,10 +57,10 @@ const ACTIVITIES = [
     title: 'Walking Reset',
     description: 'Two minutes of slow-paced movement.',
     Icon: Footprints,
-    iconColor: '#4B4B4B',
-    gradientColors: ['#DDD9D2', '#D3CFC8'] as [string, string],
+    iconColor: Colors.day.textPrimary,
+    gradientColors: ['#DDD9D2', Colors.day.cardMuted] as [string, string],
     iconBgColors: ['rgba(138, 134, 128, 0.15)', 'rgba(138, 134, 128, 0.08)'] as [string, string],
-    descColor: '#8A8680',
+    descColor: Colors.day.textSecondary,
     customIcon: null,
   },
   {
@@ -71,10 +68,10 @@ const ACTIVITIES = [
     title: 'Rest',
     description: 'Five minutes of quiet stillness.',
     Icon: Moon,
-    iconColor: '#4B4B4B',
+    iconColor: Colors.day.textPrimary,
     gradientColors: ['#E8E4DD', '#DDD9D2'] as [string, string],
     iconBgColors: ['rgba(138, 134, 128, 0.18)', 'rgba(138, 134, 128, 0.09)'] as [string, string],
-    descColor: '#8A8680',
+    descColor: Colors.day.textSecondary,
     customIcon: null,
   },
   {
@@ -83,9 +80,9 @@ const ACTIVITIES = [
     description: 'Immersive flowing light.',
     Icon: Droplets,
     iconColor: '#9A8778',
-    gradientColors: ['#FFFFFF', '#FAF8F5'] as [string, string],
+    gradientColors: [Colors.day.cardWhite, '#FAF8F5'] as [string, string],
     iconBgColors: ['rgba(190, 185, 180, 0.15)', 'rgba(190, 185, 180, 0.08)'] as [string, string],
-    descColor: '#8A8680',
+    descColor: Colors.day.textSecondary,
     customIcon: null,
   },
   {
@@ -94,9 +91,9 @@ const ACTIVITIES = [
     description: 'Connect with your surroundings.',
     Icon: Hand,
     iconColor: '#9A8778',
-    gradientColors: ['#FFFFFF', '#FAF8F5'] as [string, string],
+    gradientColors: [Colors.day.cardWhite, '#FAF8F5'] as [string, string],
     iconBgColors: ['rgba(190, 185, 180, 0.15)', 'rgba(190, 185, 180, 0.08)'] as [string, string],
-    descColor: '#8A8680',
+    descColor: Colors.day.textSecondary,
     customIcon: null,
   },
   {
@@ -129,7 +126,7 @@ const ACTIVITIES = [
     iconColor: '#9A8778',
     gradientColors: ['#F3EFE7', '#E6E1D9'] as [string, string],
     iconBgColors: ['rgba(154, 135, 120, 0.18)', 'rgba(154, 135, 120, 0.09)'] as [string, string],
-    descColor: '#8A8680',
+    descColor: Colors.day.textSecondary,
     customIcon: null,
   },
   {
@@ -140,7 +137,7 @@ const ACTIVITIES = [
     iconColor: '#9A8778',
     gradientColors: ['#ECE9E4', '#E5E2DD'] as [string, string],
     iconBgColors: ['rgba(154, 135, 120, 0.15)', 'rgba(154, 135, 120, 0.08)'] as [string, string],
-    descColor: '#8A8680',
+    descColor: Colors.day.textSecondary,
     customIcon: null,
   },
 ];
@@ -228,13 +225,13 @@ export default function ActivitiesScreen() {
   };
 
   const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
-  const canelaFont = fontsLoaded ? 'Canela' : fallbackSerifFont;
-  const aloreFont = fontsLoaded ? 'Alore' : fallbackSerifFont;
+  const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
+  const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
 
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#EDE5DA', '#D8CDBF', '#C9BBAA']}
+        colors={[...Colors.day.backgroundGradient]}
         locations={[0, 0.6, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
@@ -251,7 +248,7 @@ export default function ActivitiesScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + 40, paddingBottom: 140 },
+          { paddingTop: insets.top + Spacing.traceToTitle, paddingBottom: 140 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -314,72 +311,60 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 40,
     alignItems: 'center',
-    paddingBottom: 12,
+    paddingBottom: Spacing.md,
     backgroundColor: 'transparent',
   },
   traceLabel: {
-    fontSize: 11,
-    fontWeight: '300',
-    letterSpacing: 14,
-    marginLeft: 7,
-    color: dayColors.traceBrand,
-    opacity: 0.88,
-    textShadowColor: 'rgba(90, 74, 58, 0.45)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 15,
+    fontSize: TraceWordmark.fontSize,
+    fontWeight: TraceWordmark.fontWeight,
+    letterSpacing: TraceWordmark.letterSpacing,
+    marginLeft: TraceWordmark.marginLeft,
+    color: TraceWordmark.color,
+    opacity: TraceWordmark.opacity,
+    ...Shadows.traceWordmark,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SCREEN_PADDING,
+    paddingHorizontal: Spacing.screenPadding,
   },
   header: {
-    marginBottom: 32,
+    marginBottom: Spacing.sectionGap,
     alignItems: 'center',
-    paddingHorizontal: SCREEN_PADDING,
+    paddingHorizontal: Spacing.screenPadding,
     marginTop: -6,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '400',
+    fontSize: ScreenTitle.fontSize,
+    fontWeight: ScreenTitle.fontWeight,
     marginBottom: 2,
-    color: dayColors.textPrimary,
-    letterSpacing: -0.56,
+    color: ScreenTitle.color,
+    letterSpacing: ScreenTitle.letterSpacing,
   },
   subtitle: {
-    fontSize: 15,
-    fontWeight: '300',
-    color: dayColors.textSecondary,
-    letterSpacing: 0.15,
+    fontSize: BodyText.fontSize,
+    fontWeight: BodyText.fontWeight,
+    color: Colors.day.textSecondary,
+    letterSpacing: BodyText.letterSpacing,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: CARD_GAP,
-    columnGap: CARD_GAP,
+    rowGap: Spacing.cardGap,
+    columnGap: Spacing.cardGap,
   },
   card: {
     width: CARD_WIDTH,
-    borderRadius: 24,
+    borderRadius: BorderRadius.card,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
-    ...Platform.select({
-      ios: {
-        shadowColor: 'rgba(75, 75, 75, 1)',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 24,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    ...Shadows.card,
   },
   cardGradient: {
-    padding: CARD_PADDING,
+    padding: Spacing.cardPadding,
   },
   cardContent: {
     height: CARD_CONTENT_HEIGHT,
@@ -390,7 +375,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: BorderRadius.iconContainer,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -398,37 +383,27 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: CardTitle.fontSize,
+    fontWeight: CardTitle.fontWeight,
     marginBottom: 4,
-    color: dayColors.textPrimary,
-    letterSpacing: 0.16,
+    color: CardTitle.color,
+    letterSpacing: CardTitle.letterSpacing,
   },
   cardDescription: {
-    fontSize: 12,
-    fontWeight: '300',
-    letterSpacing: 0.1,
-    lineHeight: 18,
-    opacity: 0.75,
+    fontSize: MetaText.fontSize,
+    fontWeight: MetaText.fontWeight,
+    letterSpacing: MetaText.letterSpacing,
+    lineHeight: MetaText.lineHeight,
+    opacity: MetaText.opacity,
   },
   patternsButton: {
-    marginTop: 32,
-    marginBottom: 24,
-    borderRadius: 9999,
+    marginTop: Spacing.sectionGap,
+    marginBottom: Spacing['2xl'],
+    borderRadius: BorderRadius.button,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.35)',
-    ...Platform.select({
-      ios: {
-        shadowColor: 'rgba(75, 75, 75, 1)',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    ...Shadows.button,
   },
   patternsGradient: {
     paddingVertical: 18,
@@ -436,9 +411,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   patternsText: {
-    fontSize: 15,
+    fontSize: BodyText.fontSize,
     fontWeight: '500',
-    color: dayColors.textPrimary,
+    color: Colors.day.textPrimary,
     letterSpacing: 0.3,
   },
 });

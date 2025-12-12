@@ -1,0 +1,70 @@
+We are now locking the TRACE visual anchors so all mobile screens feel consistent while allowing intentional variation.
+
+Only edit files inside /mobile.
+
+The TRACE wordmark must be treated as a brand signature, not general typography.
+
+Lock the following:
+	•	Font family: Alore
+	•	Font size
+	•	Letter spacing
+	•	Opacity/color
+	•	Vertical placement relative to the top safe area
+	•	Spacing between TRACE and the screen title
+
+The TRACE wordmark must render identically on all screens unless explicitly overridden for a full-screen immersive experience.
+
+Do not use Alore anywhere else in the UI.
+
+Experiential typography (primary system)
+
+Use Canela Thin as the primary serif for all experiential text.
+
+Define and lock these typography roles:
+	•	screenTitle (e.g. “Activities”)
+	•	cardTitle
+	•	bodyText
+	•	metaText (durations, hints, secondary labels)
+
+Font sizes may vary slightly per screen, but:
+	•	Font family
+	•	Weight philosophy
+	•	Hierarchy
+must remain consistent.
+
+Create a centralized typography definition (e.g. /mobile/constants/typography.ts) and use it everywhere.
+
+Cards are a defining TRACE primitive.
+
+Lock:
+	•	Corner radius
+	•	Shadow philosophy (very soft, low contrast)
+	•	Padding system
+	•	Icon container style (circular, muted, consistent size)
+
+Cards may vary in height and content but must always feel like the same family.
+
+TRACE screens must never use flat white.
+
+Lock:
+	•	Subtle warm vertical gradient
+	•	Top slightly lighter, bottom slightly deeper
+	•	Atmospheric, barely noticeable
+
+Intensity may vary per screen, but the gradient philosophy is constant.
+Create centralized design constants:
+	•	/mobile/constants/colors.ts
+	•	/mobile/constants/typography.ts
+	•	/mobile/constants/spacing.ts
+	•	/mobile/constants/radius.ts
+	•	/mobile/constants/shadows.ts
+	2.	Refactor the Activities screen to fully comply.
+
+REPORT BACK WITH
+	•	Files created/edited under /mobile
+	•	Confirmation that:
+	•	TRACE wordmark uses Alore only
+	•	Experiential text uses Canela Thin
+	•	Any intentional variations that remain
+
+Proceed now with lock-in only.

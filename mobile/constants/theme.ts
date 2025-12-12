@@ -1,9 +1,8 @@
 import { Colors as ColorsImport } from './colors';
-import { Spacing as SpacingImport, CardSpacing, ScreenPadding } from './spacing';
-import { BorderRadius as BorderRadiusImport, CardRadius } from './radius';
+import { Spacing as SpacingImport } from './spacing';
+import { BorderRadius as BorderRadiusImport } from './radius';
 import { Shadows, ShadowsNight } from './shadows';
-import { FontFamily, FontSize, FontWeight, LineHeight, LetterSpacing, Typography as TypographyStyles } from './typography';
-import { Audio } from './index';
+import { FontFamily, FontWeight, Typography as TypographyImport } from './typography';
 
 export const Colors = ColorsImport;
 export const Spacing = SpacingImport;
@@ -11,23 +10,23 @@ export const BorderRadius = BorderRadiusImport;
 
 export const Typography = {
   fontFamily: FontFamily,
-  fontSize: FontSize,
+  fontSize: TypographyImport.fontSize,
   fontWeight: FontWeight,
-  lineHeight: LineHeight,
-  letterSpacing: LetterSpacing,
-  styles: TypographyStyles,
+  lineHeight: {
+    tight: 18,
+    normal: 22,
+    relaxed: 26,
+  },
+  letterSpacing: {
+    tight: -0.56,
+    normal: 0.15,
+    wide: 0.3,
+  },
 };
 
 export {
-  CardSpacing,
-  ScreenPadding,
-  CardRadius,
   Shadows,
   ShadowsNight,
   FontFamily,
-  FontSize,
   FontWeight,
-  LineHeight,
-  LetterSpacing,
-  Audio,
 };
