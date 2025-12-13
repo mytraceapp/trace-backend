@@ -793,6 +793,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     paddingVertical: 16,
     alignItems: 'center',
+    width: '100%',
     borderWidth: 1,
     borderColor: 'rgba(107, 103, 97, 0.3)',
   },
