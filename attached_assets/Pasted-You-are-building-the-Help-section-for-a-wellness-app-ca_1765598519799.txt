@@ -1,0 +1,100 @@
+You are building the Help section for a wellness app called TRACE.
+TRACE is a presence-based AI wellness companion. It supports reflection and grounding but is not therapy, diagnosis, or crisis intervention.
+
+Use the exact visual hierarchy and calm tone shown in the provided design.
+Help Index Page (already designed)
+
+Each card routes to a dedicated page:
+	1.	In This Space
+	2.	If You’re in Crisis
+	3.	Privacy & Your Data
+	4.	Terms & Safety Commitment
+
+Build four separate screens, each navigable from the Help page.
+PAGE 1 — “In This Space”
+
+Purpose: Clearly explain what TRACE is and is not without sounding clinical.
+
+Tone: Grounded, human, reassuring, not defensive.
+
+Content structure:
+	•	Header: In This Space
+	•	Subheader: What TRACE can and can’t do.
+
+Body copy (use this voice, not exact text):
+	•	TRACE is a space for reflection, grounding, and emotional awareness.
+	•	TRACE listens, responds gently, and helps users slow down.
+	•	TRACE does not diagnose, treat, or replace professional care.
+	•	TRACE encourages noticing, not fixing.
+	•	TRACE is designed for moments, not emergencies.
+
+End with a soft reassurance line like:
+
+“You don’t need to be ‘doing it right’ here.”
+PAGE 2 — “If You’re in Crisis”
+
+Purpose: Safety compliance without fear-based language.
+
+Tone: Calm, direct, caring.
+
+Content structure:
+	•	Header: If You’re in Crisis
+	•	Subheader: Immediate options when things feel unsafe.
+
+Requirements:
+	•	State clearly that TRACE is not for crisis support
+	•	Encourage reaching out to real-world help
+	•	Include US & international guidance
+
+Suggested sections:
+	•	“If you’re feeling unsafe right now…”
+	•	“You deserve real-time human support.”
+
+Crisis resources (must include):
+	•	🇺🇸 Call or text 988 (Suicide & Crisis Lifeline)
+	•	🌍 “If you’re outside the U.S., local emergency services or a trusted person nearby.”
+
+End with:
+
+“TRACE will still be here when you’re safe.”
+PAGE 3 — “Privacy & Your Data”
+
+Purpose: Trust-building, plain-language privacy.
+
+Tone: Transparent, non-legal, human.
+
+Content structure:
+	•	Header: Privacy & Your Data
+	•	Subheader: How your words are protected.
+
+Key points to include:
+	•	Entries belong to the user
+	•	Data is not sold or used for ads
+	•	AI responses are generated to support reflection, not profiling
+	•	Users can delete entries
+	•	Minimal data collection
+
+Use friendly language like:
+
+“What you write stays yours.”
+
+Avoid dense legal formatting — this is a human explanation, not the full policy.
+PAGE 4 — “Terms & Safety Commitment”
+
+Purpose: Soft legal grounding.
+
+Tone: Clear, respectful, not intimidating.
+
+Content structure:
+	•	Header: Terms & Safety Commitment
+	•	Subheader: The serious stuff, explained simply.
+
+Include:
+	•	TRACE is for personal reflection and wellness
+	•	Not medical or mental health treatment
+	•	Use at your own discretion
+	•	Commitment to user safety, privacy, and transparency
+
+End with a values-based line:
+
+“We built TRACE to support care, not replace it.”

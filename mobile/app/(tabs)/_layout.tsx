@@ -116,12 +116,18 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="journal"
+        name="help"
         options={{
           title: 'Help',
           tabBarIcon: ({ focused, color }) => (
             <TabIcon focused={focused} color={color} label="Help" Icon={HelpCircle} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="journal"
+        options={{
+          href: null,
         }}
       />
     </Tabs>
