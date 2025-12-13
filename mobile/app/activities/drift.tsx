@@ -141,6 +141,7 @@ function Bubble({
           <View style={styles.bubbleInner}>
             <View style={styles.bubbleHighlight} />
             <View style={styles.bubbleHighlightSmall} />
+            <View style={styles.bubbleShimmer} />
           </View>
         </View>
       </Pressable>
@@ -461,15 +462,15 @@ const styles = StyleSheet.create({
     height: BUBBLE_SIZE - 2,
     borderRadius: (BUBBLE_SIZE - 2) / 2,
     margin: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.38)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.75)',
     overflow: 'hidden',
     shadowColor: 'rgba(255, 255, 255, 1)',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   bubbleInner: {
     flex: 1,
@@ -479,11 +480,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 4,
     left: 6,
-    width: BUBBLE_SIZE * 0.4,
-    height: BUBBLE_SIZE * 0.2,
+    width: BUBBLE_SIZE * 0.45,
+    height: BUBBLE_SIZE * 0.22,
     borderRadius: BUBBLE_SIZE * 0.15,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     transform: [{ rotate: '-40deg' }],
+    shadowColor: 'rgba(255, 255, 255, 1)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
   },
   bubbleHighlightSmall: {
     position: 'absolute',
@@ -492,8 +497,22 @@ const styles = StyleSheet.create({
     width: BUBBLE_SIZE * 0.15,
     height: BUBBLE_SIZE * 0.08,
     borderRadius: BUBBLE_SIZE * 0.06,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
     transform: [{ rotate: '-40deg' }],
+  },
+  bubbleShimmer: {
+    position: 'absolute',
+    bottom: 6,
+    right: 8,
+    width: BUBBLE_SIZE * 0.2,
+    height: BUBBLE_SIZE * 0.1,
+    borderRadius: BUBBLE_SIZE * 0.08,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    transform: [{ rotate: '30deg' }],
+    shadowColor: 'rgba(255, 255, 255, 1)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 3,
   },
   halo: {
     position: 'absolute',
