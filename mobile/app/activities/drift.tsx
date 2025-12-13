@@ -28,21 +28,24 @@ const COLS = Math.ceil(SCREEN_WIDTH / BUBBLE_SIZE) + 1;
 const ROWS = Math.ceil(SCREEN_HEIGHT / (BUBBLE_SIZE * 0.866)) + 2;
 
 const ENCOURAGEMENT_MESSAGES = [
-  "You're doing great.",
-  "Let it go.",
-  "One at a time.",
-  "Breathe.",
-  "Release.",
-  "You've got this.",
-  "Lighter now.",
-  "Keep going.",
-  "Peace is near.",
-  "Almost there.",
-  "Exhale.",
-  "Feel the calm.",
-  "Tension fading.",
-  "You are safe.",
-  "Let it drift away.",
+  "Each pop releases a little weight.",
+  "You're creating space for peace.",
+  "Tension doesn't belong here.",
+  "Let the pressure float away.",
+  "Your calm is returning.",
+  "This moment is just for you.",
+  "Every release brings relief.",
+  "You deserve this stillness.",
+  "Breathe into the quiet.",
+  "Stress has no hold on you.",
+  "Peace flows through you now.",
+  "You're lighter with each one.",
+  "The heaviness is lifting.",
+  "Soften. Release. Be free.",
+  "Your peace is worth protecting.",
+  "Nothing to carry right now.",
+  "Let the worry dissolve.",
+  "You are doing beautifully.",
 ];
 
 interface BubbleData {
@@ -327,7 +330,7 @@ export default function DriftScreen() {
         
         messageTimeoutRef.current = setTimeout(() => {
           messageOpacity.value = withTiming(0, { duration: 1000 });
-        }, 5000);
+        }, 7000);
       }
       
       return newCount;
