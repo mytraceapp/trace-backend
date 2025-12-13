@@ -92,13 +92,48 @@ export async function getEntriesByGroup(group: EntryGroup): Promise<Entry[]> {
 export async function seedDemoEntriesIfEmpty(): Promise<void> {
   const entries = await listEntries();
   if (entries.length === 0) {
-    const sampleEntry: Omit<Entry, 'id' | 'createdAt'> = {
-      type: 'journal',
-      group: 'notes',
-      title: 'Feeling Heavy',
-      preview: 'sleepy sleepy',
-    };
-    await addEntry(sampleEntry);
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const twoDaysAgo = new Date(now);
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    
+    const demoEntries: Array<Omit<Entry, 'id'> & { createdAt: string }> = [
+      {
+        type: 'journal',
+        group: 'notes',
+        title: 'Feeling Calm',
+        preview: 'Had a peaceful morning meditation.',
+        createdAt: now.toISOString(),
+        meta: { mood: 'calm' },
+      },
+      {
+        type: 'journal',
+        group: 'notes',
+        title: 'Feeling Okay',
+        preview: 'A steady, manageable day.',
+        createdAt: yesterday.toISOString(),
+        meta: { mood: 'okay' },
+      },
+      {
+        type: 'journal',
+        group: 'notes',
+        title: 'Feeling Heavy',
+        preview: 'Carrying a lot today.',
+        createdAt: twoDaysAgo.toISOString(),
+        meta: { mood: 'heavy' },
+      },
+    ];
+    
+    for (const entry of demoEntries) {
+      const allEntries = await listEntries();
+      const newEntry: Entry = {
+        ...entry,
+        id: `entry_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      };
+      allEntries.unshift(newEntry);
+      await AsyncStorage.setItem(ENTRIES_STORAGE_KEY, JSON.stringify(allEntries));
+    }
   }
 }
 
