@@ -19,6 +19,7 @@ import { Audio } from 'expo-av';
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
+import { useGlobalAudio } from '../../contexts/AudioContext';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -255,6 +256,15 @@ export default function DriftScreen() {
   
   const messageOpacity = useSharedValue(0);
   const helperOpacity = useSharedValue(1);
+
+  const { pauseForActivity, resumeFromActivity } = useGlobalAudio();
+
+  useEffect(() => {
+    pauseForActivity();
+    return () => {
+      resumeFromActivity();
+    };
+  }, [pauseForActivity, resumeFromActivity]);
   
   useEffect(() => {
     const loadSound = async () => {

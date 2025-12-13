@@ -12,7 +12,7 @@ import { TraceWordmark, CardTitle, MetaText, ScreenTitle, BodyText, FontFamily }
 import { Spacing } from '../../constants/spacing';
 import { BorderRadius } from '../../constants/radius';
 import { Shadows } from '../../constants/shadows';
-import { useAmbientAudio } from '../../hooks/useAmbientAudio';
+import { useGlobalAudio } from '../../contexts/AudioContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - Spacing.screenPadding * 2 - Spacing.cardGap) / 2;
@@ -220,23 +220,14 @@ export default function ActivitiesScreen() {
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
   });
 
-  const { play, pause, isLoaded } = useAmbientAudio({
-    volume: 0.35,
-    fadeInDuration: 6000,
-    fadeOutDuration: 1500,
-    loop: true,
-    playbackRate: 0.90,
-  });
+  const { play, isLoaded } = useGlobalAudio();
 
   useFocusEffect(
     useCallback(() => {
       if (isLoaded) {
         play();
       }
-      return () => {
-        pause();
-      };
-    }, [isLoaded, play, pause])
+    }, [isLoaded, play])
   );
 
   const handleActivityPress = (activityId: string) => {

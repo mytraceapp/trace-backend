@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet, useColorScheme } from 'react-native';
 import { Colors } from '../constants/theme';
+import { AudioProvider } from '../contexts/AudioContext';
 
 export default function RootLayout() {
   const systemColorScheme = useColorScheme();
@@ -19,6 +20,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
+        <AudioProvider>
         <StatusBar style={theme === 'night' ? 'light' : 'dark'} />
         <Stack
           screenOptions={{
@@ -45,6 +47,7 @@ export default function RootLayout() {
             }} 
           />
         </Stack>
+        </AudioProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -18,7 +18,7 @@ import { Colors } from '../../constants/colors';
 import { FontFamily, TraceWordmark, ScreenTitle, BodyText } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
-import { useAmbientAudio } from '../../hooks/useAmbientAudio';
+import { useGlobalAudio } from '../../contexts/AudioContext';
 import { EntryAccordion } from '../../components/EntryAccordion';
 import { EntryPreviewCard } from '../../components/EntryPreviewCard';
 import { 
@@ -52,13 +52,7 @@ export default function EntriesScreen() {
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
   });
 
-  const { play, pause, isLoaded } = useAmbientAudio({
-    volume: 0.35,
-    fadeInDuration: 6000,
-    fadeOutDuration: 1500,
-    loop: true,
-    playbackRate: 0.90,
-  });
+  const { play, isLoaded } = useGlobalAudio();
 
   const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
@@ -84,10 +78,7 @@ export default function EntriesScreen() {
       if (isLoaded) {
         play();
       }
-      return () => {
-        pause();
-      };
-    }, [isLoaded, play, pause])
+    }, [isLoaded, play])
   );
 
   const dailyEntries = entries.filter(e => e.group === 'daily');

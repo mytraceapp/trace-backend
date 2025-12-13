@@ -15,6 +15,7 @@ import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { Shadows } from '../../constants/shadows';
 import Orb from '../../components/Orb';
+import { useGlobalAudio } from '../../contexts/AudioContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ORB_SIZE = 200;
@@ -40,6 +41,14 @@ export default function BreathingActivityScreen() {
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
 
   const orbScale = useSharedValue(1);
+  const { pauseForActivity, resumeFromActivity } = useGlobalAudio();
+
+  useEffect(() => {
+    pauseForActivity();
+    return () => {
+      resumeFromActivity();
+    };
+  }, [pauseForActivity, resumeFromActivity]);
 
   useEffect(() => {
     progressInterval.current = setInterval(() => {

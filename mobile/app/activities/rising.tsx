@@ -17,6 +17,7 @@ import Animated, {
 
 import { FontFamily } from '../../constants/typography';
 import Orb from '../../components/Orb';
+import { useGlobalAudio } from '../../contexts/AudioContext';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -36,6 +37,15 @@ export default function RisingScreen() {
 
   const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
+
+  const { pauseForActivity, resumeFromActivity } = useGlobalAudio();
+
+  useEffect(() => {
+    pauseForActivity();
+    return () => {
+      resumeFromActivity();
+    };
+  }, [pauseForActivity, resumeFromActivity]);
 
   useEffect(() => {
     sessionRef.current = setInterval(() => {
