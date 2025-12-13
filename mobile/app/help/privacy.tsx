@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
-    marginTop: 19,
+    marginTop: 11,
   },
   title: {
     fontSize: 32,
