@@ -64,6 +64,7 @@ function Bubble({
 }) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+  const [isHidden, setIsHidden] = useState(false);
   
   const isOddRow = data.row % 2 === 1;
   const baseX = OFFSET_X + data.col * (BUBBLE_SIZE + BUBBLE_GAP) + (isOddRow ? BUBBLE_SIZE / 2 : 0);
@@ -72,7 +73,9 @@ function Bubble({
   useEffect(() => {
     if (data.popped) {
       scale.value = withTiming(0.3, { duration: 150, easing: Easing.out(Easing.ease) });
-      opacity.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.ease) });
+      opacity.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.ease) }, () => {
+        runOnJS(setIsHidden)(true);
+      });
     }
   }, [data.popped]);
   
@@ -87,7 +90,7 @@ function Bubble({
     }
   };
   
-  if (data.popped && opacity.value === 0) {
+  if (isHidden) {
     return null;
   }
   
