@@ -1,13 +1,11 @@
 import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Wind, Compass, Footprints, Moon, Droplets, Hand, Activity, Sunrise, Circle } from 'lucide-react-native';
 import { useFonts } from 'expo-font';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 
-import { Colors } from '../../constants/colors';
 import { TraceWordmark, CardTitle, MetaText, ScreenTitle, BodyText, FontFamily } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { BorderRadius } from '../../constants/radius';
@@ -33,222 +31,111 @@ function RainDropIcon({ color }: { color: string }) {
 }
 
 const CARD_VARIANTS = {
-  lightOat: {
-    gradientColors: ['#F5EEE5', '#EDE5DA'] as [string, string],
-    iconBgColors: ['#E8DFD2', '#DFD5C6'] as [string, string],
+  A_cream: {
+    bgColor: '#F5EDE4',
+    borderColor: '#E5DBD0',
+    iconBgColor: '#EBE2D8',
+    titleColor: '#4A3A2A',
+    descColor: '#7A6A58',
   },
-  warmSand: {
-    gradientColors: ['#EBE2D5', '#E3D9CA'] as [string, string],
-    iconBgColors: ['#DDD3C4', '#D4C9B9'] as [string, string],
+  B_oat: {
+    bgColor: '#E6DCD0',
+    borderColor: '#D6CCC0',
+    iconBgColor: '#DCD2C6',
+    titleColor: '#4A3A2A',
+    descColor: '#7A6A58',
   },
-  softMocha: {
-    gradientColors: ['#E3D8C8', '#DBCFBE'] as [string, string],
-    iconBgColors: ['#D4C8B6', '#CBBFAD'] as [string, string],
+  C_latte: {
+    bgColor: '#D4C8B8',
+    borderColor: '#C4B8A8',
+    iconBgColor: '#CABEB0',
+    titleColor: '#4A3A2A',
+    descColor: '#6A5A48',
   },
-  mutedLatte: {
-    gradientColors: ['#DED4C5', '#D6CBBB'] as [string, string],
-    iconBgColors: ['#CFC4B4', '#C6BAAA'] as [string, string],
-  },
-  featuredEspresso: {
-    gradientColors: ['#C9BAA5', '#D4C7B4'] as [string, string],
-    iconBgColors: ['#BFB099', '#B8A891'] as [string, string],
+  D_mocha: {
+    bgColor: '#C2B4A2',
+    borderColor: '#B2A494',
+    iconBgColor: '#B8AA9A',
+    titleColor: '#5A4A3A',
+    descColor: '#786858',
   },
 };
 
+const BACKGROUND_COLOR = '#A89888';
+
+const VARIANT_KEYS = ['A_cream', 'B_oat', 'C_latte', 'D_mocha'] as const;
+type VariantKey = typeof VARIANT_KEYS[number];
+
 const ACTIVITIES = [
-  {
-    id: 'breathing',
-    title: 'Breathing',
-    description: 'A calming 30-second reset.',
-    Icon: Wind,
-    iconColor: '#5A4A3A',
-    gradientColors: CARD_VARIANTS.lightOat.gradientColors,
-    iconBgColors: CARD_VARIANTS.lightOat.iconBgColors,
-    descColor: '#8A7A68',
-    customIcon: null,
-    isFeatured: false,
-  },
-  {
-    id: 'maze',
-    title: 'Trace the Maze',
-    description: 'Slow your mind with gentle tracing.',
-    Icon: Compass,
-    iconColor: '#4A3A2A',
-    gradientColors: CARD_VARIANTS.featuredEspresso.gradientColors,
-    iconBgColors: CARD_VARIANTS.featuredEspresso.iconBgColors,
-    descColor: '#7A6A58',
-    customIcon: null,
-    isFeatured: true,
-  },
-  {
-    id: 'walking',
-    title: 'Walking Reset',
-    description: 'Two minutes of slow-paced movement.',
-    Icon: Footprints,
-    iconColor: '#5A4A3A',
-    gradientColors: CARD_VARIANTS.warmSand.gradientColors,
-    iconBgColors: CARD_VARIANTS.warmSand.iconBgColors,
-    descColor: '#8A7A68',
-    customIcon: null,
-    isFeatured: false,
-  },
-  {
-    id: 'rest',
-    title: 'Rest',
-    description: 'Five minutes of quiet stillness.',
-    Icon: Moon,
-    iconColor: '#5A4A3A',
-    gradientColors: CARD_VARIANTS.softMocha.gradientColors,
-    iconBgColors: CARD_VARIANTS.softMocha.iconBgColors,
-    descColor: '#8A7A68',
-    customIcon: null,
-    isFeatured: false,
-  },
-  {
-    id: 'ripple',
-    title: 'Ripple',
-    description: 'Immersive flowing light.',
-    Icon: Droplets,
-    iconColor: '#5A4A3A',
-    gradientColors: CARD_VARIANTS.mutedLatte.gradientColors,
-    iconBgColors: CARD_VARIANTS.mutedLatte.iconBgColors,
-    descColor: '#8A7A68',
-    customIcon: null,
-    isFeatured: false,
-  },
-  {
-    id: 'grounding',
-    title: 'Grounding',
-    description: 'Connect with your surroundings.',
-    Icon: Hand,
-    iconColor: '#5A4A3A',
-    gradientColors: CARD_VARIANTS.lightOat.gradientColors,
-    iconBgColors: CARD_VARIANTS.lightOat.iconBgColors,
-    descColor: '#8A7A68',
-    customIcon: null,
-    isFeatured: false,
-  },
-  {
-    id: 'window',
-    title: 'Window',
-    description: 'Watch the rain. Drift away.',
-    Icon: null,
-    iconColor: '#5A4A3A',
-    gradientColors: CARD_VARIANTS.warmSand.gradientColors,
-    iconBgColors: CARD_VARIANTS.warmSand.iconBgColors,
-    descColor: '#8A7A68',
-    customIcon: 'raindrop',
-    isFeatured: false,
-  },
-  {
-    id: 'echo',
-    title: 'Echo',
-    description: 'Gentle waves of calm.',
-    Icon: Activity,
-    iconColor: '#5A4A3A',
-    gradientColors: CARD_VARIANTS.softMocha.gradientColors,
-    iconBgColors: CARD_VARIANTS.softMocha.iconBgColors,
-    descColor: '#8A7A68',
-    customIcon: null,
-    isFeatured: false,
-  },
-  {
-    id: 'rising',
-    title: 'Rising',
-    description: 'Gentle energy to start fresh.',
-    Icon: Sunrise,
-    iconColor: '#5A4A3A',
-    gradientColors: CARD_VARIANTS.mutedLatte.gradientColors,
-    iconBgColors: CARD_VARIANTS.mutedLatte.iconBgColors,
-    descColor: '#8A7A68',
-    customIcon: null,
-    isFeatured: false,
-  },
-  {
-    id: 'bubble',
-    title: 'Drift',
-    description: 'Release pressure. Pop the tension.',
-    Icon: Circle,
-    iconColor: '#5A4A3A',
-    gradientColors: CARD_VARIANTS.lightOat.gradientColors,
-    iconBgColors: CARD_VARIANTS.lightOat.iconBgColors,
-    descColor: '#8A7A68',
-    customIcon: null,
-    isFeatured: false,
-  },
+  { id: 'breathing', title: 'Breathing', description: 'A calming 30-second reset.', Icon: Wind, customIcon: null },
+  { id: 'maze', title: 'Trace the Maze', description: 'Slow your mind with gentle tracing.', Icon: Compass, customIcon: null },
+  { id: 'walking', title: 'Walking Reset', description: 'Two minutes of slow-paced movement.', Icon: Footprints, customIcon: null },
+  { id: 'rest', title: 'Rest', description: 'Five minutes of quiet stillness.', Icon: Moon, customIcon: null },
+  { id: 'ripple', title: 'Ripple', description: 'Immersive flowing light.', Icon: Droplets, customIcon: null },
+  { id: 'grounding', title: 'Grounding', description: 'Connect with your surroundings.', Icon: Hand, customIcon: null },
+  { id: 'window', title: 'Window', description: 'Watch the rain. Drift away.', Icon: null, customIcon: 'raindrop' },
+  { id: 'echo', title: 'Echo', description: 'Gentle waves of calm.', Icon: Activity, customIcon: null },
+  { id: 'rising', title: 'Rising', description: 'Gentle energy to start fresh.', Icon: Sunrise, customIcon: null },
+  { id: 'bubble', title: 'Drift', description: 'Release pressure. Pop the tension.', Icon: Circle, customIcon: null },
 ];
+
+function getVariantForIndex(index: number): VariantKey {
+  return VARIANT_KEYS[index % 4];
+}
 
 type ActivityCardProps = {
   title: string;
   description: string;
   Icon: typeof Wind | null;
-  iconColor: string;
-  gradientColors: [string, string];
-  iconBgColors: [string, string];
-  descColor: string;
   customIcon?: string | null;
+  variant: VariantKey;
   onPress?: () => void;
   fontFamily: string;
-  isFeatured?: boolean;
 };
 
 function ActivityCard({ 
   title, 
   description, 
   Icon, 
-  iconColor, 
-  gradientColors, 
-  iconBgColors,
-  descColor,
   customIcon,
+  variant,
   onPress,
   fontFamily,
-  isFeatured = false,
 }: ActivityCardProps) {
+  const v = CARD_VARIANTS[variant];
+  const iconColor = '#5A4A3A';
+  
   return (
     <Pressable
       style={({ pressed }) => [
         styles.card,
-        isFeatured && styles.cardFeatured,
         { 
+          backgroundColor: v.bgColor,
+          borderColor: v.borderColor,
           opacity: pressed ? 0.95 : 1,
           transform: [{ scale: pressed ? 0.97 : 1 }],
         },
       ]}
       onPress={onPress}
     >
-      <LinearGradient
-        colors={gradientColors}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={styles.cardGradient}
-      >
+      <View style={styles.cardInner}>
         <View style={styles.cardContent}>
-          <View style={[styles.iconWrapper, { opacity: 0.85 }]}>
-            <LinearGradient
-              colors={iconBgColors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.iconContainer}
-            >
+          <View style={styles.iconWrapper}>
+            <View style={[styles.iconContainer, { backgroundColor: v.iconBgColor }]}>
               {customIcon === 'raindrop' ? (
                 <RainDropIcon color={iconColor} />
               ) : Icon ? (
                 <Icon size={20} color={iconColor} strokeWidth={1.5} />
               ) : null}
-            </LinearGradient>
+            </View>
           </View>
           
           <View style={styles.textContainer}>
-            <Text style={[
-              styles.cardTitle, 
-              { fontFamily },
-              isFeatured && styles.cardTitleFeatured,
-            ]}>{title}</Text>
-            <Text style={[styles.cardDescription, { color: descColor, fontFamily }]}>{description}</Text>
+            <Text style={[styles.cardTitle, { fontFamily, color: v.titleColor }]}>{title}</Text>
+            <Text style={[styles.cardDescription, { color: v.descColor, fontFamily }]}>{description}</Text>
           </View>
         </View>
-      </LinearGradient>
+      </View>
     </Pressable>
   );
 }
@@ -293,17 +180,7 @@ export default function ActivitiesScreen() {
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={['#E8DFD2', '#DDD3C4', '#D4C9B8']}
-        locations={[0, 0.5, 1]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      
-      <View style={[styles.vignetteOverlay, StyleSheet.absoluteFill]} pointerEvents="none" />
-
+    <View style={[styles.container, { backgroundColor: BACKGROUND_COLOR }]}>
       <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
         <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
       </View>
@@ -322,19 +199,15 @@ export default function ActivitiesScreen() {
         </View>
 
         <View style={styles.grid}>
-          {ACTIVITIES.map((activity) => (
+          {ACTIVITIES.map((activity, index) => (
             <ActivityCard
               key={activity.id}
               title={activity.title}
               description={activity.description}
               Icon={activity.Icon}
-              iconColor={activity.iconColor}
-              gradientColors={activity.gradientColors}
-              iconBgColors={activity.iconBgColors}
-              descColor={activity.descColor}
               customIcon={activity.customIcon}
+              variant={getVariantForIndex(index)}
               fontFamily={canelaFont}
-              isFeatured={activity.isFeatured}
               onPress={() => handleActivityPress(activity.id)}
             />
           ))}
@@ -357,10 +230,6 @@ export default function ActivitiesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  vignetteOverlay: {
-    backgroundColor: 'transparent',
-    opacity: 0.05,
   },
   fixedHeader: {
     position: 'absolute',
@@ -420,21 +289,14 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     borderRadius: BorderRadius.card,
     overflow: 'hidden',
-    borderWidth: 0,
-    shadowColor: '#8A7A68',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    shadowColor: '#7A6A58',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  cardFeatured: {
-    shadowColor: '#6A5A48',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  cardGradient: {
+  cardInner: {
     padding: Spacing.cardPadding,
   },
   cardContent: {
@@ -459,32 +321,28 @@ const styles = StyleSheet.create({
     fontSize: CardTitle.fontSize,
     fontWeight: CardTitle.fontWeight,
     marginBottom: 4,
-    color: '#4A3A2A',
     letterSpacing: CardTitle.letterSpacing,
-  },
-  cardTitleFeatured: {
-    color: '#3A2A1A',
   },
   cardDescription: {
     fontSize: MetaText.fontSize,
     fontWeight: MetaText.fontWeight,
     letterSpacing: MetaText.letterSpacing,
     lineHeight: MetaText.lineHeight,
-    opacity: 0.85,
   },
   patternsButton: {
     marginTop: Spacing.sectionGap,
     marginBottom: Spacing['2xl'],
     borderRadius: BorderRadius.button,
-    backgroundColor: '#C9BAA5',
-    borderWidth: 0,
+    backgroundColor: '#D4C8B8',
+    borderWidth: 1,
+    borderColor: '#C4B8A8',
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#8A7A68',
+    shadowColor: '#7A6A58',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
   patternsText: {
     fontSize: BodyText.fontSize,
