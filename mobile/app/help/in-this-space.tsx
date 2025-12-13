@@ -195,14 +195,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#3A3A3A',
+    color: '#2B2825',
     letterSpacing: 0.2,
     marginBottom: 8,
   },
   sectionBody: {
     fontSize: 15,
     fontWeight: '400',
-    color: '#6E6861',
+    color: '#8A857D',
     letterSpacing: 0.2,
     lineHeight: 22,
   },
