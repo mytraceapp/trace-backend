@@ -204,7 +204,7 @@ export default function GroundingScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#FFFFFF', '#F8F6F3', '#F0EDE8', '#E8E4DF', '#E0DCD7']}
+        colors={['#FAF8F5', '#F5F2ED', '#EDE9E3', '#E8E4DD', '#E3DFD8']}
         locations={[0, 0.25, 0.5, 0.75, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -222,7 +222,7 @@ export default function GroundingScreen() {
         onPress={handleClose}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
-        <ArrowLeft size={18} color="#A49485" strokeWidth={2} />
+        <ArrowLeft size={18} color="#8DA18F" strokeWidth={2} />
       </Pressable>
 
       <View style={[styles.timerContainer, { top: insets.top + 12 }]}>
@@ -326,18 +326,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     zIndex: 100,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: 'rgba(141, 161, 143, 0.2)',
+    shadowColor: 'rgba(0, 0, 0, 0.06)',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
-    shadowRadius: 20,
+    shadowRadius: 16,
   },
   timerContainer: {
     position: 'absolute',
@@ -365,46 +365,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
+    marginTop: -20,
   },
   numberGlow: {
     position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    opacity: 0.25,
-    top: '28%',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    opacity: 0.4,
   },
   largeNumber: {
-    fontSize: 180,
-    fontWeight: '200',
-    color: 'rgba(164, 148, 133, 0.18)',
-    letterSpacing: 4,
-    lineHeight: 200,
-    marginBottom: 32,
-    textShadowColor: 'rgba(164, 148, 133, 0.15)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 30,
+    fontSize: 160,
+    fontWeight: '100',
+    color: 'rgba(180, 170, 158, 0.22)',
+    letterSpacing: 2,
+    lineHeight: 180,
+    marginBottom: 16,
   },
   instruction: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: '300',
     color: '#8DA18F',
     textAlign: 'center',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
     lineHeight: 32,
-    marginBottom: 16,
-    maxWidth: 300,
+    marginBottom: 12,
+    maxWidth: 320,
   },
   hint: {
     fontSize: 14,
     fontWeight: '300',
-    color: '#8B7E74',
+    color: '#A49485',
     textAlign: 'center',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
     lineHeight: 22,
-    opacity: 0.8,
-    maxWidth: 280,
+    opacity: 0.85,
+    maxWidth: 300,
   },
   footer: {
     paddingHorizontal: 24,
