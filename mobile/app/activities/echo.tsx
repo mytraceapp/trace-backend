@@ -221,25 +221,14 @@ export default function EchoScreen() {
         const { sound: voice } = await Audio.Sound.createAsync(
           require('../../assets/audio/echo.mp3'),
           {
-            volume: 0,
-            rate: 0.97,
+            volume: 0.75,
+            rate: 0.98,
             shouldCorrectPitch: true,
           }
         );
         audioRef.current = voice;
         setIsVoicePlaying(true);
         await voice.playAsync();
-        
-        let voiceVol = 0;
-        const targetVol = 0.75;
-        const voiceFadeIn = setInterval(async () => {
-          voiceVol += 0.005;
-          if (voiceVol >= targetVol) {
-            voiceVol = targetVol;
-            clearInterval(voiceFadeIn);
-          }
-          await voice.setVolumeAsync(voiceVol);
-        }, 30);
         
         voice.setOnPlaybackStatusUpdate((status) => {
           if (status.isLoaded && status.didJustFinish) {
