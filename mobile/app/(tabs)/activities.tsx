@@ -336,7 +336,8 @@ const styles = StyleSheet.create({
     marginLeft: TraceWordmark.marginLeft,
     color: TraceWordmark.color,
     opacity: TraceWordmark.opacity,
-    transform: [{ translateX: TraceWordmark.translateX }],
+    paddingHorizontal: TraceWordmark.paddingHorizontal,
+    textAlign: 'center',
     ...Shadows.traceWordmark,
   },
   scrollView: {

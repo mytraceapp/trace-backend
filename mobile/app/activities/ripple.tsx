@@ -439,7 +439,8 @@ const styles = StyleSheet.create({
     marginLeft: TraceWordmark.marginLeft,
     color: '#5A4A3A',
     opacity: 0.88,
-    transform: [{ translateX: TraceWordmark.translateX }],
+    paddingHorizontal: TraceWordmark.paddingHorizontal,
+    textAlign: 'center',
     ...Shadows.traceWordmark,
   },
   countdownContainer: {
