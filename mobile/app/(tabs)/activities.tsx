@@ -221,6 +221,8 @@ export default function ActivitiesScreen() {
   const handleActivityPress = (activityId: string) => {
     if (activityId === 'bubble') {
       router.push('/activities/drift');
+    } else if (activityId === 'window') {
+      router.push('/activities/window');
     } else {
       router.push(`/activities/${activityId}`);
     }

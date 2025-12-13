@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     height: BUBBLE_SIZE - 2,
     borderRadius: (BUBBLE_SIZE - 2) / 2,
     margin: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.38)',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.75)',
     overflow: 'hidden',
