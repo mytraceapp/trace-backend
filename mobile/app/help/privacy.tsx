@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     textAlign: 'center',
     fontStyle: 'italic',
-    marginTop: 5,
+    marginTop: 8,
   },
   contentCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.55)',
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     borderRadius: 30,
     alignItems: 'center',
-    marginTop: 44,
+    marginTop: 39,
     alignSelf: 'center',
   },
   returnButtonText: {
