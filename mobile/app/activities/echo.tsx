@@ -210,7 +210,7 @@ export default function EchoScreen() {
       
       setTimeout(async () => {
         const { sound: voice } = await Audio.Sound.createAsync(
-          require('../../assets/audio/trace-echo.mp3'),
+          require('../../assets/audio/trace-echo-slow.mp3'),
           {
             volume: 0,
           }
