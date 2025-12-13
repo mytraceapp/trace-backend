@@ -152,7 +152,7 @@ export default function PrivacyScreen() {
       <View style={[styles.vignetteOverlay, StyleSheet.absoluteFill]} pointerEvents="none" />
 
       {!modalVisible && (
-        <View style={[styles.fixedHeader, { paddingTop: insets.top - 6 }]}>
+        <View style={[styles.fixedHeader, { paddingTop: insets.top - 11 }]}>
           <Pressable onPress={() => router.push('/(tabs)/chat')}>
             <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
           </Pressable>
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     textAlign: 'center',
     fontStyle: 'italic',
-    marginTop: 0,
+    marginTop: 5,
   },
   contentCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.55)',
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     borderRadius: 30,
     alignItems: 'center',
-    marginTop: 48,
+    marginTop: 44,
     alignSelf: 'center',
   },
   returnButtonText: {
