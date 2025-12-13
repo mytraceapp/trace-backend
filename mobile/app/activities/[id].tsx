@@ -8,7 +8,8 @@ import { Platform } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { Colors } from '../../constants/colors';
-import { FontFamily } from '../../constants/typography';
+import { FontFamily, TraceWordmark } from '../../constants/typography';
+import { Shadows } from '../../constants/shadows';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -257,11 +258,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   traceLabel: {
-    fontSize: 14,
-    fontWeight: '300',
-    letterSpacing: 4,
-    color: '#5A4A3A',
-    opacity: 0.7,
+    fontSize: TraceWordmark.fontSize,
+    fontWeight: TraceWordmark.fontWeight,
+    letterSpacing: TraceWordmark.letterSpacing,
+    marginLeft: TraceWordmark.marginLeft,
+    color: TraceWordmark.color,
+    opacity: TraceWordmark.opacity,
+    transform: [{ translateX: TraceWordmark.translateX }],
+    ...Shadows.traceWordmark,
   },
   placeholder: {
     width: 44,
