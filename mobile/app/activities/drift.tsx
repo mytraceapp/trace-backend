@@ -251,14 +251,36 @@ export default function DriftScreen() {
   const TAB_BAR_HEIGHT = 60;
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
 
+  const gridLines = [];
+  for (let i = 0; i <= COLS; i++) {
+    gridLines.push(
+      <View 
+        key={`v-${i}`} 
+        style={[
+          styles.gridLineVertical, 
+          { left: i * BUBBLE_SIZE - BUBBLE_SIZE / 2 }
+        ]} 
+      />
+    );
+  }
+  for (let i = 0; i <= ROWS; i++) {
+    gridLines.push(
+      <View 
+        key={`h-${i}`} 
+        style={[
+          styles.gridLineHorizontal, 
+          { top: i * BUBBLE_SIZE - BUBBLE_SIZE / 2 }
+        ]} 
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.background} />
-
-      <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
-        <Pressable onPress={handleTracePress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
-        </Pressable>
+      
+      <View style={styles.gridContainer}>
+        {gridLines}
       </View>
 
       <Animated.View style={[styles.messageContainer, messageStyle]} pointerEvents="none">
@@ -286,6 +308,12 @@ export default function DriftScreen() {
         ))}
       </View>
 
+      <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
+        <Pressable onPress={handleTracePress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
+        </Pressable>
+      </View>
+
       <View style={[styles.endButtonContainer, { bottom: TAB_BAR_HEIGHT + bottomPadding + 30 }]}>
         <Pressable
           style={({ pressed }) => [
@@ -311,6 +339,24 @@ const styles = StyleSheet.create({
   background: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: BACKGROUND_COLOR,
+  },
+  gridContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
+  gridLineVertical: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: 'rgba(200, 188, 170, 0.5)',
+  },
+  gridLineHorizontal: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(200, 188, 170, 0.5)',
   },
   fixedHeader: {
     position: 'absolute',
@@ -376,7 +422,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 50,
+    zIndex: 2,
   },
   messageText: {
     fontSize: 32,
@@ -394,7 +440,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 200,
+    zIndex: 2,
   },
   helperText: {
     fontSize: 16,
@@ -409,7 +455,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 50,
+    zIndex: 100,
   },
   endButton: {
     paddingHorizontal: 32,
