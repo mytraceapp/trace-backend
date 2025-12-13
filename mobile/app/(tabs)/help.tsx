@@ -179,17 +179,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: ScreenTitle.fontSize,
     fontWeight: ScreenTitle.fontWeight,
-    marginBottom: 8,
+    marginBottom: 6,
     color: ScreenTitle.color,
     letterSpacing: ScreenTitle.letterSpacing,
   },
   subtitle: {
-    fontSize: BodyText.fontSize,
+    fontSize: 14,
     fontWeight: BodyText.fontWeight,
     color: Colors.day.textSecondary,
     letterSpacing: BodyText.letterSpacing,
     textAlign: 'center',
-    width: '100%',
   },
   cardsContainer: {
     gap: 0,
