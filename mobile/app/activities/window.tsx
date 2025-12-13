@@ -190,7 +190,7 @@ export default function WindowScreen() {
         nightOpacity.value = withTiming(0, { duration: 800, easing: Easing.inOut(Easing.ease) });
       }
       
-      setToast(newMode ? "Night mode" : "Day mode");
+      setToast(newMode ? "Quiet visuals on" : "Back to normal mode");
       toastOpacity.value = withTiming(1, { duration: 300 });
       setTimeout(() => {
         toastOpacity.value = withTiming(0, { duration: 400 });
