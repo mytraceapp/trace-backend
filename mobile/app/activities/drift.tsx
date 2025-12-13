@@ -369,6 +369,13 @@ export default function DriftScreen() {
     router.replace('/(tabs)/chat');
   };
 
+  const handleEndSession = () => {
+    router.replace('/(tabs)/chat');
+  };
+
+  const TAB_BAR_HEIGHT = 60;
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
+
   return (
     <View style={styles.container}>
       <View style={styles.background} />
@@ -414,6 +421,20 @@ export default function DriftScreen() {
           onComplete={() => removeHalo(halo.id)}
         />
       ))}
+
+      <View style={[styles.endButtonContainer, { bottom: TAB_BAR_HEIGHT + bottomPadding + 30 }]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.endButton,
+            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+          ]}
+          onPress={handleEndSession}
+        >
+          <Text style={[styles.endButtonText, { fontFamily: canelaFont }]}>
+            End Session
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -569,5 +590,30 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(255, 255, 255, 0.6)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+  },
+  endButtonContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 5,
+  },
+  endButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 32,
+  },
+  endButtonText: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: 'rgba(100, 85, 70, 0.85)',
+    letterSpacing: 1.5,
   },
 });
