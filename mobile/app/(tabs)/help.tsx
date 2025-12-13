@@ -171,10 +171,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screenPadding,
   },
   header: {
-    marginBottom: Spacing.sectionGap,
+    marginBottom: 12,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
-    marginTop: -6,
+    marginTop: 4,
   },
   title: {
     fontSize: ScreenTitle.fontSize,
@@ -196,13 +196,13 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: 'rgba(210, 195, 175, 0.55)',
     borderRadius: 16,
-    paddingVertical: 22,
-    paddingHorizontal: 20,
+    paddingVertical: 26,
+    paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   cardIconContainer: {
     width: 52,
