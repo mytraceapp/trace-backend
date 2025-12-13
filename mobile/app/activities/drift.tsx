@@ -474,6 +474,7 @@ const styles = StyleSheet.create({
     marginLeft: TraceWordmark.marginLeft,
     color: TraceWordmark.color,
     opacity: TraceWordmark.opacity,
+    transform: [{ translateX: TraceWordmark.translateX }],
     ...Shadows.traceWordmark,
   },
   bubblesContainer: {
@@ -596,7 +597,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 100,
+    zIndex: 5,
   },
   endButton: {
     paddingHorizontal: 32,

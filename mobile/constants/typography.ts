@@ -21,6 +21,7 @@ export const TraceWordmark = {
   fontWeight: FontWeight.light,
   letterSpacing: 14,
   marginLeft: 0,
+  translateX: 7,
   color: '#5A4A3A',
   opacity: 0.88,
   textShadowColor: 'rgba(90, 74, 58, 0.45)',

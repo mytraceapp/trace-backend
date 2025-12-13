@@ -202,6 +202,7 @@ const styles = StyleSheet.create({
     marginLeft: TraceWordmark.marginLeft,
     color: TraceWordmark.color,
     opacity: TraceWordmark.opacity,
+    transform: [{ translateX: TraceWordmark.translateX }],
     ...Shadows.traceWordmark,
   },
   scrollView: {

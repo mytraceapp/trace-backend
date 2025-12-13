@@ -173,6 +173,7 @@ const styles = StyleSheet.create({
     marginLeft: TraceWordmark.marginLeft,
     color: '#EDE8DB',
     opacity: 0.7,
+    transform: [{ translateX: TraceWordmark.translateX }],
     ...Shadows.traceWordmark,
   },
   orbContainer: {
