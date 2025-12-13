@@ -214,16 +214,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 16,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
   },
   title: {
-    fontSize: ScreenTitle.fontSize,
-    fontWeight: ScreenTitle.fontWeight,
+    fontSize: 32,
+    fontWeight: '400',
     marginBottom: 4,
-    color: ScreenTitle.color,
-    letterSpacing: ScreenTitle.letterSpacing,
+    color: '#3A3A3A',
+    letterSpacing: 0.3,
     textAlign: 'center',
   },
   subtitle: {
