@@ -145,12 +145,11 @@ export default function EchoScreen() {
           SCREEN_WIDTH, centerY, 36 * breathLFO * voiceEnergy3, 2.5, voicePhase + 0.3, 30
         ));
         
-        const pulse = Math.sin(elapsed * 0.004) * 0.10;
-        const fastPulse = Math.sin(elapsed * 0.012) * 0.05;
-        const newScale = 1 + pulse + fastPulse;
+        const pulse = Math.sin(elapsed * 0.003) * 0.04;
+        const newScale = 1 + pulse;
         orbScale.value = newScale;
         setOrbScaleState(newScale);
-        orbGlow.value = 0.30 + Math.sin(elapsed * 0.006) * 0.14;
+        orbGlow.value = 0.26 + Math.sin(elapsed * 0.004) * 0.08;
       } else {
         setWave1Path(generateSmoothWavePath(
           SCREEN_WIDTH, centerY, 30 * breathLFO, 2.5, phase + 0.7, -35
