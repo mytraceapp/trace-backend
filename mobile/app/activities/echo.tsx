@@ -38,7 +38,7 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedG = Animated.createAnimatedComponent(G);
 
-function generateWavePath(
+function generateSmoothWavePath(
   width: number,
   centerY: number,
   amplitude: number,
@@ -46,31 +46,44 @@ function generateWavePath(
   phase: number,
   yOffset: number
 ): string {
-  const points: string[] = [];
-  const segments = 60;
+  const segments = 100;
+  const points: { x: number; y: number }[] = [];
   
   for (let i = 0; i <= segments; i++) {
     const x = (i / segments) * width;
     const normalizedX = i / segments;
     
     const baseWave = Math.sin(normalizedX * Math.PI * frequency + phase);
-    const midWave = Math.sin(normalizedX * Math.PI * (frequency + 2) + phase * 1.3) * 0.35;
-    const highWave = Math.sin(normalizedX * Math.PI * (frequency + 5) + phase * 0.8) * 0.15;
-    const sharpness = Math.abs(Math.sin(normalizedX * Math.PI * 4 + phase * 0.5)) * 0.18;
+    const secondWave = Math.sin(normalizedX * Math.PI * (frequency * 1.5) + phase * 1.2) * 0.3;
     
     const envelope = Math.sin(normalizedX * Math.PI);
-    const waveHeight = (baseWave + midWave + highWave + sharpness) * amplitude * envelope;
+    const waveHeight = (baseWave + secondWave) * amplitude * envelope;
     
     const y = centerY + yOffset + waveHeight;
-    
-    if (i === 0) {
-      points.push(`M ${x} ${y}`);
-    } else {
-      points.push(`L ${x} ${y}`);
-    }
+    points.push({ x, y });
   }
   
-  return points.join(' ');
+  if (points.length < 2) return '';
+  
+  let path = `M ${points[0].x} ${points[0].y}`;
+  
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+    
+    const cp1x = prev.x + (curr.x - prev.x) * 0.5;
+    const cp1y = prev.y + (curr.y - prev.y) * 0.5;
+    const cp2x = curr.x - (next.x - prev.x) * 0.15;
+    const cp2y = curr.y - (next.y - prev.y) * 0.15;
+    
+    path += ` Q ${cp1x} ${cp1y} ${curr.x} ${curr.y}`;
+  }
+  
+  const last = points[points.length - 1];
+  path += ` L ${last.x} ${last.y}`;
+  
+  return path;
 }
 
 export default function EchoScreen() {
@@ -102,6 +115,7 @@ export default function EchoScreen() {
   const [wave1Path, setWave1Path] = useState('');
   const [wave2Path, setWave2Path] = useState('');
   const [wave3Path, setWave3Path] = useState('');
+  const [orbScaleState, setOrbScaleState] = useState(1);
   
   const centerY = SCREEN_HEIGHT / 2 - 40;
 
@@ -111,44 +125,47 @@ export default function EchoScreen() {
     
     const animate = () => {
       const elapsed = Date.now() - startTime;
-      const phase = elapsed * 0.0002;
+      const phase = elapsed * 0.0003;
       
-      const breathLFO = Math.sin(elapsed * 0.00045) * 0.12 + 1;
+      const breathLFO = Math.sin(elapsed * 0.0006) * 0.15 + 1;
       
       if (isVoicePlayingRef.current) {
-        const voicePhase = elapsed * 0.0008;
-        const voiceEnergy1 = Math.sin(elapsed * 0.006) * 0.4 + Math.sin(elapsed * 0.015) * 0.25 + 1;
-        const voiceEnergy2 = Math.sin(elapsed * 0.008) * 0.35 + Math.sin(elapsed * 0.012) * 0.3 + 1;
-        const voiceEnergy3 = Math.sin(elapsed * 0.005) * 0.3 + Math.sin(elapsed * 0.018) * 0.2 + 1;
+        const voicePhase = elapsed * 0.002;
+        const voiceEnergy1 = Math.sin(elapsed * 0.004) * 0.5 + Math.sin(elapsed * 0.011) * 0.3 + 1;
+        const voiceEnergy2 = Math.sin(elapsed * 0.005) * 0.45 + Math.sin(elapsed * 0.009) * 0.35 + 1;
+        const voiceEnergy3 = Math.sin(elapsed * 0.003) * 0.4 + Math.sin(elapsed * 0.013) * 0.25 + 1;
         
-        setWave1Path(generateWavePath(
-          SCREEN_WIDTH, centerY, 75 * breathLFO * voiceEnergy1, 3, voicePhase + 0.7, -30
+        setWave1Path(generateSmoothWavePath(
+          SCREEN_WIDTH, centerY, 50 * breathLFO * voiceEnergy1, 2.5, voicePhase + 0.7, -35
         ));
-        setWave2Path(generateWavePath(
-          SCREEN_WIDTH, centerY, 95 * breathLFO * voiceEnergy2, 3, voicePhase + 0.5, 0
+        setWave2Path(generateSmoothWavePath(
+          SCREEN_WIDTH, centerY, 65 * breathLFO * voiceEnergy2, 2.5, voicePhase + 0.5, 0
         ));
-        setWave3Path(generateWavePath(
-          SCREEN_WIDTH, centerY, 65 * breathLFO * voiceEnergy3, 3, voicePhase + 0.3, 25
+        setWave3Path(generateSmoothWavePath(
+          SCREEN_WIDTH, centerY, 45 * breathLFO * voiceEnergy3, 2.5, voicePhase + 0.3, 30
         ));
         
-        const vibrate = Math.sin(elapsed * 0.025) * 0.015;
-        const pulse = Math.sin(elapsed * 0.008) * 0.03;
-        orbScale.value = 1 + Math.sin(elapsed * 0.0003) * 0.08 + vibrate + pulse;
-        orbGlow.value = 0.28 + Math.sin(elapsed * 0.012) * 0.15 + Math.sin(elapsed * 0.035) * 0.08;
+        const pulse = Math.sin(elapsed * 0.006) * 0.15;
+        const fastPulse = Math.sin(elapsed * 0.018) * 0.08;
+        const newScale = 1 + pulse + fastPulse;
+        orbScale.value = newScale;
+        setOrbScaleState(newScale);
+        orbGlow.value = 0.35 + Math.sin(elapsed * 0.008) * 0.2;
       } else {
-        setWave1Path(generateWavePath(
-          SCREEN_WIDTH, centerY, 55 * breathLFO, 3, phase + 0.7, -30
+        setWave1Path(generateSmoothWavePath(
+          SCREEN_WIDTH, centerY, 30 * breathLFO, 2.5, phase + 0.7, -35
         ));
-        setWave2Path(generateWavePath(
-          SCREEN_WIDTH, centerY, 70 * breathLFO, 3, phase + 0.5, 0
+        setWave2Path(generateSmoothWavePath(
+          SCREEN_WIDTH, centerY, 40 * breathLFO, 2.5, phase + 0.5, 0
         ));
-        setWave3Path(generateWavePath(
-          SCREEN_WIDTH, centerY, 50 * breathLFO, 3, phase + 0.3, 25
+        setWave3Path(generateSmoothWavePath(
+          SCREEN_WIDTH, centerY, 25 * breathLFO, 2.5, phase + 0.3, 30
         ));
         
-        const orbBreath = 1 + Math.sin(elapsed * 0.0003) * 0.08;
+        const orbBreath = 1 + Math.sin(elapsed * 0.001) * 0.06;
         orbScale.value = orbBreath;
-        orbGlow.value = 0.22 + Math.sin(elapsed * 0.0004) * 0.1;
+        setOrbScaleState(orbBreath);
+        orbGlow.value = 0.22 + Math.sin(elapsed * 0.0008) * 0.08;
       }
       
       animationId = requestAnimationFrame(animate);
@@ -196,8 +213,6 @@ export default function EchoScreen() {
           require('../../assets/audio/trace-echo.mp3'),
           {
             volume: 0,
-            rate: 0.95,
-            shouldCorrectPitch: true,
           }
         );
         audioRef.current = voice;
@@ -332,13 +347,13 @@ export default function EchoScreen() {
         <Circle
           cx={SCREEN_WIDTH / 2}
           cy={centerY}
-          r={Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35}
+          r={Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35 * orbScaleState}
           fill="url(#orbGradient)"
         />
         <Circle
           cx={SCREEN_WIDTH / 2}
           cy={centerY}
-          r={Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.21}
+          r={Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.21 * orbScaleState}
           fill="url(#innerGlow)"
         />
 
