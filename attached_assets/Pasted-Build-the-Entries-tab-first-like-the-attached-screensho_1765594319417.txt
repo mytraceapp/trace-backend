@@ -1,0 +1,81 @@
+Build the “Entries” tab first (like the attached screenshot) inside /mobile only.
+
+HARD RULES
+1) Only create/edit files inside /mobile. Treat the web app as read-only.
+2) Keep the existing tab bar styling as-is.
+3) Match the visual hierarchy of the screenshot: TRACE at top, “Your Entries”, count line, two expandable cards, and a bottom “Journal” button.
+
+UI SPEC (MATCH SCREENSHOT)
+Header:
+- Top center: TRACE wordmark (Alore font if already configured). Make TRACE tappable → navigate to Chat/Home route.
+- Big title: “Your Entries”
+- Subtext: “{N} entries saved”
+
+Accordion Groups (two cards):
+1) “Daily sessions”
+   - Icon container on left (soft circle)
+   - Title “Daily sessions”
+   - Subtext “{count} entries”
+   - Chevron down/up on right
+   - Collapsed by default
+
+2) “Emotional notes”
+   - Same layout
+   - Expanded by default (so we can see one entry preview like screenshot)
+   - When expanded: show a single entry preview card:
+     - Title: “Feeling Heavy”
+     - Preview line: “sleepy sleepy”
+     - Timestamp line: “6 days ago · 12:12 AM”
+     - Right arrow to open detail
+
+Bottom CTA:
+- Large rounded button “Journal” floating above tab bar (like screenshot)
+- Tap → navigate to a new screen /mobile/app/journal/new.tsx (create placeholder screen for now with title “New Entry” and a multiline TextInput)
+
+INTERACTIONS
+- Accordion open/close should animate (LayoutAnimation or Reanimated if already installed; otherwise simple state change is fine).
+- Only ONE accordion open at a time (opening one closes the other).
+- Add light haptic on open/close and on “Journal” tap (expo-haptics; if not installed, install it).
+
+DATA + LOGGING (FOUNDATION)
+Create a local entry store (AsyncStorage-based) so activities and journals can both appear here without Supabase yet.
+
+Create:
+- /mobile/lib/entries.ts
+  - type Entry = { id, type: 'activity'|'journal', group: 'daily'|'notes', title, preview?, createdAt, meta? }
+  - functions:
+    - listEntries(): Promise<Entry[]>
+    - addEntry(entry): Promise<void>
+    - seedDemoEntriesIfEmpty(): Promise<void>  // add 112 daily + 1 emotional sample counts OR fake counts without storing 112 rows
+Important: do NOT actually store 112 items; instead:
+- store real entries array
+- show “112 entries” as a computed display count using:
+   (realDailyCount + demoOffsetDaily)
+   (realNotesCount + demoOffsetNotes)
+Use demo offsets so UI matches screenshot but storage stays light.
+
+Add placeholder “Activity logging hook”:
+- /mobile/lib/logActivity.ts with function logActivitySession(activityName, durationSeconds, optionalSummary)
+  - writes an Entry into group 'daily' with title like “Breathing” and preview like “30 seconds”
+Later we will call this from activities.
+
+FILES TO CREATE/EDIT
+- /mobile/app/(tabs)/entries.tsx   (or wherever your tab routes live) — implement full UI
+- /mobile/components/EntryAccordion.tsx
+- /mobile/components/EntryPreviewCard.tsx
+- /mobile/lib/entries.ts
+- /mobile/lib/logActivity.ts
+- /mobile/app/journal/new.tsx (simple placeholder New Entry screen with multiline input + Save button that writes a ‘journal’ Entry into group 'notes' then navigates back to Entries)
+
+DESIGN TOKENS
+- Use same background color/gradient as other activity screens.
+- Cards: soft cream with subtle shadow, large radius.
+- Typography: Canela/serif family used elsewhere; TRACE wordmark stays Alore.
+
+OUTPUT DISCIPLINE
+After you finish, report ONLY:
+- exact /mobile file paths created/edited
+- the route names
+- how to test in Expo Go (what tab to tap, what to press)
+
+Do not modify the tab bar component or styling; Entries should inherit it.
