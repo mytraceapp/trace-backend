@@ -14,10 +14,57 @@ import { Video, ResizeMode, Audio, AVPlaybackStatus } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Slider from '@react-native-community/slider';
+import Svg, { Path } from 'react-native-svg';
 
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
+
+function RaindropIcon({ size = 24, color = 'rgba(255, 255, 255, 0.65)' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size * 1.4} viewBox="0 0 24 34" fill="none">
+      <Path
+        d="M12 2C12 2 3 14 3 21C3 26.5228 7.02944 31 12 31C16.9706 31 21 26.5228 21 21C21 14 12 2 12 2Z"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </Svg>
+  );
+}
+
+function VolumeIcon({ volume, color = 'rgba(255, 255, 255, 0.55)' }: { volume: number; color?: string }) {
+  return (
+    <Svg width={20} height={16} viewBox="0 0 20 16" fill="none">
+      <Path
+        d="M2 5.5V10.5H5L10 14.5V1.5L5 5.5H2Z"
+        stroke={color}
+        strokeWidth={1.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      {volume > 0.01 && (
+        <Path
+          d="M13 5.5C13.5 6.5 13.5 9.5 13 10.5"
+          stroke="rgba(255, 255, 255, 0.45)"
+          strokeWidth={1.2}
+          strokeLinecap="round"
+        />
+      )}
+      {volume > 0.4 && (
+        <Path
+          d="M15.5 3C17 5 17 11 15.5 13"
+          stroke="rgba(255, 255, 255, 0.35)"
+          strokeWidth={1.2}
+          strokeLinecap="round"
+        />
+      )}
+    </Svg>
+  );
+}
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -224,8 +271,8 @@ export default function WindowScreen() {
 
       {introVisible && (
         <Animated.View style={[styles.introContainer, introStyle]} pointerEvents="none">
-          <View style={styles.dropletIcon}>
-            <View style={styles.droplet} />
+          <View style={styles.iconContainer}>
+            <RaindropIcon size={22} />
           </View>
           <Text style={[styles.introTitle, { fontFamily: canelaFont }]}>WINDOW</Text>
           <Text style={[styles.introSubtitle, { fontFamily: canelaFont }]}>
@@ -240,11 +287,8 @@ export default function WindowScreen() {
         </Pressable>
 
         <View style={styles.volumeContainer}>
-          <View style={styles.volumeIconWrapper}>
-            <View style={styles.speakerBody} />
-            <View style={styles.speakerCone} />
-            {volume > 0.01 && <View style={styles.soundWave1} />}
-            {volume > 0.4 && <View style={styles.soundWave2} />}
+          <View style={styles.volumeIconContainer}>
+            <VolumeIcon volume={volume} />
           </View>
           <Slider
             style={styles.slider}
@@ -342,22 +386,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 20,
   },
-  dropletIcon: {
-    width: 32,
-    height: 32,
-    marginBottom: 6,
+  iconContainer: {
+    marginBottom: 8,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  droplet: {
-    width: 18,
-    height: 24,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.65)',
-    borderRadius: 50,
-    borderTopLeftRadius: 1,
-    borderTopRightRadius: 1,
-    transform: [{ rotate: '180deg' }],
   },
   introTitle: {
     color: 'rgba(255, 255, 255, 0.75)',
@@ -421,47 +453,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  volumeIconWrapper: {
-    width: 20,
-    height: 16,
+  volumeIconContainer: {
     marginRight: 10,
-    flexDirection: 'row',
     alignItems: 'center',
-  },
-  speakerBody: {
-    width: 5,
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    borderRadius: 1,
-  },
-  speakerCone: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 5,
-    borderLeftColor: 'rgba(255, 255, 255, 0.55)',
-    borderTopWidth: 5,
-    borderTopColor: 'transparent',
-    borderBottomWidth: 5,
-    borderBottomColor: 'transparent',
-    marginLeft: -1,
-  },
-  soundWave1: {
-    width: 4,
-    height: 8,
-    borderRadius: 4,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.45)',
-    borderLeftWidth: 0,
-    marginLeft: 3,
-  },
-  soundWave2: {
-    width: 4,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    borderLeftWidth: 0,
-    marginLeft: 1,
+    justifyContent: 'center',
   },
   slider: {
     width: 100,
