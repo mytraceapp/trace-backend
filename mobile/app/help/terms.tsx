@@ -116,7 +116,7 @@ export default function TermsScreen() {
             <Text style={[styles.linkText, { fontFamily: canelaFont }]}>Open Terms of Use</Text>
           </Pressable>
 
-          <Pressable onPress={() => setSafetyModalVisible(true)} style={[styles.linkContainer, { marginTop: 16 }]}>
+          <Pressable onPress={() => setSafetyModalVisible(true)} style={[styles.linkContainer, { marginTop: 24 }]}>
             <Text style={[styles.linkText, { fontFamily: canelaFont }]}>Open Safety Commitment</Text>
           </Pressable>
         </View>
@@ -453,8 +453,8 @@ const styles = StyleSheet.create({
   contentCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.55)',
     borderRadius: 24,
-    paddingVertical: 32,
-    paddingHorizontal: 28,
+    paddingVertical: 40,
+    paddingHorizontal: 32,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
     ...Shadows.card,
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   linkContainer: {
-    marginTop: 28,
+    marginTop: 36,
     alignItems: 'flex-start',
   },
   linkText: {
