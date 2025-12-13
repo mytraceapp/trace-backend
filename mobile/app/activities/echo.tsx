@@ -22,19 +22,42 @@ const LUNA_PALETTE = {
   fogWhite: '#e8e4dc',
 };
 
-function generateSmoothArcPath(
+function generateFlowingWavePath(
   width: number,
   centerY: number,
   amplitude: number,
+  phase: number,
   yOffset: number
 ): string {
-  const startX = 0;
-  const endX = width;
-  const midX = width / 2;
-  const peakY = centerY + yOffset - amplitude;
-  const baseY = centerY + yOffset;
+  const points: { x: number; y: number }[] = [];
+  const segments = 60;
   
-  return `M ${startX} ${baseY} Q ${midX} ${peakY} ${endX} ${baseY}`;
+  for (let i = 0; i <= segments; i++) {
+    const x = (i / segments) * width;
+    const normalizedX = i / segments;
+    
+    const envelope = Math.sin(normalizedX * Math.PI);
+    const wave = Math.sin(normalizedX * Math.PI * 2 + phase);
+    const y = centerY + yOffset + wave * amplitude * envelope;
+    
+    points.push({ x, y });
+  }
+  
+  if (points.length < 2) return '';
+  
+  let path = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    
+    const cpX = (prev.x + curr.x) / 2;
+    const cpY = prev.y;
+    
+    path += ` Q ${cpX.toFixed(1)} ${cpY.toFixed(1)} ${curr.x.toFixed(1)} ${curr.y.toFixed(1)}`;
+  }
+  
+  return path;
 }
 
 export default function EchoScreen() {
@@ -54,6 +77,7 @@ export default function EchoScreen() {
   const [isVoicePlaying, setIsVoicePlaying] = useState(false);
   const isVoicePlayingRef = useRef(false);
   const voiceEnergyRef = useRef(0);
+  const phaseRef = useRef(0);
   
   useEffect(() => {
     isVoicePlayingRef.current = isVoicePlaying;
@@ -74,39 +98,37 @@ export default function EchoScreen() {
 
   useEffect(() => {
     let animationId: number;
-    let startTime = Date.now();
+    let lastTime = Date.now();
     
     const animate = () => {
-      const elapsed = Date.now() - startTime;
+      const now = Date.now();
+      const delta = now - lastTime;
+      lastTime = now;
       
-      const breathCycle = Math.sin(elapsed * 0.0008) * 0.5 + 0.5;
-      
-      let targetEnergy = 0;
       if (isVoicePlayingRef.current) {
-        const voiceBreath = Math.sin(elapsed * 0.002) * 0.3 + 0.7;
-        const voicePulse = Math.sin(elapsed * 0.004) * 0.15;
-        targetEnergy = voiceBreath + voicePulse;
+        phaseRef.current += delta * 0.003;
+        
+        const voiceModulation = Math.sin(now * 0.002) * 0.4 + 0.6;
+        const targetEnergy = 0.8 + voiceModulation * 0.4;
+        voiceEnergyRef.current += (targetEnergy - voiceEnergyRef.current) * 0.1;
+      } else {
+        phaseRef.current += delta * 0.001;
+        voiceEnergyRef.current += (0.3 - voiceEnergyRef.current) * 0.05;
       }
       
-      voiceEnergyRef.current += (targetEnergy - voiceEnergyRef.current) * 0.08;
       const energy = voiceEnergyRef.current;
+      const phase = phaseRef.current;
       
-      const baseAmplitude1 = 25 + breathCycle * 10;
-      const baseAmplitude2 = 35 + breathCycle * 12;
-      const baseAmplitude3 = 20 + breathCycle * 8;
+      const amp1 = 30 * energy;
+      const amp2 = 45 * energy;
+      const amp3 = 25 * energy;
       
-      const voiceBoost = energy * 25;
+      setWave1Path(generateFlowingWavePath(SCREEN_WIDTH, centerY, amp1, phase + 1.0, -35));
+      setWave2Path(generateFlowingWavePath(SCREEN_WIDTH, centerY, amp2, phase, 0));
+      setWave3Path(generateFlowingWavePath(SCREEN_WIDTH, centerY, amp3, phase - 0.8, 30));
       
-      const amp1 = baseAmplitude1 + voiceBoost * 0.8;
-      const amp2 = baseAmplitude2 + voiceBoost;
-      const amp3 = baseAmplitude3 + voiceBoost * 0.6;
-      
-      setWave1Path(generateSmoothArcPath(SCREEN_WIDTH, centerY, amp1, -30));
-      setWave2Path(generateSmoothArcPath(SCREEN_WIDTH, centerY, amp2, 0));
-      setWave3Path(generateSmoothArcPath(SCREEN_WIDTH, centerY, amp3, 25));
-      
-      const orbBreath = 1 + breathCycle * 0.04 + energy * 0.06;
-      setOrbScaleState(orbBreath);
+      const orbPulse = 1 + energy * 0.08 + Math.sin(phase * 0.5) * 0.03;
+      setOrbScaleState(orbPulse);
       
       animationId = requestAnimationFrame(animate);
     };
@@ -142,13 +164,13 @@ export default function EchoScreen() {
         let vol = 0;
         const targetVol = 0.85;
         const fadeIn = setInterval(async () => {
-          vol += 0.008;
+          vol += 0.01;
           if (vol >= targetVol) {
             vol = targetVol;
             clearInterval(fadeIn);
           }
           await voice.setVolumeAsync(vol);
-        }, 40);
+        }, 50);
         
         voice.setOnPlaybackStatusUpdate((status) => {
           if (status.isLoaded && status.didJustFinish) {
