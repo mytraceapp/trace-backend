@@ -14,6 +14,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
 
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
@@ -246,12 +247,33 @@ export default function DriftScreen() {
   const [showHelper, setShowHelper] = useState(true);
   const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageIndexRef = useRef(-1);
+  const soundRef = useRef<Audio.Sound | null>(null);
   
   const messageOpacity = useSharedValue(0);
   const helperOpacity = useSharedValue(1);
   
+  useEffect(() => {
+    const loadSound = async () => {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../assets/sounds/pop.mp3')
+      );
+      soundRef.current = sound;
+    };
+    loadSound();
+    return () => {
+      soundRef.current?.unloadAsync();
+    };
+  }, []);
+
+  const playPopSound = async () => {
+    if (soundRef.current) {
+      await soundRef.current.replayAsync();
+    }
+  };
+  
   const handlePop = useCallback((id: string, x: number, y: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    playPopSound();
     
     const poppedBubble = bubbles.find(b => b.id === id);
     if (!poppedBubble) return;
@@ -260,25 +282,24 @@ export default function DriftScreen() {
       b.id === id ? { ...b, popped: true } : b
     ));
     
-    const bubblesAbove = bubbles.filter(b => 
+    const bubbleDirectlyAbove = bubbles.find(b => 
       !b.popped && 
-      b.row < poppedBubble.row &&
-      Math.abs(b.col - poppedBubble.col) <= 1
+      b.row === poppedBubble.row - 1 &&
+      b.col === poppedBubble.col
     );
     
-    const ROW_HEIGHT = BUBBLE_SIZE * 0.866;
-    const newOffsets = { ...bubbleOffsets };
-    const newDelays = { ...bubbleDelays };
-    
-    bubblesAbove.forEach(b => {
-      const currentOffset = newOffsets[b.id] || 0;
-      newOffsets[b.id] = currentOffset + ROW_HEIGHT;
-      const rowDistance = poppedBubble.row - b.row;
-      newDelays[b.id] = rowDistance * 40;
-    });
-    
-    setBubbleOffsets(newOffsets);
-    setBubbleDelays(newDelays);
+    if (bubbleDirectlyAbove) {
+      const ROW_HEIGHT = BUBBLE_SIZE * 0.866;
+      const newOffsets = { ...bubbleOffsets };
+      const newDelays = { ...bubbleDelays };
+      
+      const currentOffset = newOffsets[bubbleDirectlyAbove.id] || 0;
+      newOffsets[bubbleDirectlyAbove.id] = currentOffset + ROW_HEIGHT;
+      newDelays[bubbleDirectlyAbove.id] = 50;
+      
+      setBubbleOffsets(newOffsets);
+      setBubbleDelays(newDelays);
+    }
     
     setHalos(prev => [...prev, { id: `halo-${Date.now()}`, x, y }]);
     
