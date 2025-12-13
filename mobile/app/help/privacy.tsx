@@ -450,15 +450,15 @@ const styles = StyleSheet.create({
   contentCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.55)',
     borderRadius: 24,
-    paddingVertical: 36,
+    paddingVertical: 48,
     paddingHorizontal: 36,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
     ...Shadows.card,
   },
   section: {
-    marginBottom: 36,
-    paddingBottom: 28,
+    marginBottom: 44,
+    paddingBottom: 36,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(180, 170, 155, 0.25)',
   },
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   linkContainer: {
-    marginTop: 24,
+    marginTop: 36,
     alignItems: 'flex-start',
   },
   linkText: {
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     borderRadius: 30,
     alignItems: 'center',
-    marginTop: 28,
+    marginTop: 48,
     alignSelf: 'center',
   },
   returnButtonText: {
