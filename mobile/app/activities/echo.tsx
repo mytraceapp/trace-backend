@@ -168,7 +168,7 @@ export default function EchoScreen() {
           require('../../assets/audio/trace-echo.mp3'),
           {
             volume: 0,
-            rate: 1.0,
+            rate: 0.90,
             shouldCorrectPitch: true,
           }
         );
@@ -176,14 +176,17 @@ export default function EchoScreen() {
         await voice.playAsync();
         
         let voiceVol = 0;
+        const targetVol = 0.85;
+        const fadeSteps = 80;
+        const fadeInterval = 40;
         const voiceFadeIn = setInterval(async () => {
-          voiceVol += 0.01;
-          if (voiceVol >= 0.7) {
-            voiceVol = 0.7;
+          voiceVol += targetVol / fadeSteps;
+          if (voiceVol >= targetVol) {
+            voiceVol = targetVol;
             clearInterval(voiceFadeIn);
           }
           await voice.setVolumeAsync(voiceVol);
-        }, 50);
+        }, fadeInterval);
         
         voice.setOnPlaybackStatusUpdate((status) => {
           if (status.isLoaded && status.didJustFinish) {
