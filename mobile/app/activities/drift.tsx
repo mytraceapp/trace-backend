@@ -63,6 +63,15 @@ interface HaloEffect {
   y: number;
 }
 
+const HIGHLIGHT_VARIATIONS = [
+  { topOffset: 4, leftOffset: 6, brightness: 0.45, rotation: -40 },
+  { topOffset: 5, leftOffset: 7, brightness: 0.40, rotation: -35 },
+  { topOffset: 3, leftOffset: 5, brightness: 0.50, rotation: -45 },
+  { topOffset: 4, leftOffset: 8, brightness: 0.42, rotation: -38 },
+  { topOffset: 6, leftOffset: 6, brightness: 0.38, rotation: -42 },
+  { topOffset: 5, leftOffset: 5, brightness: 0.48, rotation: -36 },
+];
+
 function Bubble({ 
   data, 
   onPop,
@@ -78,6 +87,9 @@ function Bubble({
   const opacity = useSharedValue(1);
   const translateY = useSharedValue(0);
   const [isHidden, setIsHidden] = useState(false);
+  
+  const variationIndex = (data.row * 7 + data.col * 3) % HIGHLIGHT_VARIATIONS.length;
+  const variation = HIGHLIGHT_VARIATIONS[variationIndex];
   
   const isOddRow = data.row % 2 === 1;
   const baseX = data.col * BUBBLE_SIZE + (isOddRow ? BUBBLE_SIZE / 2 : 0) - BUBBLE_SIZE / 2;
@@ -98,8 +110,8 @@ function Bubble({
   
   useEffect(() => {
     if (data.popped) {
-      scale.value = withTiming(0.2, { duration: 120, easing: Easing.out(Easing.ease) });
-      opacity.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.ease) }, () => {
+      scale.value = withTiming(0.6, { duration: 280, easing: Easing.out(Easing.cubic) });
+      opacity.value = withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) }, () => {
         runOnJS(setIsHidden)(true);
       });
     }
@@ -140,8 +152,15 @@ function Bubble({
       <Pressable onPress={handlePress} style={styles.bubblePressable}>
         <View style={styles.bubble}>
           <View style={styles.bubbleInner}>
-            <View style={styles.bubbleHighlight} />
-            <View style={styles.bubbleHighlightSmall} />
+            <View style={[
+              styles.bubbleHighlight,
+              {
+                top: variation.topOffset,
+                left: variation.leftOffset,
+                opacity: variation.brightness,
+                transform: [{ rotate: `${variation.rotation}deg` }],
+              }
+            ]} />
             <View style={styles.bubbleShimmer} />
           </View>
         </View>
@@ -151,12 +170,12 @@ function Bubble({
 }
 
 function Halo({ x, y, onComplete }: { x: number; y: number; onComplete: () => void }) {
-  const scale = useSharedValue(0.5);
-  const opacity = useSharedValue(0.5);
+  const scale = useSharedValue(0.8);
+  const opacity = useSharedValue(0.25);
   
   useEffect(() => {
-    scale.value = withTiming(2.2, { duration: 350, easing: Easing.out(Easing.ease) });
-    opacity.value = withTiming(0, { duration: 350, easing: Easing.out(Easing.ease) }, () => {
+    scale.value = withTiming(1.8, { duration: 400, easing: Easing.out(Easing.cubic) });
+    opacity.value = withTiming(0, { duration: 450, easing: Easing.out(Easing.cubic) }, () => {
       runOnJS(onComplete)();
     });
   }, []);
@@ -446,15 +465,15 @@ const styles = StyleSheet.create({
   },
   background: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#C4B8A8',
+    backgroundColor: '#D8CDBF',
   },
   gridContainer: {
     ...StyleSheet.absoluteFillObject,
   },
   gridCircle: {
     position: 'absolute',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 119, 101, 0.25)',
+    borderWidth: 0,
+    borderColor: 'transparent',
     backgroundColor: 'transparent',
   },
   fixedHeader: {
@@ -495,15 +514,15 @@ const styles = StyleSheet.create({
     height: BUBBLE_SIZE - 2,
     borderRadius: (BUBBLE_SIZE - 2) / 2,
     margin: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.75)',
+    backgroundColor: 'rgba(250, 248, 244, 0.65)',
+    borderWidth: 0,
+    borderColor: 'transparent',
     overflow: 'hidden',
-    shadowColor: 'rgba(255, 255, 255, 1)',
-    shadowOffset: { width: 0, height: 0 },
+    shadowColor: 'rgba(180, 165, 145, 0.35)',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowRadius: 4,
+    elevation: 3,
   },
   bubbleInner: {
     flex: 1,
@@ -513,48 +532,40 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 4,
     left: 6,
-    width: BUBBLE_SIZE * 0.45,
-    height: BUBBLE_SIZE * 0.22,
-    borderRadius: BUBBLE_SIZE * 0.15,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    width: BUBBLE_SIZE * 0.38,
+    height: BUBBLE_SIZE * 0.18,
+    borderRadius: BUBBLE_SIZE * 0.12,
+    backgroundColor: 'rgba(255, 253, 250, 0.55)',
     transform: [{ rotate: '-40deg' }],
-    shadowColor: 'rgba(255, 255, 255, 1)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
   },
   bubbleHighlightSmall: {
     position: 'absolute',
     top: 10,
     left: 14,
-    width: BUBBLE_SIZE * 0.15,
-    height: BUBBLE_SIZE * 0.08,
-    borderRadius: BUBBLE_SIZE * 0.06,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    width: BUBBLE_SIZE * 0.12,
+    height: BUBBLE_SIZE * 0.06,
+    borderRadius: BUBBLE_SIZE * 0.04,
+    backgroundColor: 'rgba(255, 253, 250, 0.35)',
     transform: [{ rotate: '-40deg' }],
   },
   bubbleShimmer: {
     position: 'absolute',
-    bottom: 6,
-    right: 8,
-    width: BUBBLE_SIZE * 0.2,
-    height: BUBBLE_SIZE * 0.1,
-    borderRadius: BUBBLE_SIZE * 0.08,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    bottom: 8,
+    right: 10,
+    width: BUBBLE_SIZE * 0.16,
+    height: BUBBLE_SIZE * 0.08,
+    borderRadius: BUBBLE_SIZE * 0.06,
+    backgroundColor: 'rgba(255, 253, 250, 0.3)',
     transform: [{ rotate: '30deg' }],
-    shadowColor: 'rgba(255, 255, 255, 1)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 3,
   },
   halo: {
     position: 'absolute',
     width: 60,
     height: 60,
     borderRadius: 30,
-    borderWidth: 2,
-    borderColor: 'rgba(138, 155, 140, 0.4)',
-    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderColor: 'transparent',
+    backgroundColor: 'rgba(240, 235, 225, 0.4)',
     zIndex: 50,
   },
   messageContainer: {
@@ -570,12 +581,12 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 32,
     fontWeight: '500',
-    color: '#3D3D3D',
+    color: '#4A3F35',
     textAlign: 'center',
     paddingHorizontal: 32,
-    textShadowColor: 'rgba(255, 255, 255, 0.9)',
+    textShadowColor: 'rgba(250, 248, 244, 0.8)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
+    textShadowRadius: 4,
   },
   helperContainer: {
     position: 'absolute',
@@ -587,9 +598,9 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 16,
-    color: 'rgba(80, 70, 60, 0.7)',
+    color: '#5A4A3A',
     textAlign: 'center',
-    textShadowColor: 'rgba(255, 255, 255, 0.6)',
+    textShadowColor: 'rgba(250, 248, 244, 0.6)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -604,18 +615,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: 'rgba(180, 170, 155, 0.5)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 32,
+    borderColor: 'rgba(180, 170, 155, 0.3)',
+    shadowColor: 'rgba(90, 74, 58, 0.15)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
   },
   endButtonText: {
     fontSize: 14,
-    fontWeight: '300',
-    color: 'rgba(100, 85, 70, 0.85)',
+    fontWeight: '500',
+    color: '#4A3F35',
     letterSpacing: 1.5,
   },
 });
