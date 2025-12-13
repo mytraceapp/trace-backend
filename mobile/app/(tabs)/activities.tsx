@@ -31,24 +31,19 @@ function RainDropIcon({ color }: { color: string }) {
 }
 
 const CARD_VARIANTS = {
-  primary: {
-    bgColor: '#F6EFE7',
-  },
-  secondary: {
-    bgColor: '#D8CBB8',
-  },
-  accent: {
-    bgColor: '#C2B19C',
-  },
+  A: { bgColor: '#F7F0E8', titleColor: '#3E2E22', descColor: '#6B5A4A' },
+  B: { bgColor: '#EADFCC', titleColor: '#3E2E22', descColor: '#6B5A4A' },
+  C: { bgColor: '#DCC9AE', titleColor: '#3E2E22', descColor: '#5E4E3E' },
+  D: { bgColor: '#CDB59A', titleColor: '#3E2E22', descColor: '#5E4E3E' },
+  E: { bgColor: '#BFA88E', titleColor: '#4A3A2A', descColor: '#6B5A4A' },
+  F: { bgColor: '#AD947B', titleColor: '#F5EDE4', descColor: '#E8DFD4' },
 };
 
-const BACKGROUND_COLOR = '#EDE4D8';
-const TITLE_COLOR = '#3E342C';
-const DESC_COLOR = '#6B5E53';
-const ICON_COLOR = '#5A4E44';
+const BACKGROUND_COLOR = '#EFE6DA';
+const ICON_COLOR = '#5A4A3A';
 
-const VARIANT_KEYS = ['primary', 'secondary'] as const;
-type VariantKey = typeof VARIANT_KEYS[number] | 'accent';
+const VARIANT_KEYS = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
+type VariantKey = typeof VARIANT_KEYS[number];
 
 const ACTIVITIES = [
   { id: 'breathing', title: 'Breathing', description: 'A calming 30-second reset.', Icon: Wind, customIcon: null },
@@ -64,7 +59,7 @@ const ACTIVITIES = [
 ];
 
 function getVariantForIndex(index: number): VariantKey {
-  return VARIANT_KEYS[index % 2];
+  return VARIANT_KEYS[index % 6];
 }
 
 type ActivityCardProps = {
@@ -113,8 +108,8 @@ function ActivityCard({
           </View>
           
           <View style={styles.textContainer}>
-            <Text style={[styles.cardTitle, { fontFamily }]}>{title}</Text>
-            <Text style={[styles.cardDescription, { fontFamily }]}>{description}</Text>
+            <Text style={[styles.cardTitle, { fontFamily, color: v.titleColor }]}>{title}</Text>
+            <Text style={[styles.cardDescription, { fontFamily, color: v.descColor }]}>{description}</Text>
           </View>
         </View>
       </View>
