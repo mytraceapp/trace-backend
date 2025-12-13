@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { Platform } from 'react-native';
-import { Audio } from 'expo-av';
+import { Audio, AVPlaybackStatus } from 'expo-av';
 import Svg, { Path, Circle, Defs, RadialGradient, Stop, Line } from 'react-native-svg';
 
 import { FontFamily, TraceWordmark } from '../../constants/typography';
@@ -22,44 +22,6 @@ const LUNA_PALETTE = {
   fogWhite: '#e8e4dc',
 };
 
-function generateFlowingWavePath(
-  width: number,
-  centerY: number,
-  amplitude: number,
-  phase: number,
-  yOffset: number
-): string {
-  const points: { x: number; y: number }[] = [];
-  const segments = 60;
-  
-  for (let i = 0; i <= segments; i++) {
-    const x = (i / segments) * width;
-    const normalizedX = i / segments;
-    
-    const envelope = Math.sin(normalizedX * Math.PI);
-    const wave = Math.sin(normalizedX * Math.PI * 2 + phase);
-    const y = centerY + yOffset + wave * amplitude * envelope;
-    
-    points.push({ x, y });
-  }
-  
-  if (points.length < 2) return '';
-  
-  let path = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
-  
-  for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1];
-    const curr = points[i];
-    
-    const cpX = (prev.x + curr.x) / 2;
-    const cpY = prev.y;
-    
-    path += ` Q ${cpX.toFixed(1)} ${cpY.toFixed(1)} ${curr.x.toFixed(1)} ${curr.y.toFixed(1)}`;
-  }
-  
-  return path;
-}
-
 export default function EchoScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -76,17 +38,14 @@ export default function EchoScreen() {
   
   const [isVoicePlaying, setIsVoicePlaying] = useState(false);
   const isVoicePlayingRef = useRef(false);
-  const voiceEnergyRef = useRef(0);
-  const phaseRef = useRef(0);
+  const playbackProgressRef = useRef(0);
   
   useEffect(() => {
     isVoicePlayingRef.current = isVoicePlaying;
   }, [isVoicePlaying]);
   
-  const [wave1Path, setWave1Path] = useState('');
-  const [wave2Path, setWave2Path] = useState('');
-  const [wave3Path, setWave3Path] = useState('');
-  const [orbScaleState, setOrbScaleState] = useState(1);
+  const [waveAmplitudes, setWaveAmplitudes] = useState({ w1: 20, w2: 30, w3: 15 });
+  const [orbScale, setOrbScale] = useState(1);
   
   const centerY = SCREEN_HEIGHT / 2 - 40;
 
@@ -98,37 +57,51 @@ export default function EchoScreen() {
 
   useEffect(() => {
     let animationId: number;
-    let lastTime = Date.now();
+    let time = 0;
+    
+    const smoothAmps = { w1: 20, w2: 30, w3: 15 };
+    let smoothOrbScale = 1;
     
     const animate = () => {
-      const now = Date.now();
-      const delta = now - lastTime;
-      lastTime = now;
+      time += 16;
+      
+      let targetW1 = 15;
+      let targetW2 = 25;
+      let targetW3 = 12;
+      let targetOrb = 1;
       
       if (isVoicePlayingRef.current) {
-        phaseRef.current += delta * 0.003;
+        const progress = playbackProgressRef.current;
         
-        const voiceModulation = Math.sin(now * 0.002) * 0.4 + 0.6;
-        const targetEnergy = 0.8 + voiceModulation * 0.4;
-        voiceEnergyRef.current += (targetEnergy - voiceEnergyRef.current) * 0.1;
+        const breathPhase = Math.sin(time * 0.002);
+        const voicePulse = Math.sin(time * 0.004) * 0.5 + Math.sin(time * 0.007) * 0.3;
+        
+        const intensity = 0.6 + breathPhase * 0.2 + voicePulse * 0.2;
+        
+        targetW1 = 25 + intensity * 35;
+        targetW2 = 40 + intensity * 50;
+        targetW3 = 20 + intensity * 30;
+        targetOrb = 1 + intensity * 0.12;
       } else {
-        phaseRef.current += delta * 0.001;
-        voiceEnergyRef.current += (0.3 - voiceEnergyRef.current) * 0.05;
+        const idleBreath = Math.sin(time * 0.001) * 0.3 + 0.7;
+        targetW1 = 10 + idleBreath * 8;
+        targetW2 = 15 + idleBreath * 12;
+        targetW3 = 8 + idleBreath * 6;
+        targetOrb = 1 + idleBreath * 0.03;
       }
       
-      const energy = voiceEnergyRef.current;
-      const phase = phaseRef.current;
+      const smoothing = 0.08;
+      smoothAmps.w1 += (targetW1 - smoothAmps.w1) * smoothing;
+      smoothAmps.w2 += (targetW2 - smoothAmps.w2) * smoothing;
+      smoothAmps.w3 += (targetW3 - smoothAmps.w3) * smoothing;
+      smoothOrbScale += (targetOrb - smoothOrbScale) * smoothing;
       
-      const amp1 = 30 * energy;
-      const amp2 = 45 * energy;
-      const amp3 = 25 * energy;
-      
-      setWave1Path(generateFlowingWavePath(SCREEN_WIDTH, centerY, amp1, phase + 1.0, -35));
-      setWave2Path(generateFlowingWavePath(SCREEN_WIDTH, centerY, amp2, phase, 0));
-      setWave3Path(generateFlowingWavePath(SCREEN_WIDTH, centerY, amp3, phase - 0.8, 30));
-      
-      const orbPulse = 1 + energy * 0.08 + Math.sin(phase * 0.5) * 0.03;
-      setOrbScaleState(orbPulse);
+      setWaveAmplitudes({ 
+        w1: smoothAmps.w1, 
+        w2: smoothAmps.w2, 
+        w3: smoothAmps.w3 
+      });
+      setOrbScale(smoothOrbScale);
       
       animationId = requestAnimationFrame(animate);
     };
@@ -138,7 +111,7 @@ export default function EchoScreen() {
     return () => {
       if (animationId) cancelAnimationFrame(animationId);
     };
-  }, [centerY]);
+  }, []);
 
   useEffect(() => {
     const setupAudio = async () => {
@@ -172,12 +145,17 @@ export default function EchoScreen() {
           await voice.setVolumeAsync(vol);
         }, 50);
         
-        voice.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            setIsVoicePlaying(false);
-            setTimeout(() => {
-              router.replace('/(tabs)/chat');
-            }, 2000);
+        voice.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
+          if (status.isLoaded) {
+            if (status.durationMillis && status.positionMillis) {
+              playbackProgressRef.current = status.positionMillis / status.durationMillis;
+            }
+            if (status.didJustFinish) {
+              setIsVoicePlaying(false);
+              setTimeout(() => {
+                router.replace('/(tabs)/chat');
+              }, 2000);
+            }
           }
         });
       }, 3000);
@@ -218,6 +196,16 @@ export default function EchoScreen() {
   };
 
   const maxRadius = Math.max(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.9;
+  
+  const createWavePath = (amplitude: number, yOffset: number) => {
+    const startX = 0;
+    const endX = SCREEN_WIDTH;
+    const midX = SCREEN_WIDTH / 2;
+    const baseY = centerY + yOffset;
+    const peakY = baseY - amplitude;
+    
+    return `M ${startX} ${baseY} Q ${midX} ${peakY} ${endX} ${baseY}`;
+  };
 
   return (
     <Pressable style={styles.container} onPress={handleScreenPress}>
@@ -267,39 +255,39 @@ export default function EchoScreen() {
         <Circle
           cx={SCREEN_WIDTH / 2}
           cy={centerY}
-          r={Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35 * orbScaleState}
+          r={Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.35 * orbScale}
           fill="url(#orbGradient)"
         />
         <Circle
           cx={SCREEN_WIDTH / 2}
           cy={centerY}
-          r={Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.21 * orbScaleState}
+          r={Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.21 * orbScale}
           fill="url(#innerGlow)"
         />
 
         <Path
-          d={wave1Path}
+          d={createWavePath(waveAmplitudes.w1, -30)}
           stroke={LUNA_PALETTE.midnightBlue}
-          strokeWidth={2.5}
-          strokeOpacity={0.6}
+          strokeWidth={2}
+          strokeOpacity={0.5}
           fill="none"
           strokeLinecap="round"
         />
         
         <Path
-          d={wave2Path}
+          d={createWavePath(waveAmplitudes.w2, 0)}
           stroke={LUNA_PALETTE.sageGray}
           strokeWidth={2.5}
-          strokeOpacity={0.75}
+          strokeOpacity={0.7}
           fill="none"
           strokeLinecap="round"
         />
         
         <Path
-          d={wave3Path}
+          d={createWavePath(waveAmplitudes.w3, 25)}
           stroke={LUNA_PALETTE.beige}
-          strokeWidth={2.5}
-          strokeOpacity={0.55}
+          strokeWidth={2}
+          strokeOpacity={0.5}
           fill="none"
           strokeLinecap="round"
         />
