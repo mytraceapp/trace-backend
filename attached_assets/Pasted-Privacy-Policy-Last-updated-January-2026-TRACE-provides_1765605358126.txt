@@ -1,0 +1,104 @@
+Privacy Policy
+Last updated: January 2026
+
+TRACE provides a wellness and emotional-support application designed to help users slow down, reflect, and improve their mental clarity. Your privacy matters deeply to us.
+
+By using TRACE, you agree to the terms in this policy.
+
+1. Information We Collect
+We collect only the data necessary to operate the app and provide your wellness experience.
+
+1.1 Account Information
+Name
+Email address
+Password (encrypted)
+Selected subscription plan
+1.2 App Activity & Usage
+To support your emotional wellness journey, TRACE stores:
+
+Chat messages with TRACE
+Check-ins, journal entries, and "Patterns" data
+Completed sessions (breathing, maze, grounding, etc.)
+App settings (tone, ambience, theme, preferences)
+1.3 Device Information
+We may collect minimal technical information:
+
+Device type and operating system
+Browser version
+IP address (for security only)
+1.4 Payment Information
+Payments are processed securely through our payment partners. TRACE never sees or stores your full card details.
+
+2. How We Use Your Information
+We use your data to:
+
+Provide personalized emotional support
+Display your Patterns, past entries, and activities
+Maintain your subscription and account
+Improve app features and experience
+Ensure security and prevent misuse
+3. AI Usage
+TRACE uses AI to generate emotional reflections and support messages.
+
+Your identifiable information is never intentionally provided to the AI model.
+AI responses are generated based on your input within TRACE, not shared as public content.
+Models used do not train on your personal data.
+4. Retention Periods
+4.1 Chats & Emotional Content
+Retained for 7 days, then permanently deleted.
+
+4.2 Journal Entries, Check-Ins, Patterns
+Saved until you delete them.
+
+4.3 Account Data
+Retained until your account is deleted.
+
+4.4 Logs & Analytics
+Limited operational logs retained until user deletion.
+
+5. What We Never Do
+TRACE will never:
+
+Sell your data
+Share your personal information for advertising
+Use your feelings to target ads
+Allow third parties to access your emotional content
+Train AI models on your identifiable data
+6. Sharing Your Information
+We only share the minimum necessary information with trusted partners who help us operate TRACE:
+
+Payment processors (for subscription billing)
+Cloud hosting providers (to securely store your data)
+Analytics providers (anonymized usage data only)
+These partners must comply with strict privacy and data-protection rules.
+
+7. Your Rights & Controls
+You may at any time:
+
+Access your stored data
+Edit or delete individual entries
+Export your data
+Delete your entire account
+Request correction of your information
+When you delete your account, all personally identifiable data is permanently removed from our systems.
+
+8. Data Security
+We use industry-standard security measures, including:
+
+Encrypted data at rest
+Encrypted data in transit
+Secure password hashing
+Strict access controls
+Privacy-by-design architecture
+No system is 100% secure, but we work continuously to protect your privacy.
+
+9. Children's Privacy
+TRACE is not intended for users under the age of 13 (or the minimum age required in your region).
+
+10. Changes to This Policy
+We may update this policy as we improve TRACE. If significant changes occur, we will notify you within the app.
+
+11. Contact Us
+If you have questions, privacy concerns, or data requests, email:
+
+nina.mytraceapp@gmail.com

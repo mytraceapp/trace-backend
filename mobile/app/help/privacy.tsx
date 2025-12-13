@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -6,6 +6,7 @@ import {
   ScrollView, 
   Pressable, 
   Platform,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,43 +19,116 @@ import { FontFamily, TraceWordmark, ScreenTitle, BodyText } from '../../constant
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
 
-interface PrivacyPoint {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  description: string;
-}
+const privacyPolicyContent = `Privacy Policy
+Last updated: January 2026
 
-const privacyPoints: PrivacyPoint[] = [
-  {
-    icon: 'person-outline',
-    title: 'Your entries belong to you',
-    description: 'What you write stays yours. Your reflections are your own.',
-  },
-  {
-    icon: 'shield-outline',
-    title: 'No ads, no selling your data',
-    description: 'We don\'t sell your information or use it for advertising. Ever.',
-  },
-  {
-    icon: 'sparkles-outline',
-    title: 'AI that supports, not profiles',
-    description: 'AI responses are generated to help you reflect, not to build a profile of who you are.',
-  },
-  {
-    icon: 'trash-outline',
-    title: 'You can delete anytime',
-    description: 'Your entries can be removed whenever you choose. It\'s your space.',
-  },
-  {
-    icon: 'eye-off-outline',
-    title: 'Minimal data collection',
-    description: 'We only collect what\'s needed to make TRACE work for you.',
-  },
-];
+TRACE provides a wellness and emotional-support application designed to help users slow down, reflect, and improve their mental clarity. Your privacy matters deeply to us.
+
+By using TRACE, you agree to the terms in this policy.
+
+1. Information We Collect
+We collect only the data necessary to operate the app and provide your wellness experience.
+
+1.1 Account Information
+• Name
+• Email address
+• Password (encrypted)
+• Selected subscription plan
+
+1.2 App Activity & Usage
+To support your emotional wellness journey, TRACE stores:
+• Chat messages with TRACE
+• Check-ins, journal entries, and "Patterns" data
+• Completed sessions (breathing, maze, grounding, etc.)
+• App settings (tone, ambience, theme, preferences)
+
+1.3 Device Information
+We may collect minimal technical information:
+• Device type and operating system
+• Browser version
+• IP address (for security only)
+
+1.4 Payment Information
+Payments are processed securely through our payment partners. TRACE never sees or stores your full card details.
+
+2. How We Use Your Information
+We use your data to:
+• Provide personalized emotional support
+• Display your Patterns, past entries, and activities
+• Maintain your subscription and account
+• Improve app features and experience
+• Ensure security and prevent misuse
+
+3. AI Usage
+TRACE uses AI to generate emotional reflections and support messages.
+• Your identifiable information is never intentionally provided to the AI model.
+• AI responses are generated based on your input within TRACE, not shared as public content.
+• Models used do not train on your personal data.
+
+4. Retention Periods
+
+4.1 Chats & Emotional Content
+Retained for 7 days, then permanently deleted.
+
+4.2 Journal Entries, Check-Ins, Patterns
+Saved until you delete them.
+
+4.3 Account Data
+Retained until your account is deleted.
+
+4.4 Logs & Analytics
+Limited operational logs retained until user deletion.
+
+5. What We Never Do
+TRACE will never:
+• Sell your data
+• Share your personal information for advertising
+• Use your feelings to target ads
+• Allow third parties to access your emotional content
+• Train AI models on your identifiable data
+
+6. Sharing Your Information
+We only share the minimum necessary information with trusted partners who help us operate TRACE:
+• Payment processors (for subscription billing)
+• Cloud hosting providers (to securely store your data)
+• Analytics providers (anonymized usage data only)
+
+These partners must comply with strict privacy and data-protection rules.
+
+7. Your Rights & Controls
+You may at any time:
+• Access your stored data
+• Edit or delete individual entries
+• Export your data
+• Delete your entire account
+• Request correction of your information
+
+When you delete your account, all personally identifiable data is permanently removed from our systems.
+
+8. Data Security
+We use industry-standard security measures, including:
+• Encrypted data at rest
+• Encrypted data in transit
+• Secure password hashing
+• Strict access controls
+• Privacy-by-design architecture
+
+No system is 100% secure, but we work continuously to protect your privacy.
+
+9. Children's Privacy
+TRACE is not intended for users under the age of 13 (or the minimum age required in your region).
+
+10. Changes to This Policy
+We may update this policy as we improve TRACE. If significant changes occur, we will notify you within the app.
+
+11. Contact Us
+If you have questions, privacy concerns, or data requests, email:
+nina.mytraceapp@gmail.com`;
 
 export default function PrivacyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [modalVisible, setModalVisible] = useState(false);
   
   const [fontsLoaded] = useFonts({
     'Alore': require('../../assets/fonts/Alore-Regular.otf'),
@@ -87,49 +161,244 @@ export default function PrivacyScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + Spacing.traceToTitle, paddingBottom: insets.bottom + 60 }
+          { paddingTop: insets.top + Spacing.traceToTitle, paddingBottom: insets.bottom + 120 }
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={20} color="#5A4A3A" />
-          <Text style={[styles.backText, { fontFamily: canelaFont }]}>Help</Text>
-        </Pressable>
-
         <View style={styles.header}>
           <Text style={[styles.title, { fontFamily: canelaFont }]}>Privacy & Your Data</Text>
           <Text style={[styles.subtitle, { fontFamily: canelaFont }]}>
-            How your words are protected.
+            Kept safe. Never sold.
           </Text>
         </View>
 
-        <View style={styles.introCard}>
-          <Text style={[styles.introText, { fontFamily: canelaFont }]}>
-            What you write stays yours.
-          </Text>
-          <Text style={[styles.introSubtext, { fontFamily: canelaFont }]}>
-            This is a human explanation, not the full policy — because privacy shouldn't require a law degree.
-          </Text>
+        <View style={styles.contentCard}>
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { fontFamily: canelaFont }]}>What we store</Text>
+            <Text style={[styles.sectionBody, { fontFamily: canelaFont }]}>
+              Your messages, entries, and patterns so you can revisit them.
+            </Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { fontFamily: canelaFont }]}>What we don't do</Text>
+            <Text style={[styles.sectionBody, { fontFamily: canelaFont }]}>
+              No selling data. No ads based on your feelings.
+            </Text>
+          </View>
+
+          <View style={[styles.section, { marginBottom: 0 }]}>
+            <Text style={[styles.sectionTitle, { fontFamily: canelaFont }]}>Your control</Text>
+            <Text style={[styles.sectionBody, { fontFamily: canelaFont }]}>
+              Edit, export, or delete entries anytime.
+            </Text>
+          </View>
+
+          <Pressable onPress={() => setModalVisible(true)} style={styles.linkContainer}>
+            <Text style={[styles.linkText, { fontFamily: canelaFont }]}>Open Full Privacy Policy</Text>
+          </Pressable>
         </View>
 
-        <View style={styles.pointsContainer}>
-          {privacyPoints.map((point, index) => (
-            <View key={index} style={styles.pointCard}>
-              <View style={styles.pointIconContainer}>
-                <Ionicons name={point.icon} size={22} color="#5A4A3A" />
-              </View>
-              <View style={styles.pointContent}>
-                <Text style={[styles.pointTitle, { fontFamily: canelaFont }]}>
-                  {point.title}
-                </Text>
-                <Text style={[styles.pointDescription, { fontFamily: canelaFont }]}>
-                  {point.description}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
+        <Pressable 
+          style={styles.returnButton}
+          onPress={() => router.push('/(tabs)/chat')}
+        >
+          <Text style={[styles.returnButtonText, { fontFamily: canelaFont }]}>Return to Chat</Text>
+        </Pressable>
       </ScrollView>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
+            <LinearGradient
+              colors={[...Colors.day.backgroundGradient]}
+              locations={[0, 0.6, 1]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            
+            <View style={[styles.fixedHeader, { paddingTop: 12 }]}>
+              <Pressable onPress={() => router.push('/(tabs)/chat')}>
+                <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
+              </Pressable>
+            </View>
+            
+            <ScrollView 
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.modalCard}>
+                <Text style={[styles.modalTitle, { fontFamily: canelaFont }]}>Privacy Policy</Text>
+                <Text style={[styles.modalDate, { fontFamily: canelaFont }]}>Last updated: January 2026</Text>
+                
+                <Text style={[styles.modalIntro, { fontFamily: canelaFont }]}>
+                  TRACE provides a wellness and emotional-support application designed to help users slow down, reflect, and improve their mental clarity. Your privacy matters deeply to us.
+                </Text>
+                
+                <Text style={[styles.modalAgreement, { fontFamily: canelaFont }]}>
+                  By using TRACE, you agree to the terms in this policy.
+                </Text>
+
+                <Text style={[styles.modalSectionHeader, { fontFamily: canelaFont }]}>1. Information We Collect</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  We collect only the data necessary to operate the app and provide your wellness experience.
+                </Text>
+
+                <Text style={[styles.modalSubHeader, { fontFamily: canelaFont }]}>1.1 Account Information</Text>
+                <View style={styles.bulletList}>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Name</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Email address</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Password (encrypted)</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Selected subscription plan</Text>
+                </View>
+
+                <Text style={[styles.modalSubHeader, { fontFamily: canelaFont }]}>1.2 App Activity & Usage</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  To support your emotional wellness journey, TRACE stores:
+                </Text>
+                <View style={styles.bulletList}>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Chat messages with TRACE</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Check-ins, journal entries, and "Patterns" data</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Completed sessions (breathing, maze, grounding, etc.)</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• App settings (tone, ambience, theme, preferences)</Text>
+                </View>
+
+                <Text style={[styles.modalSubHeader, { fontFamily: canelaFont }]}>1.3 Device Information</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  We may collect minimal technical information:
+                </Text>
+                <View style={styles.bulletList}>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Device type and operating system</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Browser version</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• IP address (for security only)</Text>
+                </View>
+
+                <Text style={[styles.modalSubHeader, { fontFamily: canelaFont }]}>1.4 Payment Information</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  Payments are processed securely through our payment partners. TRACE never sees or stores your full card details.
+                </Text>
+
+                <Text style={[styles.modalSectionHeader, { fontFamily: canelaFont }]}>2. How We Use Your Information</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>We use your data to:</Text>
+                <View style={styles.bulletList}>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Provide personalized emotional support</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Display your Patterns, past entries, and activities</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Maintain your subscription and account</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Improve app features and experience</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Ensure security and prevent misuse</Text>
+                </View>
+
+                <Text style={[styles.modalSectionHeader, { fontFamily: canelaFont }]}>3. AI Usage</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  TRACE uses AI to generate emotional reflections and support messages.
+                </Text>
+                <View style={styles.bulletList}>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Your identifiable information is never intentionally provided to the AI model.</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• AI responses are generated based on your input within TRACE, not shared as public content.</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Models used do not train on your personal data.</Text>
+                </View>
+
+                <Text style={[styles.modalSectionHeader, { fontFamily: canelaFont }]}>4. Retention Periods</Text>
+                
+                <Text style={[styles.modalSubHeader, { fontFamily: canelaFont }]}>4.1 Chats & Emotional Content</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>Retained for 7 days, then permanently deleted.</Text>
+
+                <Text style={[styles.modalSubHeader, { fontFamily: canelaFont }]}>4.2 Journal Entries, Check-Ins, Patterns</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>Saved until you delete them.</Text>
+
+                <Text style={[styles.modalSubHeader, { fontFamily: canelaFont }]}>4.3 Account Data</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>Retained until your account is deleted.</Text>
+
+                <Text style={[styles.modalSubHeader, { fontFamily: canelaFont }]}>4.4 Logs & Analytics</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>Limited operational logs retained until user deletion.</Text>
+
+                <Text style={[styles.modalSectionHeader, { fontFamily: canelaFont }]}>5. What We Never Do</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>TRACE will never:</Text>
+                <View style={styles.bulletList}>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Sell your data</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Share your personal information for advertising</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Use your feelings to target ads</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Allow third parties to access your emotional content</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Train AI models on your identifiable data</Text>
+                </View>
+
+                <Text style={[styles.modalSectionHeader, { fontFamily: canelaFont }]}>6. Sharing Your Information</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  We only share the minimum necessary information with trusted partners who help us operate TRACE:
+                </Text>
+                <View style={styles.bulletList}>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Payment processors (for subscription billing)</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Cloud hosting providers (to securely store your data)</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Analytics providers (anonymized usage data only)</Text>
+                </View>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  These partners must comply with strict privacy and data-protection rules.
+                </Text>
+
+                <Text style={[styles.modalSectionHeader, { fontFamily: canelaFont }]}>7. Your Rights & Controls</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>You may at any time:</Text>
+                <View style={styles.bulletList}>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Access your stored data</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Edit or delete individual entries</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Export your data</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Delete your entire account</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Request correction of your information</Text>
+                </View>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  When you delete your account, all personally identifiable data is permanently removed from our systems.
+                </Text>
+
+                <Text style={[styles.modalSectionHeader, { fontFamily: canelaFont }]}>8. Data Security</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  We use industry-standard security measures, including:
+                </Text>
+                <View style={styles.bulletList}>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Encrypted data at rest</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Encrypted data in transit</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Secure password hashing</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Strict access controls</Text>
+                  <Text style={[styles.bulletItem, { fontFamily: canelaFont }]}>• Privacy-by-design architecture</Text>
+                </View>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  No system is 100% secure, but we work continuously to protect your privacy.
+                </Text>
+
+                <Text style={[styles.modalSectionHeader, { fontFamily: canelaFont }]}>9. Children's Privacy</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  TRACE is not intended for users under the age of 13 (or the minimum age required in your region).
+                </Text>
+
+                <Text style={[styles.modalSectionHeader, { fontFamily: canelaFont }]}>10. Changes to This Policy</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  We may update this policy as we improve TRACE. If significant changes occur, we will notify you within the app.
+                </Text>
+
+                <Text style={[styles.modalSectionHeader, { fontFamily: canelaFont }]}>11. Contact Us</Text>
+                <Text style={[styles.modalParagraph, { fontFamily: canelaFont }]}>
+                  If you have questions, privacy concerns, or data requests, email:
+                </Text>
+                <Text style={[styles.modalEmail, { fontFamily: canelaFont }]}>
+                  nina.mytraceapp@gmail.com
+                </Text>
+              </View>
+
+              <Pressable 
+                style={styles.doneButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={[styles.doneButtonText, { fontFamily: canelaFont }]}>Done</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -167,22 +436,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.screenPadding,
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  backText: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#5A4A3A',
-    letterSpacing: 0.2,
-  },
   header: {
-    marginBottom: 16,
+    marginBottom: 24,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
+    marginTop: 19,
   },
   title: {
     fontSize: 32,
@@ -201,69 +459,164 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 0,
   },
-  introCard: {
-    backgroundColor: '#F4F1EC',
+  contentCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    borderRadius: 24,
+    paddingVertical: 28,
+    paddingHorizontal: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    ...Shadows.card,
+  },
+  section: {
+    marginBottom: 28,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2B2825',
+    letterSpacing: 0.2,
+    marginBottom: 8,
+  },
+  sectionBody: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#8A857D',
+    letterSpacing: 0.15,
+    lineHeight: 22,
+  },
+  linkContainer: {
+    marginTop: 24,
+    alignItems: 'flex-start',
+  },
+  linkText: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#2B2825',
+    letterSpacing: 0.2,
+    textDecorationLine: 'underline',
+  },
+  returnButton: {
+    backgroundColor: 'rgba(180, 170, 155, 0.5)',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 30,
+    alignItems: 'center',
+    marginTop: 28,
+    alignSelf: 'center',
+  },
+  returnButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#4A4A4A',
+    letterSpacing: 0.3,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  modalContent: {
+    flex: 1,
+    marginTop: 40,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+  },
+  modalScrollView: {
+    flex: 1,
+    marginTop: 50,
+  },
+  modalScrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+  modalCard: {
+    backgroundColor: 'rgba(220, 212, 200, 0.85)',
     borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    marginBottom: 20,
-    alignItems: 'center',
-    ...Shadows.card,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
-  introText: {
-    fontSize: 20,
+  modalTitle: {
+    fontSize: 28,
     fontWeight: '500',
-    color: '#5A4A3A',
-    letterSpacing: 0.2,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  introSubtext: {
-    fontSize: 14,
-    fontWeight: '300',
-    color: '#8A8680',
-    letterSpacing: 0.2,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  pointsContainer: {
-    gap: 12,
-  },
-  pointCard: {
-    backgroundColor: '#FDFCFA',
-    borderRadius: 18,
-    padding: 18,
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: 'rgba(138, 134, 128, 0.12)',
-    ...Shadows.cardSubtle,
-  },
-  pointIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#F4F1EC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  pointContent: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  pointTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#4B4B4B',
-    letterSpacing: 0.2,
+    color: '#2B2825',
+    letterSpacing: 0.3,
     marginBottom: 4,
   },
-  pointDescription: {
+  modalDate: {
     fontSize: 14,
-    fontWeight: '300',
-    color: '#6B6761',
-    letterSpacing: 0.15,
-    lineHeight: 20,
+    fontWeight: '400',
+    color: '#6E6861',
+    fontStyle: 'italic',
+    marginBottom: 16,
+  },
+  modalIntro: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#4A4A4A',
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  modalAgreement: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#6E6861',
+    fontStyle: 'italic',
+    marginBottom: 20,
+  },
+  modalSectionHeader: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#2B2825',
+    letterSpacing: 0.2,
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  modalSubHeader: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#3A3A3A',
+    letterSpacing: 0.2,
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  modalParagraph: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#4A4A4A',
+    lineHeight: 21,
+    marginBottom: 8,
+  },
+  bulletList: {
+    marginLeft: 4,
+    marginBottom: 8,
+  },
+  bulletItem: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#4A4A4A',
+    lineHeight: 24,
+  },
+  modalEmail: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#2B2825',
+    marginTop: 4,
+  },
+  doneButton: {
+    backgroundColor: 'rgba(120, 115, 105, 0.7)',
+    paddingVertical: 16,
+    paddingHorizontal: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    marginTop: 24,
+    alignSelf: 'center',
+  },
+  doneButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
 });
