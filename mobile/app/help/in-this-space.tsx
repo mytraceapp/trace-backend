@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   introSection: {
-    marginBottom: 20,
+    marginBottom: 12,
     alignItems: 'center',
     paddingHorizontal: 8,
   },
@@ -189,14 +189,14 @@ const styles = StyleSheet.create({
   contentCard: {
     backgroundColor: 'rgba(244, 241, 236, 0.85)',
     borderRadius: 20,
-    paddingVertical: 16,
-    paddingHorizontal: 28,
+    paddingVertical: 24,
+    paddingHorizontal: 32,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
     ...Shadows.card,
   },
   cardSection: {
-    paddingVertical: 20,
+    paddingVertical: 24,
   },
   sectionTitle: {
     fontSize: 18,
