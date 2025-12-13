@@ -36,7 +36,7 @@ const CARD_VARIANTS = {
   C: { bgColor: '#DCC9AE', titleColor: '#3E2E22', descColor: 'rgba(94, 78, 62, 0.85)', iconBg: 'rgba(245, 238, 228, 0.7)', iconColor: '#5A4538' },
   D: { bgColor: '#CDB59A', titleColor: '#3E2E22', descColor: 'rgba(94, 78, 62, 0.85)', iconBg: 'rgba(235, 225, 210, 0.75)', iconColor: '#5A4538' },
   E: { bgColor: '#BFA88E', titleColor: '#4A3A2A', descColor: 'rgba(107, 90, 74, 0.85)', iconBg: 'rgba(220, 208, 192, 0.7)', iconColor: '#5A4538' },
-  F: { bgColor: '#AD947B', titleColor: '#F5EDE4', descColor: 'rgba(232, 223, 212, 0.9)', iconBg: 'rgba(200, 185, 165, 0.7)', iconColor: '#F5EDE4' },
+  F: { bgColor: '#AD947B', titleColor: '#3E2E22', descColor: 'rgba(94, 78, 62, 0.85)', iconBg: 'rgba(200, 185, 165, 0.7)', iconColor: '#5A4538' },
 };
 
 const BACKGROUND_COLOR = '#EFE6DA';
