@@ -189,11 +189,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: BodyText.fontSize,
-    fontWeight: BodyText.fontWeight,
-    color: Colors.day.textSecondary,
-    letterSpacing: BodyText.letterSpacing,
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#6E6861',
+    letterSpacing: 0.2,
     textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 0,
   },
   contentCard: {
     backgroundColor: '#F4F1EC',
