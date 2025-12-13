@@ -224,7 +224,9 @@ export default function WindowScreen() {
 
       {introVisible && (
         <Animated.View style={[styles.introContainer, introStyle]} pointerEvents="none">
-          <Text style={styles.raindropEmoji}>💧</Text>
+          <View style={styles.dropletIcon}>
+            <View style={styles.droplet} />
+          </View>
           <Text style={[styles.introTitle, { fontFamily: canelaFont }]}>WINDOW</Text>
           <Text style={[styles.introSubtitle, { fontFamily: canelaFont }]}>
             Watch the rain fall.{'\n'}Let your thoughts drift.
@@ -238,7 +240,12 @@ export default function WindowScreen() {
         </Pressable>
 
         <View style={styles.volumeContainer}>
-          <Text style={styles.volumeEmoji}>{volume > 0.5 ? '🔊' : volume > 0 ? '🔉' : '🔈'}</Text>
+          <View style={styles.volumeIconWrapper}>
+            <View style={styles.speakerBody} />
+            <View style={styles.speakerCone} />
+            {volume > 0.01 && <View style={styles.soundWave1} />}
+            {volume > 0.4 && <View style={styles.soundWave2} />}
+          </View>
           <Slider
             style={styles.slider}
             minimumValue={0}
@@ -330,17 +337,27 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
+    bottom: 20,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 20,
   },
-  raindropEmoji: {
-    fontSize: 28,
-    marginBottom: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
+  dropletIcon: {
+    width: 32,
+    height: 32,
+    marginBottom: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  droplet: {
+    width: 18,
+    height: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.65)',
+    borderRadius: 50,
+    borderTopLeftRadius: 1,
+    borderTopRightRadius: 1,
+    transform: [{ rotate: '180deg' }],
   },
   introTitle: {
     color: 'rgba(255, 255, 255, 0.75)',
@@ -404,9 +421,47 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  volumeEmoji: {
-    fontSize: 16,
+  volumeIconWrapper: {
+    width: 20,
+    height: 16,
     marginRight: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  speakerBody: {
+    width: 5,
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    borderRadius: 1,
+  },
+  speakerCone: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderLeftColor: 'rgba(255, 255, 255, 0.55)',
+    borderTopWidth: 5,
+    borderTopColor: 'transparent',
+    borderBottomWidth: 5,
+    borderBottomColor: 'transparent',
+    marginLeft: -1,
+  },
+  soundWave1: {
+    width: 4,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.45)',
+    borderLeftWidth: 0,
+    marginLeft: 3,
+  },
+  soundWave2: {
+    width: 4,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderLeftWidth: 0,
+    marginLeft: 1,
   },
   slider: {
     width: 100,
