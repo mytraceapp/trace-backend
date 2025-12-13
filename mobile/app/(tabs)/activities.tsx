@@ -39,7 +39,7 @@ const ACTIVITIES = [
     description: 'A calming 30-second reset.',
     Icon: Wind,
     iconColor: '#2B2825',
-    gradientColors: ['rgba(251,248,243,0.95)', 'rgba(241,236,228,0.95)'] as [string, string],
+    gradientColors: ['#FBF8F3', '#F5F2ED'] as [string, string],
     iconBgColors: ['rgba(43, 40, 37, 0.08)', 'rgba(43, 40, 37, 0.04)'] as [string, string],
     descColor: '#6E6861',
     customIcon: null,
@@ -50,7 +50,7 @@ const ACTIVITIES = [
     description: 'Slow your mind with gentle tracing.',
     Icon: Compass,
     iconColor: '#2B2825',
-    gradientColors: ['rgba(230,222,211,0.95)', 'rgba(220,212,200,0.95)'] as [string, string],
+    gradientColors: ['#E3DACD', '#DDD4C7'] as [string, string],
     iconBgColors: ['rgba(43, 40, 37, 0.10)', 'rgba(43, 40, 37, 0.05)'] as [string, string],
     descColor: '#6E6861',
     customIcon: null,
@@ -61,7 +61,7 @@ const ACTIVITIES = [
     description: 'Two minutes of slow-paced movement.',
     Icon: Footprints,
     iconColor: '#2B2825',
-    gradientColors: ['rgba(241,236,228,0.95)', 'rgba(230,222,211,0.95)'] as [string, string],
+    gradientColors: ['#F5F2ED', '#E3DACD'] as [string, string],
     iconBgColors: ['rgba(43, 40, 37, 0.08)', 'rgba(43, 40, 37, 0.04)'] as [string, string],
     descColor: '#6E6861',
     customIcon: null,
@@ -72,7 +72,7 @@ const ACTIVITIES = [
     description: 'Five minutes of quiet stillness.',
     Icon: Moon,
     iconColor: '#2B2825',
-    gradientColors: ['rgba(251,248,243,0.95)', 'rgba(241,236,228,0.95)'] as [string, string],
+    gradientColors: ['#FBF8F3', '#F5F2ED'] as [string, string],
     iconBgColors: ['rgba(43, 40, 37, 0.08)', 'rgba(43, 40, 37, 0.04)'] as [string, string],
     descColor: '#6E6861',
     customIcon: null,
@@ -83,7 +83,7 @@ const ACTIVITIES = [
     description: 'Immersive flowing light.',
     Icon: Droplets,
     iconColor: '#2B2825',
-    gradientColors: ['rgba(251,248,243,0.95)', 'rgba(246,243,238,0.95)'] as [string, string],
+    gradientColors: ['#FBF8F3', '#F8F5F0'] as [string, string],
     iconBgColors: ['rgba(43, 40, 37, 0.08)', 'rgba(43, 40, 37, 0.04)'] as [string, string],
     descColor: '#6E6861',
     customIcon: null,
@@ -94,7 +94,7 @@ const ACTIVITIES = [
     description: 'Connect with your surroundings.',
     Icon: Hand,
     iconColor: '#2B2825',
-    gradientColors: ['rgba(251,248,243,0.95)', 'rgba(246,243,238,0.95)'] as [string, string],
+    gradientColors: ['#FBF8F3', '#F8F5F0'] as [string, string],
     iconBgColors: ['rgba(43, 40, 37, 0.08)', 'rgba(43, 40, 37, 0.04)'] as [string, string],
     descColor: '#6E6861',
     customIcon: null,
@@ -105,7 +105,7 @@ const ACTIVITIES = [
     description: 'Watch the rain. Drift away.',
     Icon: null,
     iconColor: '#2B2825',
-    gradientColors: ['rgba(230,222,211,0.95)', 'rgba(220,212,200,0.95)'] as [string, string],
+    gradientColors: ['#E3DACD', '#DDD4C7'] as [string, string],
     iconBgColors: ['rgba(43, 40, 37, 0.10)', 'rgba(43, 40, 37, 0.05)'] as [string, string],
     descColor: '#6E6861',
     customIcon: 'raindrop',
@@ -116,7 +116,7 @@ const ACTIVITIES = [
     description: 'Gentle waves of calm.',
     Icon: Activity,
     iconColor: '#2B2825',
-    gradientColors: ['rgba(241,236,228,0.95)', 'rgba(230,222,211,0.95)'] as [string, string],
+    gradientColors: ['#F5F2ED', '#E3DACD'] as [string, string],
     iconBgColors: ['rgba(43, 40, 37, 0.08)', 'rgba(43, 40, 37, 0.04)'] as [string, string],
     descColor: '#6E6861',
     customIcon: null,
@@ -127,7 +127,7 @@ const ACTIVITIES = [
     description: 'Gentle energy to start fresh.',
     Icon: Sunrise,
     iconColor: '#2B2825',
-    gradientColors: ['rgba(251,248,243,0.95)', 'rgba(241,236,228,0.95)'] as [string, string],
+    gradientColors: ['#FBF8F3', '#F5F2ED'] as [string, string],
     iconBgColors: ['rgba(43, 40, 37, 0.08)', 'rgba(43, 40, 37, 0.04)'] as [string, string],
     descColor: '#6E6861',
     customIcon: null,
@@ -138,7 +138,7 @@ const ACTIVITIES = [
     description: 'Release pressure. Pop the tension.',
     Icon: Circle,
     iconColor: '#2B2825',
-    gradientColors: ['rgba(251,248,243,0.95)', 'rgba(241,236,228,0.95)'] as [string, string],
+    gradientColors: ['#FBF8F3', '#F5F2ED'] as [string, string],
     iconBgColors: ['rgba(43, 40, 37, 0.08)', 'rgba(43, 40, 37, 0.04)'] as [string, string],
     descColor: '#6E6861',
     customIcon: null,
@@ -262,7 +262,7 @@ export default function ActivitiesScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#F6F1E9', '#F3EEE5', '#EFE9E0']}
+        colors={['#F3EDE4', '#EFE8DE', '#EBE4D9']}
         locations={[0, 0.6, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
