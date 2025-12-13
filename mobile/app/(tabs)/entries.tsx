@@ -6,11 +6,13 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as Haptics from 'expo-haptics';
 
-import { FontFamily, TraceWordmark } from '../../constants/typography';
+import { Colors } from '../../constants/colors';
+import { FontFamily, TraceWordmark, ScreenTitle, BodyText } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
 import { EntryAccordion } from '../../components/EntryAccordion';
 import { EntryPreviewCard } from '../../components/EntryPreviewCard';
+import { useAmbientAudio } from '../../hooks/useAmbientAudio';
 import { 
   getEntryCounts, 
   getEntriesByGroup, 
@@ -53,6 +55,13 @@ export default function EntriesScreen() {
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
   });
 
+  const { play, pause, isLoaded } = useAmbientAudio({
+    volume: 0.35,
+    fadeInDuration: 6000,
+    fadeOutDuration: 1500,
+    loop: true,
+  });
+
   const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
@@ -80,7 +89,13 @@ export default function EntriesScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [])
+      if (isLoaded) {
+        play();
+      }
+      return () => {
+        pause();
+      };
+    }, [isLoaded, play, pause])
   );
 
   const handleAccordionToggle = (accordion: 'daily' | 'notes') => {
@@ -89,10 +104,6 @@ export default function EntriesScreen() {
     } else {
       setExpandedAccordion(accordion);
     }
-  };
-
-  const handleTracePress = () => {
-    router.replace('/(tabs)/chat');
   };
 
   const handleJournalPress = () => {
@@ -107,24 +118,28 @@ export default function EntriesScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#FAF8F5', '#F5F2ED', '#EDE9E3', '#E8E4DD', '#E3DFD8']}
-        locations={[0, 0.25, 0.5, 0.75, 1]}
+        colors={[...Colors.day.backgroundGradient]}
+        locations={[0, 0.6, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
+      
+      <View style={[styles.vignetteOverlay, StyleSheet.absoluteFill]} pointerEvents="none" />
+
+      <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
+        <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
+      </View>
 
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 140 }
+          { paddingTop: insets.top + Spacing.traceToTitle, paddingBottom: insets.bottom + 140 }
         ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Pressable onPress={handleTracePress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
-          </Pressable>
-          
           <Text style={[styles.title, { fontFamily: canelaFont }]}>Your Entries</Text>
           <Text style={[styles.subtitle, { fontFamily: canelaFont }]}>
             {counts.total} entries saved
@@ -200,15 +215,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
+  vignetteOverlay: {
+    backgroundColor: 'transparent',
+    opacity: 0.05,
   },
-  scrollContent: {
-    paddingHorizontal: Spacing.screenPadding,
-  },
-  header: {
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 40,
     alignItems: 'center',
-    marginBottom: 32,
+    paddingBottom: Spacing.md,
+    backgroundColor: 'transparent',
   },
   traceLabel: {
     fontSize: TraceWordmark.fontSize,
@@ -218,20 +237,31 @@ const styles = StyleSheet.create({
     color: TraceWordmark.color,
     opacity: TraceWordmark.opacity,
     ...Shadows.traceWordmark,
-    marginBottom: 24,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.screenPadding,
+  },
+  header: {
+    marginBottom: Spacing.sectionGap,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.screenPadding,
+    marginTop: -6,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '300',
-    color: '#4B4B4B',
-    letterSpacing: -0.5,
-    marginBottom: 8,
+    fontSize: ScreenTitle.fontSize,
+    fontWeight: ScreenTitle.fontWeight,
+    marginBottom: 2,
+    color: ScreenTitle.color,
+    letterSpacing: ScreenTitle.letterSpacing,
   },
   subtitle: {
-    fontSize: 14,
-    fontWeight: '300',
-    color: '#8A8680',
-    letterSpacing: 0.3,
+    fontSize: BodyText.fontSize,
+    fontWeight: BodyText.fontWeight,
+    color: Colors.day.textSecondary,
+    letterSpacing: BodyText.letterSpacing,
   },
   accordions: {
     gap: 0,
