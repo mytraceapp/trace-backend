@@ -151,11 +151,13 @@ export default function PrivacyScreen() {
       
       <View style={[styles.vignetteOverlay, StyleSheet.absoluteFill]} pointerEvents="none" />
 
-      <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
-        <Pressable onPress={() => router.push('/(tabs)/chat')}>
-          <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
-        </Pressable>
-      </View>
+      {!modalVisible && (
+        <View style={[styles.fixedHeader, { paddingTop: insets.top - 1 }]}>
+          <Pressable onPress={() => router.push('/(tabs)/chat')}>
+            <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
+          </Pressable>
+        </View>
+      )}
 
       <ScrollView 
         style={styles.scrollView}
@@ -214,27 +216,13 @@ export default function PrivacyScreen() {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
-            <LinearGradient
-              colors={[...Colors.day.backgroundGradient]}
-              locations={[0, 0.6, 1]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            
-            <View style={[styles.fixedHeader, { paddingTop: 12 }]}>
-              <Pressable onPress={() => router.push('/(tabs)/chat')}>
-                <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
-              </Pressable>
-            </View>
-            
-            <ScrollView 
-              style={styles.modalScrollView}
-              contentContainerStyle={styles.modalScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.modalCard}>
+          <View style={[styles.modalContainer, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.modalCard}>
+              <ScrollView 
+                style={styles.modalScrollView}
+                contentContainerStyle={styles.modalScrollContent}
+                showsVerticalScrollIndicator={true}
+              >
                 <Text style={[styles.modalTitle, { fontFamily: canelaFont }]}>Privacy Policy</Text>
                 <Text style={[styles.modalDate, { fontFamily: canelaFont }]}>Last updated: January 2026</Text>
                 
@@ -387,15 +375,15 @@ export default function PrivacyScreen() {
                 <Text style={[styles.modalEmail, { fontFamily: canelaFont }]}>
                   nina.mytraceapp@gmail.com
                 </Text>
-              </View>
 
-              <Pressable 
-                style={styles.doneButton}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={[styles.doneButtonText, { fontFamily: canelaFont }]}>Done</Text>
-              </Pressable>
-            </ScrollView>
+                <Pressable 
+                  style={styles.doneButton}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={[styles.doneButtonText, { fontFamily: canelaFont }]}>Done</Text>
+                </Pressable>
+              </ScrollView>
+            </View>
           </View>
         </View>
       </Modal>
@@ -440,7 +428,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
-    marginTop: -14,
+    marginTop: -6,
   },
   title: {
     fontSize: 26,
@@ -516,35 +504,33 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
-  modalContent: {
+  modalContainer: {
     flex: 1,
-    marginTop: 60,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    overflow: 'hidden',
+    paddingHorizontal: 16,
+  },
+  modalCard: {
+    flex: 1,
+    backgroundColor: 'rgba(240, 236, 228, 0.98)',
+    borderRadius: 24,
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
   },
   modalScrollView: {
     flex: 1,
-    marginTop: 48,
   },
   modalScrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 50,
-  },
-  modalCard: {
-    backgroundColor: 'rgba(235, 230, 222, 0.95)',
-    borderRadius: 24,
-    paddingVertical: 28,
-    paddingHorizontal: 26,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 5,
+    paddingBottom: 20,
   },
   modalTitle: {
     fontSize: 26,
