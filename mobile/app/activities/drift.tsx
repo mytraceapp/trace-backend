@@ -64,12 +64,12 @@ interface HaloEffect {
 }
 
 const HIGHLIGHT_VARIATIONS = [
-  { topOffset: 4, leftOffset: 6, brightness: 0.45, rotation: -40 },
-  { topOffset: 5, leftOffset: 7, brightness: 0.40, rotation: -35 },
-  { topOffset: 3, leftOffset: 5, brightness: 0.50, rotation: -45 },
-  { topOffset: 4, leftOffset: 8, brightness: 0.42, rotation: -38 },
-  { topOffset: 6, leftOffset: 6, brightness: 0.38, rotation: -42 },
-  { topOffset: 5, leftOffset: 5, brightness: 0.48, rotation: -36 },
+  { topOffset: 6, leftOffset: 8, width: 0.32, height: 0.14, opacity: 0.18 },
+  { topOffset: 7, leftOffset: 6, width: 0.28, height: 0.12, opacity: 0.15 },
+  { topOffset: 5, leftOffset: 9, width: 0.30, height: 0.16, opacity: 0.20 },
+  { topOffset: 8, leftOffset: 7, width: 0.26, height: 0.13, opacity: 0.16 },
+  { topOffset: 6, leftOffset: 10, width: 0.34, height: 0.15, opacity: 0.17 },
+  { topOffset: 7, leftOffset: 8, width: 0.29, height: 0.14, opacity: 0.19 },
 ];
 
 function Bubble({ 
@@ -110,8 +110,8 @@ function Bubble({
   
   useEffect(() => {
     if (data.popped) {
-      scale.value = withTiming(0.6, { duration: 280, easing: Easing.out(Easing.cubic) });
-      opacity.value = withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) }, () => {
+      scale.value = withTiming(0.3, { duration: 180, easing: Easing.in(Easing.cubic) });
+      opacity.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.quad) }, () => {
         runOnJS(setIsHidden)(true);
       });
     }
@@ -157,11 +157,11 @@ function Bubble({
               {
                 top: variation.topOffset,
                 left: variation.leftOffset,
-                opacity: variation.brightness,
-                transform: [{ rotate: `${variation.rotation}deg` }],
+                width: BUBBLE_SIZE * variation.width,
+                height: BUBBLE_SIZE * variation.height,
+                opacity: variation.opacity,
               }
             ]} />
-            <View style={styles.bubbleShimmer} />
           </View>
         </View>
       </Pressable>
@@ -432,14 +432,6 @@ export default function DriftScreen() {
         ))}
       </View>
 
-      {halos.map(halo => (
-        <Halo
-          key={halo.id}
-          x={halo.x}
-          y={halo.y}
-          onComplete={() => removeHalo(halo.id)}
-        />
-      ))}
 
       <View style={[styles.endButtonContainer, { bottom: TAB_BAR_HEIGHT + bottomPadding + 30 }]}>
         <Pressable
@@ -465,7 +457,7 @@ const styles = StyleSheet.create({
   },
   background: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#D8CDBF',
+    backgroundColor: '#C8BBA8',
   },
   gridContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -514,59 +506,25 @@ const styles = StyleSheet.create({
     height: BUBBLE_SIZE - 2,
     borderRadius: (BUBBLE_SIZE - 2) / 2,
     margin: 1,
-    backgroundColor: 'rgba(250, 248, 244, 0.65)',
-    borderWidth: 0,
-    borderColor: 'transparent',
+    backgroundColor: 'rgba(235, 230, 222, 0.88)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(200, 190, 175, 0.3)',
     overflow: 'hidden',
-    shadowColor: 'rgba(180, 165, 145, 0.35)',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: 'rgba(120, 110, 95, 0.25)',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 2,
+    elevation: 2,
   },
   bubbleInner: {
     flex: 1,
     position: 'relative',
+    backgroundColor: 'rgba(245, 242, 235, 0.15)',
   },
   bubbleHighlight: {
     position: 'absolute',
-    top: 4,
-    left: 6,
-    width: BUBBLE_SIZE * 0.38,
-    height: BUBBLE_SIZE * 0.18,
-    borderRadius: BUBBLE_SIZE * 0.12,
-    backgroundColor: 'rgba(255, 253, 250, 0.55)',
-    transform: [{ rotate: '-40deg' }],
-  },
-  bubbleHighlightSmall: {
-    position: 'absolute',
-    top: 10,
-    left: 14,
-    width: BUBBLE_SIZE * 0.12,
-    height: BUBBLE_SIZE * 0.06,
-    borderRadius: BUBBLE_SIZE * 0.04,
-    backgroundColor: 'rgba(255, 253, 250, 0.35)',
-    transform: [{ rotate: '-40deg' }],
-  },
-  bubbleShimmer: {
-    position: 'absolute',
-    bottom: 8,
-    right: 10,
-    width: BUBBLE_SIZE * 0.16,
-    height: BUBBLE_SIZE * 0.08,
-    borderRadius: BUBBLE_SIZE * 0.06,
-    backgroundColor: 'rgba(255, 253, 250, 0.3)',
-    transform: [{ rotate: '30deg' }],
-  },
-  halo: {
-    position: 'absolute',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 0,
-    borderColor: 'transparent',
-    backgroundColor: 'rgba(240, 235, 225, 0.4)',
-    zIndex: 50,
+    borderRadius: BUBBLE_SIZE * 0.08,
+    backgroundColor: 'rgba(255, 252, 248, 0.25)',
   },
   messageContainer: {
     position: 'absolute',
