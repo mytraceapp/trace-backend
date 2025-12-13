@@ -31,16 +31,15 @@ function RainDropIcon({ color }: { color: string }) {
 }
 
 const CARD_VARIANTS = {
-  A: { bgColor: '#F7F0E8', titleColor: '#3E2E22', descColor: '#6B5A4A' },
-  B: { bgColor: '#EADFCC', titleColor: '#3E2E22', descColor: '#6B5A4A' },
-  C: { bgColor: '#DCC9AE', titleColor: '#3E2E22', descColor: '#5E4E3E' },
-  D: { bgColor: '#CDB59A', titleColor: '#3E2E22', descColor: '#5E4E3E' },
-  E: { bgColor: '#BFA88E', titleColor: '#4A3A2A', descColor: '#6B5A4A' },
-  F: { bgColor: '#AD947B', titleColor: '#F5EDE4', descColor: '#E8DFD4' },
+  A: { bgColor: '#F7F0E8', titleColor: '#3E2E22', descColor: 'rgba(107, 90, 74, 0.85)', iconBg: 'rgba(255, 253, 250, 0.7)', iconColor: '#5A4538' },
+  B: { bgColor: '#EADFCC', titleColor: '#3E2E22', descColor: 'rgba(107, 90, 74, 0.85)', iconBg: 'rgba(250, 246, 240, 0.75)', iconColor: '#5A4538' },
+  C: { bgColor: '#DCC9AE', titleColor: '#3E2E22', descColor: 'rgba(94, 78, 62, 0.85)', iconBg: 'rgba(245, 238, 228, 0.7)', iconColor: '#5A4538' },
+  D: { bgColor: '#CDB59A', titleColor: '#3E2E22', descColor: 'rgba(94, 78, 62, 0.85)', iconBg: 'rgba(235, 225, 210, 0.75)', iconColor: '#5A4538' },
+  E: { bgColor: '#BFA88E', titleColor: '#4A3A2A', descColor: 'rgba(107, 90, 74, 0.85)', iconBg: 'rgba(220, 208, 192, 0.7)', iconColor: '#5A4538' },
+  F: { bgColor: '#AD947B', titleColor: '#F5EDE4', descColor: 'rgba(232, 223, 212, 0.9)', iconBg: 'rgba(200, 185, 165, 0.7)', iconColor: '#F5EDE4' },
 };
 
 const BACKGROUND_COLOR = '#EFE6DA';
-const ICON_COLOR = '#5A4A3A';
 
 const VARIANT_KEYS = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
 type VariantKey = typeof VARIANT_KEYS[number];
@@ -89,8 +88,9 @@ function ActivityCard({
         styles.card,
         { 
           backgroundColor: v.bgColor,
-          opacity: pressed ? 0.95 : 1,
-          transform: [{ scale: pressed ? 0.97 : 1 }],
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+          shadowOpacity: pressed ? 0.04 : 0.06,
+          shadowRadius: pressed ? 10 : 12,
         },
       ]}
       onPress={onPress}
@@ -98,11 +98,11 @@ function ActivityCard({
       <View style={styles.cardInner}>
         <View style={styles.cardContent}>
           <View style={styles.iconWrapper}>
-            <View style={styles.iconContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: v.iconBg }]}>
               {customIcon === 'raindrop' ? (
-                <RainDropIcon color={ICON_COLOR} />
+                <RainDropIcon color={v.iconColor} />
               ) : Icon ? (
-                <Icon size={20} color={ICON_COLOR} strokeWidth={1.5} />
+                <Icon size={20} color={v.iconColor} strokeWidth={1.5} />
               ) : null}
             </View>
           </View>
@@ -267,10 +267,10 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     overflow: 'hidden',
     borderWidth: 0,
-    shadowColor: '#A89888',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    shadowColor: '#9A8A78',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
     elevation: 2,
   },
   cardInner: {
@@ -290,7 +290,6 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.iconContainer,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(90, 78, 68, 0.08)',
   },
   textContainer: {
     alignItems: 'flex-start',
@@ -306,8 +305,7 @@ const styles = StyleSheet.create({
     fontSize: MetaText.fontSize,
     fontWeight: MetaText.fontWeight,
     letterSpacing: MetaText.letterSpacing,
-    lineHeight: MetaText.lineHeight,
-    color: '#6B5E53',
+    lineHeight: MetaText.lineHeight ? MetaText.lineHeight * 1.08 : 18,
   },
   patternsButton: {
     marginTop: Spacing.sectionGap,

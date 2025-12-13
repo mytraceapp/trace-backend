@@ -587,4 +587,12 @@ const styles = StyleSheet.create({
     color: '#4A3F35',
     letterSpacing: 1.5,
   },
+  halo: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(200, 190, 175, 0.3)',
+    zIndex: 5,
+  },
 });
