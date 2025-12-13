@@ -32,116 +32,149 @@ function RainDropIcon({ color }: { color: string }) {
   );
 }
 
+const CARD_VARIANTS = {
+  lightOat: {
+    gradientColors: ['#F5EEE5', '#EDE5DA'] as [string, string],
+    iconBgColors: ['#E8DFD2', '#DFD5C6'] as [string, string],
+  },
+  warmSand: {
+    gradientColors: ['#EBE2D5', '#E3D9CA'] as [string, string],
+    iconBgColors: ['#DDD3C4', '#D4C9B9'] as [string, string],
+  },
+  softMocha: {
+    gradientColors: ['#E3D8C8', '#DBCFBE'] as [string, string],
+    iconBgColors: ['#D4C8B6', '#CBBFAD'] as [string, string],
+  },
+  mutedLatte: {
+    gradientColors: ['#DED4C5', '#D6CBBB'] as [string, string],
+    iconBgColors: ['#CFC4B4', '#C6BAAA'] as [string, string],
+  },
+  featuredEspresso: {
+    gradientColors: ['#C9BAA5', '#D4C7B4'] as [string, string],
+    iconBgColors: ['#BFB099', '#B8A891'] as [string, string],
+  },
+};
+
 const ACTIVITIES = [
   {
     id: 'breathing',
     title: 'Breathing',
     description: 'A calming 30-second reset.',
     Icon: Wind,
-    iconColor: '#4A3F35',
-    gradientColors: ['rgba(255, 255, 255, 0.55)', 'rgba(250, 245, 238, 0.55)'] as [string, string],
-    iconBgColors: ['rgba(220, 215, 205, 0.5)', 'rgba(220, 215, 205, 0.3)'] as [string, string],
-    descColor: '#8A857D',
+    iconColor: '#5A4A3A',
+    gradientColors: CARD_VARIANTS.lightOat.gradientColors,
+    iconBgColors: CARD_VARIANTS.lightOat.iconBgColors,
+    descColor: '#8A7A68',
     customIcon: null,
+    isFeatured: false,
   },
   {
     id: 'maze',
     title: 'Trace the Maze',
     description: 'Slow your mind with gentle tracing.',
     Icon: Compass,
-    iconColor: '#4A3F35',
-    gradientColors: ['rgba(227, 218, 205, 0.65)', 'rgba(221, 212, 199, 0.65)'] as [string, string],
-    iconBgColors: ['rgba(220, 215, 205, 0.6)', 'rgba(220, 215, 205, 0.4)'] as [string, string],
-    descColor: '#8A857D',
+    iconColor: '#4A3A2A',
+    gradientColors: CARD_VARIANTS.featuredEspresso.gradientColors,
+    iconBgColors: CARD_VARIANTS.featuredEspresso.iconBgColors,
+    descColor: '#7A6A58',
     customIcon: null,
+    isFeatured: true,
   },
   {
     id: 'walking',
     title: 'Walking Reset',
     description: 'Two minutes of slow-paced movement.',
     Icon: Footprints,
-    iconColor: '#4A3F35',
-    gradientColors: ['rgba(255, 255, 255, 0.55)', 'rgba(250, 245, 238, 0.55)'] as [string, string],
-    iconBgColors: ['rgba(220, 215, 205, 0.5)', 'rgba(220, 215, 205, 0.3)'] as [string, string],
-    descColor: '#8A857D',
+    iconColor: '#5A4A3A',
+    gradientColors: CARD_VARIANTS.warmSand.gradientColors,
+    iconBgColors: CARD_VARIANTS.warmSand.iconBgColors,
+    descColor: '#8A7A68',
     customIcon: null,
+    isFeatured: false,
   },
   {
     id: 'rest',
     title: 'Rest',
     description: 'Five minutes of quiet stillness.',
     Icon: Moon,
-    iconColor: '#4A3F35',
-    gradientColors: ['rgba(227, 218, 205, 0.65)', 'rgba(221, 212, 199, 0.65)'] as [string, string],
-    iconBgColors: ['rgba(220, 215, 205, 0.6)', 'rgba(220, 215, 205, 0.4)'] as [string, string],
-    descColor: '#8A857D',
+    iconColor: '#5A4A3A',
+    gradientColors: CARD_VARIANTS.softMocha.gradientColors,
+    iconBgColors: CARD_VARIANTS.softMocha.iconBgColors,
+    descColor: '#8A7A68',
     customIcon: null,
+    isFeatured: false,
   },
   {
     id: 'ripple',
     title: 'Ripple',
     description: 'Immersive flowing light.',
     Icon: Droplets,
-    iconColor: '#4A3F35',
-    gradientColors: ['rgba(255, 255, 255, 0.55)', 'rgba(250, 245, 238, 0.55)'] as [string, string],
-    iconBgColors: ['rgba(220, 215, 205, 0.5)', 'rgba(220, 215, 205, 0.3)'] as [string, string],
-    descColor: '#8A857D',
+    iconColor: '#5A4A3A',
+    gradientColors: CARD_VARIANTS.mutedLatte.gradientColors,
+    iconBgColors: CARD_VARIANTS.mutedLatte.iconBgColors,
+    descColor: '#8A7A68',
     customIcon: null,
+    isFeatured: false,
   },
   {
     id: 'grounding',
     title: 'Grounding',
     description: 'Connect with your surroundings.',
     Icon: Hand,
-    iconColor: '#4A3F35',
-    gradientColors: ['rgba(227, 218, 205, 0.65)', 'rgba(221, 212, 199, 0.65)'] as [string, string],
-    iconBgColors: ['rgba(220, 215, 205, 0.6)', 'rgba(220, 215, 205, 0.4)'] as [string, string],
-    descColor: '#8A857D',
+    iconColor: '#5A4A3A',
+    gradientColors: CARD_VARIANTS.lightOat.gradientColors,
+    iconBgColors: CARD_VARIANTS.lightOat.iconBgColors,
+    descColor: '#8A7A68',
     customIcon: null,
+    isFeatured: false,
   },
   {
     id: 'window',
     title: 'Window',
     description: 'Watch the rain. Drift away.',
     Icon: null,
-    iconColor: '#4A3F35',
-    gradientColors: ['rgba(255, 255, 255, 0.55)', 'rgba(250, 245, 238, 0.55)'] as [string, string],
-    iconBgColors: ['rgba(220, 215, 205, 0.5)', 'rgba(220, 215, 205, 0.3)'] as [string, string],
-    descColor: '#8A857D',
+    iconColor: '#5A4A3A',
+    gradientColors: CARD_VARIANTS.warmSand.gradientColors,
+    iconBgColors: CARD_VARIANTS.warmSand.iconBgColors,
+    descColor: '#8A7A68',
     customIcon: 'raindrop',
+    isFeatured: false,
   },
   {
     id: 'echo',
     title: 'Echo',
     description: 'Gentle waves of calm.',
     Icon: Activity,
-    iconColor: '#4A3F35',
-    gradientColors: ['rgba(227, 218, 205, 0.65)', 'rgba(221, 212, 199, 0.65)'] as [string, string],
-    iconBgColors: ['rgba(220, 215, 205, 0.6)', 'rgba(220, 215, 205, 0.4)'] as [string, string],
-    descColor: '#8A857D',
+    iconColor: '#5A4A3A',
+    gradientColors: CARD_VARIANTS.softMocha.gradientColors,
+    iconBgColors: CARD_VARIANTS.softMocha.iconBgColors,
+    descColor: '#8A7A68',
     customIcon: null,
+    isFeatured: false,
   },
   {
     id: 'rising',
     title: 'Rising',
     description: 'Gentle energy to start fresh.',
     Icon: Sunrise,
-    iconColor: '#4A3F35',
-    gradientColors: ['rgba(255, 255, 255, 0.55)', 'rgba(250, 245, 238, 0.55)'] as [string, string],
-    iconBgColors: ['rgba(220, 215, 205, 0.5)', 'rgba(220, 215, 205, 0.3)'] as [string, string],
-    descColor: '#8A857D',
+    iconColor: '#5A4A3A',
+    gradientColors: CARD_VARIANTS.mutedLatte.gradientColors,
+    iconBgColors: CARD_VARIANTS.mutedLatte.iconBgColors,
+    descColor: '#8A7A68',
     customIcon: null,
+    isFeatured: false,
   },
   {
     id: 'bubble',
     title: 'Drift',
     description: 'Release pressure. Pop the tension.',
     Icon: Circle,
-    iconColor: '#4A3F35',
-    gradientColors: ['rgba(227, 218, 205, 0.65)', 'rgba(221, 212, 199, 0.65)'] as [string, string],
-    iconBgColors: ['rgba(220, 215, 205, 0.6)', 'rgba(220, 215, 205, 0.4)'] as [string, string],
-    descColor: '#8A857D',
+    iconColor: '#5A4A3A',
+    gradientColors: CARD_VARIANTS.lightOat.gradientColors,
+    iconBgColors: CARD_VARIANTS.lightOat.iconBgColors,
+    descColor: '#8A7A68',
     customIcon: null,
+    isFeatured: false,
   },
 ];
 
@@ -156,6 +189,7 @@ type ActivityCardProps = {
   customIcon?: string | null;
   onPress?: () => void;
   fontFamily: string;
+  isFeatured?: boolean;
 };
 
 function ActivityCard({ 
@@ -169,11 +203,13 @@ function ActivityCard({
   customIcon,
   onPress,
   fontFamily,
+  isFeatured = false,
 }: ActivityCardProps) {
   return (
     <Pressable
       style={({ pressed }) => [
         styles.card,
+        isFeatured && styles.cardFeatured,
         { 
           opacity: pressed ? 0.95 : 1,
           transform: [{ scale: pressed ? 0.97 : 1 }],
@@ -183,26 +219,32 @@ function ActivityCard({
     >
       <LinearGradient
         colors={gradientColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={styles.cardGradient}
       >
         <View style={styles.cardContent}>
-          <LinearGradient
-            colors={iconBgColors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.iconContainer}
-          >
-            {customIcon === 'raindrop' ? (
-              <RainDropIcon color={iconColor} />
-            ) : Icon ? (
-              <Icon size={20} color={iconColor} strokeWidth={1.5} />
-            ) : null}
-          </LinearGradient>
+          <View style={[styles.iconWrapper, { opacity: 0.85 }]}>
+            <LinearGradient
+              colors={iconBgColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.iconContainer}
+            >
+              {customIcon === 'raindrop' ? (
+                <RainDropIcon color={iconColor} />
+              ) : Icon ? (
+                <Icon size={20} color={iconColor} strokeWidth={1.5} />
+              ) : null}
+            </LinearGradient>
+          </View>
           
           <View style={styles.textContainer}>
-            <Text style={[styles.cardTitle, { fontFamily }]}>{title}</Text>
+            <Text style={[
+              styles.cardTitle, 
+              { fontFamily },
+              isFeatured && styles.cardTitleFeatured,
+            ]}>{title}</Text>
             <Text style={[styles.cardDescription, { color: descColor, fontFamily }]}>{description}</Text>
           </View>
         </View>
@@ -253,8 +295,8 @@ export default function ActivitiesScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[...Colors.day.backgroundGradient]}
-        locations={[0, 0.6, 1]}
+        colors={['#E8DFD2', '#DDD3C4', '#D4C9B8']}
+        locations={[0, 0.5, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -292,6 +334,7 @@ export default function ActivitiesScreen() {
               descColor={activity.descColor}
               customIcon={activity.customIcon}
               fontFamily={canelaFont}
+              isFeatured={activity.isFeatured}
               onPress={() => handleActivityPress(activity.id)}
             />
           ))}
@@ -356,13 +399,13 @@ const styles = StyleSheet.create({
     fontSize: ScreenTitle.fontSize,
     fontWeight: ScreenTitle.fontWeight,
     marginBottom: 2,
-    color: '#3A3A3A',
+    color: '#4A3A2A',
     letterSpacing: ScreenTitle.letterSpacing,
   },
   subtitle: {
     fontSize: BodyText.fontSize,
     fontWeight: BodyText.fontWeight,
-    color: '#6E6861',
+    color: '#7A6A58',
     letterSpacing: BodyText.letterSpacing,
     fontStyle: 'italic',
   },
@@ -377,9 +420,19 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     borderRadius: BorderRadius.card,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    ...Shadows.card,
+    borderWidth: 0,
+    shadowColor: '#8A7A68',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cardFeatured: {
+    shadowColor: '#6A5A48',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 6,
   },
   cardGradient: {
     padding: Spacing.cardPadding,
@@ -389,6 +442,8 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+  },
+  iconWrapper: {
   },
   iconContainer: {
     width: 48,
@@ -404,30 +459,37 @@ const styles = StyleSheet.create({
     fontSize: CardTitle.fontSize,
     fontWeight: CardTitle.fontWeight,
     marginBottom: 4,
-    color: '#3A3A3A',
+    color: '#4A3A2A',
     letterSpacing: CardTitle.letterSpacing,
+  },
+  cardTitleFeatured: {
+    color: '#3A2A1A',
   },
   cardDescription: {
     fontSize: MetaText.fontSize,
     fontWeight: MetaText.fontWeight,
     letterSpacing: MetaText.letterSpacing,
     lineHeight: MetaText.lineHeight,
-    opacity: MetaText.opacity,
+    opacity: 0.85,
   },
   patternsButton: {
     marginTop: Spacing.sectionGap,
     marginBottom: Spacing['2xl'],
     borderRadius: BorderRadius.button,
-    backgroundColor: 'rgba(180, 170, 155, 0.5)',
-    borderWidth: 1,
-    borderColor: 'rgba(180, 170, 155, 0.3)',
+    backgroundColor: '#C9BAA5',
+    borderWidth: 0,
     paddingVertical: 16,
     alignItems: 'center',
+    shadowColor: '#8A7A68',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
   patternsText: {
     fontSize: BodyText.fontSize,
     fontWeight: '500',
-    color: '#3A3A3A',
+    color: '#4A3A2A',
     letterSpacing: 0.3,
   },
 });
