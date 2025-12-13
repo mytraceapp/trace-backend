@@ -11,6 +11,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSpring,
+  withRepeat,
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
@@ -53,6 +54,56 @@ const STEPS: StepData[] = [
     hint: 'Whatever is present, without judgment.',
   },
 ];
+
+interface BubbleProps {
+  size: number;
+  top?: string;
+  bottom?: string;
+  left?: string;
+  right?: string;
+  delay: number;
+  duration: number;
+  floatDistance: number;
+}
+
+function FloatingBubble({ size, top, bottom, left, right, delay, duration, floatDistance }: BubbleProps) {
+  const translateY = useSharedValue(0);
+  const translateX = useSharedValue(0);
+  
+  useEffect(() => {
+    const startDelay = setTimeout(() => {
+      translateY.value = withRepeat(
+        withTiming(-floatDistance, { duration, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true
+      );
+      translateX.value = withRepeat(
+        withTiming(floatDistance * 0.3, { duration: duration * 1.2, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true
+      );
+    }, delay);
+    
+    return () => clearTimeout(startDelay);
+  }, []);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { translateX: translateX.value },
+    ],
+  }));
+  
+  const positionStyle: any = { width: size, height: size };
+  if (top) positionStyle.top = top;
+  if (bottom) positionStyle.bottom = bottom;
+  if (left) positionStyle.left = left;
+  if (right) positionStyle.right = right;
+  
+  return (
+    <Animated.View style={[styles.patternCircle, positionStyle, animatedStyle]} />
+  );
+}
 
 function StepIndicator({ 
   currentStep, 
@@ -279,38 +330,32 @@ export default function GroundingScreen() {
 
       <View style={styles.ambientGlow} />
       
-      <View style={styles.circlePattern}>
-        {/* Large bubbles scattered across */}
-        <View style={[styles.patternCircle, { width: 320, height: 320, top: '-5%', left: '-10%' }]} />
-        <View style={[styles.patternCircle, { width: 280, height: 280, top: '2%', right: '-8%' }]} />
-        <View style={[styles.patternCircle, { width: 260, height: 260, top: '12%', left: '25%' }]} />
-        <View style={[styles.patternCircle, { width: 300, height: 300, top: '18%', right: '15%' }]} />
-        <View style={[styles.patternCircle, { width: 340, height: 340, top: '28%', left: '-15%' }]} />
-        <View style={[styles.patternCircle, { width: 220, height: 220, top: '35%', right: '-5%' }]} />
-        <View style={[styles.patternCircle, { width: 280, height: 280, top: '45%', left: '30%' }]} />
-        <View style={[styles.patternCircle, { width: 240, height: 240, top: '55%', right: '20%' }]} />
-        <View style={[styles.patternCircle, { width: 300, height: 300, top: '60%', left: '-12%' }]} />
-        <View style={[styles.patternCircle, { width: 200, height: 200, top: '70%', right: '5%' }]} />
-        <View style={[styles.patternCircle, { width: 260, height: 260, bottom: '5%', left: '15%' }]} />
-        <View style={[styles.patternCircle, { width: 220, height: 220, bottom: '-3%', right: '-10%' }]} />
+      <View style={styles.circlePattern} pointerEvents="none">
+        {/* Large floating bubbles - edges only */}
+        <FloatingBubble size={320} top="-5%" left="-10%" delay={0} duration={4000} floatDistance={15} />
+        <FloatingBubble size={280} top="2%" right="-8%" delay={500} duration={4500} floatDistance={12} />
+        <FloatingBubble size={260} top="8%" left="-5%" delay={200} duration={5000} floatDistance={18} />
+        <FloatingBubble size={300} top="15%" right="-12%" delay={800} duration={4200} floatDistance={14} />
+        <FloatingBubble size={340} top="25%" left="-18%" delay={300} duration={4800} floatDistance={16} />
+        <FloatingBubble size={220} top="32%" right="-8%" delay={1000} duration={4400} floatDistance={13} />
+        <FloatingBubble size={280} top="48%" left="-15%" delay={600} duration={5200} floatDistance={17} />
+        <FloatingBubble size={240} top="55%" right="-10%" delay={400} duration={4600} floatDistance={15} />
+        <FloatingBubble size={300} top="68%" left="-12%" delay={900} duration={4300} floatDistance={14} />
+        <FloatingBubble size={200} top="75%" right="-5%" delay={700} duration={4700} floatDistance={12} />
         
-        {/* Medium bubbles for depth */}
-        <View style={[styles.patternCircle, { width: 180, height: 180, top: '8%', left: '45%' }]} />
-        <View style={[styles.patternCircle, { width: 160, height: 160, top: '22%', right: '40%' }]} />
-        <View style={[styles.patternCircle, { width: 140, height: 140, top: '38%', left: '55%' }]} />
-        <View style={[styles.patternCircle, { width: 170, height: 170, top: '50%', right: '45%' }]} />
-        <View style={[styles.patternCircle, { width: 150, height: 150, top: '65%', left: '40%' }]} />
-        <View style={[styles.patternCircle, { width: 130, height: 130, bottom: '20%', right: '35%' }]} />
+        {/* Medium floating bubbles - upper and side areas */}
+        <FloatingBubble size={180} top="5%" left="60%" delay={150} duration={3800} floatDistance={10} />
+        <FloatingBubble size={160} top="12%" right="55%" delay={450} duration={4100} floatDistance={11} />
+        <FloatingBubble size={140} top="20%" left="75%" delay={650} duration={3900} floatDistance={9} />
+        <FloatingBubble size={170} top="28%" right="70%" delay={350} duration={4300} floatDistance={12} />
         
-        {/* Small bubbles for texture */}
-        <View style={[styles.patternCircle, { width: 100, height: 100, top: '5%', left: '60%' }]} />
-        <View style={[styles.patternCircle, { width: 90, height: 90, top: '15%', right: '25%' }]} />
-        <View style={[styles.patternCircle, { width: 80, height: 80, top: '32%', left: '70%' }]} />
-        <View style={[styles.patternCircle, { width: 110, height: 110, top: '42%', right: '30%' }]} />
-        <View style={[styles.patternCircle, { width: 70, height: 70, top: '58%', left: '65%' }]} />
-        <View style={[styles.patternCircle, { width: 95, height: 95, top: '75%', right: '50%' }]} />
-        <View style={[styles.patternCircle, { width: 85, height: 85, bottom: '12%', left: '55%' }]} />
-        <View style={[styles.patternCircle, { width: 75, height: 75, bottom: '8%', right: '25%' }]} />
+        {/* Small floating bubbles - scattered upper areas */}
+        <FloatingBubble size={100} top="3%" left="40%" delay={100} duration={3500} floatDistance={8} />
+        <FloatingBubble size={90} top="10%" right="35%" delay={250} duration={3700} floatDistance={7} />
+        <FloatingBubble size={80} top="18%" left="85%" delay={550} duration={3600} floatDistance={6} />
+        <FloatingBubble size={110} top="25%" right="80%" delay={750} duration={3800} floatDistance={9} />
+        <FloatingBubble size={70} top="35%" left="80%" delay={850} duration={3400} floatDistance={5} />
+        <FloatingBubble size={95} top="42%" right="85%" delay={950} duration={3900} floatDistance={8} />
       </View>
 
       <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
