@@ -63,10 +63,10 @@ export default function InThisSpaceScreen() {
         </View>
 
         <View style={styles.introSection}>
-          <Text style={[styles.introParagraph, { fontFamily: canelaFont }]}>
+          <Text style={[styles.introParagraph, styles.introDark, { fontFamily: canelaFont }]}>
             TRACE offers emotional support, reflection, grounding, and gentle companionship.
           </Text>
-          <Text style={[styles.introParagraph, { fontFamily: canelaFont }]}>
+          <Text style={[styles.introParagraph, styles.introLight, { fontFamily: canelaFont }]}>
             TRACE does not diagnose, prescribe, or replace therapy or emergency services.
           </Text>
         </View>
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     textAlign: 'center',
     fontStyle: 'italic',
-    marginTop: -3,
+    marginTop: -1.5,
   },
   introSection: {
     marginBottom: 20,
@@ -175,17 +175,22 @@ const styles = StyleSheet.create({
   introParagraph: {
     fontSize: 13,
     fontWeight: '400',
-    color: '#4B4B4B',
     letterSpacing: 0.2,
     lineHeight: 19,
     textAlign: 'center',
     marginBottom: 8,
   },
+  introDark: {
+    color: '#2B2825',
+  },
+  introLight: {
+    color: '#8A857D',
+  },
   contentCard: {
     backgroundColor: 'rgba(244, 241, 236, 0.85)',
     borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 28,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
     ...Shadows.card,
