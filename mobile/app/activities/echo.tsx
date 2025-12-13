@@ -130,27 +130,27 @@ export default function EchoScreen() {
       const breathLFO = Math.sin(elapsed * 0.0006) * 0.15 + 1;
       
       if (isVoicePlayingRef.current) {
-        const voicePhase = elapsed * 0.002;
-        const voiceEnergy1 = Math.sin(elapsed * 0.004) * 0.5 + Math.sin(elapsed * 0.011) * 0.3 + 1;
-        const voiceEnergy2 = Math.sin(elapsed * 0.005) * 0.45 + Math.sin(elapsed * 0.009) * 0.35 + 1;
-        const voiceEnergy3 = Math.sin(elapsed * 0.003) * 0.4 + Math.sin(elapsed * 0.013) * 0.25 + 1;
+        const voicePhase = elapsed * 0.0014;
+        const voiceEnergy1 = Math.sin(elapsed * 0.003) * 0.35 + Math.sin(elapsed * 0.008) * 0.2 + 1;
+        const voiceEnergy2 = Math.sin(elapsed * 0.0035) * 0.3 + Math.sin(elapsed * 0.006) * 0.25 + 1;
+        const voiceEnergy3 = Math.sin(elapsed * 0.002) * 0.28 + Math.sin(elapsed * 0.009) * 0.18 + 1;
         
         setWave1Path(generateSmoothWavePath(
-          SCREEN_WIDTH, centerY, 50 * breathLFO * voiceEnergy1, 2.5, voicePhase + 0.7, -35
+          SCREEN_WIDTH, centerY, 40 * breathLFO * voiceEnergy1, 2.5, voicePhase + 0.7, -35
         ));
         setWave2Path(generateSmoothWavePath(
-          SCREEN_WIDTH, centerY, 65 * breathLFO * voiceEnergy2, 2.5, voicePhase + 0.5, 0
+          SCREEN_WIDTH, centerY, 52 * breathLFO * voiceEnergy2, 2.5, voicePhase + 0.5, 0
         ));
         setWave3Path(generateSmoothWavePath(
-          SCREEN_WIDTH, centerY, 45 * breathLFO * voiceEnergy3, 2.5, voicePhase + 0.3, 30
+          SCREEN_WIDTH, centerY, 36 * breathLFO * voiceEnergy3, 2.5, voicePhase + 0.3, 30
         ));
         
-        const pulse = Math.sin(elapsed * 0.006) * 0.15;
-        const fastPulse = Math.sin(elapsed * 0.018) * 0.08;
+        const pulse = Math.sin(elapsed * 0.004) * 0.10;
+        const fastPulse = Math.sin(elapsed * 0.012) * 0.05;
         const newScale = 1 + pulse + fastPulse;
         orbScale.value = newScale;
         setOrbScaleState(newScale);
-        orbGlow.value = 0.35 + Math.sin(elapsed * 0.008) * 0.2;
+        orbGlow.value = 0.30 + Math.sin(elapsed * 0.006) * 0.14;
       } else {
         setWave1Path(generateSmoothWavePath(
           SCREEN_WIDTH, centerY, 30 * breathLFO, 2.5, phase + 0.7, -35
