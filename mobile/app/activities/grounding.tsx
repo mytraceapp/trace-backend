@@ -328,7 +328,6 @@ export default function GroundingScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={styles.ambientGlow} />
       
       <View style={styles.circlePattern} pointerEvents="none">
         {/* Large floating bubbles - edges only */}
@@ -381,8 +380,6 @@ export default function GroundingScreen() {
       ) : (
         <>
           <Animated.View style={[styles.stepContent, contentAnimatedStyle]}>
-            <View style={styles.numberGlow} />
-            
             <Text style={[styles.largeNumber, { fontFamily: canelaFont }]}>
               {currentStepData.number}
             </Text>
