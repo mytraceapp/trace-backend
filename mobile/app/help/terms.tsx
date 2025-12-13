@@ -116,7 +116,7 @@ export default function TermsScreen() {
             <Text style={[styles.linkText, { fontFamily: canelaFont }]}>Open Terms of Use</Text>
           </Pressable>
 
-          <Pressable onPress={() => setSafetyModalVisible(true)} style={[styles.linkContainer, { marginTop: 24 }]}>
+          <Pressable onPress={() => setSafetyModalVisible(true)} style={[styles.linkContainer, { marginTop: 48 }]}>
             <Text style={[styles.linkText, { fontFamily: canelaFont }]}>Open Safety Commitment</Text>
           </Pressable>
         </View>
