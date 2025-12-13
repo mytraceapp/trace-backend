@@ -101,7 +101,6 @@ export default function EchoScreen() {
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
 
   const audioRef = useRef<Audio.Sound | null>(null);
-  const ambientRef = useRef<Audio.Sound | null>(null);
   
   const time = useSharedValue(0);
   const orbScale = useSharedValue(1);
@@ -195,28 +194,6 @@ export default function EchoScreen() {
         shouldDuckAndroid: true,
       });
       
-      const { sound: ambient } = await Audio.Sound.createAsync(
-        require('../../assets/audio/ambient-loop.mp3'),
-        {
-          isLooping: true,
-          volume: 0,
-          rate: 0.90,
-          shouldCorrectPitch: true,
-        }
-      );
-      ambientRef.current = ambient;
-      await ambient.playAsync();
-      
-      let ambientVol = 0;
-      const ambientFadeIn = setInterval(async () => {
-        ambientVol += 0.003;
-        if (ambientVol >= 0.12) {
-          ambientVol = 0.12;
-          clearInterval(ambientFadeIn);
-        }
-        await ambient.setVolumeAsync(ambientVol);
-      }, 30);
-      
       setTimeout(async () => {
         const { sound: voice } = await Audio.Sound.createAsync(
           require('../../assets/audio/echo.mp3'),
@@ -258,18 +235,12 @@ export default function EchoScreen() {
       if (audioRef.current) {
         audioRef.current.unloadAsync();
       }
-      if (ambientRef.current) {
-        ambientRef.current.unloadAsync();
-      }
     };
   }, []);
 
   const handleTracePress = async () => {
     if (audioRef.current) {
       await audioRef.current.stopAsync();
-    }
-    if (ambientRef.current) {
-      await ambientRef.current.stopAsync();
     }
     router.replace('/(tabs)/chat');
   };
@@ -286,18 +257,6 @@ export default function EchoScreen() {
           await audioRef.current.setVolumeAsync(vol);
         }
       }, 20);
-    }
-    if (ambientRef.current) {
-      let ambVol = 0.12;
-      const ambFadeInterval = setInterval(async () => {
-        ambVol -= 0.006;
-        if (ambVol <= 0) {
-          clearInterval(ambFadeInterval);
-          await ambientRef.current?.stopAsync();
-        } else if (ambientRef.current) {
-          await ambientRef.current.setVolumeAsync(ambVol);
-        }
-      }, 25);
     }
     setTimeout(() => {
       router.back();
