@@ -272,7 +272,7 @@ export default function GroundingScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#FAF8F5', '#F5F2ED', '#EDE9E3', '#E8E4DD', '#E3DFD8']}
+        colors={['#EDE8E0', '#E5DFD5', '#DDD6CB', '#D5CEC2', '#CDC5B9']}
         locations={[0, 0.25, 0.5, 0.75, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -280,14 +280,37 @@ export default function GroundingScreen() {
       <View style={styles.ambientGlow} />
       
       <View style={styles.circlePattern}>
-        <View style={[styles.patternCircle, { width: 280, height: 280, top: '5%', left: '-15%' }]} />
-        <View style={[styles.patternCircle, { width: 200, height: 200, top: '15%', right: '-10%' }]} />
-        <View style={[styles.patternCircle, { width: 320, height: 320, top: '35%', left: '20%' }]} />
-        <View style={[styles.patternCircle, { width: 180, height: 180, top: '55%', right: '5%' }]} />
-        <View style={[styles.patternCircle, { width: 240, height: 240, bottom: '20%', left: '-5%' }]} />
-        <View style={[styles.patternCircle, { width: 160, height: 160, bottom: '10%', right: '15%' }]} />
-        <View style={[styles.patternCircle, { width: 300, height: 300, top: '25%', left: '-20%' }]} />
-        <View style={[styles.patternCircle, { width: 220, height: 220, bottom: '35%', right: '-15%' }]} />
+        {/* Large bubbles scattered across */}
+        <View style={[styles.patternCircle, { width: 320, height: 320, top: '-5%', left: '-10%' }]} />
+        <View style={[styles.patternCircle, { width: 280, height: 280, top: '2%', right: '-8%' }]} />
+        <View style={[styles.patternCircle, { width: 260, height: 260, top: '12%', left: '25%' }]} />
+        <View style={[styles.patternCircle, { width: 300, height: 300, top: '18%', right: '15%' }]} />
+        <View style={[styles.patternCircle, { width: 340, height: 340, top: '28%', left: '-15%' }]} />
+        <View style={[styles.patternCircle, { width: 220, height: 220, top: '35%', right: '-5%' }]} />
+        <View style={[styles.patternCircle, { width: 280, height: 280, top: '45%', left: '30%' }]} />
+        <View style={[styles.patternCircle, { width: 240, height: 240, top: '55%', right: '20%' }]} />
+        <View style={[styles.patternCircle, { width: 300, height: 300, top: '60%', left: '-12%' }]} />
+        <View style={[styles.patternCircle, { width: 200, height: 200, top: '70%', right: '5%' }]} />
+        <View style={[styles.patternCircle, { width: 260, height: 260, bottom: '5%', left: '15%' }]} />
+        <View style={[styles.patternCircle, { width: 220, height: 220, bottom: '-3%', right: '-10%' }]} />
+        
+        {/* Medium bubbles for depth */}
+        <View style={[styles.patternCircle, { width: 180, height: 180, top: '8%', left: '45%' }]} />
+        <View style={[styles.patternCircle, { width: 160, height: 160, top: '22%', right: '40%' }]} />
+        <View style={[styles.patternCircle, { width: 140, height: 140, top: '38%', left: '55%' }]} />
+        <View style={[styles.patternCircle, { width: 170, height: 170, top: '50%', right: '45%' }]} />
+        <View style={[styles.patternCircle, { width: 150, height: 150, top: '65%', left: '40%' }]} />
+        <View style={[styles.patternCircle, { width: 130, height: 130, bottom: '20%', right: '35%' }]} />
+        
+        {/* Small bubbles for texture */}
+        <View style={[styles.patternCircle, { width: 100, height: 100, top: '5%', left: '60%' }]} />
+        <View style={[styles.patternCircle, { width: 90, height: 90, top: '15%', right: '25%' }]} />
+        <View style={[styles.patternCircle, { width: 80, height: 80, top: '32%', left: '70%' }]} />
+        <View style={[styles.patternCircle, { width: 110, height: 110, top: '42%', right: '30%' }]} />
+        <View style={[styles.patternCircle, { width: 70, height: 70, top: '58%', left: '65%' }]} />
+        <View style={[styles.patternCircle, { width: 95, height: 95, top: '75%', right: '50%' }]} />
+        <View style={[styles.patternCircle, { width: 85, height: 85, bottom: '12%', left: '55%' }]} />
+        <View style={[styles.patternCircle, { width: 75, height: 75, bottom: '8%', right: '25%' }]} />
       </View>
 
       <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
