@@ -165,6 +165,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     textAlign: 'center',
     fontStyle: 'italic',
+    marginTop: -3,
   },
   introSection: {
     marginBottom: 20,
@@ -172,11 +173,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   introParagraph: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '400',
     color: '#4B4B4B',
     letterSpacing: 0.2,
-    lineHeight: 22,
+    lineHeight: 19,
     textAlign: 'center',
     marginBottom: 8,
   },
