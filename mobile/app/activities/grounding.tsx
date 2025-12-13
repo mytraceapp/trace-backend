@@ -380,9 +380,25 @@ export default function GroundingScreen() {
       ) : (
         <>
           <Animated.View style={[styles.stepContent, contentAnimatedStyle]}>
-            <Text style={[styles.largeNumber, { fontFamily: canelaFont }]}>
-              {currentStepData.number}
-            </Text>
+            <View style={styles.numberContainer}>
+              {/* Outline strokes using multiple text layers */}
+              <Text style={[styles.largeNumberOutline, styles.outlineTop, { fontFamily: canelaFont }]}>
+                {currentStepData.number}
+              </Text>
+              <Text style={[styles.largeNumberOutline, styles.outlineBottom, { fontFamily: canelaFont }]}>
+                {currentStepData.number}
+              </Text>
+              <Text style={[styles.largeNumberOutline, styles.outlineLeft, { fontFamily: canelaFont }]}>
+                {currentStepData.number}
+              </Text>
+              <Text style={[styles.largeNumberOutline, styles.outlineRight, { fontFamily: canelaFont }]}>
+                {currentStepData.number}
+              </Text>
+              {/* Main transparent text */}
+              <Text style={[styles.largeNumber, { fontFamily: canelaFont }]}>
+                {currentStepData.number}
+              </Text>
+            </View>
 
             <Text style={[styles.instruction, { fontFamily: canelaFont }]}>
               {currentStepData.instruction}
@@ -523,25 +539,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     marginTop: -20,
   },
-  numberGlow: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    opacity: 0.4,
+  numberContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 60,
+    marginBottom: -12,
   },
   largeNumber: {
     fontSize: 140,
     fontWeight: '300',
-    color: 'rgba(164, 148, 133, 0.18)',
+    color: 'transparent',
     letterSpacing: 1,
     lineHeight: 150,
-    marginBottom: -12,
-    marginTop: 60,
-    textShadowColor: 'rgba(164, 148, 133, 0.25)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 40,
+  },
+  largeNumberOutline: {
+    position: 'absolute',
+    fontSize: 140,
+    fontWeight: '300',
+    color: 'rgba(90, 80, 70, 0.25)',
+    letterSpacing: 1,
+    lineHeight: 150,
+  },
+  outlineTop: {
+    top: -1.5,
+  },
+  outlineBottom: {
+    top: 1.5,
+  },
+  outlineLeft: {
+    left: -1.5,
+  },
+  outlineRight: {
+    left: 1.5,
   },
   instruction: {
     fontSize: 21,
