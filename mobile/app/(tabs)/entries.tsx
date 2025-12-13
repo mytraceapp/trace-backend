@@ -176,7 +176,7 @@ export default function EntriesScreen() {
           ]}
           onPress={handleJournalPress}
         >
-          <BookOpen size={18} color="#FDFCFA" strokeWidth={1.5} style={styles.journalIcon} />
+          <BookOpen size={18} color="#5A5651" strokeWidth={1.5} style={styles.journalIcon} />
           <Text style={[styles.journalButtonText, { fontFamily: canelaFont }]}>
             Journal
           </Text>
@@ -250,11 +250,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#6B6761',
+    backgroundColor: 'rgba(107, 103, 97, 0.2)',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 28,
     minWidth: 160,
+    borderWidth: 1,
+    borderColor: 'rgba(107, 103, 97, 0.3)',
   },
   journalIcon: {
     marginRight: 8,
@@ -262,7 +264,7 @@ const styles = StyleSheet.create({
   journalButtonText: {
     fontSize: 16,
     fontWeight: '400',
-    color: '#FDFCFA',
+    color: '#5A5651',
     letterSpacing: 0.3,
   },
 });

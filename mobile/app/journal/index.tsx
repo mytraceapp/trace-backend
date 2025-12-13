@@ -454,7 +454,7 @@ export default function JournalScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.bottomButtonContainer, { paddingBottom: insets.bottom + 110 }]}>
+      <View style={[styles.bottomButtonContainer, { paddingBottom: insets.bottom + 65 }]}>
         <Pressable
           style={({ pressed }) => [
             styles.logMomentButton,
@@ -489,78 +489,85 @@ export default function JournalScreen() {
               </Pressable>
             </View>
 
-            <Text style={[styles.modalDate, { fontFamily: canelaFont }]}>
-              {currentMonth} {todayDate}, {currentYear}
-            </Text>
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalScrollContent}
+            >
+              <Text style={[styles.modalDate, { fontFamily: canelaFont }]}>
+                {currentMonth} {todayDate}, {currentYear}
+              </Text>
 
-            <Text style={[styles.modalLabel, { fontFamily: canelaFont }]}>
-              How are you feeling?
-            </Text>
+              <Text style={[styles.modalLabel, { fontFamily: canelaFont }]}>
+                How are you feeling?
+              </Text>
 
-            <View style={styles.moodOptionsContainer}>
-              {moodOptions.map((mood) => {
-                const isSelected = newEntryMood === mood.type;
-                const isDark = mood.type === 'heavy' || mood.type === 'overwhelmed';
-                
-                return (
-                  <Pressable
-                    key={mood.type}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setNewEntryMood(mood.type);
-                    }}
-                    style={[
-                      styles.moodOption,
-                      { backgroundColor: mood.color },
-                      isSelected && styles.moodOptionSelected,
-                    ]}
-                  >
-                    <Text style={[
-                      styles.moodLabel,
-                      { fontFamily: canelaFont },
-                      isDark && styles.moodLabelLight,
-                    ]}>
-                      {mood.label}
-                    </Text>
-                    <Text style={[
-                      styles.moodDescription,
-                      { fontFamily: canelaFont },
-                      isDark && styles.moodDescriptionLight,
-                    ]}>
-                      {mood.description}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+              <View style={styles.moodOptionsContainer}>
+                {moodOptions.map((mood) => {
+                  const isSelected = newEntryMood === mood.type;
+                  const isDark = mood.type === 'heavy' || mood.type === 'overwhelmed';
+                  
+                  return (
+                    <Pressable
+                      key={mood.type}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setNewEntryMood(mood.type);
+                      }}
+                      style={[
+                        styles.moodOption,
+                        { backgroundColor: mood.color },
+                        isSelected && styles.moodOptionSelected,
+                      ]}
+                    >
+                      <Text style={[
+                        styles.moodLabel,
+                        { fontFamily: canelaFont },
+                        isDark && styles.moodLabelLight,
+                      ]}>
+                        {mood.label}
+                      </Text>
+                      <Text style={[
+                        styles.moodDescription,
+                        { fontFamily: canelaFont },
+                        isDark && styles.moodDescriptionLight,
+                      ]}>
+                        {mood.description}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
 
-            <Text style={[styles.modalLabel, { fontFamily: canelaFont }]}>
-              What's on your mind?
-            </Text>
+              <Text style={[styles.modalLabel, { fontFamily: canelaFont }]}>
+                What's on your mind?
+              </Text>
 
-            <TextInput
-              value={newEntryText}
-              onChangeText={setNewEntryText}
-              placeholder="Write as much or as little as you need..."
-              placeholderTextColor="#A49485"
-              multiline
-              style={[styles.textInput, { fontFamily: canelaFont }]}
-            />
+              <TextInput
+                value={newEntryText}
+                onChangeText={setNewEntryText}
+                placeholder="Write as much or as little as you need..."
+                placeholderTextColor="#A49485"
+                multiline
+                scrollEnabled
+                style={[styles.textInput, { fontFamily: canelaFont }]}
+              />
 
-            <View style={styles.modalButtonsRow}>
-              <Pressable
-                onPress={handleCancelEntry}
-                style={[styles.modalButton, styles.cancelButton]}
-              >
-                <Text style={[styles.cancelButtonText, { fontFamily: canelaFont }]}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleSaveEntry}
-                style={[styles.modalButton, styles.saveButton]}
-              >
-                <Text style={[styles.saveButtonText, { fontFamily: canelaFont }]}>Save</Text>
-              </Pressable>
-            </View>
+              <View style={styles.modalButtonsRow}>
+                <Pressable
+                  onPress={handleCancelEntry}
+                  style={[styles.modalButton, styles.cancelButton]}
+                >
+                  <Text style={[styles.cancelButtonText, { fontFamily: canelaFont }]}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleSaveEntry}
+                  style={[styles.modalButton, styles.saveButton]}
+                >
+                  <Text style={[styles.saveButtonText, { fontFamily: canelaFont }]}>Save</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -785,12 +792,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   logMomentButton: {
-    backgroundColor: '#FDFCFA',
+    backgroundColor: 'rgba(253, 252, 250, 0.2)',
     borderRadius: 28,
     paddingVertical: 18,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(180, 170, 158, 0.2)',
+    borderColor: 'rgba(180, 170, 158, 0.3)',
   },
   logMomentButtonText: {
     fontSize: 16,
@@ -807,11 +814,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(75, 75, 75, 0.4)',
   },
   modalContent: {
-    backgroundColor: '#F4F1EC',
+    backgroundColor: '#D9D4CA',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
-    flex: 1,
+    maxHeight: '80%',
+  },
+  modalScrollContent: {
+    flexGrow: 1,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -852,10 +862,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: 'rgba(180, 170, 158, 0.3)',
     shadowColor: '#4B4B4B',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
   },
   moodOptionSelected: {
@@ -879,16 +889,16 @@ const styles = StyleSheet.create({
     color: 'rgba(244, 241, 236, 0.8)',
   },
   textInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(138, 134, 128, 0.2)',
+    borderColor: 'rgba(138, 134, 128, 0.25)',
     padding: 12,
     fontSize: 14,
     fontWeight: '300',
     color: '#4B4B4B',
-    flex: 1,
     minHeight: 120,
+    maxHeight: 180,
     textAlignVertical: 'top',
     marginBottom: 16,
   },
