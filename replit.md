@@ -16,6 +16,11 @@ Preferred communication style: Simple, everyday language.
    - Shadows.traceWordmark for text shadow
    - fixedHeader style pattern (position absolute, top 0, centered, z-index 40+)
    - Pressable that navigates to chat tab on press
+   - **CRITICAL CENTERING**: The traceLabel style MUST include:
+     - `paddingLeft: TraceWordmark.paddingLeft` (currently 14px)
+     - `textAlign: 'center'`
+     - This compensates for letterSpacing: 14 and ensures perfect visual centering
+     - **DO NOT CHANGE** the paddingLeft value (14) - this is the exact position that works
 
 # System Architecture
 
