@@ -77,7 +77,7 @@ export default function HelpScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[...Colors.day.backgroundGradient]}
+        colors={['#E8E2D8', '#D9D0C3', '#C8BBAA']}
         locations={[0, 0.6, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
@@ -194,26 +194,26 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   card: {
-    backgroundColor: 'rgba(232, 227, 218, 0.80)',
+    backgroundColor: 'rgba(210, 195, 175, 0.55)',
     borderRadius: 16,
     paddingVertical: 22,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     marginBottom: 8,
   },
   cardIconContainer: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: 'rgba(220, 215, 205, 0.6)',
+    backgroundColor: 'rgba(195, 180, 160, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 18,
     borderWidth: 1,
-    borderColor: 'rgba(200, 195, 188, 0.25)',
+    borderColor: 'rgba(180, 170, 155, 0.2)',
   },
   cardTextContainer: {
     flex: 1,
