@@ -21,6 +21,7 @@ import { Spacing } from '../../constants/spacing';
 interface HelpCard {
   id: string;
   title: string;
+  subtitle: string;
   icon: keyof typeof Ionicons.glyphMap;
   route: string;
 }
@@ -29,24 +30,28 @@ const helpCards: HelpCard[] = [
   {
     id: 'in-this-space',
     title: 'In This Space',
-    icon: 'leaf-outline',
+    subtitle: 'What TRACE can and can\'t do.',
+    icon: 'book-outline',
     route: '/help/in-this-space',
   },
   {
     id: 'crisis',
     title: "If You're in Crisis",
-    icon: 'heart-outline',
+    subtitle: 'Immediate options when things feel unsafe.',
+    icon: 'alert-circle-outline',
     route: '/help/crisis',
   },
   {
     id: 'privacy',
     title: 'Privacy & Your Data',
-    icon: 'shield-checkmark-outline',
+    subtitle: 'How your words are protected.',
+    icon: 'shield-outline',
     route: '/help/privacy',
   },
   {
     id: 'terms',
     title: 'Terms & Safety Commitment',
+    subtitle: 'The serious stuff, explained simply.',
     icon: 'document-text-outline',
     route: '/help/terms',
   },
@@ -114,13 +119,15 @@ export default function HelpScreen() {
               onPress={() => handleCardPress(card.route)}
             >
               <View style={styles.cardIconContainer}>
-                <Ionicons name={card.icon} size={24} color="#5A4A3A" />
+                <Ionicons name={card.icon} size={22} color="#9A958E" />
               </View>
-              <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
-                {card.title}
-              </Text>
-              <View style={styles.cardArrow}>
-                <Ionicons name="chevron-forward" size={18} color="#8A8680" />
+              <View style={styles.cardTextContainer}>
+                <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
+                  {card.title}
+                </Text>
+                <Text style={[styles.cardSubtitle, { fontFamily: canelaFont }]}>
+                  {card.subtitle}
+                </Text>
               </View>
             </Pressable>
           ))}
@@ -188,31 +195,37 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#F4F1EC',
     borderRadius: 20,
-    padding: 20,
+    padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   cardIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#FDFCFA',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EDEAE5',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
     borderWidth: 1,
-    borderColor: 'rgba(138, 134, 128, 0.1)',
+    borderColor: 'rgba(200, 195, 188, 0.3)',
+  },
+  cardTextContainer: {
+    flex: 1,
   },
   cardTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#4B4B4B',
+    fontSize: 17,
+    fontWeight: '500',
+    color: '#3A3A3A',
     letterSpacing: 0.2,
+    marginBottom: 3,
   },
-  cardArrow: {
-    opacity: 0.6,
+  cardSubtitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#7A7672',
+    letterSpacing: 0.1,
   },
 });
