@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, Dimensions, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
-import { RotateCcw } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
@@ -18,25 +17,39 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
-import GroundingStep from '../../components/GroundingStep';
-import {
-  GroundingProgress,
-  saveGroundingProgress,
-  loadGroundingProgress,
-  clearGroundingProgress,
-  getDefaultGroundingProgress,
-} from '../../lib/storage';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+interface StepData {
+  number: string;
+  instruction: string;
+  hint: string;
+}
 
-type SenseKey = 'see' | 'feel' | 'hear' | 'smell' | 'taste';
-
-const STEPS: { key: SenseKey; count: number; prompt: string }[] = [
-  { key: 'see', count: 5, prompt: 'Name 5 things you can see.' },
-  { key: 'feel', count: 4, prompt: 'Name 4 things you can feel.' },
-  { key: 'hear', count: 3, prompt: 'Name 3 things you can hear.' },
-  { key: 'smell', count: 2, prompt: 'Name 2 things you can smell.' },
-  { key: 'taste', count: 1, prompt: 'Name 1 thing you can taste.' },
+const STEPS: StepData[] = [
+  {
+    number: '5',
+    instruction: 'Look around. Name five things you can see.',
+    hint: 'Let your eyes rest on simple details.',
+  },
+  {
+    number: '4',
+    instruction: 'Notice four sensations on your body.',
+    hint: 'Fabric, temperature, the chair beneath you…',
+  },
+  {
+    number: '3',
+    instruction: 'Listen for three sounds around you.',
+    hint: 'Near or far, loud or subtle.',
+  },
+  {
+    number: '2',
+    instruction: 'Identify two scents nearby.',
+    hint: 'Or simply notice the air as it is.',
+  },
+  {
+    number: '1',
+    instruction: 'Notice the taste in your mouth.',
+    hint: 'Whatever is present, without judgment.',
+  },
 ];
 
 function StepIndicator({ 
@@ -85,10 +98,9 @@ function CompletionScreen({
   
   return (
     <Animated.View style={[styles.completionContainer, animatedStyle]}>
-      <Text style={[styles.completionEmoji]}>&#10003;</Text>
-      <Text style={[styles.completionTitle, { fontFamily }]}>Grounded</Text>
+      <Text style={[styles.completionTitle, { fontFamily }]}>You're here now.</Text>
       <Text style={[styles.completionSubtitle, { fontFamily }]}>
-        You've reconnected with your senses.
+        Your mind has returned to the present moment.
       </Text>
       
       <Pressable
@@ -98,14 +110,9 @@ function CompletionScreen({
         ]}
         onPress={onClose}
       >
-        <LinearGradient
-          colors={['#C9C3BA', '#B8B2A8']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.doneButtonGradient}
-        >
-          <Text style={[styles.doneButtonText, { fontFamily }]}>Done</Text>
-        </LinearGradient>
+        <View style={styles.doneButtonInner}>
+          <Text style={[styles.doneButtonText, { fontFamily }]}>End Session</Text>
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -124,96 +131,63 @@ export default function GroundingScreen() {
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
   
-  const [progress, setProgress] = useState<GroundingProgress>(getDefaultGroundingProgress());
-  const [isLoading, setIsLoading] = useState(true);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [timeElapsed, setTimeElapsed] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   
   const contentOpacity = useSharedValue(1);
-  const contentTranslateX = useSharedValue(0);
+  const contentTranslateY = useSharedValue(0);
 
   useEffect(() => {
-    loadGroundingProgress().then((saved) => {
-      setProgress(saved);
-      setIsLoading(false);
-    });
+    timerRef.current = setInterval(() => {
+      setTimeElapsed((prev) => prev + 1);
+    }, 1000);
+    
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
   }, []);
 
-  useEffect(() => {
-    if (!isLoading) {
-      saveGroundingProgress(progress);
-    }
-  }, [progress, isLoading]);
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
-  const currentStep = progress.currentStep;
   const currentStepData = STEPS[currentStep];
-  const currentItems = currentStepData ? progress.responses[currentStepData.key] : [];
-  const canAdvance = currentStepData && currentItems.length >= currentStepData.count;
 
-  const handleAddItem = useCallback((item: string) => {
-    if (!currentStepData) return;
-    
-    setProgress((prev) => ({
-      ...prev,
-      responses: {
-        ...prev.responses,
-        [currentStepData.key]: [...prev.responses[currentStepData.key], item],
-      },
-    }));
-  }, [currentStepData]);
-
-  const handleRemoveItem = useCallback((index: number) => {
-    if (!currentStepData) return;
-    
-    setProgress((prev) => ({
-      ...prev,
-      responses: {
-        ...prev.responses,
-        [currentStepData.key]: prev.responses[currentStepData.key].filter((_, i) => i !== index),
-      },
-    }));
-  }, [currentStepData]);
-
-  const transitionToStep = (nextStep: number) => {
+  const transitionToStep = (nextStep: number, callback: () => void) => {
     contentOpacity.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.ease) });
-    contentTranslateX.value = withTiming(-30, { duration: 150, easing: Easing.out(Easing.ease) }, () => {
-      runOnJS(setProgress)((prev: GroundingProgress) => ({ ...prev, currentStep: nextStep }));
-      contentTranslateX.value = 30;
-      contentOpacity.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) });
-      contentTranslateX.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.ease) });
+    contentTranslateY.value = withTiming(-20, { duration: 150, easing: Easing.out(Easing.ease) }, () => {
+      runOnJS(callback)();
+      contentTranslateY.value = 20;
+      contentOpacity.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.ease) });
+      contentTranslateY.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.ease) });
     });
   };
 
   const handleNext = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
-    if (currentStep < STEPS.length - 1) {
-      transitionToStep(currentStep + 1);
-    } else {
-      clearGroundingProgress();
-      setIsComplete(true);
-    }
-  };
-
-  const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     if (currentStep < STEPS.length - 1) {
-      transitionToStep(currentStep + 1);
+      transitionToStep(currentStep + 1, () => setCurrentStep(currentStep + 1));
     } else {
-      clearGroundingProgress();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setIsComplete(true);
     }
   };
 
-  const handleReset = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await clearGroundingProgress();
-    setProgress(getDefaultGroundingProgress());
-    setIsComplete(false);
+  const handlePrevious = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (currentStep > 0) {
+      transitionToStep(currentStep - 1, () => setCurrentStep(currentStep - 1));
+    }
   };
 
-  const handleClose = async () => {
-    await clearGroundingProgress();
+  const handleClose = () => {
     router.back();
   };
 
@@ -223,28 +197,18 @@ export default function GroundingScreen() {
 
   const contentAnimatedStyle = useAnimatedStyle(() => ({
     opacity: contentOpacity.value,
-    transform: [{ translateX: contentTranslateX.value }],
+    transform: [{ translateY: contentTranslateY.value }],
   }));
-
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={['#F5F1EB', '#EBE7E0', '#E2DED7']}
-          locations={[0, 0.6, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#F5F1EB', '#EBE7E0', '#E2DED7']}
-        locations={[0, 0.6, 1]}
+        colors={['#FFFFFF', '#F8F6F3', '#F0EDE8', '#E8E4DF', '#E0DCD7']}
+        locations={[0, 0.25, 0.5, 0.75, 1]}
         style={StyleSheet.absoluteFill}
       />
+
+      <View style={styles.ambientGlow} />
 
       <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
         <Pressable onPress={handleTracePress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -252,75 +216,59 @@ export default function GroundingScreen() {
         </Pressable>
       </View>
 
-      {!isComplete && (
-        <Pressable
-          style={[styles.resetButton, { top: insets.top + 12 }]}
-          onPress={handleReset}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <RotateCcw size={20} color="#8A8680" strokeWidth={1.5} />
-        </Pressable>
-      )}
+      <View style={[styles.timerContainer, { top: insets.top + 12 }]}>
+        <Text style={[styles.timerText, { fontFamily: canelaFont }]}>{formatTime(timeElapsed)}</Text>
+      </View>
 
       {isComplete ? (
         <CompletionScreen fontFamily={canelaFont} onClose={handleClose} />
       ) : (
         <>
-          <View style={[styles.titleContainer, { marginTop: insets.top + 50 }]}>
-            <Text style={[styles.title, { fontFamily: canelaFont }]}>Grounding</Text>
-            <Text style={[styles.subtitle, { fontFamily: canelaFont }]}>5–4–3–2–1 sensory reset</Text>
-          </View>
-
           <Animated.View style={[styles.stepContent, contentAnimatedStyle]}>
-            {currentStepData && (
-              <GroundingStep
-                stepNumber={currentStepData.count}
-                prompt={currentStepData.prompt}
-                items={currentItems}
-                onAddItem={handleAddItem}
-                onRemoveItem={handleRemoveItem}
-                fontFamily={canelaFont}
-              />
-            )}
+            <View style={styles.numberGlow} />
+            
+            <Text style={[styles.largeNumber, { fontFamily: canelaFont }]}>
+              {currentStepData.number}
+            </Text>
+
+            <Text style={[styles.instruction, { fontFamily: canelaFont }]}>
+              {currentStepData.instruction}
+            </Text>
+
+            <Text style={[styles.hint, { fontFamily: canelaFont }]}>
+              {currentStepData.hint}
+            </Text>
           </Animated.View>
 
           <View style={[styles.footer, { paddingBottom: insets.bottom + 24 }]}>
             <StepIndicator currentStep={currentStep} totalSteps={STEPS.length} />
 
             <View style={styles.buttonRow}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.skipButton,
-                  { opacity: pressed ? 0.7 : 1 },
-                ]}
-                onPress={handleSkip}
-              >
-                <Text style={[styles.skipButtonText, { fontFamily: canelaFont }]}>Skip</Text>
-              </Pressable>
+              {currentStep > 0 && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.prevButton,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
+                  onPress={handlePrevious}
+                >
+                  <Text style={[styles.prevButtonText, { fontFamily: canelaFont }]}>Previous</Text>
+                </Pressable>
+              )}
 
               <Pressable
                 style={({ pressed }) => [
                   styles.nextButton,
-                  !canAdvance && styles.nextButtonDisabled,
-                  { opacity: pressed && canAdvance ? 0.9 : 1, transform: [{ scale: pressed && canAdvance ? 0.98 : 1 }] },
+                  currentStep === 0 && styles.nextButtonFull,
+                  { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
                 ]}
                 onPress={handleNext}
-                disabled={!canAdvance}
               >
-                <LinearGradient
-                  colors={canAdvance ? ['#6B7C6B', '#5A6B5A'] : ['#CFCAC2', '#C3BDB4']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.nextButtonGradient}
-                >
-                  <Text style={[
-                    styles.nextButtonText,
-                    { fontFamily: canelaFont },
-                    !canAdvance && styles.nextButtonTextDisabled,
-                  ]}>
-                    {currentStep === STEPS.length - 1 ? 'Finish' : 'Next'}
+                <View style={styles.nextButtonInner}>
+                  <Text style={[styles.nextButtonText, { fontFamily: canelaFont }]}>
+                    {currentStep === STEPS.length - 1 ? 'Complete' : 'Next'}
                   </Text>
-                </LinearGradient>
+                </View>
               </Pressable>
             </View>
           </View>
@@ -333,6 +281,18 @@ export default function GroundingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  ambientGlow: {
+    position: 'absolute',
+    width: 400,
+    height: 400,
+    left: '50%',
+    top: '40%',
+    marginLeft: -200,
+    marginTop: -200,
+    borderRadius: 200,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    opacity: 0.5,
   },
   fixedHeader: {
     position: 'absolute',
@@ -353,36 +313,76 @@ const styles = StyleSheet.create({
     opacity: TraceWordmark.opacity,
     ...Shadows.traceWordmark,
   },
-  resetButton: {
+  timerContainer: {
     position: 'absolute',
     right: 20,
     zIndex: 100,
-    padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(220, 226, 216, 0.3)',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
   },
-  titleContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '400',
-    color: '#4B4B4B',
-    letterSpacing: -0.56,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 15,
+  timerText: {
+    fontSize: 13,
     fontWeight: '300',
-    color: '#8A8680',
-    letterSpacing: 0.15,
+    color: '#8DA18F',
+    letterSpacing: 0.5,
   },
   stepContent: {
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    marginTop: -60,
+  },
+  numberGlow: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    opacity: 0.3,
+  },
+  largeNumber: {
+    fontSize: 140,
+    fontWeight: '200',
+    color: 'rgba(164, 148, 133, 0.15)',
+    letterSpacing: 2,
+    lineHeight: 160,
+    marginBottom: 24,
+    textShadowColor: 'rgba(164, 148, 133, 0.25)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 20,
+  },
+  instruction: {
+    fontSize: 20,
+    fontWeight: '300',
+    color: '#8DA18F',
+    textAlign: 'center',
+    letterSpacing: 0.8,
+    lineHeight: 32,
+    marginBottom: 16,
+    maxWidth: 300,
+  },
+  hint: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#8B7E74',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+    lineHeight: 22,
+    opacity: 0.8,
+    maxWidth: 280,
   },
   footer: {
     paddingHorizontal: 24,
-    gap: 20,
+    gap: 24,
   },
   indicatorContainer: {
     flexDirection: 'row',
@@ -390,60 +390,72 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   indicator: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 4,
-    backgroundColor: 'rgba(138, 134, 128, 0.25)',
+    backgroundColor: 'rgba(164, 148, 133, 0.25)',
   },
   indicatorActive: {
-    backgroundColor: '#6B7C6B',
-    width: 24,
+    backgroundColor: '#8DA18F',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    shadowColor: 'rgba(141, 161, 143, 0.4)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
   },
   indicatorComplete: {
-    backgroundColor: 'rgba(107, 124, 107, 0.5)',
+    backgroundColor: '#A49485',
   },
   buttonRow: {
     flexDirection: 'row',
+    justifyContent: 'center',
     gap: 12,
   },
-  skipButton: {
-    flex: 1,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
+  prevButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
     borderWidth: 1,
-    borderColor: 'rgba(138, 134, 128, 0.25)',
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: 'rgba(220, 226, 216, 0.3)',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 32,
   },
-  skipButtonText: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#8A8680',
-    letterSpacing: 0.2,
+  prevButtonText: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#8B7E74',
+    letterSpacing: 0.6,
   },
   nextButton: {
-    flex: 2,
-    borderRadius: 16,
+    borderRadius: 24,
     overflow: 'hidden',
-    ...Shadows.button,
+    shadowColor: 'rgba(141, 161, 143, 0.15)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 32,
   },
-  nextButtonDisabled: {
-    opacity: 0.6,
+  nextButtonFull: {
+    minWidth: 120,
   },
-  nextButtonGradient: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  nextButtonInner: {
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    backgroundColor: 'rgba(220, 226, 216, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(141, 161, 143, 0.4)',
+    borderRadius: 24,
   },
   nextButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#FFFFFF',
-    letterSpacing: 0.2,
-  },
-  nextButtonTextDisabled: {
-    color: '#8A8680',
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#8DA18F',
+    letterSpacing: 0.6,
+    textAlign: 'center',
   },
   completionContainer: {
     flex: 1,
@@ -451,41 +463,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 40,
   },
-  completionEmoji: {
-    fontSize: 64,
-    marginBottom: 24,
-    color: '#6B7C6B',
-  },
   completionTitle: {
     fontSize: 32,
-    fontWeight: '400',
-    color: '#4B4B4B',
-    letterSpacing: -0.5,
-    marginBottom: 12,
+    fontWeight: '300',
+    color: '#8DA18F',
+    letterSpacing: 1.2,
+    marginBottom: 16,
+    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 20,
   },
   completionSubtitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '300',
-    color: '#8A8680',
+    color: '#A49485',
     textAlign: 'center',
-    letterSpacing: 0.2,
+    letterSpacing: 0.5,
+    lineHeight: 24,
     marginBottom: 48,
   },
   doneButton: {
-    borderRadius: 16,
+    borderRadius: 24,
     overflow: 'hidden',
-    minWidth: 160,
-    ...Shadows.button,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 32,
   },
-  doneButtonGradient: {
-    paddingVertical: 16,
-    paddingHorizontal: 48,
-    alignItems: 'center',
+  doneButtonInner: {
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(141, 161, 143, 0.3)',
+    borderRadius: 24,
   },
   doneButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#4B4B4B',
-    letterSpacing: 0.2,
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#A49485',
+    letterSpacing: 0.8,
   },
 });
