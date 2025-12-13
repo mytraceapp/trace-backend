@@ -25,7 +25,7 @@ const COLS = Math.ceil(SCREEN_WIDTH / BUBBLE_SIZE) + 2;
 const ROWS = Math.ceil(SCREEN_HEIGHT / BUBBLE_SIZE) + 2;
 
 const BACKGROUND_COLOR = '#D4C9B8';
-const BUBBLE_FILL = '#E8E4DE';
+const BUBBLE_FILL = 'rgba(232, 228, 222, 0.55)';
 const BUBBLE_BORDER = 'rgba(180, 168, 150, 0.45)';
 
 const ENCOURAGEMENT_MESSAGES = [
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 100,
+    zIndex: 2,
   },
   endButton: {
     paddingHorizontal: 32,
