@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
+import { ArrowLeft } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useSharedValue,
@@ -216,6 +217,14 @@ export default function GroundingScreen() {
         </Pressable>
       </View>
 
+      <Pressable
+        style={[styles.backButton, { top: insets.top + 12 }]}
+        onPress={handleClose}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <ArrowLeft size={18} color="#A49485" strokeWidth={2} />
+      </Pressable>
+
       <View style={[styles.timerContainer, { top: insets.top + 12 }]}>
         <Text style={[styles.timerText, { fontFamily: canelaFont }]}>{formatTime(timeElapsed)}</Text>
       </View>
@@ -313,6 +322,23 @@ const styles = StyleSheet.create({
     opacity: TraceWordmark.opacity,
     ...Shadows.traceWordmark,
   },
+  backButton: {
+    position: 'absolute',
+    left: 20,
+    zIndex: 100,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+  },
   timerContainer: {
     position: 'absolute',
     right: 20,
@@ -339,26 +365,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
-    marginTop: -60,
   },
   numberGlow: {
     position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    opacity: 0.3,
+    opacity: 0.25,
+    top: '28%',
   },
   largeNumber: {
-    fontSize: 140,
+    fontSize: 180,
     fontWeight: '200',
-    color: 'rgba(164, 148, 133, 0.15)',
-    letterSpacing: 2,
-    lineHeight: 160,
-    marginBottom: 24,
-    textShadowColor: 'rgba(164, 148, 133, 0.25)',
+    color: 'rgba(164, 148, 133, 0.18)',
+    letterSpacing: 4,
+    lineHeight: 200,
+    marginBottom: 32,
+    textShadowColor: 'rgba(164, 148, 133, 0.15)',
     textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 20,
+    textShadowRadius: 30,
   },
   instruction: {
     fontSize: 20,
