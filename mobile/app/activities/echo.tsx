@@ -115,24 +115,38 @@ export default function EchoScreen() {
       
       const breathLFO = Math.sin(elapsed * 0.00045) * 0.12 + 1;
       
-      setWave1Path(generateWavePath(
-        SCREEN_WIDTH, centerY, 55 * breathLFO, 3, phase + 0.7, -30
-      ));
-      setWave2Path(generateWavePath(
-        SCREEN_WIDTH, centerY, 70 * breathLFO, 3, phase + 0.5, 0
-      ));
-      setWave3Path(generateWavePath(
-        SCREEN_WIDTH, centerY, 50 * breathLFO, 3, phase + 0.3, 25
-      ));
-      
-      const orbBreath = 1 + Math.sin(elapsed * 0.0003) * 0.08;
-      
       if (isVoicePlayingRef.current) {
+        const voicePhase = elapsed * 0.0008;
+        const voiceEnergy1 = Math.sin(elapsed * 0.006) * 0.4 + Math.sin(elapsed * 0.015) * 0.25 + 1;
+        const voiceEnergy2 = Math.sin(elapsed * 0.008) * 0.35 + Math.sin(elapsed * 0.012) * 0.3 + 1;
+        const voiceEnergy3 = Math.sin(elapsed * 0.005) * 0.3 + Math.sin(elapsed * 0.018) * 0.2 + 1;
+        
+        setWave1Path(generateWavePath(
+          SCREEN_WIDTH, centerY, 75 * breathLFO * voiceEnergy1, 3, voicePhase + 0.7, -30
+        ));
+        setWave2Path(generateWavePath(
+          SCREEN_WIDTH, centerY, 95 * breathLFO * voiceEnergy2, 3, voicePhase + 0.5, 0
+        ));
+        setWave3Path(generateWavePath(
+          SCREEN_WIDTH, centerY, 65 * breathLFO * voiceEnergy3, 3, voicePhase + 0.3, 25
+        ));
+        
         const vibrate = Math.sin(elapsed * 0.025) * 0.015;
         const pulse = Math.sin(elapsed * 0.008) * 0.03;
-        orbScale.value = orbBreath + vibrate + pulse;
+        orbScale.value = 1 + Math.sin(elapsed * 0.0003) * 0.08 + vibrate + pulse;
         orbGlow.value = 0.28 + Math.sin(elapsed * 0.012) * 0.15 + Math.sin(elapsed * 0.035) * 0.08;
       } else {
+        setWave1Path(generateWavePath(
+          SCREEN_WIDTH, centerY, 55 * breathLFO, 3, phase + 0.7, -30
+        ));
+        setWave2Path(generateWavePath(
+          SCREEN_WIDTH, centerY, 70 * breathLFO, 3, phase + 0.5, 0
+        ));
+        setWave3Path(generateWavePath(
+          SCREEN_WIDTH, centerY, 50 * breathLFO, 3, phase + 0.3, 25
+        ));
+        
+        const orbBreath = 1 + Math.sin(elapsed * 0.0003) * 0.08;
         orbScale.value = orbBreath;
         orbGlow.value = 0.22 + Math.sin(elapsed * 0.0004) * 0.1;
       }
