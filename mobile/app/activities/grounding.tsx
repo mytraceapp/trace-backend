@@ -390,8 +390,8 @@ const styles = StyleSheet.create({
   patternCircle: {
     position: 'absolute',
     borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: 'rgba(180, 170, 158, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(180, 170, 158, 0.15)',
     backgroundColor: 'transparent',
   },
   fixedHeader: {
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     lineHeight: 150,
     marginBottom: 8,
-    marginTop: 20,
+    marginTop: 40,
     textShadowColor: 'rgba(164, 148, 133, 0.15)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 30,
