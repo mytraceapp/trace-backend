@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { ArrowLeft } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -136,9 +137,76 @@ export default function GroundingScreen() {
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
   
   const contentOpacity = useSharedValue(1);
   const contentTranslateY = useSharedValue(0);
+
+  useEffect(() => {
+    const loadAndPlayAudio = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+        });
+        
+        const { sound } = await Audio.Sound.createAsync(
+          require('../../assets/sounds/grounding-ambient.mp3'),
+          { 
+            isLooping: true,
+            volume: 0,
+            rate: 0.85,
+            shouldCorrectPitch: true,
+          }
+        );
+        soundRef.current = sound;
+        await sound.playAsync();
+        
+        let vol = 0;
+        const fadeIn = setInterval(async () => {
+          vol += 0.02;
+          if (vol >= 0.25) {
+            await sound.setVolumeAsync(0.25);
+            clearInterval(fadeIn);
+          } else {
+            await sound.setVolumeAsync(vol);
+          }
+        }, 50);
+      } catch (error) {
+        console.log('Audio load error:', error);
+      }
+    };
+    
+    loadAndPlayAudio();
+    
+    return () => {
+      if (soundRef.current) {
+        const fadeOutAndUnload = async () => {
+          if (!soundRef.current) return;
+          try {
+            const status = await soundRef.current.getStatusAsync();
+            if (status.isLoaded) {
+              let vol = status.volume || 0.25;
+              const fadeOut = setInterval(async () => {
+                vol -= 0.03;
+                if (vol <= 0 || !soundRef.current) {
+                  clearInterval(fadeOut);
+                  if (soundRef.current) {
+                    await soundRef.current.stopAsync();
+                    await soundRef.current.unloadAsync();
+                    soundRef.current = null;
+                  }
+                } else {
+                  await soundRef.current?.setVolumeAsync(vol);
+                }
+              }, 40);
+            }
+          } catch (e) {}
+        };
+        fadeOutAndUnload();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
@@ -378,10 +446,14 @@ const styles = StyleSheet.create({
   largeNumber: {
     fontSize: 160,
     fontWeight: '100',
-    color: 'rgba(180, 170, 158, 0.22)',
+    color: 'transparent',
     letterSpacing: 2,
     lineHeight: 180,
-    marginBottom: 16,
+    marginBottom: -8,
+    marginTop: 25,
+    textShadowColor: 'rgba(180, 170, 158, 0.35)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 1,
   },
   instruction: {
     fontSize: 21,
