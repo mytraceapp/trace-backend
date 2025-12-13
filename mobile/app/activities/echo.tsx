@@ -168,8 +168,8 @@ export default function EchoScreen() {
           require('../../assets/audio/trace-echo.mp3'),
           {
             volume: 0,
-            rate: 0.80,
-            shouldCorrectPitch: false,
+            rate: 1.0,
+            shouldCorrectPitch: true,
           }
         );
         audioRef.current = voice;
@@ -177,9 +177,9 @@ export default function EchoScreen() {
         
         let voiceVol = 0;
         const voiceFadeIn = setInterval(async () => {
-          voiceVol += 0.008;
-          if (voiceVol >= 0.12) {
-            voiceVol = 0.12;
+          voiceVol += 0.01;
+          if (voiceVol >= 0.7) {
+            voiceVol = 0.7;
             clearInterval(voiceFadeIn);
           }
           await voice.setVolumeAsync(voiceVol);
