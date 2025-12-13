@@ -15,8 +15,7 @@ import { useFonts } from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
-import { Colors } from '../../constants/colors';
-import { FontFamily, TraceWordmark, ScreenTitle, BodyText } from '../../constants/typography';
+import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
 
@@ -33,6 +32,15 @@ export default function CrisisScreen() {
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
 
+  const handleCall911 = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await Linking.openURL('tel:911');
+    } catch (error) {
+      console.log('Unable to open phone');
+    }
+  };
+
   const handleCall988 = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -42,10 +50,10 @@ export default function CrisisScreen() {
     }
   };
 
-  const handleText988 = async () => {
+  const handleTextCrisisLine = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await Linking.openURL('sms:988');
+      await Linking.openURL('sms:741741&body=HOME');
     } catch (error) {
       console.log('Unable to open messaging');
     }
@@ -54,7 +62,7 @@ export default function CrisisScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[...Colors.day.backgroundGradient]}
+        colors={['#E8E2D8', '#D9D0C3', '#C8BBAA']}
         locations={[0, 0.6, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
@@ -73,96 +81,93 @@ export default function CrisisScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + Spacing.traceToTitle, paddingBottom: insets.bottom + 60 }
+          { paddingTop: insets.top + Spacing.traceToTitle, paddingBottom: insets.bottom + 140 }
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={20} color="#5A4A3A" />
-          <Text style={[styles.backText, { fontFamily: canelaFont }]}>Help</Text>
-        </Pressable>
-
         <View style={styles.header}>
           <Text style={[styles.title, { fontFamily: canelaFont }]}>If You're in Crisis</Text>
-          <Text style={[styles.subtitle, { fontFamily: canelaFont }]}>
-            Immediate options when things feel unsafe.
+          <Text style={[styles.subtitleDark, { fontFamily: canelaFont }]}>
+            You're not alone.
+          </Text>
+          <Text style={[styles.subtitleLight, { fontFamily: canelaFont }]}>
+            Real-world help comes first.
           </Text>
         </View>
 
         <View style={styles.contentCard}>
-          <Text style={[styles.sectionTitle, { fontFamily: canelaFont }]}>
-            If you're feeling unsafe right now...
+          <Text style={[styles.cardHeader, { fontFamily: canelaFont }]}>
+            TRACE can't respond to emergencies.
           </Text>
 
-          <Text style={[styles.paragraph, { fontFamily: canelaFont }]}>
-            TRACE is not built for crisis support. In moments of emergency, you deserve real-time human support from people trained to help.
-          </Text>
-
-          <Text style={[styles.paragraph, { fontFamily: canelaFont }]}>
-            Please reach out to someone who can be there for you right now.
-          </Text>
-        </View>
-
-        <View style={styles.resourcesCard}>
-          <View style={styles.resourceHeader}>
-            <Text style={styles.flag}>🇺🇸</Text>
-            <Text style={[styles.resourceTitle, { fontFamily: canelaFont }]}>
-              United States
-            </Text>
-          </View>
-          
-          <Text style={[styles.resourceName, { fontFamily: canelaFont }]}>
-            Suicide & Crisis Lifeline
-          </Text>
-
-          <View style={styles.buttonRow}>
-            <Pressable 
-              style={({ pressed }) => [
-                styles.actionButton,
-                { opacity: pressed ? 0.9 : 1 }
-              ]}
-              onPress={handleCall988}
-            >
-              <Ionicons name="call-outline" size={18} color="#FDFCFA" />
-              <Text style={[styles.actionButtonText, { fontFamily: canelaFont }]}>
-                Call 988
+          <Pressable 
+            style={({ pressed }) => [
+              styles.actionCard,
+              { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }
+            ]}
+            onPress={handleCall911}
+          >
+            <View style={styles.iconContainer}>
+              <Ionicons name="call" size={20} color="#6B6761" />
+            </View>
+            <View style={styles.actionContent}>
+              <Text style={[styles.actionTitle, { fontFamily: canelaFont }]}>Call 911</Text>
+              <Text style={[styles.actionDescription, { fontFamily: canelaFont }]}>
+                If you're in immediate danger.
               </Text>
-            </Pressable>
+            </View>
+          </Pressable>
 
-            <Pressable 
-              style={({ pressed }) => [
-                styles.actionButton,
-                styles.actionButtonSecondary,
-                { opacity: pressed ? 0.9 : 1 }
-              ]}
-              onPress={handleText988}
-            >
-              <Ionicons name="chatbubble-outline" size={18} color="#5A4A3A" />
-              <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary, { fontFamily: canelaFont }]}>
-                Text 988
+          <Pressable 
+            style={({ pressed }) => [
+              styles.actionCard,
+              { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }
+            ]}
+            onPress={handleCall988}
+          >
+            <View style={styles.iconContainer}>
+              <Ionicons name="chatbubble-outline" size={20} color="#6B6761" />
+            </View>
+            <View style={styles.actionContent}>
+              <Text style={[styles.actionTitle, { fontFamily: canelaFont }]}>Call or text 988</Text>
+              <Text style={[styles.actionDescription, { fontFamily: canelaFont }]}>
+                U.S. Suicide & Crisis Lifeline.
               </Text>
-            </Pressable>
-          </View>
-        </View>
+            </View>
+          </Pressable>
 
-        <View style={styles.resourcesCard}>
-          <View style={styles.resourceHeader}>
-            <Text style={styles.flag}>🌍</Text>
-            <Text style={[styles.resourceTitle, { fontFamily: canelaFont }]}>
-              Outside the U.S.
-            </Text>
-          </View>
-          
-          <Text style={[styles.paragraph, { fontFamily: canelaFont }]}>
-            Contact your local emergency services or reach out to a trusted person nearby. You don't have to go through this alone.
+          <Pressable 
+            style={({ pressed }) => [
+              styles.actionCard,
+              { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }
+            ]}
+            onPress={handleTextCrisisLine}
+          >
+            <View style={styles.iconContainer}>
+              <Ionicons name="mail-outline" size={20} color="#6B6761" />
+            </View>
+            <View style={styles.actionContent}>
+              <Text style={[styles.actionTitle, { fontFamily: canelaFont }]}>Text HOME to 741741</Text>
+              <Text style={[styles.actionDescription, { fontFamily: canelaFont }]}>
+                Crisis Text Line.
+              </Text>
+            </View>
+          </Pressable>
+
+          <Text style={[styles.footerText, { fontFamily: canelaFont }]}>
+            Real people can help.
           </Text>
         </View>
 
-        <View style={styles.reassuranceCard}>
-          <Text style={[styles.reassuranceText, { fontFamily: canelaFont }]}>
-            TRACE will still be here when you're safe.
-          </Text>
-        </View>
+        <Pressable 
+          style={({ pressed }) => [
+            styles.returnButton,
+            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }
+          ]}
+          onPress={() => router.push('/(tabs)/chat')}
+        >
+          <Text style={[styles.returnButtonText, { fontFamily: canelaFont }]}>Return to Chat</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -201,18 +206,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.screenPadding,
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  backText: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#5A4A3A',
-    letterSpacing: 0.2,
-  },
   header: {
     marginBottom: 16,
     alignItems: 'center',
@@ -226,113 +219,97 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textAlign: 'center',
   },
-  subtitle: {
+  subtitleDark: {
     fontSize: 15,
     fontWeight: '400',
-    color: '#6E6861',
+    color: '#2B2825',
     letterSpacing: 0.2,
     textAlign: 'center',
-    fontStyle: 'italic',
     marginTop: 0,
   },
+  subtitleLight: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#8A857D',
+    letterSpacing: 0.2,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
   contentCard: {
-    backgroundColor: '#F4F1EC',
-    borderRadius: 24,
-    padding: 24,
+    backgroundColor: 'rgba(244, 241, 236, 0.85)',
+    borderRadius: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    marginBottom: 16,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     ...Shadows.card,
   },
-  sectionTitle: {
+  cardHeader: {
     fontSize: 18,
-    fontWeight: '500',
-    color: '#4B4B4B',
+    fontWeight: '600',
+    color: '#2B2825',
     letterSpacing: 0.2,
-    marginBottom: 16,
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  paragraph: {
-    fontSize: 16,
-    fontWeight: '300',
-    color: '#4B4B4B',
-    letterSpacing: 0.2,
-    lineHeight: 26,
+  actionCard: {
+    backgroundColor: 'rgba(232, 226, 216, 0.7)',
+    borderRadius: 16,
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
-  resourcesCard: {
-    backgroundColor: '#FDFCFA',
+  iconContainer: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(138, 134, 128, 0.15)',
-    marginBottom: 12,
-    ...Shadows.cardSubtle,
-  },
-  resourceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  flag: {
-    fontSize: 20,
-    marginRight: 10,
-  },
-  resourceTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#4B4B4B',
-    letterSpacing: 0.2,
-  },
-  resourceName: {
-    fontSize: 15,
-    fontWeight: '300',
-    color: '#6B6761',
-    letterSpacing: 0.2,
-    marginBottom: 16,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    backgroundColor: '#5A4A3A',
-    borderRadius: 14,
-    paddingVertical: 14,
-    flexDirection: 'row',
+    backgroundColor: 'rgba(214, 207, 196, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    marginRight: 14,
   },
-  actionButtonSecondary: {
-    backgroundColor: '#F4F1EC',
-    borderWidth: 1,
-    borderColor: 'rgba(90, 74, 58, 0.2)',
+  actionContent: {
+    flex: 1,
+    paddingTop: 2,
   },
-  actionButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#FDFCFA',
-    letterSpacing: 0.3,
-  },
-  actionButtonTextSecondary: {
-    color: '#5A4A3A',
-  },
-  reassuranceCard: {
-    backgroundColor: '#F4F1EC',
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    alignItems: 'center',
-  },
-  reassuranceText: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#5A4A3A',
+  actionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#2B2825',
     letterSpacing: 0.2,
-    fontStyle: 'italic',
+    marginBottom: 4,
+  },
+  actionDescription: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#8A857D',
+    letterSpacing: 0.2,
+    lineHeight: 20,
+  },
+  footerText: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#6B6761',
+    letterSpacing: 0.2,
     textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+  returnButton: {
+    marginTop: 28,
+    backgroundColor: 'rgba(180, 170, 155, 0.5)',
+    borderRadius: 28,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(180, 170, 155, 0.3)',
+  },
+  returnButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#3A3A3A',
+    letterSpacing: 0.3,
   },
 });
