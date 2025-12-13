@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Audio, AVPlaybackStatus } from 'expo-av';
+import { Audio } from 'expo-av';
 
 interface UseAmbientAudioOptions {
   volume?: number;
   fadeInDuration?: number;
   fadeOutDuration?: number;
   loop?: boolean;
+  playbackRate?: number;
 }
 
 export function useAmbientAudio({
@@ -13,12 +14,14 @@ export function useAmbientAudio({
   fadeInDuration = 2000,
   fadeOutDuration = 400,
   loop = true,
+  playbackRate = 1.0,
 }: UseAmbientAudioOptions = {}) {
   const soundRef = useRef<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const targetVolumeRef = useRef(volume);
+  const playbackRateRef = useRef(playbackRate);
 
   useEffect(() => {
     let isMounted = true;
@@ -37,6 +40,8 @@ export function useAmbientAudio({
             isLooping: loop,
             volume: 0,
             shouldPlay: false,
+            rate: playbackRateRef.current,
+            shouldCorrectPitch: false,
           }
         );
 
@@ -60,7 +65,7 @@ export function useAmbientAudio({
         soundRef.current.unloadAsync();
       }
     };
-  }, [loop]);
+  }, [loop, playbackRate]);
 
   const fadeVolume = useCallback((targetVolume: number, duration: number, callback?: () => void) => {
     const sound = soundRef.current;
@@ -107,6 +112,7 @@ export function useAmbientAudio({
 
     try {
       await sound.setVolumeAsync(0);
+      await sound.setRateAsync(playbackRateRef.current, false);
       await sound.playAsync();
       setIsPlaying(true);
       fadeVolume(targetVolumeRef.current, fadeInDuration);

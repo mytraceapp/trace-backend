@@ -60,6 +60,7 @@ export default function EntriesScreen() {
     fadeInDuration: 6000,
     fadeOutDuration: 1500,
     loop: true,
+    playbackRate: 0.90,
   });
 
   const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
