@@ -224,9 +224,7 @@ export default function WindowScreen() {
 
       {introVisible && (
         <Animated.View style={[styles.introContainer, introStyle]} pointerEvents="none">
-          <View style={styles.dropletIcon}>
-            <View style={styles.droplet} />
-          </View>
+          <Text style={styles.raindropEmoji}>💧</Text>
           <Text style={[styles.introTitle, { fontFamily: canelaFont }]}>WINDOW</Text>
           <Text style={[styles.introSubtitle, { fontFamily: canelaFont }]}>
             Watch the rain fall.{'\n'}Let your thoughts drift.
@@ -240,11 +238,7 @@ export default function WindowScreen() {
         </Pressable>
 
         <View style={styles.volumeContainer}>
-          <View style={styles.volumeIcon}>
-            <View style={styles.volumeSpeaker} />
-            {volume > 0.3 && <View style={styles.volumeWave1} />}
-            {volume > 0.6 && <View style={styles.volumeWave2} />}
-          </View>
+          <Text style={styles.volumeEmoji}>{volume > 0.5 ? '🔊' : volume > 0 ? '🔉' : '🔈'}</Text>
           <Slider
             style={styles.slider}
             minimumValue={0}
@@ -341,22 +335,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 20,
   },
-  dropletIcon: {
-    width: 41,
-    height: 41,
-    marginBottom: -3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  droplet: {
-    width: 20,
-    height: 28,
-    borderWidth: 1.1,
-    borderColor: 'rgba(255, 255, 255, 0.7)',
-    borderRadius: 50,
-    borderTopLeftRadius: 2,
-    borderTopRightRadius: 2,
-    transform: [{ rotate: '180deg' }],
+  raindropEmoji: {
+    fontSize: 28,
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   introTitle: {
     color: 'rgba(255, 255, 255, 0.75)',
@@ -420,36 +404,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  volumeIcon: {
-    width: 16,
-    height: 16,
-    marginRight: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  volumeSpeaker: {
-    width: 6,
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    borderRadius: 1,
-  },
-  volumeWave1: {
-    width: 4,
-    height: 10,
-    borderRadius: 2,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    borderLeftWidth: 0,
-    marginLeft: 2,
-  },
-  volumeWave2: {
-    width: 4,
-    height: 14,
-    borderRadius: 2,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderLeftWidth: 0,
-    marginLeft: 1,
+  volumeEmoji: {
+    fontSize: 16,
+    marginRight: 10,
   },
   slider: {
     width: 100,
