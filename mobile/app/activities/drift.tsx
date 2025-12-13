@@ -141,9 +141,6 @@ function Bubble({
           <View style={styles.bubbleInner}>
             <View style={styles.bubbleHighlight} />
             <View style={styles.bubbleHighlightSmall} />
-            <View style={styles.bubbleIridescentPink} />
-            <View style={styles.bubbleIridescentBlue} />
-            <View style={styles.bubbleIridescentGreen} />
           </View>
         </View>
       </Pressable>
@@ -464,15 +461,15 @@ const styles = StyleSheet.create({
     height: BUBBLE_SIZE - 2,
     borderRadius: (BUBBLE_SIZE - 2) / 2,
     margin: 1,
-    backgroundColor: 'rgba(255, 253, 250, 0.70)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.7)',
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
     overflow: 'hidden',
-    shadowColor: 'rgba(255, 255, 255, 0.9)',
+    shadowColor: 'rgba(255, 255, 255, 1)',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 3,
   },
   bubbleInner: {
     flex: 1,
@@ -480,53 +477,23 @@ const styles = StyleSheet.create({
   },
   bubbleHighlight: {
     position: 'absolute',
-    top: 5,
-    left: 7,
-    width: BUBBLE_SIZE * 0.35,
-    height: BUBBLE_SIZE * 0.18,
-    borderRadius: BUBBLE_SIZE * 0.12,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    transform: [{ rotate: '-35deg' }],
+    top: 4,
+    left: 6,
+    width: BUBBLE_SIZE * 0.4,
+    height: BUBBLE_SIZE * 0.2,
+    borderRadius: BUBBLE_SIZE * 0.15,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    transform: [{ rotate: '-40deg' }],
   },
   bubbleHighlightSmall: {
     position: 'absolute',
-    top: 11,
-    left: 15,
-    width: BUBBLE_SIZE * 0.12,
-    height: BUBBLE_SIZE * 0.06,
-    borderRadius: BUBBLE_SIZE * 0.04,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    transform: [{ rotate: '-35deg' }],
-  },
-  bubbleIridescentPink: {
-    position: 'absolute',
-    bottom: 8,
-    right: 6,
-    width: BUBBLE_SIZE * 0.25,
-    height: BUBBLE_SIZE * 0.12,
-    borderRadius: BUBBLE_SIZE * 0.08,
-    backgroundColor: 'rgba(255, 182, 193, 0.4)',
-    transform: [{ rotate: '25deg' }],
-  },
-  bubbleIridescentBlue: {
-    position: 'absolute',
-    top: 14,
-    right: 8,
-    width: BUBBLE_SIZE * 0.18,
-    height: BUBBLE_SIZE * 0.1,
-    borderRadius: BUBBLE_SIZE * 0.06,
-    backgroundColor: 'rgba(173, 216, 255, 0.35)',
-    transform: [{ rotate: '15deg' }],
-  },
-  bubbleIridescentGreen: {
-    position: 'absolute',
-    bottom: 12,
-    left: 10,
+    top: 10,
+    left: 14,
     width: BUBBLE_SIZE * 0.15,
     height: BUBBLE_SIZE * 0.08,
-    borderRadius: BUBBLE_SIZE * 0.05,
-    backgroundColor: 'rgba(180, 220, 180, 0.3)',
-    transform: [{ rotate: '-20deg' }],
+    borderRadius: BUBBLE_SIZE * 0.06,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    transform: [{ rotate: '-40deg' }],
   },
   halo: {
     position: 'absolute',
