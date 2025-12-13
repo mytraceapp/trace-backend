@@ -9,6 +9,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSpring,
+  withDelay,
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
@@ -61,10 +62,12 @@ function Bubble({
   data, 
   onPop,
   yOffset,
+  fallDelay,
 }: { 
   data: BubbleData; 
   onPop: (id: string, x: number, y: number) => void;
   yOffset: number;
+  fallDelay: number;
 }) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
@@ -77,13 +80,16 @@ function Bubble({
   
   useEffect(() => {
     if (yOffset > 0) {
-      translateY.value = withSpring(yOffset, {
-        damping: 12,
-        stiffness: 100,
-        mass: 0.8,
-      });
+      translateY.value = withDelay(
+        fallDelay,
+        withSpring(yOffset, {
+          damping: 15,
+          stiffness: 60,
+          mass: 1.2,
+        })
+      );
     }
-  }, [yOffset]);
+  }, [yOffset, fallDelay]);
   
   useEffect(() => {
     if (data.popped) {
@@ -233,6 +239,7 @@ export default function DriftScreen() {
   });
   
   const [bubbleOffsets, setBubbleOffsets] = useState<Record<string, number>>({});
+  const [bubbleDelays, setBubbleDelays] = useState<Record<string, number>>({});
   const [halos, setHalos] = useState<HaloEffect[]>([]);
   const [popCount, setPopCount] = useState(0);
   const [currentMessage, setCurrentMessage] = useState('');
@@ -261,11 +268,17 @@ export default function DriftScreen() {
     
     const ROW_HEIGHT = BUBBLE_SIZE * 0.866;
     const newOffsets = { ...bubbleOffsets };
+    const newDelays = { ...bubbleDelays };
+    
     bubblesAbove.forEach(b => {
       const currentOffset = newOffsets[b.id] || 0;
       newOffsets[b.id] = currentOffset + ROW_HEIGHT;
+      const rowDistance = poppedBubble.row - b.row;
+      newDelays[b.id] = rowDistance * 40;
     });
+    
     setBubbleOffsets(newOffsets);
+    setBubbleDelays(newDelays);
     
     setHalos(prev => [...prev, { id: `halo-${Date.now()}`, x, y }]);
     
@@ -348,6 +361,7 @@ export default function DriftScreen() {
             data={bubble}
             onPop={handlePop}
             yOffset={bubbleOffsets[bubble.id] || 0}
+            fallDelay={bubbleDelays[bubble.id] || 0}
           />
         ))}
       </View>
