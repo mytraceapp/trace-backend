@@ -484,9 +484,6 @@ export default function JournalScreen() {
           <View style={[styles.modalContent, { paddingBottom: insets.bottom + 20 }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { fontFamily: canelaFont }]}>New Moment</Text>
-              <Pressable onPress={handleCancelEntry} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={20} color="#8A8680" />
-              </Pressable>
             </View>
 
             <ScrollView 
@@ -792,17 +789,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   logMomentButton: {
-    backgroundColor: 'rgba(253, 252, 250, 0.2)',
+    backgroundColor: 'rgba(107, 103, 97, 0.2)',
     borderRadius: 28,
-    paddingVertical: 18,
+    paddingVertical: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(180, 170, 158, 0.3)',
+    borderColor: 'rgba(107, 103, 97, 0.3)',
   },
   logMomentButtonText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#4B4B4B',
+    fontWeight: '400',
+    color: '#5A5651',
     letterSpacing: 0.3,
   },
   modalOverlay: {

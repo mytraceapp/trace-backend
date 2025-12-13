@@ -292,14 +292,7 @@ export default function ActivitiesScreen() {
           ]}
           onPress={handlePatternsPress}
         >
-          <LinearGradient
-            colors={['#CFCAC2', '#C3BDB4']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.patternsGradient}
-          >
-            <Text style={[styles.patternsText, { fontFamily: canelaFont }]}>View Patterns</Text>
-          </LinearGradient>
+          <Text style={[styles.patternsText, { fontFamily: canelaFont }]}>View Patterns</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -410,20 +403,16 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sectionGap,
     marginBottom: Spacing['2xl'],
     borderRadius: BorderRadius.button,
-    overflow: 'hidden',
+    backgroundColor: 'rgba(107, 103, 97, 0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    ...Shadows.button,
-  },
-  patternsGradient: {
-    paddingVertical: 18,
+    borderColor: 'rgba(107, 103, 97, 0.3)',
+    paddingVertical: 16,
     alignItems: 'center',
-    width: '100%',
   },
   patternsText: {
     fontSize: BodyText.fontSize,
-    fontWeight: '500',
-    color: Colors.day.textPrimary,
+    fontWeight: '400',
+    color: '#5A5651',
     letterSpacing: 0.3,
   },
 });
