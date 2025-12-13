@@ -219,7 +219,11 @@ export default function ActivitiesScreen() {
   });
 
   const handleActivityPress = (activityId: string) => {
-    router.push(`/activities/${activityId}`);
+    if (activityId === 'bubble') {
+      router.push('/activities/drift');
+    } else {
+      router.push(`/activities/${activityId}`);
+    }
   };
 
   const handlePatternsPress = () => {
