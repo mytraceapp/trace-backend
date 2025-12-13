@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     marginLeft: TraceWordmark.marginLeft,
     color: TraceWordmark.color,
     opacity: TraceWordmark.opacity,
-    paddingHorizontal: TraceWordmark.paddingHorizontal,
+    paddingLeft: TraceWordmark.paddingLeft,
     textAlign: 'center',
     ...Shadows.traceWordmark,
   },

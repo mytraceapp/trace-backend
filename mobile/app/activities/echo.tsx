@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
-    paddingHorizontal: TraceWordmark.paddingHorizontal,
+    paddingLeft: TraceWordmark.paddingLeft,
     textAlign: 'center',
   },
 });

@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     marginLeft: TraceWordmark.marginLeft,
     color: '#EDE8DB',
     opacity: 0.7,
-    paddingHorizontal: TraceWordmark.paddingHorizontal,
+    paddingLeft: TraceWordmark.paddingLeft,
     textAlign: 'center',
     ...Shadows.traceWordmark,
   },
