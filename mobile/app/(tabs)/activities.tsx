@@ -31,40 +31,24 @@ function RainDropIcon({ color }: { color: string }) {
 }
 
 const CARD_VARIANTS = {
-  A_cream: {
-    bgColor: '#F5EDE4',
-    borderColor: '#E5DBD0',
-    iconBgColor: '#EBE2D8',
-    titleColor: '#4A3A2A',
-    descColor: '#7A6A58',
+  primary: {
+    bgColor: '#F6EFE7',
   },
-  B_oat: {
-    bgColor: '#E6DCD0',
-    borderColor: '#D6CCC0',
-    iconBgColor: '#DCD2C6',
-    titleColor: '#4A3A2A',
-    descColor: '#7A6A58',
+  secondary: {
+    bgColor: '#D8CBB8',
   },
-  C_latte: {
-    bgColor: '#D4C8B8',
-    borderColor: '#C4B8A8',
-    iconBgColor: '#CABEB0',
-    titleColor: '#4A3A2A',
-    descColor: '#6A5A48',
-  },
-  D_mocha: {
-    bgColor: '#C2B4A2',
-    borderColor: '#B2A494',
-    iconBgColor: '#B8AA9A',
-    titleColor: '#5A4A3A',
-    descColor: '#786858',
+  accent: {
+    bgColor: '#C2B19C',
   },
 };
 
-const BACKGROUND_COLOR = '#A89888';
+const BACKGROUND_COLOR = '#EDE4D8';
+const TITLE_COLOR = '#3E342C';
+const DESC_COLOR = '#6B5E53';
+const ICON_COLOR = '#5A4E44';
 
-const VARIANT_KEYS = ['A_cream', 'B_oat', 'C_latte', 'D_mocha'] as const;
-type VariantKey = typeof VARIANT_KEYS[number];
+const VARIANT_KEYS = ['primary', 'secondary'] as const;
+type VariantKey = typeof VARIANT_KEYS[number] | 'accent';
 
 const ACTIVITIES = [
   { id: 'breathing', title: 'Breathing', description: 'A calming 30-second reset.', Icon: Wind, customIcon: null },
@@ -80,7 +64,7 @@ const ACTIVITIES = [
 ];
 
 function getVariantForIndex(index: number): VariantKey {
-  return VARIANT_KEYS[index % 4];
+  return VARIANT_KEYS[index % 2];
 }
 
 type ActivityCardProps = {
@@ -103,7 +87,6 @@ function ActivityCard({
   fontFamily,
 }: ActivityCardProps) {
   const v = CARD_VARIANTS[variant];
-  const iconColor = '#5A4A3A';
   
   return (
     <Pressable
@@ -111,7 +94,6 @@ function ActivityCard({
         styles.card,
         { 
           backgroundColor: v.bgColor,
-          borderColor: v.borderColor,
           opacity: pressed ? 0.95 : 1,
           transform: [{ scale: pressed ? 0.97 : 1 }],
         },
@@ -121,18 +103,18 @@ function ActivityCard({
       <View style={styles.cardInner}>
         <View style={styles.cardContent}>
           <View style={styles.iconWrapper}>
-            <View style={[styles.iconContainer, { backgroundColor: v.iconBgColor }]}>
+            <View style={styles.iconContainer}>
               {customIcon === 'raindrop' ? (
-                <RainDropIcon color={iconColor} />
+                <RainDropIcon color={ICON_COLOR} />
               ) : Icon ? (
-                <Icon size={20} color={iconColor} strokeWidth={1.5} />
+                <Icon size={20} color={ICON_COLOR} strokeWidth={1.5} />
               ) : null}
             </View>
           </View>
           
           <View style={styles.textContainer}>
-            <Text style={[styles.cardTitle, { fontFamily, color: v.titleColor }]}>{title}</Text>
-            <Text style={[styles.cardDescription, { color: v.descColor, fontFamily }]}>{description}</Text>
+            <Text style={[styles.cardTitle, { fontFamily }]}>{title}</Text>
+            <Text style={[styles.cardDescription, { fontFamily }]}>{description}</Text>
           </View>
         </View>
       </View>
@@ -268,13 +250,13 @@ const styles = StyleSheet.create({
     fontSize: ScreenTitle.fontSize,
     fontWeight: ScreenTitle.fontWeight,
     marginBottom: 2,
-    color: '#4A3A2A',
+    color: '#3E342C',
     letterSpacing: ScreenTitle.letterSpacing,
   },
   subtitle: {
     fontSize: BodyText.fontSize,
     fontWeight: BodyText.fontWeight,
-    color: '#7A6A58',
+    color: '#6B5E53',
     letterSpacing: BodyText.letterSpacing,
     fontStyle: 'italic',
   },
@@ -289,12 +271,12 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     borderRadius: BorderRadius.card,
     overflow: 'hidden',
-    borderWidth: 1,
-    shadowColor: '#7A6A58',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
+    borderWidth: 0,
+    shadowColor: '#A89888',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   cardInner: {
     padding: Spacing.cardPadding,
@@ -313,6 +295,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.iconContainer,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(90, 78, 68, 0.08)',
   },
   textContainer: {
     alignItems: 'flex-start',
@@ -322,32 +305,33 @@ const styles = StyleSheet.create({
     fontWeight: CardTitle.fontWeight,
     marginBottom: 4,
     letterSpacing: CardTitle.letterSpacing,
+    color: '#3E342C',
   },
   cardDescription: {
     fontSize: MetaText.fontSize,
     fontWeight: MetaText.fontWeight,
     letterSpacing: MetaText.letterSpacing,
     lineHeight: MetaText.lineHeight,
+    color: '#6B5E53',
   },
   patternsButton: {
     marginTop: Spacing.sectionGap,
     marginBottom: Spacing['2xl'],
     borderRadius: BorderRadius.button,
-    backgroundColor: '#D4C8B8',
-    borderWidth: 1,
-    borderColor: '#C4B8A8',
+    backgroundColor: '#D8CBB8',
+    borderWidth: 0,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#7A6A58',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
+    shadowColor: '#A89888',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
   },
   patternsText: {
     fontSize: BodyText.fontSize,
     fontWeight: '500',
-    color: '#4A3A2A',
+    color: '#3E342C',
     letterSpacing: 0.3,
   },
 });
