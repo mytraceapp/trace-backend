@@ -1,14 +1,14 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withSpring,
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
@@ -18,11 +18,10 @@ import { FontFamily } from '../../constants/typography';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const BUBBLE_SIZE = 44;
-const BUBBLE_GAP = 2;
-const COLS = Math.floor(SCREEN_WIDTH / (BUBBLE_SIZE + BUBBLE_GAP));
-const ROWS = Math.floor((SCREEN_HEIGHT - 120) / (BUBBLE_SIZE * 0.85));
-const OFFSET_X = (SCREEN_WIDTH - (COLS * (BUBBLE_SIZE + BUBBLE_GAP) - BUBBLE_GAP)) / 2;
+const BUBBLE_SIZE = 48;
+const BUBBLE_GAP = 0;
+const COLS = Math.ceil(SCREEN_WIDTH / BUBBLE_SIZE) + 1;
+const ROWS = Math.ceil(SCREEN_HEIGHT / (BUBBLE_SIZE * 0.866)) + 2;
 
 const ENCOURAGEMENT_MESSAGES = [
   "You're doing great.",
@@ -47,6 +46,7 @@ interface BubbleData {
   col: number;
   row: number;
   popped: boolean;
+  baseY: number;
 }
 
 interface HaloEffect {
@@ -58,29 +58,45 @@ interface HaloEffect {
 function Bubble({ 
   data, 
   onPop,
+  yOffset,
 }: { 
   data: BubbleData; 
   onPop: (id: string, x: number, y: number) => void;
+  yOffset: number;
 }) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+  const translateY = useSharedValue(0);
   const [isHidden, setIsHidden] = useState(false);
   
   const isOddRow = data.row % 2 === 1;
-  const baseX = OFFSET_X + data.col * (BUBBLE_SIZE + BUBBLE_GAP) + (isOddRow ? BUBBLE_SIZE / 2 : 0);
-  const baseY = 80 + data.row * (BUBBLE_SIZE * 0.85);
+  const baseX = data.col * BUBBLE_SIZE + (isOddRow ? BUBBLE_SIZE / 2 : 0) - BUBBLE_SIZE / 2;
+  const baseY = data.baseY;
+  
+  useEffect(() => {
+    if (yOffset > 0) {
+      translateY.value = withSpring(yOffset, {
+        damping: 12,
+        stiffness: 100,
+        mass: 0.8,
+      });
+    }
+  }, [yOffset]);
   
   useEffect(() => {
     if (data.popped) {
-      scale.value = withTiming(0.3, { duration: 150, easing: Easing.out(Easing.ease) });
-      opacity.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.ease) }, () => {
+      scale.value = withTiming(0.2, { duration: 120, easing: Easing.out(Easing.ease) });
+      opacity.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.ease) }, () => {
         runOnJS(setIsHidden)(true);
       });
     }
   }, [data.popped]);
   
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
     opacity: opacity.value,
   }));
   
@@ -109,17 +125,12 @@ function Bubble({
       ]}
     >
       <Pressable onPress={handlePress} style={styles.bubblePressable}>
-        <LinearGradient
-          colors={['#FFFFFF', '#F5F5F5', '#E8E8E8', '#D8D8D8']}
-          locations={[0, 0.3, 0.7, 1]}
-          start={{ x: 0.2, y: 0.1 }}
-          end={{ x: 0.8, y: 0.9 }}
-          style={styles.bubble}
-        >
-          <View style={styles.bubbleHighlight} />
-          <View style={styles.bubbleHighlightSmall} />
-        </LinearGradient>
-        <View style={styles.bubbleShadow} />
+        <View style={styles.bubble}>
+          <View style={styles.bubbleInner}>
+            <View style={styles.bubbleHighlight} />
+            <View style={styles.bubbleHighlightSmall} />
+          </View>
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -127,11 +138,11 @@ function Bubble({
 
 function Halo({ x, y, onComplete }: { x: number; y: number; onComplete: () => void }) {
   const scale = useSharedValue(0.5);
-  const opacity = useSharedValue(0.6);
+  const opacity = useSharedValue(0.5);
   
   useEffect(() => {
-    scale.value = withTiming(2.5, { duration: 400, easing: Easing.out(Easing.ease) });
-    opacity.value = withTiming(0, { duration: 400, easing: Easing.out(Easing.ease) }, () => {
+    scale.value = withTiming(2.2, { duration: 350, easing: Easing.out(Easing.ease) });
+    opacity.value = withTiming(0, { duration: 350, easing: Easing.out(Easing.ease) }, () => {
       runOnJS(onComplete)();
     });
   }, []);
@@ -155,6 +166,38 @@ function Halo({ x, y, onComplete }: { x: number; y: number; onComplete: () => vo
   );
 }
 
+function GridBackground() {
+  const rows = [];
+  const gridSize = BUBBLE_SIZE;
+  const numCols = Math.ceil(SCREEN_WIDTH / gridSize) + 1;
+  const numRows = Math.ceil(SCREEN_HEIGHT / gridSize) + 1;
+  
+  for (let row = 0; row < numRows; row++) {
+    for (let col = 0; col < numCols; col++) {
+      const isOddRow = row % 2 === 1;
+      const x = col * gridSize + (isOddRow ? gridSize / 2 : 0);
+      const y = row * gridSize * 0.866;
+      rows.push(
+        <View
+          key={`grid-${row}-${col}`}
+          style={[
+            styles.gridCircle,
+            {
+              left: x - gridSize / 2,
+              top: y - gridSize / 2,
+              width: gridSize,
+              height: gridSize,
+              borderRadius: gridSize / 2,
+            },
+          ]}
+        />
+      );
+    }
+  }
+  
+  return <View style={styles.gridContainer}>{rows}</View>;
+}
+
 export default function DriftScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -172,23 +215,28 @@ export default function DriftScreen() {
     const initialBubbles: BubbleData[] = [];
     for (let row = 0; row < ROWS; row++) {
       const isOddRow = row % 2 === 1;
-      const colsInRow = isOddRow ? COLS - 1 : COLS;
+      const colsInRow = isOddRow ? COLS : COLS + 1;
       for (let col = 0; col < colsInRow; col++) {
+        const baseY = row * (BUBBLE_SIZE * 0.866) - BUBBLE_SIZE / 2;
         initialBubbles.push({
           id: `${row}-${col}`,
           col,
           row,
           popped: false,
+          baseY,
         });
       }
     }
     return initialBubbles;
   });
   
+  const [bubbleOffsets, setBubbleOffsets] = useState<Record<string, number>>({});
   const [halos, setHalos] = useState<HaloEffect[]>([]);
   const [popCount, setPopCount] = useState(0);
   const [currentMessage, setCurrentMessage] = useState('');
   const [showHelper, setShowHelper] = useState(true);
+  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastMessageIndexRef = useRef(-1);
   
   const messageOpacity = useSharedValue(0);
   const helperOpacity = useSharedValue(1);
@@ -196,9 +244,26 @@ export default function DriftScreen() {
   const handlePop = useCallback((id: string, x: number, y: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
+    const poppedBubble = bubbles.find(b => b.id === id);
+    if (!poppedBubble) return;
+    
     setBubbles(prev => prev.map(b => 
       b.id === id ? { ...b, popped: true } : b
     ));
+    
+    const bubblesAbove = bubbles.filter(b => 
+      !b.popped && 
+      b.row < poppedBubble.row &&
+      Math.abs(b.col - poppedBubble.col) <= 1
+    );
+    
+    const ROW_HEIGHT = BUBBLE_SIZE * 0.866;
+    const newOffsets = { ...bubbleOffsets };
+    bubblesAbove.forEach(b => {
+      const currentOffset = newOffsets[b.id] || 0;
+      newOffsets[b.id] = currentOffset + ROW_HEIGHT;
+    });
+    setBubbleOffsets(newOffsets);
     
     setHalos(prev => [...prev, { id: `halo-${Date.now()}`, x, y }]);
     
@@ -210,20 +275,28 @@ export default function DriftScreen() {
         setTimeout(() => setShowHelper(false), 500);
       }
       
-      if (newCount % 3 === 0 || newCount === 1) {
-        const randomMessage = ENCOURAGEMENT_MESSAGES[Math.floor(Math.random() * ENCOURAGEMENT_MESSAGES.length)];
-        setCurrentMessage(randomMessage);
-        messageOpacity.value = 0;
-        messageOpacity.value = withTiming(0.4, { duration: 600 });
+      if (newCount % 4 === 0 || newCount === 1) {
+        if (messageTimeoutRef.current) {
+          clearTimeout(messageTimeoutRef.current);
+        }
         
-        setTimeout(() => {
-          messageOpacity.value = withTiming(0, { duration: 800 });
-        }, 2500);
+        let randomIndex;
+        do {
+          randomIndex = Math.floor(Math.random() * ENCOURAGEMENT_MESSAGES.length);
+        } while (randomIndex === lastMessageIndexRef.current && ENCOURAGEMENT_MESSAGES.length > 1);
+        lastMessageIndexRef.current = randomIndex;
+        
+        setCurrentMessage(ENCOURAGEMENT_MESSAGES[randomIndex]);
+        messageOpacity.value = withTiming(0.5, { duration: 800 });
+        
+        messageTimeoutRef.current = setTimeout(() => {
+          messageOpacity.value = withTiming(0, { duration: 1000 });
+        }, 5000);
       }
       
       return newCount;
     });
-  }, [showHelper]);
+  }, [bubbles, bubbleOffsets, showHelper]);
   
   const removeHalo = useCallback((id: string) => {
     setHalos(prev => prev.filter(h => h.id !== id));
@@ -243,13 +316,8 @@ export default function DriftScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#E8E5E0', '#DDD9D2', '#D3CFC8']}
-        locations={[0, 0.5, 1]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
+      <View style={styles.background} />
+      <GridBackground />
 
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={handleTracePress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -277,6 +345,7 @@ export default function DriftScreen() {
             key={bubble.id}
             data={bubble}
             onPop={handlePop}
+            yOffset={bubbleOffsets[bubble.id] || 0}
           />
         ))}
       </View>
@@ -296,6 +365,20 @@ export default function DriftScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  background: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#C4B8A8',
+  },
+  gridContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gridCircle: {
+    position: 'absolute',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 119, 101, 0.25)',
+    backgroundColor: 'transparent',
   },
   header: {
     position: 'absolute',
@@ -326,42 +409,43 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   bubble: {
-    width: BUBBLE_SIZE,
-    height: BUBBLE_SIZE,
-    borderRadius: BUBBLE_SIZE / 2,
+    width: BUBBLE_SIZE - 2,
+    height: BUBBLE_SIZE - 2,
+    borderRadius: (BUBBLE_SIZE - 2) / 2,
+    margin: 1,
+    backgroundColor: '#F5F3F0',
+    borderWidth: 1,
+    borderColor: 'rgba(180, 170, 160, 0.4)',
     overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  bubbleInner: {
+    flex: 1,
+    position: 'relative',
   },
   bubbleHighlight: {
     position: 'absolute',
     top: 6,
     left: 8,
-    width: BUBBLE_SIZE * 0.35,
-    height: BUBBLE_SIZE * 0.25,
-    borderRadius: BUBBLE_SIZE * 0.15,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    transform: [{ rotate: '-25deg' }],
+    width: BUBBLE_SIZE * 0.3,
+    height: BUBBLE_SIZE * 0.2,
+    borderRadius: BUBBLE_SIZE * 0.12,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    transform: [{ rotate: '-30deg' }],
   },
   bubbleHighlightSmall: {
     position: 'absolute',
     top: 12,
-    left: 18,
-    width: BUBBLE_SIZE * 0.12,
-    height: BUBBLE_SIZE * 0.08,
-    borderRadius: BUBBLE_SIZE * 0.05,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    transform: [{ rotate: '-25deg' }],
-  },
-  bubbleShadow: {
-    position: 'absolute',
-    bottom: -2,
-    left: 4,
-    right: 4,
-    height: 6,
-    borderRadius: BUBBLE_SIZE / 2,
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
-    transform: [{ scaleY: 0.5 }],
+    left: 16,
+    width: BUBBLE_SIZE * 0.1,
+    height: BUBBLE_SIZE * 0.06,
+    borderRadius: BUBBLE_SIZE * 0.04,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    transform: [{ rotate: '-30deg' }],
   },
   halo: {
     position: 'absolute',
@@ -369,7 +453,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     borderWidth: 2,
-    borderColor: 'rgba(138, 155, 140, 0.5)',
+    borderColor: 'rgba(138, 155, 140, 0.4)',
     backgroundColor: 'transparent',
     zIndex: 50,
   },
@@ -381,13 +465,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1,
+    zIndex: 200,
   },
   messageText: {
     fontSize: 28,
     color: '#4A4A4A',
     textAlign: 'center',
     paddingHorizontal: 40,
+    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   helperContainer: {
     position: 'absolute',
@@ -399,7 +486,10 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 16,
-    color: 'rgba(90, 90, 90, 0.7)',
+    color: 'rgba(80, 70, 60, 0.7)',
     textAlign: 'center',
+    textShadowColor: 'rgba(255, 255, 255, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });
