@@ -8,6 +8,15 @@ The application combines real-time AI chat capabilities, interactive mini-games 
 
 Preferred communication style: Simple, everyday language.
 
+# Design Rules (Hard Rules - No Discussion Needed)
+
+1. **TRACE Header Standard**: Every screen/page MUST have the TRACE wordmark header at the top using:
+   - Alore font (FontFamily.alore)
+   - TraceWordmark constants from constants/typography.ts
+   - Shadows.traceWordmark for text shadow
+   - fixedHeader style pattern (position absolute, top 0, centered, z-index 40+)
+   - Pressable that navigates to chat tab on press
+
 # System Architecture
 
 ## Frontend Architecture

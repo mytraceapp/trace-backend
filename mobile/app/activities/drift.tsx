@@ -14,7 +14,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-import { FontFamily } from '../../constants/typography';
+import { FontFamily, TraceWordmark } from '../../constants/typography';
+import { Shadows } from '../../constants/shadows';
+import { Spacing } from '../../constants/spacing';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -319,7 +321,7 @@ export default function DriftScreen() {
       <View style={styles.background} />
       <GridBackground />
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
         <Pressable onPress={handleTracePress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
         </Pressable>
@@ -380,21 +382,24 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(139, 119, 101, 0.25)',
     backgroundColor: 'transparent',
   },
-  header: {
+  fixedHeader: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     zIndex: 100,
     alignItems: 'center',
-    paddingBottom: 8,
+    paddingBottom: Spacing.md,
+    backgroundColor: 'transparent',
   },
   traceLabel: {
-    fontSize: 14,
-    fontWeight: '300',
-    letterSpacing: 4,
-    color: '#5A5A5A',
-    opacity: 0.8,
+    fontSize: TraceWordmark.fontSize,
+    fontWeight: TraceWordmark.fontWeight,
+    letterSpacing: TraceWordmark.letterSpacing,
+    marginLeft: TraceWordmark.marginLeft,
+    color: TraceWordmark.color,
+    opacity: TraceWordmark.opacity,
+    ...Shadows.traceWordmark,
   },
   bubblesContainer: {
     flex: 1,
