@@ -155,7 +155,7 @@ export default function GroundingScreen() {
           { 
             isLooping: true,
             volume: 0,
-            rate: 0.85,
+            rate: 0.90,
             shouldCorrectPitch: true,
           }
         );
@@ -278,6 +278,17 @@ export default function GroundingScreen() {
       />
 
       <View style={styles.ambientGlow} />
+      
+      <View style={styles.circlePattern}>
+        <View style={[styles.patternCircle, { width: 280, height: 280, top: '5%', left: '-15%' }]} />
+        <View style={[styles.patternCircle, { width: 200, height: 200, top: '15%', right: '-10%' }]} />
+        <View style={[styles.patternCircle, { width: 320, height: 320, top: '35%', left: '20%' }]} />
+        <View style={[styles.patternCircle, { width: 180, height: 180, top: '55%', right: '5%' }]} />
+        <View style={[styles.patternCircle, { width: 240, height: 240, bottom: '20%', left: '-5%' }]} />
+        <View style={[styles.patternCircle, { width: 160, height: 160, bottom: '10%', right: '15%' }]} />
+        <View style={[styles.patternCircle, { width: 300, height: 300, top: '25%', left: '-20%' }]} />
+        <View style={[styles.patternCircle, { width: 220, height: 220, bottom: '35%', right: '-15%' }]} />
+      </View>
 
       <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
         <Pressable onPress={handleTracePress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -371,6 +382,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.6)',
     opacity: 0.5,
   },
+  circlePattern: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+    overflow: 'hidden',
+  },
+  patternCircle: {
+    position: 'absolute',
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: 'rgba(180, 170, 158, 0.08)',
+    backgroundColor: 'transparent',
+  },
   fixedHeader: {
     position: 'absolute',
     top: 0,
@@ -444,16 +467,16 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   largeNumber: {
-    fontSize: 160,
-    fontWeight: '100',
-    color: 'transparent',
-    letterSpacing: 2,
-    lineHeight: 180,
-    marginBottom: -8,
-    marginTop: 25,
-    textShadowColor: 'rgba(180, 170, 158, 0.35)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 1,
+    fontSize: 140,
+    fontWeight: '300',
+    color: 'rgba(164, 148, 133, 0.18)',
+    letterSpacing: 1,
+    lineHeight: 150,
+    marginBottom: 8,
+    marginTop: 20,
+    textShadowColor: 'rgba(164, 148, 133, 0.15)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 30,
   },
   instruction: {
     fontSize: 21,
