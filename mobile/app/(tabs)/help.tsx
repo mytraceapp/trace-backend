@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
-    marginTop: 4,
+    marginTop: 19,
   },
   title: {
     fontSize: ScreenTitle.fontSize,
@@ -196,13 +196,13 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: 'rgba(210, 195, 175, 0.55)',
     borderRadius: 16,
-    paddingVertical: 26,
-    paddingHorizontal: 24,
+    paddingVertical: 30,
+    paddingHorizontal: 28,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   cardIconContainer: {
     width: 52,
