@@ -187,7 +187,7 @@ export default function PrivacyScreen() {
             </Text>
           </View>
 
-          <View style={[styles.section, { marginBottom: 0 }]}>
+          <View style={[styles.section, { marginBottom: 0, paddingBottom: 0, borderBottomWidth: 0 }]}>
             <Text style={[styles.sectionTitle, { fontFamily: canelaFont }]}>Your control</Text>
             <Text style={[styles.sectionBody, { fontFamily: canelaFont }]}>
               Edit, export, or delete entries anytime.
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
-    marginTop: 11,
+    marginTop: -14,
   },
   title: {
     fontSize: 26,
@@ -470,6 +470,9 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 36,
+    paddingBottom: 28,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(180, 170, 155, 0.25)',
   },
   sectionTitle: {
     fontSize: 18,
