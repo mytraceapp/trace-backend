@@ -285,20 +285,23 @@ export default function DriftScreen() {
       b.id === id ? { ...b, popped: true } : b
     ));
     
-    const bubbleDirectlyAbove = bubbles.find(b => 
+    const bubblesInColumn = bubbles.filter(b => 
       !b.popped && 
-      b.row === poppedBubble.row - 1 &&
+      b.row < poppedBubble.row &&
       b.col === poppedBubble.col
     );
     
-    if (bubbleDirectlyAbove) {
+    if (bubblesInColumn.length > 0) {
       const ROW_HEIGHT = BUBBLE_SIZE * 0.866;
       const newOffsets = { ...bubbleOffsets };
       const newDelays = { ...bubbleDelays };
       
-      const currentOffset = newOffsets[bubbleDirectlyAbove.id] || 0;
-      newOffsets[bubbleDirectlyAbove.id] = currentOffset + ROW_HEIGHT;
-      newDelays[bubbleDirectlyAbove.id] = 50;
+      bubblesInColumn.forEach(b => {
+        const currentOffset = newOffsets[b.id] || 0;
+        newOffsets[b.id] = currentOffset + ROW_HEIGHT;
+        const rowDistance = poppedBubble.row - b.row;
+        newDelays[b.id] = rowDistance * 120;
+      });
       
       setBubbleOffsets(newOffsets);
       setBubbleDelays(newDelays);
@@ -326,11 +329,11 @@ export default function DriftScreen() {
         lastMessageIndexRef.current = randomIndex;
         
         setCurrentMessage(ENCOURAGEMENT_MESSAGES[randomIndex]);
-        messageOpacity.value = withTiming(0.5, { duration: 800 });
+        messageOpacity.value = withTiming(0.6, { duration: 1200 });
         
         messageTimeoutRef.current = setTimeout(() => {
-          messageOpacity.value = withTiming(0, { duration: 1000 });
-        }, 7000);
+          messageOpacity.value = withTiming(0, { duration: 1500 });
+        }, 11000);
       }
       
       return newCount;
