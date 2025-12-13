@@ -226,10 +226,9 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   cardSubtitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '400',
     color: '#7A7672',
     letterSpacing: 0.1,
-    lineHeight: 20,
   },
 });
