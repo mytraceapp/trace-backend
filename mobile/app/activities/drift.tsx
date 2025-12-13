@@ -270,6 +270,8 @@ export default function DriftScreen() {
 
   const playPopSound = async () => {
     if (soundRef.current) {
+      await soundRef.current.setVolumeAsync(0.3);
+      await soundRef.current.setRateAsync(0.85, true);
       await soundRef.current.replayAsync();
     }
   };
@@ -459,15 +461,15 @@ const styles = StyleSheet.create({
     height: BUBBLE_SIZE - 2,
     borderRadius: (BUBBLE_SIZE - 2) / 2,
     margin: 1,
-    backgroundColor: 'rgba(245, 243, 240, 0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(180, 170, 160, 0.35)',
+    backgroundColor: 'rgba(255, 253, 250, 0.45)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowColor: 'rgba(255, 255, 255, 0.9)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 4,
   },
   bubbleInner: {
     flex: 1,
@@ -480,7 +482,7 @@ const styles = StyleSheet.create({
     width: BUBBLE_SIZE * 0.3,
     height: BUBBLE_SIZE * 0.2,
     borderRadius: BUBBLE_SIZE * 0.12,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
     transform: [{ rotate: '-30deg' }],
   },
   bubbleHighlightSmall: {
@@ -490,7 +492,7 @@ const styles = StyleSheet.create({
     width: BUBBLE_SIZE * 0.1,
     height: BUBBLE_SIZE * 0.06,
     borderRadius: BUBBLE_SIZE * 0.04,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
     transform: [{ rotate: '-30deg' }],
   },
   halo: {
