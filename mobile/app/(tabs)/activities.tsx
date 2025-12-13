@@ -223,6 +223,8 @@ export default function ActivitiesScreen() {
       router.push('/activities/drift');
     } else if (activityId === 'window') {
       router.push('/activities/window');
+    } else if (activityId === 'echo') {
+      router.push('/activities/echo');
     } else {
       router.push(`/activities/${activityId}`);
     }
