@@ -275,7 +275,7 @@ export default function DriftScreen() {
   };
   
   const handlePop = useCallback((id: string, x: number, y: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     playPopSound();
     
     const poppedBubble = bubbles.find(b => b.id === id);
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     height: BUBBLE_SIZE - 2,
     borderRadius: (BUBBLE_SIZE - 2) / 2,
     margin: 1,
-    backgroundColor: 'rgba(245, 243, 240, 0.75)',
+    backgroundColor: 'rgba(245, 243, 240, 0.55)',
     borderWidth: 1,
     borderColor: 'rgba(180, 170, 160, 0.35)',
     overflow: 'hidden',
