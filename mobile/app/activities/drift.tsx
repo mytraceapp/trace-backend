@@ -8,13 +8,10 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
-  withDelay,
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
 
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
@@ -23,10 +20,13 @@ import { useGlobalAudio } from '../../contexts/AudioContext';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const BUBBLE_SIZE = 48;
-const BUBBLE_GAP = 0;
-const COLS = Math.ceil(SCREEN_WIDTH / BUBBLE_SIZE) + 1;
-const ROWS = Math.ceil(SCREEN_HEIGHT / (BUBBLE_SIZE * 0.866)) + 2;
+const BUBBLE_SIZE = 44;
+const COLS = Math.ceil(SCREEN_WIDTH / BUBBLE_SIZE) + 2;
+const ROWS = Math.ceil(SCREEN_HEIGHT / BUBBLE_SIZE) + 2;
+
+const BACKGROUND_COLOR = '#D4C9B8';
+const BUBBLE_FILL = '#E8E4DE';
+const BUBBLE_BORDER = 'rgba(180, 168, 150, 0.45)';
 
 const ENCOURAGEMENT_MESSAGES = [
   "Each pop releases a little weight.",
@@ -54,80 +54,55 @@ interface BubbleData {
   col: number;
   row: number;
   popped: boolean;
-  baseY: number;
-}
-
-interface HaloEffect {
-  id: string;
   x: number;
   y: number;
 }
 
 const HIGHLIGHT_VARIATIONS = [
-  { topOffset: 6, leftOffset: 8, width: 0.32, height: 0.14, opacity: 0.18 },
-  { topOffset: 7, leftOffset: 6, width: 0.28, height: 0.12, opacity: 0.15 },
-  { topOffset: 5, leftOffset: 9, width: 0.30, height: 0.16, opacity: 0.20 },
-  { topOffset: 8, leftOffset: 7, width: 0.26, height: 0.13, opacity: 0.16 },
-  { topOffset: 6, leftOffset: 10, width: 0.34, height: 0.15, opacity: 0.17 },
-  { topOffset: 7, leftOffset: 8, width: 0.29, height: 0.14, opacity: 0.19 },
+  { topOffset: 0.14, leftOffset: 0.18, size: 0.28 },
+  { topOffset: 0.16, leftOffset: 0.15, size: 0.26 },
+  { topOffset: 0.12, leftOffset: 0.20, size: 0.30 },
+  { topOffset: 0.15, leftOffset: 0.16, size: 0.27 },
 ];
 
 function Bubble({ 
   data, 
   onPop,
-  yOffset,
-  fallDelay,
+  variationIndex,
 }: { 
   data: BubbleData; 
-  onPop: (id: string, x: number, y: number) => void;
-  yOffset: number;
-  fallDelay: number;
+  onPop: (id: string) => void;
+  variationIndex: number;
 }) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
-  const translateY = useSharedValue(0);
   const [isHidden, setIsHidden] = useState(false);
   
-  const variationIndex = (data.row * 7 + data.col * 3) % HIGHLIGHT_VARIATIONS.length;
-  const variation = HIGHLIGHT_VARIATIONS[variationIndex];
-  
-  const isOddRow = data.row % 2 === 1;
-  const baseX = data.col * BUBBLE_SIZE + (isOddRow ? BUBBLE_SIZE / 2 : 0) - BUBBLE_SIZE / 2;
-  const baseY = data.baseY;
-  
-  useEffect(() => {
-    if (yOffset > 0) {
-      translateY.value = withDelay(
-        fallDelay,
-        withSpring(yOffset, {
-          damping: 15,
-          stiffness: 60,
-          mass: 1.2,
-        })
-      );
-    }
-  }, [yOffset, fallDelay]);
+  const variation = HIGHLIGHT_VARIATIONS[variationIndex % HIGHLIGHT_VARIATIONS.length];
   
   useEffect(() => {
     if (data.popped) {
-      scale.value = withTiming(0.3, { duration: 180, easing: Easing.in(Easing.cubic) });
-      opacity.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.quad) }, () => {
+      scale.value = withTiming(0.15, { 
+        duration: 220, 
+        easing: Easing.out(Easing.cubic) 
+      });
+      opacity.value = withTiming(0, { 
+        duration: 280, 
+        easing: Easing.out(Easing.quad) 
+      }, () => {
         runOnJS(setIsHidden)(true);
       });
     }
   }, [data.popped]);
   
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value },
-      { scale: scale.value },
-    ],
+    transform: [{ scale: scale.value }],
     opacity: opacity.value,
   }));
   
   const handlePress = () => {
     if (!data.popped) {
-      onPop(data.id, baseX + BUBBLE_SIZE / 2, baseY + BUBBLE_SIZE / 2);
+      onPop(data.id);
     }
   };
   
@@ -140,9 +115,8 @@ function Bubble({
       style={[
         styles.bubbleContainer,
         {
-          position: 'absolute',
-          left: baseX,
-          top: baseY,
+          left: data.x,
+          top: data.y,
           width: BUBBLE_SIZE,
           height: BUBBLE_SIZE,
         },
@@ -151,84 +125,20 @@ function Bubble({
     >
       <Pressable onPress={handlePress} style={styles.bubblePressable}>
         <View style={styles.bubble}>
-          <View style={styles.bubbleInner}>
-            <View style={[
-              styles.bubbleHighlight,
-              {
-                top: variation.topOffset,
-                left: variation.leftOffset,
-                width: BUBBLE_SIZE * variation.width,
-                height: BUBBLE_SIZE * variation.height,
-                opacity: variation.opacity,
-              }
-            ]} />
-          </View>
+          <View style={styles.bubbleShading} />
+          <View style={[
+            styles.bubbleHighlight,
+            {
+              top: BUBBLE_SIZE * variation.topOffset,
+              left: BUBBLE_SIZE * variation.leftOffset,
+              width: BUBBLE_SIZE * variation.size,
+              height: BUBBLE_SIZE * variation.size * 0.5,
+            }
+          ]} />
         </View>
       </Pressable>
     </Animated.View>
   );
-}
-
-function Halo({ x, y, onComplete }: { x: number; y: number; onComplete: () => void }) {
-  const scale = useSharedValue(0.8);
-  const opacity = useSharedValue(0.25);
-  
-  useEffect(() => {
-    scale.value = withTiming(1.8, { duration: 400, easing: Easing.out(Easing.cubic) });
-    opacity.value = withTiming(0, { duration: 450, easing: Easing.out(Easing.cubic) }, () => {
-      runOnJS(onComplete)();
-    });
-  }, []);
-  
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
-  
-  return (
-    <Animated.View
-      style={[
-        styles.halo,
-        {
-          left: x - 30,
-          top: y - 30,
-        },
-        animatedStyle,
-      ]}
-    />
-  );
-}
-
-function GridBackground() {
-  const rows = [];
-  const gridSize = BUBBLE_SIZE;
-  const numCols = Math.ceil(SCREEN_WIDTH / gridSize) + 1;
-  const numRows = Math.ceil(SCREEN_HEIGHT / gridSize) + 1;
-  
-  for (let row = 0; row < numRows; row++) {
-    for (let col = 0; col < numCols; col++) {
-      const isOddRow = row % 2 === 1;
-      const x = col * gridSize + (isOddRow ? gridSize / 2 : 0);
-      const y = row * gridSize * 0.866;
-      rows.push(
-        <View
-          key={`grid-${row}-${col}`}
-          style={[
-            styles.gridCircle,
-            {
-              left: x - gridSize / 2,
-              top: y - gridSize / 2,
-              width: gridSize,
-              height: gridSize,
-              borderRadius: gridSize / 2,
-            },
-          ]}
-        />
-      );
-    }
-  }
-  
-  return <View style={styles.gridContainer}>{rows}</View>;
 }
 
 export default function DriftScreen() {
@@ -246,32 +156,31 @@ export default function DriftScreen() {
   
   const [bubbles, setBubbles] = useState<BubbleData[]>(() => {
     const initialBubbles: BubbleData[] = [];
+    const startX = -BUBBLE_SIZE / 2;
+    const startY = -BUBBLE_SIZE / 2;
+    
     for (let row = 0; row < ROWS; row++) {
-      const isOddRow = row % 2 === 1;
-      const colsInRow = isOddRow ? COLS : COLS + 1;
-      for (let col = 0; col < colsInRow; col++) {
-        const baseY = row * (BUBBLE_SIZE * 0.866) - BUBBLE_SIZE / 2;
+      for (let col = 0; col < COLS; col++) {
+        const x = startX + col * BUBBLE_SIZE;
+        const y = startY + row * BUBBLE_SIZE;
         initialBubbles.push({
           id: `${row}-${col}`,
           col,
           row,
           popped: false,
-          baseY,
+          x,
+          y,
         });
       }
     }
     return initialBubbles;
   });
   
-  const [bubbleOffsets, setBubbleOffsets] = useState<Record<string, number>>({});
-  const [bubbleDelays, setBubbleDelays] = useState<Record<string, number>>({});
-  const [halos, setHalos] = useState<HaloEffect[]>([]);
   const [popCount, setPopCount] = useState(0);
   const [currentMessage, setCurrentMessage] = useState('');
   const [showHelper, setShowHelper] = useState(true);
   const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageIndexRef = useRef(-1);
-  const soundRef = useRef<Audio.Sound | null>(null);
   
   const messageOpacity = useSharedValue(0);
   const helperOpacity = useSharedValue(1);
@@ -285,61 +194,12 @@ export default function DriftScreen() {
     };
   }, [pauseForActivity, resumeFromActivity]);
   
-  useEffect(() => {
-    const loadSound = async () => {
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../assets/sounds/pop.mp3')
-      );
-      soundRef.current = sound;
-    };
-    loadSound();
-    return () => {
-      soundRef.current?.unloadAsync();
-    };
-  }, []);
-
-  const playPopSound = async () => {
-    if (soundRef.current) {
-      await soundRef.current.setVolumeAsync(0.3);
-      await soundRef.current.setRateAsync(0.85, true);
-      await soundRef.current.replayAsync();
-    }
-  };
-  
-  const handlePop = useCallback((id: string, x: number, y: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    playPopSound();
-    
-    const poppedBubble = bubbles.find(b => b.id === id);
-    if (!poppedBubble) return;
+  const handlePop = useCallback((id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     setBubbles(prev => prev.map(b => 
       b.id === id ? { ...b, popped: true } : b
     ));
-    
-    const bubblesInColumn = bubbles.filter(b => 
-      !b.popped && 
-      b.row < poppedBubble.row &&
-      b.col === poppedBubble.col
-    );
-    
-    if (bubblesInColumn.length > 0) {
-      const ROW_HEIGHT = BUBBLE_SIZE * 0.866;
-      const newOffsets = { ...bubbleOffsets };
-      const newDelays = { ...bubbleDelays };
-      
-      bubblesInColumn.forEach(b => {
-        const currentOffset = newOffsets[b.id] || 0;
-        newOffsets[b.id] = currentOffset + ROW_HEIGHT;
-        const rowDistance = poppedBubble.row - b.row;
-        newDelays[b.id] = rowDistance * 120;
-      });
-      
-      setBubbleOffsets(newOffsets);
-      setBubbleDelays(newDelays);
-    }
-    
-    setHalos(prev => [...prev, { id: `halo-${Date.now()}`, x, y }]);
     
     setPopCount(prev => {
       const newCount = prev + 1;
@@ -349,7 +209,7 @@ export default function DriftScreen() {
         setTimeout(() => setShowHelper(false), 500);
       }
       
-      if (newCount % 4 === 0 || newCount === 1) {
+      if (newCount % 5 === 0 || newCount === 1) {
         if (messageTimeoutRef.current) {
           clearTimeout(messageTimeoutRef.current);
         }
@@ -370,11 +230,7 @@ export default function DriftScreen() {
       
       return newCount;
     });
-  }, [bubbles, bubbleOffsets, showHelper]);
-  
-  const removeHalo = useCallback((id: string) => {
-    setHalos(prev => prev.filter(h => h.id !== id));
-  }, []);
+  }, [showHelper]);
   
   const messageStyle = useAnimatedStyle(() => ({
     opacity: messageOpacity.value,
@@ -398,7 +254,6 @@ export default function DriftScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.background} />
-      <GridBackground />
 
       <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
         <Pressable onPress={handleTracePress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -421,17 +276,15 @@ export default function DriftScreen() {
       )}
 
       <View style={styles.bubblesContainer}>
-        {bubbles.map(bubble => (
+        {bubbles.map((bubble, index) => (
           <Bubble
             key={bubble.id}
             data={bubble}
             onPop={handlePop}
-            yOffset={bubbleOffsets[bubble.id] || 0}
-            fallDelay={bubbleDelays[bubble.id] || 0}
+            variationIndex={index}
           />
         ))}
       </View>
-
 
       <View style={[styles.endButtonContainer, { bottom: TAB_BAR_HEIGHT + bottomPadding + 30 }]}>
         <Pressable
@@ -457,16 +310,7 @@ const styles = StyleSheet.create({
   },
   background: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#C8BBA8',
-  },
-  gridContainer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  gridCircle: {
-    position: 'absolute',
-    borderWidth: 0,
-    borderColor: 'transparent',
-    backgroundColor: 'transparent',
+    backgroundColor: BACKGROUND_COLOR,
   },
   fixedHeader: {
     position: 'absolute',
@@ -494,37 +338,35 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   bubbleContainer: {
+    position: 'absolute',
     zIndex: 10,
   },
   bubblePressable: {
     width: BUBBLE_SIZE,
     height: BUBBLE_SIZE,
-    position: 'relative',
+    padding: 1,
   },
   bubble: {
-    width: BUBBLE_SIZE - 2,
-    height: BUBBLE_SIZE - 2,
-    borderRadius: (BUBBLE_SIZE - 2) / 2,
-    margin: 1,
-    backgroundColor: 'rgba(235, 230, 222, 0.88)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(200, 190, 175, 0.3)',
-    overflow: 'hidden',
-    shadowColor: 'rgba(120, 110, 95, 0.25)',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  bubbleInner: {
     flex: 1,
-    position: 'relative',
-    backgroundColor: 'rgba(245, 242, 235, 0.15)',
+    borderRadius: BUBBLE_SIZE / 2,
+    backgroundColor: BUBBLE_FILL,
+    borderWidth: 0.75,
+    borderColor: BUBBLE_BORDER,
+    overflow: 'hidden',
+  },
+  bubbleShading: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: BUBBLE_SIZE / 2,
+    backgroundColor: 'transparent',
+    borderWidth: 3,
+    borderColor: 'transparent',
+    borderBottomColor: 'rgba(160, 150, 135, 0.12)',
+    borderRightColor: 'rgba(160, 150, 135, 0.08)',
   },
   bubbleHighlight: {
     position: 'absolute',
-    borderRadius: BUBBLE_SIZE * 0.08,
-    backgroundColor: 'rgba(255, 252, 248, 0.25)',
+    borderRadius: 100,
+    backgroundColor: 'rgba(250, 248, 244, 0.35)',
   },
   messageContainer: {
     position: 'absolute',
@@ -534,7 +376,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 5,
+    zIndex: 50,
   },
   messageText: {
     fontSize: 32,
@@ -567,7 +409,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 5,
+    zIndex: 50,
   },
   endButton: {
     paddingHorizontal: 32,
@@ -576,23 +418,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(180, 170, 155, 0.5)',
     borderWidth: 1,
     borderColor: 'rgba(180, 170, 155, 0.3)',
-    shadowColor: 'rgba(90, 74, 58, 0.15)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
   },
   endButtonText: {
     fontSize: 14,
     fontWeight: '500',
     color: '#4A3F35',
     letterSpacing: 1.5,
-  },
-  halo: {
-    position: 'absolute',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(200, 190, 175, 0.3)',
-    zIndex: 5,
   },
 });
