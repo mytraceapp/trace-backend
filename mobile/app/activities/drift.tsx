@@ -141,6 +141,9 @@ function Bubble({
           <View style={styles.bubbleInner}>
             <View style={styles.bubbleHighlight} />
             <View style={styles.bubbleHighlightSmall} />
+            <View style={styles.bubbleIridescentPink} />
+            <View style={styles.bubbleIridescentBlue} />
+            <View style={styles.bubbleIridescentGreen} />
           </View>
         </View>
       </Pressable>
@@ -461,9 +464,9 @@ const styles = StyleSheet.create({
     height: BUBBLE_SIZE - 2,
     borderRadius: (BUBBLE_SIZE - 2) / 2,
     margin: 1,
-    backgroundColor: 'rgba(255, 253, 250, 0.45)',
+    backgroundColor: 'rgba(255, 253, 250, 0.70)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
+    borderColor: 'rgba(255, 255, 255, 0.7)',
     overflow: 'hidden',
     shadowColor: 'rgba(255, 255, 255, 0.9)',
     shadowOffset: { width: 0, height: 0 },
@@ -477,23 +480,53 @@ const styles = StyleSheet.create({
   },
   bubbleHighlight: {
     position: 'absolute',
-    top: 6,
-    left: 8,
-    width: BUBBLE_SIZE * 0.3,
-    height: BUBBLE_SIZE * 0.2,
+    top: 5,
+    left: 7,
+    width: BUBBLE_SIZE * 0.35,
+    height: BUBBLE_SIZE * 0.18,
     borderRadius: BUBBLE_SIZE * 0.12,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    transform: [{ rotate: '-30deg' }],
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    transform: [{ rotate: '-35deg' }],
   },
   bubbleHighlightSmall: {
     position: 'absolute',
-    top: 12,
-    left: 16,
-    width: BUBBLE_SIZE * 0.1,
+    top: 11,
+    left: 15,
+    width: BUBBLE_SIZE * 0.12,
     height: BUBBLE_SIZE * 0.06,
     borderRadius: BUBBLE_SIZE * 0.04,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    transform: [{ rotate: '-30deg' }],
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    transform: [{ rotate: '-35deg' }],
+  },
+  bubbleIridescentPink: {
+    position: 'absolute',
+    bottom: 8,
+    right: 6,
+    width: BUBBLE_SIZE * 0.25,
+    height: BUBBLE_SIZE * 0.12,
+    borderRadius: BUBBLE_SIZE * 0.08,
+    backgroundColor: 'rgba(255, 182, 193, 0.4)',
+    transform: [{ rotate: '25deg' }],
+  },
+  bubbleIridescentBlue: {
+    position: 'absolute',
+    top: 14,
+    right: 8,
+    width: BUBBLE_SIZE * 0.18,
+    height: BUBBLE_SIZE * 0.1,
+    borderRadius: BUBBLE_SIZE * 0.06,
+    backgroundColor: 'rgba(173, 216, 255, 0.35)',
+    transform: [{ rotate: '15deg' }],
+  },
+  bubbleIridescentGreen: {
+    position: 'absolute',
+    bottom: 12,
+    left: 10,
+    width: BUBBLE_SIZE * 0.15,
+    height: BUBBLE_SIZE * 0.08,
+    borderRadius: BUBBLE_SIZE * 0.05,
+    backgroundColor: 'rgba(180, 220, 180, 0.3)',
+    transform: [{ rotate: '-20deg' }],
   },
   halo: {
     position: 'absolute',
