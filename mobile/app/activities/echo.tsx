@@ -101,6 +101,7 @@ export default function EchoScreen() {
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
 
   const audioRef = useRef<Audio.Sound | null>(null);
+  const ambientRef = useRef<Audio.Sound | null>(null);
   
   const time = useSharedValue(0);
   const orbScale = useSharedValue(1);
@@ -194,37 +195,61 @@ export default function EchoScreen() {
         shouldDuckAndroid: true,
       });
       
-      const { sound: voice } = await Audio.Sound.createAsync(
-        require('../../assets/audio/echo.mp3'),
+      const { sound: ambient } = await Audio.Sound.createAsync(
+        require('../../assets/audio/ambient-loop.mp3'),
         {
+          isLooping: true,
           volume: 0,
-          rate: 0.99,
+          rate: 0.90,
           shouldCorrectPitch: true,
         }
       );
-      audioRef.current = voice;
-      setIsVoicePlaying(true);
-      await voice.playAsync();
+      ambientRef.current = ambient;
+      await ambient.playAsync();
       
-      let vol = 0;
-      const targetVol = 0.85;
-      const fadeIn = setInterval(async () => {
-        vol += 0.02;
-        if (vol >= targetVol) {
-          vol = targetVol;
-          clearInterval(fadeIn);
+      let ambientVol = 0;
+      const ambientFadeIn = setInterval(async () => {
+        ambientVol += 0.003;
+        if (ambientVol >= 0.12) {
+          ambientVol = 0.12;
+          clearInterval(ambientFadeIn);
         }
-        await voice.setVolumeAsync(vol);
-      }, 25);
+        await ambient.setVolumeAsync(ambientVol);
+      }, 30);
       
-      voice.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setIsVoicePlaying(false);
-          setTimeout(() => {
-            router.replace('/(tabs)/chat');
-          }, 2000);
-        }
-      });
+      setTimeout(async () => {
+        const { sound: voice } = await Audio.Sound.createAsync(
+          require('../../assets/audio/echo.mp3'),
+          {
+            volume: 0,
+            rate: 0.99,
+            shouldCorrectPitch: true,
+          }
+        );
+        audioRef.current = voice;
+        setIsVoicePlaying(true);
+        await voice.playAsync();
+        
+        let vol = 0;
+        const targetVol = 0.85;
+        const fadeIn = setInterval(async () => {
+          vol += 0.02;
+          if (vol >= targetVol) {
+            vol = targetVol;
+            clearInterval(fadeIn);
+          }
+          await voice.setVolumeAsync(vol);
+        }, 25);
+        
+        voice.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            setIsVoicePlaying(false);
+            setTimeout(() => {
+              router.replace('/(tabs)/chat');
+            }, 2000);
+          }
+        });
+      }, 3000);
     };
     
     setupAudio();
@@ -233,12 +258,18 @@ export default function EchoScreen() {
       if (audioRef.current) {
         audioRef.current.unloadAsync();
       }
+      if (ambientRef.current) {
+        ambientRef.current.unloadAsync();
+      }
     };
   }, []);
 
   const handleTracePress = async () => {
     if (audioRef.current) {
       await audioRef.current.stopAsync();
+    }
+    if (ambientRef.current) {
+      await ambientRef.current.stopAsync();
     }
     router.replace('/(tabs)/chat');
   };
@@ -255,6 +286,18 @@ export default function EchoScreen() {
           await audioRef.current.setVolumeAsync(vol);
         }
       }, 20);
+    }
+    if (ambientRef.current) {
+      let ambVol = 0.12;
+      const ambFadeInterval = setInterval(async () => {
+        ambVol -= 0.006;
+        if (ambVol <= 0) {
+          clearInterval(ambFadeInterval);
+          await ambientRef.current?.stopAsync();
+        } else if (ambientRef.current) {
+          await ambientRef.current.setVolumeAsync(ambVol);
+        }
+      }, 25);
     }
     setTimeout(() => {
       router.back();
