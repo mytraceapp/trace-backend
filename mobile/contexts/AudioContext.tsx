@@ -151,7 +151,7 @@ export function AudioProvider({ children }: AudioProviderProps) {
           shouldDuckAndroid: true,
         });
 
-        const audioSource = require('../assets/audio/ambient-loop.mp3');
+        const audioSource = require('../assets/audio/ambient-loop.m4a');
 
         const { sound: soundA } = await Audio.Sound.createAsync(
           audioSource,
@@ -159,7 +159,7 @@ export function AudioProvider({ children }: AudioProviderProps) {
             isLooping: false,
             volume: 0,
             shouldPlay: false,
-            rate: 1.0,
+            rate: 0.98,
             shouldCorrectPitch: true,
           }
         );
@@ -170,7 +170,7 @@ export function AudioProvider({ children }: AudioProviderProps) {
             isLooping: false,
             volume: 0,
             shouldPlay: false,
-            rate: 1.0,
+            rate: 0.98,
             shouldCorrectPitch: true,
           }
         );
