@@ -9,6 +9,7 @@ import { useFonts } from 'expo-font';
 const ORB_SIZE = 240;
 
 export default function ChatScreen() {
+  console.log("CHAT.TSX LOADED ✅");
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const theme = colorScheme === 'dark' ? Colors.night : Colors.day;
