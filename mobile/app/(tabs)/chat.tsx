@@ -24,11 +24,18 @@ export default function ChatScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={styles.content}>
-        <Text style={{ color: 'red', fontSize: 20, marginBottom: 20 }}>
-          Hi Nina
-        </Text>
-
-        <View style={{ width: 240, height: 240, borderRadius: 120, backgroundColor: 'red' }} />
+        <View style={styles.orbContainer}>
+          <View style={styles.orbGlow}>
+            <LinearGradient
+              colors={['#E8DFD4', '#D4C9BC', '#C5B8A8', '#B8A998']}
+              start={{ x: 0.3, y: 0 }}
+              end={{ x: 0.7, y: 1 }}
+              style={styles.orb}
+            >
+              <View style={styles.innerGlow} />
+            </LinearGradient>
+          </View>
+        </View>
       </View>
     </View>
   );
