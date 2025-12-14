@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screenPadding,
   },
   header: {
-    marginBottom: 12,
+    marginBottom: 24,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
     marginTop: -4,
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   cardsContainer: {
     gap: 0,
-    marginTop: 12,
+    marginTop: 0,
   },
   card: {
     backgroundColor: 'rgba(210, 195, 175, 0.55)',

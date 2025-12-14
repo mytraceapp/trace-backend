@@ -445,7 +445,7 @@ export default function JournalScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.bottomButtonContainer, { paddingBottom: insets.bottom + 65 }]}>
+      <View style={[styles.bottomButtonContainer, { paddingBottom: insets.bottom + 90 }]}>
         <Pressable
           style={({ pressed }) => [
             styles.logMomentButton,
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screenPadding,
   },
   header: {
-    marginBottom: 12,
+    marginBottom: 24,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
     marginTop: -4,

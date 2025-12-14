@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screenPadding,
   },
   header: {
-    marginBottom: 12,
+    marginBottom: 24,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
     marginTop: -4,
