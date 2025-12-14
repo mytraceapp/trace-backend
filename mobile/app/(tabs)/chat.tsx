@@ -1,9 +1,12 @@
 import { View, Text, StyleSheet, useColorScheme, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/colors';
 import { Spacing } from '../../constants/spacing';
 import { ScreenTitle, BodyText, FontFamily } from '../../constants/typography';
 import { useFonts } from 'expo-font';
+
+const ORB_SIZE = 240;
 
 export default function ChatScreen() {
   const colorScheme = useColorScheme();
@@ -23,9 +26,20 @@ export default function ChatScreen() {
         <Text style={[styles.placeholder, { color: theme.textPrimary, fontFamily: canelaFont }]}>
           Chat with TRACE
         </Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary, fontFamily: canelaFont }]}>
-          Coming soon
-        </Text>
+        
+        <View style={styles.orbContainer}>
+          <View style={styles.orbGlow}>
+            <LinearGradient
+              colors={['#FDF8F3', '#E8DFD4', '#D4C9B8']}
+              locations={[0, 0.5, 1]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.orb}
+            >
+              <View style={styles.innerGlow} />
+            </LinearGradient>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -44,9 +58,39 @@ const styles = StyleSheet.create({
   placeholder: {
     fontSize: ScreenTitle.fontSize,
     fontWeight: ScreenTitle.fontWeight,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xl,
   },
-  subtitle: {
-    fontSize: BodyText.fontSize,
+  orbContainer: {
+    width: ORB_SIZE,
+    height: ORB_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  orbGlow: {
+    width: ORB_SIZE,
+    height: ORB_SIZE,
+    borderRadius: ORB_SIZE / 2,
+    shadowColor: '#E8DFD4',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 30,
+    elevation: 8,
+  },
+  orb: {
+    width: ORB_SIZE,
+    height: ORB_SIZE,
+    borderRadius: ORB_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  innerGlow: {
+    position: 'absolute',
+    width: ORB_SIZE * 0.7,
+    height: ORB_SIZE * 0.7,
+    borderRadius: (ORB_SIZE * 0.7) / 2,
+    backgroundColor: 'rgba(255, 253, 250, 0.35)',
+    top: ORB_SIZE * 0.1,
+    left: ORB_SIZE * 0.15,
   },
 });
