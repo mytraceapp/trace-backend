@@ -33,7 +33,7 @@ export function AudioProvider({ children }: AudioProviderProps) {
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fadeIntervalBRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wasPlayingBeforeActivityRef = useRef(false);
-  const targetVolumeRef = useRef(0.5);
+  const targetVolumeRef = useRef(0.3);
 
   const getActiveSound = useCallback(() => {
     return activeSound.current === 'A' ? soundARef.current : soundBRef.current;

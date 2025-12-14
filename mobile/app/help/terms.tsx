@@ -452,12 +452,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   contentCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    borderRadius: 24,
-    paddingVertical: 40,
-    paddingHorizontal: 32,
+    backgroundColor: 'rgba(244, 241, 236, 0.85)',
+    borderRadius: 20,
+    paddingVertical: 28,
+    paddingHorizontal: 34,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     ...Shadows.card,
   },
   introText: {
