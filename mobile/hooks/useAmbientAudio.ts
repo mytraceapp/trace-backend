@@ -35,7 +35,7 @@ export function useAmbientAudio({
         });
 
         const { sound } = await Audio.Sound.createAsync(
-          require('../assets/audio/ambient-loop.mp3'),
+          require('../assets/audio/ambient-loop-mastered.m4a'),
           {
             isLooping: loop,
             volume: 0,
