@@ -429,15 +429,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screenPadding,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 21,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
-    marginTop: -6,
+    marginTop: -5.7,
   },
   title: {
     fontSize: 26,
     fontWeight: '400',
-    marginBottom: 4,
+    marginBottom: 6,
     color: '#3A3A3A',
     letterSpacing: 0.3,
     textAlign: 'center',
