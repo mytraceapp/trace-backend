@@ -25,7 +25,7 @@ export default function ChatScreen() {
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={styles.content}>
         <Text style={{ color: 'red', fontSize: 20, marginBottom: 20 }}>
-          CHAT.TSX LOADED ✅
+          Hi Nina
         </Text>
 
         <View style={{ width: 240, height: 240, borderRadius: 120, backgroundColor: 'red' }} />
