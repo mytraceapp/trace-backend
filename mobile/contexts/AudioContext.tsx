@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from 'react';
-import { Audio } from 'expo-av';
+import { Audio, AVPlaybackStatus } from 'expo-av';
 
 interface AudioContextValue {
   play: () => Promise<void>;
@@ -18,18 +18,34 @@ interface AudioProviderProps {
   children: ReactNode;
 }
 
+const CROSSFADE_DURATION = 2000;
+const CROSSFADE_TRIGGER_BEFORE_END = 2500;
+
 export function AudioProvider({ children }: AudioProviderProps) {
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundARef = useRef<Audio.Sound | null>(null);
+  const soundBRef = useRef<Audio.Sound | null>(null);
+  const activeSoundRef = useRef<'A' | 'B'>('A');
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const crossfadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wasPlayingBeforeActivityRef = useRef(false);
   const targetVolumeRef = useRef(0.35);
+  const isCrossfadingRef = useRef(false);
+  const audioDurationRef = useRef(0);
+
+  const getActiveSound = useCallback(() => {
+    return activeSoundRef.current === 'A' ? soundARef.current : soundBRef.current;
+  }, []);
+
+  const getInactiveSound = useCallback(() => {
+    return activeSoundRef.current === 'A' ? soundBRef.current : soundARef.current;
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadSound = async () => {
+    const loadSounds = async () => {
       try {
         await Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
@@ -37,10 +53,10 @@ export function AudioProvider({ children }: AudioProviderProps) {
           shouldDuckAndroid: true,
         });
 
-        const { sound } = await Audio.Sound.createAsync(
+        const { sound: soundA } = await Audio.Sound.createAsync(
           require('../assets/audio/ambient-loop.mp3'),
           {
-            isLooping: true,
+            isLooping: false,
             volume: 0,
             shouldPlay: false,
             rate: 1.0,
@@ -48,8 +64,25 @@ export function AudioProvider({ children }: AudioProviderProps) {
           }
         );
 
+        const { sound: soundB } = await Audio.Sound.createAsync(
+          require('../assets/audio/ambient-loop.mp3'),
+          {
+            isLooping: false,
+            volume: 0,
+            shouldPlay: false,
+            rate: 1.0,
+            shouldCorrectPitch: false,
+          }
+        );
+
+        const status = await soundA.getStatusAsync();
+        if (status.isLoaded && status.durationMillis) {
+          audioDurationRef.current = status.durationMillis;
+        }
+
         if (isMounted) {
-          soundRef.current = sound;
+          soundARef.current = soundA;
+          soundBRef.current = soundB;
           setIsLoaded(true);
         }
       } catch (error) {
@@ -57,28 +90,98 @@ export function AudioProvider({ children }: AudioProviderProps) {
       }
     };
 
-    loadSound();
+    loadSounds();
 
     return () => {
       isMounted = false;
-      if (fadeIntervalRef.current) {
-        clearInterval(fadeIntervalRef.current);
-      }
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
+      if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+      if (crossfadeIntervalRef.current) clearInterval(crossfadeIntervalRef.current);
+      if (soundARef.current) soundARef.current.unloadAsync();
+      if (soundBRef.current) soundBRef.current.unloadAsync();
     };
   }, []);
 
+  const fadeSound = useCallback((sound: Audio.Sound, targetVolume: number, duration: number, callback?: () => void) => {
+    sound.getStatusAsync().then((status) => {
+      if (!status.isLoaded) return;
+      
+      const startVolume = status.volume;
+      const volumeDiff = targetVolume - startVolume;
+      const steps = 30;
+      const stepDuration = duration / steps;
+      let currentStep = 0;
+
+      const intervalId = setInterval(async () => {
+        currentStep++;
+        const progress = currentStep / steps;
+        const easeProgress = progress * (2 - progress);
+        const newVolume = startVolume + (volumeDiff * easeProgress);
+
+        try {
+          await sound.setVolumeAsync(Math.max(0, Math.min(1, newVolume)));
+        } catch {}
+
+        if (currentStep >= steps) {
+          clearInterval(intervalId);
+          callback?.();
+        }
+      }, stepDuration);
+    });
+  }, []);
+
+  const startCrossfadeLoop = useCallback(() => {
+    const checkAndCrossfade = async () => {
+      if (isCrossfadingRef.current || !isPlaying) return;
+
+      const activeSound = getActiveSound();
+      if (!activeSound) return;
+
+      try {
+        const status = await activeSound.getStatusAsync();
+        if (!status.isLoaded) return;
+
+        const position = status.positionMillis || 0;
+        const duration = status.durationMillis || audioDurationRef.current;
+        const timeRemaining = duration - position;
+
+        if (timeRemaining <= CROSSFADE_TRIGGER_BEFORE_END && timeRemaining > 0) {
+          isCrossfadingRef.current = true;
+
+          const inactiveSound = getInactiveSound();
+          if (!inactiveSound) return;
+
+          await inactiveSound.setPositionAsync(0);
+          await inactiveSound.setVolumeAsync(0);
+          await inactiveSound.playAsync();
+
+          fadeSound(inactiveSound, targetVolumeRef.current, CROSSFADE_DURATION);
+          fadeSound(activeSound, 0, CROSSFADE_DURATION, async () => {
+            try {
+              await activeSound.stopAsync();
+              await activeSound.setPositionAsync(0);
+            } catch {}
+            activeSoundRef.current = activeSoundRef.current === 'A' ? 'B' : 'A';
+            isCrossfadingRef.current = false;
+          });
+        }
+      } catch {}
+    };
+
+    if (crossfadeIntervalRef.current) {
+      clearInterval(crossfadeIntervalRef.current);
+    }
+    crossfadeIntervalRef.current = setInterval(checkAndCrossfade, 500);
+  }, [isPlaying, getActiveSound, getInactiveSound, fadeSound]);
+
   const fadeVolume = useCallback((targetVolume: number, duration: number, callback?: () => void) => {
-    const sound = soundRef.current;
+    const sound = getActiveSound();
     if (!sound) return;
 
     if (fadeIntervalRef.current) {
       clearInterval(fadeIntervalRef.current);
     }
 
-    const steps = 20;
+    const steps = 30;
     const stepDuration = duration / steps;
     let currentStep = 0;
 
@@ -107,10 +210,10 @@ export function AudioProvider({ children }: AudioProviderProps) {
         }
       }, stepDuration);
     });
-  }, []);
+  }, [getActiveSound]);
 
   const play = useCallback(async () => {
-    const sound = soundRef.current;
+    const sound = getActiveSound();
     if (!sound || !isLoaded) return;
 
     try {
@@ -123,16 +226,21 @@ export function AudioProvider({ children }: AudioProviderProps) {
       await sound.playAsync();
       setIsPlaying(true);
       fadeVolume(targetVolumeRef.current, 2000);
+      startCrossfadeLoop();
     } catch (error) {
       console.error('Failed to play audio:', error);
     }
-  }, [isLoaded, fadeVolume]);
+  }, [isLoaded, fadeVolume, getActiveSound, startCrossfadeLoop]);
 
   const pause = useCallback(async () => {
-    const sound = soundRef.current;
+    const sound = getActiveSound();
     if (!sound) return;
 
-    fadeVolume(0, 400, async () => {
+    if (crossfadeIntervalRef.current) {
+      clearInterval(crossfadeIntervalRef.current);
+    }
+
+    fadeVolume(0, 600, async () => {
       try {
         await sound.pauseAsync();
         setIsPlaying(false);
@@ -140,20 +248,26 @@ export function AudioProvider({ children }: AudioProviderProps) {
         console.error('Failed to pause audio:', error);
       }
     });
-  }, [fadeVolume]);
+  }, [fadeVolume, getActiveSound]);
 
   const stop = useCallback(async () => {
-    const sound = soundRef.current;
-    if (!sound) return;
-
-    if (fadeIntervalRef.current) {
-      clearInterval(fadeIntervalRef.current);
-    }
+    if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+    if (crossfadeIntervalRef.current) clearInterval(crossfadeIntervalRef.current);
 
     try {
-      await sound.stopAsync();
-      await sound.setVolumeAsync(0);
+      if (soundARef.current) {
+        await soundARef.current.stopAsync();
+        await soundARef.current.setVolumeAsync(0);
+        await soundARef.current.setPositionAsync(0);
+      }
+      if (soundBRef.current) {
+        await soundBRef.current.stopAsync();
+        await soundBRef.current.setVolumeAsync(0);
+        await soundBRef.current.setPositionAsync(0);
+      }
       setIsPlaying(false);
+      activeSoundRef.current = 'A';
+      isCrossfadingRef.current = false;
     } catch (error) {
       console.error('Failed to stop audio:', error);
     }
@@ -161,40 +275,47 @@ export function AudioProvider({ children }: AudioProviderProps) {
 
   const setVolume = useCallback(async (newVolume: number) => {
     targetVolumeRef.current = newVolume;
-    const sound = soundRef.current;
+    const sound = getActiveSound();
     if (!sound) return;
 
     try {
       await sound.setVolumeAsync(Math.max(0, Math.min(1, newVolume)));
     } catch {}
-  }, []);
+  }, [getActiveSound]);
 
   const pauseForActivity = useCallback(async () => {
-    const sound = soundRef.current;
     wasPlayingBeforeActivityRef.current = isPlaying;
-    if (isPlaying && sound) {
-      fadeVolume(0, 800, async () => {
-        try {
-          await sound.pauseAsync();
-          setIsPlaying(false);
-        } catch {}
-      });
+    if (isPlaying) {
+      if (crossfadeIntervalRef.current) {
+        clearInterval(crossfadeIntervalRef.current);
+      }
+      
+      const sound = getActiveSound();
+      if (sound) {
+        fadeSound(sound, 0, 800, async () => {
+          try {
+            await sound.pauseAsync();
+            setIsPlaying(false);
+          } catch {}
+        });
+      }
     }
-  }, [isPlaying, fadeVolume]);
+  }, [isPlaying, getActiveSound, fadeSound]);
 
   const resumeFromActivity = useCallback(async () => {
     if (wasPlayingBeforeActivityRef.current) {
-      const sound = soundRef.current;
+      const sound = getActiveSound();
       if (sound) {
         try {
           await sound.setVolumeAsync(0);
           await sound.playAsync();
           setIsPlaying(true);
-          fadeVolume(targetVolumeRef.current, 1500);
+          fadeSound(sound, targetVolumeRef.current, 1500);
+          startCrossfadeLoop();
         } catch {}
       }
     }
-  }, [fadeVolume]);
+  }, [getActiveSound, fadeSound, startCrossfadeLoop]);
 
   const value: AudioContextValue = {
     play,
