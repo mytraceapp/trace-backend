@@ -24,16 +24,11 @@ export default function ChatScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={styles.content}>
-        <Text style={{ fontSize: 40, color: 'red', marginBottom: 20 }}>
-          CHAT FILE LOADED
+        <Text style={{ color: 'red', fontSize: 20, marginBottom: 20 }}>
+          CHAT.TSX LOADED ✅
         </Text>
-        <Text style={[styles.placeholder, { color: theme.textPrimary, fontFamily: canelaFont }]}>
-          Chat with TRACE
-        </Text>
-        
-        <View style={{ width: 240, height: 240, borderRadius: 120, backgroundColor: 'red', alignItems: 'center', justifyContent: 'center', marginTop: 24 }}>
-          <Text style={{ color: 'white', fontSize: 16 }}>ORB TEST</Text>
-        </View>
+
+        <View style={{ width: 240, height: 240, borderRadius: 120, backgroundColor: 'red' }} />
       </View>
     </View>
   );
