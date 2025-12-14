@@ -1,11 +1,13 @@
 import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Wind, Compass, Footprints, Moon, Droplets, Hand, Activity, Sunrise, Circle } from 'lucide-react-native';
 import { useFonts } from 'expo-font';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 
+import { Colors } from '../../constants/colors';
 import { TraceWordmark, CardTitle, MetaText, ScreenTitle, BodyText, FontFamily } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { BorderRadius } from '../../constants/radius';
@@ -39,7 +41,6 @@ const CARD_VARIANTS = {
   F: { bgColor: '#AD947B', titleColor: '#3E2E22', descColor: 'rgba(94, 78, 62, 0.85)', iconBg: 'rgba(200, 185, 165, 0.7)', iconColor: '#5A4538' },
 };
 
-const BACKGROUND_COLOR = '#EFE6DA';
 
 const VARIANT_KEYS = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
 type VariantKey = typeof VARIANT_KEYS[number];
@@ -157,9 +158,21 @@ export default function ActivitiesScreen() {
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
 
   return (
-    <View style={[styles.container, { backgroundColor: BACKGROUND_COLOR }]}>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#E8E2D8', '#D9D0C3', '#C8BBAA']}
+        locations={[0, 0.6, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      <View style={[styles.vignetteOverlay, StyleSheet.absoluteFill]} pointerEvents="none" />
+
       <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
-        <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
+        <Pressable onPress={() => router.push('/(tabs)/chat')}>
+          <Text style={[styles.traceLabel, { fontFamily: aloreFont }]}>TRACE</Text>
+        </Pressable>
       </View>
 
       <ScrollView
@@ -208,6 +221,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  vignetteOverlay: {
+    backgroundColor: 'transparent',
+    opacity: 0.05,
+  },
   fixedHeader: {
     position: 'absolute',
     top: 0,
@@ -236,24 +253,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screenPadding,
   },
   header: {
-    marginBottom: Spacing.sectionGap,
+    marginBottom: 12,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
-    marginTop: -6,
+    marginTop: -4,
   },
   title: {
     fontSize: ScreenTitle.fontSize,
     fontWeight: ScreenTitle.fontWeight,
-    marginBottom: 2,
-    color: '#3E342C',
+    marginBottom: 6,
+    color: ScreenTitle.color,
     letterSpacing: ScreenTitle.letterSpacing,
   },
   subtitle: {
-    fontSize: BodyText.fontSize,
+    fontSize: 14,
     fontWeight: BodyText.fontWeight,
-    color: '#6B5E53',
+    color: Colors.day.textSecondary,
     letterSpacing: BodyText.letterSpacing,
-    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 6.3,
   },
   grid: {
     flexDirection: 'row',

@@ -93,7 +93,7 @@ export default function EntriesScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[...Colors.day.backgroundGradient]}
+        colors={['#E8E2D8', '#D9D0C3', '#C8BBAA']}
         locations={[0, 0.6, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
@@ -213,23 +213,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screenPadding,
   },
   header: {
-    marginBottom: Spacing.sectionGap,
+    marginBottom: 12,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
-    marginTop: -6,
+    marginTop: -4,
   },
   title: {
     fontSize: ScreenTitle.fontSize,
     fontWeight: ScreenTitle.fontWeight,
-    marginBottom: 2,
+    marginBottom: 6,
     color: ScreenTitle.color,
     letterSpacing: ScreenTitle.letterSpacing,
   },
   subtitle: {
-    fontSize: BodyText.fontSize,
+    fontSize: 14,
     fontWeight: BodyText.fontWeight,
     color: Colors.day.textSecondary,
     letterSpacing: BodyText.letterSpacing,
+    textAlign: 'center',
+    marginTop: 6.3,
   },
   bottomButtonContainer: {
     position: 'absolute',
