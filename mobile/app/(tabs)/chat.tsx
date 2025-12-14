@@ -55,7 +55,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 140,
     padding: Spacing.xl,
   },
   placeholder: {
