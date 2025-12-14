@@ -23,6 +23,9 @@ export default function ChatScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={styles.content}>
+        <Text style={{ fontSize: 40, color: 'red', marginBottom: 20 }}>
+          CHAT FILE LOADED
+        </Text>
         <Text style={[styles.placeholder, { color: theme.textPrimary, fontFamily: canelaFont }]}>
           Chat with TRACE
         </Text>
