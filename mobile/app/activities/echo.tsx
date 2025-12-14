@@ -49,11 +49,14 @@ export default function EchoScreen() {
   
   const centerY = SCREEN_HEIGHT / 2 - 40;
 
-  const { stop } = useGlobalAudio();
+  const { pauseForActivity, resumeFromActivity } = useGlobalAudio();
 
   useEffect(() => {
-    stop();
-  }, [stop]);
+    pauseForActivity();
+    return () => {
+      resumeFromActivity();
+    };
+  }, [pauseForActivity, resumeFromActivity]);
 
   useEffect(() => {
     let animationId: number;

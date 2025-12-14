@@ -170,17 +170,31 @@ export function AudioProvider({ children }: AudioProviderProps) {
   }, []);
 
   const pauseForActivity = useCallback(async () => {
+    const sound = soundRef.current;
     wasPlayingBeforeActivityRef.current = isPlaying;
-    if (isPlaying) {
-      await pause();
+    if (isPlaying && sound) {
+      fadeVolume(0, 800, async () => {
+        try {
+          await sound.pauseAsync();
+          setIsPlaying(false);
+        } catch {}
+      });
     }
-  }, [isPlaying, pause]);
+  }, [isPlaying, fadeVolume]);
 
   const resumeFromActivity = useCallback(async () => {
     if (wasPlayingBeforeActivityRef.current) {
-      await play();
+      const sound = soundRef.current;
+      if (sound) {
+        try {
+          await sound.setVolumeAsync(0);
+          await sound.playAsync();
+          setIsPlaying(true);
+          fadeVolume(targetVolumeRef.current, 1500);
+        } catch {}
+      }
     }
-  }, [play]);
+  }, [fadeVolume]);
 
   const value: AudioContextValue = {
     play,
