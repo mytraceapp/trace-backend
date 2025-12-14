@@ -24,7 +24,7 @@ export function AudioProvider({ children }: AudioProviderProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wasPlayingBeforeActivityRef = useRef(false);
-  const targetVolumeRef = useRef(0.7);
+  const targetVolumeRef = useRef(1.0);
 
   useEffect(() => {
     let isMounted = true;
