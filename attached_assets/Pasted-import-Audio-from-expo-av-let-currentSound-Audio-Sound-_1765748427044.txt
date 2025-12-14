@@ -1,0 +1,78 @@
+import { Audio } from "expo-av";
+
+let currentSound: Audio.Sound | null = null;
+let currentKey: string | null = null;
+
+export async function initAudioMode() {
+  await Audio.setAudioModeAsync({
+    playsInSilentModeIOS: true,
+    staysActiveInBackground: false,
+    shouldDuckAndroid: true,
+  });
+}
+
+export async function playAmbient(key: string, source: any, volume = 0.35) {
+  // If the same track is already playing, do nothing
+  if (currentKey === key && currentSound) return;
+
+  // Stop/unload previous
+  if (currentSound) {
+    try {
+      await currentSound.stopAsync();
+      await currentSound.unloadAsync();
+    } catch {}
+    currentSound = null;
+    currentKey = null;
+  }
+
+  const { sound } = await Audio.Sound.createAsync(source, {
+    isLooping: true,
+    volume,
+  });
+
+  currentSound = sound;
+  currentKey = key;
+
+  await sound.playAsync();
+}
+
+export async function setAmbientVolume(volume: number) {
+  if (!currentSound) return;
+  await currentSound.setVolumeAsync(volume);
+}
+
+export async function stopAmbient() {
+  if (!currentSound) return;
+  try {
+    await currentSound.stopAsync();
+    await currentSound.unloadAsync();
+  } catch {}
+  currentSound = null;
+  currentKey = null;
+}
+useEffect(() => {
+  initAudioMode();
+}, []);import { useFocusEffect } from "@react-navigation/native";
+import { playAmbient } from "@/lib/ambientAudio";
+
+useFocusEffect(
+  React.useCallback(() => {
+    playAmbient("activities", require("../assets/ambient/trace_ambient.mp3"), 0.35);
+    return () => {
+      // optional: do nothing so audio persists across screens
+      // OR stop if this screen should be silent
+    };
+  }, [])
+);async function fadeTo(sound: Audio.Sound, target: number, ms = 250) {
+  const steps = 10;
+  const stepMs = ms / steps;
+  const status = await sound.getStatusAsync();
+  if (!status.isLoaded) return;
+  const start = status.volume ?? 0;
+
+  for (let i = 1; i <= steps; i++) {
+    const v = start + ((target - start) * i) / steps;
+    await sound.setVolumeAsync(v);
+    await new Promise(r => setTimeout(r, stepMs));
+  }
+}

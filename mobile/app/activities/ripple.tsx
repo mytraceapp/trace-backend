@@ -22,7 +22,7 @@ import Animated, {
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { Shadows } from '../../constants/shadows';
-import { useGlobalAudio } from '../../contexts/AudioContext';
+import { stopAmbient } from '../../lib/ambientAudio';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -118,14 +118,9 @@ export default function RippleActivityScreen() {
   const centerX = SCREEN_WIDTH / 2;
   const centerY = SCREEN_HEIGHT * 0.45;
 
-  const { pauseForActivity, resumeFromActivity } = useGlobalAudio();
-
   useEffect(() => {
-    pauseForActivity();
-    return () => {
-      resumeFromActivity();
-    };
-  }, [pauseForActivity, resumeFromActivity]);
+    stopAmbient();
+  }, []);
 
   useEffect(() => {
     let isMounted = true;

@@ -19,7 +19,7 @@ import Svg, { Path } from 'react-native-svg';
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
-import { useGlobalAudio } from '../../contexts/AudioContext';
+import { stopAmbient } from '../../lib/ambientAudio';
 
 function RaindropIcon({ size = 24, color = 'rgba(255, 255, 255, 0.65)' }: { size?: number; color?: string }) {
   return (
@@ -98,14 +98,9 @@ export default function WindowScreen() {
   const introOpacity = useSharedValue(1);
   const toastOpacity = useSharedValue(0);
 
-  const { pauseForActivity, resumeFromActivity } = useGlobalAudio();
-
   useEffect(() => {
-    pauseForActivity();
-    return () => {
-      resumeFromActivity();
-    };
-  }, [pauseForActivity, resumeFromActivity]);
+    stopAmbient();
+  }, []);
 
   useEffect(() => {
     const loadVolume = async () => {

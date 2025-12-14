@@ -20,7 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
-import { useGlobalAudio } from '../../contexts/AudioContext';
+import { stopAmbient } from '../../lib/ambientAudio';
 
 interface StepData {
   number: string;
@@ -194,14 +194,9 @@ export default function GroundingScreen() {
   const contentOpacity = useSharedValue(1);
   const contentTranslateY = useSharedValue(0);
 
-  const { pauseForActivity, resumeFromActivity } = useGlobalAudio();
-
   useEffect(() => {
-    pauseForActivity();
-    return () => {
-      resumeFromActivity();
-    };
-  }, [pauseForActivity, resumeFromActivity]);
+    stopAmbient();
+  }, []);
 
   useEffect(() => {
     const loadAndPlayAudio = async () => {

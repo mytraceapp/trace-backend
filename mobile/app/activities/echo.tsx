@@ -9,7 +9,7 @@ import Svg, { Path, Circle, Defs, RadialGradient, Stop, Line } from 'react-nativ
 
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
-import { useGlobalAudio } from '../../contexts/AudioContext';
+import { stopAmbient } from '../../lib/ambientAudio';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -49,14 +49,9 @@ export default function EchoScreen() {
   
   const centerY = SCREEN_HEIGHT / 2 - 40;
 
-  const { pauseForActivity, resumeFromActivity } = useGlobalAudio();
-
   useEffect(() => {
-    pauseForActivity();
-    return () => {
-      resumeFromActivity();
-    };
-  }, [pauseForActivity, resumeFromActivity]);
+    stopAmbient();
+  }, []);
 
   useEffect(() => {
     let animationId: number;
