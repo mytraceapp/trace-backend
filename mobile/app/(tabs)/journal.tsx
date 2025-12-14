@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
-    marginTop: -5.7,
+    marginTop: -4,
   },
   title: {
     fontSize: ScreenTitle.fontSize,
@@ -101,6 +101,5 @@ const styles = StyleSheet.create({
     letterSpacing: BodyText.letterSpacing,
     textAlign: 'center',
     marginTop: 6.3,
-    fontStyle: 'italic',
   },
 });
