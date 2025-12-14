@@ -50,7 +50,7 @@ const helpCards: HelpCard[] = [
   },
   {
     id: 'terms',
-    title: 'Terms & Safety Commitment',
+    title: 'Terms & Safety',
     subtitle: 'The serious stuff, explained simply.',
     icon: 'document-text-outline',
     route: '/help/terms',
