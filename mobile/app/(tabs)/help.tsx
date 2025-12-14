@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
-    marginTop: -6,
+    marginTop: -4,
   },
   title: {
     fontSize: ScreenTitle.fontSize,
