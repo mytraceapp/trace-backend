@@ -56,8 +56,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingHorizontal: Spacing.xl,
     paddingTop: 140,
+    paddingHorizontal: Spacing.xl,
   },
   placeholder: {
     fontSize: ScreenTitle.fontSize,
