@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     textAlign: 'center',
     fontStyle: 'italic',
-    marginTop: 6.3,
+    marginTop: 4.3,
   },
   introSection: {
     marginBottom: 9,

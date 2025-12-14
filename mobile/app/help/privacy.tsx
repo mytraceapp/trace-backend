@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     textAlign: 'center',
     fontStyle: 'italic',
-    marginTop: 6.3,
+    marginTop: 4.3,
   },
   contentCard: {
     backgroundColor: 'rgba(244, 241, 236, 0.85)',

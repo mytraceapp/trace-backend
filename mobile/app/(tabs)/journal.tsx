@@ -100,6 +100,6 @@ const styles = StyleSheet.create({
     color: Colors.day.textSecondary,
     letterSpacing: BodyText.letterSpacing,
     textAlign: 'center',
-    marginTop: 6.3,
+    marginTop: 4.3,
   },
 });

@@ -23,7 +23,7 @@ import { Colors } from '../../constants/colors';
 import { FontFamily, TraceWordmark, ScreenTitle, BodyText } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
-import { useAmbientAudio } from '../../hooks/useAmbientAudio';
+import { useGlobalAudio } from '../../contexts/AudioContext';
 import { 
   listEntries,
   addEntry,
@@ -106,13 +106,7 @@ export default function JournalScreen() {
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
   });
 
-  const { play, pause, isLoaded } = useAmbientAudio({
-    volume: 0.35,
-    fadeInDuration: 6000,
-    fadeOutDuration: 1500,
-    loop: true,
-    playbackRate: 0.90,
-  });
+  const { play, isLoaded, isPlaying } = useGlobalAudio();
 
   const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
@@ -150,13 +144,10 @@ export default function JournalScreen() {
   useFocusEffect(
     useCallback(() => {
       loadEntries();
-      if (isLoaded) {
+      if (isLoaded && !isPlaying) {
         play();
       }
-      return () => {
-        pause();
-      };
-    }, [isLoaded, play, pause])
+    }, [isLoaded, isPlaying, play])
   );
 
   useEffect(() => {
@@ -290,7 +281,7 @@ export default function JournalScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[...Colors.day.backgroundGradient]}
+        colors={['#E8E2D8', '#D9D0C3', '#C8BBAA']}
         locations={[0, 0.6, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
@@ -608,23 +599,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screenPadding,
   },
   header: {
-    marginBottom: Spacing.sectionGap,
+    marginBottom: 12,
     alignItems: 'center',
     paddingHorizontal: Spacing.screenPadding,
-    marginTop: -6,
+    marginTop: -4,
   },
   title: {
     fontSize: ScreenTitle.fontSize,
     fontWeight: ScreenTitle.fontWeight,
-    marginBottom: 2,
+    marginBottom: 6,
     color: ScreenTitle.color,
     letterSpacing: ScreenTitle.letterSpacing,
   },
   subtitle: {
-    fontSize: BodyText.fontSize,
+    fontSize: 14,
     fontWeight: BodyText.fontWeight,
     color: Colors.day.textSecondary,
     letterSpacing: BodyText.letterSpacing,
+    textAlign: 'center',
+    marginTop: 4.3,
   },
   calendarCard: {
     backgroundColor: '#F4F1EC',

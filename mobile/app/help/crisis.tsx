@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     color: '#2B2825',
     letterSpacing: 0.2,
     textAlign: 'center',
-    marginTop: 6.3,
+    marginTop: 4.3,
   },
   subtitleLight: {
     fontSize: 15,
