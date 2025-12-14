@@ -191,9 +191,11 @@ const styles = StyleSheet.create({
     color: Colors.day.textSecondary,
     letterSpacing: BodyText.letterSpacing,
     textAlign: 'center',
+    marginTop: 8,
   },
   cardsContainer: {
     gap: 0,
+    marginTop: 15,
   },
   card: {
     backgroundColor: 'rgba(210, 195, 175, 0.55)',
