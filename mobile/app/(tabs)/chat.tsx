@@ -30,18 +30,8 @@ export default function ChatScreen() {
           Chat with TRACE
         </Text>
         
-        <View style={styles.orbContainer}>
-          <View style={styles.orbGlow}>
-            <LinearGradient
-              colors={['#FDF8F3', '#E8DFD4', '#D4C9B8']}
-              locations={[0, 0.5, 1]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={styles.orb}
-            >
-              <View style={styles.innerGlow} />
-            </LinearGradient>
-          </View>
+        <View style={{ width: 240, height: 240, borderRadius: 120, backgroundColor: 'red', alignItems: 'center', justifyContent: 'center', marginTop: 24 }}>
+          <Text style={{ color: 'white', fontSize: 16 }}>ORB TEST</Text>
         </View>
       </View>
     </View>
