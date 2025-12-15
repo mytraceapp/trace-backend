@@ -3,19 +3,13 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
-import { StyleSheet, useColorScheme, View, ActivityIndicator } from 'react-native';
-import { useFonts } from 'expo-font';
+import { StyleSheet, useColorScheme } from 'react-native';
 import { Colors } from '../constants/theme';
 import { initAudioMode } from '../lib/ambientAudio';
 
 export default function RootLayout() {
   const systemColorScheme = useColorScheme();
   const [theme, setTheme] = useState<'day' | 'night'>('night');
-
-  const [fontsLoaded] = useFonts({
-    'Alore': require('../assets/fonts/Alore-Regular.otf'),
-    'Canela': require('../assets/fonts/Canela-Regular.ttf'),
-  });
 
   useEffect(() => {
     setTheme(systemColorScheme === 'dark' ? 'night' : 'day');
@@ -26,15 +20,6 @@ export default function RootLayout() {
   }, []);
 
   const colors = Colors[theme];
-
-  // Wait for fonts to load to ensure consistent layout metrics
-  if (!fontsLoaded) {
-    return (
-      <View style={[styles.container, styles.loading, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="small" color={colors.textSecondary} />
-      </View>
-    );
-  }
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -73,9 +58,5 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  loading: {
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
