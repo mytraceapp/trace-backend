@@ -1,12 +1,14 @@
+import { useCallback } from 'react';
 import { View, Text, StyleSheet, useColorScheme, Platform, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/colors';
 import { Spacing } from '../../constants/spacing';
 import { ScreenTitle, BodyText, FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { useFonts } from 'expo-font';
+import { playAmbient } from '../../lib/ambientAudio';
 
 export default function JournalScreen() {
   const router = useRouter();
@@ -18,6 +20,12 @@ export default function JournalScreen() {
     'Alore': require('../../assets/fonts/Alore-Regular.otf'),
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
+    }, [])
+  );
 
   const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;

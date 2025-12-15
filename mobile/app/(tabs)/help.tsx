@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -17,6 +17,7 @@ import { Colors } from '../../constants/colors';
 import { FontFamily, TraceWordmark, ScreenTitle, BodyText } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
+import { playAmbient } from '../../lib/ambientAudio';
 
 interface HelpCard {
   id: string;
@@ -69,6 +70,12 @@ export default function HelpScreen() {
   const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
+
+  useFocusEffect(
+    useCallback(() => {
+      playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
+    }, [])
+  );
 
   const handleCardPress = (route: string) => {
     router.push(route as any);

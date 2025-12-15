@@ -1,9 +1,12 @@
+import { useCallback } from 'react';
 import { View, Text, StyleSheet, useColorScheme, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { Colors } from '../../constants/colors';
 import { Spacing } from '../../constants/spacing';
 import { ScreenTitle, BodyText, FontFamily } from '../../constants/typography';
 import { useFonts } from 'expo-font';
+import { playAmbient } from '../../lib/ambientAudio';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
@@ -13,6 +16,12 @@ export default function ProfileScreen() {
   const [fontsLoaded] = useFonts({
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
+    }, [])
+  );
 
   const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
