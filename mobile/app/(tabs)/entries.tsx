@@ -18,6 +18,7 @@ import { Colors } from '../../constants/colors';
 import { FontFamily, TraceWordmark, ScreenTitle, BodyText } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
+import { playAmbient } from '../../lib/ambientAudio';
 import { EntryAccordion } from '../../components/EntryAccordion';
 import { EntryPreviewCard } from '../../components/EntryPreviewCard';
 import { 
@@ -72,6 +73,7 @@ export default function EntriesScreen() {
   useFocusEffect(
     useCallback(() => {
       loadEntries();
+      playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35).catch(() => {});
     }, [])
   );
 

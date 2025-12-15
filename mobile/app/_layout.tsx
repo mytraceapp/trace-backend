@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet, useColorScheme } from 'react-native';
 import { Colors } from '../constants/theme';
+import { initAudioMode } from '../lib/ambientAudio';
 
 export default function RootLayout() {
   const systemColorScheme = useColorScheme();
@@ -13,6 +14,10 @@ export default function RootLayout() {
   useEffect(() => {
     setTheme(systemColorScheme === 'dark' ? 'night' : 'day');
   }, [systemColorScheme]);
+
+  useEffect(() => {
+    initAudioMode().catch(() => {});
+  }, []);
 
   const colors = Colors[theme];
 

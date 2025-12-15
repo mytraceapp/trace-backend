@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useFonts } from 'expo-font';
-import { BookOpen, AlertCircle, Shield, FileText } from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { Colors } from '../../constants/colors';
 import { FontFamily, TraceWordmark, ScreenTitle, BodyText } from '../../constants/typography';
@@ -22,7 +22,7 @@ interface HelpCard {
   id: string;
   title: string;
   subtitle: string;
-  icon: 'book' | 'alert' | 'shield' | 'file';
+  icon: keyof typeof Ionicons.glyphMap;
   route: string;
 }
 
@@ -31,38 +31,31 @@ const helpCards: HelpCard[] = [
     id: 'in-this-space',
     title: 'In This Space',
     subtitle: 'What TRACE can and can\'t do.',
-    icon: 'book',
+    icon: 'book-outline',
     route: '/help/in-this-space',
   },
   {
     id: 'crisis',
     title: "If You're in Crisis",
     subtitle: 'Immediate options when things feel unsafe.',
-    icon: 'alert',
+    icon: 'alert-circle-outline',
     route: '/help/crisis',
   },
   {
     id: 'privacy',
     title: 'Privacy & Your Data',
     subtitle: 'How your words are protected.',
-    icon: 'shield',
+    icon: 'shield-outline',
     route: '/help/privacy',
   },
   {
     id: 'terms',
     title: 'Terms & Safety',
     subtitle: 'The serious stuff, explained simply.',
-    icon: 'file',
+    icon: 'document-text-outline',
     route: '/help/terms',
   },
 ];
-
-const IconMap = {
-  book: BookOpen,
-  alert: AlertCircle,
-  shield: Shield,
-  file: FileText,
-};
 
 export default function HelpScreen() {
   const router = useRouter();
@@ -126,10 +119,7 @@ export default function HelpScreen() {
               onPress={() => handleCardPress(card.route)}
             >
               <View style={styles.cardIconContainer}>
-                {(() => {
-                  const Icon = IconMap[card.icon];
-                  return <Icon size={22} color="#9A958E" strokeWidth={1.5} />;
-                })()}
+                <Ionicons name={card.icon} size={22} color="#9A958E" />
               </View>
               <View style={styles.cardTextContainer}>
                 <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
