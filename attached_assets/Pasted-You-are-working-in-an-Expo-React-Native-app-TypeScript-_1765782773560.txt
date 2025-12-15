@@ -1,0 +1,35 @@
+You are working in an Expo React Native app (TypeScript) with expo-router tabs. Implement the TRACE “orb” background on the Chat screen using Shopify React Native Skia. The target look is a soft sage/green matte background with subtle concentric orb rings and a gentle highlight bloom near the upper-left, ultra-lux and minimal (NOT cartoony bubbles, NOT gradients that wash out UI).
+
+Requirements
+	1.	Install and use @shopify/react-native-skia (Expo-compatible). If installation requires config, do the correct Expo steps and keep it working on iOS simulator.
+	2.	Create a reusable background component components/OrbBackground.tsx using Skia Canvas that renders:
+	•	base fill color: muted sage (background)
+	•	3–5 very subtle concentric rings centered slightly above mid-screen (like a large orb), low opacity
+	•	a soft highlight circle near top-left of the orb (small bloom)
+	•	optional subtle noise/grain overlay if feasible without performance issues; otherwise skip
+	3.	Integrate it into mobile/app/(tabs)/chat.tsx so the Skia background is behind everything (absolute fill), and does not block touch input.
+	4.	The chat UI must match this layout:
+	•	centered greeting text in the middle (“Hey, how’s your day going?”)
+	•	one sample assistant bubble near lower-left
+	•	bottom input pill above the tab bar (or above safe area) with mic icon + send icon; the input must remain readable over the background
+	5.	DO NOT change the card shapes, typography scale, or overall layout besides adding the background.
+	6.	Fix common issues:
+	•	Ensure SafeAreaView and paddingBottom prevent tab bar overlap
+	•	Ensure Skia Canvas resizes correctly on rotation
+	•	Ensure there are no duplicate import React statements (avoid “React already declared” errors)
+
+Deliverables
+	•	components/OrbBackground.tsx (new)
+	•	updated mobile/app/(tabs)/chat.tsx that uses it
+	•	any required dependency/config changes documented in comments at the top of the files
+
+Keep the effect extremely subtle, premium, and consistent with TRACE’s aesthetic.
+
+⸻
+
+If Replit asks “what colors?”
+
+Use these as a starting point (Agent can tweak):
+	•	base sage: #7F8F80 or #7A8C7B
+	•	rings: same hue, but opacity ~0.05–0.12
+	•	highlight: warm off-white #F3F1EA opacity ~0.10–0.18

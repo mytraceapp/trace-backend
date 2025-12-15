@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, useColorScheme, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/colors';
+import { Mic, Send } from 'lucide-react-native';
+import OrbBackground from '../../components/OrbBackground';
 import { Spacing } from '../../constants/spacing';
 import { FontFamily } from '../../constants/typography';
 import { useFonts } from 'expo-font';
@@ -9,7 +10,6 @@ import { useFonts } from 'expo-font';
 export default function ChatScreen() {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
-  const theme = colorScheme === 'dark' ? Colors.night : Colors.day;
   const [message, setMessage] = useState('');
 
   const [fontsLoaded] = useFonts({
@@ -26,63 +26,76 @@ export default function ChatScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={[styles.container, { backgroundColor: theme.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
-    >
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={[styles.headerTitle, { color: theme.textPrimary, fontFamily: displayFont }]}>
-          TRACE
-        </Text>
-      </View>
-
-      <ScrollView 
-        style={styles.messageArea}
-        contentContainerStyle={styles.messageContent}
-        showsVerticalScrollIndicator={false}
+    <View style={styles.container}>
+      <OrbBackground />
+      
+      <KeyboardAvoidingView 
+        style={styles.content}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
-        <View style={styles.emptyState}>
-          <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: displayFont }]}>
-            Begin your conversation
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <Text style={[styles.headerTitle, { fontFamily: displayFont }]}>
+            TRACE
           </Text>
         </View>
-      </ScrollView>
 
-      <View style={[styles.inputContainer, { paddingBottom: 100 }]}>
-        <View style={[styles.inputWrapper, { backgroundColor: theme.surface }]}>
-          <TextInput
-            style={[styles.input, { color: theme.textPrimary }]}
-            placeholder="Share what's on your mind..."
-            placeholderTextColor={theme.textSecondary}
-            value={message}
-            onChangeText={setMessage}
-            multiline
-            maxLength={500}
-          />
-          <Pressable 
-            style={[
-              styles.sendButton, 
-              { backgroundColor: message.trim() ? theme.accent : theme.surface }
-            ]}
-            onPress={handleSend}
-            disabled={!message.trim()}
-          >
-            <Text style={[
-              styles.sendButtonText, 
-              { color: message.trim() ? '#FFFFFF' : theme.textSecondary }
-            ]}>
-              Send
+        <ScrollView 
+          style={styles.messageArea}
+          contentContainerStyle={styles.messageContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.greetingContainer}>
+            <Text style={[styles.greeting, { fontFamily: displayFont }]}>
+              Hey, how's your day going?
             </Text>
-          </Pressable>
+          </View>
+        </ScrollView>
+
+        <View style={styles.bottomSection}>
+          <View style={styles.sampleBubble}>
+            <Text style={[styles.bubbleText, { fontFamily: displayFont }]}>
+              Take a moment to breathe.
+            </Text>
+          </View>
+
+          <View style={[styles.inputContainer, { paddingBottom: 100 }]}>
+            <View style={styles.inputPill}>
+              <Pressable style={styles.micButton}>
+                <Mic size={20} color="#5A5A5A" strokeWidth={1.5} />
+              </Pressable>
+              
+              <TextInput
+                style={[styles.input, { fontFamily: displayFont }]}
+                placeholder="Share what's on your mind..."
+                placeholderTextColor="#8A8A8A"
+                value={message}
+                onChangeText={setMessage}
+                multiline
+                maxLength={500}
+              />
+              
+              <Pressable 
+                style={[styles.sendButton, message.trim() ? styles.sendButtonActive : null]}
+                onPress={handleSend}
+                disabled={!message.trim()}
+              >
+                <Send size={18} color={message.trim() ? '#FFFFFF' : '#AAAAAA'} strokeWidth={1.5} />
+              </Pressable>
+            </View>
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: '#7A8C7B',
+  },
+  content: {
     flex: 1,
   },
   header: {
@@ -94,6 +107,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     letterSpacing: 4,
     fontWeight: '300',
+    color: '#F3F1EA',
   },
   messageArea: {
     flex: 1,
@@ -103,41 +117,71 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
   },
-  emptyState: {
+  greetingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyText: {
-    fontSize: 16,
-    opacity: 0.6,
+  greeting: {
+    fontSize: 24,
+    color: '#F3F1EA',
+    textAlign: 'center',
+    lineHeight: 32,
+  },
+  bottomSection: {
+    paddingHorizontal: Spacing.md,
+  },
+  sampleBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(243, 241, 234, 0.92)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    borderTopLeftRadius: 6,
+    marginBottom: 16,
+    maxWidth: '75%',
+  },
+  bubbleText: {
+    fontSize: 15,
+    color: '#4A4A4A',
+    lineHeight: 20,
   },
   inputContainer: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: 12,
+    paddingTop: 8,
   },
-  inputWrapper: {
+  inputPill: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    borderRadius: 24,
-    paddingLeft: 16,
+    alignItems: 'center',
+    backgroundColor: 'rgba(243, 241, 234, 0.95)',
+    borderRadius: 28,
+    paddingLeft: 6,
     paddingRight: 6,
     paddingVertical: 6,
-    minHeight: 48,
+    minHeight: 52,
+  },
+  micButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     flex: 1,
     fontSize: 16,
+    color: '#3A3A3A',
     maxHeight: 100,
     paddingVertical: 8,
+    paddingHorizontal: 8,
   },
   sendButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.08)',
   },
-  sendButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
+  sendButtonActive: {
+    backgroundColor: '#6B7A6E',
   },
 });
