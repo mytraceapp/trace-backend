@@ -129,7 +129,7 @@ export default function ActivitiesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35).catch(() => {});
+      playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
     }, [])
   );
 

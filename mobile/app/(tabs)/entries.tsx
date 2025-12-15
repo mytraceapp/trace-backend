@@ -73,7 +73,7 @@ export default function EntriesScreen() {
   useFocusEffect(
     useCallback(() => {
       loadEntries();
-      playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35).catch(() => {});
+      playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
     }, [])
   );
 

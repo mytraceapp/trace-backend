@@ -16,7 +16,7 @@ export default function RootLayout() {
   }, [systemColorScheme]);
 
   useEffect(() => {
-    initAudioMode().catch(() => {});
+    initAudioMode();
   }, []);
 
   const colors = Colors[theme];
