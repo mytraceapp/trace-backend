@@ -1,22 +1,12 @@
 import { useState } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, useColorScheme, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Mic, Send } from 'lucide-react-native';
 import { Spacing } from '../../constants/spacing';
-import { FontFamily } from '../../constants/typography';
-import { useFonts } from 'expo-font';
 
 export default function ChatScreen() {
-  const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const [message, setMessage] = useState('');
-
-  const [fontsLoaded] = useFonts({
-    'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
-  });
-
-  const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
-  const displayFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
 
   const handleSend = () => {
     if (message.trim()) {
@@ -32,7 +22,7 @@ export default function ChatScreen() {
         keyboardVerticalOffset={0}
       >
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-          <Text style={[styles.headerTitle, { fontFamily: displayFont }]}>
+          <Text style={styles.headerTitle}>
             TRACE
           </Text>
         </View>
@@ -43,7 +33,7 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.greetingContainer}>
-            <Text style={[styles.greeting, { fontFamily: displayFont }]}>
+            <Text style={styles.greeting}>
               Hey, how's your day going?
             </Text>
           </View>
@@ -51,7 +41,7 @@ export default function ChatScreen() {
 
         <View style={styles.bottomSection}>
           <View style={styles.sampleBubble}>
-            <Text style={[styles.bubbleText, { fontFamily: displayFont }]}>
+            <Text style={styles.bubbleText}>
               Take a moment to breathe.
             </Text>
           </View>
@@ -63,7 +53,7 @@ export default function ChatScreen() {
               </Pressable>
               
               <TextInput
-                style={[styles.input, { fontFamily: displayFont }]}
+                style={styles.input}
                 placeholder="Share what's on your mind..."
                 placeholderTextColor="#8A8A8A"
                 value={message}
@@ -105,6 +95,7 @@ const styles = StyleSheet.create({
     letterSpacing: 4,
     fontWeight: '300',
     color: '#F3F1EA',
+    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif' }),
   },
   messageArea: {
     flex: 1,
@@ -123,6 +114,7 @@ const styles = StyleSheet.create({
     color: '#F3F1EA',
     textAlign: 'center',
     lineHeight: 32,
+    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif' }),
   },
   bottomSection: {
     paddingHorizontal: Spacing.md,
@@ -141,6 +133,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#4A4A4A',
     lineHeight: 20,
+    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif' }),
   },
   inputContainer: {
     paddingTop: 8,
@@ -169,6 +162,7 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     paddingVertical: 8,
     paddingHorizontal: 8,
+    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif' }),
   },
   sendButton: {
     width: 40,

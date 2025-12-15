@@ -1,10 +1,10 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Wind, Compass, Footprints, Moon, Droplets, Hand, Activity, Sunrise, Circle } from 'lucide-react-native';
 import { useFonts } from 'expo-font';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 
 import { Colors } from '../../constants/colors';
@@ -12,7 +12,6 @@ import { TraceWordmark, CardTitle, MetaText, ScreenTitle, BodyText, FontFamily }
 import { Spacing } from '../../constants/spacing';
 import { BorderRadius } from '../../constants/radius';
 import { Shadows } from '../../constants/shadows';
-import { playAmbient } from '../../lib/ambientAudio';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - Spacing.screenPadding * 2 - Spacing.cardGap) / 2;
@@ -126,12 +125,6 @@ export default function ActivitiesScreen() {
     'Alore': require('../../assets/fonts/Alore-Regular.otf'),
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
   });
-
-  useFocusEffect(
-    useCallback(() => {
-      playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
-    }, [])
-  );
 
   const handleActivityPress = (activityId: string) => {
     if (activityId === 'bubble') {
