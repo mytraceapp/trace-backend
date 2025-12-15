@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, useColorScheme, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Mic, Send } from 'lucide-react-native';
-import OrbBackground from '../../components/OrbBackground';
 import { Spacing } from '../../constants/spacing';
 import { FontFamily } from '../../constants/typography';
 import { useFonts } from 'expo-font';
@@ -27,8 +26,6 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.container}>
-      <OrbBackground />
-      
       <KeyboardAvoidingView 
         style={styles.content}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
