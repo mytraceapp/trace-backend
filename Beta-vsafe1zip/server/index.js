@@ -798,16 +798,35 @@ async function saveGreetingToHistory(userId, greeting) {
   }
 }
 
+// Helper: Generate stable anonymous key from IP
+function getStableAnonKey(req) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() 
+    || req.socket?.remoteAddress 
+    || 'unknown';
+  // Simple hash of IP for privacy
+  let hash = 0;
+  for (let i = 0; i < ip.length; i++) {
+    hash = ((hash << 5) - hash) + ip.charCodeAt(i);
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return `anon:${Math.abs(hash).toString(36)}`;
+}
+
 // Generate a unique AI-powered welcome greeting (with history-based uniqueness)
 app.post('/api/greeting', async (req, res) => {
   try {
-    const { userName, localTime, localDay, localDate, userId } = req.body;
+    const { userName, localTime, localDay, localDate, userId: providedUserId, deviceId } = req.body;
     
-    console.log('Generating greeting for:', userName || 'anonymous user', 'userId:', userId);
+    // Generate stable user key - prefer userId, then deviceId-based, then IP-based
+    const effectiveUserId = providedUserId 
+      || (deviceId ? `device:${deviceId}` : null)
+      || getStableAnonKey(req);
+    
+    console.log('Generating greeting for:', userName || 'anonymous user', 'effectiveUserId:', effectiveUserId);
     console.log('Time context:', localTime, localDay, localDate);
     
     // Fetch recent greetings for this user
-    const recentGreetings = await getRecentGreetings(userId);
+    const recentGreetings = await getRecentGreetings(effectiveUserId);
     const recentWelcomesText = recentGreetings.length > 0 
       ? recentGreetings.slice(0, 10).map((g, i) => `${i + 1}. "${g}"`).join('\n')
       : 'None yet';
@@ -849,7 +868,7 @@ app.post('/api/greeting', async (req, res) => {
         : fallbackGreetings[Math.floor(Math.random() * fallbackGreetings.length)];
       
       // Save to history
-      await saveGreetingToHistory(userId, selectedFallback);
+      await saveGreetingToHistory(effectiveUserId, selectedFallback);
       return res.json({ ok: true, greeting: selectedFallback });
     }
     
@@ -916,7 +935,7 @@ Respond with ONLY the greeting text. No quotation marks.`;
     console.log('Generated greeting:', greeting);
     
     // Save to history
-    await saveGreetingToHistory(userId, greeting);
+    await saveGreetingToHistory(effectiveUserId, greeting);
     
     res.json({ ok: true, greeting });
   } catch (error) {
