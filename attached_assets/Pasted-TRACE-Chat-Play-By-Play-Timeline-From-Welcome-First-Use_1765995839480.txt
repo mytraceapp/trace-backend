@@ -1,0 +1,66 @@
+TRACE Chat Play-By-Play Timeline — From Welcome → First User Reply → Chat Bubbles (Report Only, No Code Changes)
+
+I need a step-by-step action timeline of what happens on the Chat/Home screen from the moment the screen mounts until after the user replies to the welcome message and the chat bubbles UI begins.
+
+Rules
+	•	Do NOT change any code.
+	•	Do NOT refactor.
+	•	Only inspect and explain the current behavior as implemented.
+	•	Give a play-by-play with triggers, state changes, and UI changes.
+
+Scope
+	•	Screen: mobile/app/(tabs)/chat.tsx (and any helpers it calls).
+	•	Include any relevant components/services it uses (api, storage, message rendering, typing).
+
+Deliverable: a timeline with timestamps (relative), like:
+	•	T+0ms: …
+	•	T+2000ms: …
+	•	T+Xms: …
+
+You must answer these exactly:
+	1.	Welcome lifecycle
+
+	•	When does the welcome message content get fetched vs displayed?
+	•	What state variables control it (ex: greeting, displayed, flags)?
+	•	What appears on screen before welcome starts (is there “Loading…” or empty)?
+	•	When does the typewriter begin and end?
+	•	When the user sends their first message:
+	•	Does the welcome stay on screen, fade, get replaced, or move?
+	•	What code path causes it to disappear (or not)?
+	•	Is it still stored anywhere after first send?
+
+	2.	First user message
+
+	•	What happens immediately when the user taps Send:
+	•	input state updates
+	•	message list state updates
+	•	any “thinking delay”
+	•	network call timing
+	•	Does the UI show the user bubble instantly or after something?
+
+	3.	How chat bubbles start
+
+	•	Precisely when does the app switch from the “welcome layout” (orb + centered text) to “chat mode” (scroll view + bubbles)?
+	•	What conditional logic triggers the bubbles (e.g., messages.length > 0, hasStartedChat, etc.)?
+	•	Is the welcome message converted into a “system/assistant” bubble, or is it a separate header-only text?
+
+	4.	Trace reply
+
+	•	When the /api/chat request fires relative to first send.
+	•	When the response is received vs when it is rendered.
+	•	Any delay between receiving the response and showing the assistant bubble.
+
+	5.	Persistence
+
+	•	What gets saved:
+	•	does the welcome get saved to history or not?
+	•	does the first user message get saved immediately?
+	•	what key/table is used?
+	•	When it saves (before/after response).
+
+Output format
+	•	A single “play-by-play timeline”
+	•	Then a short “state map” section listing the key state vars and what they control
+	•	Include file paths and line references for each major step (just enough to verify)
+
+⸻
