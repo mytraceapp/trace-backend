@@ -19,8 +19,27 @@ if (supabaseUrl && supabaseServiceKey) {
   console.log('   Add this secret to enable per-user timezone notifications');
 }
 
-app.use(cors());
+// CORS configuration for mobile apps (Expo Go, dev builds, production)
+const corsOptions = {
+  origin: true, // Allow all origins in development
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+};
+app.use(cors(corsOptions));
+
 app.use(express.json());
+
+// Global error handler for consistent JSON responses
+app.use((err, req, res, next) => {
+  console.error('Server error:', err.message || err);
+  res.status(err.status || 500).json({
+    ok: false,
+    error: err.message || 'Internal server error',
+  });
+});
 
 const hasOpenAIKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
 
@@ -709,13 +728,89 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Generate a unique AI-powered welcome greeting
+// Helper: Simple similarity check (Jaccard similarity on words)
+function calculateSimilarity(str1, str2) {
+  const words1 = new Set(str1.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/));
+  const words2 = new Set(str2.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/));
+  const intersection = new Set([...words1].filter(x => words2.has(x)));
+  const union = new Set([...words1, ...words2]);
+  return intersection.size / union.size;
+}
+
+// Helper: Check if greeting is too similar to any recent ones
+function isTooSimilar(newGreeting, recentGreetings, threshold = 0.6) {
+  for (const recent of recentGreetings) {
+    if (calculateSimilarity(newGreeting, recent) > threshold) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Helper: Get recent greetings from Supabase welcome_history
+async function getRecentGreetings(userId, limit = 30) {
+  if (!supabaseServer || !userId) return [];
+  try {
+    const { data, error } = await supabaseServer
+      .from('welcome_history')
+      .select('greeting')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) {
+      console.error('Error fetching welcome history:', error.message);
+      return [];
+    }
+    return (data || []).map(row => row.greeting);
+  } catch (err) {
+    console.error('Exception fetching welcome history:', err.message);
+    return [];
+  }
+}
+
+// Helper: Save greeting to Supabase welcome_history
+async function saveGreetingToHistory(userId, greeting) {
+  if (!supabaseServer || !userId) return;
+  try {
+    // Insert new greeting
+    const { error: insertError } = await supabaseServer
+      .from('welcome_history')
+      .insert({ user_id: userId, greeting });
+    if (insertError) {
+      console.error('Error saving greeting to history:', insertError.message);
+      return;
+    }
+    // Keep only the last 30 greetings per user
+    const { data: allGreetings } = await supabaseServer
+      .from('welcome_history')
+      .select('id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (allGreetings && allGreetings.length > 30) {
+      const idsToDelete = allGreetings.slice(30).map(row => row.id);
+      await supabaseServer
+        .from('welcome_history')
+        .delete()
+        .in('id', idsToDelete);
+    }
+  } catch (err) {
+    console.error('Exception saving greeting to history:', err.message);
+  }
+}
+
+// Generate a unique AI-powered welcome greeting (with history-based uniqueness)
 app.post('/api/greeting', async (req, res) => {
   try {
-    const { userName, localTime, localDay, localDate } = req.body;
+    const { userName, localTime, localDay, localDate, userId } = req.body;
     
-    console.log('Generating greeting for:', userName || 'anonymous user');
+    console.log('Generating greeting for:', userName || 'anonymous user', 'userId:', userId);
     console.log('Time context:', localTime, localDay, localDate);
+    
+    // Fetch recent greetings for this user
+    const recentGreetings = await getRecentGreetings(userId);
+    const recentWelcomesText = recentGreetings.length > 0 
+      ? recentGreetings.slice(0, 10).map((g, i) => `${i + 1}. "${g}"`).join('\n')
+      : 'None yet';
     
     if (!openai) {
       // Fallback greetings when no API key - warm and welcoming
@@ -747,7 +842,15 @@ app.post('/api/greeting', async (req, res) => {
           userName ? `Hey, ${userName}. I'm here—no pressure to talk.` : "Hey. I'm here—no pressure to talk.",
         ];
       }
-      return res.json({ greeting: fallbackGreetings[Math.floor(Math.random() * fallbackGreetings.length)] });
+      // Filter out recently used fallbacks
+      const availableFallbacks = fallbackGreetings.filter(g => !isTooSimilar(g, recentGreetings, 0.7));
+      const selectedFallback = availableFallbacks.length > 0 
+        ? availableFallbacks[Math.floor(Math.random() * availableFallbacks.length)]
+        : fallbackGreetings[Math.floor(Math.random() * fallbackGreetings.length)];
+      
+      // Save to history
+      await saveGreetingToHistory(userId, selectedFallback);
+      return res.json({ ok: true, greeting: selectedFallback });
     }
     
     const greetingPrompt = `You are TRACE, a warm and welcoming companion. Generate a single welcome message.
@@ -757,12 +860,16 @@ Context:
 - Current time: ${localTime || 'unknown'}
 - Day: ${localDay || 'unknown'}
 
+CRITICAL - DO NOT REPEAT OR PARAPHRASE these recent welcomes:
+${recentWelcomesText}
+
 Guidelines:
 - Be WARM and WELCOMING - make them feel genuinely glad to be here
 - Two sentences is ideal - a greeting plus something caring
 - Express hope for their wellbeing or acknowledge the time of day warmly
 - Sound like a thoughtful friend who's genuinely happy to see them
 - Don't ask questions - just welcome them with warmth
+- Be CREATIVE and UNIQUE - avoid any similarity to the recent welcomes listed above
 
 GOOD examples (warm, welcoming, inviting):
 - "Good morning${userName ? ', ' + userName : ''}. I hope today treats you gently."
@@ -782,24 +889,39 @@ BAD examples (too short/cold - AVOID these):
 
 Respond with ONLY the greeting text. No quotation marks.`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'user', content: greetingPrompt }
-      ],
-      max_tokens: 50,
-      temperature: 0.9, // Higher creativity for unique greetings
-    });
+    // Generate greeting with potential retry for uniqueness
+    let greeting = null;
+    let attempts = 0;
+    const maxAttempts = 2;
+    
+    while (attempts < maxAttempts) {
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: greetingPrompt }],
+        max_tokens: 60,
+        temperature: 0.95, // Higher creativity for unique greetings
+      });
 
-    let greeting = response.choices[0]?.message?.content?.trim() || "I'm here with you.";
-    // Remove any quotation marks the AI might have added
-    greeting = greeting.replace(/^["']|["']$/g, '');
+      greeting = response.choices[0]?.message?.content?.trim() || "I'm here with you.";
+      greeting = greeting.replace(/^["']|["']$/g, '');
+      
+      // Check similarity - regenerate if too similar
+      if (!isTooSimilar(greeting, recentGreetings, 0.6)) {
+        break;
+      }
+      console.log(`Greeting attempt ${attempts + 1} was too similar, regenerating...`);
+      attempts++;
+    }
+    
     console.log('Generated greeting:', greeting);
     
-    res.json({ greeting });
+    // Save to history
+    await saveGreetingToHistory(userId, greeting);
+    
+    res.json({ ok: true, greeting });
   } catch (error) {
     console.error('Greeting API error:', error.message || error);
-    res.json({ greeting: "Whenever you're ready." });
+    res.status(500).json({ ok: false, error: 'Failed to generate greeting', greeting: "Whenever you're ready." });
   }
 });
 
