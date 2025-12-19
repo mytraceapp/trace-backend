@@ -1,5 +1,5 @@
-import { useRef, useCallback, useEffect } from 'react';
-import { AudioContext } from 'react-native-audio-api';
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { Audio } from 'expo-av';
 
 interface UsePowerNapAudioOptions {
   volume?: number;
@@ -7,242 +7,152 @@ interface UsePowerNapAudioOptions {
   fadeOutDuration?: number;
 }
 
-interface OscillatorNode {
-  oscillator: OscillatorNode;
-  gain: GainNode;
-}
-
 export function usePowerNapAudio({
   volume = 0.35,
   fadeInDuration = 3000,
   fadeOutDuration = 1000,
 }: UsePowerNapAudioOptions = {}) {
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const oscillatorsRef = useRef<any[]>([]);
-  const gainNodesRef = useRef<any[]>([]);
-  const lfoRef = useRef<any>(null);
-  const chimeContextsRef = useRef<AudioContext[]>([]);
+  const ambientSoundRef = useRef<Audio.Sound | null>(null);
+  const chimeSoundRef = useRef<Audio.Sound | null>(null);
   const chimeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const cleanup = useCallback(() => {
-    gainNodesRef.current.forEach((gainNode) => {
-      try {
-        const now = gainNode.context.currentTime;
-        gainNode.gain.cancelScheduledValues(now);
-        gainNode.gain.setValueAtTime(0, now);
-      } catch {}
-    });
-    oscillatorsRef.current = [];
-    gainNodesRef.current = [];
-
-    if (lfoRef.current) {
-      try {
-        lfoRef.current.stop();
-      } catch {}
-      lfoRef.current = null;
-    }
-
-    if (audioContextRef.current) {
-      try {
-        audioContextRef.current.close();
-      } catch {}
-      audioContextRef.current = null;
-    }
-
-    if (chimeIntervalRef.current) {
-      clearInterval(chimeIntervalRef.current);
-      chimeIntervalRef.current = null;
-    }
-
-    chimeContextsRef.current.forEach((ctx) => {
-      try {
-        ctx.close();
-      } catch {}
-    });
-    chimeContextsRef.current = [];
-  }, []);
+  const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [isAmbientLoaded, setIsAmbientLoaded] = useState(false);
+  const [isChimeLoaded, setIsChimeLoaded] = useState(false);
 
   useEffect(() => {
-    return cleanup;
-  }, [cleanup]);
+    let isMounted = true;
 
-  const startAmbientDrone = useCallback(() => {
-    if (audioContextRef.current) return;
+    const loadSounds = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+        });
 
-    const audioContext = new AudioContext();
-    audioContextRef.current = audioContext;
+        const { sound: ambientSound } = await Audio.Sound.createAsync(
+          require('../assets/audio/power-nap-ambient.mp3'),
+          {
+            isLooping: true,
+            volume: 0,
+            shouldPlay: false,
+          }
+        );
 
-    const masterGain = audioContext.createGain();
-    masterGain.connect(audioContext.destination);
-    masterGain.gain.setValueAtTime(0, audioContext.currentTime);
-    masterGain.gain.linearRampToValueAtTime(
-      volume,
-      audioContext.currentTime + fadeInDuration / 1000
-    );
+        const { sound: chimeSound } = await Audio.Sound.createAsync(
+          require('../assets/audio/power-nap-chime.mp3'),
+          {
+            isLooping: false,
+            volume: volume,
+            shouldPlay: false,
+          }
+        );
 
-    const createOscillator = (
-      freq: number,
-      type: 'sine' | 'triangle' | 'square' | 'sawtooth',
-      targetGain: number
-    ) => {
-      const osc = audioContext.createOscillator();
-      const oscGain = audioContext.createGain();
-
-      osc.connect(oscGain);
-      oscGain.connect(masterGain);
-
-      osc.frequency.setValueAtTime(freq, audioContext.currentTime);
-      osc.type = type;
-
-      oscGain.gain.setValueAtTime(0, audioContext.currentTime);
-      oscGain.gain.linearRampToValueAtTime(
-        targetGain,
-        audioContext.currentTime + fadeInDuration / 1000
-      );
-
-      osc.start(audioContext.currentTime);
-      oscillatorsRef.current.push(osc);
-      gainNodesRef.current.push(oscGain);
-
-      return { osc, gain: oscGain };
+        if (isMounted) {
+          ambientSoundRef.current = ambientSound;
+          chimeSoundRef.current = chimeSound;
+          setIsAmbientLoaded(true);
+          setIsChimeLoaded(true);
+        }
+      } catch (error) {
+        console.error('Failed to load power nap audio:', error);
+      }
     };
 
-    const bass = createOscillator(55, 'sine', 0.018);
-    const harmonic = createOscillator(110, 'sine', 0.012);
-    createOscillator(220, 'triangle', 0.006);
+    loadSounds();
 
-    const lfo = audioContext.createOscillator();
-    const lfoGain = audioContext.createGain();
+    return () => {
+      isMounted = false;
+      if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+      if (chimeIntervalRef.current) clearInterval(chimeIntervalRef.current);
+      ambientSoundRef.current?.unloadAsync();
+      chimeSoundRef.current?.unloadAsync();
+    };
+  }, [volume]);
 
-    lfo.frequency.setValueAtTime(0.08, audioContext.currentTime);
-    lfo.type = 'sine';
-    lfoGain.gain.setValueAtTime(0.5, audioContext.currentTime);
-
-    lfo.connect(lfoGain);
-    lfoGain.connect(bass.gain.gain);
-    lfoGain.connect(harmonic.gain.gain);
-
-    lfo.start(audioContext.currentTime);
-    lfoRef.current = lfo;
-    gainNodesRef.current.push(masterGain);
-  }, [volume, fadeInDuration]);
-
-  const stopAmbientDrone = useCallback(() => {
-    gainNodesRef.current.forEach((gainNode) => {
-      try {
-        const now = gainNode.context.currentTime;
-        gainNode.gain.cancelScheduledValues(now);
-        gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-        gainNode.gain.linearRampToValueAtTime(0, now + fadeOutDuration / 1000);
-      } catch {}
-    });
-
-    setTimeout(() => {
-      oscillatorsRef.current.forEach((osc) => {
-        try {
-          osc.stop();
-        } catch {}
-      });
-      oscillatorsRef.current = [];
-      gainNodesRef.current = [];
-
-      if (lfoRef.current) {
-        try {
-          lfoRef.current.stop();
-        } catch {}
-        lfoRef.current = null;
+  const fadeVolume = useCallback(
+    (
+      sound: Audio.Sound,
+      targetVolume: number,
+      duration: number,
+      callback?: () => void
+    ) => {
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
       }
 
-      if (audioContextRef.current) {
-        try {
-          audioContextRef.current.close();
-        } catch {}
-        audioContextRef.current = null;
-      }
-    }, fadeOutDuration + 100);
-  }, [fadeOutDuration]);
+      const steps = 20;
+      const stepDuration = duration / steps;
+      let currentStep = 0;
 
-  const playWakeUpChime = useCallback(() => {
-    const audioContext = new AudioContext();
-    chimeContextsRef.current.push(audioContext);
+      sound.getStatusAsync().then((status) => {
+        if (!status.isLoaded) return;
 
-    const now = audioContext.currentTime;
+        const startVolume = status.volume;
+        const volumeDiff = targetVolume - startVolume;
 
-    const notes = [
-      { freq: 261.63, time: 0, gain: 0.2 },
-      { freq: 523.25, time: 1.0, gain: 0.21 },
-      { freq: 659.25, time: 2.0, gain: 0.19 },
-      { freq: 783.99, time: 3.0, gain: 0.18 },
-    ];
+        fadeIntervalRef.current = setInterval(async () => {
+          currentStep++;
+          const progress = currentStep / steps;
+          const easeProgress = progress * (2 - progress);
+          const newVolume = startVolume + volumeDiff * easeProgress;
 
-    notes.forEach(({ freq, time, gain }) => {
-      const fundamental = audioContext.createOscillator();
-      fundamental.frequency.setValueAtTime(freq, now + time);
-      fundamental.type = 'sine';
-
-      const fundamentalGain = audioContext.createGain();
-      fundamentalGain.gain.setValueAtTime(0, now + time);
-      fundamentalGain.gain.linearRampToValueAtTime(gain, now + time + 0.001);
-      fundamentalGain.gain.exponentialRampToValueAtTime(
-        gain * 0.25,
-        now + time + 0.05
-      );
-      fundamentalGain.gain.exponentialRampToValueAtTime(0.001, now + time + 0.9);
-
-      fundamental.connect(fundamentalGain);
-      fundamentalGain.connect(audioContext.destination);
-      fundamental.start(now + time);
-      fundamental.stop(now + time + 0.9);
-
-      const harmonic2 = audioContext.createOscillator();
-      harmonic2.frequency.setValueAtTime(freq * 2.03, now + time);
-      harmonic2.type = 'sine';
-
-      const harmonic2Gain = audioContext.createGain();
-      harmonic2Gain.gain.setValueAtTime(0, now + time);
-      harmonic2Gain.gain.linearRampToValueAtTime(
-        gain * 0.22,
-        now + time + 0.0008
-      );
-      harmonic2Gain.gain.exponentialRampToValueAtTime(0.001, now + time + 0.4);
-
-      harmonic2.connect(harmonic2Gain);
-      harmonic2Gain.connect(audioContext.destination);
-      harmonic2.start(now + time);
-      harmonic2.stop(now + time + 0.4);
-
-      const harmonic3 = audioContext.createOscillator();
-      harmonic3.frequency.setValueAtTime(freq * 3.05, now + time);
-      harmonic3.type = 'sine';
-
-      const harmonic3Gain = audioContext.createGain();
-      harmonic3Gain.gain.setValueAtTime(0, now + time);
-      harmonic3Gain.gain.linearRampToValueAtTime(
-        gain * 0.1,
-        now + time + 0.0005
-      );
-      harmonic3Gain.gain.exponentialRampToValueAtTime(0.001, now + time + 0.25);
-
-      harmonic3.connect(harmonic3Gain);
-      harmonic3Gain.connect(audioContext.destination);
-      harmonic3.start(now + time);
-      harmonic3.stop(now + time + 0.25);
-    });
-
-    setTimeout(() => {
-      chimeContextsRef.current = chimeContextsRef.current.filter((ctx) => {
-        if (ctx === audioContext) {
           try {
-            ctx.close();
+            await sound.setVolumeAsync(Math.max(0, Math.min(1, newVolume)));
           } catch {}
-          return false;
-        }
-        return true;
-      });
-    }, 5000);
 
-    return audioContext;
-  }, []);
+          if (currentStep >= steps) {
+            if (fadeIntervalRef.current) {
+              clearInterval(fadeIntervalRef.current);
+              fadeIntervalRef.current = null;
+            }
+            callback?.();
+          }
+        }, stepDuration);
+      });
+    },
+    []
+  );
+
+  const startAmbientDrone = useCallback(async () => {
+    const sound = ambientSoundRef.current;
+    if (!sound || !isAmbientLoaded) return;
+
+    try {
+      await sound.setVolumeAsync(0);
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
+      fadeVolume(sound, volume, fadeInDuration);
+    } catch (error) {
+      console.error('Failed to start ambient drone:', error);
+    }
+  }, [isAmbientLoaded, fadeVolume, volume, fadeInDuration]);
+
+  const stopAmbientDrone = useCallback(async () => {
+    const sound = ambientSoundRef.current;
+    if (!sound) return;
+
+    fadeVolume(sound, 0, fadeOutDuration, async () => {
+      try {
+        await sound.pauseAsync();
+      } catch (error) {
+        console.error('Failed to stop ambient drone:', error);
+      }
+    });
+  }, [fadeVolume, fadeOutDuration]);
+
+  const playWakeUpChime = useCallback(async () => {
+    const sound = chimeSoundRef.current;
+    if (!sound || !isChimeLoaded) return;
+
+    try {
+      await sound.setPositionAsync(0);
+      await sound.setVolumeAsync(volume);
+      await sound.playAsync();
+    } catch (error) {
+      console.error('Failed to play wake up chime:', error);
+    }
+  }, [isChimeLoaded, volume]);
 
   const startRepeatingChime = useCallback(
     (intervalMs: number = 6000) => {
@@ -260,13 +170,16 @@ export function usePowerNapAudio({
       clearInterval(chimeIntervalRef.current);
       chimeIntervalRef.current = null;
     }
+  }, []);
 
-    chimeContextsRef.current.forEach((ctx) => {
-      try {
-        ctx.close();
-      } catch {}
-    });
-    chimeContextsRef.current = [];
+  const cleanup = useCallback(async () => {
+    if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+    if (chimeIntervalRef.current) clearInterval(chimeIntervalRef.current);
+
+    try {
+      await ambientSoundRef.current?.stopAsync();
+      await chimeSoundRef.current?.stopAsync();
+    } catch {}
   }, []);
 
   return {
@@ -276,5 +189,6 @@ export function usePowerNapAudio({
     startRepeatingChime,
     stopRepeatingChime,
     cleanup,
+    isLoaded: isAmbientLoaded && isChimeLoaded,
   };
 }
