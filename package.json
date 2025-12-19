@@ -30,6 +30,7 @@
     "openid-client": "^6.8.1",
     "passport": "^0.7.0",
     "pg": "^8.16.3",
+    "react-native-audio-api": "^0.10.3",
     "react-onesignal": "^3.4.0",
     "three": "^0.182.0"
   }
