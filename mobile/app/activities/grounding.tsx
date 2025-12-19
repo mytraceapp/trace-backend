@@ -195,12 +195,10 @@ export default function GroundingScreen() {
   const contentTranslateY = useSharedValue(0);
 
   useEffect(() => {
-    stopAmbient();
-  }, []);
-
-  useEffect(() => {
     const loadAndPlayAudio = async () => {
       try {
+        await stopAmbient();
+        
         await Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           staysActiveInBackground: false,

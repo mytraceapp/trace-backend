@@ -50,10 +50,6 @@ export default function EchoScreen() {
   const centerY = SCREEN_HEIGHT / 2 - 40;
 
   useEffect(() => {
-    stopAmbient();
-  }, []);
-
-  useEffect(() => {
     let animationId: number;
     let time = 0;
     
@@ -113,6 +109,8 @@ export default function EchoScreen() {
 
   useEffect(() => {
     const setupAudio = async () => {
+      await stopAmbient();
+      
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         staysActiveInBackground: false,

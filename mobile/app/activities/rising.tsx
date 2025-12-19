@@ -39,10 +39,11 @@ export default function RisingScreen() {
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
 
   useEffect(() => {
-    stopAmbient();
-  }, []);
-
-  useEffect(() => {
+    const init = async () => {
+      await stopAmbient();
+    };
+    init();
+    
     sessionRef.current = setInterval(() => {
       setSessionSeconds(prev => prev + 1);
     }, 1000);

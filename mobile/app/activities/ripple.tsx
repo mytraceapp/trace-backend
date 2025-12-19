@@ -119,15 +119,13 @@ export default function RippleActivityScreen() {
   const centerY = SCREEN_HEIGHT * 0.45;
 
   useEffect(() => {
-    stopAmbient();
-  }, []);
-
-  useEffect(() => {
     let isMounted = true;
     let localSound: Audio.Sound | null = null;
 
     const loadAndPlayAudio = async () => {
       try {
+        await stopAmbient();
+        
         await Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           staysActiveInBackground: false,

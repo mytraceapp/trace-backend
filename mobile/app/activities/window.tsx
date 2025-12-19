@@ -99,10 +99,6 @@ export default function WindowScreen() {
   const toastOpacity = useSharedValue(0);
 
   useEffect(() => {
-    stopAmbient();
-  }, []);
-
-  useEffect(() => {
     const loadVolume = async () => {
       try {
         const savedVolume = await AsyncStorage.getItem(VOLUME_STORAGE_KEY);
@@ -129,6 +125,8 @@ export default function WindowScreen() {
 
   useEffect(() => {
     const setupAudio = async () => {
+      await stopAmbient();
+      
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         staysActiveInBackground: false,
