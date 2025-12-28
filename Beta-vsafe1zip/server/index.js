@@ -1414,28 +1414,46 @@ app.get('/api/debug-messages', async (req, res) => {
 app.get('/api/chat-history', async (req, res) => {
   try {
     const { userId, deviceId } = req.query;
+    const identifier = userId || deviceId || null;
 
-    const effectiveUserId =
-      userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
+    console.log('🕰 /api/chat-history HIT with query:', req.query);
 
-    console.log('[TRACE HISTORY] effectiveUserId:', effectiveUserId);
+    let query = supabaseServer
+      .from('chat_messages')
+      .select('role, content, created_at')
+      .order('created_at', { ascending: false })
+      .limit(30);
 
-    if (!effectiveUserId) {
-      return res.status(400).json({ ok: false, error: 'Missing user identifier' });
+    if (identifier) {
+      query = query.eq('user_id', identifier);
+      console.log('🕰 Filtering history by user_id =', identifier);
+    } else {
+      console.log('🕰 No identifier provided, returning last 30 global messages');
     }
 
-    const history = await getChatHistory(effectiveUserId);
+    const { data, error } = await query;
 
-    res.json({
+    if (error) {
+      console.error('❌ Supabase chat-history error:', error);
+      return res.status(500).json({ ok: false, error: 'Supabase error' });
+    }
+
+    const messages = (data || [])
+      .map(row => ({
+        role: row.role,
+        content: row.content,
+      }))
+      .reverse();
+
+    console.log(`✅ Returning ${messages.length} chat history messages`);
+
+    return res.json({
       ok: true,
-      messages: history,
+      messages,
     });
   } catch (err) {
-    console.error('[TRACE HISTORY ROUTE ERROR]', err.message || err);
-    res.status(500).json({
-      ok: false,
-      error: 'Failed to load chat history',
-    });
+    console.error('💥 /api/chat-history crashed:', err);
+    return res.status(500).json({ ok: false, error: 'Internal server error' });
   }
 });
 
