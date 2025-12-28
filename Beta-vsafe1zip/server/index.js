@@ -679,11 +679,12 @@ app.post('/api/chat', async (req, res) => {
       localDay,
       localDate,
       userId,
+      deviceId,
     } = req.body;
 
-    // Use real userId if provided, otherwise use a known valid existing user id
+    // Prefer real Supabase user, then device-based, then fallback to known valid user
     const effectiveUserId =
-      userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
+      userId || deviceId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
 
     console.log('[TRACE CHAT] effectiveUserId:', effectiveUserId);
     

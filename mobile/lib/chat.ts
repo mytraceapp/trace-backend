@@ -1,11 +1,21 @@
-export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate }: {
+export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId }: {
   messages: Array<{ role: string; content: string }>;
   userName?: string | null;
   chatStyle?: string;
   localTime?: string;
   localDay?: string;
   localDate?: string;
+  userId?: string | null;
+  deviceId?: string | null;
 }) {
+  console.log(
+    '🆔 TRACE sendChatMessage ids:',
+    'userId =',
+    userId || 'null',
+    'deviceId =',
+    deviceId || 'null'
+  );
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
 
@@ -22,6 +32,8 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
           localTime,
           localDay,
           localDate,
+          userId: userId || null,
+          deviceId: deviceId || null,
         }),
         signal: controller.signal,
       }

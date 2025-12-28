@@ -1,0 +1,164 @@
+Goal
+	1.	Create a Supabase client for the mobile app
+	2.	In chat.tsx, pass both userId (Supabase auth user) and deviceId (stable anon ID) into sendChatMessage
+	3.	On the backend, use userId || deviceId || anonKey to decide effectiveUserId
+
+⸻
+
+1) Create mobile Supabase client
+File: mobile/lib/supabaseClient.ts (new file)
+
+Create this file with exactly this content (adjust env names ONLY if needed):
+// mobile/lib/supabaseClient.ts
+import { createClient } from '@supabase/supabase-js';
+
+// For Expo, env vars should usually be EXPO_PUBLIC_*
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn(
+    '⚠️ Supabase env vars missing in mobile: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY'
+  );
+}
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+  },
+});
+
+2) Update mobile sendChatMessage to accept userId + deviceId
+File: mobile/lib/chat.ts
+	1.	Update the function signature and params type to include userId and deviceId:
+// BEFORE (roughly)
+export async function sendChatMessage({
+  messages,
+  userName,
+  chatStyle,
+  localTime,
+  localDay,
+  localDate,
+  userId,
+}: {
+  messages: any;
+  userName?: string | null;
+  chatStyle?: string;
+  localTime?: string;
+  localDay?: string;
+  localDate?: string;
+  userId?: string | null;
+}) {
+
+// AFTER – add deviceId
+export async function sendChatMessage({
+  messages,
+  userName,
+  chatStyle,
+  localTime,
+  localDay,
+  localDate,
+  userId,
+  deviceId,
+}: {
+  messages: any;
+  userName?: string | null;
+  chatStyle?: string;
+  localTime?: string;
+  localDay?: string;
+  localDate?: string;
+  userId?: string | null;
+  deviceId?: string | null;
+}) {
+	2.	Right before the fetch call, log both IDs:
+console.log(
+  '🆔 TRACE sendChatMessage ids:',
+  'userId =',
+  userId || 'null',
+  'deviceId =',
+  deviceId || 'null'
+);
+
+	3.	Update the JSON body to send both:
+// BEFORE
+body: JSON.stringify({
+  messages,
+  userName,
+  chatStyle,
+  localTime,
+  localDay,
+  localDate,
+  userId: userId || null,
+}),
+
+// AFTER
+body: JSON.stringify({
+  messages,
+  userName,
+  chatStyle,
+  localTime,
+  localDay,
+  localDate,
+  userId: userId || null,
+  deviceId: deviceId || null,
+}),
+
+Leave all timeout + error-handling logic exactly as it is.
+
+⸻
+
+3) Use Supabase auth user + deviceId in chat.tsx
+File: mobile/app/(tabs)/chat.tsx
+	1.	Add the Supabase import at the top (you already have getStableId):
+import { supabase } from '../../lib/supabaseClient';
+	2.	In your handleSend (or wherever you call sendChatMessage), before the call, fetch the auth user and build IDs:
+// get stable device id (you already do this somewhere)
+const stableId = await getStableId();
+console.log('🆔 TRACE chat screen deviceId:', stableId);
+
+// NEW: get Supabase auth user
+const { data } = await supabase.auth.getUser();
+const authUserId = data?.user?.id ?? null;
+console.log('🆔 TRACE chat screen authUserId:', authUserId);
+
+// then call sendChatMessage with BOTH
+const response = await sendChatMessage({
+  messages,
+  userName,
+  chatStyle,
+  localTime,
+  localDay,
+  localDate,
+  userId: authUserId,      // real Supabase user when logged in
+  deviceId: stableId,      // always present (anon fallback)
+});
+Don’t change how you handle response.message or activity_suggestion.
+
+⸻
+
+4) Backend: userId || deviceId || anonKey
+File: Beta-vsafe1zip/server/index.js
+Inside the /api/chat handler:
+	1.	Make sure you destructure deviceId:
+const {
+  messages: rawMessages,
+  userName,
+  chatStyle = 'conversation',
+  localTime,
+  localDay,
+  localDate,
+  userId,
+  deviceId,
+} = req.body;
+	2.	Update effectiveUserId to use all three options:
+// Prefer real Supabase user, then device-based, then anon IP-based id
+const effectiveUserId =
+  userId || deviceId || getStableAnonKey(req);
+
+console.log('[TRACE CHAT] effectiveUserId:', effectiveUserId);
+Leave everything else in /api/chat alone (saving messages, OpenAI call, response, error handler).
+
+⸻
+
+✅ After you run this
+	1.	Restart backend in Beta-vsafe1zip:
