@@ -1,0 +1,66 @@
+Now that the route is reachable, the next step is:
+	1.	Switch /api/chat-history from test data → real Supabase query.
+In Beta-vsafe1zip/server/index.js:
+a) getChatHistory helper
+Make sure it looks like this (or add it near the top with your other helpers):
+
+async function getChatHistory(userId) {
+  if (!supabaseServer || !userId) {
+    console.warn('[TRACE HISTORY] missing supabase or userId');
+    return [];
+  }
+
+  console.log('[TRACE HISTORY] loading from chat_messages for user:', userId);
+
+  const { data, error } = await supabaseServer
+    .from('chat_messages')
+    .select('role, content, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false }) // newest first
+    .limit(30);
+
+  if (error) {
+    console.error('[TRACE HISTORY DB ERROR]', error.message || error);
+    return [];
+  }
+
+  // Oldest → newest for the UI
+  return (data || [])
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    .map((row) => ({
+      role: row.role === 'assistant' ? 'assistant' : 'user',
+      content: row.content,
+    }));
+}
+
+b) /api/chat-history route
+Replace the “test messages” part with a call to getChatHistory:
+app.get('/api/chat-history', async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    const effectiveUserId = userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
+    console.log('[TRACE HISTORY] effectiveUserId:', effectiveUserId);
+
+    if (!effectiveUserId) {
+      return res.status(400).json({ ok: false, error: 'Missing user identifier' });
+    }
+
+    const history = await getChatHistory(effectiveUserId);
+
+    res.json({
+      ok: true,
+      messages: history,
+    });
+  } catch (err) {
+    console.error('[TRACE HISTORY ROUTE ERROR]', err.message || err);
+    res.status(500).json({
+      ok: false,
+      error: 'Failed to load chat history',
+    });
+  }
+});
+
+(Delete the hard-coded [{ role: 'assistant', content: 'This is a test history message…' }, …] array.)
+
+	2.	Restart the backend in Replit so the new code is live.

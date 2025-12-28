@@ -98,24 +98,30 @@ async function saveAssistantMessage(userId, content) {
 
 async function getChatHistory(userId) {
   if (!supabaseServer || !userId) {
+    console.warn('[TRACE HISTORY] missing supabase or userId');
     return [];
   }
 
-  console.log('[TRACE HISTORY] fetching for user:', userId);
+  console.log('[TRACE HISTORY] loading from chat_messages for user:', userId);
 
   const { data, error } = await supabaseServer
     .from('chat_messages')
-    .select('id, role, content, created_at')
+    .select('role, content, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(30);
 
   if (error) {
-    console.error('[TRACE HISTORY ERROR]', error.message || error);
+    console.error('[TRACE HISTORY DB ERROR]', error.message || error);
     return [];
   }
 
-  return (data || []).reverse();
+  return (data || [])
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    .map((row) => ({
+      role: row.role === 'assistant' ? 'assistant' : 'user',
+      content: row.content,
+    }));
 }
 
 const TRACE_SYSTEM_PROMPT = `You are TRACE, a calm emotional wellness companion inside a mobile app called TRACE. When explaining the app or its features, always speak in first person ("I", "my", "me") as TRACE—never refer to yourself in third person.
@@ -1411,27 +1417,28 @@ app.get('/api/debug-messages', async (req, res) => {
   }
 });
 
-app.get('/api/chat-history', (req, res) => {
+app.get('/api/chat-history', async (req, res) => {
   try {
-    console.log('🕰 /api/chat-history HIT! raw query:', req.query);
+    const { userId } = req.query;
 
-    const messages = [
-      { role: 'assistant', content: 'This is a test history message from the server.' },
-      { role: 'user', content: 'If you see this, history is wired up.' },
-    ];
+    const effectiveUserId = userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
+    console.log('[TRACE HISTORY] effectiveUserId:', effectiveUserId);
 
-    console.log(`✅ /api/chat-history returning ${messages.length} messages`);
+    if (!effectiveUserId) {
+      return res.status(400).json({ ok: false, error: 'Missing user identifier' });
+    }
 
-    return res.status(200).json({
+    const history = await getChatHistory(effectiveUserId);
+
+    res.json({
       ok: true,
-      messages,
+      messages: history,
     });
   } catch (err) {
-    console.error('💥 /api/chat-history crashed (fallback):', err);
-    return res.status(200).json({
+    console.error('[TRACE HISTORY ROUTE ERROR]', err.message || err);
+    res.status(500).json({
       ok: false,
-      error: String(err),
-      messages: [],
+      error: 'Failed to load chat history',
     });
   }
 });
