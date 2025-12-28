@@ -776,17 +776,19 @@ The person you're speaking with is named ${userName}. Use their name naturally.`
       parsed.message = fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
 
+    const assistantText = parsed.message || "I'm here.";
+
     // Save assistant reply safely
     try {
-      if (effectiveUserId && parsed?.message) {
-        await saveAssistantMessage(effectiveUserId, parsed.message);
+      if (effectiveUserId && assistantText) {
+        await saveAssistantMessage(effectiveUserId, assistantText);
       }
     } catch (err) {
       console.error('[TRACE CHAT SAVE ASSISTANT ERROR]', err.message || err);
     }
     
     return res.json({
-      message: parsed.message,
+      message: assistantText,
       activity_suggestion: parsed.activity_suggestion || { name: null, reason: null, should_navigate: false }
     });
   } catch (error) {
