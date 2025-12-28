@@ -689,9 +689,9 @@ app.post('/api/chat', async (req, res) => {
       userId,
     } = req.body;
 
-    // Use real userId if provided, otherwise use a fixed debug UUID
+    // Use real userId if provided, otherwise use a known valid existing user id
     const effectiveUserId =
-      userId || '00000000-0000-0000-0000-000000000001';
+      userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
 
     console.log('[TRACE CHAT] effectiveUserId:', effectiveUserId);
     
