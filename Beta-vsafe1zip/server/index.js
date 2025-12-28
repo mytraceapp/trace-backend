@@ -1360,6 +1360,33 @@ app.get('/api/ping', (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/debug-messages', async (req, res) => {
+  if (!supabaseServer) {
+    console.error('[TRACE DEBUG MESSAGES] Supabase not configured');
+    return res.status(500).json({ error: 'Supabase not configured' });
+  }
+
+  try {
+    console.log('[TRACE DEBUG MESSAGES] fetching latest messages...');
+    const { data, error } = await supabaseServer
+      .from('messages')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.error('[TRACE DEBUG MESSAGES ERROR]', error.message);
+      return res.status(500).json({ error: error.message });
+    }
+
+    console.log('[TRACE DEBUG MESSAGES OK] rows:', data?.length || 0);
+    return res.json({ rows: data || [] });
+  } catch (err) {
+    console.error('[TRACE DEBUG MESSAGES EXCEPTION]', err.message || err);
+    return res.status(500).json({ error: 'Unexpected error' });
+  }
+});
+
 // Global error handler for consistent JSON responses (must be last middleware)
 app.use((err, req, res, next) => {
   console.error('Server error:', err.message || err);
