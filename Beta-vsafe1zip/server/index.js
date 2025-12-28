@@ -55,16 +55,12 @@ async function saveUserMessage(userId, content) {
   console.log('[TRACE SAVE USER] about to insert for user:', userId);
 
   const { data, error } = await supabaseServer
-    .from('messages')
-    .insert([
-      {
-        user_id: userId,
-        role: 'user',
-        content,
-        emotion: 'neutral',
-        intensity: 2
-      }
-    ])
+    .from('chat_messages')
+    .insert({
+      user_id: userId,
+      role: 'user',
+      content,
+    })
     .select()
     .single();
 
@@ -82,16 +78,12 @@ async function saveAssistantMessage(userId, content) {
   console.log('[TRACE SAVE ASSISTANT] about to insert for user:', userId);
 
   const { data, error } = await supabaseServer
-    .from('messages')
-    .insert([
-      {
-        user_id: userId,
-        role: 'trace',
-        content,
-        emotion: 'neutral',
-        intensity: 2
-      }
-    ])
+    .from('chat_messages')
+    .insert({
+      user_id: userId,
+      role: 'trace',
+      content,
+    })
     .select()
     .single();
 
