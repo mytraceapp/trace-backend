@@ -96,6 +96,28 @@ async function saveAssistantMessage(userId, content) {
   return data;
 }
 
+async function getChatHistory(userId) {
+  if (!supabaseServer || !userId) {
+    return [];
+  }
+
+  console.log('[TRACE HISTORY] fetching for user:', userId);
+
+  const { data, error } = await supabaseServer
+    .from('chat_messages')
+    .select('id, role, content, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  if (error) {
+    console.error('[TRACE HISTORY ERROR]', error.message || error);
+    return [];
+  }
+
+  return (data || []).reverse();
+}
+
 const TRACE_SYSTEM_PROMPT = `You are TRACE, a calm emotional wellness companion inside a mobile app called TRACE. When explaining the app or its features, always speak in first person ("I", "my", "me") as TRACE—never refer to yourself in third person.
 
 === ABOUT MY APP ===
@@ -1386,6 +1408,34 @@ app.get('/api/debug-messages', async (req, res) => {
   } catch (err) {
     console.error('[TRACE DEBUG MESSAGES EXCEPTION]', err.message || err);
     return res.status(500).json({ error: 'Unexpected error' });
+  }
+});
+
+app.get('/api/chat-history', async (req, res) => {
+  try {
+    const { userId, deviceId } = req.query;
+
+    const effectiveUserId =
+      userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
+
+    console.log('[TRACE HISTORY] effectiveUserId:', effectiveUserId);
+
+    if (!effectiveUserId) {
+      return res.status(400).json({ ok: false, error: 'Missing user identifier' });
+    }
+
+    const history = await getChatHistory(effectiveUserId);
+
+    res.json({
+      ok: true,
+      messages: history,
+    });
+  } catch (err) {
+    console.error('[TRACE HISTORY ROUTE ERROR]', err.message || err);
+    res.status(500).json({
+      ok: false,
+      error: 'Failed to load chat history',
+    });
   }
 });
 

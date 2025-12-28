@@ -1,0 +1,88 @@
+REPLIT AI PROMPT — Add /api/chat-history endpoint
+
+File: Beta-vsafe1zip/server/index.js
+
+Goal:
+Create a simple GET /api/chat-history endpoint that returns the last 30 chat messages
+for a given user, using the existing chat_messages table (id, user_id, role, content, created_at).
+
+Steps:
+
+1️⃣ Make sure we have access to supabaseServer (already defined near the top).
+Do NOT create a new client, just reuse supabaseServer.
+
+2️⃣ Add this helper function near the other helpers (right after saveAssistantMessage is a good spot):
+
+async function getChatHistory(userId) {
+  if (!supabaseServer || !userId) {
+    return [];
+  }
+
+  console.log('[TRACE HISTORY] fetching for user:', userId);
+
+  const { data, error } = await supabaseServer
+    .from('chat_messages')
+    .select('id, role, content, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  if (error) {
+    console.error('[TRACE HISTORY ERROR]', error.message || error);
+    return [];
+  }
+
+  // Return newest → oldest, but the chat UI might want oldest → newest,
+  // so reverse here to be friendly.
+  return (data || []).reverse();
+}
+
+3️⃣ Add a new GET route for /api/chat-history somewhere above the global error handler,
+AFTER /api/chat and the other routes:
+
+app.get('/api/chat-history', async (req, res) => {
+  try {
+    const { userId, deviceId } = req.query;
+
+    // Match the same effective user logic as /api/chat for now:
+    const effectiveUserId =
+      userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
+
+    console.log('[TRACE HISTORY] effectiveUserId:', effectiveUserId);
+
+    if (!effectiveUserId) {
+      return res.status(400).json({ ok: false, error: 'Missing user identifier' });
+    }
+
+    const history = await getChatHistory(effectiveUserId);
+
+    res.json({
+      ok: true,
+      messages: history,
+    });
+  } catch (err) {
+    console.error('[TRACE HISTORY ROUTE ERROR]', err.message || err);
+    res.status(500).json({
+      ok: false,
+      error: 'Failed to load chat history',
+    });
+  }
+});
+
+4️⃣ Do NOT change /api/chat or the global error handler.
+Just add the helper + route.
+
+After you apply these changes:
+- Restart backend from the Beta-vsafe1zip folder:
+
+cd Beta-vsafe1zip
+node server/index.js
+
+Then hit /api/chat-history manually in the browser with:
+https://<your-replit-url>/api/chat-history?userId=2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c
+
+You should get:
+{
+  "ok": true,
+  "messages": [ ... ]
+}
