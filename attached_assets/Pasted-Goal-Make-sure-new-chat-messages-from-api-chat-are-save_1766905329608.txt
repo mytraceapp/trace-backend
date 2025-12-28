@@ -1,0 +1,78 @@
+Goal:
+Make sure new chat messages from /api/chat are saved into the existing
+`public.messages` table (the one that already has old rows) and log loudly
+when that happens.
+
+Steps:
+
+1. Search the project for `saveUserMessage` and `saveAssistantMessage`.
+
+2. Open the file where those two functions are defined.
+
+3. Replace BOTH implementations with this version, adjusting only the import
+   of `supabaseServer` if needed:
+
+async function saveUserMessage(userId, content) {
+  if (!supabaseServer) throw new Error('Supabase not configured');
+
+  console.log('[TRACE SAVE USER] inserting into messages for user:', userId);
+
+  const { data, error } = await supabaseServer
+    .from('messages')   // 👈 use the existing messages table
+    .insert([
+      {
+        user_id: userId,
+        role: 'user',
+        content,
+        emotion: 'neutral',
+        intensity: 2
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[TRACE SAVE USER ERROR]', error.message || error);
+    return null;
+  }
+
+  console.log('[TRACE SAVE USER OK]', data?.id);
+  return data;
+}
+
+async function saveAssistantMessage(userId, content) {
+  if (!supabaseServer) throw new Error('Supabase not configured');
+
+  console.log('[TRACE SAVE ASSISTANT] inserting into messages for user:', userId);
+
+  const { data, error } = await supabaseServer
+    .from('messages')   // 👈 same table
+    .insert([
+      {
+        user_id: userId,
+        role: 'trace',   // assistant role used in this table
+        content,
+        emotion: 'neutral',
+        intensity: 2
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[TRACE SAVE ASSISTANT ERROR]', error.message || error);
+    return null;
+  }
+
+  console.log('[TRACE SAVE ASSISTANT OK]', data?.id);
+  return data;
+}
+
+4. Do NOT change /api/chat at all. Just update these two helpers.
+
+5. Restart the Node server if necessary (so the new code is running).
+
+When you’re done:
+- send ONE new message in the TRACE app,
+- check Replit console for `[TRACE SAVE USER OK]` and `[TRACE SAVE ASSISTANT OK]`,
+- then check Supabase -> public.messages and confirm a new row appeared at the top.
