@@ -1,0 +1,80 @@
+Goal
+Keep the TRACE API running on port 5000, make sure /api/greeting is defined and working, and confirm the mobile app can reach it through the existing Replit URL — without changing layout, chat logic, or auth.
+
+⸻
+
+1. Open server/index.js
+	•	Make sure we are not hard-coding 3000 or 3001 anywhere in app.listen.
+	•	It should either be:
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`TRACE API server running on port ${PORT}`);
+});
+or you can keep PORT = 5000 if that’s already how the Replit run command is configured.
+Do NOT change it to 3000.
+
+⸻
+
+2. Verify /api/greeting exists and returns { ok, message }
+
+In server/index.js, make sure this route (or equivalent) exists exactly once:
+app.post('/api/greeting', async (req, res) => {
+  try {
+    const {
+      userName,
+      chatStyle,
+      localTime,
+      localDay,
+      localDate,
+      userId,
+      deviceId,
+    } = req.body || {};
+
+    console.log('✨ /api/greeting called with:', {
+      userName,
+      chatStyle,
+      localTime,
+      localDay,
+      localDate,
+      userId,
+      deviceId,
+    });
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are TRACE, a calm, supportive emotional companion. Your greetings are short, reassuring, grounded, human, and warm. Avoid sounding like a chatbot.',
+        },
+        {
+          role: 'user',
+          content: `Greet ${userName || 'my friend'} in a grounded, gentle way. Keep it to 1–2 sentences.`,
+        },
+      ],
+    });
+
+    const text =
+      completion?.choices?.[0]?.message?.content ||
+      "I'm really glad you’re here. Let’s take this moment gently.";
+
+    res.json({
+      ok: true,
+      message: text,
+    });
+  } catch (err) {
+    console.error('❌ Greeting error:', err);
+    res.status(500).json({
+      ok: false,
+      message:
+        "I'm really glad you're here. Let's take this one breath at a time.",
+    });
+  }
+});
+Don’t touch /api/chat or any other routes.
+
+⸻
+
+3. Restart the backe

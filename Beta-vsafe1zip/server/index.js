@@ -978,7 +978,7 @@ app.post('/api/greeting', async (req, res) => {
       
       // Save to history
       await saveGreetingToHistory(effectiveUserId, selectedFallback);
-      return res.json({ ok: true, greeting: selectedFallback });
+      return res.json({ ok: true, message: selectedFallback, greeting: selectedFallback });
     }
     
     const greetingPrompt = `You are TRACE, a warm and welcoming companion. Generate a single welcome message.
@@ -1046,14 +1046,14 @@ Respond with ONLY the greeting text. No quotation marks.`;
     // Save to history
     await saveGreetingToHistory(effectiveUserId, greeting);
     
-    res.json({ ok: true, greeting });
+    res.json({ ok: true, message: greeting, greeting });
   } catch (error) {
     console.error('Greeting API error:', error.message || error);
-    res.status(500).json({ ok: false, error: 'Failed to generate greeting', greeting: "Whenever you're ready." });
+    res.status(500).json({ ok: false, error: 'Failed to generate greeting', message: "Whenever you're ready.", greeting: "Whenever you're ready." });
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`TRACE API server running on port ${PORT}`);
 });
