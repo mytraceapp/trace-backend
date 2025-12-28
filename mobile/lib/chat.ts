@@ -74,3 +74,70 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
     };
   }
 }
+
+const TRACE_API_URL = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api';
+
+export async function fetchWelcomeGreeting(params: {
+  userName?: string | null;
+  chatStyle?: string;
+  localTime?: string | null;
+  localDay?: string | null;
+  localDate?: string | null;
+  userId?: string | null;
+  deviceId?: string | null;
+}) {
+  const {
+    userName,
+    chatStyle = 'conversation',
+    localTime,
+    localDay,
+    localDate,
+    userId,
+    deviceId,
+  } = params;
+
+  const url = `${TRACE_API_URL}/greeting`;
+  console.log('✨ TRACE greeting: sending to', url);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userName,
+        chatStyle,
+        localTime,
+        localDay,
+        localDate,
+        userId,
+        deviceId,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      console.error('✨ TRACE greeting error status:', res.status);
+      throw new Error(`Greeting failed with status ${res.status}`);
+    }
+
+    const json = await res.json();
+    console.log('✨ TRACE greeting payload:', json);
+
+    const text: string =
+      (json && (json.message || json.greeting)) ||
+      "I'm really glad you're here with me.";
+
+    return { text };
+  } catch (err: any) {
+    clearTimeout(timeout);
+    console.error('✨ TRACE greeting error:', err?.message || err);
+    throw err;
+  }
+}

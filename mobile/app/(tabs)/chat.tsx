@@ -19,7 +19,7 @@ import { Spacing } from '../../constants/spacing';
 import { BodyText, FontFamily } from '../../constants/typography';
 import { useFonts } from 'expo-font';
 import { playAmbient } from '../../lib/ambientAudio';
-import { sendChatMessage } from '../../lib/chat';
+import { sendChatMessage, fetchWelcomeGreeting } from '../../lib/chat';
 import { getStableId } from '../../lib/stableId';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -44,6 +44,8 @@ export default function ChatScreen() {
   const [isSending, setIsSending] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [stableId, setStableId] = useState<string | null>(null);
+  const [welcomeText, setWelcomeText] = useState<string | null>(null);
+  const [welcomeLoading, setWelcomeLoading] = useState(false);
 
   const [fontsLoaded] = useFonts({
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
@@ -117,11 +119,40 @@ export default function ChatScreen() {
     []
   );
 
+  const fetchGreeting = useCallback(async () => {
+    try {
+      setWelcomeLoading(true);
+      console.log('✨ TRACE greeting: starting fetchWelcomeGreeting');
+
+      const now = new Date();
+      const result = await fetchWelcomeGreeting({
+        userName: null,
+        chatStyle: 'conversation',
+        localTime: now.toLocaleTimeString(),
+        localDay: now.toLocaleDateString('en-US', { weekday: 'long' }),
+        localDate: now.toLocaleDateString(),
+        userId: authUserId ?? null,
+        deviceId: stableId ?? null,
+      });
+
+      console.log('✨ TRACE greeting result:', result);
+      setWelcomeText(result.text);
+    } catch (err: any) {
+      console.error('❌ TRACE greeting error:', err?.message || err);
+      setWelcomeText(
+        "I'm really glad you're here. We can take this one breath, one thought at a time."
+      );
+    } finally {
+      setWelcomeLoading(false);
+    }
+  }, [authUserId, stableId]);
+
   useEffect(() => {
     if (stableId !== null) {
       fetchChatHistory(authUserId, stableId);
+      fetchGreeting();
     }
-  }, [authUserId, stableId, fetchChatHistory]);
+  }, [authUserId, stableId, fetchChatHistory, fetchGreeting]);
 
   const handleSend = async () => {
     const trimmed = inputText.trim();
@@ -204,7 +235,10 @@ export default function ChatScreen() {
           {messages.length === 0 ? (
             <View style={styles.emptyStateContainer}>
               <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: canelaFont }]}>
-                Start a conversation with TRACE
+                {welcomeLoading && !welcomeText
+                  ? 'Just a moment while I arrive with you...'
+                  : welcomeText ??
+                    "I'm really glad you're here. We can take this one breath, one thought at a time."}
               </Text>
             </View>
           ) : (
