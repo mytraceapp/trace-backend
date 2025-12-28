@@ -50,6 +50,60 @@ if (hasOpenAIKey) {
   console.log('No OpenAI API key found - chat will use fallback responses');
 }
 
+async function saveUserMessage(userId, content) {
+  if (!supabaseServer) throw new Error('Supabase not configured');
+  console.log('[TRACE SAVE USER] about to insert for user:', userId);
+
+  const { data, error } = await supabaseServer
+    .from('messages')
+    .insert([
+      {
+        user_id: userId,
+        role: 'user',
+        content,
+        emotion: 'neutral',
+        intensity: 2
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[TRACE SAVE USER ERROR]', error.message || error);
+    return null;
+  }
+
+  console.log('[TRACE SAVE USER OK]', data?.id);
+  return data;
+}
+
+async function saveAssistantMessage(userId, content) {
+  if (!supabaseServer) throw new Error('Supabase not configured');
+  console.log('[TRACE SAVE ASSISTANT] about to insert for user:', userId);
+
+  const { data, error } = await supabaseServer
+    .from('messages')
+    .insert([
+      {
+        user_id: userId,
+        role: 'trace',
+        content,
+        emotion: 'neutral',
+        intensity: 2
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[TRACE SAVE ASSISTANT ERROR]', error.message || error);
+    return null;
+  }
+
+  console.log('[TRACE SAVE ASSISTANT OK]', data?.id);
+  return data;
+}
+
 const TRACE_SYSTEM_PROMPT = `You are TRACE, a calm emotional wellness companion inside a mobile app called TRACE. When explaining the app or its features, always speak in first person ("I", "my", "me") as TRACE—never refer to yourself in third person.
 
 === ABOUT MY APP ===
