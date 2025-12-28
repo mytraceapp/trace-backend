@@ -32,6 +32,11 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 
+app.use((req, res, next) => {
+  console.log(`[TRACE API] ${new Date().toISOString()} ${req.method} ${req.url}`);
+  next();
+});
+
 const hasOpenAIKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
 
 let openai = null;
