@@ -23,10 +23,13 @@ import { supabase } from '../../lib/supabaseClient';
 
 const CHAT_API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
 
-type Message = {
-  role: 'user' | 'assistant';
+type ChatRole = 'user' | 'assistant';
+
+interface ChatMessage {
+  id: string;
+  role: ChatRole;
   content: string;
-};
+}
 
 export default function ChatScreen() {
   const colorScheme = useColorScheme();
@@ -34,7 +37,7 @@ export default function ChatScreen() {
   const theme = colorScheme === 'dark' ? Colors.night : Colors.day;
   const flatListRef = useRef<FlatList>(null);
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
@@ -84,25 +87,27 @@ export default function ChatScreen() {
           return;
         }
 
-        const data = await res.json();
+        const json = await res.json();
+        console.log('📥 TRACE raw chat history payload:', JSON.stringify(json));
 
-        if (!data.ok || !Array.isArray(data.messages)) {
-          console.log('ℹ️ TRACE chat history invalid or empty', data);
-          return;
+        if (json?.ok && Array.isArray(json.messages)) {
+          const historyMessages: ChatMessage[] = json.messages.map(
+            (m: { role: string; content: string }, index: number) => ({
+              id: `history-${index}`,
+              role: (m.role === 'assistant' ? 'assistant' : 'user') as ChatRole,
+              content: m.content ?? '',
+            })
+          );
+
+          console.log('💬 TRACE mapped history messages sample:', historyMessages[0] || null);
+          console.log('✅ TRACE chat history loaded, hydrating messages:', historyMessages.length);
+
+          setMessages((current) =>
+            current.length === 0 ? historyMessages : current
+          );
+        } else {
+          console.warn('⚠️ TRACE chat history: invalid payload', json);
         }
-
-        if (!data.messages.length) {
-          console.log('ℹ️ TRACE chat history empty for this user');
-          return;
-        }
-
-        setMessages((prev) => {
-          if (prev.length > 0) return prev;
-          return data.messages.map((m: any) => ({
-            role: m.role === 'assistant' ? 'assistant' : 'user',
-            content: m.content,
-          }));
-        });
       } catch (err: any) {
         console.log('⚠️ TRACE chat history error:', err.message || String(err));
       }
@@ -117,20 +122,31 @@ export default function ChatScreen() {
   }, [authUserId, stableId, fetchChatHistory]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    const trimmed = input.trim();
+    if (!trimmed || isLoading) return;
 
-    const text = input.trim();
+    const userMessage: ChatMessage = {
+      id: `local-user-${Date.now()}`,
+      role: 'user',
+      content: trimmed,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
-
-    const newUserMessage: Message = { role: 'user', content: text };
-
-    setMessages((prev) => [...prev, newUserMessage]);
     setIsLoading(true);
+
+    console.log('📤 TRACE sending message:', trimmed);
 
     try {
       const now = new Date();
-      const reply = await sendChatMessage({
-        messages: [...messages, newUserMessage],
+
+      const payloadMessages = [...messages, userMessage].map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const result = await sendChatMessage({
+        messages: payloadMessages,
         userName: null,
         chatStyle: 'conversation',
         localTime: now.toLocaleTimeString(),
@@ -140,21 +156,32 @@ export default function ChatScreen() {
         deviceId: stableId,
       });
 
-      if (reply?.message) {
-        const assistantMsg: Message = {
-          role: 'assistant',
-          content: reply.message,
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-      }
+      console.log('📥 TRACE received reply:', result);
+
+      const assistantText: string =
+        result?.message ||
+        "I'm here with you. Something went wrong on my end, but you can still tell me what's on your mind.";
+
+      const assistantMessage: ChatMessage = {
+        id: `local-assistant-${Date.now()}`,
+        role: 'assistant',
+        content: assistantText,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (err: any) {
-      console.log('CHAT_SEND_ERROR', err.message || String(err));
+      console.error('❌ TRACE handleSend error:', err.message || String(err));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const renderMessage = ({ item }: { item: Message }) => {
+  console.log('🧩 TRACE chat render, messages length:', messages.length);
+  if (messages[0]) {
+    console.log('🧩 TRACE first message sample:', messages[0]);
+  }
+
+  const renderMessage = ({ item }: { item: ChatMessage }) => {
     const isUser = item.role === 'user';
     return (
       <View
@@ -197,7 +224,7 @@ export default function ChatScreen() {
         ref={flatListRef}
         data={messages}
         renderItem={renderMessage}
-        keyExtractor={(_, index) => index.toString()}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.messagesList}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         ListEmptyComponent={
