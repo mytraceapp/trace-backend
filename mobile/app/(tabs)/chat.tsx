@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   FlatList,
   KeyboardAvoidingView,
+  Pressable,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
@@ -38,8 +40,8 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [inputText, setInputText] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [stableId, setStableId] = useState<string | null>(null);
 
@@ -80,14 +82,14 @@ export default function ChatScreen() {
 
         console.log('🛰 TRACE chat history URL:', url);
 
-        const res = await fetch(url);
+        const response = await fetch(url);
 
-        if (!res.ok) {
-          console.log('⚠️ TRACE chat history failed with status:', res.status);
+        if (!response.ok) {
+          console.log('⚠️ TRACE chat history failed with status:', response.status);
           return;
         }
 
-        const json = await res.json();
+        const json = await response.json();
         console.log('📥 TRACE raw chat history payload:', JSON.stringify(json));
 
         if (json?.ok && Array.isArray(json.messages)) {
@@ -122,8 +124,8 @@ export default function ChatScreen() {
   }, [authUserId, stableId, fetchChatHistory]);
 
   const handleSend = async () => {
-    const trimmed = input.trim();
-    if (!trimmed || isLoading) return;
+    const trimmed = inputText.trim();
+    if (!trimmed || isSending) return;
 
     const userMessage: ChatMessage = {
       id: `local-user-${Date.now()}`,
@@ -131,19 +133,23 @@ export default function ChatScreen() {
       content: trimmed,
     };
 
+    const previousMessages = messages;
+
     setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
+    setInputText('');
+    setIsSending(true);
 
     console.log('📤 TRACE sending message:', trimmed);
 
     try {
       const now = new Date();
 
-      const payloadMessages = [...messages, userMessage].map((m) => ({
+      const payloadMessages = [...previousMessages, userMessage].map((m) => ({
         role: m.role,
         content: m.content,
       }));
+
+      console.log('📤 TRACE sending payload messages:', payloadMessages.length);
 
       const result = await sendChatMessage({
         messages: payloadMessages,
@@ -172,7 +178,7 @@ export default function ChatScreen() {
     } catch (err: any) {
       console.error('❌ TRACE handleSend error:', err.message || String(err));
     } finally {
-      setIsLoading(false);
+      setIsSending(false);
     }
   };
 
@@ -181,101 +187,101 @@ export default function ChatScreen() {
     console.log('🧩 TRACE first message sample:', messages[0]);
   }
 
-  const renderMessage = ({ item }: { item: ChatMessage }) => {
-    const isUser = item.role === 'user';
-    return (
-      <View
-        style={[
-          styles.messageBubble,
-          isUser ? styles.userBubble : styles.assistantBubble,
-          {
-            backgroundColor: isUser ? theme.accent : theme.surface,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.messageText,
-            {
-              color: isUser ? '#FFFFFF' : theme.textPrimary,
-              fontFamily: canelaFont,
-            },
-          ]}
-        >
-          {item.content}
-        </Text>
-      </View>
-    );
-  };
-
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: theme.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={insets.bottom}
+      keyboardVerticalOffset={0}
     >
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Text style={[styles.headerText, { color: theme.textPrimary, fontFamily: canelaFont }]}>
-          TRACE
-        </Text>
-      </View>
+      <Pressable style={{ flex: 1 }} onPress={() => Keyboard.dismiss()}>
+        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+          <Text style={[styles.headerText, { color: theme.textPrimary, fontFamily: canelaFont }]}>
+            TRACE
+          </Text>
+        </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesList}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: canelaFont }]}>
-              Start a conversation with TRACE
-            </Text>
-          </View>
-        }
-      />
+        <View style={{ flex: 1 }}>
+          {messages.length === 0 ? (
+            <View style={styles.emptyStateContainer}>
+              <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: canelaFont }]}>
+                Start a conversation with TRACE
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              style={styles.messagesList}
+              contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 16 }}
+              data={messages}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <View
+                  style={[
+                    styles.messageBubble,
+                    item.role === 'user'
+                      ? [styles.messageBubbleUser, { backgroundColor: theme.accent }]
+                      : [styles.messageBubbleAssistant, { backgroundColor: theme.surface }],
+                  ]}
+                >
+                  <Text
+                    style={[
+                      item.role === 'user'
+                        ? styles.messageTextUser
+                        : [styles.messageTextAssistant, { color: theme.textPrimary }],
+                      { fontFamily: canelaFont },
+                    ]}
+                  >
+                    {item.content}
+                  </Text>
+                </View>
+              )}
+              showsVerticalScrollIndicator={false}
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            />
+          )}
+        </View>
 
-      <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 10, backgroundColor: theme.background }]}>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.surface,
-              color: theme.textPrimary,
-              fontFamily: canelaFont,
-            },
-          ]}
-          value={input}
-          onChangeText={setInput}
-          placeholder="Type a message..."
-          placeholderTextColor={theme.textSecondary}
-          multiline
-          maxLength={500}
-          editable={!isLoading}
-        />
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            {
-              backgroundColor: input.trim() && !isLoading ? theme.accent : theme.surface,
-            },
-          ]}
-          onPress={handleSend}
-          disabled={!input.trim() || isLoading}
-        >
-          <Text
+        <View style={[styles.inputContainer, { paddingBottom: insets.bottom + 10, backgroundColor: theme.background }]}>
+          <TextInput
             style={[
-              styles.sendButtonText,
+              styles.input,
               {
-                color: input.trim() && !isLoading ? '#FFFFFF' : theme.textSecondary,
+                backgroundColor: theme.surface,
+                color: theme.textPrimary,
+                fontFamily: canelaFont,
               },
             ]}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="Type a message..."
+            placeholderTextColor={theme.textSecondary}
+            multiline
+            maxLength={500}
+            editable={!isSending}
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              {
+                backgroundColor: inputText.trim() && !isSending ? theme.accent : theme.surface,
+              },
+            ]}
+            onPress={handleSend}
+            disabled={!inputText.trim() || isSending}
           >
-            {isLoading ? '...' : '↑'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <Text
+              style={[
+                styles.sendButtonText,
+                {
+                  color: inputText.trim() && !isSending ? '#FFFFFF' : theme.textSecondary,
+                },
+              ]}
+            >
+              {isSending ? '...' : '↑'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Pressable>
     </KeyboardAvoidingView>
   );
 }
@@ -294,36 +300,40 @@ const styles = StyleSheet.create({
     fontSize: 24,
     letterSpacing: 8,
   },
-  messagesList: {
-    padding: Spacing.md,
-    flexGrow: 1,
-  },
-  messageBubble: {
-    maxWidth: '80%',
-    padding: Spacing.md,
-    borderRadius: 16,
-    marginBottom: Spacing.sm,
-  },
-  userBubble: {
-    alignSelf: 'flex-end',
-    borderBottomRightRadius: 4,
-  },
-  assistantBubble: {
-    alignSelf: 'flex-start',
-    borderBottomLeftRadius: 4,
-  },
-  messageText: {
-    fontSize: BodyText.fontSize,
-    lineHeight: 22,
-  },
-  emptyContainer: {
+  emptyStateContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 100,
+    alignItems: 'center',
   },
   emptyText: {
     fontSize: BodyText.fontSize,
+  },
+  messagesList: {
+    flex: 1,
+  },
+  messageBubble: {
+    maxWidth: '80%',
+    marginVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  messageBubbleUser: {
+    alignSelf: 'flex-end',
+    borderBottomRightRadius: 4,
+  },
+  messageBubbleAssistant: {
+    alignSelf: 'flex-start',
+    borderBottomLeftRadius: 4,
+  },
+  messageTextUser: {
+    color: 'white',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  messageTextAssistant: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   inputContainer: {
     flexDirection: 'row',
