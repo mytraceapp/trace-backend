@@ -1266,6 +1266,11 @@ app.post('/api/test-verse-checkin', async (req, res) => {
   }
 });
 
+app.get('/api/ping', (req, res) => {
+  console.log('🔔 /api/ping HIT');
+  res.json({ ok: true });
+});
+
 // Global error handler for consistent JSON responses (must be last middleware)
 app.use((err, req, res, next) => {
   console.error('Server error:', err.message || err);
