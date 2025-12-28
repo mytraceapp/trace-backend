@@ -1389,6 +1389,35 @@ app.get('/api/debug-messages', async (req, res) => {
   }
 });
 
+app.get('/api/debug-chat-messages', async (req, res) => {
+  if (!supabaseServer) {
+    return res.status(500).json({ error: 'Supabase not configured' });
+  }
+
+  try {
+    const { data, error } = await supabaseServer
+      .from('chat_messages')
+      .select('id, user_id, role, content, created_at')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.error('[TRACE DEBUG CHATS ERROR]', error.message || error);
+      return res.status(500).json({ error: error.message || 'Supabase error' });
+    }
+
+    console.log('[TRACE DEBUG CHATS]', data);
+    res.json({
+      ok: true,
+      count: data?.length || 0,
+      rows: data || [],
+    });
+  } catch (err) {
+    console.error('[TRACE DEBUG CHATS ERROR]', err.message || err);
+    res.status(500).json({ error: err.message || 'Unknown error' });
+  }
+});
+
 // Global error handler for consistent JSON responses (must be last middleware)
 app.use((err, req, res, next) => {
   console.error('Server error:', err.message || err);
