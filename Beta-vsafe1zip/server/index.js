@@ -679,7 +679,21 @@ Example format: ["Message one.", "Message two.", "Message three."]`
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { messages: rawMessages, userName, chatStyle = 'conversation', localTime, localDay, localDate } = req.body;
+    const {
+      messages: rawMessages,
+      userName,
+      chatStyle = 'conversation',
+      localTime,
+      localDay,
+      localDate,
+      userId,
+    } = req.body;
+
+    // Use real userId if provided, otherwise use a fixed debug UUID
+    const effectiveUserId =
+      userId || '00000000-0000-0000-0000-000000000001';
+
+    console.log('[TRACE CHAT] effectiveUserId:', effectiveUserId);
     
     // Filter out garbage/corrupted messages from history (empty or whitespace-only content)
     const messages = (rawMessages || []).filter(msg => {
@@ -687,6 +701,18 @@ app.post('/api/chat', async (req, res) => {
       // Keep message only if it has meaningful content (not just whitespace/newlines)
       return content.length > 0 && !/^\s*$/.test(content);
     });
+
+    // Save latest user message safely (non-blocking for the chat)
+    try {
+      if (effectiveUserId && Array.isArray(messages)) {
+        const lastUserMsg = messages.filter(m => m.role === 'user').pop();
+        if (lastUserMsg?.content) {
+          await saveUserMessage(effectiveUserId, lastUserMsg.content);
+        }
+      }
+    } catch (err) {
+      console.error('[TRACE CHAT SAVE USER ERROR]', err.message || err);
+    }
     
     console.log('Received messages:', JSON.stringify(messages, null, 2));
     console.log('User name:', userName);
@@ -756,6 +782,15 @@ The person you're speaking with is named ${userName}. Use their name naturally.`
         "that's a meaningful question. I think the answer is different for everyone, but I'm here to help you find yours.",
       ];
       parsed.message = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    }
+
+    // Save assistant reply safely
+    try {
+      if (effectiveUserId && parsed?.message) {
+        await saveAssistantMessage(effectiveUserId, parsed.message);
+      }
+    } catch (err) {
+      console.error('[TRACE CHAT SAVE ASSISTANT ERROR]', err.message || err);
     }
     
     return res.json({
