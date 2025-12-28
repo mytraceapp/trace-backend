@@ -81,7 +81,7 @@ async function saveAssistantMessage(userId, content) {
     .from('chat_messages')
     .insert({
       user_id: userId,
-      role: 'trace',
+      role: 'assistant',
       content,
     })
     .select()
