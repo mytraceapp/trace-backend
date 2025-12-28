@@ -1,0 +1,174 @@
+REPLIT AI PROMPT – Add fetchWelcomeGreeting helper
+
+File: mobile/lib/chat.ts
+
+Goal: Add a helper to call the existing /api/greeting endpoint, using the same base URL and headers as sendChatMessage, but with a smaller payload.
+	1.	Find where TRACE_API_URL (or equivalent base URL) and sendChatMessage are defined.
+	2.	Right under the sendChatMessage export, add this new function:
+
+export async function fetchWelcomeGreeting(params: {
+  userName?: string | null;
+  chatStyle?: string;
+  localTime?: string | null;
+  localDay?: string | null;
+  localDate?: string | null;
+  userId?: string | null;
+  deviceId?: string | null;
+}) {
+  const {
+    userName,
+    chatStyle = 'conversation',
+    localTime,
+    localDay,
+    localDate,
+    userId,
+    deviceId,
+  } = params;
+
+  const url = `${TRACE_API_URL}/greeting`;
+  console.log('✨ TRACE greeting: sending to', url);
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      userName,
+      chatStyle,
+      localTime,
+      localDay,
+      localDate,
+      userId,
+      deviceId,
+    }),
+  });
+
+  if (!res.ok) {
+    console.error('✨ TRACE greeting error status:', res.status);
+    throw new Error(`Greeting failed with status ${res.status}`);
+  }
+
+  const json = await res.json();
+  console.log('✨ TRACE greeting payload:', json);
+
+  // Support either { message } or { greeting } shapes
+  const text: string =
+    (json && (json.message || json.greeting)) ||
+    "I'm really glad you’re here with me.";
+
+  return { text };
+}
+
+	3.	Do not change sendChatMessage or any other exports. Just add this one helper and keep imports as-is.
+	4.	Save the file.
+
+⸻
+
+2️⃣ Wire greeting into the chat screen (no layout changes)
+
+Now we teach the chat tab to call that helper on a fresh session and feed it into your existing welcome block.
+
+📝 Replit AI prompt for mobile/app/(tabs)/chat.tsx:
+
+REPLIT AI PROMPT – Use AI greeting for welcome text
+
+File: mobile/app/(tabs)/chat.tsx
+
+Goal: Call /api/greeting (via fetchWelcomeGreeting) to populate the welcome message text, without changing any layout, transforms, or styling. Only touch state + logic.
+	1.	Imports
+
+At the top, where other imports live, add:
+import { fetchWelcomeGreeting } from '../../lib/chat';
+
+(Adjust the relative path if needed to match the existing sendChatMessage import.)
+	2.	Add welcome text state
+
+Inside the component, near your other useState calls, add:
+const [welcomeText, setWelcomeText] = useState<string | null>(null);
+const [welcomeLoading, setWelcomeLoading] = useState(false);
+
+Do not remove hasResponded, historyChecked, or any other existing state.
+	3.	Add fetchGreeting function
+
+Somewhere inside the component (above useEffect bootstrap is fine), add:
+
+const fetchGreeting = useCallback(async () => {
+  try {
+    setWelcomeLoading(true);
+    console.log('✨ TRACE greeting: starting fetchWelcomeGreeting');
+
+    const result = await fetchWelcomeGreeting({
+      userName,
+      chatStyle,
+      localTime,
+      localDay,
+      localDate,
+      userId: authUserId ?? null,
+      deviceId: stableId ?? null,
+    });
+
+    console.log('✨ TRACE greeting result:', result);
+    setWelcomeText(result.text);
+  } catch (err: any) {
+    console.error('❌ TRACE greeting error:', err?.message || err);
+    // Soft fallback text if API fails
+    setWelcomeText(
+      "I'm really glad you’re here. We can take this one breath, one thought at a time."
+    );
+  } finally {
+    setWelcomeLoading(false);
+  }
+}, [userName, chatStyle, localTime, localDay, localDate, authUserId, stableId]);
+
+	4.	Use fetchGreeting in the existing bootstrap logic
+
+Find your existing useEffect that does the session window logic (the one using LAST_VISIT_KEY / WELCOME_SESSION_MS or similar and calling fetchChatHistory()).
+
+Inside the “fresh session” branch (where you currently call setMessages([]) and setHasResponded(false)), make sure you call the new fetchGreeting():
+if (shouldStartFresh) {
+  if (cancelled) return;
+
+  // Fresh session: clear local messages and show welcome
+  setMessages([]);
+  setHasResponded(false);
+
+  // 🔮 NEW: get AI welcome text
+  await fetchGreeting();
+
+  const nowIso = new Date().toISOString();
+  await AsyncStorage.setItem(LAST_VISIT_KEY, nowIso);
+  console.log('🕰 TRACE new session started at', nowIso);
+} else {
+  // existing same-session branch that calls fetchChatHistory()
+}
+
+Don’t change the logic for the “same session” branch — it should keep calling fetchChatHistory() like before.
+	5.	Feed welcomeText into your locked welcome component
+
+Find where you render the welcome text (the piece that uses styles.greeting, greetingShift + 32, etc. — do not change any of that layout).
+
+Inside that component/JSX, replace the hard-coded string with welcomeText while keeping your fallback. For example:
+
+{/* existing welcome block – KEEP styles & transforms EXACTLY the same */}
+<Animated.Text
+  style={styles.greeting}
+  // and any existing transform / translateY logic
+>
+  {welcomeLoading && !welcomeText
+    ? 'Just a moment while I arrive with you...'
+    : welcomeText ??
+      "I'm really glad you’re here. We can take this one breath, one thought at a time."}
+</Animated.Text>
+
+	•	Don’t touch styles.greeting
+	•	Don’t touch the translateY / greetingShift / +32 logic
+	•	Only swap the string to use welcomeText and welcomeLoading.
+
+	6.	Do NOT change:
+
+	•	isWelcomeMode = !hasResponded logic
+	•	Any translateY, fontSize, or color values for the welcome text
+	•	Any chat history / messages / scroll layout
+
+Save the file and reload the app.
