@@ -1,0 +1,117 @@
+Right now, this is almost certainly happening:
+	•	fetchChatHistory runs on mount
+	•	/api/chat-history returns 502 or { ok: false } at first
+	•	but the code still does something like: setMessages(parsed.messages || [])
+	•	so your local messages are being overwritten with [] every time
+
+And if /api/chat returns 500, your handleSend might be throwing before appending the assistant bubble.
+
+Let’s harden the chat screen so errors don’t clear the UI.
+
+In mobile/app/(tabs)/chat.tsx
+
+Look for your fetchChatHistory and replace it with this safer version:
+const fetchChatHistory = React.useCallback(
+  async (authUserId: string | null, deviceId: string | null) => {
+    try {
+      console.log('🕰 TRACE loading chat history...');
+
+      const baseUrl = CHAT_API_BASE; // whatever you already use for sendChatMessage
+      const userId = authUserId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
+
+      const url = `${baseUrl}/api/chat-history?userId=${encodeURIComponent(
+        userId
+      )}`;
+
+      console.log('🛰 TRACE chat history URL:', url);
+
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        console.log(
+          '⚠️ TRACE chat history failed with status:',
+          res.status
+        );
+        // 🔑 DO NOT touch messages on failure
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!data.ok || !Array.isArray(data.messages)) {
+        console.log('ℹ️ TRACE chat history invalid or empty', data);
+        return; // again, do not clear
+      }
+
+      if (!data.messages.length) {
+        console.log('ℹ️ TRACE chat history empty for this user');
+        return;
+      }
+
+      // only hydrate if we don't already have messages
+      setMessages((prev) => {
+        if (prev.length > 0) return prev;
+        return data.messages.map((m: any) => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content,
+        }));
+      });
+    } catch (err: any) {
+      console.log('⚠️ TRACE chat history error:', err.message || String(err));
+      // again: do NOT setMessages([]) here
+    }
+  },
+  []
+);
+And your useEffect should just call it, nothing fancy:
+React.useEffect(() => {
+  // you'll already have authUserId + stableId logic somewhere
+  fetchChatHistory(authUserId, stableId);
+}, [authUserId, stableId, fetchChatHistory]);
+Make sure handleSend always keeps the user message
+
+In the same file, check handleSend. You want this shape:
+const handleSend = async () => {
+  if (!input.trim()) return;
+
+  const text = input.trim();
+  setInput('');
+
+  const newUserMessage = { role: 'user' as const, content: text };
+
+  // 1) always add the user message locally
+  setMessages((prev) => [...prev, newUserMessage]);
+
+  try {
+    const reply = await sendChatMessage({
+      messages: [...messages, newUserMessage], // or pull from latest state
+      userName,
+      chatStyle,
+      localTime,
+      localDay,
+      localDate,
+      userId: authUserId, // can still be null; backend uses fallback
+    });
+
+    if (reply?.message) {
+      const assistantMsg = {
+        role: 'assistant' as const,
+        content: reply.message,
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+    }
+  } catch (err: any) {
+    console.log('CHAT_SEND_ERROR', err.message || String(err));
+    // ✅ do NOT wipe messages in the catch
+  }
+};
+Key points:
+	•	Never do setMessages([]) or setMessages(parsed.messages || []) in an error path.
+	•	User message is appended before network call, so even if the server dies, the bubble stays.
+
+⸻
+
+3️⃣ Quick sanity check
+
+After those changes:
+	1.	Restart backend again in Replit (node server/index.js).
