@@ -1,0 +1,59 @@
+I have an Express backend in this repo and it’s working locally but not via the published URL.
+
+Details:
+	•	The backend entry is: Beta-vsafe1zip/server/index.js
+	•	When I run this in the shell:
+cd Beta-vsafe1zip
+node server/index.js
+
+I see:
+TRACE API server running on port 3001
+	From the Replit shell, this works:
+curl -i http://localhost:3001/api/ping
+
+and returns {"ok":true} with HTTP 200.
+
+	•	But when I hit the Replit public URL (the spock.replit.dev domain) at /api/ping or /api/chat-history, I get a 502 / “Server error” and no logs appear for those routes in the Replit console.
+
+Please do the following:
+	1.	Update the Express server to use Replit’s PORT correctly
+In Beta-vsafe1zip/server/index.js, ensure the listen call looks like this:
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`TRACE API server running on port ${PORT}`);
+});
+Make sure we are NOT hard-coding port 3001 anymore. The app must listen on process.env.PORT so Replit’s proxy can reach it.
+
+	2.	Fix the Run configuration so the published app runs this server
+Update the Replit run configuration (.replit and/or replit.nix / “Run” button settings) so that the main web process uses:
+cd Beta-vsafe1zip && node server/index.js
+
+and not any dev server that doesn’t bind to process.env.PORT.
+	•	Remove or disable any conflicting “npm run dev” or other servers that might also be trying to listen on a different port.
+	•	The only HTTP server that should be serving the published URL is this Express app.
+
+	3.	Make sure CORS and JSON body parsing remain in place
+Confirm that somewhere near the top of server/index.js we still have:
+app.use(express.json());
+
+Don’t remove any of the existing routes such as:
+	•	app.post('/api/chat', ...)
+	•	app.get('/api/chat-history', ...)
+	•	app.get('/api/ping', ...)
+	•	app.get('/api/debug-chat-messages', ...)
+The global error handler should still be the last app.use(...) in the file.
+
+	4.	Verify from the outside
+After updating, restart whatever process Replit uses for the published app and then:
+	•	Hit <PUBLIC_BASE_URL>/api/ping in the browser and confirm you get {"ok": true} with HTTP 200.
+	•	Confirm the Replit console shows something like:
+[TRACE API] ... GET /api/ping
+🔔 /api/ping HIT
+
+•	Also verify <PUBLIC_BASE_URL>/api/chat-history?userId=2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c returns JSON instead of 502.
+
+Please make the minimal changes needed to:
+	•	Bind the server to process.env.PORT
+	•	Ensure the Run configuration actually starts Beta-vsafe1zip/server/index.js as the main web process
+	•	Keep all existing routes and error handler intact
