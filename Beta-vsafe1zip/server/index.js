@@ -32,15 +32,6 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 
-// Global error handler for consistent JSON responses
-app.use((err, req, res, next) => {
-  console.error('Server error:', err.message || err);
-  res.status(err.status || 500).json({
-    ok: false,
-    error: err.message || 'Internal server error',
-  });
-});
-
 const hasOpenAIKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
 
 let openai = null;
@@ -1268,4 +1259,13 @@ app.post('/api/test-verse-checkin', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Global error handler for consistent JSON responses (must be last middleware)
+app.use((err, req, res, next) => {
+  console.error('Server error:', err.message || err);
+  res.status(err.status || 500).json({
+    ok: false,
+    error: err.message || 'Internal server error',
+  });
 });
