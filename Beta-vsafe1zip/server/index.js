@@ -682,11 +682,18 @@ app.post('/api/chat', async (req, res) => {
       deviceId,
     } = req.body;
 
-    // Prefer real Supabase user, then device-based, then fallback to known valid user
+    // Use real userId if provided, otherwise use a known valid UUID bucket
     const effectiveUserId =
-      userId || deviceId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
+      userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
 
-    console.log('[TRACE CHAT] effectiveUserId:', effectiveUserId);
+    console.log(
+      '[TRACE CHAT] effectiveUserId:',
+      effectiveUserId,
+      'raw userId:',
+      userId,
+      'raw deviceId:',
+      deviceId
+    );
     
     // Filter out garbage/corrupted messages from history (empty or whitespace-only content)
     const messages = (rawMessages || []).filter(msg => {
