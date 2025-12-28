@@ -1411,49 +1411,28 @@ app.get('/api/debug-messages', async (req, res) => {
   }
 });
 
-app.get('/api/chat-history', async (req, res) => {
+app.get('/api/chat-history', (req, res) => {
   try {
-    const { userId, deviceId } = req.query;
-    const identifier = userId || deviceId || null;
+    console.log('🕰 /api/chat-history HIT! raw query:', req.query);
 
-    console.log('🕰 /api/chat-history HIT with query:', req.query);
+    const messages = [
+      { role: 'assistant', content: 'This is a test history message from the server.' },
+      { role: 'user', content: 'If you see this, history is wired up.' },
+    ];
 
-    let query = supabaseServer
-      .from('chat_messages')
-      .select('role, content, created_at')
-      .order('created_at', { ascending: false })
-      .limit(30);
+    console.log(`✅ /api/chat-history returning ${messages.length} messages`);
 
-    if (identifier) {
-      query = query.eq('user_id', identifier);
-      console.log('🕰 Filtering history by user_id =', identifier);
-    } else {
-      console.log('🕰 No identifier provided, returning last 30 global messages');
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('❌ Supabase chat-history error:', error);
-      return res.status(500).json({ ok: false, error: 'Supabase error' });
-    }
-
-    const messages = (data || [])
-      .map(row => ({
-        role: row.role,
-        content: row.content,
-      }))
-      .reverse();
-
-    console.log(`✅ Returning ${messages.length} chat history messages`);
-
-    return res.json({
+    return res.status(200).json({
       ok: true,
       messages,
     });
   } catch (err) {
-    console.error('💥 /api/chat-history crashed:', err);
-    return res.status(500).json({ ok: false, error: 'Internal server error' });
+    console.error('💥 /api/chat-history crashed (fallback):', err);
+    return res.status(200).json({
+      ok: false,
+      error: String(err),
+      messages: [],
+    });
   }
 });
 
