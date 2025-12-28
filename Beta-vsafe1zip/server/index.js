@@ -643,33 +643,35 @@ app.post('/api/chat', async (req, res) => {
     console.log('Chat style:', chatStyle);
     console.log('Local time:', localTime, localDay, localDate);
     
+    // Ensure fallback responses always include activity_suggestion
     if (!openai) {
       const fallback = getFallbackResponse();
       console.log('TRACE says (fallback):', fallback);
-      return res.json({ message: fallback });
+      return res.json({
+        message: fallback,
+        activity_suggestion: {
+          name: null,
+          reason: null,
+          should_navigate: false,
+        },
+      });
     }
     
     // Build personalized system prompt with user preferences
     let systemPrompt = TRACE_SYSTEM_PROMPT.replace('{chat_style}', chatStyle);
-    // Add time awareness
+
     if (localTime || localDay || localDate) {
-      systemPrompt += `\n\nTime awareness
-It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${localDate || ''} for the user. Be naturally aware of this:
-- Morning (before noon): You might acknowledge it's morning, ask how they slept, or note they're starting their day.
-- Afternoon: Mid-day energy, maybe they're taking a break.
-- Evening (after 6pm): Wind-down time, reflect on how their day went.
-- Late night (after 10pm): They might be having trouble sleeping, or just unwinding. Be gentle.
-- Weekends vs weekdays: Different energy. Weekends might be more relaxed or social.
-Don't force time references into every message—just be aware, like a friend who knows what time it is.`;
+      systemPrompt += `
+
+Time awareness
+It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${localDate || ''} for the user. Be naturally aware of this.`;
     }
     
     if (userName) {
-      systemPrompt += `\n\nPersonalization
-The person you're speaking with is named ${userName}. You know their name—never say you don't remember it or can't remember personal information. Use their name naturally and warmly in conversation—not in every message, but occasionally, the way a friend would. Remember details they share within this conversation and reference them when relevant. Make them feel genuinely known and cared for. You're their companion who knows them.
+      systemPrompt += `
 
-Important: When you've already said you'll start an activity and should_navigate is true, do NOT repeat that you're starting it if they respond again. Instead, acknowledge naturally ("mm, it should be starting now" or redirect the conversation).`;
-    } else {
-      systemPrompt += `\n\nNote: If the user tells you their name, remember it for this conversation and use it naturally.`;
+Personalization
+The person you're speaking with is named ${userName}. Use their name naturally.`;
     }
     
     const response = await openai.chat.completions.create({
@@ -683,25 +685,20 @@ Important: When you've already said you'll start an activity and should_navigate
       response_format: { type: "json_object" },
     });
 
-    console.log('Raw response:', JSON.stringify(response.choices[0], null, 2));
-    
     const rawContent = response.choices[0]?.message?.content || '{"message": "mm, what\'s on your mind?", "activity_suggestion": {"name": null, "reason": null, "should_navigate": false}}';
     
     let parsed;
     try {
       parsed = JSON.parse(rawContent);
-    } catch (e) {
-      console.error('Failed to parse JSON response:', e);
+    } catch {
       parsed = {
         message: '',
         activity_suggestion: { name: null, reason: null, should_navigate: false }
       };
     }
     
-    // Check if message is empty or just whitespace - provide fallback
     const messageText = (parsed.message || '').trim();
     if (!messageText) {
-      console.log('Empty response received, using fallback');
       const fallbacks = [
         "I'm here with you. What's on your mind?",
         "mm, take your time. I'm listening.",
@@ -711,10 +708,7 @@ Important: When you've already said you'll start an activity and should_navigate
       parsed.message = fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
     
-    console.log('TRACE says:', parsed.message);
-    console.log('Activity suggestion:', parsed.activity_suggestion);
-    
-    res.json({
+    return res.json({
       message: parsed.message,
       activity_suggestion: parsed.activity_suggestion || { name: null, reason: null, should_navigate: false }
     });

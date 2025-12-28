@@ -1,0 +1,100 @@
+Open server/index.js.
+
+Find the entire Express route that begins with:
+
+app.post('/api/chat', async (req, res) => {
+
+Delete that whole /api/chat endpoint.
+
+Replace it completely with this updated version that always returns an activity_suggestion field, even when using fallback responses:
+
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { messages: rawMessages, userName, chatStyle = 'conversation', localTime, localDay, localDate } = req.body;
+    
+    // Filter out garbage/corrupted messages from history (empty or whitespace-only content)
+    const messages = (rawMessages || []).filter(msg => {
+      const content = (msg.content || '').trim();
+      // Keep message only if it has meaningful content (not just whitespace/newlines)
+      return content.length > 0 && !/^\s*$/.test(content);
+    });
+    
+    console.log('Received messages:', JSON.stringify(messages, null, 2));
+    console.log('User name:', userName);
+    console.log('Chat style:', chatStyle);
+    console.log('Local time:', localTime, localDay, localDate);
+    
+    // Ensure fallback responses always include activity_suggestion
+    if (!openai) {
+      const fallback = getFallbackResponse();
+      console.log('TRACE says (fallback):', fallback);
+      return res.json({
+        message: fallback,
+        activity_suggestion: {
+          name: null,
+          reason: null,
+          should_navigate: false,
+        },
+      });
+    }
+    
+    // Build personalized system prompt with user preferences
+    let systemPrompt = TRACE_SYSTEM_PROMPT.replace('{chat_style}', chatStyle);
+
+    if (localTime || localDay || localDate) {
+      systemPrompt += `
+
+Time awareness
+It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${localDate || ''} for the user. Be naturally aware of this.`;
+    }
+    
+    if (userName) {
+      systemPrompt += `
+
+Personalization
+The person you're speaking with is named ${userName}. Use their name naturally.`;
+    }
+    
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages
+      ],
+      max_tokens: 300,
+      temperature: 0.7,
+      response_format: { type: "json_object" },
+    });
+
+    const rawContent = response.choices[0]?.message?.content || '{"message": "mm, what\'s on your mind?", "activity_suggestion": {"name": null, "reason": null, "should_navigate": false}}';
+    
+    let parsed;
+    try {
+      parsed = JSON.parse(rawContent);
+    } catch {
+      parsed = {
+        message: '',
+        activity_suggestion: { name: null, reason: null, should_navigate: false }
+      };
+    }
+    
+    const messageText = (parsed.message || '').trim();
+    if (!messageText) {
+      const fallbacks = [
+        "I'm here with you. What's on your mind?",
+        "mm, take your time. I'm listening.",
+        "I'm here. No pressure to talk, but I'm listening if you'd like to.",
+        "that's a meaningful question. I think the answer is different for everyone, but I'm here to help you find yours.",
+      ];
+      parsed.message = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    }
+    
+    return res.json({
+      message: parsed.message,
+      activity_suggestion: parsed.activity_suggestion || { name: null, reason: null, should_navigate: false }
+    });
+  } catch (error) {
+    console.error('TRACE API error:', error.message || error);
+    res.status(500).json({ error: 'Failed to get response', message: "mm, I'm here." });
+  }
+});
