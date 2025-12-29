@@ -711,6 +711,8 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
   };
   const [lastHourSummary, setLastHourSummary] = useState<HourSummary | null>(null);
   const [weeklyStitches, setWeeklyStitches] = useState<EmotionalStitch[]>([]);
+  const [weeklySummaryText, setWeeklySummaryText] = useState<string | null>(null);
+  const [isLoadingWeeklySummary, setIsLoadingWeeklySummary] = useState(false);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -767,6 +769,48 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
     }
 
     runStitchAndFetch();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch weekly summary from AI
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchWeeklySummary() {
+      try {
+        setIsLoadingWeeklySummary(true);
+        const userId = await getCurrentUserId();
+        
+        const res = await fetch('/api/patterns/weekly-summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            deviceId: null,
+            userName: null,
+            peakWindowLabel: null,
+            energyRhythmLabel: null,
+            energyRhythmDetail: null,
+            behaviorSignatures: [],
+          }),
+        });
+
+        if (!cancelled && res.ok) {
+          const json = await res.json();
+          if (json.summaryText) {
+            setWeeklySummaryText(json.summaryText);
+          }
+        }
+      } catch (err) {
+        console.error('TRACE/weeklySummary ❌', err);
+      } finally {
+        if (!cancelled) {
+          setIsLoadingWeeklySummary(false);
+        }
+      }
+    }
+
+    fetchWeeklySummary();
     return () => { cancelled = true; };
   }, []);
 
@@ -2019,13 +2063,10 @@ export function TracePatternsScreen({ onViewFull, onNavigateHome, onNavigateToAc
                 fontStyle: 'italic',
               }}
             >
-              Your week shaped itself quietly.
-              <br />
-              Your rhythm softened midweek,
-              <br />
-              found stillness in solitude,
-              <br />
-              and gathered clarity in the mornings.
+              {isLoadingWeeklySummary
+                ? 'Tracing your week...'
+                : weeklySummaryText ??
+                  'Your week shaped itself quietly. Your rhythm softened midweek, found stillness in solitude, and gathered clarity in the mornings.'}
             </p>
           </motion.div>
 
