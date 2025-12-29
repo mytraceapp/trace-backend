@@ -1775,7 +1775,7 @@ In 3–4 sentences, reflect on what this pattern might be saying about how this 
   }
 });
 
-// POST /api/sessions/daily-summary - Count chat sessions (1-hour conversation windows)
+// POST /api/sessions/daily-summary - Count chat sessions based on session START time
 app.post('/api/sessions/daily-summary', async (req, res) => {
   try {
     const { userId, deviceId, localDate } = req.body || {};
@@ -1796,84 +1796,63 @@ app.post('/api/sessions/daily-summary', async (req, res) => {
       });
     }
 
-    // Parse the calendar date (YYYY-MM-DD format)
-    const targetDate = localDate ? new Date(localDate) : new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    // Fetch all user messages for this day, ordered by time
+    // Fetch ALL user messages, ordered by time (we need full history to track session starts)
     let query = supabaseServer
       .from('chat_messages')
       .select('created_at')
       .eq('role', 'user')
-      .gte('created_at', startOfDay.toISOString())
-      .lte('created_at', endOfDay.toISOString())
       .order('created_at', { ascending: true });
 
     if (userId) {
       query = query.eq('user_id', userId);
     }
 
-    const { data: messages, error: messagesError } = await query;
+    const { data: allMessages, error: messagesError } = await query;
 
     if (messagesError) {
       console.error('❌ /api/sessions/daily-summary error:', messagesError);
       throw messagesError;
     }
 
-    // Count sessions using 1-hour windows
-    let todaySessions = 0;
+    if (!allMessages || allMessages.length === 0) {
+      return res.json({
+        ok: true,
+        today: 0,
+        total: 0,
+      });
+    }
+
+    // Track sessions by their START date
+    const sessionsByDay = new Map(); // Map<YYYY-MM-DD, count>
+    let totalSessions = 0;
     let lastMessageTime = null;
     const ONE_HOUR_MS = 60 * 60 * 1000;
 
-    for (const message of messages || []) {
+    for (const message of allMessages) {
       const messageTime = new Date(message.created_at).getTime();
+      const isNewSession = !lastMessageTime || (messageTime - lastMessageTime) > ONE_HOUR_MS;
       
-      if (!lastMessageTime || (messageTime - lastMessageTime) > ONE_HOUR_MS) {
-        // New session: first message OR gap > 1 hour
-        todaySessions++;
+      if (isNewSession) {
+        // This message STARTS a new session
+        totalSessions++;
+        
+        // Count this session on the calendar day it STARTED
+        const sessionStartDate = new Date(message.created_at).toISOString().slice(0, 10);
+        sessionsByDay.set(sessionStartDate, (sessionsByDay.get(sessionStartDate) || 0) + 1);
       }
       
       lastMessageTime = messageTime;
     }
 
-    // Get all-time total sessions using same 1-hour window logic
-    let allQuery = supabaseServer
-      .from('chat_messages')
-      .select('created_at')
-      .eq('role', 'user')
-      .order('created_at', { ascending: true });
-
-    if (userId) {
-      allQuery = allQuery.eq('user_id', userId);
-    }
-
-    const { data: allMessages, error: allError } = await allQuery;
-
-    if (allError) {
-      console.error('❌ /api/sessions/daily-summary total error:', allError);
-      throw allError;
-    }
-
-    let totalSessions = 0;
-    let lastAllTime = null;
-
-    for (const message of allMessages || []) {
-      const messageTime = new Date(message.created_at).getTime();
-      
-      if (!lastAllTime || (messageTime - lastAllTime) > ONE_HOUR_MS) {
-        totalSessions++;
-      }
-      
-      lastAllTime = messageTime;
-    }
+    // Get count for the requested day
+    const targetDate = localDate || new Date().toISOString().slice(0, 10);
+    const todaySessions = sessionsByDay.get(targetDate) || 0;
 
     console.log('✅ /api/sessions/daily-summary result:', {
+      requestedDate: targetDate,
       today: todaySessions,
       total: totalSessions,
-      messagesProcessed: messages?.length || 0,
+      sessionDays: Object.fromEntries(sessionsByDay),
     });
 
     return res.json({
