@@ -1589,65 +1589,70 @@ Write one gentle, observational sentence about this person's emotional state. No
   }
 });
 
+// mode: patterns_weekly_narrative
 app.post('/api/patterns/weekly-summary', async (req, res) => {
   try {
     const {
-      userId,
-      deviceId,
       userName,
-      peakWindowLabel,
-      energyRhythmLabel,
-      energyRhythmDetail,
-      behaviorSignatures = [],
+      localDate,
+      localDay,
+      localTime,
+      weekSessions = 0,
+      weekActiveDays = 0,
+      dominantKind = null,
+      dominantKindCount = 0,
+      journalWeekCount = 0,
     } = req.body || {};
 
-    console.log('[TRACE PATTERNS] /api/patterns/weekly-summary called with:', {
-      userId,
-      deviceId,
-      peakWindowLabel,
-      energyRhythmLabel,
-    });
+    console.log('🧠 /api/patterns/weekly-summary sessions:', weekSessions, 'days:', weekActiveDays);
 
-    const signatureNames = Array.isArray(behaviorSignatures)
-      ? behaviorSignatures.join(', ')
-      : '';
+    // If no activity at all this week
+    if (weekSessions === 0 && journalWeekCount === 0) {
+      return res.json({
+        ok: true,
+        summaryText: "This week is still opening up. As you start checking in and journaling, I'll begin tracing the shape of your rhythm with you.",
+      });
+    }
 
-    const who = userName || 'this person';
+    // Build context for OpenAI
+    const contextParts = [];
+    if (userName) contextParts.push(`User: ${userName}`);
+    if (localDay) contextParts.push(`Day: ${localDay}`);
+    if (localTime) contextParts.push(`Time: ${localTime}`);
+    const contextLine = contextParts.length ? contextParts.join(', ') : '';
 
-    const snapshotLines = [
-      peakWindowLabel ? `• Focus window: ${peakWindowLabel}` : null,
-      energyRhythmLabel ? `• Weekly rhythm: ${energyRhythmLabel}` : null,
-      energyRhythmDetail ? `• Energy tilt: ${energyRhythmDetail}` : null,
-      signatureNames
-        ? `• Behavior signatures: ${signatureNames}`
-        : null,
-    ]
-      .filter(Boolean)
-      .join('\n');
+    // Build data summary
+    const dataParts = [];
+    if (weekSessions > 0) dataParts.push(`Sessions this week: ${weekSessions}`);
+    if (weekActiveDays > 0) dataParts.push(`Active days: ${weekActiveDays}`);
+    if (dominantKind && dominantKindCount > 0) {
+      dataParts.push(`Most used practice: ${dominantKind} (${dominantKindCount} times)`);
+    }
+    if (journalWeekCount > 0) dataParts.push(`Journal entries: ${journalWeekCount}`);
+    const dataLine = dataParts.join('\n');
 
-    const messages = [
-      {
-        role: 'system',
-        content:
-          'You are TRACE, a gentle reflective companion. ' +
-          'You speak in 2–3 short, poetic sentences, never clinical, never giving advice, ' +
-          'just mirroring patterns back with warmth. Avoid emojis. Do not ask questions. ' +
-          'Talk directly to the user as "you", never in third person.',
-      },
-      {
-        role: 'user',
-        content:
-          `Create a brief weekly reflection for ${who} based on these patterns.\n` +
-          `Keep it 2–3 short sentences max, suitable for a small card.\n` +
-          `Data:\n${snapshotLines || 'No strong patterns yet this week.'}`,
-      },
-    ];
+    const systemPrompt = `You are TRACE, summarizing a week of check-ins and journaling.
+mode: patterns_weekly_narrative
+
+Tone: calm, validating, no advice, no instructions.
+- 2–3 sentences maximum.
+- Focus on noticing consistency, effort, and the kinds of practices they're drawn to (breathing, grounding, gratitude, etc.).
+- Do not mention exact counts mechanically; weave them into natural language.
+- Do not ask questions.
+- Talk directly to the user as "you".`;
+
+    const userPrompt = `${contextLine ? contextLine + '\n' : ''}${dataLine}
+
+In 2–3 sentences, gently reflect what this week's rhythm suggests about how this person has been showing up for themselves. No advice, no questions, just noticing and affirming.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
       temperature: 0.8,
-      max_tokens: 120,
+      max_tokens: 150,
     });
 
     const summaryText =

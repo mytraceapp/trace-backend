@@ -1,0 +1,70 @@
+You are editing the TRACE backend in Replit.
+
+File: server/index.js
+
+Goal:
+Add POST /api/patterns-reflection to power the AI “assessment” text at the bottom of the Patterns Report screen.
+
+Requirements:
+
+1. New endpoint: POST /api/patterns-reflection
+
+Expected request body (mobile will send something like this):
+{
+  "userName": "Nina",                // optional
+  "localDate": "2025-12-29",         // optional
+  "localDay": "Monday",              // optional
+  "localTime": "9:02 PM",            // optional
+
+  "weekSessions": 4,
+  "weekActiveDays": 3,
+  "dominantKind": "breath|body|gratitude|audio|reflection|null",
+  "dominantKindCount": 3,
+  "journalWeekCount": 2,
+
+  "peakWindowLabel": "9:00 AM – 11:00 AM", // optional
+  "energyRhythmLabel": "Steady • 4 active days", // optional
+  "energyRhythmDetail": "Calm-leaning week",    // optional
+  "stressScore": 0.4,                           // optional numeric (0–1) if available
+  "behaviorSignatures": ["Tender Striver"]      // optional array of labels
+}
+
+2. If weekSessions === 0 and journalWeekCount === 0:
+   - Return a gentle default:
+     {
+       ok: true,
+       reflection: "Once you’ve had a few more days of check-ins and journaling, I’ll be able to offer a clearer sense of how your week tends to feel and flow."
+     }
+
+3. Otherwise, call OpenAI with:
+
+   system:
+   - mode: "patterns_deep_reflection"
+   - You are TRACE, offering a slightly deeper reflection on their week’s emotional patterns.
+   - Tone: calm, compassionate, non-clinical, no advice, no prescriptions.
+   - 3–4 sentences maximum.
+   - You may reference:
+     • consistency (weekSessions, weekActiveDays),
+     • where they tend to land (dominantKind),
+     • journaling presence (journalWeekCount),
+     • any pattern hints (peakWindowLabel, energyRhythmLabel/detail, behaviorSignatures) if provided.
+   - You are NOT a therapist, do not diagnose, do not describe “symptoms”.
+   - Focus on mirroring effort, noticing gentle patterns, and normalizing fluctuation.
+
+   user:
+   - Provide the raw metrics from the request (short, structured text).
+   - Example: “This week: 4 sessions across 3 days, dominant practice = breathing (3 times), 2 journal entries, peak window 9–11 AM, energy rhythm: Steady • 3 active days (Calm-leaning week), signatures: Tender Striver.”
+
+   Prompt instruction:
+   “In 3–4 sentences, reflect on what this pattern might be saying about how this person has been moving through their days emotionally. No questions, no advice. Just noticing, normalizing, and gently affirming.”
+
+4. Response JSON:
+   {
+     "ok": true,
+     "reflection": "<3–4 sentence TRACE-style reflection>"
+   }
+
+5. Logging:
+   console.log("🧠 /api/patterns-reflection weekSessions:", weekSessions, "weekActiveDays:", weekActiveDays);
+
+Keep this endpoint separate from /api/patterns/weekly-summary. The weekly summary is for the main Patterns screen; patterns-reflection is for the deeper report.
