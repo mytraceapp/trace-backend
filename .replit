@@ -31,25 +31,25 @@ args = "Mobile App"
 name = "Frontend"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd Beta-vsafe1zip && npm run dev"
 waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [[workflows.workflow]]
 name = "Backend API"
 author = "agent"
 
 [workflows.workflow.metadata]
-outputType = "webview"
+outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd Beta-vsafe1zip && PORT=5000 node server/index.js"
-waitForPort = 5000
+args = "cd Beta-vsafe1zip && PORT=3000 node server/index.js"
+waitForPort = 3000
 
 [[workflows.workflow]]
 name = "Mobile App"
@@ -64,19 +64,11 @@ args = "cd mobile && npx expo start --tunnel --clear --go"
 
 [[ports]]
 localPort = 3000
-externalPort = 3003
-
-[[ports]]
-localPort = 3001
-externalPort = 3001
+externalPort = 3000
 
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 5001
-externalPort = 3002
 
 [[ports]]
 localPort = 8081
