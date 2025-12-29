@@ -1867,9 +1867,14 @@ app.post('/api/patterns/full-reflection', async (req, res) => {
 
 Generate three brief reflections based on the user's recent chat history:
 
-1. TODAY: Based on today's messages, reflect on the shape of today
-2. LAST HOUR: Based on the last hour of conversation, notice what's been present
-3. YOUR WEEK: Based on this week's check-ins, identify any emerging patterns
+1. TODAY: Reflect on the overall shape or arc of today—themes, energy, or mood across the day
+2. LAST HOUR: Focus on the most recent emotional temperature—what's immediately present right now
+3. YOUR WEEK: Identify broader patterns, rhythms, or recurring themes across the week
+
+CRITICAL: Each reflection MUST cover DIFFERENT aspects. Avoid redundancy:
+- TODAY = big picture of the day's journey
+- LAST HOUR = the immediate moment, what's freshest
+- WEEK = patterns over time, not a repeat of today
 
 Guidelines:
 - Keep each reflection to 2-3 sentences
