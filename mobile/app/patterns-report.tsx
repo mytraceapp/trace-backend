@@ -21,10 +21,24 @@ import { getStableId } from '../lib/stableId';
 
 const API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
 
-interface LastHourData {
+interface LastHourResult {
   ok: boolean;
   hasHistory: boolean;
   summaryText: string | null;
+}
+
+async function fetchLastHourSummary(params: { userId: string | null; deviceId: string }): Promise<LastHourResult> {
+  const res = await fetch(`${API_BASE}/api/patterns/last-hour`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const json = await res.json();
+  return {
+    ok: json.ok ?? false,
+    hasHistory: json.hasHistory ?? false,
+    summaryText: json.summaryText ?? null,
+  };
 }
 
 export default function PatternsReport() {
@@ -42,52 +56,68 @@ export default function PatternsReport() {
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
 
-  const [loading, setLoading] = useState(true);
-  const [lastHourData, setLastHourData] = useState<LastHourData | null>(null);
+  const [stableId, setStableId] = useState<string | null>(null);
+  const [lastHourSummary, setLastHourSummary] = useState<string | null>(null);
+  const [hasLastHourHistory, setHasLastHourHistory] = useState(false);
+  const [isLastHourLoading, setIsLastHourLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLastHourPattern = useCallback(async () => {
-    console.log('🧠 [TRACE PATTERNS] last-hour loader invoked');
-    setLoading(true);
-    setError(null);
-
-    try {
-      const deviceId = await getStableId();
-      console.log('[TRACE PATTERNS] calling /api/patterns/last-hour with deviceId:', deviceId);
-
-      const res = await fetch(`${API_BASE}/api/patterns/last-hour`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: null,
-          deviceId,
-        }),
-      });
-
-      const json = await res.json();
-      console.log('[TRACE PATTERNS] response:', json);
-
-      if (json.ok) {
-        setLastHourData(json);
-      } else {
-        setError('Could not load patterns');
-      }
-    } catch (err) {
-      console.error('[TRACE PATTERNS] fetch error:', err);
-      setError('Connection error');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  console.log(
+    '💠 [TRACE PATTERNS] stableId / lastHour state =',
+    stableId,
+    { lastHourSummary, hasLastHourHistory, isLastHourLoading }
+  );
 
   useEffect(() => {
-    fetchLastHourPattern();
-  }, [fetchLastHourPattern]);
+    const loadStableId = async () => {
+      const id = await getStableId();
+      console.log('💠 [TRACE PATTERNS] stableId loaded:', id);
+      setStableId(id);
+    };
+    loadStableId();
+  }, []);
+
+  const loadLastHourSummary = useCallback(async () => {
+    console.log('🧠 [TRACE PATTERNS] last-hour loader invoked');
+
+    try {
+      if (!stableId) {
+        console.log('🧠 [TRACE PATTERNS] no stable device id yet, skipping last-hour');
+        return;
+      }
+
+      setIsLastHourLoading(true);
+      setError(null);
+
+      const result = await fetchLastHourSummary({
+        userId: null,
+        deviceId: stableId,
+      });
+
+      console.log('🧠 [TRACE PATTERNS] last-hour result:', result);
+
+      setHasLastHourHistory(result.hasHistory);
+      setLastHourSummary(result.summaryText);
+    } catch (err) {
+      console.error('🧠 [TRACE PATTERNS] last-hour fetch error:', err);
+      setHasLastHourHistory(false);
+      setLastHourSummary(null);
+      setError('Connection error');
+    } finally {
+      setIsLastHourLoading(false);
+    }
+  }, [stableId]);
+
+  useEffect(() => {
+    console.log('💠 [TRACE PATTERNS] useEffect -> loadLastHourSummary');
+    loadLastHourSummary();
+  }, [loadLastHourSummary]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchLastHourPattern();
-    }, [fetchLastHourPattern])
+      console.log('💠 [TRACE PATTERNS] useFocusEffect -> loadLastHourSummary');
+      loadLastHourSummary();
+    }, [loadLastHourSummary])
   );
 
   return (
@@ -126,12 +156,28 @@ export default function PatternsReport() {
           </Text>
         </View>
 
+        <View style={styles.lastHourPill}>
+          <Text style={styles.lastHourPillText}>
+            {isLastHourLoading
+              ? '•••'
+              : hasLastHourHistory
+              ? 'Last hour noted'
+              : 'No recent chat'}
+          </Text>
+        </View>
+
+        {!!lastHourSummary && (
+          <Text style={styles.lastHourSummaryDebug}>
+            {lastHourSummary}
+          </Text>
+        )}
+
         <View style={styles.card}>
           <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
-            Last Hour
+            Last Hour with TRACE
           </Text>
 
-          {loading && (
+          {isLastHourLoading && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color="#6B7B6E" />
               <Text style={[styles.loadingText, { fontFamily: canelaFont }]}>
@@ -140,17 +186,17 @@ export default function PatternsReport() {
             </View>
           )}
 
-          {!loading && error && (
+          {!isLastHourLoading && error && (
             <Text style={[styles.errorText, { fontFamily: canelaFont }]}>
               {error}
             </Text>
           )}
 
-          {!loading && !error && lastHourData && (
+          {!isLastHourLoading && !error && (
             <>
-              {lastHourData.hasHistory && lastHourData.summaryText ? (
+              {hasLastHourHistory && lastHourSummary ? (
                 <Text style={[styles.summaryText, { fontFamily: canelaFont }]}>
-                  {lastHourData.summaryText}
+                  {lastHourSummary}
                 </Text>
               ) : (
                 <Text style={[styles.emptyText, { fontFamily: canelaFont }]}>
@@ -216,6 +262,27 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: 'center',
     opacity: 0.9,
+  },
+  lastHourPill: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(107, 123, 110, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 12,
+  },
+  lastHourPillText: {
+    fontSize: 13,
+    color: '#4A5A4C',
+    fontWeight: '500',
+  },
+  lastHourSummaryDebug: {
+    marginTop: 4,
+    paddingHorizontal: 24,
+    fontSize: 11,
+    color: 'rgba(74, 90, 76, 0.6)',
+    textAlign: 'center',
+    marginBottom: 16,
   },
   card: {
     backgroundColor: 'rgba(255, 255, 255, 0.55)',

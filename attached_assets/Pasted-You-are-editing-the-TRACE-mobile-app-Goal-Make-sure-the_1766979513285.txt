@@ -1,0 +1,157 @@
+You are editing the TRACE mobile app.
+
+Goal:
+Make sure the Patterns tab is actually rendering the component from app/patterns-report.tsx and that the “last hour with TRACE” pill reads from state.
+
+Step 1 – Find which file the Patterns tab uses
+
+1. Open: mobile/app/(tabs)/_layout.tsx
+
+2. Find the <Tabs.Screen> for the Patterns tab. It might look like:
+
+<Tabs.Screen
+  name="patterns"
+  ...
+/>
+
+or:
+
+<Tabs.Screen
+  name="patterns-report"
+  ...
+/>
+
+Remember the **name** value (e.g. "patterns").
+
+3. Based on that name, open the corresponding tab screen:
+
+- If name is "patterns", open:
+  mobile/app/(tabs)/patterns.tsx
+
+- If name is "patterns-report", open:
+  mobile/app/(tabs)/patterns-report.tsx
+
+Step 2 – Make the tab file a thin wrapper around app/patterns-report.tsx
+
+Replace the contents of that tab screen file with:
+
+// Example for mobile/app/(tabs)/patterns.tsx
+import React from 'react';
+import PatternsReport from '../patterns-report';
+
+export default function PatternsTabScreen() {
+  return <PatternsReport />;
+}
+
+Notes:
+- The relative import is ../patterns-report because:
+  - This file lives in app/(tabs)/...
+  - patterns-report.tsx lives in app/
+
+- Do NOT paste the full PatternsReport component here.
+  Only import and render it.
+
+Save this file.
+
+Step 3 – Add loud logs in app/patterns-report.tsx
+
+1. Open: mobile/app/patterns-report.tsx
+
+2. At the very start of the component function, add:
+
+function PatternsReport() {
+  console.log('💠 [TRACE PATTERNS] PatternsReport RENDER');
+
+  // existing hooks...
+
+3. After the useAuth / useStableDeviceId / last-hour state declarations, add:
+
+const { authUserId } = useAuth();
+const stableId = useStableDeviceId();
+
+const [lastHourSummary, setLastHourSummary] = useState<string | null>(null);
+const [hasLastHourHistory, setHasLastHourHistory] = useState(false);
+const [isLastHourLoading, setIsLastHourLoading] = useState(false);
+
+console.log(
+  '💠 [TRACE PATTERNS] authUserId / stableId / lastHour state =',
+  authUserId,
+  stableId,
+  { lastHourSummary, hasLastHourHistory, isLastHourLoading }
+);
+
+Step 4 – Confirm the last-hour loader is firing
+
+In the same file, find loadLastHourSummary and replace its body with:
+
+const loadLastHourSummary = useCallback(async () => {
+  console.log('🧠 [TRACE PATTERNS] last-hour loader invoked');
+
+  try {
+    if (!stableId) {
+      console.log(
+        '🧠 [TRACE PATTERNS] no stable device id yet, skipping last-hour'
+      );
+      return;
+    }
+
+    setIsLastHourLoading(true);
+
+    const result = await fetchLastHourSummary({
+      userId: authUserId ?? null,
+      deviceId: stableId,
+    });
+
+    console.log('🧠 [TRACE PATTERNS] last-hour result:', result);
+
+    setHasLastHourHistory(result.hasHistory);
+    setLastHourSummary(result.summaryText);
+  } catch (err) {
+    console.error('🧠 [TRACE PATTERNS] last-hour fetch error:', err);
+    setHasLastHourHistory(false);
+    setLastHourSummary(null);
+  } finally {
+    setIsLastHourLoading(false);
+  }
+}, [authUserId, stableId]);
+
+Then make sure the metrics effect calls it:
+
+useEffect(() => {
+  console.log('💠 [TRACE PATTERNS] useEffect -> loadPatternMetrics + loadLastHourSummary');
+  loadPatternMetrics();
+  loadLastHourSummary();
+}, [loadPatternMetrics, loadLastHourSummary]);
+
+Step 5 – Force the pill to use the state
+
+Find the "last hour" pill JSX (styles.lastHourPill / lastHourPillText). Make it:
+
+<View style={styles.lastHourPill}>
+  <Text style={styles.lastHourPillText}>
+    {isLastHourLoading
+      ? '•••'
+      : hasLastHourHistory
+      ? 'Last hour noted'
+      : 'No recent chat'}
+  </Text>
+</View>
+
+(Optional) Under that pill, temporarily show the actual sentence for debugging:
+
+{!!lastHourSummary && (
+  <Text style={styles.lastHourSummaryDebug}>
+    {lastHourSummary}
+  </Text>
+)}
+
+and in StyleSheet.create:
+
+lastHourSummaryDebug: {
+  marginTop: 4,
+  paddingHorizontal: 24,
+  fontSize: 11,
+  color: 'rgba(255,255,255,0.6)',
+},
+
+Save app/patterns-report.tsx.
