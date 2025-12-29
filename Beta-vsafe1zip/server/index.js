@@ -1673,6 +1673,108 @@ In 2–3 sentences, gently reflect what this week's rhythm suggests about how th
   }
 });
 
+// POST /api/patterns-reflection - Deep reflection for Patterns Report screen
+// mode: patterns_deep_reflection
+app.post('/api/patterns-reflection', async (req, res) => {
+  try {
+    const {
+      userName,
+      localDate,
+      localDay,
+      localTime,
+      weekSessions = 0,
+      weekActiveDays = 0,
+      dominantKind = null,
+      dominantKindCount = 0,
+      journalWeekCount = 0,
+      peakWindowLabel = null,
+      energyRhythmLabel = null,
+      energyRhythmDetail = null,
+      stressScore = null,
+      behaviorSignatures = [],
+    } = req.body || {};
+
+    console.log('🧠 /api/patterns-reflection weekSessions:', weekSessions, 'weekActiveDays:', weekActiveDays);
+
+    // If no activity at all this week
+    if (weekSessions === 0 && journalWeekCount === 0) {
+      return res.json({
+        ok: true,
+        reflection: "Once you've had a few more days of check-ins and journaling, I'll be able to offer a clearer sense of how your week tends to feel and flow.",
+      });
+    }
+
+    // Build structured data summary
+    const dataParts = [];
+    if (weekSessions > 0) dataParts.push(`${weekSessions} sessions across ${weekActiveDays} days`);
+    if (dominantKind && dominantKindCount > 0) {
+      dataParts.push(`dominant practice = ${dominantKind} (${dominantKindCount} times)`);
+    }
+    if (journalWeekCount > 0) dataParts.push(`${journalWeekCount} journal entries`);
+    if (peakWindowLabel) dataParts.push(`peak window: ${peakWindowLabel}`);
+    if (energyRhythmLabel) {
+      let rhythmText = `energy rhythm: ${energyRhythmLabel}`;
+      if (energyRhythmDetail) rhythmText += ` (${energyRhythmDetail})`;
+      dataParts.push(rhythmText);
+    }
+    if (stressScore !== null && stressScore !== undefined) {
+      dataParts.push(`stress level: ${Math.round(stressScore * 100)}%`);
+    }
+    if (Array.isArray(behaviorSignatures) && behaviorSignatures.length > 0) {
+      dataParts.push(`signatures: ${behaviorSignatures.join(', ')}`);
+    }
+
+    const dataLine = `This week: ${dataParts.join(', ')}.`;
+
+    // Context info
+    const contextParts = [];
+    if (userName) contextParts.push(`User: ${userName}`);
+    if (localDay) contextParts.push(`Day: ${localDay}`);
+    if (localTime) contextParts.push(`Time: ${localTime}`);
+    const contextLine = contextParts.length ? contextParts.join(', ') : '';
+
+    const systemPrompt = `You are TRACE, offering a slightly deeper reflection on their week's emotional patterns.
+mode: patterns_deep_reflection
+
+Tone: calm, compassionate, non-clinical, no advice, no prescriptions.
+- 3–4 sentences maximum.
+- You may reference: consistency (sessions, active days), where they tend to land (dominant practice), journaling presence, any pattern hints (peak window, energy rhythm, behavior signatures) if provided.
+- You are NOT a therapist, do not diagnose, do not describe "symptoms".
+- Focus on mirroring effort, noticing gentle patterns, and normalizing fluctuation.
+- Do not ask questions.
+- Talk directly to the user as "you".`;
+
+    const userPrompt = `${contextLine ? contextLine + '\n' : ''}${dataLine}
+
+In 3–4 sentences, reflect on what this pattern might be saying about how this person has been moving through their days emotionally. No questions, no advice. Just noticing, normalizing, and gently affirming.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.8,
+      max_tokens: 200,
+    });
+
+    const reflection =
+      completion?.choices?.[0]?.message?.content?.trim() ||
+      "You've been showing up for yourself in quiet, steady ways. That matters more than you might realize.";
+
+    return res.json({
+      ok: true,
+      reflection,
+    });
+  } catch (err) {
+    console.error('❌ /api/patterns-reflection error:', err);
+    return res.json({
+      ok: true,
+      reflection: "You've been holding space for yourself this week. Even the smallest check-ins add up to something meaningful.",
+    });
+  }
+});
+
 // POST /api/journal-reflection - Generate AI reflection based on journal entries
 // mode: journal_reflection
 app.post('/api/journal-reflection', async (req, res) => {
