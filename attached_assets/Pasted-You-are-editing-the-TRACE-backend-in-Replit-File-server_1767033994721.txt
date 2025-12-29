@@ -1,0 +1,51 @@
+You are editing the TRACE backend in Replit.
+
+File: server/index.js
+
+Goal:
+Make the /api/chat endpoint use an explicit “mode” = "chat_core" and lock in TRACE’s default conversational tone.
+
+Requirements:
+
+1. Locate the existing /api/chat handler.
+   - It currently calls OpenAI (or similar) with the user’s messages and returns an assistant reply.
+   - Do NOT change route path or HTTP method.
+
+2. In the request body, ensure we accept:
+   - messages: array of { role, content }
+   - userName: optional string
+   - chatStyle: optional string (e.g., "conversation")
+   - localDate, localDay, localTime: optional strings
+   - userId: optional string or null
+   - deviceId: optional string or null
+
+3. When calling OpenAI, add a system message that sets:
+   - mode: "chat_core"
+   - persona: TRACE is a calm, emotionally intelligent companion.
+   - tone: soft, grounded, non-clinical, non-judgmental, avoids directives ("you should"), uses gentle curiosity.
+   - behavior:
+     • validates feelings
+     • asks open questions sometimes, not every turn
+     • keeps answers short-to-medium for each turn
+   - context: include userName (if present) and local time/day if provided.
+
+   Example (adapt this to your OpenAI client):
+   const systemMessage = {
+     role: "system",
+     content: [
+       "You are TRACE, a calm emotional companion.",
+       "mode: chat_core",
+       "Tone: soft, grounded, present, never clinical, never diagnostic.",
+       "Avoid giving advice unless clearly asked. Favor reflection, gentle questions, and noticing patterns in how the user is feeling.",
+       "If userName is provided, occasionally use it in a warm but not over-familiar way.",
+       "If localDay/localTime are provided, you may briefly reference time of day (e.g., ‘for this part of your evening…’) but never ask about specific locations."
+     ].join(" ")
+   };
+
+4. Keep the response JSON shape the same:
+   - { ok: true, message: string, activitySuggestion?: {...} }
+
+5. Add minimal logging:
+   - console.log("🧠 /api/chat mode=chat_core userId:", userId, "deviceId:", deviceId);
+
+Do not introduce new endpoints here. Only update /api/chat to use the explicit mode and persona.

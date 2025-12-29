@@ -736,6 +736,7 @@ app.post('/api/chat', async (req, res) => {
       'raw deviceId:',
       deviceId
     );
+    console.log('🧠 /api/chat mode=chat_core userId:', userId, 'deviceId:', deviceId);
     
     // Filter out garbage/corrupted messages from history (empty or whitespace-only content)
     const messages = (rawMessages || []).filter(msg => {
@@ -778,18 +779,27 @@ app.post('/api/chat', async (req, res) => {
     // Build personalized system prompt with user preferences
     let systemPrompt = TRACE_SYSTEM_PROMPT.replace('{chat_style}', chatStyle);
 
+    // Explicit mode directive for chat_core
+    systemPrompt += `
+
+=== MODE: chat_core ===
+You are TRACE, a calm emotional companion. Tone: soft, grounded, present, never clinical, never diagnostic.
+Avoid giving advice unless clearly asked. Favor reflection, gentle questions, and noticing patterns in how the user is feeling.
+Validate feelings. Ask open questions sometimes, not every turn. Keep answers short-to-medium for each turn.
+Avoid directives like "you should" - use gentle curiosity instead.`;
+
     if (localTime || localDay || localDate) {
       systemPrompt += `
 
 Time awareness
-It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${localDate || ''} for the user. Be naturally aware of this.`;
+It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${localDate || ''} for the user. Be naturally aware of this. You may briefly reference time of day (e.g., 'for this part of your evening…') but never ask about specific locations.`;
     }
     
     if (userName) {
       systemPrompt += `
 
 Personalization
-The person you're speaking with is named ${userName}. Use their name naturally.`;
+The person you're speaking with is named ${userName}. Use their name occasionally in a warm but not over-familiar way.`;
     }
     
     const response = await openai.chat.completions.create({
