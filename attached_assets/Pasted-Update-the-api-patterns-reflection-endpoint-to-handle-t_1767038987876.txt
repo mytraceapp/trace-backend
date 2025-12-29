@@ -1,0 +1,51 @@
+Update the /api/patterns-reflection endpoint to handle the correct behavior signature keys.
+
+Current Issue:
+The mobile app sends behavior signatures with these keys:
+
+eveningOverthinking (camelCase)
+midweekBurnout (camelCase)
+morningSharpness (camelCase)
+solitudeRecovery (camelCase)
+What to update:
+
+In your /api/patterns-reflection endpoint, update the behavioral signature interpretation logic to recognize these keys:
+
+eveningOverthinking → "Evening Overthinking" pattern (user tends to check in late evening with busy mind)
+midweekBurnout → "Midweek Burnout" pattern (strain/heaviness mid-week)
+morningSharpness → "Morning Sharpness" pattern (clarity/focus in morning hours)
+solitudeRecovery → "Solitude Recovery Pattern" (calm/grounding after stress)
+The request body includes:
+
+{
+  userName: string | null,
+  weekSessions: number,
+  weekActiveDays: number,
+  dominantKind: string | null,
+  dominantKindCount: number,
+  journalWeekCount: number,
+  peakWindowLabel: string | null,
+  energyRhythmLabel: string | null,
+  energyRhythmDetail: string | null,
+  stressScore: number | null,
+  stressEchoEvents: number,
+  behaviorSignatures: string[] | null  // <-- array of keys like ['eveningOverthinking', 'morningSharpness']
+}
+
+When generating the AI reflection, incorporate these behavioral signatures into the context. For example:
+
+If eveningOverthinking is present: mention that evenings tend to be when their mind gets busier
+If midweekBurnout is present: acknowledge midweek tends to feel heavier
+If morningSharpness is present: note mornings carry more clarity/focus
+If solitudeRecovery is present: recognize their recovery pattern after stress
+The GPT-4o-mini prompt should weave these signatures naturally into the reflection, using gentle, validating language that matches TRACE's voice.
+
+Example behavioral signature mention in reflection:
+"Your check-ins this week show a pattern of evening overthinking—when your mind tends to get busier as the day winds down. That's not uncommon, and naming it can help you create softer endings to your day."
+
+Make sure the endpoint returns:
+
+{
+  ok: true,
+  reflection: "AI-generated reflection text here..."
+}

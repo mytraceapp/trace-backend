@@ -1727,10 +1727,10 @@ app.post('/api/patterns-reflection', async (req, res) => {
 
     if (behaviorSignatures && behaviorSignatures.length > 0) {
       const signatureLabels = {
-        evening_anchor: 'Evening Anchor (most active after 6pm)',
-        burst_and_crash: 'Burst & Crash (intense activity followed by quiet)',
-        slow_builder: 'Slow Builder (gradual increase throughout week)',
-        all_or_nothing: 'All or Nothing (high activity on some days, none on others)',
+        eveningOverthinking: 'Evening Overthinking (mind gets busier as the day winds down)',
+        midweekBurnout: 'Midweek Burnout (strain or heaviness mid-week)',
+        morningSharpness: 'Morning Sharpness (clarity and focus in morning hours)',
+        solitudeRecovery: 'Solitude Recovery (calm and grounding after stress)',
       };
 
       const readableSignatures = behaviorSignatures
