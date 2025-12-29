@@ -1,0 +1,86 @@
+Create a new POST endpoint at /api/patterns/full-reflection that generates three separate AI reflections for the "Your Emotional Reflection" screen.
+
+Request Format
+
+POST /api/patterns/full-reflectionContent-Type: application/json{  "userId": string | null,    // Supabase user ID (may be null for anonymous)  "deviceId": string          // Required: stable device ID}
+
+Response Format
+
+{  "todayText": string | null,      // AI reflection for today's moments  "lastHourText": string | null,   // AI reflection for the last hour  "weekText": string | null        // AI reflection for the week}
+Implementation Requirements
+1. Data Collection
+
+Query the chat_sessions table for this user/device:
+
+Today: All messages from the current calendar day (user's local timezone or UTC)
+Last Hour: All messages from the past 60 minutes
+This Week: All messages from the past 7 days
+2. AI Generation with GPT-4o-mini
+
+Generate THREE separate reflections in a single API call using a structured prompt. Each reflection should:
+
+Be 2-3 sentences max
+Use TRACE's gentle, validating voice
+Reference actual patterns if data exists, or acknowledge quiet/steady moments
+Avoid clinical language—stay warm and human
+
+You are TRACE, a compassionate emotional wellness companion.
+
+Generate three brief reflections based on the user's recent chat history:
+
+1. TODAY: Based on today's messages, reflect on the shape of today
+2. LAST HOUR: Based on the last hour of conversation, notice what's been present
+3. YOUR WEEK: Based on this week's check-ins, identify any emerging patterns
+
+Guidelines:
+- Keep each reflection to 2-3 sentences
+- Be specific when patterns are clear; be gentle when data is sparse
+- Validate emotions without diagnosing
+- Use "you" language directly to the user
+- If a time period is quiet, acknowledge that meaningfully
+
+Return as JSON:
+{
+  "todayText": "...",
+  "lastHourText": "...",
+  "weekText": "..."
+}
+
+3. Fallback Behavior
+
+If no data exists for a time period, return these defaults:
+
+todayText: "TRACE is still gathering today's moments. As you move through the day, the shape of it will gently come into focus."
+lastHourText: "This hour has been quiet so far. Sometimes the spaces between words are just as meaningful."
+weekText: "TRACE is still learning your weekly rhythm. A few more days and the shape of your week will start to appear."
+4. Error Handling
+
+If GPT call fails, return all three defaults above
+If database query fails, return all three defaults
+Always return valid JSON with the three text fields
+5. Performance
+
+This endpoint should respond within 2-3 seconds
+Consider caching results for 5-10 minutes per user/device to reduce API costs
+Use a single GPT-4o-mini call to generate all three reflections at once
+Example Response Scenarios
+Scenario 1: Active user with clear patterns
+
+{
+  "todayText": "Today's check-ins carry a thread of tiredness—not burnout, just the quiet kind that asks for rest. You've been noticing it.",
+  "lastHourText": "This last hour brought up some worry about tomorrow. It makes sense to feel that before something big.",
+  "weekText": "This week, you've returned to TRACE most often in the evenings. That pattern might be pointing to when you need the most space to process."
+}
+
+Scenario 2: Quiet/sparse data
+{
+  "todayText": "TRACE is still gathering today's moments. As you move through the day, the shape of it will gently come into focus.",
+  "lastHourText": "This hour has been quiet so far. Sometimes the spaces between words are just as meaningful.",
+  "weekText": "You've checked in a handful of times this week—enough to start seeing when you tend to reach for TRACE. A few more days and the rhythm will become clearer."
+}
+Testing
+After implementation, test with:
+
+A deviceId that has multiple messages today
+A deviceId with no recent messages (should return defaults)
+Verify all three text fields are populated in the response

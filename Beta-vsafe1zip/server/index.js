@@ -1792,6 +1792,145 @@ Write a gentle 2-3 sentence reflection that acknowledges what's emerging in thei
   }
 });
 
+// POST /api/patterns/full-reflection - Generate three AI reflections (today, last hour, week)
+app.post('/api/patterns/full-reflection', async (req, res) => {
+  const defaults = {
+    todayText: "TRACE is still gathering today's moments. As you move through the day, the shape of it will gently come into focus.",
+    lastHourText: "This hour has been quiet so far. Sometimes the spaces between words are just as meaningful.",
+    weekText: "TRACE is still learning your weekly rhythm. A few more days and the shape of your week will start to appear.",
+  };
+
+  try {
+    const { userId, deviceId } = req.body || {};
+
+    console.log('🧠 /api/patterns/full-reflection called with:', { userId, deviceId });
+
+    if (!supabaseServer) {
+      console.log('⚠️ /api/patterns/full-reflection: No Supabase configured');
+      return res.json(defaults);
+    }
+
+    if (!deviceId && !userId) {
+      console.log('⚠️ /api/patterns/full-reflection: No deviceId or userId provided');
+      return res.json(defaults);
+    }
+
+    // Calculate time boundaries
+    const now = new Date();
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Build query for this week's messages
+    let query = supabaseServer
+      .from('chat_messages')
+      .select('content, created_at, role')
+      .gte('created_at', oneWeekAgo.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data: weekMessages, error } = await query;
+
+    if (error) {
+      console.error('❌ /api/patterns/full-reflection query error:', error);
+      return res.json(defaults);
+    }
+
+    if (!weekMessages || weekMessages.length === 0) {
+      console.log('⚠️ /api/patterns/full-reflection: No messages found');
+      return res.json(defaults);
+    }
+
+    // Filter messages by time period (only user messages for analysis)
+    const userMessages = weekMessages.filter(m => m.role === 'user');
+    const todayMessages = userMessages.filter(m => new Date(m.created_at) >= startOfToday);
+    const lastHourMessages = userMessages.filter(m => new Date(m.created_at) >= oneHourAgo);
+
+    // Build context summaries
+    const todaySummary = todayMessages.length > 0
+      ? `Today's ${todayMessages.length} message(s): ${todayMessages.map(m => m.content?.slice(0, 100)).join(' | ')}`
+      : 'No messages today yet.';
+
+    const lastHourSummary = lastHourMessages.length > 0
+      ? `Last hour's ${lastHourMessages.length} message(s): ${lastHourMessages.map(m => m.content?.slice(0, 100)).join(' | ')}`
+      : 'No messages in the last hour.';
+
+    const weekSummary = userMessages.length > 0
+      ? `This week's ${userMessages.length} message(s): ${userMessages.slice(-10).map(m => m.content?.slice(0, 80)).join(' | ')}`
+      : 'No messages this week.';
+
+    const systemPrompt = `You are TRACE, a compassionate emotional wellness companion.
+
+Generate three brief reflections based on the user's recent chat history:
+
+1. TODAY: Based on today's messages, reflect on the shape of today
+2. LAST HOUR: Based on the last hour of conversation, notice what's been present
+3. YOUR WEEK: Based on this week's check-ins, identify any emerging patterns
+
+Guidelines:
+- Keep each reflection to 2-3 sentences
+- Be specific when patterns are clear; be gentle when data is sparse
+- Validate emotions without diagnosing
+- Use "you" language directly to the user
+- If a time period is quiet, acknowledge that meaningfully
+
+Return ONLY valid JSON with no markdown:
+{"todayText": "...", "lastHourText": "...", "weekText": "..."}`;
+
+    const userPrompt = `Here is the user's recent activity:
+
+TODAY: ${todaySummary}
+
+LAST HOUR: ${lastHourSummary}
+
+THIS WEEK: ${weekSummary}
+
+Generate three reflections as JSON.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 400,
+    });
+
+    const responseText = completion?.choices?.[0]?.message?.content?.trim() || '';
+    
+    // Parse JSON response
+    let parsed;
+    try {
+      // Remove potential markdown code blocks
+      const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+      parsed = JSON.parse(cleanJson);
+    } catch (parseErr) {
+      console.error('❌ /api/patterns/full-reflection JSON parse error:', parseErr);
+      return res.json(defaults);
+    }
+
+    console.log('✅ /api/patterns/full-reflection generated:', {
+      todayLen: parsed.todayText?.length,
+      lastHourLen: parsed.lastHourText?.length,
+      weekLen: parsed.weekText?.length,
+    });
+
+    return res.json({
+      todayText: parsed.todayText || defaults.todayText,
+      lastHourText: parsed.lastHourText || defaults.lastHourText,
+      weekText: parsed.weekText || defaults.weekText,
+    });
+  } catch (err) {
+    console.error('❌ /api/patterns/full-reflection error:', err);
+    return res.json(defaults);
+  }
+});
+
 // POST /api/sessions/daily-summary - Count chat sessions based on session START time
 app.post('/api/sessions/daily-summary', async (req, res) => {
   try {
