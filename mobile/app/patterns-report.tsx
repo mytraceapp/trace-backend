@@ -154,9 +154,10 @@ export default function PatternsReport() {
 
   useFocusEffect(
     useCallback(() => {
-      console.log('💠 [TRACE PATTERNS] useFocusEffect -> loadLastHourSummary');
+      console.log('💠 [TRACE PATTERNS] useFocusEffect -> loadLastHourSummary + loadWeeklySummary');
       loadLastHourSummary();
-    }, [loadLastHourSummary])
+      loadWeeklySummary();
+    }, [loadLastHourSummary, loadWeeklySummary])
   );
 
   return (
