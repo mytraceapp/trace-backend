@@ -1468,18 +1468,15 @@ app.get('/api/chat-history', async (req, res) => {
 });
 
 // Patterns: summarize last hour of conversation
+// mode: patterns_last_hour
 app.post('/api/patterns/last-hour', async (req, res) => {
   try {
     const { userId, deviceId } = req.body || {};
-    console.log('[TRACE PATTERNS] /api/patterns/last-hour called with:', {
-      userId,
-      deviceId,
-    });
 
     const effectiveUserId = userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
 
     if (!supabaseServer) {
-      console.warn('[TRACE PATTERNS] supabase not ready');
+      console.log('🧠 /api/patterns/last-hour userId:', userId, 'deviceId:', deviceId, 'hasHistory:', false);
       return res.status(500).json({
         ok: false,
         hasHistory: false,
@@ -1495,6 +1492,7 @@ app.post('/api/patterns/last-hour', async (req, res) => {
 
     if (error) {
       console.error('[TRACE PATTERNS] history query error:', error);
+      console.log('🧠 /api/patterns/last-hour userId:', userId, 'deviceId:', deviceId, 'hasHistory:', false);
       return res.status(500).json({
         ok: false,
         hasHistory: false,
@@ -1504,9 +1502,11 @@ app.post('/api/patterns/last-hour', async (req, res) => {
 
     const allMessages = data || [];
     const recent = filterMessagesToLastHour(allMessages);
-    console.log('[TRACE PATTERNS] messages in last hour:', recent.length);
+    const hasHistory = recent.length > 0;
 
-    if (!recent.length) {
+    console.log('🧠 /api/patterns/last-hour userId:', userId, 'deviceId:', deviceId, 'hasHistory:', hasHistory);
+
+    if (!hasHistory) {
       return res.json({
         ok: true,
         hasHistory: false,
@@ -1514,35 +1514,65 @@ app.post('/api/patterns/last-hour', async (req, res) => {
       });
     }
 
+    // Count user messages and detect emotional keywords
+    const userMessages = recent.filter(m => m.role === 'user');
+    const userMessageCount = userMessages.length;
+    const allUserText = userMessages.map(m => (m.content || '').toLowerCase()).join(' ');
+    
+    // Detect emotional keywords
+    const emotionalKeywords = [];
+    if (/stress|stressed|stressful|pressure/.test(allUserText)) emotionalKeywords.push('stress');
+    if (/overwhelm|overwhelming|too much/.test(allUserText)) emotionalKeywords.push('overwhelm');
+    if (/anxious|anxiety|worried|worry|nervous/.test(allUserText)) emotionalKeywords.push('anxiety');
+    if (/tired|exhausted|drained|fatigue/.test(allUserText)) emotionalKeywords.push('fatigue');
+    if (/sad|down|lonely|alone|empty/.test(allUserText)) emotionalKeywords.push('sadness');
+    if (/rest|relax|calm|peace/.test(allUserText)) emotionalKeywords.push('rest-seeking');
+    if (/grateful|thankful|gratitude|appreciate/.test(allUserText)) emotionalKeywords.push('gratitude');
+    if (/happy|excited|good|great|joy/.test(allUserText)) emotionalKeywords.push('positive');
+    if (/confused|uncertain|unsure|lost/.test(allUserText)) emotionalKeywords.push('uncertainty');
+
     // Build compact convo text for the model
     const convoText = recent
       .map((m) => {
         const role = m.role || 'user';
-        const content = m.content || '';
+        const content = (m.content || '').slice(0, 200);
         return `${role === 'assistant' ? 'TRACE' : 'User'}: ${content}`;
       })
       .join('\n');
 
-    // Call OpenAI using existing client
+    // Build context summary for the model
+    const contextSummary = `User messages: ${userMessageCount}` +
+      (emotionalKeywords.length ? `\nEmotional themes detected: ${emotionalKeywords.join(', ')}` : '');
+
+    const systemPrompt = `You are TRACE, describing the emotional tone of a recent conversation in 1 gentle sentence.
+mode: patterns_last_hour
+
+Tone: observational, non-judgmental, no advice, no instructions.
+- Do NOT ask questions.
+- Do NOT mention "last hour" or time explicitly.
+- Just describe the essence (e.g., "It sounds like you've been…" or "There's a sense of…").
+- Keep it soft and validating.`;
+
+    const userPrompt = `${contextSummary}
+
+Recent conversation:
+${convoText}
+
+Write one gentle, observational sentence about this person's emotional state. No questions, no advice.`;
+
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        {
-          role: 'system',
-          content:
-            'You are TRACE, a calm emotional companion. You will see snippets of the last hour of conversation. Reply with ONE short, gentle reflective sentence. No questions, no advice, no emojis.',
-        },
-        {
-          role: 'user',
-          content: `Here is the last hour of conversation:\n\n${convoText}\n\nWrite one soft, non-judgmental reflection.`,
-        },
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
       ],
+      temperature: 0.7,
       max_tokens: 80,
     });
 
     const summaryText =
       completion?.choices?.[0]?.message?.content?.trim() ||
-      "You've carried a lot in this last stretch. It's okay to soften here.";
+      "You've been holding a lot. It's okay to soften here.";
 
     return res.json({
       ok: true,

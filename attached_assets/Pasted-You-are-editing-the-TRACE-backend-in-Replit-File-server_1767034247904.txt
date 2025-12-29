@@ -1,0 +1,57 @@
+You are editing the TRACE backend in Replit.
+
+File: server/index.js
+
+Goal:
+Add POST /api/patterns/weekly-summary to generate a 2–3 sentence weekly narrative for the main Patterns screen.
+
+Requirements:
+
+1. New endpoint: POST /api/patterns/weekly-summary
+
+Expected request body:
+{
+  "userName": "Nina",                // optional
+  "localDate": "2025-12-29",         // optional
+  "localDay": "Monday",              // optional
+  "localTime": "8:55 PM",            // optional
+  "weekSessions": 4,                 // total TRACE sessions this week
+  "weekActiveDays": 3,               // days with at least 1 session
+  "dominantKind": "breath|body|gratitude|audio|reflection|null",
+  "dominantKindCount": 3,            // how many times that kind occurred
+  "journalWeekCount": 2              // journal entries in the same window
+}
+
+2. If weekSessions === 0 and journalWeekCount === 0:
+   - Return:
+     {
+       ok: true,
+       summaryText: "This week is still opening up. As you start checking in and journaling, I’ll begin tracing the shape of your rhythm with you."
+     }
+
+3. Otherwise, call OpenAI with:
+
+   system:
+   - mode: "patterns_weekly_narrative"
+   - You are TRACE, summarizing a week of check-ins and journaling.
+   - Tone: calm, validating, no advice, no instructions.
+   - 2–3 sentences maximum.
+   - Focus on noticing consistency, effort, and the kinds of practices they’re drawn to (breathing, grounding, gratitude, etc.).
+   - Do not mention exact counts mechanically; weave them into natural language.
+
+   user:
+   - Provide weekSessions, weekActiveDays, dominantKind, dominantKindCount, journalWeekCount, userName, localDay/localTime where available.
+
+   Prompt idea:
+   “In 2–3 sentences, gently reflect what this week’s rhythm suggests about how this person has been showing up for themselves. No advice, no questions, just noticing and affirming.”
+
+4. Response JSON:
+   {
+     "ok": true,
+     "summaryText": "<2–3 sentence narrative>"
+   }
+
+5. Add logging:
+   console.log("🧠 /api/patterns/weekly-summary sessions:", weekSessions, "days:", weekActiveDays);
+
+Do not change other endpoints. Just add this one.
