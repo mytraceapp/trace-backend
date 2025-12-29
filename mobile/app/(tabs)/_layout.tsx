@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { useColorScheme, StyleSheet, View, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Home, Activity, BookOpen, User, HelpCircle } from 'lucide-react-native';
+import { Home, Activity, BookOpen, User, HelpCircle, TrendingUp } from 'lucide-react-native';
 import { Colors } from '../../constants/colors';
 import { Typography } from '../../constants/typography';
 
@@ -103,6 +103,15 @@ export default function TabLayout() {
           title: 'Entries',
           tabBarIcon: ({ focused, color }) => (
             <TabIcon focused={focused} color={color} label="Entries" Icon={BookOpen} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="patterns"
+        options={{
+          title: 'Patterns',
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon focused={focused} color={color} label="Patterns" Icon={TrendingUp} />
           ),
         }}
       />
