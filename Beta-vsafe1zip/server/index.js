@@ -1775,7 +1775,7 @@ In 3–4 sentences, reflect on what this pattern might be saying about how this 
   }
 });
 
-// POST /api/sessions/daily-summary - Get chat session count for today
+// POST /api/sessions/daily-summary - Count chat sessions (1-hour conversation windows)
 app.post('/api/sessions/daily-summary', async (req, res) => {
   try {
     const { userId, deviceId, localDate } = req.body || {};
@@ -1803,52 +1803,83 @@ app.post('/api/sessions/daily-summary', async (req, res) => {
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Query chat_messages for user messages on this calendar day
+    // Fetch all user messages for this day, ordered by time
     let query = supabaseServer
       .from('chat_messages')
-      .select('id', { count: 'exact' })
-      .eq('role', 'user') // Only count user messages (sessions)
+      .select('created_at')
+      .eq('role', 'user')
       .gte('created_at', startOfDay.toISOString())
-      .lte('created_at', endOfDay.toISOString());
+      .lte('created_at', endOfDay.toISOString())
+      .order('created_at', { ascending: true });
 
-    // Filter by userId if provided
     if (userId) {
       query = query.eq('user_id', userId);
     }
 
-    const { count: todayCount, error: todayError } = await query;
+    const { data: messages, error: messagesError } = await query;
 
-    if (todayError) {
-      console.error('❌ /api/sessions/daily-summary today error:', todayError);
-      throw todayError;
+    if (messagesError) {
+      console.error('❌ /api/sessions/daily-summary error:', messagesError);
+      throw messagesError;
     }
 
-    // Get all-time total for this user/device
-    let totalQuery = supabaseServer
+    // Count sessions using 1-hour windows
+    let todaySessions = 0;
+    let lastMessageTime = null;
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+
+    for (const message of messages || []) {
+      const messageTime = new Date(message.created_at).getTime();
+      
+      if (!lastMessageTime || (messageTime - lastMessageTime) > ONE_HOUR_MS) {
+        // New session: first message OR gap > 1 hour
+        todaySessions++;
+      }
+      
+      lastMessageTime = messageTime;
+    }
+
+    // Get all-time total sessions using same 1-hour window logic
+    let allQuery = supabaseServer
       .from('chat_messages')
-      .select('id', { count: 'exact' })
-      .eq('role', 'user');
+      .select('created_at')
+      .eq('role', 'user')
+      .order('created_at', { ascending: true });
 
     if (userId) {
-      totalQuery = totalQuery.eq('user_id', userId);
+      allQuery = allQuery.eq('user_id', userId);
     }
 
-    const { count: totalCount, error: totalError } = await totalQuery;
+    const { data: allMessages, error: allError } = await allQuery;
 
-    if (totalError) {
-      console.error('❌ /api/sessions/daily-summary total error:', totalError);
-      throw totalError;
+    if (allError) {
+      console.error('❌ /api/sessions/daily-summary total error:', allError);
+      throw allError;
+    }
+
+    let totalSessions = 0;
+    let lastAllTime = null;
+
+    for (const message of allMessages || []) {
+      const messageTime = new Date(message.created_at).getTime();
+      
+      if (!lastAllTime || (messageTime - lastAllTime) > ONE_HOUR_MS) {
+        totalSessions++;
+      }
+      
+      lastAllTime = messageTime;
     }
 
     console.log('✅ /api/sessions/daily-summary result:', {
-      today: todayCount || 0,
-      total: totalCount || 0,
+      today: todaySessions,
+      total: totalSessions,
+      messagesProcessed: messages?.length || 0,
     });
 
     return res.json({
       ok: true,
-      today: todayCount || 0,
-      total: totalCount || 0,
+      today: todaySessions,
+      total: totalSessions,
     });
   } catch (err) {
     console.error('❌ /api/sessions/daily-summary error:', err);
