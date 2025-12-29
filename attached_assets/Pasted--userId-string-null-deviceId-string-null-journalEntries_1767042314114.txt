@@ -1,0 +1,216 @@
+{
+  "userId": "string | null",
+  "deviceId": "string | null",
+  "journalEntries": [
+    {
+      "content": "string (journal entry text)",
+      "createdAt": "ISO 8601 timestamp",
+      "mood": "string | null (e.g., 'calm', 'anxious', 'hopeful')"
+    }
+  ]
+}
+Response:
+{
+  "hasPattern": boolean,
+  "clusterLabel": "string | null (e.g., 'Tuesday evening', 'Wednesday and Thursday afternoon')",
+  "strength": number (0 = none, 1 = soft pattern, 2 = strong pattern),
+  "insightText": "string (AI-generated insight about the pattern)"
+}
+Here are the complete Replit implementation specs:
+
+---
+
+# Replit Backend Prompt: AI-Powered Stress Echoes Endpoint
+
+## Task
+Create a new POST endpoint `/api/patterns/stress-echoes` in index.js that uses OpenAI to analyze journal entries and detect emotional patterns.
+
+## Endpoint Specification
+
+**URL:** `POST /api/patterns/stress-echoes`
+
+**Request Body:**
+```json
+{
+  "userId": "string | null",
+  "deviceId": "string | null",
+  "journalEntries": [
+    {
+      "content": "string (journal entry text)",
+      "createdAt": "ISO 8601 timestamp",
+      "mood": "string | null (e.g., 'calm', 'anxious', 'hopeful')"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "hasPattern": boolean,
+  "clusterLabel": "string | null (e.g., 'Tuesday evening', 'Wednesday and Thursday afternoon')",
+  "strength": number (0 = none, 1 = soft pattern, 2 = strong pattern),
+  "insightText": "string (AI-generated insight about the pattern)"
+}
+```
+
+## Implementation Requirements
+
+1. **Minimum Data Check:**
+   - If `journalEntries.length < 2`, return:
+     ```json
+     {
+       "hasPattern": false,
+       "clusterLabel": null,
+       "strength": 0,
+       "insightText": "When heavier moments return around similar times, TRACE will highlight that here."
+     }
+     ```
+
+2. **AI Analysis:**
+   - Use OpenAI GPT-4o-mini to analyze the journal entries
+   - AI should:
+     - Determine which entries represent emotionally heavy/stressful moments (based on content and mood)
+     - Detect if these heavy moments cluster around specific times (day of week + time of day)
+     - Identify recurring themes or triggers (work stress, relationship issues, etc.)
+     - Generate a compassionate, non-judgmental insight
+
+3. **System Prompt:**
+   ```
+   You are TRACE's pattern recognition system. Analyze journal entries to detect "Stress Echoes" - recurring patterns of emotional heaviness.
+   
+   Your task:
+   1. Identify which entries reflect emotionally heavy moments (stress, anxiety, overwhelm, sadness)
+   2. Look for temporal patterns - do heavy moments cluster on specific days/times?
+   3. Detect recurring themes or triggers
+   4. Generate a brief, compassionate insight (1-2 sentences)
+   
+   Return a JSON object with:
+   - hasPattern: true if 2+ heavy entries cluster around similar times
+   - clusterLabel: description like "Tuesday evening" or "Wednesday and Friday afternoon"
+   - strength: 0 (no pattern), 1 (soft pattern: 2-3 entries), 2 (strong pattern: 4+ entries)
+   - insightText: gentle observation, never judgmental or prescriptive
+   
+   Example insights:
+   - "You tend to process difficult work situations on Tuesday evenings."
+   - "Heavier moments often surface midweek, especially around Wednesday."
+   - "You notice relationship stress most on weekend mornings."
+   ```
+
+4. **User Message:**
+   - Send journal entries as JSON array with content, timestamp, and mood
+   - Request analysis in structured format
+
+5. **Response Format:**
+   - Ensure OpenAI returns valid JSON (use `response_format: { type: 'json_object' }`)
+   - Parse and validate the AI response
+   - Return the structured response to mobile app
+
+6. **Error Handling:**
+   - If OpenAI fails, return fallback:
+     ```json
+     {
+       "hasPattern": false,
+       "clusterLabel": null,
+       "strength": 0,
+       "insightText": "When heavier moments return around similar times, TRACE will highlight that here."
+     }
+     ```
+
+7. **Logging:**
+   - Log request: `console.log('🔮 [STRESS ECHOES] Analyzing', journalEntries.length, 'entries for userId:', userId)`
+   - Log AI response: `console.log('🔮 [STRESS ECHOES] AI detected:', result)`
+
+## Example Implementation Structure
+
+```javascript
+app.post('/api/patterns/stress-echoes', async (req, res) => {
+  const { userId, deviceId, journalEntries } = req.body;
+  
+  console.log('🔮 [STRESS ECHOES] Analyzing', journalEntries?.length || 0, 'entries');
+  
+  // Check minimum data
+  if (!journalEntries || journalEntries.length < 2) {
+    return res.json({
+      hasPattern: false,
+      clusterLabel: null,
+      strength: 0,
+      insightText: "When heavier moments return around similar times, TRACE will highlight that here."
+    });
+  }
+  
+  try {
+    // Call OpenAI with system prompt + journal entries
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: '...' },
+        { role: 'user', content: JSON.stringify(journalEntries) }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.7
+    });
+    
+    const result = JSON.parse(completion.choices[0].message.content);
+    
+    console.log('🔮 [STRESS ECHOES] AI result:', result);
+    
+    res.json({
+      hasPattern: result.hasPattern || false,
+      clusterLabel: result.clusterLabel || null,
+      strength: result.strength || 0,
+      insightText: result.insightText || "When heavier moments return around similar times, TRACE will highlight that here."
+    });
+    
+  } catch (error) {
+    console.error('🔮 [STRESS ECHOES] Error:', error);
+    res.json({
+      hasPattern: false,
+      clusterLabel: null,
+      strength: 0,
+      insightText: "When heavier moments return around similar times, TRACE will highlight that here."
+    });
+  }
+});
+```
+
+## Testing
+
+After implementation, test with:
+```bash
+curl -X POST https://YOUR-REPLIT-URL/api/patterns/stress-echoes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "test-user",
+    "deviceId": "test-device",
+    "journalEntries": [
+      {
+        "content": "Work was overwhelming today. The deadline pressure is getting to me.",
+        "createdAt": "2025-01-07T19:30:00Z",
+        "mood": "anxious"
+      },
+      {
+        "content": "Another rough evening. Can't stop thinking about work.",
+        "createdAt": "2025-01-14T20:00:00Z",
+        "mood": "stressed"
+      },
+      {
+        "content": "Feeling stressed again. Same pattern as last Tuesday.",
+        "createdAt": "2025-01-21T19:45:00Z",
+        "mood": "anxious"
+      }
+    ]
+  }'
+```
+
+Expected response should show a pattern detected on Tuesday evenings.
+
+## Notes
+- This replaces the client-side clustering logic with AI-powered sentiment and theme analysis
+- AI can detect patterns humans might miss (recurring themes, emotional tone, triggers)
+- The frontend is already wired to call this endpoint and display results with animated visualization
+
+---
+
+Copy this entire prompt to your Replit Agent to implement the endpoint. The mobile app is already configured to call it!
+

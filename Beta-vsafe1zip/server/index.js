@@ -1938,6 +1938,90 @@ Generate three reflections as JSON.`;
   }
 });
 
+// POST /api/patterns/stress-echoes - AI-powered stress pattern detection
+app.post('/api/patterns/stress-echoes', async (req, res) => {
+  const { userId, deviceId, journalEntries } = req.body;
+  
+  const fallbackResponse = {
+    hasPattern: false,
+    clusterLabel: null,
+    strength: 0,
+    insightText: "When heavier moments return around similar times, TRACE will highlight that here."
+  };
+  
+  console.log('🔮 [STRESS ECHOES] Analyzing', journalEntries?.length || 0, 'entries for userId:', userId || deviceId);
+  
+  // Check minimum data requirement
+  if (!journalEntries || journalEntries.length < 2) {
+    return res.json(fallbackResponse);
+  }
+  
+  // Check OpenAI availability
+  if (!openai) {
+    console.log('🔮 [STRESS ECHOES] No OpenAI configured, returning fallback');
+    return res.json(fallbackResponse);
+  }
+  
+  try {
+    const systemPrompt = `You are TRACE's pattern recognition system. Analyze journal entries to detect "Stress Echoes" - recurring patterns of emotional heaviness.
+
+Your task:
+1. Identify which entries reflect emotionally heavy moments (stress, anxiety, overwhelm, sadness)
+2. Look for temporal patterns - do heavy moments cluster on specific days/times?
+3. Detect recurring themes or triggers
+4. Generate a brief, compassionate insight (1-2 sentences)
+
+Return a JSON object with:
+- hasPattern: true if 2+ heavy entries cluster around similar times
+- clusterLabel: description like "Tuesday evening" or "Wednesday and Friday afternoon" (null if no pattern)
+- strength: 0 (no pattern), 1 (soft pattern: 2-3 entries), 2 (strong pattern: 4+ entries)
+- insightText: gentle observation, never judgmental or prescriptive
+
+Example insights:
+- "You tend to process difficult work situations on Tuesday evenings."
+- "Heavier moments often surface midweek, especially around Wednesday."
+- "You notice relationship stress most on weekend mornings."
+
+If no clear pattern exists, set hasPattern to false and provide an encouraging insightText.`;
+
+    const userPrompt = `Analyze these journal entries for stress patterns:\n\n${JSON.stringify(journalEntries, null, 2)}`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+      max_tokens: 300
+    });
+
+    const responseText = completion?.choices?.[0]?.message?.content?.trim() || '{}';
+    
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseErr) {
+      console.error('🔮 [STRESS ECHOES] JSON parse error:', parseErr);
+      return res.json(fallbackResponse);
+    }
+
+    console.log('🔮 [STRESS ECHOES] AI result:', result);
+
+    res.json({
+      hasPattern: result.hasPattern || false,
+      clusterLabel: result.clusterLabel || null,
+      strength: typeof result.strength === 'number' ? result.strength : 0,
+      insightText: result.insightText || fallbackResponse.insightText
+    });
+
+  } catch (error) {
+    console.error('🔮 [STRESS ECHOES] Error:', error.message || error);
+    res.json(fallbackResponse);
+  }
+});
+
 // POST /api/sessions/daily-summary - Count chat sessions based on session START time
 app.post('/api/sessions/daily-summary', async (req, res) => {
   try {
