@@ -1628,6 +1628,72 @@ app.post('/api/patterns/weekly-summary', async (req, res) => {
   }
 });
 
+// POST /api/journal-reflection - Generate AI reflection based on journal entries
+app.post('/api/journal-reflection', async (req, res) => {
+  try {
+    const { entries } = req.body || {};
+
+    console.log('✨ /api/journal-reflection called with', entries?.length || 0, 'entries');
+
+    if (!entries || !Array.isArray(entries) || entries.length === 0) {
+      return res.json({
+        ok: true,
+        reflection: "When you're ready, your reflections will gently land here. Take your time.",
+      });
+    }
+
+    // Build a summary of recent journal entries
+    const recentEntries = entries.slice(0, 10); // Last 10 entries max
+    const entrySummary = recentEntries
+      .map((entry, idx) => {
+        const mood = entry.mood ? ` [mood: ${entry.mood}]` : '';
+        const date = new Date(entry.createdAt).toLocaleDateString();
+        return `${idx + 1}. ${date}${mood}: "${entry.content}"`;
+      })
+      .join('\n');
+
+    const systemPrompt = `You are TRACE, a calm, supportive emotional companion for the TRACE app.
+You speak in grounded, gentle, non-judgmental language. You never shame. You never sound like a chatbot.
+
+You are creating a reflection based on the user's recent journal entries. Your reflection should:
+- Acknowledge patterns you notice with compassion
+- Reflect what seems to be emerging or shifting
+- Stay grounded and human, never clinical
+- Use 1-2 sentences max
+- Never diagnose or offer therapy
+- Frame observations with curiosity, not certainty
+
+Keep it warm, brief, and real.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        {
+          role: 'user',
+          content: `Here are the user's recent journal entries:\n\n${entrySummary}\n\nWrite a short, compassionate reflection (1-2 sentences) that acknowledges what you notice in their emotional landscape.`,
+        },
+      ],
+    });
+
+    const reflection =
+      completion?.choices?.[0]?.message?.content?.trim() ||
+      "You're showing up for yourself in small, brave ways. That matters.";
+
+    console.log('✅ Journal reflection generated:', reflection);
+    return res.json({
+      ok: true,
+      reflection,
+    });
+  } catch (err) {
+    console.error('❌ /api/journal-reflection error:', err);
+    return res.json({
+      ok: true,
+      reflection: "You've been carrying a lot. Even noticing your patterns is an act of care.",
+    });
+  }
+});
+
 app.get('/api/debug-chat-messages', async (req, res) => {
   if (!supabaseServer) {
     return res.status(500).json({ error: 'Supabase not configured' });
