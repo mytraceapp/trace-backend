@@ -1,0 +1,162 @@
+You are editing the TRACE backend.
+
+Goal:
+Add a working POST /api/patterns/last-hour route to the same Express app that already serves /api/greeting, so that this curl command stops returning 404 and returns JSON instead:
+
+curl -i \
+  https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/patterns/last-hour \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"userId": null, "deviceId": "anon-95h3a7remjmjkld0"}'
+
+ Open the correct server file
+	1.	Find the file where the existing route /api/greeting is defined.
+It should look something like:
+
+app.post('/api/greeting', async (req, res) => {
+  // ...
+});
+
+	2.	Confirm this file also has:
+	•	The Express app definition
+	•	app.listen(PORT, ...) with the log:
+console.log(`TRACE API server running on port ${PORT}`);
+
+This is the only file we should edit.
+
+Do not create a new Express app or a new server file.
+Add the route to the same app that handles /api/greeting and /api/chat.
+
+⸻
+
+2️⃣ Add a helper to filter messages to the last hour
+
+In this same file (near the top or near /api/chat-history), add this function once:
+
+function filterMessagesToLastHour(messages) {
+  const nowMs = Date.now();
+  const cutoffMs = nowMs - 60 * 60 * 1000; // 60 minutes
+
+  return messages.filter((m) => {
+    const ts = m.created_at || m.createdAt;
+    if (!ts) return false;
+    const t = new Date(ts).getTime();
+    if (Number.isNaN(t)) return false;
+    return t >= cutoffMs && t <= nowMs;
+  });
+}
+
+Use the same timestamp field (created_at vs createdAt) that /api/chat-history uses.
+
+⸻
+
+3️⃣ Add the /api/patterns/last-hour route right below /api/chat-history
+
+Still in the same file, find the existing chat history route, something like:
+
+app.post('/api/chat-history', async (req, res) => {
+  // ...
+});
+
+Immediately below that block, add this new route:
+
+app.post('/api/patterns/last-hour', async (req, res) => {
+  try {
+    const { userId, deviceId } = req.body || {};
+    console.log('[TRACE PATTERNS] /api/patterns/last-hour called with:', {
+      userId,
+      deviceId,
+    });
+
+    // 1) Reuse the SAME Supabase query as /api/chat-history
+    // Copy the query from chat-history and adjust variable names only.
+    // Example (replace with your exact query):
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('device_id', deviceId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[TRACE PATTERNS] history query error:', error);
+      return res.status(500).json({
+        ok: false,
+        hasHistory: false,
+        summaryText: null,
+      });
+    }
+
+    const allMessages = data || [];
+    const recent = filterMessagesToLastHour(allMessages);
+    console.log(
+      '[TRACE PATTERNS] messages in last hour:',
+      recent.length
+    );
+
+    if (!recent.length) {
+      return res.json({
+        ok: true,
+        hasHistory: false,
+        summaryText: null,
+      });
+    }
+
+    // 2) Build a compact convo text for the model
+    const convoText = recent
+      .map((m) => {
+        const role = m.role || (m.is_assistant ? 'assistant' : 'user');
+        const content = m.content || '';
+        return `${role === 'assistant' ? 'TRACE' : 'User'}: ${content}`;
+      })
+      .join('\n');
+
+    // 3) Call OpenAI using the existing "openai" client (same one used for /api/chat and /api/greeting)
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are TRACE, a calm emotional companion. You will see snippets of the last hour of conversation. Reply with ONE short, gentle reflective sentence. No questions, no advice, no emojis.',
+        },
+        {
+          role: 'user',
+          content: `Here is the last hour of conversation:\n\n${convoText}\n\nWrite one soft, non-judgmental reflection.`,
+        },
+      ],
+      max_tokens: 80,
+    });
+
+    const summaryText =
+      completion?.choices?.[0]?.message?.content?.trim() ||
+      "You've carried a lot in this last stretch. It's okay to soften here.";
+
+    return res.json({
+      ok: true,
+      hasHistory: true,
+      summaryText,
+    });
+  } catch (err) {
+    console.error('❌ /api/patterns/last-hour error:', err);
+    return res.status(500).json({
+      ok: false,
+      hasHistory: false,
+      summaryText: null,
+    });
+  }
+});
+Important:
+	•	Use the same supabase object and same openai client already defined earlier in this file.
+	•	Do not change /api/chat, /api/chat-history, /api/greeting, or app.listen(...).
+	•	Do not wrap this in a different router path; the route must be exactly:
+app.post('/api/patterns/last-hour', ...)
+
+Do NOT change the port
+
+Leave this as-is:
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`TRACE API server running on port ${PORT}`);
+});

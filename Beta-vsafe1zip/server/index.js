@@ -96,6 +96,20 @@ async function saveAssistantMessage(userId, content) {
   return data;
 }
 
+// Helper: filter messages to last hour
+function filterMessagesToLastHour(messages) {
+  const nowMs = Date.now();
+  const cutoffMs = nowMs - 60 * 60 * 1000; // 60 minutes
+
+  return messages.filter((m) => {
+    const ts = m.created_at || m.createdAt;
+    if (!ts) return false;
+    const t = new Date(ts).getTime();
+    if (Number.isNaN(t)) return false;
+    return t >= cutoffMs && t <= nowMs;
+  });
+}
+
 async function getChatHistory(userId) {
   if (!supabaseServer || !userId) {
     console.warn('[TRACE HISTORY] missing supabase or userId');
@@ -1439,6 +1453,98 @@ app.get('/api/chat-history', async (req, res) => {
     res.status(500).json({
       ok: false,
       error: 'Failed to load chat history',
+    });
+  }
+});
+
+// Patterns: summarize last hour of conversation
+app.post('/api/patterns/last-hour', async (req, res) => {
+  try {
+    const { userId, deviceId } = req.body || {};
+    console.log('[TRACE PATTERNS] /api/patterns/last-hour called with:', {
+      userId,
+      deviceId,
+    });
+
+    const effectiveUserId = userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
+
+    if (!supabaseServer) {
+      console.warn('[TRACE PATTERNS] supabase not ready');
+      return res.status(500).json({
+        ok: false,
+        hasHistory: false,
+        summaryText: null,
+      });
+    }
+
+    const { data, error } = await supabaseServer
+      .from('chat_messages')
+      .select('role, content, created_at')
+      .eq('user_id', effectiveUserId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[TRACE PATTERNS] history query error:', error);
+      return res.status(500).json({
+        ok: false,
+        hasHistory: false,
+        summaryText: null,
+      });
+    }
+
+    const allMessages = data || [];
+    const recent = filterMessagesToLastHour(allMessages);
+    console.log('[TRACE PATTERNS] messages in last hour:', recent.length);
+
+    if (!recent.length) {
+      return res.json({
+        ok: true,
+        hasHistory: false,
+        summaryText: null,
+      });
+    }
+
+    // Build compact convo text for the model
+    const convoText = recent
+      .map((m) => {
+        const role = m.role || 'user';
+        const content = m.content || '';
+        return `${role === 'assistant' ? 'TRACE' : 'User'}: ${content}`;
+      })
+      .join('\n');
+
+    // Call OpenAI using existing client
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are TRACE, a calm emotional companion. You will see snippets of the last hour of conversation. Reply with ONE short, gentle reflective sentence. No questions, no advice, no emojis.',
+        },
+        {
+          role: 'user',
+          content: `Here is the last hour of conversation:\n\n${convoText}\n\nWrite one soft, non-judgmental reflection.`,
+        },
+      ],
+      max_tokens: 80,
+    });
+
+    const summaryText =
+      completion?.choices?.[0]?.message?.content?.trim() ||
+      "You've carried a lot in this last stretch. It's okay to soften here.";
+
+    return res.json({
+      ok: true,
+      hasHistory: true,
+      summaryText,
+    });
+  } catch (err) {
+    console.error('❌ /api/patterns/last-hour error:', err);
+    return res.status(500).json({
+      ok: false,
+      hasHistory: false,
+      summaryText: null,
     });
   }
 });
