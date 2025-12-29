@@ -141,3 +141,67 @@ export async function fetchWelcomeGreeting(params: {
     throw err;
   }
 }
+
+export async function fetchPatternsWeeklySummary(params: {
+  userId?: string | null;
+  deviceId?: string | null;
+  userName?: string | null;
+  peakWindowLabel?: string | null;
+  energyRhythmLabel?: string | null;
+  energyRhythmDetail?: string | null;
+  behaviorSignatures?: string[];
+}) {
+  const {
+    userId = null,
+    deviceId = null,
+    userName = null,
+    peakWindowLabel = null,
+    energyRhythmLabel = null,
+    energyRhythmDetail = null,
+    behaviorSignatures = [],
+  } = params || {};
+
+  const url = `${TRACE_API_URL}/patterns/weekly-summary`;
+
+  console.log('🧠 TRACE weekly-summary: sending to', url, {
+    userId,
+    deviceId,
+    peakWindowLabel,
+    energyRhythmLabel,
+    energyRhythmDetail,
+    behaviorSignatures,
+  });
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId,
+      deviceId,
+      userName,
+      peakWindowLabel,
+      energyRhythmLabel,
+      energyRhythmDetail,
+      behaviorSignatures,
+    }),
+  });
+
+  if (!res.ok) {
+    console.error('🧠 TRACE weekly-summary error status:', res.status);
+    throw new Error(
+      `Weekly patterns summary failed with status ${res.status}`,
+    );
+  }
+
+  const json = await res.json();
+  console.log('🧠 TRACE weekly-summary payload:', json);
+
+  return {
+    ok: !!json.ok,
+    summaryText:
+      (json && typeof json.summaryText === 'string'
+        ? json.summaryText
+        : null) ||
+      null,
+  };
+}

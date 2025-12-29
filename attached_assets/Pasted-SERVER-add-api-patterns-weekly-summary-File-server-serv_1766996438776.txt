@@ -1,0 +1,274 @@
+SERVER – add /api/patterns/weekly-summary
+
+File (server): server/index.js (or server/index.ts, use the right flavor)
+	1.	Find your other routes (/api/greeting, /api/chat, /api/patterns/last-hour).
+	2.	Under those, add:
+
+app.post('/api/patterns/weekly-summary', async (req, res) => {
+  try {
+    const {
+      userId,
+      deviceId,
+      userName,
+      peakWindowLabel,
+      energyRhythmLabel,
+      energyRhythmDetail,
+      behaviorSignatures = [],
+    } = req.body || {};
+
+    const signatureNames = Array.isArray(behaviorSignatures)
+      ? behaviorSignatures.join(', ')
+      : '';
+
+    const who = userName || 'this person';
+
+    const snapshotLines = [
+      peakWindowLabel ? `• Focus window: ${peakWindowLabel}` : null,
+      energyRhythmLabel ? `• Weekly rhythm: ${energyRhythmLabel}` : null,
+      energyRhythmDetail ? `• Energy tilt: ${energyRhythmDetail}` : null,
+      signatureNames
+        ? `• Behavior signatures: ${signatureNames}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const messages = [
+      {
+        role: 'system',
+        content:
+          'You are TRACE, a gentle reflective companion. ' +
+          'You speak in 2–3 short, poetic sentences, never clinical, never giving advice, ' +
+          'just mirroring patterns back with warmth. Avoid emojis. Do not ask questions. ' +
+          'Talk directly to the user as "you", never in third person.',
+      },
+      {
+        role: 'user',
+        content:
+          `Create a brief weekly reflection for ${who} based on these patterns.\n` +
+          `Keep it 2–3 short sentences max, suitable for a small card.\n` +
+          `Data:\n${snapshotLines || 'No strong patterns yet this week.'}`,
+      },
+    ];
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-5.1-mini',
+      messages,
+      temperature: 0.8,
+      max_tokens: 120,
+    });
+
+    const summaryText =
+      completion.choices?.[0]?.message?.content?.trim() ||
+      'Your week is still taking shape. As you keep checking in, TRACE will gently sketch the pattern.';
+
+    res.json({
+      ok: true,
+      summaryText,
+    });
+  } catch (err) {
+    console.error('🧠 /api/patterns/weekly-summary error:', err);
+    res.status(500).json({
+      ok: false,
+      summaryText:
+        'Your week is still taking shape. As you keep checking in, TRACE will gently sketch the pattern.',
+    });
+  }
+});
+
+MOBILE LIB – helper to call that endpoint
+
+File: mobile/lib/chat.ts
+	1.	Find where TRACE_API_URL and sendChatMessage / fetchLastHourSummary live.
+	2.	Under those exports, add:
+
+export async function fetchPatternsWeeklySummary(params: {
+  userId?: string | null;
+  deviceId?: string | null;
+  userName?: string | null;
+  peakWindowLabel?: string | null;
+  energyRhythmLabel?: string | null;
+  energyRhythmDetail?: string | null;
+  behaviorSignatures?: string[];
+}) {
+  const {
+    userId = null,
+    deviceId = null,
+    userName = null,
+    peakWindowLabel = null,
+    energyRhythmLabel = null,
+    energyRhythmDetail = null,
+    behaviorSignatures = [],
+  } = params || {};
+
+  const url = `${TRACE_API_URL}/patterns/weekly-summary`;
+
+  console.log('🧠 TRACE weekly-summary: sending to', url, {
+    userId,
+    deviceId,
+    peakWindowLabel,
+    energyRhythmLabel,
+    energyRhythmDetail,
+    behaviorSignatures,
+  });
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId,
+      deviceId,
+      userName,
+      peakWindowLabel,
+      energyRhythmLabel,
+      energyRhythmDetail,
+      behaviorSignatures,
+    }),
+  });
+
+  if (!res.ok) {
+    console.error('🧠 TRACE weekly-summary error status:', res.status);
+    throw new Error(
+      `Weekly patterns summary failed with status ${res.status}`,
+    );
+  }
+
+  const json = await res.json();
+  console.log('🧠 TRACE weekly-summary payload:', json);
+
+  return {
+    ok: !!json.ok,
+    summaryText:
+      (json && typeof json.summaryText === 'string'
+        ? json.summaryText
+        : null) ||
+      null,
+  };
+}
+
+MOBILE SCREEN – call it & drive the bottom card
+
+File: mobile/app/patterns-report.tsx
+
+1. Imports
+
+At the top, where you import from ../lib/chat, add the new helper:
+
+import {
+  fetchLastHourSummary,
+  fetchPatternsWeeklySummary,
+} from '../lib/chat';
+
+(Adjust the path to match however fetchLastHourSummary is imported.)
+
+You already have useAuth + useStableDeviceId in this file now, so we’ll reuse them.
+
+2. Add summary state
+
+Inside PatternsReport, near your other state:
+
+const [patternsSummary, setPatternsSummary] = useState<string | null>(null);
+const [isPatternsSummaryLoading, setPatternsSummaryLoading] =
+  useState(false);
+
+Loader for the weekly summary
+
+Still inside PatternsReport, after you define activeBehaviorSignatures and the other pattern states, add:
+
+const { authUserId, profile } = useAuth(); // if profile not available, remove it below
+const stableId = useStableDeviceId();
+
+// ...
+
+const loadWeeklySummary = useCallback(async () => {
+  try {
+    if (!stableId) {
+      console.log(
+        '🧠 TRACE weekly-summary: no stable device id yet, skipping',
+      );
+      return;
+    }
+
+    // If there’s truly no week data, keep the soft placeholder
+    if (!weekSessions || weekSessions === 0) {
+      setPatternsSummary(null);
+      return;
+    }
+
+    setPatternsSummaryLoading(true);
+
+    const result = await fetchPatternsWeeklySummary({
+      userId: authUserId ?? null,
+      deviceId: stableId,
+      userName: (profile as any)?.first_name ?? null,
+      peakWindowLabel,
+      energyRhythmLabel,
+      energyRhythmDetail,
+      behaviorSignatures: activeBehaviorSignatures,
+    });
+
+    console.log('🧠 TRACE weekly-summary result:', result);
+
+    setPatternsSummary(result.summaryText);
+  } catch (err) {
+    console.error('🧠 TRACE weekly-summary fetch error:', err);
+    setPatternsSummary(null);
+  } finally {
+    setPatternsSummaryLoading(false);
+  }
+}, [
+  authUserId,
+  stableId,
+  profile,
+  weekSessions,
+  peakWindowLabel,
+  energyRhythmLabel,
+  energyRhythmDetail,
+  activeBehaviorSignatures,
+]);
+
+If your useAuth hook doesn’t expose profile / first_name, just drop userName from the payload and from the helper call. The endpoint will fall back to “this person”.
+
+4. Trigger it when weekly metrics are ready
+
+You already have a useEffect that loads metrics, something like:
+
+useEffect(() => {
+  loadPatternMetrics();
+  loadLastHourSummary();
+}, [loadPatternMetrics, loadLastHourSummary]);
+Add the new loader to the same effect (or a second effect):
+
+useEffect(() => {
+  loadPatternMetrics();
+  loadLastHourSummary();
+}, [loadPatternMetrics, loadLastHourSummary]);
+
+useEffect(() => {
+  // whenever these change, recompute the AI summary
+  loadWeeklySummary();
+}, [
+  loadWeeklySummary,
+  weekSessions,
+  peakWindowLabel,
+  energyRhythmLabel,
+  energyRhythmDetail,
+  activeBehaviorSignatures,
+]);
+
+This keeps all the human-made heuristics local, then asks AI to “paint” a short reflection on top.
+
+5. Drive the bottom card text
+
+Find the bottom “assessment” card – the one currently with static poetic copy (e.g., “Your week shaped itself quietly…”).
+
+Replace the <Text> inside that card with:
+
+<Text style={styles.weekSummaryText}>
+  {isPatternsSummaryLoading
+    ? 'Tracing your week...'
+    : patternsSummary ??
+      'As you keep checking in, TRACE will gently offer a small reflection on how your week is unfolding.'}
+</Text>
+
+(Keep your existing weekSummaryText style; if you don’t have one, whatever it’s using now is fine.)

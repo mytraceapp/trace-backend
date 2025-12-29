@@ -1549,6 +1549,85 @@ app.post('/api/patterns/last-hour', async (req, res) => {
   }
 });
 
+app.post('/api/patterns/weekly-summary', async (req, res) => {
+  try {
+    const {
+      userId,
+      deviceId,
+      userName,
+      peakWindowLabel,
+      energyRhythmLabel,
+      energyRhythmDetail,
+      behaviorSignatures = [],
+    } = req.body || {};
+
+    console.log('[TRACE PATTERNS] /api/patterns/weekly-summary called with:', {
+      userId,
+      deviceId,
+      peakWindowLabel,
+      energyRhythmLabel,
+    });
+
+    const signatureNames = Array.isArray(behaviorSignatures)
+      ? behaviorSignatures.join(', ')
+      : '';
+
+    const who = userName || 'this person';
+
+    const snapshotLines = [
+      peakWindowLabel ? `• Focus window: ${peakWindowLabel}` : null,
+      energyRhythmLabel ? `• Weekly rhythm: ${energyRhythmLabel}` : null,
+      energyRhythmDetail ? `• Energy tilt: ${energyRhythmDetail}` : null,
+      signatureNames
+        ? `• Behavior signatures: ${signatureNames}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const messages = [
+      {
+        role: 'system',
+        content:
+          'You are TRACE, a gentle reflective companion. ' +
+          'You speak in 2–3 short, poetic sentences, never clinical, never giving advice, ' +
+          'just mirroring patterns back with warmth. Avoid emojis. Do not ask questions. ' +
+          'Talk directly to the user as "you", never in third person.',
+      },
+      {
+        role: 'user',
+        content:
+          `Create a brief weekly reflection for ${who} based on these patterns.\n` +
+          `Keep it 2–3 short sentences max, suitable for a small card.\n` +
+          `Data:\n${snapshotLines || 'No strong patterns yet this week.'}`,
+      },
+    ];
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      temperature: 0.8,
+      max_tokens: 120,
+    });
+
+    const summaryText =
+      completion.choices?.[0]?.message?.content?.trim() ||
+      'Your week is still taking shape. As you keep checking in, TRACE will gently sketch the pattern.';
+
+    res.json({
+      ok: true,
+      summaryText,
+    });
+  } catch (err) {
+    console.error('🧠 /api/patterns/weekly-summary error:', err);
+    res.status(500).json({
+      ok: false,
+      summaryText:
+        'Your week is still taking shape. As you keep checking in, TRACE will gently sketch the pattern.',
+    });
+  }
+});
+
 app.get('/api/debug-chat-messages', async (req, res) => {
   if (!supabaseServer) {
     return res.status(500).json({ error: 'Supabase not configured' });

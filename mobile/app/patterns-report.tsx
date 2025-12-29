@@ -18,6 +18,7 @@ import { Colors } from '../constants/colors';
 import { FontFamily, TraceWordmark } from '../constants/typography';
 import { Shadows } from '../constants/shadows';
 import { getStableId } from '../lib/stableId';
+import { fetchPatternsWeeklySummary } from '../lib/chat';
 
 const API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
 
@@ -61,6 +62,9 @@ export default function PatternsReport() {
   const [hasLastHourHistory, setHasLastHourHistory] = useState(false);
   const [isLastHourLoading, setIsLastHourLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [patternsSummary, setPatternsSummary] = useState<string | null>(null);
+  const [isPatternsSummaryLoading, setPatternsSummaryLoading] = useState(false);
 
   console.log(
     '💠 [TRACE PATTERNS] stableId / lastHour state =',
@@ -108,10 +112,45 @@ export default function PatternsReport() {
     }
   }, [stableId]);
 
+  const loadWeeklySummary = useCallback(async () => {
+    try {
+      if (!stableId) {
+        console.log('🧠 TRACE weekly-summary: no stable device id yet, skipping');
+        return;
+      }
+
+      setPatternsSummaryLoading(true);
+
+      const result = await fetchPatternsWeeklySummary({
+        userId: null,
+        deviceId: stableId,
+        userName: null,
+        peakWindowLabel: null,
+        energyRhythmLabel: null,
+        energyRhythmDetail: null,
+        behaviorSignatures: [],
+      });
+
+      console.log('🧠 TRACE weekly-summary result:', result);
+
+      setPatternsSummary(result.summaryText);
+    } catch (err) {
+      console.error('🧠 TRACE weekly-summary fetch error:', err);
+      setPatternsSummary(null);
+    } finally {
+      setPatternsSummaryLoading(false);
+    }
+  }, [stableId]);
+
   useEffect(() => {
     console.log('💠 [TRACE PATTERNS] useEffect -> loadLastHourSummary');
     loadLastHourSummary();
   }, [loadLastHourSummary]);
+
+  useEffect(() => {
+    console.log('💠 [TRACE PATTERNS] useEffect -> loadWeeklySummary');
+    loadWeeklySummary();
+  }, [loadWeeklySummary]);
 
   useFocusEffect(
     useCallback(() => {
@@ -205,6 +244,18 @@ export default function PatternsReport() {
               )}
             </>
           )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
+            Your Week
+          </Text>
+          <Text style={[styles.summaryText, { fontFamily: canelaFont }]}>
+            {isPatternsSummaryLoading
+              ? 'Tracing your week...'
+              : patternsSummary ??
+                'As you keep checking in, TRACE will gently offer a small reflection on how your week is unfolding.'}
+          </Text>
         </View>
       </ScrollView>
     </View>
