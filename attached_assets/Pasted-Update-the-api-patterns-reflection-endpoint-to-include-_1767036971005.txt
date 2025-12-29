@@ -1,0 +1,123 @@
+Update the /api/patterns-reflection endpoint to include Stress Echoes and Behavioral Signatures in the AI assessment.
+
+In server/index.js, find the POST /api/patterns-reflection endpoint and update it:
+
+```javascript
+// POST /api/patterns-reflection - Generate personalized weekly pattern assessment
+app.post('/api/patterns-reflection', async (req, res) => {
+  try {
+    const {
+      userName,
+      localTime,
+      localDay,
+      localDate,
+      weekSessions,
+      weekActiveDays,
+      dominantKind,
+      dominantKindCount,
+      journalWeekCount,
+      peakWindowLabel,
+      energyRhythmLabel,
+      energyRhythmDetail,
+      stressScore,
+      stressEchoEvents,      // NEW: count of stress-related moments
+      behaviorSignatures,    // NEW: array of signature keys like ['evening_anchor', 'burst_and_crash']
+    } = req.body || {};
+
+    console.log('🧠 /api/patterns-reflection called with:', {
+      weekSessions,
+      weekActiveDays,
+      dominantKind,
+      stressEchoEvents,
+      behaviorSignatures,
+    });
+
+    // Build a rich context prompt for OpenAI
+    const contextParts = [];
+
+    if (weekSessions > 0) {
+      contextParts.push(`${weekSessions} session${weekSessions === 1 ? '' : 's'} across ${weekActiveDays} day${weekActiveDays === 1 ? '' : 's'} this week`);
+    }
+
+    if (dominantKind && dominantKindCount) {
+      contextParts.push(`most frequent activity: ${dominantKind} (${dominantKindCount}x)`);
+    }
+
+    if (journalWeekCount > 0) {
+      contextParts.push(`${journalWeekCount} journal ${journalWeekCount === 1 ? 'entry' : 'entries'}`);
+    }
+
+    if (peakWindowLabel) {
+      contextParts.push(`peak activity: ${peakWindowLabel}`);
+    }
+
+    if (stressEchoEvents > 0) {
+      contextParts.push(`${stressEchoEvents} stress-related moment${stressEchoEvents === 1 ? '' : 's'} detected`);
+    }
+
+    if (behaviorSignatures && behaviorSignatures.length > 0) {
+      const signatureLabels = {
+        evening_anchor: 'Evening Anchor (most active after 6pm)',
+        burst_and_crash: 'Burst & Crash (intense activity followed by quiet)',
+        slow_builder: 'Slow Builder (gradual increase throughout week)',
+        all_or_nothing: 'All or Nothing (high activity on some days, none on others)',
+      };
+
+      const readableSignatures = behaviorSignatures
+        .map(sig => signatureLabels[sig] || sig)
+        .join(', ');
+
+      contextParts.push(`behavioral patterns: ${readableSignatures}`);
+    }
+
+    const weekContext = contextParts.length > 0
+      ? contextParts.join('; ')
+      : 'starting to establish patterns';
+
+    const systemPrompt = `You are TRACE, a compassionate emotional wellness companion.
+
+You are creating a brief, grounded weekly reflection based on behavioral patterns.
+
+Your reflection should:
+- Acknowledge what you notice with warmth and curiosity
+- Speak in 2-3 sentences max
+- Avoid clinical language or diagnosis
+- Frame patterns as information, not judgment
+- Use "you're" instead of "you are" for a softer tone
+
+Keep it real, warm, and brief.`;
+
+    const userPrompt = `This week's pattern snapshot:
+
+${weekContext}
+
+Write a gentle 2-3 sentence reflection that acknowledges what's emerging in their patterns this week.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 150,
+    });
+
+    const reflection =
+      completion?.choices?.[0]?.message?.content?.trim() ||
+      "You're building your rhythm in the ways that work for you. That consistency matters.";
+
+    console.log('✅ Patterns reflection generated:', reflection);
+
+    return res.json({
+      ok: true,
+      reflection,
+    });
+  } catch (err) {
+    console.error('❌ /api/patterns-reflection error:', err);
+    return res.json({
+      ok: true,
+      reflection: "You've been showing up this week. Even noticing your patterns is its own kind of care.",
+    });
+  }
+});

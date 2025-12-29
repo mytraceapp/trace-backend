@@ -1673,80 +1673,95 @@ In 2–3 sentences, gently reflect what this week's rhythm suggests about how th
   }
 });
 
-// POST /api/patterns-reflection - Deep reflection for Patterns Report screen
-// mode: patterns_deep_reflection
+// POST /api/patterns-reflection - Generate personalized weekly pattern assessment
 app.post('/api/patterns-reflection', async (req, res) => {
   try {
     const {
       userName,
-      localDate,
-      localDay,
       localTime,
-      weekSessions = 0,
-      weekActiveDays = 0,
-      dominantKind = null,
-      dominantKindCount = 0,
-      journalWeekCount = 0,
-      peakWindowLabel = null,
-      energyRhythmLabel = null,
-      energyRhythmDetail = null,
-      stressScore = null,
-      behaviorSignatures = [],
+      localDay,
+      localDate,
+      weekSessions,
+      weekActiveDays,
+      dominantKind,
+      dominantKindCount,
+      journalWeekCount,
+      peakWindowLabel,
+      energyRhythmLabel,
+      energyRhythmDetail,
+      stressScore,
+      stressEchoEvents,
+      behaviorSignatures,
     } = req.body || {};
 
-    console.log('🧠 /api/patterns-reflection weekSessions:', weekSessions, 'weekActiveDays:', weekActiveDays);
+    console.log('🧠 /api/patterns-reflection called with:', {
+      weekSessions,
+      weekActiveDays,
+      dominantKind,
+      stressEchoEvents,
+      behaviorSignatures,
+    });
 
-    // If no activity at all this week
-    if (weekSessions === 0 && journalWeekCount === 0) {
-      return res.json({
-        ok: true,
-        reflection: "Once you've had a few more days of check-ins and journaling, I'll be able to offer a clearer sense of how your week tends to feel and flow.",
-      });
-    }
-
-    // Build structured data summary
-    const dataParts = [];
-    if (weekSessions > 0) dataParts.push(`${weekSessions} sessions across ${weekActiveDays} days`);
-    if (dominantKind && dominantKindCount > 0) {
-      dataParts.push(`dominant practice = ${dominantKind} (${dominantKindCount} times)`);
-    }
-    if (journalWeekCount > 0) dataParts.push(`${journalWeekCount} journal entries`);
-    if (peakWindowLabel) dataParts.push(`peak window: ${peakWindowLabel}`);
-    if (energyRhythmLabel) {
-      let rhythmText = `energy rhythm: ${energyRhythmLabel}`;
-      if (energyRhythmDetail) rhythmText += ` (${energyRhythmDetail})`;
-      dataParts.push(rhythmText);
-    }
-    if (stressScore !== null && stressScore !== undefined) {
-      dataParts.push(`stress level: ${Math.round(stressScore * 100)}%`);
-    }
-    if (Array.isArray(behaviorSignatures) && behaviorSignatures.length > 0) {
-      dataParts.push(`signatures: ${behaviorSignatures.join(', ')}`);
-    }
-
-    const dataLine = `This week: ${dataParts.join(', ')}.`;
-
-    // Context info
+    // Build a rich context prompt for OpenAI
     const contextParts = [];
-    if (userName) contextParts.push(`User: ${userName}`);
-    if (localDay) contextParts.push(`Day: ${localDay}`);
-    if (localTime) contextParts.push(`Time: ${localTime}`);
-    const contextLine = contextParts.length ? contextParts.join(', ') : '';
 
-    const systemPrompt = `You are TRACE, offering a slightly deeper reflection on their week's emotional patterns.
-mode: patterns_deep_reflection
+    if (weekSessions > 0) {
+      contextParts.push(`${weekSessions} session${weekSessions === 1 ? '' : 's'} across ${weekActiveDays} day${weekActiveDays === 1 ? '' : 's'} this week`);
+    }
 
-Tone: calm, compassionate, non-clinical, no advice, no prescriptions.
-- 3–4 sentences maximum.
-- You may reference: consistency (sessions, active days), where they tend to land (dominant practice), journaling presence, any pattern hints (peak window, energy rhythm, behavior signatures) if provided.
-- You are NOT a therapist, do not diagnose, do not describe "symptoms".
-- Focus on mirroring effort, noticing gentle patterns, and normalizing fluctuation.
-- Do not ask questions.
-- Talk directly to the user as "you".`;
+    if (dominantKind && dominantKindCount) {
+      contextParts.push(`most frequent activity: ${dominantKind} (${dominantKindCount}x)`);
+    }
 
-    const userPrompt = `${contextLine ? contextLine + '\n' : ''}${dataLine}
+    if (journalWeekCount > 0) {
+      contextParts.push(`${journalWeekCount} journal ${journalWeekCount === 1 ? 'entry' : 'entries'}`);
+    }
 
-In 3–4 sentences, reflect on what this pattern might be saying about how this person has been moving through their days emotionally. No questions, no advice. Just noticing, normalizing, and gently affirming.`;
+    if (peakWindowLabel) {
+      contextParts.push(`peak activity: ${peakWindowLabel}`);
+    }
+
+    if (stressEchoEvents > 0) {
+      contextParts.push(`${stressEchoEvents} stress-related moment${stressEchoEvents === 1 ? '' : 's'} detected`);
+    }
+
+    if (behaviorSignatures && behaviorSignatures.length > 0) {
+      const signatureLabels = {
+        evening_anchor: 'Evening Anchor (most active after 6pm)',
+        burst_and_crash: 'Burst & Crash (intense activity followed by quiet)',
+        slow_builder: 'Slow Builder (gradual increase throughout week)',
+        all_or_nothing: 'All or Nothing (high activity on some days, none on others)',
+      };
+
+      const readableSignatures = behaviorSignatures
+        .map(sig => signatureLabels[sig] || sig)
+        .join(', ');
+
+      contextParts.push(`behavioral patterns: ${readableSignatures}`);
+    }
+
+    const weekContext = contextParts.length > 0
+      ? contextParts.join('; ')
+      : 'starting to establish patterns';
+
+    const systemPrompt = `You are TRACE, a compassionate emotional wellness companion.
+
+You are creating a brief, grounded weekly reflection based on behavioral patterns.
+
+Your reflection should:
+- Acknowledge what you notice with warmth and curiosity
+- Speak in 2-3 sentences max
+- Avoid clinical language or diagnosis
+- Frame patterns as information, not judgment
+- Use "you're" instead of "you are" for a softer tone
+
+Keep it real, warm, and brief.`;
+
+    const userPrompt = `This week's pattern snapshot:
+
+${weekContext}
+
+Write a gentle 2-3 sentence reflection that acknowledges what's emerging in their patterns this week.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -1754,13 +1769,15 @@ In 3–4 sentences, reflect on what this pattern might be saying about how this 
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.8,
-      max_tokens: 200,
+      temperature: 0.7,
+      max_tokens: 150,
     });
 
     const reflection =
       completion?.choices?.[0]?.message?.content?.trim() ||
-      "You've been showing up for yourself in quiet, steady ways. That matters more than you might realize.";
+      "You're building your rhythm in the ways that work for you. That consistency matters.";
+
+    console.log('✅ Patterns reflection generated:', reflection);
 
     return res.json({
       ok: true,
@@ -1770,7 +1787,7 @@ In 3–4 sentences, reflect on what this pattern might be saying about how this 
     console.error('❌ /api/patterns-reflection error:', err);
     return res.json({
       ok: true,
-      reflection: "You've been holding space for yourself this week. Even the smallest check-ins add up to something meaningful.",
+      reflection: "You've been showing up this week. Even noticing your patterns is its own kind of care.",
     });
   }
 });
