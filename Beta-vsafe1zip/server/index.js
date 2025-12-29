@@ -1775,6 +1775,92 @@ In 3–4 sentences, reflect on what this pattern might be saying about how this 
   }
 });
 
+// POST /api/sessions/daily-summary - Get chat session count for today
+app.post('/api/sessions/daily-summary', async (req, res) => {
+  try {
+    const { userId, deviceId, localDate } = req.body || {};
+
+    console.log('🧠 /api/sessions/daily-summary called with:', {
+      userId,
+      deviceId,
+      localDate,
+    });
+
+    // If no Supabase, return zeros
+    if (!supabaseServer) {
+      console.log('⚠️ /api/sessions/daily-summary: No Supabase configured');
+      return res.json({
+        ok: true,
+        today: 0,
+        total: 0,
+      });
+    }
+
+    // Parse the calendar date (YYYY-MM-DD format)
+    const targetDate = localDate ? new Date(localDate) : new Date();
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Query chat_messages for user messages on this calendar day
+    let query = supabaseServer
+      .from('chat_messages')
+      .select('id', { count: 'exact' })
+      .eq('role', 'user') // Only count user messages (sessions)
+      .gte('created_at', startOfDay.toISOString())
+      .lte('created_at', endOfDay.toISOString());
+
+    // Filter by userId if provided
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { count: todayCount, error: todayError } = await query;
+
+    if (todayError) {
+      console.error('❌ /api/sessions/daily-summary today error:', todayError);
+      throw todayError;
+    }
+
+    // Get all-time total for this user/device
+    let totalQuery = supabaseServer
+      .from('chat_messages')
+      .select('id', { count: 'exact' })
+      .eq('role', 'user');
+
+    if (userId) {
+      totalQuery = totalQuery.eq('user_id', userId);
+    }
+
+    const { count: totalCount, error: totalError } = await totalQuery;
+
+    if (totalError) {
+      console.error('❌ /api/sessions/daily-summary total error:', totalError);
+      throw totalError;
+    }
+
+    console.log('✅ /api/sessions/daily-summary result:', {
+      today: todayCount || 0,
+      total: totalCount || 0,
+    });
+
+    return res.json({
+      ok: true,
+      today: todayCount || 0,
+      total: totalCount || 0,
+    });
+  } catch (err) {
+    console.error('❌ /api/sessions/daily-summary error:', err);
+    return res.json({
+      ok: false,
+      today: 0,
+      total: 0,
+      error: err.message,
+    });
+  }
+});
+
 // POST /api/journal-reflection - Generate AI reflection based on journal entries
 // mode: journal_reflection
 app.post('/api/journal-reflection', async (req, res) => {
