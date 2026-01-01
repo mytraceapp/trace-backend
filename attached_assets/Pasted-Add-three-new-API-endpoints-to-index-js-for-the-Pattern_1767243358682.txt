@@ -1,0 +1,36 @@
+Add three new API endpoints to index.js for the Patterns page:
+
+1. POST /api/patterns/last-hour - Analyze recent chat messages from the last hour and return a 2-3 sentence AI summary
+
+Request body: { userId, deviceId, recentMessages: Array<{role, content}> }
+
+Response: { ok: true, hasHistory: boolean, summaryText: string | null }
+
+Logic:
+
+If recentMessages is empty, return { ok: true, hasHistory: false, summaryText: null }
+Otherwise, call OpenAI with the messages and prompt: "Based on this recent conversation, write a 2-3 sentence reflection summarizing how they've been feeling and what they've been working through. Be warm and observant, not clinical."
+Return the AI summary as summaryText with hasHistory: true
+2. POST /api/patterns/weekly-summary - AI narrative of weekly rhythm
+
+Request body: { userName, weekSessions, weekActiveDays, dominantKind, dominantKindCount, journalWeekCount }
+
+Response: { ok: true, summaryText: string }
+
+Logic:
+
+Call OpenAI with prompt: "The user had {weekSessions} wellness sessions across {weekActiveDays} active days. Their most frequent practice was {dominantKind} ({dominantKindCount} times). Write a 2-3 sentence reflection on their weekly rhythm. Be warm, observant, and affirming."
+Return the AI reflection as summaryText
+3. POST /api/patterns/stress-echoes - Analyze journal entries for temporal stress patterns
+
+Request body: { userId, deviceId, journalEntries: Array<{content, createdAt, mood}> }
+
+Response: { ok: true, hasPattern: boolean, clusterLabel: string | null, strength: number (0-2), insightText: string }
+
+Logic:
+
+If journalEntries.length < 2, return { ok: true, hasPattern: false, clusterLabel: null, strength: 0, insightText: 'Not enough data yet.' }
+Otherwise, call OpenAI with prompt: "Analyze these journal entries for temporal stress patterns. Look for whether difficult moments cluster around similar times (e.g., 'Monday mornings', 'Friday afternoons'). Respond in JSON: { hasPattern: boolean, clusterLabel: string | null, strength: 0/1/2, insightText: string }"
+Use response_format: { type: 'json_object' } in the OpenAI call
+Parse and return the JSON response
+Use the same OpenAI setup as the existing /api/chat endpoint (gpt-4o-mini, temperature 0.7).
