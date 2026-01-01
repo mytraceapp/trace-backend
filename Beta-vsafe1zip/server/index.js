@@ -868,6 +868,156 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// ==================== PROFILE ENDPOINTS ====================
+
+// GET /api/profile - Fetch or create user profile
+app.get('/api/profile', async (req, res) => {
+  const { userId } = req.query;
+  
+  console.log('[PROFILE] GET request for userId:', userId);
+  
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required' });
+  }
+  
+  if (!supabaseServer) {
+    console.log('[PROFILE] No Supabase configured');
+    return res.status(500).json({ error: 'Database not configured' });
+  }
+  
+  try {
+    // Try to fetch existing profile
+    const { data: existing, error: fetchError } = await supabaseServer
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    
+    if (existing) {
+      console.log('[PROFILE] Found existing profile for:', userId);
+      return res.json(existing);
+    }
+    
+    // Profile not found - create default
+    console.log('[PROFILE] Creating default profile for:', userId);
+    const defaultProfile = {
+      user_id: userId,
+      display_name: null,
+      email: null,
+      theme: 'sage',
+      push_enabled: false,
+      email_enabled: false,
+      plan_status: 'free',
+      plan_expires_at: null,
+      has_completed_onboarding: false,
+    };
+    
+    const { data: created, error: insertError } = await supabaseServer
+      .from('profiles')
+      .insert(defaultProfile)
+      .select()
+      .single();
+    
+    if (insertError) {
+      console.error('[PROFILE] Insert error:', insertError.message);
+      return res.status(500).json({ error: insertError.message });
+    }
+    
+    console.log('[PROFILE] Created new profile for:', userId);
+    return res.json(created);
+    
+  } catch (err) {
+    console.error('[PROFILE] Error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/profile - Update user profile
+app.patch('/api/profile', async (req, res) => {
+  const { userId, displayName, email, theme, pushEnabled, emailEnabled } = req.body;
+  
+  console.log('[PROFILE] PATCH request for userId:', userId);
+  
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required' });
+  }
+  
+  if (!supabaseServer) {
+    return res.status(500).json({ error: 'Database not configured' });
+  }
+  
+  try {
+    const updates = { updated_at: new Date().toISOString() };
+    
+    if (displayName !== undefined) updates.display_name = displayName;
+    if (email !== undefined) updates.email = email;
+    if (theme !== undefined) updates.theme = theme;
+    if (pushEnabled !== undefined) updates.push_enabled = pushEnabled;
+    if (emailEnabled !== undefined) updates.email_enabled = emailEnabled;
+    
+    const { data, error } = await supabaseServer
+      .from('profiles')
+      .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('[PROFILE] Update error:', error.message);
+      return res.status(500).json({ error: error.message });
+    }
+    
+    console.log('[PROFILE] Updated profile for:', userId);
+    return res.json(data);
+    
+  } catch (err) {
+    console.error('[PROFILE] Error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/subscription/mark-upgraded - Update subscription status
+app.post('/api/subscription/mark-upgraded', async (req, res) => {
+  const { userId, planStatus, planExpiresAt, hasCompletedOnboarding } = req.body;
+  
+  console.log('[SUBSCRIPTION] mark-upgraded for userId:', userId, 'plan:', planStatus);
+  
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required' });
+  }
+  
+  if (!supabaseServer) {
+    return res.status(500).json({ error: 'Database not configured' });
+  }
+  
+  try {
+    const updates = { updated_at: new Date().toISOString() };
+    
+    if (planStatus !== undefined) updates.plan_status = planStatus;
+    if (planExpiresAt !== undefined) updates.plan_expires_at = planExpiresAt;
+    if (hasCompletedOnboarding !== undefined) updates.has_completed_onboarding = hasCompletedOnboarding;
+    
+    const { data, error } = await supabaseServer
+      .from('profiles')
+      .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('[SUBSCRIPTION] Update error:', error.message);
+      return res.status(500).json({ error: error.message });
+    }
+    
+    console.log('[SUBSCRIPTION] Updated subscription for:', userId);
+    return res.json(data);
+    
+  } catch (err) {
+    console.error('[SUBSCRIPTION] Error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== END PROFILE ENDPOINTS ====================
+
 // Helper: Simple similarity check (Jaccard similarity on words)
 function calculateSimilarity(str1, str2) {
   const words1 = new Set(str1.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/));
