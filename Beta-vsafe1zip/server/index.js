@@ -110,6 +110,26 @@ function filterMessagesToLastHour(messages) {
   });
 }
 
+// Helper: Extract and verify user from Authorization header
+async function getUserFromAuthHeader(req) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return { user: null, error: 'Missing bearer token' };
+  }
+
+  if (!supabaseServer) {
+    return { user: null, error: 'Database not configured' };
+  }
+
+  const { data, error } = await supabaseServer.auth.getUser(token);
+  if (error || !data?.user) {
+    return { user: null, error: 'Invalid or expired token' };
+  }
+
+  return { user: data.user, error: null };
+}
+
 async function getChatHistory(userId) {
   if (!supabaseServer || !userId) {
     console.warn('[TRACE HISTORY] missing supabase or userId');
@@ -1013,6 +1033,52 @@ app.post('/api/subscription/mark-upgraded', async (req, res) => {
   } catch (err) {
     console.error('[SUBSCRIPTION] Error:', err.message);
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/account - Delete user account and all related data
+app.delete('/api/account', async (req, res) => {
+  try {
+    const { user, error: authError } = await getUserFromAuthHeader(req);
+    if (authError || !user) {
+      console.log('[DeleteAccount] Auth failed:', authError);
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const userId = user.id;
+    console.log('[DeleteAccount] Deleting account for userId:', userId);
+
+    if (!supabaseServer) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+
+    // Delete per-user data from all user-scoped tables
+    const deletePromises = [
+      supabaseServer.from('chat_messages').delete().eq('user_id', userId),
+      supabaseServer.from('welcome_history').delete().eq('user_id', userId),
+      supabaseServer.from('profiles').delete().eq('user_id', userId),
+    ];
+
+    const results = await Promise.all(deletePromises);
+    const tableError = results.find(r => r.error)?.error;
+    if (tableError) {
+      console.error('[DeleteAccount] Table delete error:', tableError.message);
+      return res.status(500).json({ error: 'Failed to delete user data' });
+    }
+
+    // Delete the auth user using the service role client
+    const { error: deleteUserError } = await supabaseServer.auth.admin.deleteUser(userId);
+    if (deleteUserError) {
+      console.error('[DeleteAccount] Auth delete error:', deleteUserError.message);
+      return res.status(500).json({ error: 'Failed to delete auth user' });
+    }
+
+    console.log('[DeleteAccount] Successfully deleted account:', userId);
+    return res.json({ success: true });
+
+  } catch (err) {
+    console.error('[DeleteAccount] Unexpected error:', err.message);
+    return res.status(500).json({ error: 'Unexpected server error' });
   }
 });
 
