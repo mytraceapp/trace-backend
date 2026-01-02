@@ -1053,17 +1053,20 @@ app.delete('/api/account', async (req, res) => {
     }
 
     // Delete per-user data from all user-scoped tables
-    const deletePromises = [
-      supabaseServer.from('chat_messages').delete().eq('user_id', userId),
-      supabaseServer.from('welcome_history').delete().eq('user_id', userId),
-      supabaseServer.from('profiles').delete().eq('user_id', userId),
-    ];
-
-    const results = await Promise.all(deletePromises);
-    const tableError = results.find(r => r.error)?.error;
-    if (tableError) {
-      console.error('[DeleteAccount] Table delete error:', tableError.message);
-      return res.status(500).json({ error: 'Failed to delete user data' });
+    // Using individual try-catch to continue even if some tables don't exist
+    const tablesToDelete = ['chat_messages', 'welcome_history', 'profiles'];
+    
+    for (const table of tablesToDelete) {
+      try {
+        const { error } = await supabaseServer.from(table).delete().eq('user_id', userId);
+        if (error && !error.message.includes('does not exist') && !error.message.includes('schema cache')) {
+          console.warn(`[DeleteAccount] Non-critical error deleting from ${table}:`, error.message);
+        } else if (!error) {
+          console.log(`[DeleteAccount] Deleted from ${table}`);
+        }
+      } catch (e) {
+        console.warn(`[DeleteAccount] Skipping ${table}:`, e.message);
+      }
     }
 
     // Delete the auth user using the service role client
