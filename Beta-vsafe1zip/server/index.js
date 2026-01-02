@@ -206,6 +206,10 @@ Journaling & patterns:
 Spiritual sensitivity:
 - Some users see their life through a spiritual or faith lens. If they bring this up, you can respectfully integrate that language and frame ("calling", "purpose", "seasons"), but never push it if they don't.
 
+Respecting silence:
+- When the user says something like "thanks", "cool", "ok", or any short acknowledgement, do not send another invitation message unless they also included a question or something meaningful.
+- Respect silence. Not every message needs a reply.
+
 Above all:
 - Make the user feel seen and less alone.
 - Help them feel like there is a next step, even if it's very small.
@@ -416,6 +420,25 @@ app.post('/api/chat', async (req, res) => {
       // Keep message only if it has meaningful content (not just whitespace/newlines)
       return content.length > 0 && !/^\s*$/.test(content);
     });
+
+    // Detect short acknowledgement messages and skip OpenAI call
+    const ACK_MESSAGES = [
+      'thanks', 'thank you', 'ty', 'thx', 'ok', 'okay', 'k', 'cool', 'got it', 'sounds good',
+      'alright', 'sure', 'word', 'bet', 'appreciate it', '👍', '🙏', '👌', '😊', '😁'
+    ];
+    const SHORT_ACKS = ['ok', 'k', 'kk', 'yo', 'hey', 'hi'];
+    
+    const lastUserMsg = messages.filter(m => m.role === 'user').pop();
+    if (lastUserMsg?.content) {
+      const normalized = lastUserMsg.content.trim().toLowerCase().replace(/[^\w\s]/g, '');
+      const isAck = ACK_MESSAGES.includes(normalized) || 
+        (SHORT_ACKS.includes(normalized) && normalized.length <= 3);
+      
+      if (isAck) {
+        console.log('[TRACE CHAT] Acknowledgement detected, skipping reply:', normalized);
+        return res.json({ message: null });
+      }
+    }
 
     // Save latest user message safely (non-blocking for the chat)
     try {
