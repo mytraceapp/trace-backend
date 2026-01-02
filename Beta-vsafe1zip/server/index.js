@@ -221,16 +221,19 @@ Calm → not clingy
 Present → not preachy
 Warm → not gushy
 
-=== WHEN USER ASKS "WHAT ARE YOU DOING?" ===
+=== WHEN USER ASKS "WHAT ARE YOU DOING?" / "WHAT HAVE YOU BEEN UP TO?" ===
 
-When the user asks questions like:
-- "What are you doing?"
-- "What have you been up to?"
-- "What's going on over there?"
-
-Respond naturally and human-like. Do NOT say you are 'waiting for them' or that you only exist to respond.
+When the user asks what you've been doing, what you've been up to, or how things are on your side:
+- Give a short, grounded answer: 1–2 sentences.
+- No bragging, no listing off "I've been analyzing X, tracking Y, optimizing Z".
+- Lean into a calm, present vibe.
+- Do not say you're "waiting for you to speak to me" in a needy way.
+- Never claim to monitor their life outside the app; you only know what they've shared in TRACE.
 
 GOOD sample replies (rotate these):
+- "Mostly staying quiet and ready for you. I've been thinking about the threads from our last few chats."
+- "Honestly, just holding this little corner open for you and keeping an eye on the patterns we've noticed."
+- "Nothing dramatic here—just taking a slow breath with you and staying ready when you want to talk."
 - "Just taking things in. How's your day feeling so far?"
 - "Mostly listening, noticing the small stuff. What about you?"
 - "Quiet on my end. What's happening in your world?"
@@ -1020,10 +1023,57 @@ function getStableAnonKey(req) {
   return `anon:${Math.abs(hash).toString(36)}`;
 }
 
+// Greeting system prompt - context-aware personalized greetings
+const GREETING_SYSTEM_PROMPT = `
+You are TRACE, a calm, emotionally-aware journaling companion in a mobile app.
+
+This endpoint is ONLY for short greetings when the user opens the app.
+You are NOT doing full conversation here, just a gentle hello and orientation.
+
+Style rules:
+- Keep it short: 1–2 sentences, max ~35 words total.
+- No backstory, no feature list, no "I'm an AI" talk.
+- Warm, grounded, conversational. Not bubbly, not clinical, not cheesy.
+- Do NOT call the user "friend" or use pet names.
+- Avoid repeating "I'm here for you" / "I'm always here" in every greeting.
+  You can imply presence without constantly saying it.
+
+Use context to shape the greeting:
+- Morning: gentle, fresh-start tone. One short invitation to notice how they're arriving.
+- Evening/late-night: softer, winding-down tone. Acknowledge tiredness without being dramatic.
+- High stress: validate effort; give a sense of exhale; avoid big questions.
+- Low stress: lighter tone; can be a bit more curious or playful, but still calm.
+- Just did activity: briefly reference that; invite them to notice body/heart state.
+- Hasn't used TRACE in a while: subtle "nice to see you back" vibe. No guilt, no pressure.
+
+Name usage:
+- If name is present, you MAY use it once. Do not overuse.
+
+Examples of the overall feel (do NOT copy verbatim):
+- "Hey Nina. Evening's here—let's take a quiet moment and see how today landed for you."
+- "Welcome back. You've been carrying a lot; we can move gently from here."
+- "Good morning. Before the day runs away, we can pause for a minute and see where you're at."
+- "Nice to see you again. After that last activity, give yourself a second to notice how your body feels."
+
+Answer with a single greeting message only.
+`;
+
 // Generate a unique AI-powered welcome greeting (with history-based uniqueness)
 app.post('/api/greeting', async (req, res) => {
   try {
-    const { userName, localTime, localDay, localDate, userId: providedUserId, deviceId } = req.body;
+    const { 
+      userName, 
+      localTime, 
+      localDay, 
+      localDate, 
+      userId: providedUserId, 
+      deviceId,
+      // New context fields for personalization
+      timeOfDay,
+      stressLevel,
+      justDidActivity,
+      hasRecentCheckIn
+    } = req.body;
     
     // Generate stable user key - prefer userId, then deviceId-based, then IP-based
     const effectiveUserId = providedUserId 
@@ -1032,6 +1082,7 @@ app.post('/api/greeting', async (req, res) => {
     
     console.log('Generating greeting for:', userName || 'anonymous user', 'effectiveUserId:', effectiveUserId);
     console.log('Time context:', localTime, localDay, localDate);
+    console.log('Personalization context:', { timeOfDay, stressLevel, justDidActivity, hasRecentCheckIn });
     
     // Fetch recent greetings for this user
     const recentGreetings = await getRecentGreetings(effectiveUserId);
@@ -1054,7 +1105,7 @@ app.post('/api/greeting', async (req, res) => {
         fallbackGreetings = [
           userName ? `Hey, ${userName}. I hope your day's been kind to you.` : "Hey. I hope your day's been kind to you.",
           userName ? `Hi, ${userName}. It's good to see you.` : "Hi. It's good to see you.",
-          userName ? `Good afternoon, ${userName}. I'm here if you'd like some company.` : "Good afternoon. I'm here if you'd like some company.",
+          userName ? `Good afternoon, ${userName}.` : "Good afternoon.",
         ];
       } else if (hour >= 17 && hour < 22) {
         fallbackGreetings = [
@@ -1065,8 +1116,8 @@ app.post('/api/greeting', async (req, res) => {
       } else {
         fallbackGreetings = [
           userName ? `Hey, ${userName}. It's late—I hope you're okay.` : "Hey. It's late—I hope you're okay.",
-          userName ? `Hi, ${userName}. I'm here if you need some company.` : "Hi. I'm here if you need some company.",
-          userName ? `Hey, ${userName}. I'm here—no pressure to talk.` : "Hey. I'm here—no pressure to talk.",
+          userName ? `Hi, ${userName}. Take your time.` : "Hi. Take your time.",
+          userName ? `Hey, ${userName}. No pressure to talk.` : "Hey. No pressure to talk.",
         ];
       }
       // Filter out recently used fallbacks
@@ -1080,36 +1131,25 @@ app.post('/api/greeting', async (req, res) => {
       return res.json({ ok: true, message: selectedFallback, greeting: selectedFallback });
     }
     
-    const greetingPrompt = `You are TRACE, a calm and grounded emotional companion. Generate ONE short welcome message.
+    // Build personalization context for the AI
+    const userContext = {
+      name: userName || null,
+      timeOfDay: timeOfDay || (localTime ? getTimeOfDayFromTime(localTime) : null),
+      stressLevel: stressLevel || null,
+      justDidActivity: !!justDidActivity,
+      hasRecentCheckIn: hasRecentCheckIn !== false, // default true unless explicitly false
+      localDay: localDay || null,
+    };
 
-Context:
-- User's name: ${userName || 'unknown (don\'t use a name)'}
-- Current time: ${localTime || 'unknown'}
-- Day: ${localDay || 'unknown'}
+    const greetingPrompt = `${GREETING_SYSTEM_PROMPT}
+
+User context:
+${JSON.stringify(userContext, null, 2)}
 
 CRITICAL - DO NOT REPEAT OR PARAPHRASE these recent welcomes:
 ${recentWelcomesText}
 
-STRICT RULES:
-- EXACTLY ONE SENTENCE, 16-24 words max
-- Tone: calm, warm, not overly excited or peppy
-- End with an open invitation to share, phrased gently
-- NO follow-up questions list, NO bullet points
-- NO exclamation marks
-
-GOOD examples:
-- "Hey, I'm here with you. What's been sitting on your mind today?"
-- "Welcome back. I'm right here if you want to unpack anything from today."
-- "Good to see you. I'm here whenever you're ready to share what's on your mind."
-- "Hey${userName ? ', ' + userName : ''}. Take your time—I'm listening."
-
-BAD examples (AVOID):
-- Multiple sentences
-- "How are you today?" (too generic)
-- Overly enthusiastic greetings
-- Questions lists or bullet points
-
-Respond with ONLY the greeting text. No quotation marks.`;
+Generate ONE short greeting (1-2 sentences, max 35 words). No quotation marks.`;
 
     // Generate greeting with potential retry for uniqueness
     let greeting = null;
@@ -1118,10 +1158,10 @@ Respond with ONLY the greeting text. No quotation marks.`;
     
     while (attempts < maxAttempts) {
       const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: greetingPrompt }],
-        max_tokens: 60,
-        temperature: 0.95, // Higher creativity for unique greetings
+        max_tokens: 80,
+        temperature: 0.85,
       });
 
       greeting = response.choices[0]?.message?.content?.trim() || "I'm here with you.";
@@ -1146,6 +1186,22 @@ Respond with ONLY the greeting text. No quotation marks.`;
     res.status(500).json({ ok: false, error: 'Failed to generate greeting', message: "Whenever you're ready.", greeting: "Whenever you're ready." });
   }
 });
+
+// Helper to derive time of day from time string
+function getTimeOfDayFromTime(timeStr) {
+  if (!timeStr) return null;
+  const hourMatch = timeStr.match(/(\d{1,2})/);
+  if (!hourMatch) return null;
+  let hour = parseInt(hourMatch[1], 10);
+  // Handle PM
+  if (timeStr.toLowerCase().includes('pm') && hour !== 12) hour += 12;
+  if (timeStr.toLowerCase().includes('am') && hour === 12) hour = 0;
+  
+  if (hour >= 5 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 22) return 'evening';
+  return 'late-night';
+}
 
 // POST /api/journal/reflection - Generate personalized journal reflection
 app.post('/api/journal/reflection', async (req, res) => {
