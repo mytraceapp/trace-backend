@@ -1147,6 +1147,55 @@ Respond with ONLY the greeting text. No quotation marks.`;
   }
 });
 
+// POST /api/journal/reflection - Generate personalized journal reflection
+app.post('/api/journal/reflection', async (req, res) => {
+  console.log('📔 TRACE /journal/reflection request received');
+  try {
+    const { recentEntries, activitiesCount, localDate, localDay } = req.body;
+
+    let contextPrompt = `Today is ${localDay}, ${localDate}.`;
+    
+    if (recentEntries && recentEntries.length > 0) {
+      contextPrompt += `\n\nThe user has written ${recentEntries.length} journal entry/entries recently.`;
+      
+      const entrySnippets = recentEntries.slice(0, 3).map((entry, idx) => {
+        const snippet = entry.content.substring(0, 150);
+        return `Entry ${idx + 1}: "${snippet}${entry.content.length > 150 ? '...' : ''}"`;
+      }).join('\n');
+      
+      contextPrompt += `\n\n${entrySnippets}`;
+    }
+    
+    if (activitiesCount > 0) {
+      contextPrompt += `\n\nThey've completed ${activitiesCount} wellness activity/activities this week.`;
+    }
+
+    contextPrompt += `\n\nGenerate a brief, warm reflection (1-2 sentences) that acknowledges their journey. Be observant and affirming, not generic.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are TRACE. Generate warm, personal reflections based on user context. Be concise and genuine.' },
+        { role: 'user', content: contextPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 100,
+    });
+
+    const reflectionText = completion.choices[0].message.content.trim().replace(/^["']|["']$/g, '');
+
+    console.log('✅ Journal reflection generated:', reflectionText);
+    res.json({ ok: true, reflection: reflectionText });
+  } catch (error) {
+    console.error('❌ Journal Reflection API Error:', error.message);
+    res.status(500).json({ 
+      ok: false,
+      reflection: null,
+      error: error.message 
+    });
+  }
+});
+
 // Sentry error handler (v8 uses setupExpressErrorHandler)
 if (process.env.SENTRY_DSN) {
   Sentry.setupExpressErrorHandler(app);
