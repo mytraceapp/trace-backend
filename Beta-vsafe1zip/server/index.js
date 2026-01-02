@@ -1,3 +1,15 @@
+const Sentry = require('@sentry/node');
+
+// Initialize Sentry BEFORE requiring other modules
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 0.1,
+  });
+  console.log('Sentry initialized for error tracking');
+}
+
 const express = require('express');
 const cors = require('cors');
 const OpenAI = require('openai');
@@ -1297,6 +1309,11 @@ Respond with ONLY the greeting text. No quotation marks.`;
     res.status(500).json({ ok: false, error: 'Failed to generate greeting', message: "Whenever you're ready.", greeting: "Whenever you're ready." });
   }
 });
+
+// Sentry error handler (v8 uses setupExpressErrorHandler)
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
