@@ -1097,6 +1097,45 @@ app.delete('/api/account', async (req, res) => {
   }
 });
 
+// POST /api/account/delete - Soft delete / anonymize account
+app.post('/api/account/delete', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    if (!supabaseServer) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+
+    // 1. Soft-delete / anonymize profile
+    const { error: profileError } = await supabaseServer
+      .from('profiles')
+      .update({
+        display_name: null,
+        email: null,
+        plan_status: 'deleted',
+        has_completed_onboarding: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId);
+
+    if (profileError) {
+      console.error('[DELETE ACCOUNT] Profile update error:', profileError);
+      return res.status(500).json({ error: 'Failed to update profile' });
+    }
+
+    console.log('[DELETE ACCOUNT] Soft deleted account for userId:', userId);
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[DELETE ACCOUNT] Unexpected error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== END PROFILE ENDPOINTS ====================
 
 // Helper: Simple similarity check (Jaccard similarity on words)
