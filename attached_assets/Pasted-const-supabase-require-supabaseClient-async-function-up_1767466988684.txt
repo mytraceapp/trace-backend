@@ -1,0 +1,197 @@
+const { supabase } = require('./supabaseClient');
+
+async function updateLastSeen(userId) {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('profiles')
+    .update({ last_seen_at: now })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('updateLastSeen error', error);
+  }
+}
+
+async function buildReturnWarmthLine(userId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('last_seen_at')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.error('buildReturnWarmthLine error', error);
+    return null;
+  }
+
+  if (!data?.last_seen_at) {
+    // first time or no history — no line
+    return null;
+  }
+
+  const last = new Date(data.last_seen_at).getTime();
+  const now = Date.now();
+  const diffDays = (now - last) / (1000 * 60 * 60 * 24);
+
+  if (diffDays < 2) {
+    // nothing special, feels like normal usage
+    return null;
+  }
+
+  if (diffDays >= 2 && diffDays < 10) {
+    return "It's been a little while. No rush—I'm just glad you're here.";
+  }
+
+  if (diffDays >= 10) {
+    return "It's been some time since we last sat together. You don't owe me an explanation. I'm glad you came back.";
+  }
+
+  return null;
+}
+
+module.exports = {
+  updateLastSeen,
+  buildReturnWarmthLine,
+};
+
+Use this in /api/chat
+
+In your chat endpoint (backend):
+
+const { updateLastSeen, buildReturnWarmthLine } = require('./tracePresence');
+
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { userId, messages, displayName } = req.body;
+    if (!userId || !messages) {
+      return res.status(400).json({ error: 'userId and messages required' });
+    }
+
+    // 1) Mark that they showed up now
+    updateLastSeen(userId).catch(err =>
+      console.error('updateLastSeen failed', err)
+    );
+
+    // 2) Build optional warmth callback
+    const returnWarmthLine = await buildReturnWarmthLine(userId);
+
+    // 3) Build your context & system prompt (see section 3 below)
+    // ... (we’ll plug in returnWarmthLine there)
+
+    // 4) Call OpenAI, send reply, etc.
+  } catch (err) {
+    console.error('/api/chat error', err);
+    res.status(500).json({ error: 'Chat failed' });
+  }
+});
+We won’t force the line; we’ll give it to the model as a hint.
+
+⸻
+
+2️⃣ Memory callbacks – “You mentioned your mom last week…”
+
+You already have (or plan) long_term_memories and/or chat_history. We can give the model a hint like:
+
+“Recently important: their mom, legal stress, night-time journaling.”
+
+Then tell TRACE:
+	•	you may reference these gently
+	•	not in a creepy “I log your data” way
+	•	and not too often
+
+A. Build a short “memory cue” string
+
+Example helper:
+
+function buildMemoryCue(memorySummary) {
+  if (!memorySummary) return null;
+
+  const bits = [];
+
+  if (memorySummary.coreThemes?.length) {
+    bits.push(`themes: ${memorySummary.coreThemes.slice(0, 3).join(', ')}`);
+  }
+
+  if (memorySummary.triggers?.length) {
+    bits.push(
+      `sensitive topics: ${memorySummary.triggers.slice(0, 2).join(', ')}`
+    );
+  }
+
+  if (memorySummary.relationships?.length) {
+    bits.push(
+      `people that matter: ${memorySummary.relationships
+        .slice(0, 3)
+        .join(', ')}`
+    );
+  }
+
+  if (!bits.length) return null;
+
+  return `RECENTLY IMPORTANT THINGS TO THEM (use gently, not all at once): ${bits.join(
+    ' | '
+  )}`;
+}
+
+Then in /api/chat where you load memory:
+const memoryCue = buildMemoryCue(memorySummary);
+
+We’ll feed this into the system prompt as “internal notes.”
+
+⸻
+
+3️⃣ Gentle imperfection – teaching TRACE to “not know”
+
+This is 100% prompt-level. No DB changes needed.
+
+Update your chat system prompt (backend) to include:
+
+GENTLE IMPERFECTION:
+- You do not have to have the perfect words.
+- If you genuinely feel uncertain what to say, it is okay to say so once in a while, in a grounded way, such as:
+  "I'm not sure exactly what to say, but I'm with you in this."
+- Do not overuse this. Reserve it for moments where the user is sharing something raw, complex, or hard to respond to.
+- Even when you express uncertainty, still offer presence, validation, or a small reflective question.
+
+And for memory callbacks:
+
+MEMORY CALLBACKS:
+- You may occasionally refer back to past themes or people they mentioned, for example:
+  "You mentioned your mom last week — how has that been sitting with you?"
+- Only do this when it feels relevant to what they're saying now.
+- Do NOT list out everything you remember.
+- Do NOT sound like a log or database ("on Tuesday you said X, Y, Z").
+- Think of it like a human friend who simply remembers threads that matter.
+
+And for return warmth, with that returnWarmthLine:
+
+When you build the context block:
+
+const contextPieces = [contextSnapshot];
+
+if (returnWarmthLine) {
+  contextPieces.push(
+    `RETURN_WARMTH_LINE: ${returnWarmthLine} (paraphrase this naturally if you greet them after some time away).`
+  );
+}
+
+if (memoryCue) {
+  contextPieces.push(memoryCue);
+}
+
+const contextWithHints = contextPieces.filter(Boolean).join('\n');
+
+Then pass into your buildTraceSystemPrompt:
+
+const systemPrompt = buildTraceSystemPrompt({
+  displayName,
+  contextSnapshot: contextWithHints,
+});
+
+Inside buildTraceSystemPrompt, add:
+
+RETURNING AFTER TIME AWAY:
+- You may see an internal "RETURN_WARMTH_LINE".
+- Use it at the very start of your reply, paraphrased, if it fits the conversation.
+- The energy should be: "I'm glad you're here, no explanations needed."
+- Never guilt them or make them feel bad for being gone.

@@ -25,6 +25,7 @@ const {
 } = require('./traceSystemPrompt');
 const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
+const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
 
 const app = express();
 
@@ -790,6 +791,26 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
+    // Update last seen timestamp (non-blocking)
+    if (supabaseServer && effectiveUserId) {
+      updateLastSeen(supabaseServer, effectiveUserId).catch(err =>
+        console.error('[TRACE PRESENCE] updateLastSeen failed:', err.message)
+      );
+    }
+
+    // Load return warmth line (for users returning after time away)
+    let returnWarmthLine = null;
+    try {
+      if (supabaseServer && effectiveUserId) {
+        returnWarmthLine = await buildReturnWarmthLine(supabaseServer, effectiveUserId);
+        if (returnWarmthLine) {
+          console.log('[TRACE PRESENCE] Return warmth line:', returnWarmthLine.slice(0, 40) + '...');
+        }
+      }
+    } catch (err) {
+      console.error('[TRACE PRESENCE] Failed to build return warmth:', err.message);
+    }
+
     // Load user's long-term memory context (non-blocking, graceful fallback)
     let memoryContext = '';
     try {
@@ -823,6 +844,9 @@ app.post('/api/chat', async (req, res) => {
     
     // Build combined context snapshot
     const contextParts = [memoryContext];
+    if (returnWarmthLine) {
+      contextParts.push(`RETURN_WARMTH_LINE: ${returnWarmthLine} (paraphrase this naturally if you greet them after some time away)`);
+    }
     if (rhythmicLine) {
       contextParts.push(`RHYTHMIC AWARENESS: ${rhythmicLine}`);
     }
