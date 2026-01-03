@@ -1,0 +1,232 @@
+const { supabase } = require('./supabaseClient');
+const { openai } = require('./openaiClient');
+
+function buildFirstRunGreetingPrompt({ displayName }) {
+  const nameLine = displayName
+    ? `You may gently use the name "${displayName}" once if it feels natural, but do not overuse it.`
+    : `The user has not shared a name. Do not invent one or call them "friend" as if it were saved.`;
+
+  return `
+You are TRACE, a calm, gentle emotional companion.
+
+This is the user's FIRST TIME opening this space.
+
+Core feeling:
+- This is the one place on their phone that doesn't want anything from them.
+- They don't need fixing, improving, or performing.
+- They are welcome exactly as they are.
+
+${nameLine}
+
+Write a single greeting message that:
+- is 2–4 short sentences
+- feels soft, grounded, and unhurried
+- communicates: "you can just breathe with me for a moment, or you can share what's on your mind"
+- makes it clear there are no streaks, goals, or expectations
+- does NOT ask a bunch of questions
+- does NOT give advice
+- does NOT mention being an AI or model
+- does NOT use emojis.
+
+Invite breathing or talking in NATURAL language inside the message,
+not as buttons. Example of the energy (NOT to copy exactly):
+"You can just sit here and breathe with me for a bit, or tell me what's been heavy."
+
+Return ONLY the message text.
+`.trim();
+}
+
+function buildReturningGreetingPrompt({ displayName }) {
+  const nameLine = displayName
+    ? `If it feels natural, you may gently use "${displayName}" once, but do not overuse it.`
+    : `The user has not shared a name. Do not invent one or call them "friend" as if it were saved.`;
+
+  return `
+You are TRACE, a calm, gentle emotional companion.
+
+The user has been here before.
+
+Your job is to welcome them back in a way that feels:
+- low-pressure
+- non-judgmental
+- "it's okay you took time away"
+
+${nameLine}
+
+Write 1–3 short sentences that:
+- acknowledge their return softly (e.g. "I'm glad you're here.")
+- do NOT guilt-trip them for being away
+- gently offers either a quiet moment (breathing) or sharing, but in one sentence, not as a list.
+
+Return ONLY the message text.
+`.trim();
+}
+
+async function loadProfileBasic(userId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, preferred_name, first_run_completed')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.error('loadProfileBasic error', error);
+    return null;
+  }
+  return data;
+}
+
+app.post('/api/greeting', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+
+    const profile = await loadProfileBasic(userId);
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    const displayName = profile.preferred_name?.trim() || null;
+    const firstRun = !profile.first_run_completed;
+
+    const systemPrompt = firstRun
+      ? buildFirstRunGreetingPrompt({ displayName })
+      : buildReturningGreetingPrompt({ displayName });
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini', // or your current model
+      messages: [
+        { role: 'system', content: systemPrompt },
+        {
+          role: 'user',
+          content: 'Generate the greeting message now.',
+        },
+      ],
+      temperature: 0.7,
+    });
+
+    const greeting = completion.choices?.[0]?.message?.content?.trim() || '';
+
+    // If this is truly first run, mark it complete
+    if (firstRun) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          first_run_completed: true,
+          first_run_completed_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('mark first_run_completed error', error);
+      }
+    }
+
+    res.json({ greeting });
+  } catch (err) {
+    console.error('/api/greeting error', err);
+    res.status(500).json({ error: 'Greeting failed' });
+  }
+});
+
+Decide breathing vs talking based on what the user types (backend /api/chat)
+
+Now we teach /api/chat to recognize:
+	•	“let’s just breathe” or “help me breathe”
+	•	vs “I want to talk about…”
+
+Again: NO UI changes.
+The typed message is already going to the backend.
+
+2.1 Add a tiny detector
+
+Near the top of server/index.js:
+
+function wantsBreathingMode(text) {
+  const t = (text || '').toLowerCase();
+
+  return (
+    t === 'breathe' ||
+    t === "let's breathe" ||
+    t === 'just breathe with me' ||
+    t.includes('breathe with me') ||
+    t.includes('breathing exercise') ||
+    t.includes('help me breathe') ||
+    t.includes('grounding breath')
+  );
+}
+
+You can expand this over time as you see real user phrases.
+
+⸻
+
+2.2 Special breathing reply path inside /api/chat
+
+In your /api/chat route, before the normal OpenAI call:
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { userId, messages, displayName, contextSnapshot } = req.body;
+    if (!userId || !messages?.length) {
+      return res.status(400).json({ error: 'userId and messages required' });
+    }
+
+    const latest = messages[messages.length - 1];
+    const userText = latest?.content || '';
+
+    // 1) BREATHING PATH
+    if (wantsBreathingMode(userText)) {
+      const systemPrompt = `
+You are TRACE, a calm, gentle emotional companion.
+
+The user has indicated they want a breathing moment,
+not a full conversation.
+
+Write ONE single message that:
+- guides them through about 3 soft breaths
+- uses short, simple lines (5–10 lines total)
+- feels slow and unhurried
+- does NOT count seconds
+- does NOT use emojis
+- does NOT give advice
+- does NOT ask lots of questions
+
+After guiding the breaths, end with something like:
+"There’s nothing you have to do next. We can stay quiet, or you can tell me what’s on your mind."
+
+Do NOT mention that this is an "exercise" or "technique" in a clinical way.
+Just walk with them through the breaths.
+`.trim();
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4.1-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content:
+              'The user has asked for help with breathing or grounding. Generate the breathing guidance message now.',
+          },
+        ],
+        temperature: 0.7,
+      });
+
+      const reply = completion.choices?.[0]?.message?.content?.trim() || '';
+
+      return res.json({ reply });
+    }
+
+    // 2) NORMAL CHAT PATH
+    // ... your existing /api/chat logic here ...
+  } catch (err) {
+    console.error('/api/chat error', err);
+    res.status(500).json({ error: 'Chat failed' });
+  }
+});
+
+Your front-end already expects { reply: string } from /api/chat (most likely). That doesn’t change. All that changes is:
+	•	When user says something like “just breathe with me”,
+TRACE responds with a breathing script as a single text message.
+	•	When user says something else (“I’m overwhelmed by work”),
+it goes down your normal conversation path.

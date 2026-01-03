@@ -21,13 +21,31 @@ const {
 const {
   buildTraceSystemPrompt,
   buildGreetingSystemPrompt,
-  buildFirstRunGreetingSystemPrompt,
+  buildFirstRunGreetingPrompt,
+  buildReturningGreetingPrompt,
+  buildBreathingGuidancePrompt,
 } = require('./traceSystemPrompt');
 const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion } = require('./newsClient');
+
+// Detect if user wants breathing mode instead of full conversation
+function wantsBreathingMode(text) {
+  const t = (text || '').toLowerCase().trim();
+  return (
+    t === 'breathe' ||
+    t === "let's breathe" ||
+    t === 'just breathe with me' ||
+    t.includes('breathe with me') ||
+    t.includes('breathing exercise') ||
+    t.includes('help me breathe') ||
+    t.includes('grounding breath') ||
+    t.includes('i want to breathe') ||
+    t.includes('can we breathe')
+  );
+}
 
 const app = express();
 
@@ -462,10 +480,10 @@ app.post('/api/analyze-emotion', async (req, res) => {
   }
 });
 
-// ===== FIRST-RUN ONBOARDING FLOW =====
+// ===== GREETING FLOW =====
 
-// Bootstrap: Check if user needs first-run experience
-app.post('/api/bootstrap', async (req, res) => {
+// Unified greeting: Handles both first-run and returning users
+app.post('/api/greeting', async (req, res) => {
   try {
     const { userId } = req.body;
     if (!userId) {
@@ -478,93 +496,56 @@ app.post('/api/bootstrap', async (req, res) => {
     }
 
     const displayName = profile.preferred_name?.trim() || null;
+    const firstRun = !profile.first_run_completed;
 
-    res.json({
-      firstRun: !profile.first_run_completed,
-      displayName,
-    });
-  } catch (err) {
-    console.error('/api/bootstrap error', err);
-    res.status(500).json({ error: 'Bootstrap failed' });
-  }
-});
-
-// First-run greeting: Special welcome for new users
-app.post('/api/first-greeting', async (req, res) => {
-  try {
-    const { userId } = req.body;
-    if (!userId) {
-      return res.status(400).json({ error: 'userId required' });
-    }
-
-    const profile = await loadProfileBasic(userId);
-    if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
-    }
-
-    const displayName = profile.preferred_name?.trim() || null;
+    // Choose prompt based on first-run status
+    const systemPrompt = firstRun
+      ? buildFirstRunGreetingPrompt({ displayName })
+      : buildReturningGreetingPrompt({ displayName });
 
     if (!openai) {
-      const fallback = displayName
-        ? `Welcome, ${displayName}. There's no agenda here—just a quiet space. When you're ready, we can breathe together or simply talk.`
-        : `Welcome. There's no agenda here—just a quiet space. When you're ready, we can breathe together or simply talk.`;
-      return res.json({ greeting: fallback });
+      const fallback = firstRun
+        ? (displayName
+            ? `Welcome, ${displayName}. There's no agenda here—just a quiet space. You can breathe with me for a moment, or tell me what's on your mind.`
+            : `Welcome. There's no agenda here—just a quiet space. You can breathe with me for a moment, or tell me what's on your mind.`)
+        : (displayName
+            ? `It's good to see you, ${displayName}. Take your time—we can breathe together or talk whenever you're ready.`
+            : `It's good to see you. Take your time—we can breathe together or talk whenever you're ready.`);
+      return res.json({ greeting: fallback, firstRun });
     }
-
-    const systemPrompt = buildFirstRunGreetingSystemPrompt({ displayName });
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        {
-          role: 'user',
-          content: 'Generate the greeting now. Remember: calm, low-pressure, 1–3 sentences, no emojis.',
-        },
+        { role: 'user', content: 'Generate the greeting message now.' },
       ],
       temperature: 0.7,
-      max_tokens: 150,
+      max_tokens: 200,
     });
 
     const greeting = completion.choices?.[0]?.message?.content?.trim() || 
-      "Welcome. This is a quiet place—no goals, no pressure. When you're ready, we can breathe together or talk about whatever's on your mind.";
+      "Welcome. This is a quiet place—no goals, no pressure. You can breathe with me for a moment, or share what's on your mind.";
 
-    res.json({ greeting });
+    // If first run, mark it complete
+    if (firstRun && supabaseServer) {
+      const { error } = await supabaseServer
+        .from('profiles')
+        .update({
+          first_run_completed: true,
+          first_run_completed_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('/api/greeting mark first_run_completed error', error);
+      }
+    }
+
+    res.json({ greeting, firstRun });
   } catch (err) {
-    console.error('/api/first-greeting error', err);
-    res.status(500).json({ error: 'First greeting failed' });
-  }
-});
-
-// Complete first-run: Mark onboarding as done
-app.post('/api/complete-first-run', async (req, res) => {
-  try {
-    const { userId } = req.body;
-    if (!userId) {
-      return res.status(400).json({ error: 'userId required' });
-    }
-
-    if (!supabaseServer) {
-      return res.status(500).json({ error: 'Database not configured' });
-    }
-
-    const { error } = await supabaseServer
-      .from('profiles')
-      .update({
-        first_run_completed: true,
-        first_run_completed_at: new Date().toISOString(),
-      })
-      .eq('user_id', userId);
-
-    if (error) {
-      console.error('/api/complete-first-run update error', error);
-      return res.status(500).json({ error: 'Update failed' });
-    }
-
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('/api/complete-first-run error', err);
-    res.status(500).json({ error: 'Complete first run failed' });
+    console.error('/api/greeting error', err);
+    res.status(500).json({ error: 'Greeting failed' });
   }
 });
 
@@ -768,8 +749,41 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    // Hard-route simple factual questions (dynamic facts from database)
+    // Extract user's latest message text
     const userText = lastUserMsg?.content || '';
+
+    // BREATHING MODE: Short-circuit for breathing requests
+    if (wantsBreathingMode(userText)) {
+      console.log('[TRACE CHAT] Breathing mode detected');
+      
+      if (!openai) {
+        return res.json({
+          message: "Let's take a breath together.\n\nBreathe in slowly...\n\nHold for a moment...\n\nNow let it out gently.\n\nThere's nothing you have to do next. We can stay quiet, or you can tell me what's on your mind.",
+          activity_suggestion: { name: null, reason: null, should_navigate: false },
+        });
+      }
+
+      const breathingPrompt = buildBreathingGuidancePrompt();
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: breathingPrompt },
+          { role: 'user', content: 'The user has asked for help with breathing or grounding. Generate the breathing guidance message now.' },
+        ],
+        temperature: 0.7,
+        max_tokens: 300,
+      });
+
+      const breathingReply = completion.choices?.[0]?.message?.content?.trim() ||
+        "Let's take a breath together.\n\nBreathe in slowly...\n\nHold for a moment...\n\nNow let it out gently.\n\nThere's nothing you have to do next.";
+
+      return res.json({
+        message: breathingReply,
+        activity_suggestion: { name: null, reason: null, should_navigate: false },
+      });
+    }
+
+    // Hard-route simple factual questions (dynamic facts from database)
     if (isUSPresidentQuestion(userText)) {
       console.log('[TRACE CHAT] US President question detected');
       const fact = await getDynamicFact(supabaseServer, 'current_us_president');
