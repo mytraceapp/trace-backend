@@ -688,7 +688,7 @@ app.post('/api/chat', async (req, res) => {
   try {
     const {
       messages: rawMessages,
-      userName,
+      userName: rawUserName,
       chatStyle = 'conversation',
       localTime,
       localDay,
@@ -696,6 +696,12 @@ app.post('/api/chat', async (req, res) => {
       userId,
       deviceId,
     } = req.body;
+    
+    // Filter out invalid placeholder names like "friend", "buddy", "pal"
+    const invalidNames = ['friend', 'buddy', 'pal', 'user', 'guest', 'anonymous'];
+    const userName = rawUserName && !invalidNames.includes(rawUserName.toLowerCase().trim()) 
+      ? rawUserName 
+      : null;
 
     // Use real userId if provided, otherwise use a known valid UUID bucket
     const effectiveUserId =
