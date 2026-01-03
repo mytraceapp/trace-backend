@@ -1,0 +1,346 @@
+This is the internal structure we’ll use everywhere (summaries, chat context, etc.).
+
+Add this to a shared file in your backend, e.g. server/traceMemory.js (or at the top of server/index.js):
+
+// TRACE Memory summary "shape" used across backend
+
+/**
+ * @typedef {Object} TraceMemorySummary
+ * @property {string[]} coreThemes
+ * @property {string[]} currentStressors
+ * @property {string[]} goals
+ * @property {string[]} triggers
+ * @property {string[]} preferences
+ * @property {string}   lastUpdated  ISO timestamp
+ */
+
+/**
+ * @typedef {Object} TracePatternsSnapshot
+ * @property {string[]} highlights  // e.g. ["Evening tension spikes past 3 days"]
+ * @property {string[]} risks       // e.g. ["Short sleep 3 nights in a row"]
+ * @property {string[]} supports    // e.g. ["Walking helped last Tuesday"]
+ */
+
+We’ll build one small “summary” JSON blob from the table + patterns, then turn it into a system context string.
+
+⸻
+
+3️⃣ Helper: fetch long-term memories + build context snapshot
+
+Assuming you already have supabase client in your backend, add something like this in server/traceMemory.js:
+
+const { supabase } = require('./supabaseClient'); // adjust path
+
+/**
+ * Fetch latest long-term memories for a user and group by kind.
+ * Returns a TraceMemorySummary-ish structure.
+ */
+async function loadTraceLongTermMemory(userId) {
+  const { data, error } = await supabase
+    .from('long_term_memories')
+    .select('kind, content, updated_at')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .order('updated_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('loadTraceLongTermMemory error', error);
+    return null;
+  }
+
+  const grouped = {
+    identity: [],
+    themes: [],
+    goals: [],
+    triggers: [],
+    preferences: [],
+  };
+
+  let lastUpdated = null;
+
+  for (const row of data || []) {
+    if (grouped[row.kind]) {
+      grouped[row.kind].push(row.content);
+    }
+    if (!lastUpdated || new Date(row.updated_at) > new Date(lastUpdated)) {
+      lastUpdated = row.updated_at;
+    }
+  }
+
+  /** @type {import('./traceMemory').TraceMemorySummary} */
+  const summary = {
+    coreThemes: grouped.themes,
+    currentStressors: [], // can be a subset of themes if you want
+    goals: grouped.goals,
+    triggers: grouped.triggers,
+    preferences: grouped.preferences,
+    lastUpdated: lastUpdated || new Date().toISOString(),
+  };
+
+  return summary;
+}
+
+/**
+ * Turn memory + patterns + recent messages into a context string
+ * for the system prompt.
+ */
+function buildUserContextSnapshot({
+  memorySummary,
+  patternsSnapshot,
+  recentMessages,
+}) {
+  // recentMessages: [{ role, content }]
+  const lastFewUserTurns = (recentMessages || [])
+    .filter(m => m.role === 'user')
+    .slice(-3)
+    .map(m => `- User: ${m.content}`)
+    .join('\n');
+
+  const lines = [];
+
+  lines.push('USER CONTEXT SNAPSHOT (do not repeat this verbatim):');
+
+  if (memorySummary) {
+    if (memorySummary.coreThemes?.length) {
+      lines.push(`- Core themes: ${memorySummary.coreThemes.join('; ')}`);
+    }
+    if (memorySummary.goals?.length) {
+      lines.push(`- Current goals: ${memorySummary.goals.join('; ')}`);
+    }
+    if (memorySummary.triggers?.length) {
+      lines.push(`- Emotional triggers: ${memorySummary.triggers.join('; ')}`);
+    }
+    if (memorySummary.preferences?.length) {
+      lines.push(
+        `- Support preferences: ${memorySummary.preferences.join('; ')}`
+      );
+    }
+  }
+
+  if (patternsSnapshot) {
+    if (patternsSnapshot.highlights?.length) {
+      lines.push(
+        `- Recent patterns: ${patternsSnapshot.highlights.join('; ')}`
+      );
+    }
+    if (patternsSnapshot.risks?.length) {
+      lines.push(`- Risks: ${patternsSnapshot.risks.join('; ')}`);
+    }
+    if (patternsSnapshot.supports?.length) {
+      lines.push(`- Helpful supports: ${patternsSnapshot.supports.join('; ')}`);
+    }
+  }
+
+  if (lastFewUserTurns) {
+    lines.push('\nRecent conversation turns:');
+    lines.push(lastFewUserTurns);
+  }
+
+  return lines.join('\n');
+}
+
+module.exports = {
+  loadTraceLongTermMemory,
+  buildUserContextSnapshot,
+};
+
+For now, patternsSnapshot can be null or a simple object you build from your existing /api/patterns logic later.
+
+⸻
+
+4️⃣ Use memory inside /api/chat
+
+Now we plug this into your existing chat endpoint.
+
+Inside server/index.js (or wherever /api/chat lives):
+const express = require('express');
+const router = express.Router();
+const { openai } = require('./openaiClient'); // adjust to your setup
+const {
+  loadTraceLongTermMemory,
+  buildUserContextSnapshot,
+} = require('./traceMemory');
+const { supabase } = require('./supabaseClient'); // if you store chat history
+
+// helper to load last N messages from your chat history table
+async function loadRecentMessages(userId, limit = 20) {
+  const { data, error } = await supabase
+    .from('chat_history') // change to your actual table
+    .select('role, content')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+
+  if (error) {
+    console.error('loadRecentMessages error', error);
+    return [];
+  }
+  return data || [];
+}
+
+// TODO: build this from your patterns endpoints later
+async function loadPatternsSnapshot(userId) {
+  // For now, stub with null or simple text
+  return null;
+}
+
+router.post('/api/chat', async (req, res) => {
+  try {
+    const { userId, messages } = req.body;
+    if (!userId || !messages) {
+      return res.status(400).json({ error: 'userId and messages required' });
+    }
+
+    // 1) Load supporting memory/context
+    const [memorySummary, recentMessages, patternsSnapshot] = await Promise.all(
+      [
+        loadTraceLongTermMemory(userId),
+        loadRecentMessages(userId, 20),
+        loadPatternsSnapshot(userId),
+      ]
+    );
+
+    const contextSnapshot = buildUserContextSnapshot({
+      memorySummary,
+      patternsSnapshot,
+      recentMessages,
+    });
+
+    // 2) System prompt + snapshot
+    const systemPrompt = `
+You are TRACE, a gentle, low-pressure emotional companion.
+You respect boundaries, avoid sounding like a therapist, and don't give medical/legal advice.
+
+Use the following context to better understand the user.
+Do NOT repeat it verbatim or say "based on your memory"; just let it subtly shape your responses.
+
+${contextSnapshot}
+    `.trim();
+
+    const openAIMessages = [
+      { role: 'system', content: systemPrompt },
+      // you can optionally pass a short summary of older history here too
+      ...messages,
+    ];
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini', // or whatever you’re using
+      messages: openAIMessages,
+      temperature: 0.8,
+    });
+
+    const reply =
+      completion.choices?.[0]?.message?.content ?? 'Sorry, I glitched.';
+
+    // (Optional) Save this turn to chat history
+    // await supabase.from('chat_history').insert([
+    //   { user_id: userId, role: 'user', content: messages[messages.length - 1].content },
+    //   { user_id: userId, role: 'assistant', content: reply },
+    // ]);
+
+    res.json({ reply });
+  } catch (err) {
+    console.error('/api/chat error', err);
+    res.status(500).json({ error: 'Chat failed' });
+  }
+});
+
+module.exports = router;
+
+You can adapt this to your existing /api/chat style but the key change is:
+	•	We build contextSnapshot from Supabase and prepend it in a system message.
+That’s the “TRACE remembers you” illusion.
+
+⸻
+
+5️⃣ Auto-summarize & upsert to long_term_memories
+
+Now: how do those memory rows get created?
+
+We’ll write a helper you can call after a heavy chat or journal entry:
+async function summarizeToLongTermMemory({ userId, text }) {
+  if (!text || text.length < 200) {
+    // skip tiny bits
+    return;
+  }
+
+  const prompt = `
+You are TRACE's background summarizer.
+
+Given the user's recent text (journaling or chat), extract stable insights that
+could help support them later.
+
+Return STRICTLY in this JSON format:
+
+{
+  "themes": [string],
+  "goals": [string],
+  "triggers": [string],
+  "preferences": [string],
+  "identity": [string]
+}
+
+Keep each string short and concrete. Do NOT mention "TRACE" or "the app".
+Only include things that feel likely to be true for weeks or months, not momentary moods.
+  `.trim();
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4.1-mini', // or a stronger one if you want
+    messages: [
+      { role: 'system', content: prompt },
+      { role: 'user', content: text },
+    ],
+    temperature: 0.3,
+    response_format: { type: 'json_object' },
+  });
+
+  let parsed;
+  try {
+    parsed = JSON.parse(completion.choices[0].message.content);
+  } catch (e) {
+    console.error('Failed to parse memory summary JSON', e);
+    return;
+  }
+
+  const rows = [];
+
+  const pushRows = (kind, arr) => {
+    if (!Array.isArray(arr)) return;
+    for (const content of arr) {
+      if (!content || typeof content !== 'string') continue;
+      rows.push({ user_id: userId, kind, content, is_active: true });
+    }
+  };
+
+  pushRows('identity', parsed.identity);
+  pushRows('themes', parsed.themes);
+  pushRows('goals', parsed.goals);
+  pushRows('triggers', parsed.triggers);
+  pushRows('preferences', parsed.preferences);
+
+  if (!rows.length) return;
+
+  const { error } = await supabase.from('long_term_memories').insert(rows);
+  if (error) {
+    console.error('Error inserting long_term_memories', error);
+  }
+}
+
+Then you hook this wherever it makes sense:
+	•	After a big journal submission endpoint.
+	•	Or when user taps an endSession button in the UI.
+	•	Or when a chat session crosses a certain character length.
+
+Example integration in your journal endpoint:
+router.post('/api/journal', async (req, res) => {
+  const { userId, entryText } = req.body;
+  // ...save journal to Supabase...
+
+  // Fire and forget; don't block the response on this
+  summarizeToLongTermMemory({ userId, text: entryText }).catch(err =>
+    console.error('summarizeToLongTermMemory failed', err)
+  );
+
+  res.json({ ok: true });
+});
