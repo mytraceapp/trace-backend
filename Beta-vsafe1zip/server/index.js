@@ -14,6 +14,10 @@ const express = require('express');
 const cors = require('cors');
 const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
+const {
+  buildMemoryContext,
+  summarizeToLongTermMemory,
+} = require('./traceMemory');
 
 const app = express();
 
@@ -608,6 +612,19 @@ app.post('/api/chat', async (req, res) => {
         },
       });
     }
+
+    // Load user's long-term memory context (non-blocking, graceful fallback)
+    let memoryContext = '';
+    try {
+      if (supabaseServer && effectiveUserId) {
+        memoryContext = await buildMemoryContext(supabaseServer, effectiveUserId, messages);
+        if (memoryContext) {
+          console.log('[TRACE MEMORY] Loaded memory context for user:', effectiveUserId.slice(0, 8) + '...');
+        }
+      }
+    } catch (err) {
+      console.error('[TRACE MEMORY] Failed to load memory context:', err.message);
+    }
     
     // Build personalized system prompt with user preferences
     let systemPrompt = TRACE_SYSTEM_PROMPT.replace('{chat_style}', chatStyle);
@@ -640,6 +657,13 @@ It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${local
 
 Personalization
 The person you're speaking with is named ${userName}. Use their name occasionally in a warm but not over-familiar way.`;
+    }
+
+    // Add long-term memory context if available
+    if (memoryContext) {
+      systemPrompt += `
+
+${memoryContext}`;
     }
     
     const response = await openai.chat.completions.create({
@@ -685,6 +709,14 @@ The person you're speaking with is named ${userName}. Use their name occasionall
       }
     } catch (err) {
       console.error('[TRACE CHAT SAVE ASSISTANT ERROR]', err.message || err);
+    }
+
+    // Trigger memory extraction if conversation is substantial (fire and forget)
+    const conversationLength = messages.reduce((acc, m) => acc + (m.content?.length || 0), 0);
+    if (supabaseServer && openai && effectiveUserId && conversationLength > 500) {
+      const userMessages = messages.filter(m => m.role === 'user').map(m => m.content).join('\n\n');
+      summarizeToLongTermMemory(openai, supabaseServer, effectiveUserId, userMessages)
+        .catch(err => console.error('[TRACE MEMORY] Background summarization failed:', err.message));
     }
     
     return res.json({
