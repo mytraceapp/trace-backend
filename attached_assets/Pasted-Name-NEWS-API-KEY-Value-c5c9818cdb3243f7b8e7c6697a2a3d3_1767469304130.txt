@@ -1,0 +1,113 @@
+Name: NEWS_API_KEY
+Value: <c5c9818cdb3243f7b8e7c6697a2a3d33>
+
+process.env.NEWS_API_KEY
+
+const fetch = require('node-fetch');
+
+const NEWS_API_KEY = process.env.NEWS_API_KEY;
+
+async function fetchNewsArticles(query) {
+  if (!NEWS_API_KEY) {
+    console.error('Missing NEWS_API_KEY');
+    return [];
+  }
+
+  const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
+    query
+  )}&pageSize=5&sortBy=publishedAt&language=en&apiKey=${NEWS_API_KEY}`;
+
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    console.error('News API error:', res.status);
+    return [];
+  }
+
+  const data = await res.json();
+  return data.articles || [];
+}
+
+async function buildNewsContextSummary(topic) {
+  try {
+    const articles = await fetchNewsArticles(topic);
+
+    if (!articles.length) {
+      return `NEWS_CONTEXT: No recent major coverage found for "${topic}".`;
+    }
+
+    const brief = articles.slice(0, 5).map(a => ({
+      title: a.title,
+      source: a.source?.name,
+      publishedAt: a.publishedAt,
+      description: a.description,
+    }));
+
+    return `NEWS_CONTEXT for "${topic}" (recent headlines, may be incomplete):
+${JSON.stringify(brief, null, 2)}`;
+  } catch (err) {
+    console.error('buildNewsContextSummary error', err);
+    return `NEWS_CONTEXT: News lookup for "${topic}" failed.`;
+  }
+}
+
+module.exports = {
+  buildNewsContextSummary,
+};
+
+This:
+
+✔ securely calls NewsAPI
+✔ returns a concise JSON summary
+✔ gracefully fails if something breaks
+
+⸻
+
+✅ Step 3 — Detect news questions in /api/chat
+
+In server/index.js (or wherever /api/chat lives):
+
+Add this near the top:
+const { buildNewsContextSummary } = require('./newsClient');
+
+Then in your /api/chat route, BEFORE calling OpenAI:
+function isNewsQuestion(text) {
+  const t = text.toLowerCase();
+
+  return (
+    t.startsWith("what's happening in") ||
+    t.startsWith('what is happening in') ||
+    t.includes('what is going on in') ||
+    t.includes('latest news about') ||
+    t.includes('what is the news on')
+  );
+}
+Then inside /api/chat:
+const latest = messages[messages.length - 1];
+const userText = latest?.content || '';
+
+let newsContext = null;
+
+if (isNewsQuestion(userText)) {
+  newsContext = await buildNewsContextSummary(userText);
+}
+
+And when you build your system prompt / context, append:
+const contextParts = [
+  userContextSnapshot, // what you already build
+  newsContext ? newsContext : null,
+].filter(Boolean);
+
+const fullContext = contextParts.join('\n\n');
+LIVE NEWS CONTEXT:
+- You may sometimes receive a block labelled NEWS_CONTEXT.
+- This contains recent headlines about the topic the user mentioned.
+- Your job is:
+  1) Give a short neutral summary (2–4 sentences).
+  2) Be honest that it may not cover everything.
+  3) Gently invite the user to share how this has been feeling for them — IF it seems appropriate.
+
+Do NOT:
+- add panic or speculation
+- become political or persuasive
+- overwhelm the user with data
