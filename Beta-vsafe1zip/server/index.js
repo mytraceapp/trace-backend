@@ -23,6 +23,8 @@ const {
   buildGreetingSystemPrompt,
   buildFirstRunGreetingSystemPrompt,
 } = require('./traceSystemPrompt');
+const { buildRhythmicLine } = require('./traceRhythm');
+const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
 
 const app = express();
 
@@ -563,6 +565,53 @@ app.post('/api/complete-first-run', async (req, res) => {
   }
 });
 
+// Weekly Letter: AI-generated reflection on user's emotional week
+app.post('/api/weekly-letter', async (req, res) => {
+  try {
+    const { userId, forceRegenerate } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+
+    if (!supabaseServer) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+
+    // Check for existing letter first (unless forcing regeneration)
+    if (!forceRegenerate) {
+      const existing = await getExistingWeeklyLetter(supabaseServer, userId);
+      if (existing) {
+        console.log('[WEEKLY LETTER] Returning cached letter for week:', existing.week_start);
+        return res.json({ 
+          content: existing.content, 
+          weekStart: existing.week_start,
+          cached: true 
+        });
+      }
+    }
+
+    if (!openai) {
+      return res.json({
+        content: "This week was yours. Whatever it held—the heavy parts, the lighter moments—you showed up. That counts for something.",
+        weekStart: new Date().toISOString().slice(0, 10),
+        cached: false,
+      });
+    }
+
+    const letterRow = await generateWeeklyLetter(openai, supabaseServer, userId);
+    console.log('[WEEKLY LETTER] Generated new letter for week:', letterRow.week_start);
+    
+    res.json({ 
+      content: letterRow.content, 
+      weekStart: letterRow.week_start,
+      cached: false 
+    });
+  } catch (err) {
+    console.error('/api/weekly-letter error', err);
+    res.status(500).json({ error: 'Weekly letter generation failed' });
+  }
+});
+
 // Bubble activity encouragement messages - AI generated
 app.post('/api/bubble-encouragement', async (req, res) => {
   try {
@@ -753,11 +802,36 @@ app.post('/api/chat', async (req, res) => {
     } catch (err) {
       console.error('[TRACE MEMORY] Failed to load memory context:', err.message);
     }
+
+    // Load rhythmic awareness line (time/date-based contextual awareness)
+    // Uses user's local time from the payload, not server time
+    let rhythmicLine = null;
+    try {
+      if (supabaseServer && effectiveUserId) {
+        rhythmicLine = await buildRhythmicLine(supabaseServer, effectiveUserId, {
+          localTime,
+          localDay,
+          localDate,
+        });
+        if (rhythmicLine) {
+          console.log('[TRACE RHYTHM] Loaded rhythmic line:', rhythmicLine.slice(0, 40) + '...');
+        }
+      }
+    } catch (err) {
+      console.error('[TRACE RHYTHM] Failed to build rhythmic line:', err.message);
+    }
     
+    // Build combined context snapshot
+    const contextParts = [memoryContext];
+    if (rhythmicLine) {
+      contextParts.push(`RHYTHMIC AWARENESS: ${rhythmicLine}`);
+    }
+    const fullContext = contextParts.filter(Boolean).join('\n\n');
+
     // Build system prompt using centralized builder (handles name, memory, tone)
     let systemPrompt = buildTraceSystemPrompt({
       displayName: userName || null,
-      contextSnapshot: memoryContext || null,
+      contextSnapshot: fullContext || null,
     });
 
     // Add time awareness if available

@@ -1,0 +1,279 @@
+Backend helper: build a “rhythmic” line
+
+In server/index.js (or server/traceRhythm.js), add:
+const { supabase } = require('./supabaseClient');
+
+async function recentlyUsedTouchpoint(userId, kind, withinHours = 24) {
+  const since = new Date(Date.now() - withinHours * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from('user_touchpoints')
+    .select('id, created_at')
+    .eq('user_id', userId)
+    .eq('kind', kind)
+    .gte('created_at', since)
+    .limit(1);
+
+  if (error) {
+    console.error('recentlyUsedTouchpoint error', error);
+    return true; // fail safe: don't spam
+  }
+
+  return (data || []).length > 0;
+}
+
+async function recordTouchpoint(userId, kind) {
+  const { error } = await supabase
+    .from('user_touchpoints')
+    .insert([{ user_id: userId, kind }]);
+
+  if (error) {
+    console.error('recordTouchpoint error', error);
+  }
+}
+
+/**
+ * Returns a short contextual line like:
+ * "It's a slow Sunday night. How are you arriving?"
+ * or null if we don't want to say anything.
+ */
+async function buildRhythmicLine(userId, now = new Date()) {
+  const hour = now.getHours();
+  const day = now.getDay(); // 0=Sun
+  const date = now.getDate();
+  const month = now.getMonth(); // 0=Jan
+
+  // 1) New month
+  if (date === 1 && !(await recentlyUsedTouchpoint(userId, 'new_month', 72))) {
+    await recordTouchpoint(userId, 'new_month');
+    return "It's the first day of a new month. How are you arriving into it?";
+  }
+
+  // 2) Weekend evening
+  const isWeekend = day === 0 || day === 6;
+  if (
+    isWeekend &&
+    hour >= 18 &&
+    !(await recentlyUsedTouchpoint(userId, 'weekend_evening', 48))
+  ) {
+    await recordTouchpoint(userId, 'weekend_evening');
+    return "It's a slow weekend evening. How are you landing in it tonight?";
+  }
+
+  // 3) Late night check-in
+  if (
+    hour >= 23 &&
+    !(await recentlyUsedTouchpoint(userId, 'late_night', 24))
+  ) {
+    await recordTouchpoint(userId, 'late_night');
+    return "It's really late. These hours can feel heavier. How are you arriving right now?";
+  }
+
+  // 4) Seasonal (coarse – by month only, for now)
+  if (
+    (month === 11 || month <= 1) && // Dec, Jan, Feb
+    !(await recentlyUsedTouchpoint(userId, 'winter_checkin', 72))
+  ) {
+    await recordTouchpoint(userId, 'winter_checkin');
+    return "This time of year can stir up a lot—holidays, endings, new beginnings. How are you feeling in all of it?";
+  }
+
+  // nothing special right now
+  return null;
+}
+
+module.exports = {
+  buildRhythmicLine,
+};
+
+Later, if you want real “first cold day”, you can add a weather API and another kind like first_cold_day. For now, the month+time rules still feel very human and safe.
+
+⸻
+
+1.3 Use this in /api/chat greeting-ish context
+
+Where you build your system prompt / context snapshot for chat, you can add:
+const { buildRhythmicLine } = require('./traceRhythm');
+
+// inside /api/chat:
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { userId, messages, displayName } = req.body;
+    // ... your existing loading of memory, patterns, etc.
+
+    const rhythmicLine = await buildRhythmicLine(userId);
+
+    const contextSnapshot = buildUserContextSnapshot({
+      memorySummary,
+      patternsSnapshot,
+      recentMessages,
+    });
+
+    const systemPrompt = buildTraceSystemPrompt({
+      displayName: displayName || null,
+      contextSnapshot: [
+        contextSnapshot,
+        rhythmicLine ? `RHYTHMIC AWARENESS: ${rhythmicLine}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    });
+
+    // ... call openai etc.
+  } catch (e) {
+    // ...
+  }
+});
+In buildTraceSystemPrompt, add a note so TRACE knows how to use these lines:
+// inside buildTraceSystemPrompt:
+MEMORY & CONTEXT:
+- You may see internal hints like "RHYTHMIC AWARENESS: It's a slow weekend evening..."
+- Use these as inspiration for how you phrase things.
+- You can paraphrase them, but do not repeat them verbatim every time.
+
+This way TRACE might naturally say:
+
+“It feels like one of those slow weekend evenings. How are you landing in it?”
+
+without you hardcoding the exact sentence.
+
+
+Helper: derive week_start and pull last 7 days of “emotional signal”
+
+We don’t know your exact tables, so I’ll keep it generic; you’ll just swap in your real names.
+
+In server/traceWeeklyLetter.js:
+const { supabase } = require('./supabaseClient');
+const { openai } = require('./openaiClient');
+
+function getWeekStart(date = new Date()) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sun
+  const diff = (day === 0 ? -6 : 1) - day; // make Monday the start
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+async function loadEmotionalSignals(userId, weekStartISO) {
+  const start = new Date(weekStartISO);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+
+  const startISO = start.toISOString();
+  const endISO = end.toISOString();
+
+  // Example: patterns + mood logs + maybe journal summaries
+  const [patterns, moods, journals] = await Promise.all([
+    supabase
+      .from('patterns_daily') // change to your real table
+      .select('date, tension_level, energy_level, notes')
+      .eq('user_id', userId)
+      .gte('date', weekStartISO)
+      .lt('date', endISO),
+    supabase
+      .from('mood_logs') // if you have this
+      .select('created_at, mood, tags, note')
+      .eq('user_id', userId)
+      .gte('created_at', startISO)
+      .lt('created_at', endISO),
+    supabase
+      .from('journal_entries') // if you have this
+      .select('created_at, title, summary, text')
+      .eq('user_id', userId)
+      .gte('created_at', startISO)
+      .lt('created_at', endISO),
+  ]);
+
+  return {
+    patterns: patterns.data || [],
+    moods: moods.data || [],
+    journals: journals.data || [],
+  };
+}
+
+Generate the weekly letter with OpenAI
+async function generateWeeklyLetter(userId, date = new Date()) {
+  const weekStart = getWeekStart(date); // 'YYYY-MM-DD'
+  const signals = await loadEmotionalSignals(userId, weekStart);
+
+  const prompt = `
+You are TRACE, a calm, gentle emotional companion.
+
+Write a short "weekly letter" to the user reflecting on their emotional week.
+
+You are given structured data about their week: patterns, moods, journals.
+You don't need to mention every detail. Look for gentle themes.
+
+Goals:
+- Notice what felt heavy and what felt lighter.
+- Affirm the effort it took just to get through.
+- Offer one or two soft observations or invitations, NOT a to-do list.
+- No pressure, no goals, no streak language.
+- This should feel like: "Here's what I noticed. You made it. I'm glad you're here."
+
+Format:
+- 3–6 short paragraphs.
+- No emojis.
+- No "Dear [Name]" unless a name is explicitly provided.
+- No advice-y tone. More like a caring friend reflecting back what they saw.
+
+Here is the data, in JSON:
+${JSON.stringify(signals, null, 2)}
+  `.trim();
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4.1',
+    messages: [{ role: 'system', content: prompt }],
+    temperature: 0.7,
+  });
+
+  const content = completion.choices?.[0]?.message?.content ?? '';
+
+  // upsert weekly_reflections
+  const { data, error } = await supabase
+    .from('weekly_reflections')
+    .upsert(
+      {
+        user_id: userId,
+        week_start: weekStart,
+        content,
+      },
+      { onConflict: 'user_id,week_start' }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    console.error('weekly_reflections upsert error', error);
+    throw error;
+  }
+
+  return data;
+}
+
+module.exports = {
+  generateWeeklyLetter,
+};
+
+Endpoint: /api/weekly-letter
+
+For now, this can be user-triggered (later replaced or supplemented by a scheduled job).
+
+In server/index.js:
+const { generateWeeklyLetter } = require('./traceWeeklyLetter');
+
+app.post('/api/weekly-letter', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+
+    const letterRow = await generateWeeklyLetter(userId);
+    res.json({ content: letterRow.content, weekStart: letterRow.week_start });
+  } catch (err) {
+    console.error('/api/weekly-letter error', err);
+    res.status(500).json({ error: 'Weekly letter failed' });
+  }
+});
