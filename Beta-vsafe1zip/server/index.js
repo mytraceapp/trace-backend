@@ -804,6 +804,20 @@ app.post('/api/chat', async (req, res) => {
       );
     }
 
+    // Load user's preferred name from database (source of truth, not client payload)
+    let displayName = null;
+    try {
+      if (supabaseServer && effectiveUserId) {
+        const profile = await loadProfileBasic(effectiveUserId);
+        if (profile?.preferred_name) {
+          displayName = profile.preferred_name.trim();
+          console.log('[TRACE NAME] Loaded from DB:', displayName);
+        }
+      }
+    } catch (err) {
+      console.error('[TRACE NAME] Failed to load profile name:', err.message);
+    }
+
     // Load return warmth line (for users returning after time away)
     let returnWarmthLine = null;
     try {
@@ -859,8 +873,9 @@ app.post('/api/chat', async (req, res) => {
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
     // Build system prompt using centralized builder (handles name, memory, tone)
+    // displayName comes from database lookup, not client payload
     let systemPrompt = buildTraceSystemPrompt({
-      displayName: userName || null,
+      displayName: displayName || null,
       contextSnapshot: fullContext || null,
     });
 
