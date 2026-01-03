@@ -19,6 +19,7 @@ import { FontFamily, TraceWordmark } from '../constants/typography';
 import { Shadows } from '../constants/shadows';
 import { getStableId } from '../lib/stableId';
 import { fetchPatternsWeeklySummary } from '../lib/chat';
+import { getTraceUserId } from '../lib/supabase';
 
 const API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
 
@@ -29,12 +30,14 @@ interface LastHourResult {
 }
 
 async function fetchLastHourSummary(params: { userId: string | null; deviceId: string }): Promise<LastHourResult> {
+  console.log('🧠 fetchLastHourSummary called with:', params);
   const res = await fetch(`${API_BASE}/api/patterns/last-hour`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
   const json = await res.json();
+  console.log('🧠 fetchLastHourSummary response:', json);
   return {
     ok: json.ok ?? false,
     hasHistory: json.hasHistory ?? false,
@@ -58,6 +61,7 @@ export default function PatternsReport() {
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
 
   const [stableId, setStableId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [lastHourSummary, setLastHourSummary] = useState<string | null>(null);
   const [hasLastHourHistory, setHasLastHourHistory] = useState(false);
   const [isLastHourLoading, setIsLastHourLoading] = useState(false);
@@ -67,18 +71,22 @@ export default function PatternsReport() {
   const [isPatternsSummaryLoading, setPatternsSummaryLoading] = useState(false);
 
   console.log(
-    '💠 [TRACE PATTERNS] stableId / lastHour state =',
+    '💠 [TRACE PATTERNS] stableId / userId / lastHour state =',
     stableId,
+    userId,
     { lastHourSummary, hasLastHourHistory, isLastHourLoading }
   );
 
   useEffect(() => {
-    const loadStableId = async () => {
-      const id = await getStableId();
-      console.log('💠 [TRACE PATTERNS] stableId loaded:', id);
-      setStableId(id);
+    const loadIds = async () => {
+      const deviceId = await getStableId();
+      const traceUserId = await getTraceUserId();
+      console.log('💠 [TRACE PATTERNS] stableId loaded:', deviceId);
+      console.log('💠 [TRACE PATTERNS] userId loaded:', traceUserId);
+      setStableId(deviceId);
+      setUserId(traceUserId);
     };
-    loadStableId();
+    loadIds();
   }, []);
 
   const loadLastHourSummary = useCallback(async () => {
@@ -94,7 +102,7 @@ export default function PatternsReport() {
       setError(null);
 
       const result = await fetchLastHourSummary({
-        userId: null,
+        userId: userId,
         deviceId: stableId,
       });
 
@@ -110,7 +118,7 @@ export default function PatternsReport() {
     } finally {
       setIsLastHourLoading(false);
     }
-  }, [stableId]);
+  }, [stableId, userId]);
 
   const loadWeeklySummary = useCallback(async () => {
     try {
@@ -122,7 +130,7 @@ export default function PatternsReport() {
       setPatternsSummaryLoading(true);
 
       const result = await fetchPatternsWeeklySummary({
-        userId: null,
+        userId: userId,
         deviceId: stableId,
         userName: null,
         peakWindowLabel: null,
@@ -140,7 +148,7 @@ export default function PatternsReport() {
     } finally {
       setPatternsSummaryLoading(false);
     }
-  }, [stableId]);
+  }, [stableId, userId]);
 
   useEffect(() => {
     console.log('💠 [TRACE PATTERNS] useEffect -> loadLastHourSummary');
