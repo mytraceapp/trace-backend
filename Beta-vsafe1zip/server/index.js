@@ -21,6 +21,7 @@ const {
 const {
   buildTraceSystemPrompt,
   buildGreetingSystemPrompt,
+  buildFirstRunGreetingSystemPrompt,
 } = require('./traceSystemPrompt');
 
 const app = express();
@@ -128,6 +129,23 @@ function filterMessagesToLastHour(messages) {
     if (Number.isNaN(t)) return false;
     return t >= cutoffMs && t <= nowMs;
   });
+}
+
+// Helper: load basic profile info for first-run flow
+async function loadProfileBasic(userId) {
+  if (!supabaseServer) return null;
+  
+  const { data, error } = await supabaseServer
+    .from('profiles')
+    .select('user_id, preferred_name, first_run_completed, first_run_completed_at')
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    console.error('[loadProfileBasic error]', error.message);
+    return null;
+  }
+  return data;
 }
 
 // Helper: Extract and verify user from Authorization header
@@ -436,6 +454,112 @@ app.post('/api/analyze-emotion', async (req, res) => {
   } catch (error) {
     console.error('Emotion analysis error:', error);
     res.json({ emotion: "neutral", intensity: 2 });
+  }
+});
+
+// ===== FIRST-RUN ONBOARDING FLOW =====
+
+// Bootstrap: Check if user needs first-run experience
+app.post('/api/bootstrap', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+
+    const profile = await loadProfileBasic(userId);
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    const displayName = profile.preferred_name?.trim() || null;
+
+    res.json({
+      firstRun: !profile.first_run_completed,
+      displayName,
+    });
+  } catch (err) {
+    console.error('/api/bootstrap error', err);
+    res.status(500).json({ error: 'Bootstrap failed' });
+  }
+});
+
+// First-run greeting: Special welcome for new users
+app.post('/api/first-greeting', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+
+    const profile = await loadProfileBasic(userId);
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    const displayName = profile.preferred_name?.trim() || null;
+
+    if (!openai) {
+      const fallback = displayName
+        ? `Welcome, ${displayName}. There's no agenda here—just a quiet space. When you're ready, we can breathe together or simply talk.`
+        : `Welcome. There's no agenda here—just a quiet space. When you're ready, we can breathe together or simply talk.`;
+      return res.json({ greeting: fallback });
+    }
+
+    const systemPrompt = buildFirstRunGreetingSystemPrompt({ displayName });
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        {
+          role: 'user',
+          content: 'Generate the greeting now. Remember: calm, low-pressure, 1–3 sentences, no emojis.',
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 150,
+    });
+
+    const greeting = completion.choices?.[0]?.message?.content?.trim() || 
+      "Welcome. This is a quiet place—no goals, no pressure. When you're ready, we can breathe together or talk about whatever's on your mind.";
+
+    res.json({ greeting });
+  } catch (err) {
+    console.error('/api/first-greeting error', err);
+    res.status(500).json({ error: 'First greeting failed' });
+  }
+});
+
+// Complete first-run: Mark onboarding as done
+app.post('/api/complete-first-run', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+
+    if (!supabaseServer) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+
+    const { error } = await supabaseServer
+      .from('profiles')
+      .update({
+        first_run_completed: true,
+        first_run_completed_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('/api/complete-first-run update error', error);
+      return res.status(500).json({ error: 'Update failed' });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('/api/complete-first-run error', err);
+    res.status(500).json({ error: 'Complete first run failed' });
   }
 });
 
