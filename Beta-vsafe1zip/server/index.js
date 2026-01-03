@@ -27,6 +27,7 @@ const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
+const { buildNewsContextSummary, isNewsQuestion } = require('./newsClient');
 
 const app = express();
 
@@ -890,6 +891,20 @@ app.post('/api/chat', async (req, res) => {
     } catch (err) {
       console.error('[TRACE RHYTHM] Failed to build rhythmic line:', err.message);
     }
+
+    // Load news context if user is asking about current events
+    let newsContext = null;
+    try {
+      if (isNewsQuestion(userText)) {
+        console.log('[TRACE NEWS] News question detected, fetching...');
+        newsContext = await buildNewsContextSummary(userText);
+        if (newsContext) {
+          console.log('[TRACE NEWS] Loaded news context');
+        }
+      }
+    } catch (err) {
+      console.error('[TRACE NEWS] Failed to build news context:', err.message);
+    }
     
     // Build combined context snapshot
     const contextParts = [memoryContext];
@@ -898,6 +913,9 @@ app.post('/api/chat', async (req, res) => {
     }
     if (rhythmicLine) {
       contextParts.push(`RHYTHMIC AWARENESS: ${rhythmicLine}`);
+    }
+    if (newsContext) {
+      contextParts.push(newsContext);
     }
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
