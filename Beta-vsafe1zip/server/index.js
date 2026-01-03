@@ -26,6 +26,7 @@ const {
 const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
+const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 
 const app = express();
 
@@ -764,6 +765,34 @@ app.post('/api/chat', async (req, res) => {
           should_navigate: false,
         },
       });
+    }
+
+    // Hard-route simple factual questions (dynamic facts from database)
+    const userText = lastUserMsg?.content || '';
+    if (isUSPresidentQuestion(userText)) {
+      console.log('[TRACE CHAT] US President question detected');
+      const fact = await getDynamicFact(supabaseServer, 'current_us_president');
+      
+      if (fact?.name) {
+        console.log('[TRACE CHAT] Returning dynamic fact:', fact.name);
+        return res.json({
+          message: `The president of the United States is ${fact.name}.`,
+          activity_suggestion: {
+            name: null,
+            reason: null,
+            should_navigate: false,
+          },
+        });
+      } else {
+        return res.json({
+          message: "I'm not completely sure who is serving as president at this exact moment, and I don't want to guess.",
+          activity_suggestion: {
+            name: null,
+            reason: null,
+            should_navigate: false,
+          },
+        });
+      }
     }
 
     // Save latest user message safely (non-blocking for the chat)
