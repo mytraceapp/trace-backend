@@ -53,16 +53,24 @@ function isNewsQuestion(text) {
   if (!text) return false;
   const t = text.toLowerCase().trim();
 
-  return (
-    t.startsWith("what's happening in") ||
-    t.startsWith('what is happening in') ||
-    t.includes('what is going on in') ||
-    t.includes('latest news about') ||
-    t.includes('what is the news on') ||
-    t.includes('news about') ||
-    t.includes('current events in') ||
-    t.includes("what's going on with")
-  );
+  const newsPatterns = [
+    "what's happening",
+    'what is happening',
+    "what's going on",
+    'what is going on',
+    'latest news',
+    'current news',
+    'news about',
+    'news on',
+    'current events',
+    'do you know what',
+    'tell me about what',
+  ];
+  
+  // Must also mention a topic/place to avoid false positives
+  const hasLocation = /\b(in|about|with|on)\s+\w+/.test(t);
+  
+  return newsPatterns.some(pattern => t.includes(pattern)) && hasLocation;
 }
 
 module.exports = {

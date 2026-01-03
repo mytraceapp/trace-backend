@@ -22,17 +22,21 @@ async function getDynamicFact(supabase, key) {
 function isUSPresidentQuestion(text) {
   if (!text) return false;
   const t = text.toLowerCase().trim();
-  return (
-    t.includes('who is the president of the united states') ||
-    t.includes("who's the president of the united states") ||
-    t.includes('who is the us president') ||
-    t.includes("who's the us president") ||
-    t.includes('who is president of the us') ||
-    t.includes('who is the president of america') ||
-    t === 'who is the president' ||
-    t === "who's the president" ||
-    t === 'who is president'
-  );
+  
+  // Check for president-related questions
+  const presidentPatterns = [
+    'who is the president',
+    "who's the president",
+    'who is president',
+    'current president',
+    'president of the united states',
+    'president of the us',
+    'president of america',
+    'us president',
+    'american president',
+  ];
+  
+  return presidentPatterns.some(pattern => t.includes(pattern));
 }
 
 module.exports = {
