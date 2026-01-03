@@ -18,6 +18,10 @@ const {
   buildMemoryContext,
   summarizeToLongTermMemory,
 } = require('./traceMemory');
+const {
+  buildTraceSystemPrompt,
+  buildGreetingSystemPrompt,
+} = require('./traceSystemPrompt');
 
 const app = express();
 
@@ -626,45 +630,28 @@ app.post('/api/chat', async (req, res) => {
       console.error('[TRACE MEMORY] Failed to load memory context:', err.message);
     }
     
-    // Build personalized system prompt with user preferences
-    let systemPrompt = TRACE_SYSTEM_PROMPT.replace('{chat_style}', chatStyle);
+    // Build system prompt using centralized builder (handles name, memory, tone)
+    let systemPrompt = buildTraceSystemPrompt({
+      displayName: userName || null,
+      contextSnapshot: memoryContext || null,
+    });
 
-    // Explicit mode directive for chat_core
-    systemPrompt += `
-
-=== MODE: chat_core ===
-You are TRACE, a calm emotional companion. Tone: soft, grounded, present, never clinical, never diagnostic.
-
-CRITICAL - NO GREETINGS:
-- Assume the user has already seen a short welcome message from TRACE.
-- Do NOT start responses with generic greetings like "Hi", "Hey there", "Hello", "How are you today?"
-- Respond as if you've already said hello and are in the middle of a conversation.
-- Focus on answering or gently reflecting on the user's latest message.
-
-Avoid giving advice unless clearly asked. Favor reflection, gentle questions, and noticing patterns in how the user is feeling.
-Validate feelings. Ask open questions sometimes, not every turn. Keep answers short-to-medium for each turn.
-Avoid directives like "you should" - use gentle curiosity instead.`;
-
+    // Add time awareness if available
     if (localTime || localDay || localDate) {
       systemPrompt += `
 
-Time awareness
+TIME AWARENESS:
 It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${localDate || ''} for the user. Be naturally aware of this. You may briefly reference time of day (e.g., 'for this part of your evening…') but never ask about specific locations.`;
     }
-    
-    if (userName) {
-      systemPrompt += `
 
-Personalization
-The person you're speaking with is named ${userName}. Use their name occasionally in a warm but not over-familiar way.`;
-    }
+    // Add no-greeting directive for ongoing conversations
+    systemPrompt += `
 
-    // Add long-term memory context if available
-    if (memoryContext) {
-      systemPrompt += `
-
-${memoryContext}`;
-    }
+CRITICAL - NO GREETINGS IN ONGOING CHAT:
+- Assume the user has already seen a short welcome message from TRACE.
+- Do NOT start responses with generic greetings like "Hi", "Hey there", "Hello", "How are you today?"
+- Respond as if you've already said hello and are in the middle of a conversation.
+- Focus on answering or gently reflecting on the user's latest message.`;
     
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
