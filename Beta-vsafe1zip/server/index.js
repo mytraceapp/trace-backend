@@ -1649,44 +1649,48 @@ app.get('/api/chat-history', async (req, res) => {
 
 // Patterns: summarize last hour of conversation
 // mode: patterns_last_hour
+// Accepts either recentMessages from request body OR fetches from Supabase
 app.post('/api/patterns/last-hour', async (req, res) => {
   try {
-    const { userId, deviceId } = req.body || {};
+    const { userId, deviceId, recentMessages } = req.body || {};
 
-    const effectiveUserId = userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
+    console.log('🧠 /api/patterns/last-hour request:', {
+      userId: userId || 'null',
+      deviceId: deviceId || 'null',
+      recentMessagesCount: recentMessages?.length || 0
+    });
 
-    if (!supabaseServer) {
-      console.log('🧠 /api/patterns/last-hour userId:', userId, 'deviceId:', deviceId, 'hasHistory:', false);
-      return res.status(500).json({
-        ok: false,
-        hasHistory: false,
-        summaryText: null,
-      });
+    // Primary source: recentMessages from request body
+    // Fallback: fetch from Supabase if available
+    let messagesToAnalyze = [];
+
+    if (recentMessages && Array.isArray(recentMessages) && recentMessages.length > 0) {
+      // Use messages sent directly from the mobile app
+      messagesToAnalyze = recentMessages;
+      console.log('🧠 Using recentMessages from request body:', messagesToAnalyze.length, 'messages');
+    } else if (supabaseServer && userId) {
+      // Fallback: fetch from Supabase
+      const effectiveUserId = userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
+      
+      const { data, error } = await supabaseServer
+        .from('chat_messages')
+        .select('role, content, created_at')
+        .eq('user_id', effectiveUserId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('[TRACE PATTERNS] history query error:', error);
+      } else {
+        const allMessages = data || [];
+        messagesToAnalyze = filterMessagesToLastHour(allMessages);
+        console.log('🧠 Using Supabase messages:', messagesToAnalyze.length, 'messages');
+      }
     }
 
-    const { data, error } = await supabaseServer
-      .from('chat_messages')
-      .select('role, content, created_at')
-      .eq('user_id', effectiveUserId)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('[TRACE PATTERNS] history query error:', error);
-      console.log('🧠 /api/patterns/last-hour userId:', userId, 'deviceId:', deviceId, 'hasHistory:', false);
-      return res.status(500).json({
-        ok: false,
-        hasHistory: false,
-        summaryText: null,
-      });
-    }
-
-    const allMessages = data || [];
-    const recent = filterMessagesToLastHour(allMessages);
-    const hasHistory = recent.length > 0;
-
-    console.log('🧠 /api/patterns/last-hour userId:', userId, 'deviceId:', deviceId, 'hasHistory:', hasHistory);
+    const hasHistory = messagesToAnalyze.length > 0;
 
     if (!hasHistory) {
+      console.log('🧠 /api/patterns/last-hour - no messages to analyze');
       return res.json({
         ok: true,
         hasHistory: false,
@@ -1694,28 +1698,42 @@ app.post('/api/patterns/last-hour', async (req, res) => {
       });
     }
 
+    // Check if OpenAI is available
+    if (!openai) {
+      console.log('🧠 /api/patterns/last-hour - OpenAI not available, using fallback');
+      return res.json({
+        ok: true,
+        hasHistory: true,
+        summaryText: "You've been sharing what's on your mind. Take a moment to notice how you're feeling right now.",
+      });
+    }
+
     // Count user messages and detect emotional keywords
-    const userMessages = recent.filter(m => m.role === 'user');
+    const userMessages = messagesToAnalyze.filter(m => m.role === 'user');
     const userMessageCount = userMessages.length;
     const allUserText = userMessages.map(m => (m.content || '').toLowerCase()).join(' ');
     
-    // Detect emotional keywords
+    // Detect emotional keywords for context
     const emotionalKeywords = [];
-    if (/stress|stressed|stressful|pressure/.test(allUserText)) emotionalKeywords.push('stress');
-    if (/overwhelm|overwhelming|too much/.test(allUserText)) emotionalKeywords.push('overwhelm');
-    if (/anxious|anxiety|worried|worry|nervous/.test(allUserText)) emotionalKeywords.push('anxiety');
-    if (/tired|exhausted|drained|fatigue/.test(allUserText)) emotionalKeywords.push('fatigue');
-    if (/sad|down|lonely|alone|empty/.test(allUserText)) emotionalKeywords.push('sadness');
-    if (/rest|relax|calm|peace/.test(allUserText)) emotionalKeywords.push('rest-seeking');
-    if (/grateful|thankful|gratitude|appreciate/.test(allUserText)) emotionalKeywords.push('gratitude');
-    if (/happy|excited|good|great|joy/.test(allUserText)) emotionalKeywords.push('positive');
-    if (/confused|uncertain|unsure|lost/.test(allUserText)) emotionalKeywords.push('uncertainty');
+    if (/stress|stressed|stressful|pressure|deadline/.test(allUserText)) emotionalKeywords.push('stress');
+    if (/overwhelm|overwhelming|too much|can't handle/.test(allUserText)) emotionalKeywords.push('overwhelm');
+    if (/anxious|anxiety|worried|worry|nervous|panic/.test(allUserText)) emotionalKeywords.push('anxiety');
+    if (/tired|exhausted|drained|fatigue|sleep|rest/.test(allUserText)) emotionalKeywords.push('fatigue');
+    if (/sad|down|lonely|alone|empty|cry|crying/.test(allUserText)) emotionalKeywords.push('sadness');
+    if (/relax|calm|peace|better|relief/.test(allUserText)) emotionalKeywords.push('seeking-calm');
+    if (/grateful|thankful|gratitude|appreciate|blessed/.test(allUserText)) emotionalKeywords.push('gratitude');
+    if (/happy|excited|good|great|joy|wonderful/.test(allUserText)) emotionalKeywords.push('positive');
+    if (/confused|uncertain|unsure|lost|don't know/.test(allUserText)) emotionalKeywords.push('uncertainty');
+    if (/work|job|boss|coworker|meeting|project/.test(allUserText)) emotionalKeywords.push('work-related');
+    if (/family|mom|dad|parent|sibling|partner|relationship/.test(allUserText)) emotionalKeywords.push('relationships');
+    if (/health|body|pain|sick|doctor/.test(allUserText)) emotionalKeywords.push('health-concerns');
 
-    // Build compact convo text for the model
-    const convoText = recent
+    // Build compact convo text for the model (limit to last 15 messages for efficiency)
+    const recentSlice = messagesToAnalyze.slice(-15);
+    const convoText = recentSlice
       .map((m) => {
         const role = m.role || 'user';
-        const content = (m.content || '').slice(0, 200);
+        const content = (m.content || '').slice(0, 300);
         return `${role === 'assistant' ? 'TRACE' : 'User'}: ${content}`;
       })
       .join('\n');
@@ -1724,21 +1742,31 @@ app.post('/api/patterns/last-hour', async (req, res) => {
     const contextSummary = `User messages: ${userMessageCount}` +
       (emotionalKeywords.length ? `\nEmotional themes detected: ${emotionalKeywords.join(', ')}` : '');
 
-    const systemPrompt = `You are TRACE, describing the emotional tone of a recent conversation in 1 gentle sentence.
-mode: patterns_last_hour
+    const systemPrompt = `You are TRACE, a calm and emotionally intelligent companion. You're providing a brief reflection on what the user has been sharing in their recent conversation.
 
-Tone: observational, non-judgmental, no advice, no instructions.
-- Do NOT ask questions.
-- Do NOT mention "last hour" or time explicitly.
-- Just describe the essence (e.g., "It sounds like you've been…" or "There's a sense of…").
-- Keep it soft and validating.`;
+Your task: Write 2-3 gentle, observational sentences summarizing the emotional patterns, themes, and insights from this conversation.
+
+Style:
+- Observational and validating, not advisory
+- Specific to what they actually shared (not generic)
+- Notice recurring themes, emotional undercurrents, or shifts in feeling
+- Use phrases like "You've been navigating...", "There's a thread of...", "It sounds like...", "I notice..."
+- Do NOT ask questions
+- Do NOT give advice or instructions
+- Do NOT mention time frames like "last hour" or "recently"
+- Keep it warm and grounding
+
+Example good outputs:
+- "You've been navigating feelings of stress around work deadlines. There's a thread of wanting more balance, and you're noticing how your energy shifts throughout the day."
+- "It sounds like you're holding a lot right now—between family expectations and your own needs. There's a quiet strength in how you're processing it all."
+- "I notice a mix of tiredness and hope in what you've shared. You're being honest about where you are, and that's a meaningful step."`;
 
     const userPrompt = `${contextSummary}
 
-Recent conversation:
+Conversation:
 ${convoText}
 
-Write one gentle, observational sentence about this person's emotional state. No questions, no advice.`;
+Write 2-3 gentle, observational sentences reflecting on the emotional patterns and themes in this conversation.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -1747,12 +1775,14 @@ Write one gentle, observational sentence about this person's emotional state. No
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 80,
+      max_tokens: 150,
     });
 
     const summaryText =
       completion?.choices?.[0]?.message?.content?.trim() ||
-      "You've been holding a lot. It's okay to soften here.";
+      "You've been holding a lot. It's okay to soften here and notice how you're feeling.";
+
+    console.log('🧠 /api/patterns/last-hour generated summary:', summaryText.slice(0, 100) + '...');
 
     return res.json({
       ok: true,
