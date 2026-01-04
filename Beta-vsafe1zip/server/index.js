@@ -1828,6 +1828,7 @@ app.post('/api/chat', async (req, res) => {
       userId,
       deviceId,
       timezone,
+      weatherContext: clientWeatherContext,
     } = req.body;
     
     // Filter out invalid placeholder names like "friend", "buddy", "pal"
@@ -2100,15 +2101,24 @@ app.post('/api/chat', async (req, res) => {
         console.error('[TRACE NEWS] Failed to build news context:', err.message);
       }
 
-      // Load weather context if user is asking about weather
+      // Load weather context - prefer client-provided data (mobile app sends this)
       try {
-        const profileForWeather = await loadProfileBasic(effectiveUserId);
-        const weatherResult = await maybeAttachWeatherContext({
-          messages,
-          profile: profileForWeather,
-        });
-        if (weatherResult.weatherSummary) {
-          weatherContext = `WEATHER_CONTEXT: ${weatherResult.weatherSummary}\nUse this only if they ask about weather or conditions outside. Do not mention APIs.`;
+        if (clientWeatherContext && clientWeatherContext.temperature !== undefined) {
+          // Client sent weather context directly (mobile app with user consent)
+          const { temperature, windSpeed, summary } = clientWeatherContext;
+          const windInfo = windSpeed ? `, wind ${Math.round(windSpeed)} mph` : '';
+          weatherContext = `WEATHER_CONTEXT: Current local conditions: ${summary || 'Unknown conditions'}, ${Math.round(temperature)}°F${windInfo}.\nYou may naturally reference this when relevant (e.g., "I know it's cold today..." or "On a rainy day like this..."). Do not force it into every response - use contextually. Never mention APIs or data sources.`;
+          console.log('[TRACE WEATHER] Using client-provided weather context:', summary, temperature + '°F');
+        } else {
+          // Fall back to server-side weather fetch based on profile lat/lon
+          const profileForWeather = await loadProfileBasic(effectiveUserId);
+          const weatherResult = await maybeAttachWeatherContext({
+            messages,
+            profile: profileForWeather,
+          });
+          if (weatherResult.weatherSummary) {
+            weatherContext = `WEATHER_CONTEXT: ${weatherResult.weatherSummary}\nUse this only if they ask about weather or conditions outside. Do not mention APIs.`;
+          }
         }
       } catch (err) {
         console.error('[TRACE WEATHER] Failed to load weather context:', err.message);
