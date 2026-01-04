@@ -133,6 +133,7 @@ export default function ChatScreen() {
         localDate: now.toLocaleDateString(),
         userId: authUserId ?? null,
         deviceId: stableId ?? null,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
 
       console.log('✨ TRACE greeting result:', result);
@@ -191,6 +192,7 @@ export default function ChatScreen() {
         localDate: now.toLocaleDateString(),
         userId: authUserId,
         deviceId: stableId,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
 
       console.log('📥 TRACE received reply:', result);

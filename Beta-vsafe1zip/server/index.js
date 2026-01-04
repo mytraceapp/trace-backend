@@ -318,9 +318,134 @@ async function maybeAttachDogContext({ messages, profile }) {
   };
 }
 
+// ---- TIMEZONE TO COUNTRY MAPPING ----
+// Maps timezone identifiers to ISO country codes for holiday detection
+// This allows holiday detection without requiring location permission
+const TIMEZONE_TO_COUNTRY = {
+  // United States
+  'America/New_York': 'US', 'America/Chicago': 'US', 'America/Denver': 'US', 'America/Los_Angeles': 'US',
+  'America/Phoenix': 'US', 'America/Anchorage': 'US', 'America/Honolulu': 'US', 'America/Detroit': 'US',
+  'America/Indiana': 'US', 'America/Boise': 'US', 'America/Juneau': 'US', 'America/Adak': 'US',
+  'America/Kentucky': 'US', 'America/North_Dakota': 'US', 'America/Menominee': 'US', 'America/Nome': 'US',
+  'America/Yakutat': 'US', 'America/Sitka': 'US', 'America/Metlakatla': 'US',
+  'Pacific/Honolulu': 'US',
+  // Canada
+  'America/Toronto': 'CA', 'America/Vancouver': 'CA', 'America/Montreal': 'CA', 'America/Edmonton': 'CA',
+  'America/Winnipeg': 'CA', 'America/Halifax': 'CA', 'America/St_Johns': 'CA', 'America/Regina': 'CA',
+  'America/Calgary': 'CA', 'America/Whitehorse': 'CA', 'America/Yellowknife': 'CA', 'America/Iqaluit': 'CA',
+  // Mexico
+  'America/Mexico_City': 'MX', 'America/Tijuana': 'MX', 'America/Cancun': 'MX', 'America/Monterrey': 'MX',
+  'America/Merida': 'MX', 'America/Chihuahua': 'MX', 'America/Hermosillo': 'MX', 'America/Mazatlan': 'MX',
+  // Central America
+  'America/Guatemala': 'GT', 'America/Belize': 'BZ', 'America/El_Salvador': 'SV',
+  'America/Tegucigalpa': 'HN', 'America/Managua': 'NI', 'America/Costa_Rica': 'CR', 'America/Panama': 'PA',
+  // Caribbean
+  'America/Havana': 'CU', 'America/Jamaica': 'JM', 'America/Port-au-Prince': 'HT',
+  'America/Santo_Domingo': 'DO', 'America/Puerto_Rico': 'PR', 'America/Barbados': 'BB',
+  // South America
+  'America/Sao_Paulo': 'BR', 'America/Rio_Branco': 'BR', 'America/Manaus': 'BR', 'America/Fortaleza': 'BR',
+  'America/Recife': 'BR', 'America/Bahia': 'BR', 'America/Belem': 'BR', 'America/Cuiaba': 'BR',
+  'America/Buenos_Aires': 'AR', 'America/Argentina': 'AR', 'America/Cordoba': 'AR', 'America/Mendoza': 'AR',
+  'America/Lima': 'PE', 'America/Bogota': 'CO', 'America/Santiago': 'CL', 'America/Punta_Arenas': 'CL',
+  'America/Caracas': 'VE', 'America/Guayaquil': 'EC', 'America/La_Paz': 'BO',
+  'America/Asuncion': 'PY', 'America/Montevideo': 'UY', 'America/Paramaribo': 'SR', 'America/Cayenne': 'GF',
+  // Western Europe
+  'Europe/London': 'GB', 'Europe/Dublin': 'IE', 'Europe/Paris': 'FR', 'Europe/Berlin': 'DE',
+  'Europe/Rome': 'IT', 'Europe/Madrid': 'ES', 'Europe/Amsterdam': 'NL', 'Europe/Brussels': 'BE',
+  'Europe/Zurich': 'CH', 'Europe/Vienna': 'AT', 'Europe/Lisbon': 'PT', 'Europe/Luxembourg': 'LU',
+  'Europe/Monaco': 'MC', 'Europe/Andorra': 'AD', 'Europe/Gibraltar': 'GI',
+  // Northern Europe
+  'Europe/Stockholm': 'SE', 'Europe/Oslo': 'NO', 'Europe/Copenhagen': 'DK', 'Europe/Helsinki': 'FI',
+  'Europe/Reykjavik': 'IS', 'Europe/Tallinn': 'EE', 'Europe/Riga': 'LV', 'Europe/Vilnius': 'LT',
+  // Central/Eastern Europe
+  'Europe/Warsaw': 'PL', 'Europe/Prague': 'CZ', 'Europe/Budapest': 'HU', 'Europe/Bucharest': 'RO',
+  'Europe/Sofia': 'BG', 'Europe/Athens': 'GR', 'Europe/Belgrade': 'RS', 'Europe/Zagreb': 'HR',
+  'Europe/Ljubljana': 'SI', 'Europe/Sarajevo': 'BA', 'Europe/Skopje': 'MK', 'Europe/Podgorica': 'ME',
+  'Europe/Tirane': 'AL', 'Europe/Bratislava': 'SK', 'Europe/Chisinau': 'MD',
+  // Eastern Europe/Russia
+  'Europe/Moscow': 'RU', 'Europe/Kaliningrad': 'RU', 'Europe/Samara': 'RU', 'Europe/Volgograd': 'RU',
+  'Europe/Istanbul': 'TR', 'Europe/Kiev': 'UA', 'Europe/Kyiv': 'UA', 'Europe/Minsk': 'BY',
+  // Russia extended
+  'Asia/Vladivostok': 'RU', 'Asia/Novosibirsk': 'RU', 'Asia/Krasnoyarsk': 'RU', 'Asia/Yekaterinburg': 'RU',
+  'Asia/Omsk': 'RU', 'Asia/Irkutsk': 'RU', 'Asia/Yakutsk': 'RU', 'Asia/Magadan': 'RU',
+  'Asia/Kamchatka': 'RU', 'Asia/Sakhalin': 'RU', 'Asia/Anadyr': 'RU', 'Asia/Chita': 'RU',
+  // Middle East
+  'Asia/Dubai': 'AE', 'Asia/Riyadh': 'SA', 'Asia/Tel_Aviv': 'IL', 'Asia/Jerusalem': 'IL',
+  'Asia/Amman': 'JO', 'Asia/Beirut': 'LB', 'Asia/Damascus': 'SY', 'Asia/Baghdad': 'IQ',
+  'Asia/Kuwait': 'KW', 'Asia/Bahrain': 'BH', 'Asia/Qatar': 'QA', 'Asia/Muscat': 'OM',
+  'Asia/Tehran': 'IR', 'Asia/Baku': 'AZ', 'Asia/Tbilisi': 'GE', 'Asia/Yerevan': 'AM',
+  // South Asia
+  'Asia/Kolkata': 'IN', 'Asia/Mumbai': 'IN', 'Asia/Calcutta': 'IN',
+  'Asia/Karachi': 'PK', 'Asia/Dhaka': 'BD', 'Asia/Colombo': 'LK', 'Asia/Kathmandu': 'NP',
+  'Asia/Thimphu': 'BT', 'Asia/Kabul': 'AF',
+  // Southeast Asia
+  'Asia/Bangkok': 'TH', 'Asia/Jakarta': 'ID', 'Asia/Manila': 'PH', 'Asia/Kuala_Lumpur': 'MY',
+  'Asia/Singapore': 'SG', 'Asia/Ho_Chi_Minh': 'VN', 'Asia/Saigon': 'VN', 'Asia/Hanoi': 'VN',
+  'Asia/Phnom_Penh': 'KH', 'Asia/Vientiane': 'LA', 'Asia/Yangon': 'MM', 'Asia/Rangoon': 'MM',
+  'Asia/Brunei': 'BN', 'Asia/Makassar': 'ID', 'Asia/Jayapura': 'ID',
+  // East Asia
+  'Asia/Tokyo': 'JP', 'Asia/Seoul': 'KR', 'Asia/Shanghai': 'CN', 'Asia/Hong_Kong': 'HK',
+  'Asia/Taipei': 'TW', 'Asia/Macau': 'MO', 'Asia/Ulaanbaatar': 'MN',
+  'Asia/Chongqing': 'CN', 'Asia/Harbin': 'CN', 'Asia/Urumqi': 'CN',
+  // Central Asia
+  'Asia/Almaty': 'KZ', 'Asia/Tashkent': 'UZ', 'Asia/Bishkek': 'KG',
+  'Asia/Dushanbe': 'TJ', 'Asia/Ashgabat': 'TM',
+  // Australia & New Zealand
+  'Australia/Sydney': 'AU', 'Australia/Melbourne': 'AU', 'Australia/Brisbane': 'AU',
+  'Australia/Perth': 'AU', 'Australia/Adelaide': 'AU', 'Australia/Hobart': 'AU',
+  'Australia/Darwin': 'AU', 'Australia/Canberra': 'AU', 'Australia/Lord_Howe': 'AU',
+  'Pacific/Auckland': 'NZ', 'Pacific/Chatham': 'NZ',
+  // Pacific Islands
+  'Pacific/Fiji': 'FJ', 'Pacific/Guam': 'GU', 'Pacific/Tahiti': 'PF',
+  'Pacific/Port_Moresby': 'PG', 'Pacific/Noumea': 'NC', 'Pacific/Tongatapu': 'TO',
+  'Pacific/Apia': 'WS', 'Pacific/Majuro': 'MH', 'Pacific/Palau': 'PW',
+  // Africa
+  'Africa/Johannesburg': 'ZA', 'Africa/Cairo': 'EG', 'Africa/Lagos': 'NG', 'Africa/Nairobi': 'KE',
+  'Africa/Casablanca': 'MA', 'Africa/Algiers': 'DZ', 'Africa/Tunis': 'TN', 'Africa/Tripoli': 'LY',
+  'Africa/Accra': 'GH', 'Africa/Abidjan': 'CI', 'Africa/Dakar': 'SN', 'Africa/Addis_Ababa': 'ET',
+  'Africa/Dar_es_Salaam': 'TZ', 'Africa/Kampala': 'UG', 'Africa/Khartoum': 'SD',
+  'Africa/Harare': 'ZW', 'Africa/Lusaka': 'ZM', 'Africa/Maputo': 'MZ',
+  'Africa/Luanda': 'AO', 'Africa/Kinshasa': 'CD', 'Africa/Douala': 'CM',
+  'Africa/Windhoek': 'NA', 'Africa/Gaborone': 'BW', 'Africa/Maseru': 'LS', 'Africa/Mbabane': 'SZ',
+  // Atlantic
+  'Atlantic/Azores': 'PT', 'Atlantic/Madeira': 'PT', 'Atlantic/Canary': 'ES',
+  'Atlantic/Reykjavik': 'IS', 'Atlantic/Faroe': 'FO', 'Atlantic/Bermuda': 'BM',
+  'Atlantic/Cape_Verde': 'CV', 'Atlantic/South_Georgia': 'GS',
+  // Pacific US territories
+  'Pacific/Pago_Pago': 'AS', 'Pacific/Samoa': 'AS', 'Pacific/Midway': 'UM',
+  'Pacific/Wake': 'UM', 'Pacific/Johnston': 'UM',
+  // Indian Ocean
+  'Indian/Mauritius': 'MU', 'Indian/Maldives': 'MV', 'Indian/Reunion': 'RE',
+  'Indian/Seychelles': 'SC', 'Indian/Madagascar': 'MG', 'Indian/Comoro': 'KM',
+};
+
+function getCountryFromTimezone(timezone) {
+  if (!timezone) return null;
+  
+  // Direct match first
+  if (TIMEZONE_TO_COUNTRY[timezone]) {
+    return TIMEZONE_TO_COUNTRY[timezone];
+  }
+  
+  // Handle multi-segment IANA zones like "America/Argentina/Buenos_Aires"
+  // Try progressively shorter prefixes
+  const parts = timezone.split('/');
+  for (let i = parts.length - 1; i >= 2; i--) {
+    const prefix = parts.slice(0, i).join('/');
+    if (TIMEZONE_TO_COUNTRY[prefix]) {
+      return TIMEZONE_TO_COUNTRY[prefix];
+    }
+  }
+  
+  // No confident fallback - return null rather than guess incorrectly
+  // The caller should fall back to 'US' if needed for the API call
+  console.log(`[TIMEZONE] No country mapping found for timezone: ${timezone}`);
+  return null;
+}
+
 // ---- HOLIDAYS HELPER (AbstractAPI) ----
 
-async function getHolidayContext({ countryCode, date = new Date() }) {
+async function getHolidayContext({ countryCode, timezone, date = new Date() }) {
   const apiKey = process.env.ABSTRACT_HOLIDAYS_API_KEY;
   if (!apiKey) {
     console.warn('[HOLIDAY] ABSTRACT_HOLIDAYS_API_KEY is missing');
@@ -331,7 +456,15 @@ async function getHolidayContext({ countryCode, date = new Date() }) {
   const month = date.getUTCMonth() + 1;
   const day = date.getUTCDate();
 
-  const country = countryCode || 'US';
+  // Priority: explicit country code > timezone-derived country > fallback to US
+  let country = countryCode;
+  if (!country && timezone) {
+    country = getCountryFromTimezone(timezone);
+    if (country) {
+      console.log(`[HOLIDAY] Derived country ${country} from timezone ${timezone}`);
+    }
+  }
+  country = country || 'US';
 
   const url =
     `https://holidays.abstractapi.com/v1/` +
@@ -393,7 +526,7 @@ function isHolidayRelated(text) {
   );
 }
 
-async function maybeAttachHolidayContext({ messages, profile }) {
+async function maybeAttachHolidayContext({ messages, profile, requestTimezone }) {
   const lastUser = [...messages].reverse().find((m) => m.role === 'user');
   if (!lastUser) return { messages, holidaySummary: null };
 
@@ -403,8 +536,11 @@ async function maybeAttachHolidayContext({ messages, profile }) {
 
   console.log('[HOLIDAY] Holiday-related message detected');
 
-  const countryCode = profile?.country || 'US';
-  const ctx = await getHolidayContext({ countryCode });
+  // Use explicit country if set, otherwise let getHolidayContext derive from timezone
+  // Priority: profile country > profile timezone > request timezone (from device)
+  const countryCode = profile?.country || null;
+  const timezone = profile?.timezone || requestTimezone || null;
+  const ctx = await getHolidayContext({ countryCode, timezone });
 
   if (!ctx) {
     return { messages, holidaySummary: null };
@@ -1691,6 +1827,7 @@ app.post('/api/chat', async (req, res) => {
       localDate,
       userId,
       deviceId,
+      timezone,
     } = req.body;
     
     // Filter out invalid placeholder names like "friend", "buddy", "pal"
@@ -1863,12 +2000,26 @@ app.post('/api/chat', async (req, res) => {
 
     // Load user's preferred name from database (source of truth, not client payload)
     let displayName = null;
+    let userProfile = null;
     try {
       if (supabaseServer && effectiveUserId) {
-        const profile = await loadProfileBasic(effectiveUserId);
-        if (profile?.preferred_name) {
-          displayName = profile.preferred_name.trim();
+        userProfile = await loadProfileBasic(effectiveUserId);
+        if (userProfile?.preferred_name) {
+          displayName = userProfile.preferred_name.trim();
           console.log('[TRACE NAME] Loaded from DB:', displayName);
+        }
+        
+        // Auto-persist timezone to profile if provided in request and not already set
+        if (timezone && !userProfile?.timezone) {
+          const derivedCountry = getCountryFromTimezone(timezone);
+          const updates = { timezone };
+          if (derivedCountry) updates.country = derivedCountry;
+          
+          supabaseServer
+            .from('profiles')
+            .upsert({ user_id: effectiveUserId, ...updates }, { onConflict: 'user_id' })
+            .then(() => console.log('[TRACE PROFILE] Auto-saved timezone:', timezone, derivedCountry ? `(${derivedCountry})` : ''))
+            .catch(err => console.error('[TRACE PROFILE] Failed to auto-save timezone:', err.message));
         }
       }
     } catch (err) {
@@ -1983,6 +2134,7 @@ app.post('/api/chat', async (req, res) => {
         const holidayResult = await maybeAttachHolidayContext({
           messages,
           profile: profileForHoliday,
+          requestTimezone: timezone,
         });
         if (holidayResult.holidaySummary) {
           holidayContext = holidayResult.holidaySummary;
@@ -2372,7 +2524,10 @@ app.get('/api/profile', async (req, res) => {
 
 // PATCH /api/profile - Update user profile
 app.patch('/api/profile', async (req, res) => {
-  const { userId, displayName, email, theme, pushEnabled, emailEnabled } = req.body;
+  const { 
+    userId, displayName, email, theme, pushEnabled, emailEnabled,
+    weatherContextEnabled, latitude, longitude, timezone, country
+  } = req.body;
   
   console.log('[PROFILE] PATCH request for userId:', userId);
   
@@ -2392,6 +2547,11 @@ app.patch('/api/profile', async (req, res) => {
     if (theme !== undefined) updates.theme = theme;
     if (pushEnabled !== undefined) updates.push_enabled = pushEnabled;
     if (emailEnabled !== undefined) updates.email_enabled = emailEnabled;
+    if (weatherContextEnabled !== undefined) updates.weather_context_enabled = weatherContextEnabled;
+    if (latitude !== undefined) updates.latitude = latitude;
+    if (longitude !== undefined) updates.longitude = longitude;
+    if (timezone !== undefined) updates.timezone = timezone;
+    if (country !== undefined) updates.country = country;
     
     const { data, error } = await supabaseServer
       .from('profiles')
@@ -2415,7 +2575,10 @@ app.patch('/api/profile', async (req, res) => {
 
 // POST /api/profile/update - Update user profile (for mobile app compatibility)
 app.post('/api/profile/update', async (req, res) => {
-  const { userId, displayName, email, theme, pushEnabled, emailEnabled } = req.body;
+  const { 
+    userId, displayName, email, theme, pushEnabled, emailEnabled,
+    weatherContextEnabled, latitude, longitude, timezone, country
+  } = req.body;
   
   console.log('[PROFILE] POST /api/profile/update for userId:', userId);
   
@@ -2435,6 +2598,11 @@ app.post('/api/profile/update', async (req, res) => {
     if (theme !== undefined) updates.theme = theme;
     if (pushEnabled !== undefined) updates.push_enabled = pushEnabled;
     if (emailEnabled !== undefined) updates.email_enabled = emailEnabled;
+    if (weatherContextEnabled !== undefined) updates.weather_context_enabled = weatherContextEnabled;
+    if (latitude !== undefined) updates.latitude = latitude;
+    if (longitude !== undefined) updates.longitude = longitude;
+    if (timezone !== undefined) updates.timezone = timezone;
+    if (country !== undefined) updates.country = country;
     
     const { data, error } = await supabaseServer
       .from('profiles')
@@ -2654,11 +2822,13 @@ Examples by variation:
 // POST /api/holidays - Check for holidays on a given date
 app.post('/api/holidays', async (req, res) => {
   try {
-    const { country, date } = req.body || {};
+    const { country, timezone, date } = req.body || {};
     const parsedDate = date ? new Date(date) : new Date();
 
+    // Accept either explicit country or derive from timezone
     const ctx = await getHolidayContext({
       countryCode: country,
+      timezone: timezone,
       date: parsedDate,
     });
 

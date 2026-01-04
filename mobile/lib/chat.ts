@@ -1,4 +1,4 @@
-export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId }: {
+export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone }: {
   messages: Array<{ role: string; content: string }>;
   userName?: string | null;
   chatStyle?: string;
@@ -7,6 +7,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
   localDate?: string;
   userId?: string | null;
   deviceId?: string | null;
+  timezone?: string | null;
 }) {
   console.log(
     '🆔 TRACE sendChatMessage ids:',
@@ -34,6 +35,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
           localDate,
           userId: userId || null,
           deviceId: deviceId || null,
+          timezone: timezone || null,
         }),
         signal: controller.signal,
       }
@@ -85,6 +87,7 @@ export async function fetchWelcomeGreeting(params: {
   localDate?: string | null;
   userId?: string | null;
   deviceId?: string | null;
+  timezone?: string | null;
 }) {
   const {
     userName,
@@ -94,6 +97,7 @@ export async function fetchWelcomeGreeting(params: {
     localDate,
     userId,
     deviceId,
+    timezone,
   } = params;
 
   const url = `${TRACE_API_URL}/greeting`;
@@ -116,6 +120,7 @@ export async function fetchWelcomeGreeting(params: {
         localDate,
         userId,
         deviceId,
+        timezone,
       }),
       signal: controller.signal,
     });
