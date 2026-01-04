@@ -488,6 +488,84 @@ async function maybeAttachFoodContext({ messages }) {
   };
 }
 
+// ---- DAD JOKE HELPER (JokeFather API - no key needed) ----
+
+async function getDadJoke() {
+  const url = 'https://jokefather.com/api/jokes/random?ref=trace-app';
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('[JOKE] Dad joke API error:', res.status, await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+    if (!data || !data.setup || !data.punchline) {
+      return null;
+    }
+
+    return {
+      setup: data.setup,
+      punchline: data.punchline,
+    };
+  } catch (err) {
+    console.error('[JOKE] Dad joke fetch error:', err);
+    return null;
+  }
+}
+
+function isJokeRequest(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  return (
+    t.includes('tell me a joke') ||
+    t.includes('dad joke') ||
+    t.includes('make me laugh') ||
+    t.includes('cheer me up') ||
+    t.trim() === 'joke' ||
+    t.trim() === '/joke'
+  );
+}
+
+async function maybeAttachJokeContext({ messages }) {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser) return { messages, joke: null };
+
+  if (!isJokeRequest(lastUser.content)) {
+    return { messages, joke: null };
+  }
+
+  console.log('[JOKE] Joke request detected');
+
+  const joke = await getDadJoke();
+  if (!joke) {
+    return { messages, joke: null };
+  }
+
+  console.log('[JOKE] Attaching dad joke to context');
+
+  const systemJoke = {
+    role: 'system',
+    content:
+      `JOKE_CONTEXT: The user has explicitly asked for a joke or some lightness.\n` +
+      `Here is a ready-made dad joke:\n` +
+      `SETUP: ${joke.setup}\n` +
+      `PUNCHLINE: ${joke.punchline}\n\n` +
+      `When you respond:\n` +
+      `- Deliver this joke in a gentle, TRACE-like way (you can present it as-is, or wrap it in one or two soft sentences).\n` +
+      `- Keep it on the wholesome / corny side; avoid edgy or offensive humor.\n` +
+      `- After the joke, you may very briefly check in on how they're feeling, but don't push deep processing unless they invite it.\n` +
+      `- Do NOT say "here is a joke from an API" or mention JOKE_CONTEXT by name.`,
+  };
+
+  return {
+    messages: [systemJoke, ...messages],
+    joke,
+  };
+}
+
 // ---- HYDRATION MOMENT DETECTION ----
 
 function isHydrationMoment(text) {
@@ -1491,6 +1569,17 @@ app.post('/api/chat', async (req, res) => {
     } catch (err) {
       console.error('[TRACE FOOD] Failed to load food context:', err.message);
     }
+
+    // Load joke context if user asks for a joke
+    let jokeContext = null;
+    try {
+      const jokeResult = await maybeAttachJokeContext({ messages });
+      if (jokeResult.joke) {
+        jokeContext = `JOKE_CONTEXT: Setup: "${jokeResult.joke.setup}" Punchline: "${jokeResult.joke.punchline}"`;
+      }
+    } catch (err) {
+      console.error('[TRACE JOKE] Failed to load joke context:', err.message);
+    }
     
     // Build combined context snapshot
     const contextParts = [memoryContext];
@@ -1514,6 +1603,9 @@ app.post('/api/chat', async (req, res) => {
     }
     if (foodContext) {
       contextParts.push(foodContext);
+    }
+    if (jokeContext) {
+      contextParts.push(jokeContext);
     }
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 

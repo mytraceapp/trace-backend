@@ -1,0 +1,125 @@
+Tiny helper: fetch a dad joke from JokeFather
+
+No key needed for this one, so it’s easy.
+
+In server/index.js (or a jokes.js helper), add:
+
+async function getDadJoke() {
+  const url = 'https://jokefather.com/api/jokes/random?ref=trace-app';
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('Dad joke API error:', res.status, await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+    // Expecting: { id, setup, punchline }
+    if (!data || !data.setup || !data.punchline) {
+      return null;
+    }
+
+    return {
+      setup: data.setup,
+      punchline: data.punchline,
+    };
+  } catch (err) {
+    console.error('Dad joke fetch error:', err);
+    return null;
+  }
+}
+
+Detection: when to even consider a joke
+
+We only want TRACE to joke when:
+	•	user directly asks for a joke, or
+	•	user explicitly says “I need a laugh / something light”
+
+Add:
+function isJokeRequest(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  return (
+    t.includes('tell me a joke') ||
+    t.includes('dad joke') ||
+    t.includes('make me laugh') ||
+    t.includes('cheer me up') ||
+    t.trim() === 'joke' ||
+    t.trim() === '/joke'
+  );
+}
+
+You can expand phrases later as you feel out real users.
+
+⸻
+
+3️⃣ Attach JOKE_CONTEXT inside /api/chat
+
+We’ll mirror the other helpers: if last message is a clear joke request, we fetch one dad joke and give it to the model in a hidden system message.
+
+Add:
+
+async function maybeAttachJokeContext({ messages }) {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser) return { messages, joke: null };
+
+  if (!isJokeRequest(lastUser.content)) {
+    return { messages, joke: null };
+  }
+
+  const joke = await getDadJoke();
+  if (!joke) {
+    return { messages, joke: null };
+  }
+
+  const systemJoke = {
+    role: 'system',
+    content:
+      `JOKE_CONTEXT: The user has explicitly asked for a joke or some lightness.\n` +
+      `Here is a ready-made dad joke:\n` +
+      `SETUP: ${joke.setup}\n` +
+      `PUNCHLINE: ${joke.punchline}\n\n` +
+      `When you respond:\n` +
+      `- Deliver this joke in a gentle, TRACE-like way (you can present it as-is, or wrap it in one or two soft sentences).\n` +
+      `- Keep it on the wholesome / corny side; avoid edgy or offensive humor.` +
+      `- After the joke, you may very briefly check in on how they're feeling, but don't push deep processing unless they invite it.\n` +
+      `- Do NOT say "here is a joke from an API" or mention JOKE_CONTEXT by name.`,
+  };
+
+  return {
+    messages: [systemJoke, ...messages],
+    joke,
+  };
+}
+Plug into your /api/chat pipeline
+
+Where you already do:
+	•	maybeAttachWeatherContext
+	•	maybeAttachDogContext
+	•	maybeAttachHolidayContext
+	•	maybeAttachFoodContext
+	•	(and maybe hydration, personality, etc.)
+
+…just add jokes at the end of the pipeline, right before calling OpenAI:
+// ... after food / holiday / etc
+const { messages: withJoke } = await maybeAttachJokeContext({
+  messages: withFood, // or whatever your latest variable is
+});
+
+// then in openai call:
+const openaiResponse = await openai.chat.completions.create({
+  model: 'gpt-4.1-mini',
+  messages: [
+    { role: 'system', content: systemPrompt },
+    ...withJoke,
+  ],
+  temperature: 0.8, // tiny bit higher is fine for playful tone
+});
+And in your main systemPrompt, add a small section:
+HUMOR & JOKES:
+- Only use jokes when the user clearly asks for one or explicitly invites lightness.
+- Favor gentle, wholesome, corny, or "dad joke" style humor.
+- Never use sarcasm that could be misread as cruelty.
+- After a joke, you may offer a small, kind follow-up like "I hope that gave you a tiny smile, even if it was terrible," and then gently open space if they want to share more.
