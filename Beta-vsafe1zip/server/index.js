@@ -1031,7 +1031,9 @@ function extractArtistName(text) {
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match && match[1]) {
-      const artist = match[1].trim();
+      let artist = match[1].trim();
+      // Strip possessive endings ('s, 's)
+      artist = artist.replace(/'s$/i, '').replace(/'s$/i, '').trim();
       // Filter out common false positives
       const skipWords = ['music', 'songs', 'a lot', 'some', 'the', 'this', 'that', 'it', 'you', 'i', 'my'];
       if (artist.length > 2 && !skipWords.includes(artist.toLowerCase())) {
