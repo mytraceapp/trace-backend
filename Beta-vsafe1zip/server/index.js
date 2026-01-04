@@ -24,6 +24,7 @@ const {
   buildFirstRunGreetingPrompt,
   buildReturningGreetingPrompt,
   buildBreathingGuidancePrompt,
+  buildCrisisSystemPrompt,
 } = require('./traceSystemPrompt');
 const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
@@ -1553,6 +1554,13 @@ app.post('/api/chat', async (req, res) => {
       console.error('[TRACE MEMORY] Failed to load memory context:', err.message);
     }
 
+    // ---- CRISIS MODE DETECTION ----
+    // Check if the user is in high distress - if so, skip all playful APIs
+    const isCrisisMode = isHighDistressContext(messages);
+    if (isCrisisMode) {
+      console.log('[TRACE CRISIS] High distress detected - entering crisis mode');
+    }
+
     // Load rhythmic awareness line (time/date-based contextual awareness)
     // Uses user's local time from the payload, not server time
     let rhythmicLine = null;
@@ -1571,86 +1579,89 @@ app.post('/api/chat', async (req, res) => {
       console.error('[TRACE RHYTHM] Failed to build rhythmic line:', err.message);
     }
 
-    // Load news context if user is asking about current events
+    // In crisis mode, skip all playful/contextual APIs - focus purely on support
     let newsContext = null;
-    try {
-      if (isNewsQuestion(userText)) {
-        console.log('[TRACE NEWS] News question detected, fetching...');
-        newsContext = await buildNewsContextSummary(userText);
-        if (newsContext) {
-          console.log('[TRACE NEWS] Loaded news context');
-        }
-      }
-    } catch (err) {
-      console.error('[TRACE NEWS] Failed to build news context:', err.message);
-    }
-
-    // Load weather context if user is asking about weather
     let weatherContext = null;
-    try {
-      // Reload full profile with lat/lon for weather
-      const profileForWeather = await loadProfileBasic(effectiveUserId);
-      const weatherResult = await maybeAttachWeatherContext({
-        messages,
-        profile: profileForWeather,
-      });
-      if (weatherResult.weatherSummary) {
-        weatherContext = `WEATHER_CONTEXT: ${weatherResult.weatherSummary}\nUse this only if they ask about weather or conditions outside. Do not mention APIs.`;
-      }
-    } catch (err) {
-      console.error('[TRACE WEATHER] Failed to load weather context:', err.message);
-    }
-
-    // Load dog context if user is talking about their dog
     let dogContext = null;
-    try {
-      const profileForDog = await loadProfileBasic(effectiveUserId);
-      const dogResult = await maybeAttachDogContext({
-        messages,
-        profile: profileForDog,
-      });
-      if (dogResult.dogSummary) {
-        dogContext = dogResult.dogSummary;
-      }
-    } catch (err) {
-      console.error('[TRACE DOG] Failed to load dog context:', err.message);
-    }
-
-    // Load holiday context if user mentions holidays
     let holidayContext = null;
-    try {
-      const profileForHoliday = await loadProfileBasic(effectiveUserId);
-      const holidayResult = await maybeAttachHolidayContext({
-        messages,
-        profile: profileForHoliday,
-      });
-      if (holidayResult.holidaySummary) {
-        holidayContext = holidayResult.holidaySummary;
-      }
-    } catch (err) {
-      console.error('[TRACE HOLIDAY] Failed to load holiday context:', err.message);
-    }
-
-    // Load food context if user mentions food/cooking/appetite
     let foodContext = null;
-    try {
-      const foodResult = await maybeAttachFoodContext({ messages });
-      if (foodResult.foodSummary) {
-        foodContext = foodResult.foodSummary;
-      }
-    } catch (err) {
-      console.error('[TRACE FOOD] Failed to load food context:', err.message);
-    }
-
-    // Load joke context if user asks for a joke
     let jokeContext = null;
-    try {
-      const jokeResult = await maybeAttachJokeContext({ messages });
-      if (jokeResult.joke) {
-        jokeContext = `JOKE_CONTEXT: Setup: "${jokeResult.joke.setup}" Punchline: "${jokeResult.joke.punchline}"`;
+
+    if (!isCrisisMode) {
+      // Load news context if user is asking about current events
+      try {
+        if (isNewsQuestion(userText)) {
+          console.log('[TRACE NEWS] News question detected, fetching...');
+          newsContext = await buildNewsContextSummary(userText);
+          if (newsContext) {
+            console.log('[TRACE NEWS] Loaded news context');
+          }
+        }
+      } catch (err) {
+        console.error('[TRACE NEWS] Failed to build news context:', err.message);
       }
-    } catch (err) {
-      console.error('[TRACE JOKE] Failed to load joke context:', err.message);
+
+      // Load weather context if user is asking about weather
+      try {
+        const profileForWeather = await loadProfileBasic(effectiveUserId);
+        const weatherResult = await maybeAttachWeatherContext({
+          messages,
+          profile: profileForWeather,
+        });
+        if (weatherResult.weatherSummary) {
+          weatherContext = `WEATHER_CONTEXT: ${weatherResult.weatherSummary}\nUse this only if they ask about weather or conditions outside. Do not mention APIs.`;
+        }
+      } catch (err) {
+        console.error('[TRACE WEATHER] Failed to load weather context:', err.message);
+      }
+
+      // Load dog context if user is talking about their dog
+      try {
+        const profileForDog = await loadProfileBasic(effectiveUserId);
+        const dogResult = await maybeAttachDogContext({
+          messages,
+          profile: profileForDog,
+        });
+        if (dogResult.dogSummary) {
+          dogContext = dogResult.dogSummary;
+        }
+      } catch (err) {
+        console.error('[TRACE DOG] Failed to load dog context:', err.message);
+      }
+
+      // Load holiday context if user mentions holidays
+      try {
+        const profileForHoliday = await loadProfileBasic(effectiveUserId);
+        const holidayResult = await maybeAttachHolidayContext({
+          messages,
+          profile: profileForHoliday,
+        });
+        if (holidayResult.holidaySummary) {
+          holidayContext = holidayResult.holidaySummary;
+        }
+      } catch (err) {
+        console.error('[TRACE HOLIDAY] Failed to load holiday context:', err.message);
+      }
+
+      // Load food context if user mentions food/cooking/appetite
+      try {
+        const foodResult = await maybeAttachFoodContext({ messages });
+        if (foodResult.foodSummary) {
+          foodContext = foodResult.foodSummary;
+        }
+      } catch (err) {
+        console.error('[TRACE FOOD] Failed to load food context:', err.message);
+      }
+
+      // Load joke context if user asks for a joke
+      try {
+        const jokeResult = await maybeAttachJokeContext({ messages });
+        if (jokeResult.joke) {
+          jokeContext = `JOKE_CONTEXT: Setup: "${jokeResult.joke.setup}" Punchline: "${jokeResult.joke.punchline}"`;
+        }
+      } catch (err) {
+        console.error('[TRACE JOKE] Failed to load joke context:', err.message);
+      }
     }
     
     // Build combined context snapshot
@@ -1687,29 +1698,41 @@ app.post('/api/chat', async (req, res) => {
       console.log('[TRACE] Hydration hint added to conversation');
     }
 
-    // Build system prompt using centralized builder (handles name, memory, tone)
-    // displayName comes from database lookup, not client payload
-    let systemPrompt = buildTraceSystemPrompt({
-      displayName: displayName || null,
-      contextSnapshot: fullContext || null,
-    });
+    // Build system prompt - use crisis prompt if in crisis mode
+    let systemPrompt;
+    let chatTemperature = 0.7;
 
-    // Add time awareness if available
-    if (localTime || localDay || localDate) {
-      systemPrompt += `
+    if (isCrisisMode) {
+      // Crisis mode: calm, focused, safety-oriented
+      systemPrompt = buildCrisisSystemPrompt({
+        displayName: displayName || null,
+      });
+      chatTemperature = 0.4; // Calmer, more grounded responses
+      console.log('[TRACE CRISIS] Using crisis system prompt with temperature 0.4');
+    } else {
+      // Normal mode: full personality with all context
+      systemPrompt = buildTraceSystemPrompt({
+        displayName: displayName || null,
+        contextSnapshot: fullContext || null,
+      });
+
+      // Add time awareness if available
+      if (localTime || localDay || localDate) {
+        systemPrompt += `
 
 TIME AWARENESS:
 It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${localDate || ''} for the user. Be naturally aware of this. You may briefly reference time of day (e.g., 'for this part of your evening…') but never ask about specific locations.`;
-    }
+      }
 
-    // Add no-greeting directive for ongoing conversations
-    systemPrompt += `
+      // Add no-greeting directive for ongoing conversations
+      systemPrompt += `
 
 CRITICAL - NO GREETINGS IN ONGOING CHAT:
 - Assume the user has already seen a short welcome message from TRACE.
 - Do NOT start responses with generic greetings like "Hi", "Hey there", "Hello", "How are you today?"
 - Respond as if you've already said hello and are in the middle of a conversation.
 - Focus on answering or gently reflecting on the user's latest message.`;
+    }
     
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -1718,7 +1741,7 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
         ...messagesWithHydration
       ],
       max_tokens: 300,
-      temperature: 0.7,
+      temperature: chatTemperature,
       response_format: { type: "json_object" },
     });
 
