@@ -1186,6 +1186,21 @@ app.post('/api/chat', async (req, res) => {
     } catch (err) {
       console.error('[TRACE WEATHER] Failed to load weather context:', err.message);
     }
+
+    // Load dog context if user is talking about their dog
+    let dogContext = null;
+    try {
+      const profileForDog = await loadProfileBasic(effectiveUserId);
+      const dogResult = await maybeAttachDogContext({
+        messages,
+        profile: profileForDog,
+      });
+      if (dogResult.dogSummary) {
+        dogContext = dogResult.dogSummary;
+      }
+    } catch (err) {
+      console.error('[TRACE DOG] Failed to load dog context:', err.message);
+    }
     
     // Build combined context snapshot
     const contextParts = [memoryContext];
@@ -1200,6 +1215,9 @@ app.post('/api/chat', async (req, res) => {
     }
     if (weatherContext) {
       contextParts.push(weatherContext);
+    }
+    if (dogContext) {
+      contextParts.push(dogContext);
     }
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
