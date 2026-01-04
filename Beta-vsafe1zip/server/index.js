@@ -763,31 +763,41 @@ function updateCrisisState(userId, isCurrentlyDistressed) {
     state.active = true;
     state.lastFlaggedAt = Date.now();
     state.safeMessagesSince = 0;
+    state.pendingExitCheckIn = false;
     console.log(`[CRISIS] User ${userId} - crisis mode ACTIVE (distress detected)`);
   } else if (state.active) {
     // In crisis mode but current message is safe
     state.safeMessagesSince++;
     const timeSinceFlag = Date.now() - state.lastFlaggedAt;
-    const fifteenMinutes = 15 * 60 * 1000;
+    const thirtyMinutes = 30 * 60 * 1000;
 
     console.log(`[CRISIS] User ${userId} - safe message #${state.safeMessagesSince}, ${Math.round(timeSinceFlag / 60000)}min since flag`);
 
-    // Exit crisis mode only after 4 safe messages AND 15 minutes
-    if (state.safeMessagesSince >= 4 && timeSinceFlag > fifteenMinutes) {
-      state.active = false;
-      state.safeMessagesSince = 0;
-      console.log(`[CRISIS] User ${userId} - crisis mode EXITED (4+ safe messages, 15+ min)`);
+    // Exit crisis mode only after 3+ safe messages AND 30 minutes
+    // Mark pending exit check-in to remind TRACE to do a gentle transition
+    if (state.safeMessagesSince >= 3 && timeSinceFlag > thirtyMinutes) {
+      if (!state.pendingExitCheckIn) {
+        state.pendingExitCheckIn = true;
+        console.log(`[CRISIS] User ${userId} - pending exit check-in (3+ safe, 30+ min)`);
+      }
+      // Actually exit after 4 safe messages (gives time for check-in)
+      if (state.safeMessagesSince >= 4) {
+        state.active = false;
+        state.safeMessagesSince = 0;
+        state.pendingExitCheckIn = false;
+        console.log(`[CRISIS] User ${userId} - crisis mode EXITED (4+ safe messages, 30+ min)`);
+      }
     }
   }
 
-  return state.active;
+  return state;
 }
 
 function isHighDistressText(text) {
   if (!text) return false;
   const t = text.toLowerCase();
 
-  // Direct suicidality / self-harm
+  // Direct suicidality / self-harm / existential despair
   if (
     t.includes('i want to die') ||
     t.includes('i want to disappear') ||
@@ -801,19 +811,39 @@ function isHighDistressText(text) {
     t.includes('hurt myself') ||
     t.includes('self harm') ||
     t.includes('cutting again') ||
-    t.includes('relapsed on self harm')
+    t.includes('relapsed on self harm') ||
+    t.includes('is life worth it') ||
+    t.includes('life even worth') ||
+    t.includes('worth living') ||
+    t.includes("don't see the point") ||
+    t.includes('no point in living') ||
+    t.includes('wish i was dead') ||
+    t.includes('wish i were dead') ||
+    t.includes("don't want to wake up") ||
+    t.includes('everyone would be better off') ||
+    t.includes("i'm a burden") ||
+    t.includes('nobody would miss me') ||
+    t.includes('tired of existing') ||
+    t.includes('tired of being alive')
   ) {
     return true;
   }
 
-  // Very acute panic / overwhelm
+  // Very acute panic / overwhelm / emotional collapse
   if (
     t.includes('panic attack') ||
     t.includes("can't breathe") ||
     t.includes('hyperventilating') ||
     t.includes('shaking so bad') ||
     t.includes('losing it') ||
-    t.includes("i can't do this anymore")
+    t.includes("i can't do this anymore") ||
+    t.includes("can't take it anymore") ||
+    t.includes("falling apart") ||
+    t.includes("breaking down") ||
+    t.includes("completely overwhelmed") ||
+    t.includes("emotionally numb") ||
+    t.includes("feel nothing") ||
+    t.includes("feel empty inside")
   ) {
     return true;
   }
@@ -825,9 +855,18 @@ function isHighDistressText(text) {
     t.includes('my dad died') ||
     t.includes('my child died') ||
     t.includes('my partner died') ||
+    t.includes('my husband died') ||
+    t.includes('my wife died') ||
+    t.includes('my friend died') ||
+    t.includes('my brother died') ||
+    t.includes('my sister died') ||
     t.includes('funeral was') ||
+    t.includes('just lost someone') ||
     t.includes('i was assaulted') ||
     t.includes('i was abused') ||
+    t.includes('i was raped') ||
+    t.includes('sexual assault') ||
+    t.includes('domestic violence') ||
     (t.includes('trauma') && t.includes('flashback'))
   ) {
     return true;
@@ -2121,9 +2160,11 @@ app.post('/api/chat', async (req, res) => {
 
     // ---- CRISIS MODE DETECTION ----
     // Check if the user is in high distress - if so, skip all playful APIs
-    // Crisis mode persists: requires 4 safe messages + 15 min to exit
+    // Crisis mode persists: requires 3+ safe messages + 30 min to exit
     const isCurrentlyDistressed = isHighDistressContext(messages);
-    const isCrisisMode = updateCrisisState(effectiveUserId, isCurrentlyDistressed);
+    const crisisState = updateCrisisState(effectiveUserId, isCurrentlyDistressed);
+    const isCrisisMode = crisisState.active;
+    const crisisPendingExitCheckIn = crisisState.pendingExitCheckIn;
 
     // Load rhythmic awareness line (time/date-based contextual awareness)
     // Uses user's local time from the payload, not server time
