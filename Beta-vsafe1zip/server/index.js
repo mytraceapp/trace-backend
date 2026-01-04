@@ -488,6 +488,51 @@ async function maybeAttachFoodContext({ messages }) {
   };
 }
 
+// ---- HYDRATION MOMENT DETECTION ----
+
+function isHydrationMoment(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  return (
+    t.includes('headache') ||
+    t.includes('migraine') ||
+    t.includes('lightheaded') ||
+    t.includes('dizzy') ||
+    t.includes('dehydrated') ||
+    t.includes("haven't drunk") ||
+    t.includes("haven't had water") ||
+    t.includes('crying all day') ||
+    t.includes('been crying a lot') ||
+    t.includes('tired all day') ||
+    t.includes('exhausted') ||
+    t.includes('burnt out') ||
+    t.includes('burned out')
+  );
+}
+
+function maybeAddHydrationHint({ messages }) {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser || !isHydrationMoment(lastUser.content)) {
+    return { messages, hasHydrationHint: false };
+  }
+
+  console.log('[HYDRATION] Hydration moment detected');
+
+  const hydrationSystem = {
+    role: 'system',
+    content:
+      'HYDRATION_HINT: The user may be dealing with headaches, fatigue, or lots of crying. ' +
+      'When appropriate, you may gently suggest taking a sip of water as a grounding act. ' +
+      'Offer it once, softly, as an option, not a prescription. Do not repeat it if they ignore it.',
+  };
+
+  return {
+    messages: [hydrationSystem, ...messages],
+    hasHydrationHint: true,
+  };
+}
+
 // Detect if user wants breathing mode instead of full conversation
 function wantsBreathingMode(text) {
   const t = (text || '').toLowerCase().trim();
@@ -1472,6 +1517,12 @@ app.post('/api/chat', async (req, res) => {
     }
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
+    // Check for hydration moment and optionally add hint
+    const { messages: messagesWithHydration, hasHydrationHint } = maybeAddHydrationHint({ messages });
+    if (hasHydrationHint) {
+      console.log('[TRACE] Hydration hint added to conversation');
+    }
+
     // Build system prompt using centralized builder (handles name, memory, tone)
     // displayName comes from database lookup, not client payload
     let systemPrompt = buildTraceSystemPrompt({
@@ -1500,7 +1551,7 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
-        ...messages
+        ...messagesWithHydration
       ],
       max_tokens: 300,
       temperature: 0.7,
