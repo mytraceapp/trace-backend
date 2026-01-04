@@ -485,18 +485,27 @@ app.post('/api/analyze-emotion', async (req, res) => {
 // Unified greeting: Handles both first-run and returning users
 app.post('/api/greeting', async (req, res) => {
   try {
-    const { userId, isNewUser } = req.body;
-    if (!userId) {
-      return res.status(400).json({ error: 'userId required' });
+    const { userId, deviceId, isNewUser } = req.body;
+    console.log('[TRACE GREETING] Request received - userId:', userId, 'deviceId:', deviceId, 'isNewUser:', isNewUser);
+    
+    if (!userId && !deviceId) {
+      return res.status(400).json({ error: 'userId or deviceId required' });
     }
 
-    const profile = await loadProfileBasic(userId);
-    const displayName = profile?.preferred_name?.trim() || null;
+    // Try to load profile, but don't fail if it doesn't exist (new users)
+    let profile = null;
+    let displayName = null;
+    
+    if (userId && supabaseServer) {
+      profile = await loadProfileBasic(userId);
+      displayName = profile?.preferred_name?.trim() || null;
+    }
     
     // Prioritize isNewUser flag from mobile app, fallback to database check
-    const firstRun = isNewUser === true || (profile && !profile.first_run_completed);
+    // If profile doesn't exist, treat as first run
+    const firstRun = isNewUser === true || !profile || !profile.first_run_completed;
 
-    console.log('[TRACE GREETING] isNewUser:', isNewUser, 'firstRun:', firstRun, 'displayName:', displayName);
+    console.log('[TRACE GREETING] Resolved - firstRun:', firstRun, 'displayName:', displayName, 'profileExists:', !!profile);
 
     // Choose prompt based on first-run status
     const systemPrompt = firstRun
