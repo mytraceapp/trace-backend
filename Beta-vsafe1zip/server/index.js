@@ -108,6 +108,8 @@ async function getWeatherSummary({ lat, lon }) {
   const weatherText = current.WeatherText || '';
   const humidity = current.RelativeHumidity ?? null;
   const uvIndex = current.UVIndex ?? null;
+  const cloudCover = current.CloudCover ?? null;
+  const isDayTime = current.IsDayTime ?? null;
 
   // Build TRACE-style tone
   let tempTone = '';
@@ -116,18 +118,37 @@ async function getWeatherSummary({ lat, lon }) {
   else if (nowTemp <= 80) tempTone = 'Mild and comfortable —';
   else tempTone = 'Warm —';
 
+  // Build sky/light description
+  let skyDescription = '';
+  if (isDayTime === false) {
+    skyDescription = 'nighttime';
+  } else if (cloudCover !== null) {
+    if (cloudCover <= 10) skyDescription = 'clear skies with full sun';
+    else if (cloudCover <= 30) skyDescription = 'mostly sunny';
+    else if (cloudCover <= 60) skyDescription = 'partly cloudy';
+    else if (cloudCover <= 85) skyDescription = 'mostly cloudy';
+    else skyDescription = 'overcast skies';
+  } else if (weatherText) {
+    skyDescription = weatherText.toLowerCase();
+  }
+
   // Build a natural summary
   let summary = `${tempTone} currently ${nowTemp}°F`;
   if (Math.abs(feelsLike - nowTemp) >= 5) {
     summary += ` (feels like ${feelsLike}°F)`;
   }
-  summary += `. ${weatherText}.`;
-
-  if (wind > 10) {
-    summary += ` Wind around ${wind} mph.`;
+  
+  if (skyDescription) {
+    summary += `, ${skyDescription}`;
+  }
+  
+  if (weatherText && !skyDescription.includes(weatherText.toLowerCase())) {
+    summary += `. ${weatherText}`;
   }
 
-  summary += ` Use this context gently and only if they ask about the weather or mention conditions outside.`;
+  if (wind > 10) {
+    summary += `. Wind around ${wind} mph`;
+  }
 
   return {
     summary,
@@ -138,6 +159,8 @@ async function getWeatherSummary({ lat, lon }) {
       weatherText,
       humidity,
       uvIndex,
+      cloudCover,
+      isDayTime,
     },
   };
 }
@@ -2105,10 +2128,12 @@ app.post('/api/chat', async (req, res) => {
       try {
         if (clientWeatherContext && clientWeatherContext.temperature !== undefined) {
           // Client sent weather context directly (mobile app with user consent)
-          const { temperature, windSpeed, summary } = clientWeatherContext;
+          const { temperature, windSpeed, summary, cloudCover, isDayTime } = clientWeatherContext;
           const windInfo = windSpeed ? `, wind ${Math.round(windSpeed)} mph` : '';
-          weatherContext = `WEATHER_CONTEXT: Current local conditions: ${summary || 'Unknown conditions'}, ${Math.round(temperature)}°F${windInfo}.\nYou may naturally reference this when relevant (e.g., "I know it's cold today..." or "On a rainy day like this..."). Do not force it into every response - use contextually. Never mention APIs or data sources.`;
-          console.log('[TRACE WEATHER] Using client-provided weather context:', summary, temperature + '°F');
+          const dayNightInfo = isDayTime === false ? ', nighttime' : isDayTime === true ? ', daytime' : '';
+          const cloudInfo = cloudCover !== undefined ? ` (${cloudCover}% cloud cover)` : '';
+          weatherContext = `WEATHER_CONTEXT: Current local conditions: ${summary || 'Unknown conditions'}${cloudInfo}, ${Math.round(temperature)}°F${windInfo}${dayNightInfo}.\nYou CAN reference sky conditions, daylight, cloud coverage, temperature, and weather naturally. Examples: "with the overcast skies today...", "in the bright sunshine...", "as evening settles in...". Use contextually - do not force into every response. Never mention APIs or data sources.`;
+          console.log('[TRACE WEATHER] Using client-provided weather context:', summary, temperature + '°F', 'isDayTime:', isDayTime, 'cloudCover:', cloudCover);
         } else {
           // Fall back to server-side weather fetch based on profile lat/lon
           const profileForWeather = await loadProfileBasic(effectiveUserId);
@@ -2117,7 +2142,7 @@ app.post('/api/chat', async (req, res) => {
             profile: profileForWeather,
           });
           if (weatherResult.weatherSummary) {
-            weatherContext = `WEATHER_CONTEXT: ${weatherResult.weatherSummary}\nUse this only if they ask about weather or conditions outside. Do not mention APIs.`;
+            weatherContext = `WEATHER_CONTEXT: ${weatherResult.weatherSummary}\nYou CAN reference sky conditions, daylight, cloud coverage, temperature, and weather naturally. Use contextually - do not force into every response. Never mention APIs or data sources.`;
           }
         }
       } catch (err) {
