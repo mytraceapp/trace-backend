@@ -53,53 +53,24 @@ function isNewsQuestion(text) {
   if (!text) return false;
   const t = text.toLowerCase().trim();
 
-  // Direct news phrases that don't need location qualifier
-  const directNewsPatterns = [
-    "what's in the news",
-    'what is in the news',
-    "what's the news",
-    'what is the news',
-    'any news',
-    'latest news',
-    'current news',
-    'current events',
-    'what else is happening',
-    'anything going on with the news',
-    'anything going with the news',
-    'anything in the news',
-    'anything new in the news',
-    'what have you heard',
-    'what did you hear',
-  ];
-  
-  // Check direct patterns first
-  if (directNewsPatterns.some(pattern => t.includes(pattern))) {
+  // Simple check: if user mentions "news", fetch news
+  if (t.includes('news')) {
     return true;
   }
 
-  // Patterns that need a topic/location - these trigger news lookup
-  const topicPatterns = [
-    "what's happening",
-    'what is happening',
-    "what's going on",
-    'what is going on',
-    'news about',
-    'news on',
-    'do you know what',
-    'tell me about what',
+  // Also catch current events questions without the word "news"
+  const eventPatterns = [
+    'current events',
+    "what's happening in",
+    'what is happening in',
+    "what's going on in",
+    'what is going on in',
     'did you hear about',
     'have you heard about',
-    'heard about this',
-    'hear about this',
-    'thing in',
     'situation in',
-    'what about',
   ];
   
-  // Must also mention a topic/place to avoid false positives
-  const hasLocation = /\b(in|about|with|on)\s+\w+/.test(t);
-  
-  return topicPatterns.some(pattern => t.includes(pattern)) && hasLocation;
+  return eventPatterns.some(pattern => t.includes(pattern));
 }
 
 module.exports = {
