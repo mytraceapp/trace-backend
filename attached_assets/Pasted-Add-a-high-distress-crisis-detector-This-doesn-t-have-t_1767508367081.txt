@@ -1,0 +1,126 @@
+Add a “high-distress / crisis” detector
+
+This doesn’t have to be perfect, just conservative.
+If we’re unsure, we err on no jokes.
+
+In server/index.js near your helpers:
+function isHighDistressText(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  // Direct suicidality / self-harm
+  if (
+    t.includes('i want to die') ||
+    t.includes('i want to disappear') ||
+    t.includes('don\'t want to be here') ||
+    t.includes('kill myself') ||
+    t.includes('end my life') ||
+    t.includes('end it all') ||
+    t.includes('i\'m done with life') ||
+    t.includes('no reason to live') ||
+    t.includes('better off dead') ||
+    t.includes('hurt myself') ||
+    t.includes('self harm') ||
+    t.includes('cutting again') ||
+    t.includes('relapsed on self harm')
+  ) {
+    return true;
+  }
+
+  // Very acute panic / overwhelm
+  if (
+    t.includes('panic attack') ||
+    t.includes('can\'t breathe') ||
+    t.includes('hyperventilating') ||
+    t.includes('shaking so bad') ||
+    t.includes('losing it') ||
+    t.includes('i can\'t do this anymore')
+  ) {
+    return true;
+  }
+
+  // Grief / trauma heaviness where joking is usually not appropriate
+  if (
+    t.includes('someone died') ||
+    t.includes('my mom died') ||
+    t.includes('my dad died') ||
+    t.includes('my child died') ||
+    t.includes('my partner died') ||
+    t.includes('funeral was') ||
+    t.includes('i was assaulted') ||
+    t.includes('i was abused') ||
+    t.includes('trauma') && t.includes('flashback')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+// Look at last 1–2 user messages
+function isHighDistressContext(messages) {
+  const lastUserMessages = [...messages]
+    .reverse()
+    .filter(m => m.role === 'user')
+    .slice(0, 2);
+
+  return lastUserMessages.some(m => isHighDistressText(m.content));
+}
+async function maybeAttachJokeContext({ messages }) {
+  // 🚫 If context looks like crisis / very high distress, do NOT use jokes.
+  if (isHighDistressContext(messages)) {
+    return { messages, joke: null };
+  }
+
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser) return { messages, joke: null };
+
+  if (!isJokeRequest(lastUser.content)) {
+    return { messages, joke: null };
+  }
+
+  const joke = await getDadJoke();
+  if (!joke) {
+    return { messages, joke: null };
+  }
+
+  const systemJoke = {
+    role: 'system',
+    content:
+      `JOKE_CONTEXT: The user has explicitly asked for a joke or lightness, ` +
+      `and the recent messages do not suggest acute crisis.\n` +
+      `Here is a ready-made dad joke:\n` +
+      `SETUP: ${joke.setup}\n` +
+      `PUNCHLINE: ${joke.punchline}\n\n` +
+      `When you respond:\n` +
+      `- Deliver this joke in a gentle, TRACE-like way.\n` +
+      `- After the joke, you can briefly check in on how they are.\n` +
+      `- If the user sounds more distressed than playful in the same message, ` +
+      `  prioritize emotional support over the joke.\n` +
+      `- Do NOT mention that you used an API or JOKE_CONTEXT by name.`,
+  };
+
+  return {
+    messages: [systemJoke, ...messages],
+    joke,
+  };
+}
+So even if they say “tell me a joke,” but the surrounding text is “I want to die, tell me a joke,” this helper will refuse to attach the joke context and TRACE will stay in full support mode.
+
+⸻
+
+3️⃣ Add explicit “don’t joke in crisis” rules to the system prompt
+
+This gives the model another layer of guardrails.
+
+Add this block into your TRACE system prompt:
+
+Humor boundaries (very important)
+	•	Only use jokes when the user clearly asks for one and the overall conversation doesn’t sound like acute crisis or trauma.
+	•	If the user mentions wanting to die, self-harm, severe hopelessness, recent assault, or fresh grief (for example, a death), do not use humor, even if they ask for a joke.
+	•	In those cases, acknowledge their pain directly and respond with grounded, calm support.
+	•	You can gently say something like:
+“I see you asked for a joke, but I’m hearing a lot of pain underneath that. I’d rather stay with you in what you’re feeling than try to cover it with something silly.”
+	•	Never minimize or deflect serious distress with joking.
+
+This makes TRACE feel emotionally intelligent, not just “joke on command.”

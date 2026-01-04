@@ -488,6 +488,70 @@ async function maybeAttachFoodContext({ messages }) {
   };
 }
 
+// ---- HIGH-DISTRESS / CRISIS DETECTION ----
+
+function isHighDistressText(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  // Direct suicidality / self-harm
+  if (
+    t.includes('i want to die') ||
+    t.includes('i want to disappear') ||
+    t.includes("don't want to be here") ||
+    t.includes('kill myself') ||
+    t.includes('end my life') ||
+    t.includes('end it all') ||
+    t.includes("i'm done with life") ||
+    t.includes('no reason to live') ||
+    t.includes('better off dead') ||
+    t.includes('hurt myself') ||
+    t.includes('self harm') ||
+    t.includes('cutting again') ||
+    t.includes('relapsed on self harm')
+  ) {
+    return true;
+  }
+
+  // Very acute panic / overwhelm
+  if (
+    t.includes('panic attack') ||
+    t.includes("can't breathe") ||
+    t.includes('hyperventilating') ||
+    t.includes('shaking so bad') ||
+    t.includes('losing it') ||
+    t.includes("i can't do this anymore")
+  ) {
+    return true;
+  }
+
+  // Grief / trauma heaviness where joking is usually not appropriate
+  if (
+    t.includes('someone died') ||
+    t.includes('my mom died') ||
+    t.includes('my dad died') ||
+    t.includes('my child died') ||
+    t.includes('my partner died') ||
+    t.includes('funeral was') ||
+    t.includes('i was assaulted') ||
+    t.includes('i was abused') ||
+    (t.includes('trauma') && t.includes('flashback'))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function isHighDistressContext(messages) {
+  const lastUserMessages = [...messages]
+    .reverse()
+    .filter((m) => m.role === 'user')
+    .slice(0, 2);
+
+  return lastUserMessages.some((m) => isHighDistressText(m.content));
+}
+
 // ---- DAD JOKE HELPER (JokeFather API - no key needed) ----
 
 async function getDadJoke() {
@@ -530,6 +594,12 @@ function isJokeRequest(text) {
 }
 
 async function maybeAttachJokeContext({ messages }) {
+  // If context looks like crisis / very high distress, do NOT use jokes
+  if (isHighDistressContext(messages)) {
+    console.log('[JOKE] High distress detected — skipping joke');
+    return { messages, joke: null };
+  }
+
   const lastUser = [...messages].reverse().find((m) => m.role === 'user');
   if (!lastUser) return { messages, joke: null };
 
@@ -549,15 +619,17 @@ async function maybeAttachJokeContext({ messages }) {
   const systemJoke = {
     role: 'system',
     content:
-      `JOKE_CONTEXT: The user has explicitly asked for a joke or some lightness.\n` +
+      `JOKE_CONTEXT: The user has explicitly asked for a joke or lightness, ` +
+      `and the recent messages do not suggest acute crisis.\n` +
       `Here is a ready-made dad joke:\n` +
       `SETUP: ${joke.setup}\n` +
       `PUNCHLINE: ${joke.punchline}\n\n` +
       `When you respond:\n` +
-      `- Deliver this joke in a gentle, TRACE-like way (you can present it as-is, or wrap it in one or two soft sentences).\n` +
-      `- Keep it on the wholesome / corny side; avoid edgy or offensive humor.\n` +
-      `- After the joke, you may very briefly check in on how they're feeling, but don't push deep processing unless they invite it.\n` +
-      `- Do NOT say "here is a joke from an API" or mention JOKE_CONTEXT by name.`,
+      `- Deliver this joke in a gentle, TRACE-like way.\n` +
+      `- After the joke, you can briefly check in on how they are.\n` +
+      `- If the user sounds more distressed than playful in the same message, ` +
+      `prioritize emotional support over the joke.\n` +
+      `- Do NOT mention that you used an API or JOKE_CONTEXT by name.`,
   };
 
   return {
