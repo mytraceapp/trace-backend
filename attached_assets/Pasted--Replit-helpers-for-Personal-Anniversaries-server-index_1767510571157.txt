@@ -1,0 +1,314 @@
+ Replit – helpers for Personal Anniversaries (server/index.js)
+
+These prompts assume you already have:
+	•	const supabase = createClient(...)
+	•	your /api/chat route
+	•	isHighDistressContext(messages) and crisis flag
+
+2.1. Fetch anniversaries for a user
+// 🔹 Get all active personal anniversaries for a user
+async function getPersonalAnniversaries(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('personal_anniversaries')
+      .select('id, date, label, category, notes, is_active')
+      .eq('user_id', userId)
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('getPersonalAnniversaries error', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('getPersonalAnniversaries exception', err);
+    return [];
+  }
+}
+2.2. Helper: is a date “near” today?
+function isWithinDays(targetDateStr, today = new Date(), rangeDays = 3) {
+  const target = new Date(targetDateStr);
+  // normalize year to this year so it behaves like a yearly anniversary
+  const currentYear = today.getFullYear();
+  target.setFullYear(currentYear);
+
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const diffDays = Math.round((target - today) / oneDayMs);
+
+  return Math.abs(diffDays) <= rangeDays;
+}
+
+2.3. Build a gentle system context line
+function buildAnniversaryContextMessage(anniv) {
+  const label = (anniv.label || '').toLowerCase();
+
+  // Very soft phrasing; do NOT restate exact event unless user does in chat
+  if (anniv.category === 'loss') {
+    return (
+      'ANNIVERSARY_CONTEXT: The user once shared that this time of year ' +
+      'holds grief and memory for them. When relevant, you may gently acknowledge ' +
+      'that this month or week can feel heavier, without naming the specific event ' +
+      'unless they bring it up. Never pressure them to talk about it.'
+    );
+  }
+
+  if (anniv.category === 'sobriety') {
+    return (
+      'ANNIVERSARY_CONTEXT: The user has a sobriety-related date around this time. ' +
+      'If it naturally fits, you may gently honor their effort and complexity, ' +
+      'without turning it into a performance review or pressure.'
+    );
+  }
+
+  // trauma / transition / other
+  return (
+    'ANNIVERSARY_CONTEXT: The user has a personally meaningful date around now. ' +
+    'You may softly acknowledge that this period can carry extra weight, and ' +
+    'offer presence rather than analysis. Never list their stored data.'
+  );
+}
+Attach anniversary context in /api/chat
+// 🔹 Maybe attach a single, gentle ANNIVERSARY_CONTEXT system message
+async function maybeAttachAnniversaryContext({ messages, userId, crisisActive }) {
+  if (crisisActive) {
+    // In active crisis, do NOT add anniversary flavor on top
+    return { messages, anniversaryUsed: null };
+  }
+
+  if (!userId) {
+    return { messages, anniversaryUsed: null };
+  }
+
+  const today = new Date();
+  const anniversaries = await getPersonalAnniversaries(userId);
+  if (!anniversaries.length) {
+    return { messages, anniversaryUsed: null };
+  }
+
+  const nearby = anniversaries.filter((a) => isWithinDays(a.date, today, 3));
+  if (!nearby.length) {
+    return { messages, anniversaryUsed: null };
+  }
+
+  // Just pick one, to keep it light
+  const chosen = nearby[0];
+  const contextText = buildAnniversaryContextMessage(chosen);
+  if (!contextText) {
+    return { messages, anniversaryUsed: null };
+  }
+
+  const systemAnniv = {
+    role: 'system',
+    content:
+      contextText +
+      '\n\nDo NOT say "today is the anniversary of X" or restate the date. ' +
+      'If you acknowledge this at all, keep it very soft, e.g., ' +
+      '"Sometimes this time of year carries a little extra weight for you. ' +
+      'If anything is stirred up today, we can move very gently."',
+  };
+
+  return {
+    messages: [systemAnniv, ...messages],
+    anniversaryUsed: chosen,
+  };
+}
+Where to call this in /api/chat
+
+In your non-crisis branch (where you already do maybeAttachWeatherContext, maybeAttachFoodContext, maybeAttachMemoryContext, etc.), add this near the end:
+// ... after weather/holiday/dog/food/memory/joke, still in normal mode
+const { messages: withAnniversary } = await maybeAttachAnniversaryContext({
+  messages: withJoke,        // or whatever your last variable is
+  userId,
+  crisisActive: false,
+});
+
+// then pass withAnniversary into OpenAI
+const openaiResponse = await openai.chat.completions.create({
+  model: 'gpt-4.1-mini',
+  temperature: 0.7,
+  messages: [
+    { role: 'system', content: NORMAL_TRACE_SYSTEM_PROMPT },
+    ...withAnniversary,
+  ],
+});
+That’s it for anniversaries on the backend.
+
+⸻
+
+3️⃣ Replit – Sunrise / Sunset Awareness (soft light context)
+
+This assumes:
+	•	you have some way to get approximate latitude, longitude, or at least timezone from the user’s profile.
+	•	you’re already okay using Open-Meteo (no key).
+
+If you don’t yet store lat/long, you can make this optional and just skip when missing.
+
+3.1. Helper: get sunrise/sunset from Open-Meteo
+
+Drop this into server/index.js:
+async function getSunTimesForUser(profile) {
+  // If you don't have location data yet, you can bail out
+  if (!profile || !profile.latitude || !profile.longitude) {
+    return null;
+  }
+
+  const lat = profile.latitude;
+  const lon = profile.longitude;
+
+  // We only need today's sun times; timezone can be derived or stored on profile
+  const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+  const timezone = profile.timezone || 'auto';
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+              `&daily=sunrise,sunset&timezone=${encodeURIComponent(timezone)}&start_date=${today}&end_date=${today}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('Sun times API error:', res.status, await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+    const daily = data.daily;
+    if (!daily || !daily.sunrise || !daily.sunset) {
+      return null;
+    }
+
+    const sunrise = daily.sunrise[0]; // ISO string
+    const sunset = daily.sunset[0];
+
+    return { sunrise, sunset, timezone: data.timezone || timezone };
+  } catch (err) {
+    console.error('getSunTimesForUser exception', err);
+    return null;
+  }
+}
+ Helper: build a soft light-timing message
+function buildSunlightContextMessage(sunTimes) {
+  if (!sunTimes) return null;
+
+  const now = new Date();
+  const sunrise = new Date(sunTimes.sunrise);
+  const sunset = new Date(sunTimes.sunset);
+
+  const nowMs = now.getTime();
+  const sunriseMs = sunrise.getTime();
+  const sunsetMs = sunset.getTime();
+
+  const hourMs = 60 * 60 * 1000;
+
+  // Rough windows around twilight
+  const nearSunrise = nowMs >= sunriseMs - hourMs && nowMs <= sunriseMs + hourMs;
+  const nearSunset = nowMs >= sunsetMs - hourMs && nowMs <= sunsetMs + hourMs;
+
+  // Very short days?
+  const dayLengthHours = (sunsetMs - sunriseMs) / hourMs;
+
+  if (dayLengthHours < 10) {
+    // Winter-short
+    return (
+      'SUNLIGHT_CONTEXT: The days in their current season are quite short. ' +
+      'You may gently validate that earlier darkness can make everything feel ' +
+      'heavier or more compressed, without mentioning exact times.'
+    );
+  }
+
+  if (nearSunrise) {
+    return (
+      'SUNLIGHT_CONTEXT: It is around sunrise where they are. ' +
+      'You may acknowledge that starting the day before or just as the sun comes up ' +
+      'can feel tender or heavy, especially when they are already tired.'
+    );
+  }
+
+  if (nearSunset) {
+    return (
+      'SUNLIGHT_CONTEXT: It is around sunset where they are. ' +
+      'You may gently acknowledge that twilight can bring up extra feelings, ' +
+      'and that shorter evenings can make the day feel brief.'
+    );
+  }
+
+  // Default: no special note
+  return null;
+}
+Attach SUNLIGHT_CONTEXT (in normal mode only)
+async function maybeAttachSunlightContext({ messages, profile, crisisActive }) {
+  if (crisisActive) {
+    // In crisis mode, skip this. Focus on safety only.
+    return { messages };
+  }
+
+  if (!profile) {
+    return { messages };
+  }
+
+  const sunTimes = await getSunTimesForUser(profile);
+  const contextText = buildSunlightContextMessage(sunTimes);
+
+  if (!contextText) {
+    return { messages };
+  }
+
+  const systemLight = {
+    role: 'system',
+    content:
+      contextText +
+      '\n\nWhen you use this, speak in general terms like "the light fading earlier" ' +
+      'or "these darker evenings," not exact sunrise/sunset times or locations. ' +
+      'Do NOT say you know precisely where they are.',
+  };
+
+  return {
+    messages: [systemLight, ...messages],
+  };
+}
+Where to call this
+
+In your normal /api/chat pipeline, after you fetch the profile:
+const crisisActive = isHighDistressContext(messages);
+
+let systemPrompt;
+let temperature;
+let finalMessages;
+
+if (crisisActive) {
+  systemPrompt = CRISIS_TRACE_SYSTEM_PROMPT;
+  temperature = 0.4;
+  finalMessages = messages;
+} else {
+  systemPrompt = NORMAL_TRACE_SYSTEM_PROMPT;
+  temperature = 0.7;
+
+  const { messages: withWeather } = await maybeAttachWeatherContext({ messages, profile });
+  const { messages: withSunlight } = await maybeAttachSunlightContext({
+    messages: withWeather,
+    profile,
+    crisisActive: false,
+  });
+  const { messages: withDog } = await maybeAttachDogContext({ messages: withSunlight, profile });
+  const { messages: withHoliday } = await maybeAttachHolidayContext({ messages: withDog, profile });
+  const { messages: withFood } = await maybeAttachFoodContext({ messages: withHoliday });
+  const { messages: withMemory } = await maybeAttachMemoryContext({ messages: withFood, userId });
+  const { messages: withJoke } = await maybeAttachJokeContext({ messages: withMemory });
+
+  const { messages: withAnniversary } = await maybeAttachAnniversaryContext({
+    messages: withJoke,
+    userId,
+    crisisActive: false,
+  });
+
+  finalMessages = withAnniversary;
+}
+
+// Then: send finalMessages + systemPrompt to OpenAI
+const openaiResponse = await openai.chat.completions.create({
+  model: 'gpt-4.1-mini',
+  temperature,
+  messages: [
+    { role: 'system', content: systemPrompt },
+    ...finalMessages,
+  ],
+});

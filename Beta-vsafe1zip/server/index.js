@@ -785,6 +785,220 @@ function wantsBreathingMode(text) {
   );
 }
 
+// ---- PERSONAL ANNIVERSARIES ----
+
+async function getPersonalAnniversaries(supabase, userId) {
+  try {
+    const { data, error } = await supabase
+      .from('personal_anniversaries')
+      .select('id, date, label, category, notes, is_active')
+      .eq('user_id', userId)
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('[ANNIVERSARY] getPersonalAnniversaries error', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('[ANNIVERSARY] getPersonalAnniversaries exception', err);
+    return [];
+  }
+}
+
+function isWithinDays(targetDateStr, today = new Date(), rangeDays = 3) {
+  const target = new Date(targetDateStr);
+  const currentYear = today.getFullYear();
+  target.setFullYear(currentYear);
+
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const diffDays = Math.round((target - today) / oneDayMs);
+
+  return Math.abs(diffDays) <= rangeDays;
+}
+
+function buildAnniversaryContextMessage(anniv) {
+  if (anniv.category === 'loss') {
+    return (
+      'ANNIVERSARY_CONTEXT: The user once shared that this time of year ' +
+      'holds grief and memory for them. When relevant, you may gently acknowledge ' +
+      'that this month or week can feel heavier, without naming the specific event ' +
+      'unless they bring it up. Never pressure them to talk about it.'
+    );
+  }
+
+  if (anniv.category === 'sobriety') {
+    return (
+      'ANNIVERSARY_CONTEXT: The user has a sobriety-related date around this time. ' +
+      'If it naturally fits, you may gently honor their effort and complexity, ' +
+      'without turning it into a performance review or pressure.'
+    );
+  }
+
+  return (
+    'ANNIVERSARY_CONTEXT: The user has a personally meaningful date around now. ' +
+    'You may softly acknowledge that this period can carry extra weight, and ' +
+    'offer presence rather than analysis. Never list their stored data.'
+  );
+}
+
+async function maybeAttachAnniversaryContext({ supabase, messages, userId, crisisActive }) {
+  if (crisisActive) {
+    return { messages, anniversaryUsed: null };
+  }
+
+  if (!userId || !supabase) {
+    return { messages, anniversaryUsed: null };
+  }
+
+  const today = new Date();
+  const anniversaries = await getPersonalAnniversaries(supabase, userId);
+  if (!anniversaries.length) {
+    return { messages, anniversaryUsed: null };
+  }
+
+  const nearby = anniversaries.filter((a) => isWithinDays(a.date, today, 3));
+  if (!nearby.length) {
+    return { messages, anniversaryUsed: null };
+  }
+
+  const chosen = nearby[0];
+  const contextText = buildAnniversaryContextMessage(chosen);
+  if (!contextText) {
+    return { messages, anniversaryUsed: null };
+  }
+
+  console.log('[ANNIVERSARY] Near anniversary detected:', chosen.category);
+
+  const systemAnniv = {
+    role: 'system',
+    content:
+      contextText +
+      '\n\nDo NOT say "today is the anniversary of X" or restate the date. ' +
+      'If you acknowledge this at all, keep it very soft, e.g., ' +
+      '"Sometimes this time of year carries a little extra weight for you. ' +
+      'If anything is stirred up today, we can move very gently."',
+  };
+
+  return {
+    messages: [systemAnniv, ...messages],
+    anniversaryUsed: chosen,
+  };
+}
+
+// ---- SUNRISE / SUNSET AWARENESS ----
+
+async function getSunTimesForUser(profile) {
+  if (!profile || !profile.latitude || !profile.longitude) {
+    return null;
+  }
+
+  const lat = profile.latitude;
+  const lon = profile.longitude;
+  const today = new Date().toISOString().slice(0, 10);
+  const timezone = profile.timezone || 'auto';
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+              `&daily=sunrise,sunset&timezone=${encodeURIComponent(timezone)}&start_date=${today}&end_date=${today}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('[SUNLIGHT] Sun times API error:', res.status, await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+    const daily = data.daily;
+    if (!daily || !daily.sunrise || !daily.sunset) {
+      return null;
+    }
+
+    return { sunrise: daily.sunrise[0], sunset: daily.sunset[0], timezone: data.timezone || timezone };
+  } catch (err) {
+    console.error('[SUNLIGHT] getSunTimesForUser exception', err);
+    return null;
+  }
+}
+
+function buildSunlightContextMessage(sunTimes) {
+  if (!sunTimes) return null;
+
+  const now = new Date();
+  const sunrise = new Date(sunTimes.sunrise);
+  const sunset = new Date(sunTimes.sunset);
+
+  const nowMs = now.getTime();
+  const sunriseMs = sunrise.getTime();
+  const sunsetMs = sunset.getTime();
+
+  const hourMs = 60 * 60 * 1000;
+
+  const nearSunrise = nowMs >= sunriseMs - hourMs && nowMs <= sunriseMs + hourMs;
+  const nearSunset = nowMs >= sunsetMs - hourMs && nowMs <= sunsetMs + hourMs;
+
+  const dayLengthHours = (sunsetMs - sunriseMs) / hourMs;
+
+  if (dayLengthHours < 10) {
+    return (
+      'SUNLIGHT_CONTEXT: The days in their current season are quite short. ' +
+      'You may gently validate that earlier darkness can make everything feel ' +
+      'heavier or more compressed, without mentioning exact times.'
+    );
+  }
+
+  if (nearSunrise) {
+    return (
+      'SUNLIGHT_CONTEXT: It is around sunrise where they are. ' +
+      'You may acknowledge that starting the day before or just as the sun comes up ' +
+      'can feel tender or heavy, especially when they are already tired.'
+    );
+  }
+
+  if (nearSunset) {
+    return (
+      'SUNLIGHT_CONTEXT: It is around sunset where they are. ' +
+      'You may gently acknowledge that twilight can bring up extra feelings, ' +
+      'and that shorter evenings can make the day feel brief.'
+    );
+  }
+
+  return null;
+}
+
+async function maybeAttachSunlightContext({ messages, profile, crisisActive }) {
+  if (crisisActive) {
+    return { messages };
+  }
+
+  if (!profile) {
+    return { messages };
+  }
+
+  const sunTimes = await getSunTimesForUser(profile);
+  const contextText = buildSunlightContextMessage(sunTimes);
+
+  if (!contextText) {
+    return { messages };
+  }
+
+  console.log('[SUNLIGHT] Sunlight context detected');
+
+  const systemLight = {
+    role: 'system',
+    content:
+      contextText +
+      '\n\nWhen you use this, speak in general terms like "the light fading earlier" ' +
+      'or "these darker evenings," not exact sunrise/sunset times or locations. ' +
+      'Do NOT say you know precisely where they are.',
+  };
+
+  return {
+    messages: [systemLight, ...messages],
+  };
+}
+
 const app = express();
 
 // Initialize Supabase client for server-side operations
@@ -1670,6 +1884,8 @@ app.post('/api/chat', async (req, res) => {
     let holidayContext = null;
     let foodContext = null;
     let jokeContext = null;
+    let sunlightContext = null;
+    let anniversaryContext = null;
 
     if (!isCrisisMode) {
       // Load news context if user is asking about current events
@@ -1746,6 +1962,36 @@ app.post('/api/chat', async (req, res) => {
       } catch (err) {
         console.error('[TRACE JOKE] Failed to load joke context:', err.message);
       }
+
+      // Load sunlight context (sunrise/sunset awareness)
+      try {
+        const profileForSunlight = await loadProfileBasic(effectiveUserId);
+        const sunlightResult = await maybeAttachSunlightContext({
+          messages,
+          profile: profileForSunlight,
+          crisisActive: false,
+        });
+        if (sunlightResult.messages.length > messages.length) {
+          sunlightContext = sunlightResult.messages[0].content;
+        }
+      } catch (err) {
+        console.error('[TRACE SUNLIGHT] Failed to load sunlight context:', err.message);
+      }
+
+      // Load personal anniversary context
+      try {
+        const anniversaryResult = await maybeAttachAnniversaryContext({
+          supabase: supabaseServer,
+          messages,
+          userId: effectiveUserId,
+          crisisActive: false,
+        });
+        if (anniversaryResult.anniversaryUsed) {
+          anniversaryContext = anniversaryResult.messages[0].content;
+        }
+      } catch (err) {
+        console.error('[TRACE ANNIVERSARY] Failed to load anniversary context:', err.message);
+      }
     }
     
     // Build combined context snapshot
@@ -1773,6 +2019,12 @@ app.post('/api/chat', async (req, res) => {
     }
     if (jokeContext) {
       contextParts.push(jokeContext);
+    }
+    if (sunlightContext) {
+      contextParts.push(sunlightContext);
+    }
+    if (anniversaryContext) {
+      contextParts.push(anniversaryContext);
     }
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
