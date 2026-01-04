@@ -2137,6 +2137,127 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// ==================== ACTIVITY ACKNOWLEDGMENT ====================
+
+app.post('/api/activity-acknowledgment', async (req, res) => {
+  try {
+    const {
+      userId,
+      activityType,
+      activityCount,
+      lastActivityTime,
+      timeOfDay,
+      activityDuration,
+    } = req.body || {};
+
+    if (!userId || !activityType) {
+      return res.status(400).json({ error: 'userId and activityType are required' });
+    }
+
+    console.log(`[ACTIVITY ACK] ${activityType} - count: ${activityCount}, timeOfDay: ${timeOfDay}, gap: ${lastActivityTime}min`);
+
+    // Build tone context based on activity metadata
+    let toneGuidance = '';
+    let warmthLevel = 'warm';
+
+    // Count-based tone
+    if (activityCount === 1) {
+      warmthLevel = 'warmest';
+      toneGuidance += 'This is their FIRST activity of the day. Be genuinely warm and present, but not performative. ';
+    } else if (activityCount >= 4) {
+      warmthLevel = 'brief';
+      toneGuidance += 'They have done 4+ activities today. Keep acknowledgment very brief — just a soft presence, not cheerleading. ';
+    } else {
+      warmthLevel = 'gentle';
+      toneGuidance += `This is their ${activityCount}${activityCount === 2 ? 'nd' : 'rd'} activity today. Keep it natural and grounded. `;
+    }
+
+    // Gap-based tone
+    if (lastActivityTime && lastActivityTime > 120) {
+      toneGuidance += 'It has been over 2 hours since their last activity. A soft re-entry is appropriate. ';
+    }
+
+    // Time-of-day tone
+    if (timeOfDay === 'night') {
+      toneGuidance += 'It is nighttime. Use calmer, slower language. Acknowledge that coming here at night takes something. ';
+    } else if (timeOfDay === 'morning') {
+      toneGuidance += 'It is morning. You may gently note the early energy or the choice to start the day with care. ';
+    }
+
+    // Activity-specific touches
+    const activityNotes = {
+      Rising: 'Rising is about gentle movement and presence. Acknowledge the stillness they just experienced.',
+      Drift: 'Drift is a calming visual meditation. They may feel more settled or spacious.',
+      Walking: 'Walking Reset combines gentle movement with breath. A grounding experience.',
+      Breathing: 'Breathing exercises are about regulation. They may feel calmer or more centered.',
+      Grounding: '5-4-3-2-1 grounding uses senses to anchor. They may feel more present.',
+      Pearl: 'Pearl Ripple is an ocean wave immersion. A brief escape from mental noise.',
+      Nap: 'Power Nap is a short rest. They may feel refreshed or still waking up.',
+    };
+
+    const activityNote = activityNotes[activityType] || `${activityType} is a grounding activity.`;
+
+    // Build system prompt for acknowledgment
+    const systemPrompt = `
+You are TRACE, a calm, grounded companion in a mental wellness app.
+
+The user just completed a "${activityType}" activity${activityDuration ? ` (${Math.round(activityDuration / 1000)} seconds)` : ''}.
+
+${activityNote}
+
+TONE GUIDANCE:
+${toneGuidance}
+Warmth level: ${warmthLevel}
+
+WHAT TO SAY:
+- One brief, grounded sentence (sometimes two if warmest).
+- Acknowledge presence, not performance.
+- NO praise like "great job!" or "well done!" or "proud of you!"
+- NO questions unless warmest level.
+- NO emojis.
+- NO exclamation marks.
+
+EXAMPLES of good responses:
+- "that felt like a good pause."
+- "nice — hope that felt good."
+- "mm, a bit of stillness. glad you took it."
+- "there you are. how do you feel?"
+- "back. hope that landed well."
+
+EXAMPLES of what NOT to say:
+- "Great job completing Rising!"
+- "I'm so proud of you for taking care of yourself!"
+- "You're doing amazing!"
+- "That was wonderful! How do you feel?"
+
+Respond with a single acknowledgment line. Be present, not performative.
+`.trim();
+
+    if (!openai) {
+      return res.json({ message: "nice — hope that felt good." });
+    }
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `I just finished ${activityType}.` },
+      ],
+      max_tokens: 60,
+      temperature: 0.75,
+    });
+
+    const message = response.choices[0]?.message?.content?.trim() || "nice — hope that felt good.";
+
+    console.log(`[ACTIVITY ACK] Response: "${message}"`);
+
+    return res.json({ message });
+  } catch (error) {
+    console.error('[ACTIVITY ACK] Error:', error.message || error);
+    return res.json({ message: "nice — hope that felt good." });
+  }
+});
+
 // ==================== PROFILE ENDPOINTS ====================
 
 // GET /api/profile - Fetch or create user profile
