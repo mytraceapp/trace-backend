@@ -981,6 +981,168 @@ async function maybeAttachJokeContext({ messages }) {
   };
 }
 
+// ---- LAST.FM MUSIC HELPER ----
+// TRACE's music brain - gentle, human conversations about artists
+
+const LASTFM_API_KEY = process.env.LASTFM_API_KEY;
+
+function isMusicQuestion(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  // Direct music mentions
+  const musicPatterns = [
+    /listening\s+to/i,
+    /been\s+playing/i,
+    /heard\s+of\s+[a-z]/i,
+    /know\s+(the\s+)?(band|artist|singer|musician)/i,
+    /favorite\s+(artist|band|singer|song|album|music)/i,
+    /into\s+[a-z]+\s+(music|songs)/i,
+    /what\s+do\s+you\s+(think|know)\s+(about|of)\s+[a-z]/i,
+  ];
+
+  // Check for artist/music keywords combined with context
+  const hasMusicWord = (
+    t.includes('music') ||
+    t.includes('song') ||
+    t.includes('album') ||
+    t.includes('artist') ||
+    t.includes('band') ||
+    t.includes('playlist') ||
+    t.includes('listening') ||
+    t.includes('singer') ||
+    t.includes('musician')
+  );
+
+  return hasMusicWord || musicPatterns.some(p => p.test(t));
+}
+
+function extractArtistName(text) {
+  if (!text) return null;
+  const t = text.toLowerCase();
+
+  // Common patterns: "listening to [artist]", "I love [artist]", "what do you think of [artist]"
+  const patterns = [
+    /(?:listening\s+to|been\s+(?:listening|playing)|heard\s+of|know\s+(?:about)?|think\s+(?:of|about)|love|like|into)\s+([a-z][a-z\s&\-'\.]+?)(?:\s+(?:lately|recently|a\s+lot|music|songs|right\s+now)|[\.!?,]|$)/i,
+    /(?:my\s+favorite\s+(?:artist|band|singer)\s+is)\s+([a-z][a-z\s&\-'\.]+?)(?:[\.!?,]|$)/i,
+    /([a-z][a-z\s&\-'\.]+?)\s+(?:is\s+(?:my|such\s+a)|has\s+been|makes?\s+(?:me|such))/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      const artist = match[1].trim();
+      // Filter out common false positives
+      const skipWords = ['music', 'songs', 'a lot', 'some', 'the', 'this', 'that', 'it', 'you', 'i', 'my'];
+      if (artist.length > 2 && !skipWords.includes(artist.toLowerCase())) {
+        return artist;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function getArtistInfo(artistName) {
+  if (!LASTFM_API_KEY) {
+    console.error('[MUSIC] Last.fm API key not configured');
+    return null;
+  }
+
+  const url = `https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(artistName)}&api_key=${LASTFM_API_KEY}&format=json`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('[MUSIC] Last.fm API error:', res.status);
+      return null;
+    }
+
+    const data = await res.json();
+
+    if (data?.error) {
+      console.log('[MUSIC] Artist not found:', artistName);
+      return null;
+    }
+
+    const artist = data?.artist;
+    if (!artist) return null;
+
+    // Clean HTML from bio
+    const rawBio = artist.bio?.summary || '';
+    const cleanBio = rawBio.replace(/<[^>]*>/g, '').trim();
+    
+    // Get genre tags
+    const tags = artist.tags?.tag?.map(t => t.name).slice(0, 4) || [];
+
+    return {
+      name: artist.name,
+      tags,
+      bio: cleanBio.length > 300 ? cleanBio.slice(0, 300) + '...' : cleanBio,
+      listeners: artist.stats?.listeners ? parseInt(artist.stats.listeners).toLocaleString() : null,
+    };
+  } catch (err) {
+    console.error('[MUSIC] Last.fm fetch error:', err);
+    return null;
+  }
+}
+
+async function maybeAttachMusicContext({ messages }) {
+  // Skip in high distress - music should be disabled in crisis mode
+  if (isHighDistressContext(messages)) {
+    console.log('[MUSIC] High distress detected — skipping music context');
+    return { messages, musicContext: null };
+  }
+
+  const lastUser = [...messages].reverse().find(m => m.role === 'user');
+  if (!lastUser) return { messages, musicContext: null };
+
+  if (!isMusicQuestion(lastUser.content)) {
+    return { messages, musicContext: null };
+  }
+
+  console.log('[MUSIC] Music mention detected');
+
+  // Try to extract artist name
+  const artistName = extractArtistName(lastUser.content);
+  
+  if (!artistName) {
+    // User mentioned music but no specific artist - TRACE can ask gently
+    console.log('[MUSIC] No specific artist detected, will prompt gently');
+    return {
+      messages,
+      musicContext: {
+        type: 'prompt',
+        hint: 'The user mentioned music but no specific artist. You may gently ask what they\'ve been listening to.',
+      },
+    };
+  }
+
+  console.log('[MUSIC] Fetching artist info for:', artistName);
+  const artistInfo = await getArtistInfo(artistName);
+
+  if (!artistInfo) {
+    return {
+      messages,
+      musicContext: {
+        type: 'not_found',
+        searchedFor: artistName,
+        hint: `Could not find info on "${artistName}" - acknowledge what they shared anyway.`,
+      },
+    };
+  }
+
+  console.log('[MUSIC] Found artist:', artistInfo.name, 'tags:', artistInfo.tags.join(', '));
+
+  return {
+    messages,
+    musicContext: {
+      type: 'artist',
+      ...artistInfo,
+    },
+  };
+}
+
 // ---- HYDRATION MOMENT DETECTION ----
 
 function isHydrationMoment(text) {
@@ -2193,6 +2355,7 @@ app.post('/api/chat', async (req, res) => {
     let jokeContext = null;
     let sunlightContext = null;
     let anniversaryContext = null;
+    let musicContext = null;
 
     if (!isCrisisMode) {
       // Load news context if user is asking about current events
@@ -2311,6 +2474,32 @@ app.post('/api/chat', async (req, res) => {
       } catch (err) {
         console.error('[TRACE ANNIVERSARY] Failed to load anniversary context:', err.message);
       }
+
+      // Load music context if user mentions music/artists (Last.fm)
+      try {
+        const musicResult = await maybeAttachMusicContext({ messages });
+        if (musicResult.musicContext) {
+          const mc = musicResult.musicContext;
+          if (mc.type === 'artist') {
+            musicContext = `MUSIC_CONTEXT: The user mentioned "${mc.name}" (genres: ${mc.tags.join(', ') || 'unknown'}).
+Bio snippet: ${mc.bio || 'No bio available.'}
+TRACE MUSIC GUIDELINES:
+- Music has a way of holding things words can't. Be present with what they're sharing.
+- You may gently reflect on the artist's emotional tone or what draws people to their music.
+- Ask something like: "What about their music has been sitting with you?" — but only if it feels natural.
+- Be a presence, not a bot. No hype, no pressure. Gentle, human, honest.
+- Do NOT mention APIs, Last.fm, or data sources.`;
+          } else if (mc.type === 'prompt') {
+            musicContext = `MUSIC_CONTEXT: ${mc.hint}
+If it feels right, you can say: "Music has a way of holding things words can't. If you want, tell me an artist you've been listening to and I can sit with you in that space."`;
+          } else if (mc.type === 'not_found') {
+            musicContext = `MUSIC_CONTEXT: The user mentioned "${mc.searchedFor}" but I couldn't find info on them. Acknowledge what they shared anyway — the music matters to them.`;
+          }
+          console.log('[TRACE MUSIC] Music context attached');
+        }
+      } catch (err) {
+        console.error('[TRACE MUSIC] Failed to load music context:', err.message);
+      }
     }
     
     // Build combined context snapshot
@@ -2344,6 +2533,9 @@ app.post('/api/chat', async (req, res) => {
     }
     if (anniversaryContext) {
       contextParts.push(anniversaryContext);
+    }
+    if (musicContext) {
+      contextParts.push(musicContext);
     }
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
