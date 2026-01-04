@@ -31,6 +31,126 @@ const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tra
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion } = require('./newsClient');
 
+// ---- WEATHER HELPER ----
+// Simple TRACE-style weather summary using Open-Meteo (free, no API key needed)
+async function getWeatherSummary({ lat, lon }) {
+  if (lat == null || lon == null) {
+    return null;
+  }
+
+  const url = `https://api.open-meteo.com/v1/forecast` +
+    `?latitude=${lat}` +
+    `&longitude=${lon}` +
+    `&current=temperature_2m,wind_speed_10m` +
+    `&hourly=temperature_2m,precipitation_probability,cloudcover` +
+    `&timezone=auto` +
+    `&temperature_unit=fahrenheit`;
+
+  let data;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('[WEATHER] Open-Meteo error status:', res.status, await res.text());
+      return null;
+    }
+    data = await res.json();
+  } catch (err) {
+    console.error('[WEATHER] Open-Meteo fetch error:', err);
+    return null;
+  }
+
+  const current = data.current;
+  const hourly = data.hourly;
+
+  if (!current || !hourly || !hourly.temperature_2m || !hourly.time) {
+    return null;
+  }
+
+  // Take next ~6 hours
+  const temps = hourly.temperature_2m.slice(0, 6);
+  const avgTemp = Math.round(
+    temps.reduce((a, b) => a + b, 0) / Math.max(temps.length, 1)
+  );
+
+  const nowTemp = Math.round(current.temperature_2m);
+  const wind = Math.round(current.wind_speed_10m ?? 0);
+
+  let tempTone = '';
+  if (avgTemp <= 45) tempTone = 'Pretty cold —';
+  else if (avgTemp <= 65) tempTone = 'Cool and gentle —';
+  else if (avgTemp <= 80) tempTone = 'Mild and comfortable —';
+  else tempTone = 'Warm —';
+
+  const summary =
+    `${tempTone} around ${avgTemp}°F over the next few hours where they are. ` +
+    `Right now it's about ${nowTemp}°F with a breeze around ${wind} mph. ` +
+    `Use this context gently and only if they ask about the weather or mention conditions outside.`;
+
+  return {
+    summary,
+    current,
+    hourly,
+  };
+}
+
+// ---- WEATHER IN CHAT HELPERS ----
+function isWeatherRelated(text) {
+  if (!text) return false;
+  const lowered = text.toLowerCase();
+
+  return (
+    lowered.includes('weather') ||
+    lowered.includes('forecast') ||
+    lowered.includes('rain') ||
+    lowered.includes('snow') ||
+    lowered.includes('storm') ||
+    lowered.includes('cold outside') ||
+    lowered.includes('hot outside') ||
+    lowered.includes('temperature outside') ||
+    /\bhot\b/.test(lowered) ||
+    /\bcold\b/.test(lowered)
+  );
+}
+
+// Attach weather context ONLY when user clearly asks about it
+async function maybeAttachWeatherContext({ messages, profile }) {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser) {
+    return { messages, weatherSummary: null };
+  }
+
+  if (!isWeatherRelated(lastUser.content)) {
+    return { messages, weatherSummary: null };
+  }
+
+  const lat = profile?.lat;
+  const lon = profile?.lon;
+
+  if (lat == null || lon == null) {
+    console.log('[WEATHER] No location in profile, skipping weather context');
+    return { messages, weatherSummary: null };
+  }
+
+  const weather = await getWeatherSummary({ lat, lon });
+  if (!weather) {
+    return { messages, weatherSummary: null };
+  }
+
+  console.log('[WEATHER] Attaching weather context:', weather.summary);
+
+  const weatherSystemMessage = {
+    role: 'system',
+    content:
+      `WEATHER_CONTEXT: The user's local weather right now is: ${weather.summary}\n` +
+      `Use this only if they ask about the weather or conditions outside. Do not say you called an API.`,
+  };
+
+  return {
+    messages: [weatherSystemMessage, ...messages],
+    weatherSummary: weather.summary,
+  };
+}
+
 // Detect if user wants breathing mode instead of full conversation
 function wantsBreathingMode(text) {
   const t = (text || '').toLowerCase().trim();
@@ -160,7 +280,7 @@ async function loadProfileBasic(userId) {
   
   const { data, error } = await supabaseServer
     .from('profiles')
-    .select('user_id, display_name, first_run_completed, first_run_completed_at')
+    .select('user_id, display_name, first_run_completed, first_run_completed_at, lat, lon')
     .eq('user_id', userId)
     .single();
 
@@ -932,6 +1052,22 @@ app.post('/api/chat', async (req, res) => {
     } catch (err) {
       console.error('[TRACE NEWS] Failed to build news context:', err.message);
     }
+
+    // Load weather context if user is asking about weather
+    let weatherContext = null;
+    try {
+      // Reload full profile with lat/lon for weather
+      const profileForWeather = await loadProfileBasic(effectiveUserId);
+      const weatherResult = await maybeAttachWeatherContext({
+        messages,
+        profile: profileForWeather,
+      });
+      if (weatherResult.weatherSummary) {
+        weatherContext = `WEATHER_CONTEXT: ${weatherResult.weatherSummary}\nUse this only if they ask about weather or conditions outside. Do not mention APIs.`;
+      }
+    } catch (err) {
+      console.error('[TRACE WEATHER] Failed to load weather context:', err.message);
+    }
     
     // Build combined context snapshot
     const contextParts = [memoryContext];
@@ -943,6 +1079,9 @@ app.post('/api/chat', async (req, res) => {
     }
     if (newsContext) {
       contextParts.push(newsContext);
+    }
+    if (weatherContext) {
+      contextParts.push(weatherContext);
     }
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
@@ -1225,6 +1364,30 @@ app.post('/api/subscription/mark-upgraded', async (req, res) => {
   } catch (err) {
     console.error('[SUBSCRIPTION] Error:', err.message);
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/weather - Get weather for user's location
+app.post('/api/weather', async (req, res) => {
+  try {
+    const { lat, lon } = req.body || {};
+
+    if (lat == null || lon == null) {
+      return res.status(400).json({ error: 'lat and lon are required' });
+    }
+
+    const weather = await getWeatherSummary({ lat, lon });
+    if (!weather) {
+      return res.status(500).json({ error: 'Unable to fetch weather' });
+    }
+
+    res.json({
+      summary: weather.summary,
+      current: weather.current,
+    });
+  } catch (err) {
+    console.error('/api/weather error', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

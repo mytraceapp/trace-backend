@@ -1,0 +1,236 @@
+dd a weather helper in server/index.js
+
+Near the top of server/index.js, after your imports and before your routes, add this helper.
+
+If you already have fetch globally (Node 18+), you can use it directly. If not, you can npm install node-fetch and import fetch from 'node-fetch'; at the top.
+
+// ---- WEATHER HELPER ----
+
+// Simple TRACE-style weather summary using Open-Meteo
+async function getWeatherSummary({ lat, lon }) {
+  if (lat == null || lon == null) {
+    return null;
+  }
+
+  const url = `https://api.open-meteo.com/v1/forecast` +
+    `?latitude=${lat}` +
+    `&longitude=${lon}` +
+    `&current=temperature_2m,wind_speed_10m` +
+    `&hourly=temperature_2m,precipitation_probability,cloudcover` +
+    `&timezone=auto` +
+    `&temperature_unit=fahrenheit`; // feel free to switch to celsius if you prefer
+
+  let data;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('Open-Meteo error status:', res.status, await res.text());
+      return null;
+    }
+    data = await res.json();
+  } catch (err) {
+    console.error('Open-Meteo fetch error:', err);
+    return null;
+  }
+
+  const current = data.current;
+  const hourly = data.hourly;
+
+  if (!current || !hourly || !hourly.temperature_2m || !hourly.time) {
+    return null;
+  }
+
+  // Take next ~6 hours
+  const temps = hourly.temperature_2m.slice(0, 6);
+  const avgTemp = Math.round(
+    temps.reduce((a, b) => a + b, 0) / Math.max(temps.length, 1)
+  );
+
+  const nowTemp = Math.round(current.temperature_2m);
+  const wind = Math.round(current.wind_speed_10m ?? 0);
+
+  let tempTone = '';
+  if (avgTemp <= 45) tempTone = 'Pretty cold —';
+  else if (avgTemp <= 65) tempTone = 'Cool and gentle —';
+  else if (avgTemp <= 80) tempTone = 'Mild and comfortable —';
+  else tempTone = 'Warm —';
+
+  const summary =
+    `${tempTone} around ${avgTemp}°F over the next few hours where they are. ` +
+    `Right now it’s about ${nowTemp}°F with a breeze around ${wind} mph. ` +
+    `Use this context gently and only if they ask about the weather or mention conditions outside.`;
+
+  return {
+    summary,
+    current,
+    hourly,
+  };
+}
+
+Add POST /api/weather endpoint (for direct weather requests)
+
+Still in server/index.js, after your other app.post(...) routes, add:
+// ---- /api/weather ----
+// Optional direct endpoint if you ever want to hit weather from the app explicitly
+app.post('/api/weather', async (req, res) => {
+  try {
+    const { lat, lon } = req.body || {};
+
+    if (lat == null || lon == null) {
+      return res.status(400).json({ error: 'lat and lon are required' });
+    }
+
+    const weather = await getWeatherSummary({ lat, lon });
+    if (!weather) {
+      return res.status(500).json({ error: 'Unable to fetch weather' });
+    }
+
+    res.json({
+      summary: weather.summary,
+      current: weather.current,
+    });
+  } catch (err) {
+    console.error('/api/weather error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+This is mostly for future use (widgets, cards, etc.), but it’s nice to have.
+
+⸻
+
+3️⃣ Hook weather into /api/chat (so TRACE “knows” when needed)
+
+Now we make TRACE context-aware without changing its tone.
+
+3.1 Add a tiny detector + context injector
+
+Above your /api/chat route in server/index.js, add:
+// ---- WEATHER IN CHAT HELPERS ----
+
+function isWeatherRelated(text) {
+  if (!text) return false;
+  const lowered = text.toLowerCase();
+
+  // Simple, cheap check; you can refine later
+  return (
+    lowered.includes('weather') ||
+    lowered.includes('forecast') ||
+    lowered.includes('rain') ||
+    lowered.includes('snow') ||
+    lowered.includes('storm') ||
+    lowered.includes('cold outside') ||
+    lowered.includes('hot outside') ||
+    lowered.includes('temperature outside') ||
+    lowered.match(/\bhot\b/) ||
+    lowered.match(/\bcold\b/)
+  );
+}
+
+// Attach weather context ONLY when user clearly asks about it.
+// profile should contain lat, lon if you have it; otherwise we fall back to no weather.
+async function maybeAttachWeatherContext({ messages, profile }) {
+  // find the last user message
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser) {
+    return { messages, weatherSummary: null };
+  }
+
+  if (!isWeatherRelated(lastUser.content)) {
+    return { messages, weatherSummary: null };
+  }
+
+  const lat = profile?.lat;
+  const lon = profile?.lon;
+
+  if (lat == null || lon == null) {
+    // No location stored, don't fake it
+    return { messages, weatherSummary: null };
+  }
+
+  const weather = await getWeatherSummary({ lat, lon });
+  if (!weather) {
+    return { messages, weatherSummary: null };
+  }
+
+  const weatherSystemMessage = {
+    role: 'system',
+    content:
+      `WEATHER_CONTEXT: The user's local weather right now is: ${weather.summary}\n` +
+      `Use this only if they ask about the weather or conditions outside. Do not say you called an API.`,
+  };
+
+  return {
+    messages: [weatherSystemMessage, ...messages],
+    weatherSummary: weather.summary,
+  };
+}
+This does not change any UI. It just prepends a system message sometimes.
+
+🔐 If the user never talks about weather → this does nothing.
+No extra cost, no extra calls.
+
+⸻
+
+3.2 Modify /api/chat to use that helper
+
+Find your /api/chat route in server/index.js.
+It probably looks roughly like:
+app.post('/api/chat', async (req, res) => {
+  const { userId, messages } = req.body;
+
+  // load profile...
+  // call openai with messages...
+});
+
+We’ll wrap the messages with maybeAttachWeatherContext before calling OpenAI.
+
+Something like this (adjust to your exact structure, but keep the shape):
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { userId, messages } = req.body || {};
+    if (!userId || !messages) {
+      return res.status(400).json({ error: 'userId and messages are required' });
+    }
+
+    // 1) load profile (however you already do it)
+    const profile = await getProfileForUser(userId); // <- replace with your real function
+
+    // 2) maybe inject weather context
+    const { messages: finalMessages } = await maybeAttachWeatherContext({
+      messages,
+      profile,
+    });
+
+    // 3) build OpenAI request with your existing system prompt
+    const systemPrompt = `
+You are TRACE, a gentle, non-judgmental companion. 
+If a WEATHER_CONTEXT system message is present, you may use it to answer
+weather-related questions in a grounded, calm way. 
+Never mention external APIs. If the user is not clearly asking about weather,
+ignore the weather context and respond normally.
+`.trim();
+
+    const openaiResponse = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini', // or whichever you're using
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...finalMessages,
+      ],
+      temperature: 0.7,
+    });
+
+    const answer = openaiResponse.choices?.[0]?.message;
+    if (!answer) {
+      return res.status(500).json({ error: 'No response from model' });
+    }
+
+    res.json({
+      reply: answer,
+      // you can also include weatherSummary if you ever want to surface it in UI
+    });
+  } catch (err) {
+    console.error('/api/chat error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
