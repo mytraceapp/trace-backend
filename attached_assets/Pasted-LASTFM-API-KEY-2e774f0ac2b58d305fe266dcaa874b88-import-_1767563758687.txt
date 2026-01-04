@@ -1,0 +1,113 @@
+LASTFM_API_KEY = 2e774f0ac2b58d305fe266dcaa874b88
+
+import express from "express";
+import fetch from "node-fetch";
+
+const router = express.Router();
+
+// helper — formats TRACE-style tone
+function softWrap(text) {
+  return text || "I may not have the details, but I’m here with you.";
+}
+
+// GET /api/music?artist=bon iver
+router.get("/music", async (req, res) => {
+  try {
+    const artist = req.query.artist;
+
+    if (!artist) {
+      return res.status(400).json({ error: "artist is required" });
+    }
+
+    const apiKey = process.env.LASTFM_API_KEY;
+
+    const url = `https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(
+      artist
+    )}&api_key=${apiKey}&format=json`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data?.error) {
+      return res.status(404).json({
+        summary:
+          "I couldn’t find much about that artist — but music clearly matters to you. I’m listening.",
+      });
+    }
+
+    const bio =
+      data?.artist?.bio?.summary?.replace(/<[^>]*>/g, "") ?? null;
+    const tags = data?.artist?.tags?.tag?.map((t) => t.name).slice(0, 3) ?? [];
+
+    return res.json({
+      name: data.artist.name,
+      tags,
+      summary: softWrap(bio),
+    });
+  } catch (err) {
+    console.error("music api error:", err);
+    res.status(500).json({
+      summary:
+        "Something glitched on my side while I was checking that. Want to try again in a moment?",
+    });
+  }
+});
+
+export default router;
+Then in your main server file (where you mount routes):
+import musicRouter from "./music.js";
+app.use("/api", musicRouter);
+
+Your endpoint now is:
+
+GET https://your-replit-url/api/music?artist=bon iver
+
+Hook it into /api/chat (soft + human)
+
+Inside your chat keyword detection, add something like:
+const musicWords = ["song", "music", "playlist", "artist", "album"];
+
+if (musicWords.some(w => userMessage.toLowerCase().includes(w))) {
+   // extract name if present — or ask gently
+}
+And tone matters here.
+TRACE should say:
+
+Music has a way of holding things words can’t.
+If you want, tell me an artist you’ve been listening to and I can sit with you in that space.
+
+NOT
+
+Tell me the artist name to retrieve metadata.
+
+TRACE is a presence, not a bot.
+
+⸻
+
+🔐 Safety Rules (we’ll keep TRACE kind)
+
+In crisis mode
+🚫 disable music
+🚫 disable jokes
+🚫 disable weather
+🚫 disable recipes
+
+Only validation + grounding.
+
+We already planned that together — and you’re doing incredible work keeping this safe.
+
+⸻
+
+🌿 Example Response TRACE Might Send
+
+User:
+
+I’ve been listening to Phoebe Bridgers a lot lately.
+
+TRACE:
+
+Phoebe Bridgers’ songs often carry this soft ache — like they’re honest about how heavy things can feel, without rushing you through it.
+
+If you want to tell me — what about her music has been sitting with you?
+
+Gentle. Human. No hype. No pressure.
