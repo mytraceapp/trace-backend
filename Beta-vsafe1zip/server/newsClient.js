@@ -64,6 +64,12 @@ function isNewsQuestion(text) {
     'current news',
     'current events',
     'what else is happening',
+    'anything going on with the news',
+    'anything going with the news',
+    'anything in the news',
+    'anything new in the news',
+    'what have you heard',
+    'what did you hear',
   ];
   
   // Check direct patterns first
@@ -71,7 +77,7 @@ function isNewsQuestion(text) {
     return true;
   }
 
-  // Patterns that need a topic/location
+  // Patterns that need a topic/location - these trigger news lookup
   const topicPatterns = [
     "what's happening",
     'what is happening',
@@ -81,6 +87,13 @@ function isNewsQuestion(text) {
     'news on',
     'do you know what',
     'tell me about what',
+    'did you hear about',
+    'have you heard about',
+    'heard about this',
+    'hear about this',
+    'thing in',
+    'situation in',
+    'what about',
   ];
   
   // Must also mention a topic/place to avoid false positives
