@@ -25,7 +25,7 @@ interface UserState {
   setIsUpgrading: (value: boolean) => void;
   setAmbienceEnabled: (value: boolean) => void;
   setAmbienceVolume: (value: number) => void;
-  setWeatherContextEnabled: (value: boolean) => void;
+  setWeatherContextEnabled: (value: boolean) => Promise<void>;
   saveProfileToSupabase: (profile: UserProfile) => Promise<void>;
   loadProfileFromSupabase: () => Promise<void>;
 }
@@ -73,7 +73,8 @@ export function UserProvider({ children }: UserProviderProps) {
           referral_code: profileData.referralCode || null,
           ambience_enabled: ambienceEnabled,
           ambience_volume: ambienceVolume,
-          weather_context_enabled: weatherContextEnabled,
+          // Note: weather_context_enabled is managed separately via setWeatherContextEnabled
+          // to avoid stale closure issues
           updated_at: new Date().toISOString(),
         });
 
@@ -85,7 +86,7 @@ export function UserProvider({ children }: UserProviderProps) {
     } catch (e) {
       console.error('Failed to save profile:', e);
     }
-  }, [ambienceEnabled, ambienceVolume, weatherContextEnabled]);
+  }, [ambienceEnabled, ambienceVolume]);
 
   // Load profile from Supabase
   const loadProfileFromSupabase = useCallback(async () => {
@@ -193,12 +194,25 @@ export function UserProvider({ children }: UserProviderProps) {
     }
   }, [profile, saveProfileToSupabase]);
 
-  const setWeatherContextEnabled = useCallback((value: boolean) => {
+  const setWeatherContextEnabled = useCallback(async (value: boolean) => {
     setWeatherContextEnabledState(value);
-    if (profile) {
-      saveProfileToSupabase(profile);
+    // Direct update to avoid stale closure issue
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ 
+            weather_context_enabled: value,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+        console.log('Weather context setting saved:', value);
+      }
+    } catch (e) {
+      console.error('Failed to save weather context setting:', e);
     }
-  }, [profile, saveProfileToSupabase]);
+  }, []);
 
   const updatePlan = useCallback((plan: PlanTier, hasPaid?: boolean) => {
     if (profile) {
