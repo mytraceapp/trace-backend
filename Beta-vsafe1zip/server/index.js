@@ -160,13 +160,17 @@ async function loadProfileBasic(userId) {
   
   const { data, error } = await supabaseServer
     .from('profiles')
-    .select('user_id, preferred_name, first_run_completed, first_run_completed_at')
+    .select('user_id, display_name, first_run_completed, first_run_completed_at')
     .eq('user_id', userId)
     .single();
 
   if (error) {
     console.error('[loadProfileBasic error]', error.message);
     return null;
+  }
+  // Map display_name to preferred_name for compatibility
+  if (data) {
+    data.preferred_name = data.display_name;
   }
   return data;
 }
