@@ -2475,11 +2475,16 @@ app.post('/api/weather', async (req, res) => {
 
 // POST /api/encouragement - Get personalized encouragement for activity
 app.post('/api/encouragement', async (req, res) => {
-  const { userId, activityType, durationMinutes, timeOfDay } = req.body;
+  const { userId, activityType, durationMinutes, timeOfDay, cycleNumber, variationSeed } = req.body;
   
   if (!userId || !activityType) {
     return res.status(400).json({ error: 'userId and activityType required' });
   }
+
+  const cycle = cycleNumber || 1;
+  const variation = variationSeed ?? Math.floor(Math.random() * 5);
+
+  console.log(`[ENCOURAGEMENT] cycle: ${cycle}, variation: ${variation}, time: ${timeOfDay}`);
 
   try {
     // Fetch user profile for context
@@ -2492,6 +2497,29 @@ app.post('/api/encouragement', async (req, res) => {
     // Use name if available, otherwise keep it anonymous (no pet names like "friend")
     const userName = profile?.display_name || null;
     const nameContext = userName ? `- User's name: ${userName} (use sparingly if at all)` : '- User prefers anonymous interaction';
+
+    // Variation themes for diversity
+    const variationThemes = {
+      0: 'MINIMAL - Just a few words. Pure presence. Almost haiku-like.',
+      1: 'BODY-FOCUSED - Reference physical sensation: shoulders, breath in chest, weight in seat.',
+      2: 'BREATH-FOCUSED - Reference the breath itself: the inhale, the exhale, the pause.',
+      3: 'OBSERVATION - Notice something about being here: the act of pausing, choosing stillness.',
+      4: 'SPACIOUSNESS - Reference openness, expansion, making room, letting go.',
+    };
+
+    const variationGuide = variationThemes[variation] || variationThemes[0];
+
+    // Cycle-based approach guidance
+    let cycleGuide = '';
+    if (cycle === 1) {
+      cycleGuide = 'FIRST MESSAGE - Simple presence. Welcome them gently. No need to be clever.';
+    } else if (cycle === 2) {
+      cycleGuide = 'SECOND MESSAGE - Take a slightly different angle. If first was about breath, try body or observation.';
+    } else if (cycle === 3) {
+      cycleGuide = 'THIRD MESSAGE - Keep evolving. Avoid repeating themes from earlier. Try spaciousness or minimal.';
+    } else {
+      cycleGuide = 'LATER MESSAGE - Keep it fresh. Use a completely different lens. Surprise yourself.';
+    }
     
     // Build context-aware prompt for OpenAI
     const systemPrompt = `You are TRACE, a compassionate mental wellness companion. Generate a brief, gentle encouragement message (1-2 short lines, max 50 characters total) for someone doing the Rising activity - a breathing/mindfulness exercise where they watch bubbles drift upward.
@@ -2500,22 +2528,32 @@ Context:
 - Activity: ${activityType}
 - Time: ${timeOfDay || 'unknown'}
 - Duration so far: ${durationMinutes || 0} minutes
+- Message cycle: ${cycle}
 ${nameContext}
+
+VARIATION THEME (${variation}):
+${variationGuide}
+
+CYCLE GUIDANCE:
+${cycleGuide}
 
 Guidelines:
 - Keep it intimate and present-focused
 - Use "you" not their name
-- Focus on: breath, presence, release, being enough as you are
 - Match the gentle, upward energy of rising bubbles
 - Maximum 2 lines, each under 30 characters
 - Use \\n for line breaks
 - No punctuation at the end
 - NEVER use pet names like "friend", "buddy", "pal"
+- NEVER repeat themes you've used in earlier cycles
+- Each message should feel distinct from the last
 
-Examples:
-"You're exactly where\\nyou need to be"
-"This moment\\nis enough"
-"Feel yourself\\nrising too"`;
+Examples by variation:
+- Minimal: "here you are"
+- Body: "shoulders soften\\nwith each breath"
+- Breath: "each exhale\\na little lighter"
+- Observation: "you chose\\nto pause"
+- Spaciousness: "room to just\\nbe"`;
 
     // Call OpenAI for personalized message
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -2528,9 +2566,9 @@ Examples:
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: 'Generate one encouragement message for this moment.' }
+          { role: 'user', content: `Generate one encouragement message for cycle ${cycle}, variation ${variation}.` }
         ],
-        temperature: 0.8,
+        temperature: 0.85,
         max_tokens: 50,
       }),
     });
@@ -2542,21 +2580,24 @@ Examples:
     const data = await response.json();
     const message = data.choices[0]?.message?.content?.trim() || "You're exactly where\\nyou need to be";
 
+    console.log(`[ENCOURAGEMENT] Generated: "${message}"`);
+
     res.json({ message });
 
   } catch (error) {
     console.error('Encouragement generation error:', error);
     
-    // Fallback to context-aware default messages
-    const fallbacks = {
-      morning: "Morning light\\nis rising with you",
-      afternoon: "This moment\\nis enough",
-      evening: "Let today\\ndrift away",
-      default: "You're exactly where\\nyou need to be"
-    };
+    // Fallback to variation-aware default messages
+    const fallbacksByVariation = [
+      ["here you are", "still here", "just this"],
+      ["shoulders ease", "body knows", "feel the seat"],
+      ["breathe in\\nbreathe out", "each exhale\\na release", "breath by breath"],
+      ["you chose\\nto pause", "this moment\\nyou made", "here by choice"],
+      ["room to be", "space opens", "nothing to fix"]
+    ];
     
-    const timeKey = timeOfDay?.toLowerCase() || 'default';
-    const fallbackMessage = fallbacks[timeKey] || fallbacks.default;
+    const fallbackSet = fallbacksByVariation[variation] || fallbacksByVariation[0];
+    const fallbackMessage = fallbackSet[Math.floor(Math.random() * fallbackSet.length)];
     
     res.json({ message: fallbackMessage });
   }
