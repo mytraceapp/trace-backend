@@ -374,6 +374,120 @@ async function maybeAttachHolidayContext({ messages, profile }) {
   };
 }
 
+// ---- FOOD/RECIPE HELPER (Tasty API via RapidAPI) ----
+
+function isFoodRelated(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  return (
+    t.includes('recipe') ||
+    t.includes('cook something') ||
+    t.includes('what should i cook') ||
+    t.includes('what should i make') ||
+    t.includes('dinner ideas') ||
+    t.includes('lunch ideas') ||
+    t.includes('snack ideas') ||
+    t.includes('comfort food') ||
+    t.includes('i want something warm') ||
+    t.includes('i want something healthy') ||
+    t.includes("i don't feel like eating") ||
+    t.includes('no appetite') ||
+    t.includes("haven't eaten") ||
+    t.includes('food sounds hard') ||
+    t.includes('i just want to eat') ||
+    t.includes('craving') ||
+    t.includes('hungry but tired')
+  );
+}
+
+async function getRecipeSuggestions({ query }) {
+  const apiKey = process.env.TASTY_API_KEY;
+  if (!apiKey) {
+    console.warn('[FOOD] TASTY_API_KEY missing');
+    return [];
+  }
+
+  const url =
+    'https://tasty.p.rapidapi.com/recipes/list?from=0&size=5' +
+    `&q=${encodeURIComponent(query)}`;
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-key': apiKey,
+        'x-rapidapi-host': 'tasty.p.rapidapi.com',
+      },
+    });
+
+    if (!res.ok) {
+      console.error('[FOOD] Tasty API error', res.status, await res.text());
+      return [];
+    }
+
+    const data = await res.json();
+    const items = data.results || [];
+
+    return items.slice(0, 3).map((r) => ({
+      name: r.name,
+      description: r.description || '',
+      url: r.canonical_id || '',
+    }));
+  } catch (err) {
+    console.error('[FOOD] Tasty fetch error', err);
+    return [];
+  }
+}
+
+async function maybeAttachFoodContext({ messages }) {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser) return { messages, foodSummary: null };
+
+  if (!isFoodRelated(lastUser.content)) {
+    return { messages, foodSummary: null };
+  }
+
+  console.log('[FOOD] Food-related message detected');
+
+  const lowered = lastUser.content.toLowerCase();
+  let query = 'simple comforting meal';
+
+  if (lowered.includes('healthy') || lowered.includes('light')) {
+    query = 'simple healthy dinner';
+  } else if (lowered.includes('soup')) {
+    query = 'easy soup';
+  } else if (lowered.includes('snack')) {
+    query = 'quick snack';
+  }
+
+  const recipes = await getRecipeSuggestions({ query });
+  if (!recipes.length) {
+    return { messages, foodSummary: null };
+  }
+
+  const formatted = recipes
+    .map((r, idx) => `${idx + 1}. ${r.name}${r.description ? ` — ${r.description}` : ''}`)
+    .join('\n');
+
+  console.log('[FOOD] Attaching food context with', recipes.length, 'recipes');
+
+  const foodSummary =
+    `FOOD_CONTEXT: The user is talking about food / appetite / cooking.\n` +
+    `Here are a few simple recipe ideas:\n` +
+    `${formatted}\n\n` +
+    `When you respond:\n` +
+    `- Present 1–3 of these as gentle ideas, not assignments.\n` +
+    `- Emphasize there is *no pressure* to cook or choose anything.\n` +
+    `- If the user sounds like they have low appetite or food stress, focus on validation first, recipes second.\n` +
+    `- Never mention that these came from an API or refer to FOOD_CONTEXT by name.`;
+
+  return {
+    messages,
+    foodSummary,
+  };
+}
+
 // Detect if user wants breathing mode instead of full conversation
 function wantsBreathingMode(text) {
   const t = (text || '').toLowerCase().trim();
@@ -1321,6 +1435,17 @@ app.post('/api/chat', async (req, res) => {
     } catch (err) {
       console.error('[TRACE HOLIDAY] Failed to load holiday context:', err.message);
     }
+
+    // Load food context if user mentions food/cooking/appetite
+    let foodContext = null;
+    try {
+      const foodResult = await maybeAttachFoodContext({ messages });
+      if (foodResult.foodSummary) {
+        foodContext = foodResult.foodSummary;
+      }
+    } catch (err) {
+      console.error('[TRACE FOOD] Failed to load food context:', err.message);
+    }
     
     // Build combined context snapshot
     const contextParts = [memoryContext];
@@ -1341,6 +1466,9 @@ app.post('/api/chat', async (req, res) => {
     }
     if (holidayContext) {
       contextParts.push(holidayContext);
+    }
+    if (foodContext) {
+      contextParts.push(foodContext);
     }
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
