@@ -1,0 +1,202 @@
+This is the pattern we used for weather/personality, but dog-flavored.
+
+Since I don’t know the exact dog API URL/shape, I’ll leave DOG_API_URL as a placeholder. You’ll swap it to whatever the docs say (e.g. https://api.dog-intelligence.com/v1/analyze).
+// ---- DOG INSIGHTS HELPER ----
+
+// textHint might be like: "anxious at the vet", "doesn't like other dogs", etc.
+// breed, age, name help the API be more specific if supported.
+async function getDogInsights({ name, breed, age, textHint }) {
+  const apiKey = process.env.DOG_API_KEY;
+  if (!apiKey) {
+    console.warn('DOG_API_KEY missing');
+    return null;
+  }
+
+  const url = process.env.DOG_API_URL || 'https://your-dog-api-url-here/v1/insights';
+
+  const body = {
+    name,
+    breed,
+    age,
+    // describe what's going on with the dog
+    context: textHint,
+  };
+
+  let data;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      console.error('Dog API error', res.status, await res.text());
+      return null;
+    }
+
+    data = await res.json();
+  } catch (err) {
+    console.error('Dog API fetch error', err);
+    return null;
+  }
+
+  // ⚠️ Adapt this to their actual response structure once you see it.
+  // Example shape:
+  // {
+  //   summary: "This dog is likely sensitive to loud environments...",
+  //   tips: ["Keep vet visits short", "Use high-value treats", ...]
+  // }
+  const summary = data.summary || '';
+  const tips = data.tips || [];
+
+  const traceSummary =
+    `DOG_CONTEXT: The user is talking about their dog${name ? `, named ${name}` : ''}. ` +
+    `Summary from dog insights API: ${summary}. ` +
+    (tips.length
+      ? `Helpful, gentle suggestions for this kind of dog: ${tips.join('; ')}. `
+      : '') +
+    `Use this to relate to their dog, offer grounded, kind suggestions, and never sound like you're diagnosing. ` +
+    `Don't say you used an API or call this DOG_CONTEXT by name.`;
+
+  return {
+    traceSummary,
+    raw: data,
+  };
+}
+
+ Detect when the user is talking about their dog
+
+Same pattern as weather, but for dog stuff.
+
+Add near your chat helpers:
+
+function isDogRelated(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  return (
+    t.includes('my dog') ||
+    t.includes('our dog') ||
+    t.includes('puppy') ||
+    t.includes('my pup') ||
+    t.includes('our pup') ||
+    t.includes('my german shepherd') ||
+    t.includes('my lab') ||
+    t.includes('my golden') ||
+    t.includes('my husky') ||
+    t.includes('dog is anxious') ||
+    t.includes('dog is scared') ||
+    t.includes('dog behavior') ||
+    t.includes('dog training')
+  );
+}
+
+You can refine this later.
+
+⸻
+
+4️⃣ Attach DOG_CONTEXT inside /api/chat
+
+We’ll mirror the weather helper and keep it additive (no UI changes, no breaking layout).
+
+Add this helper above /api/chat:
+// Optionally, you can store dog profile in Supabase (name, breed, age).
+// For now we'll just use the message text as the hint.
+async function maybeAttachDogContext({ messages, profile }) {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser) return { messages, dogSummary: null };
+
+  if (!isDogRelated(lastUser.content)) {
+    return { messages, dogSummary: null };
+  }
+
+  // If later you have pet info in profile:
+  const dogName = profile?.dog_name || null;
+  const dogBreed = profile?.dog_breed || null;
+  const dogAge = profile?.dog_age || null;
+
+  const insights = await getDogInsights({
+    name: dogName,
+    breed: dogBreed,
+    age: dogAge,
+    textHint: lastUser.content,
+  });
+
+  if (!insights) {
+    return { messages, dogSummary: null };
+  }
+
+  const dogSystemMessage = {
+    role: 'system',
+    content: insights.traceSummary,
+  };
+
+  return {
+    messages: [dogSystemMessage, ...messages],
+    dogSummary: insights.traceSummary,
+  };
+}
+
+Then, in your /api/chat route, where you already call maybeAttachWeatherContext, chain this in.
+
+Rough structure (adapt to your existing code, don’t delete anything, just insert):
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { userId, messages } = req.body || {};
+    if (!userId || !messages) {
+      return res.status(400).json({ error: 'userId and messages are required' });
+    }
+
+    const profile = await getProfileForUser(userId); // your existing function
+
+    // 1) weather context
+    const { messages: withWeather } = await maybeAttachWeatherContext({
+      messages,
+      profile,
+    });
+
+    // 2) dog context
+    const { messages: withDog } = await maybeAttachDogContext({
+      messages: withWeather,
+      profile,
+    });
+
+    const systemPrompt = `
+You are TRACE, a gentle, non-judgmental companion.
+
+If DOG_CONTEXT is present in system messages:
+- Use it to relate to the user's dog in a kind, grounded way.
+- Offer gentle ideas (training, comfort, environment) without sounding like a vet or making medical diagnoses.
+- Avoid harsh commands; prefer soft suggestions and empathy.
+- Never say where DOG_CONTEXT came from or mention external APIs.
+
+If WEATHER_CONTEXT is present, you may use it only when the user asks about weather.
+Otherwise, ignore it.
+
+Stay emotionally safe, validating, and low-pressure in every reply.
+`.trim();
+
+    const openaiResponse = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...withDog,
+      ],
+      temperature: 0.7,
+    });
+
+    const answer = openaiResponse.choices?.[0]?.message;
+    if (!answer) {
+      return res.status(500).json({ error: 'No response from model' });
+    }
+
+    res.json({ reply: answer });
+  } catch (err) {
+    console.error('/api/chat error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
