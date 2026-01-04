@@ -269,6 +269,111 @@ async function maybeAttachDogContext({ messages, profile }) {
   };
 }
 
+// ---- HOLIDAYS HELPER (AbstractAPI) ----
+
+async function getHolidayContext({ countryCode, date = new Date() }) {
+  const apiKey = process.env.ABSTRACT_HOLIDAYS_API_KEY;
+  if (!apiKey) {
+    console.warn('[HOLIDAY] ABSTRACT_HOLIDAYS_API_KEY is missing');
+    return null;
+  }
+
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1;
+  const day = date.getUTCDate();
+
+  const country = countryCode || 'US';
+
+  const url =
+    `https://holidays.abstractapi.com/v1/` +
+    `?api_key=${encodeURIComponent(apiKey)}` +
+    `&country=${encodeURIComponent(country)}` +
+    `&year=${year}&month=${month}&day=${day}`;
+
+  let holidays;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('[HOLIDAY] AbstractAPI error:', res.status, await res.text());
+      return null;
+    }
+    holidays = await res.json();
+  } catch (err) {
+    console.error('[HOLIDAY] AbstractAPI fetch error:', err);
+    return null;
+  }
+
+  if (!Array.isArray(holidays) || holidays.length === 0) {
+    return null;
+  }
+
+  const primary = holidays[0];
+  const name = primary.name || primary.local_name || 'a holiday';
+  const type = primary.type || '';
+  const isPublic = String(type).toLowerCase().includes('public');
+
+  const summary =
+    `HOLIDAY_CONTEXT: Today is ${name} in ${country}. ` +
+    (isPublic
+      ? `It's generally treated as a public holiday where many people may have different routines. `
+      : `It's observed by some people but may not change everyone's schedule. `) +
+    `Be gentle and aware that holidays can bring up mixed emotions—joy, grief, loneliness, or stress. ` +
+    `Use this context only if the user mentions the date, the weekend, or the holiday itself. ` +
+    `Do not mention that you used a holiday API or call this HOLIDAY_CONTEXT by name.`;
+
+  return { summary, raw: holidays };
+}
+
+function isHolidayRelated(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  return (
+    t.includes('holiday') ||
+    t.includes('christmas') ||
+    t.includes('xmas') ||
+    t.includes('new year') ||
+    t.includes('thanksgiving') ||
+    t.includes('easter') ||
+    t.includes('hanukkah') ||
+    t.includes('ramadan') ||
+    t.includes('eid') ||
+    t.includes('valentine') ||
+    t.includes('my birthday') ||
+    t.includes('today feels weird')
+  );
+}
+
+async function maybeAttachHolidayContext({ messages, profile }) {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser) return { messages, holidaySummary: null };
+
+  if (!isHolidayRelated(lastUser.content)) {
+    return { messages, holidaySummary: null };
+  }
+
+  console.log('[HOLIDAY] Holiday-related message detected');
+
+  const countryCode = profile?.country || 'US';
+  const ctx = await getHolidayContext({ countryCode });
+
+  if (!ctx) {
+    return { messages, holidaySummary: null };
+  }
+
+  console.log('[HOLIDAY] Attaching holiday context:', ctx.summary.slice(0, 60) + '...');
+
+  const holidaySystemMessage = {
+    role: 'system',
+    content: ctx.summary,
+  };
+
+  return {
+    messages: [holidaySystemMessage, ...messages],
+    holidaySummary: ctx.summary,
+  };
+}
+
 // Detect if user wants breathing mode instead of full conversation
 function wantsBreathingMode(text) {
   const t = (text || '').toLowerCase().trim();
@@ -1201,6 +1306,21 @@ app.post('/api/chat', async (req, res) => {
     } catch (err) {
       console.error('[TRACE DOG] Failed to load dog context:', err.message);
     }
+
+    // Load holiday context if user mentions holidays
+    let holidayContext = null;
+    try {
+      const profileForHoliday = await loadProfileBasic(effectiveUserId);
+      const holidayResult = await maybeAttachHolidayContext({
+        messages,
+        profile: profileForHoliday,
+      });
+      if (holidayResult.holidaySummary) {
+        holidayContext = holidayResult.holidaySummary;
+      }
+    } catch (err) {
+      console.error('[TRACE HOLIDAY] Failed to load holiday context:', err.message);
+    }
     
     // Build combined context snapshot
     const contextParts = [memoryContext];
@@ -1218,6 +1338,9 @@ app.post('/api/chat', async (req, res) => {
     }
     if (dogContext) {
       contextParts.push(dogContext);
+    }
+    if (holidayContext) {
+      contextParts.push(holidayContext);
     }
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
@@ -1613,6 +1736,32 @@ Examples:
     const fallbackMessage = fallbacks[timeKey] || fallbacks.default;
     
     res.json({ message: fallbackMessage });
+  }
+});
+
+// POST /api/holidays - Check for holidays on a given date
+app.post('/api/holidays', async (req, res) => {
+  try {
+    const { country, date } = req.body || {};
+    const parsedDate = date ? new Date(date) : new Date();
+
+    const ctx = await getHolidayContext({
+      countryCode: country,
+      date: parsedDate,
+    });
+
+    if (!ctx) {
+      return res.json({ todayHasHoliday: false });
+    }
+
+    res.json({
+      todayHasHoliday: true,
+      summary: ctx.summary,
+      raw: ctx.raw,
+    });
+  } catch (err) {
+    console.error('/api/holidays error', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
