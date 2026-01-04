@@ -874,16 +874,27 @@ async function getDadJoke() {
 
 function isJokeRequest(text) {
   if (!text) return false;
-  const t = text.toLowerCase();
+  const t = text.toLowerCase().trim();
 
-  return (
-    t.includes('tell me a joke') ||
-    t.includes('dad joke') ||
-    t.includes('make me laugh') ||
-    t.includes('cheer me up') ||
-    t.trim() === 'joke' ||
-    t.trim() === '/joke'
-  );
+  // Exact matches
+  if (t === 'joke' || t === '/joke' || t === 'jokes') return true;
+  
+  // Flexible patterns that allow typos
+  const jokePatterns = [
+    /tell\s+(me\s+)?a?\s*jok/i,           // "tell me a joke", "tell a jok", "tell me jokr"
+    /give\s+(me\s+)?a?\s*jok/i,           // "give me a joke", "give a jok"
+    /share\s+(a\s+)?jok/i,                // "share a joke", "share joke"
+    /dad\s*jok/i,                         // "dad joke", "dadjoke"
+    /make\s+me\s+laugh/i,                 // "make me laugh"
+    /cheer\s+me\s+up/i,                   // "cheer me up"
+    /got\s+(a|any)\s*jok/i,               // "got a joke", "got any jokes"
+    /know\s+(a|any)\s*jok/i,              // "know a joke", "know any jokes"
+    /i\s*(need|want)\s+(a\s+)?jok/i,      // "i need a joke", "i want joke"
+    /something\s+funny/i,                 // "something funny"
+    /hear\s+a\s*jok/i,                    // "hear a joke"
+  ];
+  
+  return jokePatterns.some(pattern => pattern.test(t));
 }
 
 async function maybeAttachJokeContext({ messages }) {
