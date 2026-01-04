@@ -1228,6 +1228,95 @@ app.post('/api/subscription/mark-upgraded', async (req, res) => {
   }
 });
 
+// POST /api/encouragement - Get personalized encouragement for activity
+app.post('/api/encouragement', async (req, res) => {
+  const { userId, activityType, durationMinutes, timeOfDay } = req.body;
+  
+  if (!userId || !activityType) {
+    return res.status(400).json({ error: 'userId and activityType required' });
+  }
+
+  try {
+    // Fetch user profile for context
+    const { data: profile } = await supabaseServer
+      .from('profiles')
+      .select('display_name')
+      .eq('user_id', userId)
+      .single();
+    
+    // Use name if available, otherwise keep it anonymous (no pet names like "friend")
+    const userName = profile?.display_name || null;
+    const nameContext = userName ? `- User's name: ${userName} (use sparingly if at all)` : '- User prefers anonymous interaction';
+    
+    // Build context-aware prompt for OpenAI
+    const systemPrompt = `You are TRACE, a compassionate mental wellness companion. Generate a brief, gentle encouragement message (1-2 short lines, max 50 characters total) for someone doing the Rising activity - a breathing/mindfulness exercise where they watch bubbles drift upward.
+
+Context:
+- Activity: ${activityType}
+- Time: ${timeOfDay || 'unknown'}
+- Duration so far: ${durationMinutes || 0} minutes
+${nameContext}
+
+Guidelines:
+- Keep it intimate and present-focused
+- Use "you" not their name
+- Focus on: breath, presence, release, being enough as you are
+- Match the gentle, upward energy of rising bubbles
+- Maximum 2 lines, each under 30 characters
+- Use \\n for line breaks
+- No punctuation at the end
+- NEVER use pet names like "friend", "buddy", "pal"
+
+Examples:
+"You're exactly where\\nyou need to be"
+"This moment\\nis enough"
+"Feel yourself\\nrising too"`;
+
+    // Call OpenAI for personalized message
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: 'Generate one encouragement message for this moment.' }
+        ],
+        temperature: 0.8,
+        max_tokens: 50,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('OpenAI API failed');
+    }
+
+    const data = await response.json();
+    const message = data.choices[0]?.message?.content?.trim() || "You're exactly where\\nyou need to be";
+
+    res.json({ message });
+
+  } catch (error) {
+    console.error('Encouragement generation error:', error);
+    
+    // Fallback to context-aware default messages
+    const fallbacks = {
+      morning: "Morning light\\nis rising with you",
+      afternoon: "This moment\\nis enough",
+      evening: "Let today\\ndrift away",
+      default: "You're exactly where\\nyou need to be"
+    };
+    
+    const timeKey = timeOfDay?.toLowerCase() || 'default';
+    const fallbackMessage = fallbacks[timeKey] || fallbacks.default;
+    
+    res.json({ message: fallbackMessage });
+  }
+});
+
 // DELETE /api/account - Delete user account and all related data
 app.delete('/api/account', async (req, res) => {
   try {
