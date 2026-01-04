@@ -151,6 +151,124 @@ async function maybeAttachWeatherContext({ messages, profile }) {
   };
 }
 
+// ---- DOG INSIGHTS HELPER ----
+// Provides context about dog behavior/training when user talks about their pet
+async function getDogInsights({ name, breed, age, textHint }) {
+  const apiKey = process.env.DOG_API_KEY;
+  if (!apiKey) {
+    console.warn('[DOG] DOG_API_KEY missing');
+    return null;
+  }
+
+  const url = 'https://api.thedogapi.com/v1/breeds/search';
+  
+  // If we have a breed, try to get breed-specific info
+  let breedInfo = null;
+  if (breed) {
+    try {
+      const breedRes = await fetch(`${url}?q=${encodeURIComponent(breed)}`, {
+        headers: { 'x-api-key': apiKey },
+      });
+      if (breedRes.ok) {
+        const breeds = await breedRes.json();
+        if (breeds.length > 0) {
+          breedInfo = breeds[0];
+        }
+      }
+    } catch (err) {
+      console.error('[DOG] Breed lookup error:', err.message);
+    }
+  }
+
+  // Build a gentle TRACE-style summary
+  let traceSummary = `DOG_CONTEXT: The user is talking about their dog${name ? ` named ${name}` : ''}. `;
+  
+  if (breedInfo) {
+    traceSummary += `Breed info: ${breedInfo.name || breed}`;
+    if (breedInfo.temperament) {
+      traceSummary += ` - typically ${breedInfo.temperament.toLowerCase()}`;
+    }
+    if (breedInfo.life_span) {
+      traceSummary += ` (lifespan: ${breedInfo.life_span})`;
+    }
+    traceSummary += '. ';
+  }
+  
+  traceSummary += `Use this to relate to their dog in a kind, grounded way. ` +
+    `Offer gentle ideas about training, comfort, or environment without sounding like a vet or making medical diagnoses. ` +
+    `Prefer soft suggestions and empathy over commands. ` +
+    `Never mention where this context came from or reference any API.`;
+
+  return {
+    traceSummary,
+    breedInfo,
+  };
+}
+
+// Detect when user is talking about their dog
+function isDogRelated(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  return (
+    t.includes('my dog') ||
+    t.includes('our dog') ||
+    t.includes('puppy') ||
+    t.includes('my pup') ||
+    t.includes('our pup') ||
+    t.includes('my german shepherd') ||
+    t.includes('my lab') ||
+    t.includes('my golden') ||
+    t.includes('my husky') ||
+    t.includes('dog is anxious') ||
+    t.includes('dog is scared') ||
+    t.includes('dog behavior') ||
+    t.includes('dog training') ||
+    t.includes('my pet') ||
+    t.includes('our pet')
+  );
+}
+
+// Attach dog context when user mentions their dog
+async function maybeAttachDogContext({ messages, profile }) {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser) return { messages, dogSummary: null };
+
+  if (!isDogRelated(lastUser.content)) {
+    return { messages, dogSummary: null };
+  }
+
+  console.log('[DOG] Dog-related message detected');
+
+  // If profile has pet info, use it
+  const dogName = profile?.dog_name || null;
+  const dogBreed = profile?.dog_breed || null;
+  const dogAge = profile?.dog_age || null;
+
+  const insights = await getDogInsights({
+    name: dogName,
+    breed: dogBreed,
+    age: dogAge,
+    textHint: lastUser.content,
+  });
+
+  if (!insights) {
+    return { messages, dogSummary: null };
+  }
+
+  console.log('[DOG] Attaching dog context');
+
+  const dogSystemMessage = {
+    role: 'system',
+    content: insights.traceSummary,
+  };
+
+  return {
+    messages: [dogSystemMessage, ...messages],
+    dogSummary: insights.traceSummary,
+  };
+}
+
 // Detect if user wants breathing mode instead of full conversation
 function wantsBreathingMode(text) {
   const t = (text || '').toLowerCase().trim();
