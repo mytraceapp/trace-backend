@@ -1659,8 +1659,8 @@ app.post('/api/analyze-emotion', async (req, res) => {
 // Unified greeting: Handles both first-run and returning users
 app.post('/api/greeting', async (req, res) => {
   try {
-    const { userId, deviceId, isNewUser } = req.body;
-    console.log('[TRACE GREETING] Request received - userId:', userId, 'deviceId:', deviceId, 'isNewUser:', isNewUser);
+    const { userId, deviceId, isNewUser, isReturningUser } = req.body;
+    console.log('[TRACE GREETING] Request received - userId:', userId, 'deviceId:', deviceId, 'isNewUser:', isNewUser, 'isReturningUser:', isReturningUser);
     
     if (!userId && !deviceId) {
       return res.status(400).json({ error: 'userId or deviceId required' });
@@ -1669,17 +1669,49 @@ app.post('/api/greeting', async (req, res) => {
     // Try to load profile, but don't fail if it doesn't exist (new users)
     let profile = null;
     let displayName = null;
+    let hasChatHistory = false;
     
     if (userId && supabaseServer) {
       profile = await loadProfileBasic(userId);
       displayName = profile?.preferred_name?.trim() || null;
+      
+      // Check if user has any chat history - this is the most reliable way to detect returning users
+      try {
+        const { count } = await supabaseServer
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .limit(1);
+        hasChatHistory = (count || 0) > 0;
+      } catch (err) {
+        console.error('[TRACE GREETING] Error checking chat history:', err.message);
+      }
     }
     
-    // Prioritize isNewUser flag from mobile app, fallback to database check
-    // If profile doesn't exist, treat as first run
-    const firstRun = isNewUser === true || !profile || !profile.first_run_completed;
+    // Determine if this is a first run:
+    // - If client explicitly says isReturningUser=true, it's NOT first run
+    // - If client explicitly says isNewUser=true, it IS first run
+    // - Otherwise, check: has chat history? has completed first run? has profile?
+    let firstRun = false;
+    if (isReturningUser === true) {
+      firstRun = false;
+    } else if (isNewUser === true) {
+      firstRun = true;
+    } else if (hasChatHistory) {
+      // User has chat history = definitely returning user
+      firstRun = false;
+    } else if (profile?.first_run_completed) {
+      // Profile says first run completed = returning user
+      firstRun = false;
+    } else if (!profile) {
+      // No profile at all = new user
+      firstRun = true;
+    } else {
+      // Profile exists but no first_run_completed and no chat history = likely new
+      firstRun = true;
+    }
 
-    console.log('[TRACE GREETING] Resolved - firstRun:', firstRun, 'displayName:', displayName, 'profileExists:', !!profile);
+    console.log('[TRACE GREETING] Resolved - firstRun:', firstRun, 'displayName:', displayName, 'profileExists:', !!profile, 'hasChatHistory:', hasChatHistory);
 
     // Choose prompt based on first-run status
     const systemPrompt = firstRun
