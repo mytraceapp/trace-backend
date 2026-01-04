@@ -1,0 +1,573 @@
+You already have isHighDistressContext(messages) conceptually. Let’s wire it cleanly into /api/chat.
+
+1.1 Define two prompts
+
+In server/index.js (or a prompts.js file), add:
+const NORMAL_TRACE_SYSTEM_PROMPT = `
+You are TRACE, a gentle, non-judgmental companion inside a mental health app.
+
+GENERAL:
+- You are low-pressure, non-fixing, and emotionally present.
+- You prioritize validation and understanding over advice or productivity.
+- You use short, human paragraphs, not walls of text.
+
+You may receive special system messages like WEATHER_CONTEXT, DOG_CONTEXT, HOLIDAY_CONTEXT, FOOD_CONTEXT, MEMORY_CONTEXT, etc.
+They provide private background information. You:
+- Use them only when clearly relevant.
+- Never mention these names or that you used an API.
+- Never expose raw data back to the user.
+
+FOOD & APPETITE:
+- Treat food as emotional and relational, not moral.
+- Validate guilt, shame, or stress around food before offering any suggestions.
+- Avoid diet talk, weight-loss framing, or "good/bad" foods.
+- When offering ideas, present them as gentle options, not tasks.
+
+HYDRATION:
+- When the user mentions headaches, heavy crying, or deep fatigue, you may gently suggest a sip of water or a small grounding act—once, as an option, not a prescription.
+
+HUMOR:
+- Only use jokes when the user clearly asks for one AND the conversation does not sound like acute crisis.
+- Favor gentle, wholesome, “dad joke” style humor.
+- Never use humor to minimize or deflect serious distress.
+`.trim();
+
+const CRISIS_TRACE_SYSTEM_PROMPT = `
+You are TRACE, a calm, non-judgmental companion inside a mental health app.
+
+The user’s recent messages suggest emotional crisis
+(e.g., suicidal thoughts, self-harm urges, intense panic, or fresh grief).
+
+PRIMARY GOAL:
+- Emotional safety, validation, and gentle grounding.
+- Not problem-solving, not productivity, not jokes, not recipes.
+
+STYLE:
+- Speak slowly, gently, and clearly.
+- Short paragraphs, simple language.
+- One caring question at a time.
+
+SUICIDALITY & SELF-HARM:
+- Acknowledge their pain directly and sincerely.
+- You may ask ONE direct, simple safety question:
+  "Are you in immediate danger of acting on these thoughts right now?"
+- Take any expression of risk seriously.
+- Encourage reaching out to local emergency services, crisis lines, or trusted people offline.
+- Be honest about your limits: you are not a doctor, therapist, or emergency service.
+
+CRISIS RESOURCES (general, not location-specific):
+- You may offer this snippet when appropriate:
+  "If you’re able, please consider reaching out to a crisis line or local emergency number.
+   • In the United States, you can call or text 988 for the Suicide & Crisis Lifeline.
+   • In the UK & Ireland, Samaritans are available at 116 123.
+   • In Australia, Lifeline is 13 11 14.
+   • If you’re elsewhere, your local health services can usually tell you about crisis lines in your area.
+   If you’re in immediate danger, please contact your local emergency services right away."
+
+GROUNDING:
+- You may offer tiny, doable grounding invites:
+  - one slower breath,
+  - feeling the support of the chair/bed,
+  - a small sip of water if available.
+- Never claim these will "fix" things—frame them as small acts of care.
+
+WHAT TO AVOID:
+- No humor.
+- No recipes, dog tips, holiday trivia, or other playful APIs.
+- No detailed discussion of self-harm methods.
+- No moral judgment or minimization ("you shouldn’t feel this way", "it’ll all be fine").
+
+You are here to help them feel less alone in this moment and gently orient them toward offline support.
+`.trim();
+
+const NORMAL_TRACE_SYSTEM_PROMPT = `
+You are TRACE, a gentle, non-judgmental companion inside a mental health app.
+
+GENERAL:
+- You are low-pressure, non-fixing, and emotionally present.
+- You prioritize validation and understanding over advice or productivity.
+- You use short, human paragraphs, not walls of text.
+
+You may receive special system messages like WEATHER_CONTEXT, DOG_CONTEXT, HOLIDAY_CONTEXT, FOOD_CONTEXT, MEMORY_CONTEXT, etc.
+They provide private background information. You:
+- Use them only when clearly relevant.
+- Never mention these names or that you used an API.
+- Never expose raw data back to the user.
+
+FOOD & APPETITE:
+- Treat food as emotional and relational, not moral.
+- Validate guilt, shame, or stress around food before offering any suggestions.
+- Avoid diet talk, weight-loss framing, or "good/bad" foods.
+- When offering ideas, present them as gentle options, not tasks.
+
+HYDRATION:
+- When the user mentions headaches, heavy crying, or deep fatigue, you may gently suggest a sip of water or a small grounding act—once, as an option, not a prescription.
+
+HUMOR:
+- Only use jokes when the user clearly asks for one AND the conversation does not sound like acute crisis.
+- Favor gentle, wholesome, “dad joke” style humor.
+- Never use humor to minimize or deflect serious distress.
+`.trim();
+
+const CRISIS_TRACE_SYSTEM_PROMPT = `
+You are TRACE, a calm, non-judgmental companion inside a mental health app.
+
+The user’s recent messages suggest emotional crisis
+(e.g., suicidal thoughts, self-harm urges, intense panic, or fresh grief).
+
+PRIMARY GOAL:
+- Emotional safety, validation, and gentle grounding.
+- Not problem-solving, not productivity, not jokes, not recipes.
+
+STYLE:
+- Speak slowly, gently, and clearly.
+- Short paragraphs, simple language.
+- One caring question at a time.
+
+SUICIDALITY & SELF-HARM:
+- Acknowledge their pain directly and sincerely.
+- You may ask ONE direct, simple safety question:
+  "Are you in immediate danger of acting on these thoughts right now?"
+- Take any expression of risk seriously.
+- Encourage reaching out to local emergency services, crisis lines, or trusted people offline.
+- Be honest about your limits: you are not a doctor, therapist, or emergency service.
+
+CRISIS RESOURCES (general, not location-specific):
+- You may offer this snippet when appropriate:
+  "If you’re able, please consider reaching out to a crisis line or local emergency number.
+   • In the United States, you can call or text 988 for the Suicide & Crisis Lifeline.
+   • In the UK & Ireland, Samaritans are available at 116 123.
+   • In Australia, Lifeline is 13 11 14.
+   • If you’re elsewhere, your local health services can usually tell you about crisis lines in your area.
+   If you’re in immediate danger, please contact your local emergency services right away."
+
+GROUNDING:
+- You may offer tiny, doable grounding invites:
+  - one slower breath,
+  - feeling the support of the chair/bed,
+  - a small sip of water if available.
+- Never claim these will "fix" things—frame them as small acts of care.
+
+WHAT TO AVOID:
+- No humor.
+- No recipes, dog tips, holiday trivia, or other playful APIs.
+- No detailed discussion of self-harm methods.
+- No moral judgment or minimization ("you shouldn’t feel this way", "it’ll all be fine").
+
+You are here to help them feel less alone in this moment and gently orient them toward offline support.
+`.trim();
+
+If you already have a big prompt, you can merge these ideas in instead of replacing, but this gives you a clear baseline.
+
+⸻
+
+1.2 Apply crisis vs normal mode in /api/chat
+
+In your /api/chat route, adjust like this (conceptually):
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { userId, messages } = req.body || {};
+    if (!userId || !messages) {
+      return res.status(400).json({ error: 'userId and messages are required' });
+    }
+
+    const profile = await getProfileForUser(userId); // your existing helper
+
+    const crisis = isHighDistressContext(messages);
+
+    let finalMessages;
+    let systemPrompt;
+    let temperature;
+
+    if (crisis) {
+      // 🚨 CRISIS MODE: no playful APIs, no jokes, no recipes.
+      systemPrompt = CRISIS_TRACE_SYSTEM_PROMPT;
+      temperature = 0.4;
+      finalMessages = messages; // raw messages only, or maybe minimal memory context
+    } else {
+      // 🌙 NORMAL MODE: full personality + context
+      systemPrompt = NORMAL_TRACE_SYSTEM_PROMPT;
+      temperature = 0.7;
+
+      const { messages: withWeather } = await maybeAttachWeatherContext({
+        messages,
+        profile,
+      });
+
+      const { messages: withDog } = await maybeAttachDogContext({
+        messages: withWeather,
+        profile,
+      });
+
+      const { messages: withHoliday } = await maybeAttachHolidayContext({
+        messages: withDog,
+        profile,
+      });
+
+      const { messages: withFood } = await maybeAttachFoodContext({
+        messages: withHoliday,
+      });
+
+      const { messages: withMemory } = await maybeAttachMemoryContext({
+        messages: withFood,
+        userId,
+      });
+
+      const { messages: withJoke } = await maybeAttachJokeContext({
+        messages: withMemory,
+      });
+
+      finalMessages = withJoke;
+    }
+
+    const openaiResponse = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...finalMessages,
+      ],
+      temperature,
+    });
+
+    const answer = openaiResponse.choices?.[0]?.message;
+    if (!answer) {
+      return res.status(500).json({ error: 'No response from model' });
+    }
+
+    res.json({ reply: answer });
+  } catch (err) {
+    console.error('/api/chat error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+Key points:
+	•	crisis === true → no weather/dog/food/jokes, different prompt, lower temp.
+	•	crisis === false → your full personality stack.
+
+⸻
+
+2️⃣ Food: split appetite-stress vs “what should I cook?”
+
+Right now we treated “food” as one thing. Let’s split it.
+
+2.1 New detectors
+
+Add:
+function isAppetiteConcern(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  return (
+    t.includes('i haven\'t eaten') ||
+    t.includes('i havent eaten') ||
+    t.includes('no appetite') ||
+    t.includes('don\'t feel like eating') ||
+    t.includes('dont feel like eating') ||
+    t.includes('food sounds hard') ||
+    t.includes('eating feels hard') ||
+    t.includes('can\'t eat') ||
+    t.includes('cant eat') ||
+    t.includes('i barely eat') ||
+    t.includes('i stopped eating')
+  );
+}
+
+function isCookingIdeaRequest(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  return (
+    t.includes('what should i cook') ||
+    t.includes('what should i make') ||
+    t.includes('dinner ideas') ||
+    t.includes('lunch ideas') ||
+    t.includes('recipe') ||
+    t.includes('snack ideas') ||
+    t.includes('comfort food') ||
+    t.includes('something easy to cook') ||
+    t.includes('something quick to eat')
+  );
+}
+2.2 Refined maybeAttachFoodContext
+
+Replace your old one with:
+async function maybeAttachFoodContext({ messages }) {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser) return { messages, foodSummary: null };
+
+  const text = lastUser.content || '';
+
+  // 1) Appetite stress → support mode only
+  if (isAppetiteConcern(text)) {
+    const systemFood = {
+      role: 'system',
+      content:
+        `FOOD_CONTEXT_APPETITE: The user is struggling with appetite / eating feeling hard.\n` +
+        `Your job is to:\n` +
+        `- Prioritize emotional validation and safety.\n` +
+        `- Normalize that appetite can change with stress, depression, anxiety, trauma, etc.\n` +
+        `- Avoid telling them what or how much to eat.\n` +
+        `- If you offer any ideas, keep them extremely gentle and low-pressure (e.g., "one small, soft thing if it helps", not a full meal plan).\n` +
+        `- Be careful of disordered eating: do NOT give prescriptive nutrition advice or calorie-related suggestions.`,
+    };
+
+    return {
+      messages: [systemFood, ...messages],
+      foodSummary: 'appetite-stress-mode',
+    };
+  }
+
+  // 2) Cooking ideas → recipe mode
+  if (isCookingIdeaRequest(text)) {
+    const lowered = text.toLowerCase();
+    let query = 'simple comforting meal';
+
+    if (lowered.includes('healthy') || lowered.includes('light')) {
+      query = 'simple healthy dinner';
+    } else if (lowered.includes('soup')) {
+      query = 'easy soup';
+    } else if (lowered.includes('snack')) {
+      query = 'quick snack';
+    }
+
+    const recipes = await getRecipeSuggestions({ query });
+    if (!recipes.length) {
+      return { messages, foodSummary: null };
+    }
+
+    const formatted = recipes
+      .map((r, idx) => `${idx + 1}. ${r.name}${r.description ? ` — ${r.description}` : ''}`)
+      .join('\n');
+
+    const systemFood = {
+      role: 'system',
+      content:
+        `FOOD_CONTEXT_RECIPES: The user is asking for simple ideas of what to cook / eat.\n` +
+        `Here are a few options from a recipe API:\n` +
+        `${formatted}\n\n` +
+        `When you respond:\n` +
+        `- Offer 1–3 of these as gentle options, not obligations.\n` +
+        `- Avoid diet culture language or moral judgment about food.\n` +
+        `- You can focus on "comforting", "easy", "light", "nourishing", not "good/bad".\n` +
+        `- Never say these came from an API or refer to FOOD_CONTEXT_RECIPES by name.`,
+    };
+
+    return {
+      messages: [systemFood, ...messages],
+      foodSummary: formatted,
+    };
+  }
+
+  // No food context needed
+  return { messages, foodSummary: null };
+}
+
+Result:
+	•	“I haven’t eaten all day” → no recipe API, just support.
+	•	“What should I cook for dinner?” → recipes, but still TRACE-y.
+
+⸻
+
+3️⃣ Dog context: anxiety vs loss
+
+3.1 Extra dog detectors
+
+Add:
+function isDogAnxiety(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  return (
+    t.includes('my dog is anxious') ||
+    t.includes('my dog is scared') ||
+    t.includes('my dog is nervous') ||
+    t.includes('my dog freaks out') ||
+    t.includes('my dog hates the vet') ||
+    t.includes('my dog barks at everything') ||
+    t.includes('my dog has separation anxiety')
+  );
+}
+
+function isDogLoss(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  return (
+    t.includes('my dog died') ||
+    t.includes('we lost our dog') ||
+    t.includes('had to put my dog down') ||
+    t.includes('put her down') && t.includes('dog') ||
+    t.includes('put him down') && t.includes('dog') ||
+    t.includes('my dog passed away') ||
+    t.includes('grieving my dog')
+  );
+}
+3.2 Refined maybeAttachDogContext
+
+Update it something like:
+async function maybeAttachDogContext({ messages, profile }) {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser) return { messages, dogSummary: null };
+
+  const text = lastUser.content || '';
+  const basicDogMention =
+    text.toLowerCase().includes('my dog') ||
+    text.toLowerCase().includes('our dog') ||
+    text.toLowerCase().includes('my puppy') ||
+    text.toLowerCase().includes('my pup');
+
+  if (!basicDogMention && !isDogAnxiety(text) && !isDogLoss(text)) {
+    return { messages, dogSummary: null };
+  }
+
+  const dogName = profile?.dog_name || null;
+  const dogBreed = profile?.dog_breed || null;
+  const dogAge = profile?.dog_age || null;
+
+  // 1) Grief mode: no dog API, just grief support
+  if (isDogLoss(text)) {
+    const systemDog = {
+      role: 'system',
+      content:
+        `DOG_CONTEXT_GRIEF: The user is grieving the loss of a dog.\n` +
+        `Your job:\n` +
+        `- Validate the depth of this loss; pets are family.\n` +
+        `- Normalize intense grief, guilt, or second-guessing.\n` +
+        `- Do NOT suggest "replacing" the dog or moving on quickly.\n` +
+        `- If you share reflections, keep them gentle and non-religious unless the user brings up faith.\n` +
+        `- Focus on presence, memory, and permission to feel what they feel.`,
+    };
+
+    return {
+      messages: [systemDog, ...messages],
+      dogSummary: 'dog-loss',
+    };
+  }
+
+  // 2) Anxiety / behavior mode: safe to use dog API
+  if (isDogAnxiety(text)) {
+    const insights = await getDogInsights({
+      name: dogName,
+      breed: dogBreed,
+      age: dogAge,
+      textHint: text,
+    });
+
+    if (!insights) {
+      // fallback: no API data, but still contextual
+      const systemDog = {
+        role: 'system',
+        content:
+          `DOG_CONTEXT_ANXIETY: The user is worried about their dog's anxiety / fear / behavior.\n` +
+          `Be validating, avoid blaming them, and offer gentle, high-level ideas (environment, routine, kindness), not strict training regimens.`,
+      };
+      return {
+        messages: [systemDog, ...messages],
+        dogSummary: 'dog-anxiety-no-api',
+      };
+    }
+
+    const systemDog = {
+      role: 'system',
+      content: insights.traceSummary,
+    };
+
+    return {
+      messages: [systemDog, ...messages],
+      dogSummary: 'dog-anxiety-with-api',
+    };
+  }
+
+  // 3) General dog mention but not clearly anxious or loss → very soft, no API needed
+  if (basicDogMention) {
+    const systemDog = {
+      role: 'system',
+      content:
+        `DOG_CONTEXT_GENERAL: The user is talking about their dog.\n` +
+        `Use this to connect gently if relevant (e.g., recognizing the dog as a source of comfort, routine, or grief), but do not over-focus on advice.`,
+    };
+
+    return {
+      messages: [systemDog, ...messages],
+      dogSummary: 'dog-general',
+    };
+  }
+
+  return { messages, dogSummary: null };
+}
+
+Now dog API is used only where it really fits (anxious pup), and grief is handled as grief.
+
+⸻
+
+4️⃣ Memory callbacks that users can feel
+
+You already have long_term_memories. Let’s:
+	•	fetch a few
+	•	give the model permission to reference them occasionally
+	•	keep it non-creepy
+
+4.1 Helper to load memories
+
+If you use Supabase on the backend:
+async function getRecentLongTermMemories(userId) {
+  const { data, error } = await supabase
+    .from('long_term_memories')
+    .select('kind, content, updated_at')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .order('updated_at', { ascending: false })
+    .limit(5);
+
+  if (error) {
+    console.error('getRecentLongTermMemories error', error);
+    return [];
+  }
+  return data || [];
+}
+4.2 Decide when to offer memory callbacks
+
+We can keep it simple: only sometimes, and only when not in crisis.
+function shouldOfferMemoryCallback(messages) {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  if (!lastUser) return false;
+  const t = (lastUser.content || '').toLowerCase();
+
+  // if they're just asking a factual question, no need
+  if (t.includes('what time') || t.includes('what is the definition')) return false;
+
+  // Rough: ~30% chance, to keep it from happening constantly
+  return Math.random() < 0.3;
+}
+4.3 maybeAttachMemoryContext
+async function maybeAttachMemoryContext({ messages, userId }) {
+  if (!shouldOfferMemoryCallback(messages)) {
+    return { messages, memorySummary: null };
+  }
+
+  const memories = await getRecentLongTermMemories(userId);
+  if (!memories.length) {
+    return { messages, memorySummary: null };
+  }
+
+  const bulletLines = memories.map((m) => `- (${m.kind}) ${m.content}`);
+  const summaryText = bulletLines.join('\n');
+
+  const systemMemory = {
+    role: 'system',
+    content:
+      `MEMORY_CONTEXT (do not read out loud): Here are a few things the user has been working through over time:\n` +
+      `${summaryText}\n\n` +
+      `Use these ONLY if they naturally fit the current conversation.\n` +
+      `You may occasionally reference them in a soft way, like:\n` +
+      `- "You mentioned your sister last week—does that still feel present today?"\n` +
+      `- "You’ve been navigating work burnout for a while; this sounds connected to that."\n` +
+      `Never list these back verbatim or make the user feel surveilled. It should feel like gentle remembering, not a dossier.`,
+  };
+
+  return {
+    messages: [systemMemory, ...messages],
+    memorySummary: summaryText,
+  };
+}

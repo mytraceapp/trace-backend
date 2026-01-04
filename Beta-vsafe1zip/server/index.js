@@ -377,28 +377,46 @@ async function maybeAttachHolidayContext({ messages, profile }) {
 
 // ---- FOOD/RECIPE HELPER (Tasty API via RapidAPI) ----
 
-function isFoodRelated(text) {
+// Appetite stress - needs emotional support, not recipes
+function isAppetiteConcern(text) {
   if (!text) return false;
   const t = text.toLowerCase();
 
   return (
-    t.includes('recipe') ||
-    t.includes('cook something') ||
+    t.includes("i haven't eaten") ||
+    t.includes('i havent eaten') ||
+    t.includes('no appetite') ||
+    t.includes("don't feel like eating") ||
+    t.includes('dont feel like eating') ||
+    t.includes('food sounds hard') ||
+    t.includes('eating feels hard') ||
+    t.includes("can't eat") ||
+    t.includes('cant eat') ||
+    t.includes('i barely eat') ||
+    t.includes('i stopped eating') ||
+    t.includes('hungry but tired')
+  );
+}
+
+// Cooking ideas - wants recipe suggestions
+function isCookingIdeaRequest(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+
+  return (
     t.includes('what should i cook') ||
     t.includes('what should i make') ||
     t.includes('dinner ideas') ||
     t.includes('lunch ideas') ||
+    t.includes('recipe') ||
     t.includes('snack ideas') ||
     t.includes('comfort food') ||
+    t.includes('something easy to cook') ||
+    t.includes('something quick to eat') ||
+    t.includes('cook something') ||
     t.includes('i want something warm') ||
     t.includes('i want something healthy') ||
-    t.includes("i don't feel like eating") ||
-    t.includes('no appetite') ||
-    t.includes("haven't eaten") ||
-    t.includes('food sounds hard') ||
-    t.includes('i just want to eat') ||
-    t.includes('craving') ||
-    t.includes('hungry but tired')
+    t.includes('craving')
   );
 }
 
@@ -445,48 +463,72 @@ async function maybeAttachFoodContext({ messages }) {
   const lastUser = [...messages].reverse().find((m) => m.role === 'user');
   if (!lastUser) return { messages, foodSummary: null };
 
-  if (!isFoodRelated(lastUser.content)) {
-    return { messages, foodSummary: null };
+  const text = lastUser.content || '';
+
+  // 1) Appetite stress → emotional support mode (no recipes)
+  if (isAppetiteConcern(text)) {
+    console.log('[FOOD] Appetite concern detected - support mode');
+
+    const foodSummary =
+      `FOOD_CONTEXT_APPETITE: The user is struggling with appetite / eating feeling hard.\n` +
+      `Your job is to:\n` +
+      `- Prioritize emotional validation and safety.\n` +
+      `- Normalize that appetite can change with stress, depression, anxiety, trauma, etc.\n` +
+      `- Avoid telling them what or how much to eat.\n` +
+      `- If you offer any ideas, keep them extremely gentle and low-pressure (e.g., "one small, soft thing if it helps", not a full meal plan).\n` +
+      `- Be careful of disordered eating: do NOT give prescriptive nutrition advice or calorie-related suggestions.\n` +
+      `- Never mention FOOD_CONTEXT_APPETITE by name.`;
+
+    return {
+      messages,
+      foodSummary,
+    };
   }
 
-  console.log('[FOOD] Food-related message detected');
+  // 2) Cooking ideas → recipe mode
+  if (isCookingIdeaRequest(text)) {
+    console.log('[FOOD] Cooking idea request detected - recipe mode');
 
-  const lowered = lastUser.content.toLowerCase();
-  let query = 'simple comforting meal';
+    const lowered = text.toLowerCase();
+    let query = 'simple comforting meal';
 
-  if (lowered.includes('healthy') || lowered.includes('light')) {
-    query = 'simple healthy dinner';
-  } else if (lowered.includes('soup')) {
-    query = 'easy soup';
-  } else if (lowered.includes('snack')) {
-    query = 'quick snack';
+    if (lowered.includes('healthy') || lowered.includes('light')) {
+      query = 'simple healthy dinner';
+    } else if (lowered.includes('soup')) {
+      query = 'easy soup';
+    } else if (lowered.includes('snack')) {
+      query = 'quick snack';
+    }
+
+    const recipes = await getRecipeSuggestions({ query });
+    if (!recipes.length) {
+      return { messages, foodSummary: null };
+    }
+
+    const formatted = recipes
+      .map((r, idx) => `${idx + 1}. ${r.name}${r.description ? ` — ${r.description}` : ''}`)
+      .join('\n');
+
+    console.log('[FOOD] Attaching recipe context with', recipes.length, 'recipes');
+
+    const foodSummary =
+      `FOOD_CONTEXT_RECIPES: The user is asking for simple ideas of what to cook / eat.\n` +
+      `Here are a few options from a recipe source:\n` +
+      `${formatted}\n\n` +
+      `When you respond:\n` +
+      `- Present 1–3 of these as gentle ideas, not assignments.\n` +
+      `- Emphasize there is *no pressure* to cook or choose anything.\n` +
+      `- Frame cooking as self-care or nourishment, not obligation.\n` +
+      `- Never mention that these came from an API or refer to FOOD_CONTEXT_RECIPES by name.`;
+
+    return {
+      messages,
+      foodSummary,
+    };
   }
 
-  const recipes = await getRecipeSuggestions({ query });
-  if (!recipes.length) {
-    return { messages, foodSummary: null };
-  }
-
-  const formatted = recipes
-    .map((r, idx) => `${idx + 1}. ${r.name}${r.description ? ` — ${r.description}` : ''}`)
-    .join('\n');
-
-  console.log('[FOOD] Attaching food context with', recipes.length, 'recipes');
-
-  const foodSummary =
-    `FOOD_CONTEXT: The user is talking about food / appetite / cooking.\n` +
-    `Here are a few simple recipe ideas:\n` +
-    `${formatted}\n\n` +
-    `When you respond:\n` +
-    `- Present 1–3 of these as gentle ideas, not assignments.\n` +
-    `- Emphasize there is *no pressure* to cook or choose anything.\n` +
-    `- If the user sounds like they have low appetite or food stress, focus on validation first, recipes second.\n` +
-    `- Never mention that these came from an API or refer to FOOD_CONTEXT by name.`;
-
-  return {
-    messages,
-    foodSummary,
-  };
+  // No food-related content detected
+  return { messages, foodSummary: null };
 }
 
 // ---- HIGH-DISTRESS / CRISIS DETECTION ----
