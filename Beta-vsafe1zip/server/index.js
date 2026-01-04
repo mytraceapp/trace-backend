@@ -2510,6 +2510,11 @@ app.get('/api/profile', async (req, res) => {
       plan_status: 'free',
       plan_expires_at: null,
       has_completed_onboarding: false,
+      weather_context_enabled: false,
+      lat: null,
+      lon: null,
+      timezone: null,
+      country: null,
     };
     
     const { data: created, error: insertError } = await supabaseServer
@@ -2536,10 +2541,15 @@ app.get('/api/profile', async (req, res) => {
 app.patch('/api/profile', async (req, res) => {
   const { 
     userId, displayName, email, theme, pushEnabled, emailEnabled,
-    weatherContextEnabled, latitude, longitude, timezone, country
+    weatherContextEnabled, latitude, longitude, timezone, country,
+    lat, lon // Accept shorthand aliases from mobile app
   } = req.body;
   
-  console.log('[PROFILE] PATCH request for userId:', userId);
+  // Use lat/lon if latitude/longitude not provided (mobile app compat)
+  const finalLatitude = latitude ?? lat;
+  const finalLongitude = longitude ?? lon;
+  
+  console.log('[PROFILE] PATCH request for userId:', userId, 'lat:', finalLatitude, 'lon:', finalLongitude);
   
   if (!userId) {
     return res.status(400).json({ error: 'userId is required' });
@@ -2558,8 +2568,8 @@ app.patch('/api/profile', async (req, res) => {
     if (pushEnabled !== undefined) updates.push_enabled = pushEnabled;
     if (emailEnabled !== undefined) updates.email_enabled = emailEnabled;
     if (weatherContextEnabled !== undefined) updates.weather_context_enabled = weatherContextEnabled;
-    if (latitude !== undefined) updates.latitude = latitude;
-    if (longitude !== undefined) updates.longitude = longitude;
+    if (finalLatitude !== undefined) updates.lat = finalLatitude;
+    if (finalLongitude !== undefined) updates.lon = finalLongitude;
     if (timezone !== undefined) updates.timezone = timezone;
     if (country !== undefined) updates.country = country;
     
@@ -2574,7 +2584,8 @@ app.patch('/api/profile', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
     
-    console.log('[PROFILE] Updated profile for:', userId);
+    // Return profile with lat/lon fields for mobile app
+    console.log('[PROFILE] Updated profile for:', userId, 'lat:', data?.lat, 'lon:', data?.lon);
     return res.json(data);
     
   } catch (err) {
@@ -2587,10 +2598,15 @@ app.patch('/api/profile', async (req, res) => {
 app.post('/api/profile/update', async (req, res) => {
   const { 
     userId, displayName, email, theme, pushEnabled, emailEnabled,
-    weatherContextEnabled, latitude, longitude, timezone, country
+    weatherContextEnabled, latitude, longitude, timezone, country,
+    lat, lon // Accept shorthand aliases from mobile app
   } = req.body;
   
-  console.log('[PROFILE] POST /api/profile/update for userId:', userId);
+  // Use lat/lon if latitude/longitude not provided (mobile app compat)
+  const finalLatitude = latitude ?? lat;
+  const finalLongitude = longitude ?? lon;
+  
+  console.log('[PROFILE] POST /api/profile/update for userId:', userId, 'lat:', finalLatitude, 'lon:', finalLongitude);
   
   if (!userId) {
     return res.status(400).json({ error: 'userId is required' });
@@ -2609,8 +2625,8 @@ app.post('/api/profile/update', async (req, res) => {
     if (pushEnabled !== undefined) updates.push_enabled = pushEnabled;
     if (emailEnabled !== undefined) updates.email_enabled = emailEnabled;
     if (weatherContextEnabled !== undefined) updates.weather_context_enabled = weatherContextEnabled;
-    if (latitude !== undefined) updates.latitude = latitude;
-    if (longitude !== undefined) updates.longitude = longitude;
+    if (finalLatitude !== undefined) updates.lat = finalLatitude;
+    if (finalLongitude !== undefined) updates.lon = finalLongitude;
     if (timezone !== undefined) updates.timezone = timezone;
     if (country !== undefined) updates.country = country;
     
@@ -2625,7 +2641,8 @@ app.post('/api/profile/update', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
     
-    console.log('[PROFILE] Updated profile for:', userId);
+    // Return profile with lat/lon fields for mobile app
+    console.log('[PROFILE] Updated profile for:', userId, 'returned lat:', data?.lat, 'lon:', data?.lon);
     return res.json(data);
     
   } catch (err) {
