@@ -533,6 +533,49 @@ async function maybeAttachFoodContext({ messages }) {
 
 // ---- HIGH-DISTRESS / CRISIS DETECTION ----
 
+// Per-user crisis state persistence
+// Keeps crisis mode active until 4 safe messages AND 15 min have passed
+const userCrisisStates = new Map();
+
+function getCrisisState(userId) {
+  if (!userCrisisStates.has(userId)) {
+    userCrisisStates.set(userId, {
+      active: false,
+      lastFlaggedAt: null,
+      safeMessagesSince: 0,
+    });
+  }
+  return userCrisisStates.get(userId);
+}
+
+function updateCrisisState(userId, isCurrentlyDistressed) {
+  const state = getCrisisState(userId);
+
+  if (isCurrentlyDistressed) {
+    // Enter or stay in crisis mode
+    state.active = true;
+    state.lastFlaggedAt = Date.now();
+    state.safeMessagesSince = 0;
+    console.log(`[CRISIS] User ${userId} - crisis mode ACTIVE (distress detected)`);
+  } else if (state.active) {
+    // In crisis mode but current message is safe
+    state.safeMessagesSince++;
+    const timeSinceFlag = Date.now() - state.lastFlaggedAt;
+    const fifteenMinutes = 15 * 60 * 1000;
+
+    console.log(`[CRISIS] User ${userId} - safe message #${state.safeMessagesSince}, ${Math.round(timeSinceFlag / 60000)}min since flag`);
+
+    // Exit crisis mode only after 4 safe messages AND 15 minutes
+    if (state.safeMessagesSince >= 4 && timeSinceFlag > fifteenMinutes) {
+      state.active = false;
+      state.safeMessagesSince = 0;
+      console.log(`[CRISIS] User ${userId} - crisis mode EXITED (4+ safe messages, 15+ min)`);
+    }
+  }
+
+  return state.active;
+}
+
 function isHighDistressText(text) {
   if (!text) return false;
   const t = text.toLowerCase();
@@ -1598,10 +1641,9 @@ app.post('/api/chat', async (req, res) => {
 
     // ---- CRISIS MODE DETECTION ----
     // Check if the user is in high distress - if so, skip all playful APIs
-    const isCrisisMode = isHighDistressContext(messages);
-    if (isCrisisMode) {
-      console.log('[TRACE CRISIS] High distress detected - entering crisis mode');
-    }
+    // Crisis mode persists: requires 4 safe messages + 15 min to exit
+    const isCurrentlyDistressed = isHighDistressContext(messages);
+    const isCrisisMode = updateCrisisState(effectiveUserId, isCurrentlyDistressed);
 
     // Load rhythmic awareness line (time/date-based contextual awareness)
     // Uses user's local time from the payload, not server time
