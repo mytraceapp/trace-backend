@@ -53,16 +53,32 @@ function isNewsQuestion(text) {
   if (!text) return false;
   const t = text.toLowerCase().trim();
 
-  const newsPatterns = [
+  // Direct news phrases that don't need location qualifier
+  const directNewsPatterns = [
+    "what's in the news",
+    'what is in the news',
+    "what's the news",
+    'what is the news',
+    'any news',
+    'latest news',
+    'current news',
+    'current events',
+    'what else is happening',
+  ];
+  
+  // Check direct patterns first
+  if (directNewsPatterns.some(pattern => t.includes(pattern))) {
+    return true;
+  }
+
+  // Patterns that need a topic/location
+  const topicPatterns = [
     "what's happening",
     'what is happening',
     "what's going on",
     'what is going on',
-    'latest news',
-    'current news',
     'news about',
     'news on',
-    'current events',
     'do you know what',
     'tell me about what',
   ];
@@ -70,7 +86,7 @@ function isNewsQuestion(text) {
   // Must also mention a topic/place to avoid false positives
   const hasLocation = /\b(in|about|with|on)\s+\w+/.test(t);
   
-  return newsPatterns.some(pattern => t.includes(pattern)) && hasLocation;
+  return topicPatterns.some(pattern => t.includes(pattern)) && hasLocation;
 }
 
 module.exports = {
