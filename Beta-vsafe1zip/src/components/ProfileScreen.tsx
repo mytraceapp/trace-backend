@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight, Lock, Download, Trash2, Volume2, VolumeX, X, Copy, Check, Sun, Moon, LogIn, LogOut } from 'lucide-react';
+import { ChevronRight, Lock, Download, Trash2, Volume2, VolumeX, X, Copy, Check, Sun, Moon, LogIn, LogOut, MapPin, MapPinOff } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { useUser, planLabels, PlanTier } from '../state/PlanContext';
 import { useTheme } from '../state/ThemeContext';
@@ -32,7 +32,7 @@ export function ProfileScreen({
   onNavigateToPrivacy,
   onNavigateToTerms
 }: ProfileScreenProps) {
-  const { profile, selectedPlan, generateReferralCode, updatePlan, setIsUpgrading, ambienceEnabled, setAmbienceEnabled, ambienceVolume, setAmbienceVolume } = useUser();
+  const { profile, selectedPlan, generateReferralCode, updatePlan, setIsUpgrading, ambienceEnabled, setAmbienceEnabled, ambienceVolume, setAmbienceVolume, weatherContextEnabled, setWeatherContextEnabled } = useUser();
   const { theme, effectiveTheme, setTheme } = useTheme();
   const { user, signOut, currentProfile, updateProfileData } = useAuth();
   const { preferences, timeZone, setTimeZone } = useUserPreferences(supabase, user);
@@ -763,6 +763,59 @@ export function ProfileScreen({
                   >
                     {timeZone ?? "Detecting..."}
                   </span>
+                </div>
+              </div>
+
+              {/* Weather Context */}
+              <div className="py-3 px-3 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: 'var(--text-primary)',
+                        fontSize: '14px',
+                        fontWeight: 300,
+                        letterSpacing: '0.01em',
+                      }}
+                    >
+                      Weather Context
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: 'var(--text-secondary)',
+                        fontSize: '11px',
+                        fontWeight: 300,
+                        marginTop: '2px',
+                      }}
+                    >
+                      Helps TRACE understand your local conditions
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setWeatherContextEnabled(!weatherContextEnabled)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300"
+                    style={{
+                      background: 'var(--accent-soft)',
+                    }}
+                  >
+                    {weatherContextEnabled ? (
+                      <MapPin size={14} style={{ color: 'var(--text-primary)', strokeWidth: 1.5 }} />
+                    ) : (
+                      <MapPinOff size={14} style={{ color: 'var(--text-secondary)', strokeWidth: 1.5 }} />
+                    )}
+                    <span
+                      style={{
+                        fontFamily: 'Georgia, serif',
+                        color: weatherContextEnabled ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        fontSize: '13px',
+                        fontWeight: 300,
+                      }}
+                    >
+                      {weatherContextEnabled ? 'On' : 'Off'}
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>

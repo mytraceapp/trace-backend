@@ -11,6 +11,11 @@ export interface Profile {
   ambience_enabled: boolean;
   ambience_volume: number;
   chat_style: 'minimal' | 'conversation';
+  weather_context_enabled: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  timezone: string | null;
+  country: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -23,6 +28,11 @@ export interface ProfileUpdate {
   ambience_enabled?: boolean;
   ambience_volume?: number;
   chat_style?: 'minimal' | 'conversation';
+  weather_context_enabled?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  timezone?: string | null;
+  country?: string | null;
 }
 
 export async function getOrCreateProfile(user: User): Promise<Profile | null> {
@@ -54,6 +64,11 @@ export async function getOrCreateProfile(user: User): Promise<Profile | null> {
       ambience_enabled: true,
       ambience_volume: 40,
       chat_style: 'conversation',
+      weather_context_enabled: false,
+      latitude: null,
+      longitude: null,
+      timezone: null,
+      country: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

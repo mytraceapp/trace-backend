@@ -17,6 +17,7 @@ interface UserState {
   isUpgrading: boolean;
   ambienceEnabled: boolean;
   ambienceVolume: number;
+  weatherContextEnabled: boolean;
   setSelectedPlan: (plan: PlanTier) => void;
   setProfile: (profile: UserProfile) => void;
   updatePlan: (plan: PlanTier, hasPaid?: boolean) => void;
@@ -24,6 +25,7 @@ interface UserState {
   setIsUpgrading: (value: boolean) => void;
   setAmbienceEnabled: (value: boolean) => void;
   setAmbienceVolume: (value: number) => void;
+  setWeatherContextEnabled: (value: boolean) => void;
   saveProfileToSupabase: (profile: UserProfile) => Promise<void>;
   loadProfileFromSupabase: () => Promise<void>;
 }
@@ -49,6 +51,7 @@ export function UserProvider({ children }: UserProviderProps) {
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [ambienceEnabled, setAmbienceEnabledState] = useState(true);
   const [ambienceVolume, setAmbienceVolumeState] = useState(65);
+  const [weatherContextEnabled, setWeatherContextEnabledState] = useState(false);
 
   // Save profile to Supabase
   const saveProfileToSupabase = useCallback(async (profileData: UserProfile) => {
@@ -70,6 +73,7 @@ export function UserProvider({ children }: UserProviderProps) {
           referral_code: profileData.referralCode || null,
           ambience_enabled: ambienceEnabled,
           ambience_volume: ambienceVolume,
+          weather_context_enabled: weatherContextEnabled,
           updated_at: new Date().toISOString(),
         });
 
@@ -81,7 +85,7 @@ export function UserProvider({ children }: UserProviderProps) {
     } catch (e) {
       console.error('Failed to save profile:', e);
     }
-  }, [ambienceEnabled, ambienceVolume]);
+  }, [ambienceEnabled, ambienceVolume, weatherContextEnabled]);
 
   // Load profile from Supabase
   const loadProfileFromSupabase = useCallback(async () => {
@@ -126,6 +130,11 @@ export function UserProvider({ children }: UserProviderProps) {
         
         if (data.ambience_volume !== null) {
           setAmbienceVolumeState(data.ambience_volume);
+        }
+        
+        // Load weather context setting
+        if (data.weather_context_enabled !== null) {
+          setWeatherContextEnabledState(data.weather_context_enabled);
         }
       }
     } catch (e) {
@@ -184,6 +193,13 @@ export function UserProvider({ children }: UserProviderProps) {
     }
   }, [profile, saveProfileToSupabase]);
 
+  const setWeatherContextEnabled = useCallback((value: boolean) => {
+    setWeatherContextEnabledState(value);
+    if (profile) {
+      saveProfileToSupabase(profile);
+    }
+  }, [profile, saveProfileToSupabase]);
+
   const updatePlan = useCallback((plan: PlanTier, hasPaid?: boolean) => {
     if (profile) {
       const updatedProfile = {
@@ -223,6 +239,8 @@ export function UserProvider({ children }: UserProviderProps) {
       setAmbienceEnabled,
       ambienceVolume,
       setAmbienceVolume,
+      weatherContextEnabled,
+      setWeatherContextEnabled,
       saveProfileToSupabase,
       loadProfileFromSupabase
     }}>
