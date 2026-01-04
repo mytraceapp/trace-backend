@@ -33,64 +33,112 @@ const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion } = require('./newsClient');
 
 // ---- WEATHER HELPER ----
-// Simple TRACE-style weather summary using Open-Meteo (free, no API key needed)
+// TRACE-style weather summary using AccuWeather API
+const ACCUWEATHER_API_KEY = process.env.ACCUWEATHER_API_KEY;
+
+// Cache location keys to reduce API calls (AccuWeather has rate limits)
+const locationKeyCache = new Map();
+
+async function getAccuWeatherLocationKey(lat, lon) {
+  const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  if (locationKeyCache.has(cacheKey)) {
+    return locationKeyCache.get(cacheKey);
+  }
+
+  const url = `https://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey=${ACCUWEATHER_API_KEY}&q=${lat},${lon}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('[WEATHER] AccuWeather location error:', res.status);
+      return null;
+    }
+    const data = await res.json();
+    const locationKey = data?.Key;
+    if (locationKey) {
+      locationKeyCache.set(cacheKey, locationKey);
+    }
+    return locationKey;
+  } catch (err) {
+    console.error('[WEATHER] AccuWeather location fetch error:', err);
+    return null;
+  }
+}
+
 async function getWeatherSummary({ lat, lon }) {
   if (lat == null || lon == null) {
     return null;
   }
 
-  const url = `https://api.open-meteo.com/v1/forecast` +
-    `?latitude=${lat}` +
-    `&longitude=${lon}` +
-    `&current=temperature_2m,wind_speed_10m` +
-    `&hourly=temperature_2m,precipitation_probability,cloudcover` +
-    `&timezone=auto` +
-    `&temperature_unit=fahrenheit`;
+  if (!ACCUWEATHER_API_KEY) {
+    console.error('[WEATHER] AccuWeather API key not configured');
+    return null;
+  }
 
-  let data;
+  // Step 1: Get location key from coordinates
+  const locationKey = await getAccuWeatherLocationKey(lat, lon);
+  if (!locationKey) {
+    return null;
+  }
+
+  // Step 2: Get current conditions
+  const currentUrl = `https://dataservice.accuweather.com/currentconditions/v1/${locationKey}?apikey=${ACCUWEATHER_API_KEY}&details=true`;
+
+  let currentData;
   try {
-    const res = await fetch(url);
+    const res = await fetch(currentUrl);
     if (!res.ok) {
-      console.error('[WEATHER] Open-Meteo error status:', res.status, await res.text());
+      console.error('[WEATHER] AccuWeather current conditions error:', res.status);
       return null;
     }
-    data = await res.json();
+    currentData = await res.json();
   } catch (err) {
-    console.error('[WEATHER] Open-Meteo fetch error:', err);
+    console.error('[WEATHER] AccuWeather current fetch error:', err);
     return null;
   }
 
-  const current = data.current;
-  const hourly = data.hourly;
-
-  if (!current || !hourly || !hourly.temperature_2m || !hourly.time) {
+  if (!currentData || !currentData[0]) {
     return null;
   }
 
-  // Take next ~6 hours
-  const temps = hourly.temperature_2m.slice(0, 6);
-  const avgTemp = Math.round(
-    temps.reduce((a, b) => a + b, 0) / Math.max(temps.length, 1)
-  );
+  const current = currentData[0];
+  const nowTemp = Math.round(current.Temperature?.Imperial?.Value ?? 0);
+  const feelsLike = Math.round(current.RealFeelTemperature?.Imperial?.Value ?? nowTemp);
+  const wind = Math.round(current.Wind?.Speed?.Imperial?.Value ?? 0);
+  const weatherText = current.WeatherText || '';
+  const humidity = current.RelativeHumidity ?? null;
+  const uvIndex = current.UVIndex ?? null;
 
-  const nowTemp = Math.round(current.temperature_2m);
-  const wind = Math.round(current.wind_speed_10m ?? 0);
-
+  // Build TRACE-style tone
   let tempTone = '';
-  if (avgTemp <= 45) tempTone = 'Pretty cold —';
-  else if (avgTemp <= 65) tempTone = 'Cool and gentle —';
-  else if (avgTemp <= 80) tempTone = 'Mild and comfortable —';
+  if (nowTemp <= 45) tempTone = 'Pretty cold —';
+  else if (nowTemp <= 65) tempTone = 'Cool and gentle —';
+  else if (nowTemp <= 80) tempTone = 'Mild and comfortable —';
   else tempTone = 'Warm —';
 
-  const summary =
-    `${tempTone} around ${avgTemp}°F over the next few hours where they are. ` +
-    `Right now it's about ${nowTemp}°F with a breeze around ${wind} mph. ` +
-    `Use this context gently and only if they ask about the weather or mention conditions outside.`;
+  // Build a natural summary
+  let summary = `${tempTone} currently ${nowTemp}°F`;
+  if (Math.abs(feelsLike - nowTemp) >= 5) {
+    summary += ` (feels like ${feelsLike}°F)`;
+  }
+  summary += `. ${weatherText}.`;
+
+  if (wind > 10) {
+    summary += ` Wind around ${wind} mph.`;
+  }
+
+  summary += ` Use this context gently and only if they ask about the weather or mention conditions outside.`;
 
   return {
     summary,
-    current,
-    hourly,
+    current: {
+      temperature: nowTemp,
+      feelsLike,
+      wind,
+      weatherText,
+      humidity,
+      uvIndex,
+    },
   };
 }
 
