@@ -1140,6 +1140,49 @@ app.patch('/api/profile', async (req, res) => {
   }
 });
 
+// POST /api/profile/update - Update user profile (for mobile app compatibility)
+app.post('/api/profile/update', async (req, res) => {
+  const { userId, displayName, email, theme, pushEnabled, emailEnabled } = req.body;
+  
+  console.log('[PROFILE] POST /api/profile/update for userId:', userId);
+  
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required' });
+  }
+  
+  if (!supabaseServer) {
+    return res.status(500).json({ error: 'Database not configured' });
+  }
+  
+  try {
+    const updates = { updated_at: new Date().toISOString() };
+    
+    if (displayName !== undefined) updates.display_name = displayName;
+    if (email !== undefined) updates.email = email;
+    if (theme !== undefined) updates.theme = theme;
+    if (pushEnabled !== undefined) updates.push_enabled = pushEnabled;
+    if (emailEnabled !== undefined) updates.email_enabled = emailEnabled;
+    
+    const { data, error } = await supabaseServer
+      .from('profiles')
+      .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('[PROFILE] Update error:', error.message);
+      return res.status(500).json({ error: error.message });
+    }
+    
+    console.log('[PROFILE] Updated profile for:', userId);
+    return res.json(data);
+    
+  } catch (err) {
+    console.error('[PROFILE] Error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/subscription/mark-upgraded - Update subscription status
 app.post('/api/subscription/mark-upgraded', async (req, res) => {
   const { userId, planStatus, planExpiresAt, hasCompletedOnboarding } = req.body;
