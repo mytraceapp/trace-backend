@@ -485,18 +485,18 @@ app.post('/api/analyze-emotion', async (req, res) => {
 // Unified greeting: Handles both first-run and returning users
 app.post('/api/greeting', async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, isNewUser } = req.body;
     if (!userId) {
       return res.status(400).json({ error: 'userId required' });
     }
 
     const profile = await loadProfileBasic(userId);
-    if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
-    }
+    const displayName = profile?.preferred_name?.trim() || null;
+    
+    // Prioritize isNewUser flag from mobile app, fallback to database check
+    const firstRun = isNewUser === true || (profile && !profile.first_run_completed);
 
-    const displayName = profile.preferred_name?.trim() || null;
-    const firstRun = !profile.first_run_completed;
+    console.log('[TRACE GREETING] isNewUser:', isNewUser, 'firstRun:', firstRun, 'displayName:', displayName);
 
     // Choose prompt based on first-run status
     const systemPrompt = firstRun
