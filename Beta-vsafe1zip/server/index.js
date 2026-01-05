@@ -5487,6 +5487,17 @@ app.post('/api/patterns/insights', async (req, res) => {
     const crossPatternHint = buildCrossPatternHint(stressEchoes, energyFlow);
     const predictiveHint = buildPredictiveHint(stressEchoes, energyFlow);
     
+    // Calculate energyDayBuckets (Sun-Sat activity counts)
+    const energyDayBuckets = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
+    for (const log of activityLogs) {
+      const dayIndex = new Date(log.completed_at || log.created_at).getDay();
+      energyDayBuckets[dayIndex] += 1;
+    }
+    
+    // Calculate peak window ratios (0-1 scale)
+    const peakWindowStartRatio = peakWindow.startHour != null ? peakWindow.startHour / 24 : null;
+    const peakWindowEndRatio = peakWindow.endHour != null ? peakWindow.endHour / 24 : null;
+    
     console.log('📊 [PATTERNS INSIGHTS POST] Result:', { 
       peakWindow, 
       mostHelpfulActivity, 
@@ -5496,12 +5507,13 @@ app.post('/api/patterns/insights', async (req, res) => {
       weeklyMoodTrend: weeklyMoodTrend.calm.direction + '/' + weeklyMoodTrend.stress.direction,
       crossPatternHint: crossPatternHint?.slice(0, 50) + '...',
       predictiveHint: predictiveHint ? 'yes' : 'no',
+      energyDayBuckets,
       sampleSize: activityLogs.length,
       journalSampleSize: journals.length,
     });
     
     return res.json({
-      // Core pattern objects (nested)
+      // Core pattern objects (nested) - kept for backward compatibility
       peakWindow,
       mostHelpfulActivity,
       stressEchoes,
@@ -5511,13 +5523,17 @@ app.post('/api/patterns/insights', async (req, res) => {
       crossPatternHint,
       predictiveHint,
       
-      // Flattened fields for mobile frontend convenience
-      energyRhythmLabel: energyFlow.label,
+      // Flattened fields for mobile frontend (exact field names per spec)
+      peakWindowLabel: peakWindow.label,
+      peakWindowStartRatio,
+      peakWindowEndRatio,
+      energyDayBuckets,
       stressEchoesLabel: stressEchoes.label,
       reliefLabel: softening.label,
       totalSoftEntries: softening.totalSoftEntries,
       mostHelpfulActivityLabel: mostHelpfulActivity.label,
       mostHelpfulActivityCount: mostHelpfulActivity.count,
+      energyRhythmLabel: energyFlow.label,
       
       sampleSize: activityLogs.length,
       journalSampleSize: journals.length,
@@ -5525,13 +5541,15 @@ app.post('/api/patterns/insights', async (req, res) => {
     
   } catch (err) {
     console.error('📊 [PATTERNS INSIGHTS POST] Error:', err);
+    const fallbackPeakLabel = "Your patterns are still emerging";
     const fallbackEnergy = "As you use activities more, I'll start noticing which days your energy reaches for TRACE the most.";
     const fallbackStress = "As you journal more, I'll start noticing which days tend to echo the heaviest pressure.";
     const fallbackRelief = "As more calm moments show up in your journal, I'll notice where in the week things tend to soften a little.";
     const fallbackActivity = "Once you've tried a few activities, I'll start noticing which ones you return to the most.";
     
     return res.json({
-      peakWindow: { label: "Not enough data yet", startHour: null, endHour: null },
+      // Core pattern objects (nested) - kept for backward compatibility
+      peakWindow: { label: fallbackPeakLabel, startHour: null, endHour: null },
       mostHelpfulActivity: { label: fallbackActivity, count: 0 },
       stressEchoes: { label: fallbackStress, topDayIndex: null, stressCount: 0, totalStressEntries: 0 },
       energyFlow: { label: fallbackEnergy, topDayIndex: null, percentage: null, totalActivities: 0 },
@@ -5543,13 +5561,17 @@ app.post('/api/patterns/insights', async (req, res) => {
       crossPatternHint: "As more weeks unfold, I'll start noticing how your heavier days and your go-to supports interact.",
       predictiveHint: null,
       
-      // Flattened fields for mobile frontend convenience
-      energyRhythmLabel: fallbackEnergy,
+      // Flattened fields for mobile frontend (exact field names per spec)
+      peakWindowLabel: fallbackPeakLabel,
+      peakWindowStartRatio: null,
+      peakWindowEndRatio: null,
+      energyDayBuckets: [0, 0, 0, 0, 0, 0, 0],
       stressEchoesLabel: fallbackStress,
       reliefLabel: fallbackRelief,
       totalSoftEntries: 0,
       mostHelpfulActivityLabel: fallbackActivity,
       mostHelpfulActivityCount: 0,
+      energyRhythmLabel: fallbackEnergy,
       
       sampleSize: 0,
       journalSampleSize: 0,

@@ -1,0 +1,82 @@
+You are updating the TRACE backend. Create or update the endpoint:
+
+GET /api/patterns/insights?userId={id}
+
+This endpoint should:
+• Read the user's activity logs, journal entries, chat sessions, and moods
+• Analyze weekly patterns and behavioral signatures
+• Return JSON formatted EXACTLY like the example below
+• This is READ-ONLY — do not modify the database
+
+Return JSON structure:
+
+{
+  "peakWindowLabel": "3:00 AM – 5:00 AM",
+  "peakWindowStartRatio": 0.125,
+  "peakWindowEndRatio": 0.208,
+
+  "energyDayBuckets": [12, 8, 5, 7, 6, 4, 3],
+
+  "stressEchoesLabel": "Monday mornings seem to echo the heaviest pressure, like the week arrives before you're fully ready.",
+
+  "reliefLabel": "Saturday evenings seem to soften things. That's often when your system finally exhales.",
+
+  "totalSoftEntries": 4,
+
+  "mostHelpfulActivityLabel": "Rising",
+  "mostHelpfulActivityCount": 2,
+
+  "energyRhythmLabel": "Your energy seems to reach for TRACE most on Mondays — like it's a natural reset point in your week.",
+
+  "weeklyMoodTrend": {
+    "calm": { 
+      "thisWeek": 4, 
+      "lastWeek": 0, 
+      "direction": "up", 
+      "label": "↑ More calm moments than last week" 
+    },
+    "stress": { 
+      "thisWeek": 5, 
+      "lastWeek": 0, 
+      "direction": "up", 
+      "label": "↑ More overwhelmed moments than last week" 
+    }
+  },
+
+  "crossPatternHint": "When Mondays feel heavier, softer evenings tend to follow — especially Saturdays.",
+
+  "predictiveHint": "Mid-week tends to run high for you. Protect Wednesday afternoons where you can.",
+
+  "sampleSize": 3,
+  "journalSampleSize": 9
+}
+
+Field definitions:
+
+• peakWindowLabel: Human-readable time range (e.g., "3:00 AM – 5:00 AM")
+• peakWindowStartRatio: Start hour as decimal (0-1), calculated as startHour/24
+• peakWindowEndRatio: End hour as decimal (0-1), calculated as endHour/24
+• energyDayBuckets: Array of 7 numbers (Sun-Sat) showing activity count per day
+• stressEchoesLabel: Narrative about when stress patterns repeat
+• reliefLabel: Narrative about when relief/calm moments cluster
+• totalSoftEntries: Count of calm/okay/grounded/relieved entries (0-1 = light, 2-4 = moderate, 5+ = strong)
+• mostHelpfulActivityLabel: Name of most-used calm/grounding activity (e.g., "Rising", "Walking", "Talking")
+• mostHelpfulActivityCount: Number of times that activity was logged
+• energyRhythmLabel: Narrative about weekly energy rhythm (context-aware: Steady/Building/Sporadic + Calm-leaning/Energizing/Grounding)
+• weeklyMoodTrend.direction: Must be "up" | "down" | "stable"
+• crossPatternHint: One sentence connecting patterns (shown in modal)
+• predictiveHint: ONE short compassionate sentence (appended to narrative)
+• sampleSize: Number of activity logs analyzed
+• journalSampleSize: Number of journal entries analyzed
+
+Critical rules:
+
+1. ALL fields are OPTIONAL — if data is missing, return null or omit the field
+2. DO NOT crash if there isn't enough data — provide soft language like "Your patterns are still emerging" or "Not enough data yet"
+3. Use TRACE tone: calm, supportive, non-clinical, validating, poetic
+4. Keep narratives concise (1-2 sentences max)
+5. predictiveHint should be ONE sentence only
+6. weeklyMoodTrend can be null if comparing less than 2 weeks of data
+7. mostHelpfulActivityLabel should match activity types users actually log (Rising, Walking, Talking, Creating, Moving, etc.)
+
+Success criteria: Mobile app can consume this JSON without any UI changes.
