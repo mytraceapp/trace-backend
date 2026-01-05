@@ -5088,6 +5088,429 @@ async function computeLastHourAnalytics(supabase, userId, userTimezone = 'UTC') 
   }
 }
 
+// ============================================
+// STUDIO INSIGHTS - Advanced Analytics
+// ============================================
+
+// Helper: Get user subscription tier from database
+async function getUserSubscriptionTier(supabase, userId) {
+  if (!supabase || !userId) return 'free';
+  
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('plan_status')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error || !data) {
+      console.log('[STUDIO] Could not fetch user tier, defaulting to free');
+      return 'free';
+    }
+    
+    const plan = (data.plan_status || '').toLowerCase();
+    // Check for studio tier (could be 'studio', 'premium', etc.)
+    if (plan === 'studio' || plan === 'premium') {
+      return 'studio';
+    }
+    return 'free';
+  } catch (err) {
+    console.error('[STUDIO] Error fetching subscription tier:', err);
+    return 'free';
+  }
+}
+
+// 1. Rhythm Consistency: Which days does the user check in most consistently?
+function computeRhythmConsistency(activityLogs = [], journals = []) {
+  const result = {
+    anchorDays: [],
+    consistencyScore: null,
+    label: 'emerging',
+  };
+  
+  // Combine all check-ins (activities + journals)
+  const allCheckins = [];
+  for (const log of activityLogs) {
+    allCheckins.push({ ts: log.completed_at || log.created_at });
+  }
+  for (const j of journals) {
+    allCheckins.push({ ts: j.created_at });
+  }
+  
+  // Need minimum 7 check-ins to compute meaningful rhythm
+  if (allCheckins.length < 7) {
+    return result;
+  }
+  
+  // Count check-ins per day with time-decay weighting
+  const dayWeights = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
+  let totalWeight = 0;
+  
+  for (const c of allCheckins) {
+    const dayIndex = new Date(c.ts).getDay();
+    const weeksAgo = getWeeksAgo(c.ts);
+    const weight = weekWeight(weeksAgo);
+    dayWeights[dayIndex] += weight;
+    totalWeight += weight;
+  }
+  
+  if (totalWeight < 5) {
+    return result;
+  }
+  
+  // Find anchor day(s) - days with significantly more check-ins
+  const avgPerDay = totalWeight / 7;
+  const anchorThreshold = avgPerDay * 1.3; // 30% above average
+  
+  const anchorDays = [];
+  let topDayWeight = 0;
+  
+  for (let i = 0; i < 7; i++) {
+    if (dayWeights[i] >= anchorThreshold) {
+      anchorDays.push(i);
+    }
+    if (dayWeights[i] > topDayWeight) {
+      topDayWeight = dayWeights[i];
+    }
+  }
+  
+  // Consistency score: how concentrated are check-ins on anchor days?
+  const consistencyScore = topDayWeight / totalWeight;
+  
+  // Determine label based on consistency
+  let label = 'emerging';
+  if (consistencyScore >= 0.5) {
+    label = 'strong';
+  } else if (consistencyScore >= 0.3) {
+    label = 'clear';
+  } else if (consistencyScore >= 0.2) {
+    label = 'soft';
+  }
+  
+  return {
+    anchorDays: anchorDays.length > 0 ? anchorDays : [],
+    consistencyScore: Math.round(consistencyScore * 100) / 100,
+    label,
+  };
+}
+
+// 2. Response Time: How quickly does user reach for TRACE after heavy moments?
+async function computeResponseTime(supabase, userId, journals = []) {
+  const result = {
+    avgMinutesAfterHeavy: null,
+    label: 'emerging',
+  };
+  
+  if (!supabase || !userId) return result;
+  
+  // Find "heavy" journal entries (stressed, overwhelmed, etc.)
+  const heavyEntries = journals.filter(j => {
+    const mood = (j.mood || '').toLowerCase();
+    return STRESS_MOODS.includes(mood);
+  });
+  
+  // Need at least 3 heavy entries
+  if (heavyEntries.length < 3) {
+    return result;
+  }
+  
+  try {
+    // For each heavy entry, find the next TRACE interaction
+    const responseTimes = [];
+    
+    for (const heavy of heavyEntries) {
+      const heavyTime = new Date(heavy.created_at);
+      const windowEnd = new Date(heavyTime.getTime() + 24 * 60 * 60 * 1000); // 24h window
+      
+      // Check for activity logs after this heavy moment
+      const { data: nextActivity } = await supabase
+        .from('activity_logs')
+        .select('completed_at')
+        .eq('user_id', userId)
+        .gt('completed_at', heavy.created_at)
+        .lt('completed_at', windowEnd.toISOString())
+        .order('completed_at', { ascending: true })
+        .limit(1);
+      
+      if (nextActivity && nextActivity.length > 0) {
+        const nextTime = new Date(nextActivity[0].completed_at);
+        const diffMinutes = (nextTime - heavyTime) / (1000 * 60);
+        if (diffMinutes > 0 && diffMinutes < 1440) { // Within 24 hours
+          responseTimes.push(diffMinutes);
+        }
+      }
+    }
+    
+    // Need at least 3 response time data points
+    if (responseTimes.length < 3) {
+      return result;
+    }
+    
+    // Calculate average response time
+    const avgMinutes = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+    
+    // Determine label based on sample size
+    let label = 'emerging';
+    if (responseTimes.length >= 8) {
+      label = 'strong';
+    } else if (responseTimes.length >= 5) {
+      label = 'clear';
+    } else if (responseTimes.length >= 3) {
+      label = 'soft';
+    }
+    
+    return {
+      avgMinutesAfterHeavy: Math.round(avgMinutes * 10) / 10,
+      label,
+    };
+  } catch (err) {
+    console.error('[STUDIO] Response time error:', err);
+    return result;
+  }
+}
+
+// 3. Session Depth: Average conversation length with TRACE
+async function computeSessionDepth(supabase, userId) {
+  const result = {
+    avgTurnsPerSession: null,
+    style: null,
+    label: 'emerging',
+  };
+  
+  if (!supabase || !userId) return result;
+  
+  try {
+    // Get chat messages from last 30 days
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+    
+    const { data: messages, error } = await supabase
+      .from('chat_messages')
+      .select('role, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', since.toISOString())
+      .order('created_at', { ascending: true });
+    
+    if (error || !messages || messages.length < 6) {
+      return result;
+    }
+    
+    // Group messages into sessions (30min gap = new session)
+    const sessions = [];
+    let currentSession = [];
+    let lastTime = null;
+    
+    for (const msg of messages) {
+      const msgTime = new Date(msg.created_at);
+      
+      if (lastTime && (msgTime - lastTime) > 30 * 60 * 1000) {
+        // New session
+        if (currentSession.length > 0) {
+          sessions.push(currentSession);
+        }
+        currentSession = [];
+      }
+      
+      currentSession.push(msg);
+      lastTime = msgTime;
+    }
+    
+    if (currentSession.length > 0) {
+      sessions.push(currentSession);
+    }
+    
+    // Need at least 3 sessions
+    if (sessions.length < 3) {
+      return result;
+    }
+    
+    // Calculate average turns per session
+    const turnsPerSession = sessions.map(s => s.length);
+    const avgTurns = turnsPerSession.reduce((a, b) => a + b, 0) / sessions.length;
+    
+    // Determine style
+    let style = null;
+    if (avgTurns <= 6) {
+      style = 'quick';
+    } else if (avgTurns <= 14) {
+      style = 'balanced';
+    } else {
+      style = 'deep';
+    }
+    
+    // Determine label based on sample size
+    let label = 'emerging';
+    if (sessions.length >= 10) {
+      label = 'strong';
+    } else if (sessions.length >= 6) {
+      label = 'clear';
+    } else if (sessions.length >= 3) {
+      label = 'soft';
+    }
+    
+    return {
+      avgTurnsPerSession: Math.round(avgTurns * 10) / 10,
+      style,
+      label,
+    };
+  } catch (err) {
+    console.error('[STUDIO] Session depth error:', err);
+    return result;
+  }
+}
+
+// 4. Emotional Range: Mood variety this week
+function computeEmotionalRange(journals = []) {
+  const result = {
+    distinctMoodsThisWeek: null,
+    range: null,
+    label: 'emerging',
+  };
+  
+  // Get journals from last 7 days
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  
+  const recentJournals = journals.filter(j => new Date(j.created_at) >= oneWeekAgo);
+  
+  // Need at least 5 mood-tagged entries
+  if (recentJournals.length < 5) {
+    return result;
+  }
+  
+  // Count distinct moods
+  const moods = new Set();
+  for (const j of recentJournals) {
+    const mood = (j.mood || '').toLowerCase().trim();
+    if (mood) {
+      moods.add(mood);
+    }
+  }
+  
+  const distinctCount = moods.size;
+  
+  if (distinctCount < 1) {
+    return result;
+  }
+  
+  // Determine range
+  let range = null;
+  if (distinctCount <= 2) {
+    range = 'narrow';
+  } else if (distinctCount <= 4) {
+    range = 'moderate';
+  } else {
+    range = 'wide';
+  }
+  
+  // Determine label based on sample size
+  let label = 'emerging';
+  if (recentJournals.length >= 12) {
+    label = 'strong';
+  } else if (recentJournals.length >= 8) {
+    label = 'clear';
+  } else if (recentJournals.length >= 5) {
+    label = 'soft';
+  }
+  
+  return {
+    distinctMoodsThisWeek: distinctCount,
+    range,
+    label,
+  };
+}
+
+// 5. Activity Diversity: How many different tools does the user use?
+function computeActivityDiversity(activityLogs = []) {
+  const result = {
+    distinctActivitiesThisWeek: null,
+    anchorActivityLabel: null,
+    label: 'emerging',
+  };
+  
+  // Get activities from last 14 days (2 weeks) with time-decay
+  const twoWeeksAgo = new Date();
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  
+  const recentLogs = activityLogs.filter(log => {
+    const ts = new Date(log.completed_at || log.created_at);
+    return ts >= twoWeeksAgo;
+  });
+  
+  // Need at least 4 activities
+  if (recentLogs.length < 4) {
+    return result;
+  }
+  
+  // Count activities with time-decay weighting
+  const activityWeights = {};
+  let totalWeight = 0;
+  
+  for (const log of recentLogs) {
+    const type = log.activity_type;
+    const weeksAgo = getWeeksAgo(log.completed_at || log.created_at);
+    const weight = weekWeight(weeksAgo);
+    activityWeights[type] = (activityWeights[type] || 0) + weight;
+    totalWeight += weight;
+  }
+  
+  const distinctActivities = Object.keys(activityWeights).length;
+  
+  // Find anchor activity (most used)
+  let anchorActivity = null;
+  let topWeight = 0;
+  
+  for (const [type, weight] of Object.entries(activityWeights)) {
+    if (weight > topWeight) {
+      topWeight = weight;
+      anchorActivity = type;
+    }
+  }
+  
+  // Determine label based on sample size
+  let label = 'emerging';
+  if (recentLogs.length >= 12) {
+    label = 'strong';
+  } else if (recentLogs.length >= 8) {
+    label = 'clear';
+  } else if (recentLogs.length >= 4) {
+    label = 'soft';
+  }
+  
+  return {
+    distinctActivitiesThisWeek: distinctActivities,
+    anchorActivityLabel: anchorActivity,
+    label,
+  };
+}
+
+// Build complete studioInsights object (only for Studio tier users)
+async function buildStudioInsights(supabase, userId, activityLogs, journals, crisisMode = false) {
+  // In crisis mode, return null or all-emerging structure
+  if (crisisMode) {
+    return null; // Option A: Skip studioInsights in crisis mode
+  }
+  
+  try {
+    const rhythmConsistency = computeRhythmConsistency(activityLogs, journals);
+    const responseTime = await computeResponseTime(supabase, userId, journals);
+    const sessionDepth = await computeSessionDepth(supabase, userId);
+    const emotionalRange = computeEmotionalRange(journals);
+    const activityDiversity = computeActivityDiversity(activityLogs);
+    
+    return {
+      rhythmConsistency,
+      responseTime,
+      sessionDepth,
+      emotionalRange,
+      activityDiversity,
+    };
+  } catch (err) {
+    console.error('[STUDIO] Error building studio insights:', err);
+    return null;
+  }
+}
+
 function computeStressEchoes(journals = []) {
   if (!journals.length) {
     return {
@@ -5623,6 +6046,9 @@ app.post('/api/patterns/insights', async (req, res) => {
             comparisonLabel: null, // Disable comparison language in crisis mode
           },
           
+          // Studio Insights - disabled in crisis mode (no performance metrics)
+          studioInsights: null,
+          
           // Flattened fields - matching the exact mobile contract
           peakWindowLabel: crisisPeak,
           peakWindowStartRatio: null,
@@ -5874,6 +6300,20 @@ app.post('/api/patterns/insights', async (req, res) => {
       comparisonLabel: lastHourData.comparisonLabel,
     };
     
+    // Compute Studio Insights (only for Studio tier users)
+    let studioInsights = null;
+    if (userId) {
+      const subscriptionTier = await getUserSubscriptionTier(supabaseServer, userId);
+      const isStudio = subscriptionTier === 'studio';
+      
+      if (isStudio) {
+        console.log('📊 [PATTERNS] User is Studio tier, computing advanced analytics');
+        studioInsights = await buildStudioInsights(supabaseServer, userId, activityLogs, journals, false);
+      } else {
+        console.log('📊 [PATTERNS] User is Free tier, skipping studio insights');
+      }
+    }
+    
     // Calculate energyDayBuckets (Sun-Sat activity counts) with time-decay weighting
     const energyDayBuckets = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
     for (const log of activityLogs) {
@@ -5919,6 +6359,9 @@ app.post('/api/patterns/insights', async (req, res) => {
       // Last Hour analytics for Full Patterns page
       lastHourSummary,
       
+      // Studio Insights (advanced analytics for Studio tier only)
+      studioInsights,
+      
       // Flattened fields for mobile frontend (exact field names per spec)
       peakWindowLabel: peakWindow.label,
       peakWindowStartRatio,
@@ -5963,6 +6406,9 @@ app.post('/api/patterns/insights', async (req, res) => {
         checkinsToday: 0,
         comparisonLabel: null,
       },
+      
+      // Studio Insights (null on error)
+      studioInsights: null,
       
       // Flattened fields for mobile frontend (exact field names per spec)
       peakWindowLabel: fallbackPeakLabel,
