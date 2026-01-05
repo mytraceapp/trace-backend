@@ -4992,6 +4992,102 @@ function getWeeksAgo(dateLike) {
   return Math.floor(diffDays / 7);
 }
 
+// Map mood strings to numeric "heaviness" scores for comparison
+// Lower = lighter/calmer, Higher = heavier/more distressed
+function getMoodScore(mood) {
+  const m = (mood || "").toLowerCase();
+  if (SOFT_MOODS.includes(m)) return 1;  // calm, okay, peaceful, etc.
+  if (STRESS_MOODS.includes(m)) return 3; // overwhelmed, anxious, stressed, etc.
+  return 2; // neutral/unknown
+}
+
+// Compute "Last Hour" analytics for the Full Patterns page
+// Returns: checkinsLastHour, checkinsToday, comparisonLabel
+// userTimezone: IANA timezone string (e.g. 'America/Los_Angeles') for accurate "today" calculation
+async function computeLastHourAnalytics(supabase, userId, userTimezone = 'UTC') {
+  const result = {
+    checkinsLastHour: 0,
+    checkinsToday: 0,
+    comparisonLabel: null,
+    comparisonScoreDiff: null,
+  };
+  
+  if (!supabase || !userId) return result;
+  
+  const now = DateTime.now();
+  const oneHourAgo = now.minus({ hours: 1 });
+  
+  // Use user's timezone for "start of today" calculation
+  const userNow = now.setZone(userTimezone);
+  const startOfToday = userNow.startOf('day').toUTC();
+  
+  // Yesterday's same hour window for comparison (in user's timezone)
+  const yesterdayEnd = now.minus({ days: 1 });
+  const yesterdayStart = yesterdayEnd.minus({ hours: 1 });
+  
+  try {
+    // Query journal entries from the last 48 hours for efficiency
+    const since48h = now.minus({ hours: 48 });
+    const { data: journals, error } = await supabase
+      .from('journal_entries')
+      .select('id, mood, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', since48h.toISO())
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('[LAST HOUR ANALYTICS] Journal query error:', error);
+      return result;
+    }
+    
+    if (!journals || journals.length === 0) return result;
+    
+    // Categorize entries into time windows
+    const lastHourEntries = [];
+    const todayEntries = [];
+    const yesterdayHourEntries = [];
+    
+    for (const j of journals) {
+      const ts = DateTime.fromISO(j.created_at);
+      
+      if (ts >= oneHourAgo) {
+        lastHourEntries.push(j);
+      }
+      if (ts >= startOfToday) {
+        todayEntries.push(j);
+      }
+      if (ts >= yesterdayStart && ts < yesterdayEnd) {
+        yesterdayHourEntries.push(j);
+      }
+    }
+    
+    result.checkinsLastHour = lastHourEntries.length;
+    result.checkinsToday = todayEntries.length;
+    
+    // Compute comparison if we have enough data in both windows
+    if (lastHourEntries.length >= 1 && yesterdayHourEntries.length >= 1) {
+      const lastHourAvg = lastHourEntries.reduce((sum, j) => sum + getMoodScore(j.mood), 0) / lastHourEntries.length;
+      const yesterdayAvg = yesterdayHourEntries.reduce((sum, j) => sum + getMoodScore(j.mood), 0) / yesterdayHourEntries.length;
+      
+      const diff = lastHourAvg - yesterdayAvg;
+      result.comparisonScoreDiff = Math.round(diff * 100) / 100;
+      
+      if (diff >= 0.3) {
+        result.comparisonLabel = 'heavier';
+      } else if (diff <= -0.3) {
+        result.comparisonLabel = 'lighter';
+      } else {
+        result.comparisonLabel = 'similar';
+      }
+    }
+    
+    return result;
+  } catch (err) {
+    console.error('[LAST HOUR ANALYTICS] Error:', err);
+    return result;
+  }
+}
+
 function computeStressEchoes(journals = []) {
   if (!journals.length) {
     return {
@@ -5520,6 +5616,13 @@ app.post('/api/patterns/insights', async (req, res) => {
           crossPatternHint: null,
           predictiveHint: null,
           
+          // Last Hour analytics - still populated in crisis mode
+          lastHourSummary: {
+            checkinsLastHour: 0,
+            checkinsToday: 0,
+            comparisonLabel: null, // Disable comparison language in crisis mode
+          },
+          
           // Flattened fields - matching the exact mobile contract
           peakWindowLabel: crisisPeak,
           peakWindowStartRatio: null,
@@ -5763,6 +5866,14 @@ app.post('/api/patterns/insights', async (req, res) => {
     const crossPatternHint = buildCrossPatternHint(stressEchoes, energyFlow);
     const predictiveHint = buildPredictiveHint(stressEchoes, energyFlow);
     
+    // Compute Last Hour analytics for Full Patterns page (using validated timezone)
+    const lastHourData = await computeLastHourAnalytics(supabaseServer, userId, validatedTimezone);
+    const lastHourSummary = {
+      checkinsLastHour: lastHourData.checkinsLastHour,
+      checkinsToday: lastHourData.checkinsToday,
+      comparisonLabel: lastHourData.comparisonLabel,
+    };
+    
     // Calculate energyDayBuckets (Sun-Sat activity counts) with time-decay weighting
     const energyDayBuckets = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
     for (const log of activityLogs) {
@@ -5805,6 +5916,9 @@ app.post('/api/patterns/insights', async (req, res) => {
       crossPatternHint,
       predictiveHint,
       
+      // Last Hour analytics for Full Patterns page
+      lastHourSummary,
+      
       // Flattened fields for mobile frontend (exact field names per spec)
       peakWindowLabel: peakWindow.label,
       peakWindowStartRatio,
@@ -5842,6 +5956,13 @@ app.post('/api/patterns/insights', async (req, res) => {
       },
       crossPatternHint: "As more weeks unfold, I'll start noticing how your heavier days and your go-to supports interact.",
       predictiveHint: null,
+      
+      // Last Hour analytics fallback
+      lastHourSummary: {
+        checkinsLastHour: 0,
+        checkinsToday: 0,
+        comparisonLabel: null,
+      },
       
       // Flattened fields for mobile frontend (exact field names per spec)
       peakWindowLabel: fallbackPeakLabel,
