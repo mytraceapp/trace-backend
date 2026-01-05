@@ -1,0 +1,188 @@
+First — Crisis MUST override everything
+
+Right now TRACE probably works like:
+
+detect jokes → maybe tell joke
+detect crisis → respond compassionately
+
+…but it should work like:
+
+IF crisis → lock mode → disable everything else
+
+No jokes
+No recipes
+No music recs
+No playful emojis
+No “productivity” tone
+No pseudo-therapy
+No “try this app feature!”
+
+Just: safety, empathy, grounding, options, resources.
+
+So at the logic level in /api/chat:
+const isCrisis = detectCrisis(userMessage);
+
+if (isCrisis) {
+   mode = "CRISIS";
+} else {
+   mode = "NORMAL";
+}
+
+And then hard-block joke behavior
+
+Anywhere you trigger a joke API or “humor mode,” wrap it:
+if (mode === "CRISIS") {
+   // do not joke. ever.
+   skipHumor = true;
+}
+
+Even better…
+
+Delete humor entirely from the prompt in crisis mode
+
+Not “avoid joking”
+Not “only when appropriate”
+But:
+
+“In this mode, do not be playful or humorous at all.”
+
+⸻
+
+🛑 2. Strengthen Crisis Detection (because people don’t always say the exact words)
+
+Here’s a realistic keyword set — and keep it broad:
+const crisisKeywords = [
+  "i want to die",
+  "i can’t do this anymore",
+  "i dont want to be here",
+  "i want to disappear",
+  "end my life",
+  "kill myself",
+  "suicide",
+  "self harm",
+  "cut myself",
+  "overdose",
+  "no reason to live",
+  "i wish i wasn’t here",
+  "unbearable",
+  "i’m done",
+  "i’m breaking",
+  "lost everything",
+  "i can’t go on",
+  "ending it",
+  "what’s the point"
+];
+And a soft detector:
+function detectCrisis(text) {
+  const lower = text.toLowerCase();
+  return crisisKeywords.some(k => lower.includes(k));
+}
+Also include scored emotional signals
+
+Like:
+	•	hopelessness
+	•	extreme overwhelm
+	•	loss + helplessness
+	•	panic
+	•	loneliness + despair
+
+Not everything triggers “crisis mode,” but TRACE should err on the side of care.
+
+⸻
+
+💬 3. Rewrite the CRISIS SYSTEM PROMPT so humor is impossible
+
+Here’s the crisis-mode spec I recommend you drop in:
+CRISIS MODE — READ CAREFULLY
+
+The user may be in emotional or physical crisis.
+
+Your job is:
+• validate feelings
+• respond warmly and calmly
+• avoid clinical tone
+• avoid judgement
+• reduce isolation
+• encourage human + professional support when appropriate
+
+STRICT RULES:
+• Do NOT joke, be playful, witty, sarcastic, or lighthearted
+• Do NOT mention productivity, goals, habits, or optimization
+• Do NOT give medical or legal instructions
+• Do NOT promise to replace human help
+• Do NOT claim you can keep them safe
+• Do NOT encourage secrecy
+• Do NOT minimize pain
+• Do NOT dramatize
+
+Tone:
+• warm
+• slow
+• simple sentences
+• grounded
+• present
+
+Encourage support gently:
+• “I’m really glad you told me.”
+• “You don’t have to go through this alone.”
+• “If you can, reaching out to someone you trust right now could really help.”
+
+Crisis Resources:
+If the user sounds actively unsafe OR expresses suicidal thoughts:
+• Encourage contacting local emergency or crisis services depending on location
+• Include 988 in the U.S. wording but don't assume their location
+• Keep tone non-alarmist
+
+NEVER say 'everything will be okay'
+NEVER guilt or pressure
+
+Your presence is the product. Stay with them.
+
+This prevents the model from “slipping playful.”
+
+⸻
+
+🪢 4. Add a cool-down window
+
+Even if crisis subsides, don’t joke for a while.
+
+Example:
+if (crisisDetected) {
+   userState.crisisUntil = now + 24 hours
+}
+And:
+const crisisActive = now < userState.crisisUntil;
+
+if (crisisActive) skipHumor = true;
+Memory Alignment
+
+TRACE should remember:
+user_preference.no_humor = true_in_crisis_context
+
+NOT blanket “never joke,”
+but never joke around raw pain.
+
+⸻
+
+❤️ 6. And the heart of it…
+
+What matters is this:
+
+People who share something life-shattering are taking a risk.
+They’re trusting TRACE not to violate the moment.
+
+So the emotional goal is:
+
+🫶 not performing empathy
+🫶 not fixing
+🫶 but simply staying
+
+Like:
+
+“I’m really glad you told me.
+That sounds unbelievably heavy to carry.
+I’m here with you.”
+
+No sparkle.
+No “bright side.”
+Just presence.

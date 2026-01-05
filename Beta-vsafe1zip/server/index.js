@@ -800,31 +800,48 @@ function isHighDistressText(text) {
   // Direct suicidality / self-harm / existential despair
   if (
     t.includes('i want to die') ||
+    t.includes('want to die') ||
     t.includes('i want to disappear') ||
     t.includes("don't want to be here") ||
+    t.includes("don't want to live") ||
+    t.includes("not wanting to live") ||
+    t.includes("wanting to live") ||  // catches "not wanting to live", "someone wanting to live"
     t.includes('kill myself') ||
     t.includes('end my life') ||
     t.includes('end it all') ||
     t.includes("i'm done with life") ||
+    t.includes("done with life") ||
     t.includes('no reason to live') ||
+    t.includes('reason to live') ||  // catches "is there a reason to live", etc.
     t.includes('better off dead') ||
     t.includes('hurt myself') ||
     t.includes('self harm') ||
     t.includes('cutting again') ||
     t.includes('relapsed on self harm') ||
-    t.includes('is life worth it') ||
+    t.includes('is life worth') ||  // more flexible - catches "is life worth it", "is life worth living"
+    t.includes('life worth it') ||  // catches "if life is worth it", "is life worth it"
     t.includes('life even worth') ||
     t.includes('worth living') ||
     t.includes("don't see the point") ||
     t.includes('no point in living') ||
+    t.includes('no point anymore') ||
+    t.includes("what's the point") ||
     t.includes('wish i was dead') ||
     t.includes('wish i were dead') ||
+    t.includes('wish i wasn\'t here') ||
     t.includes("don't want to wake up") ||
     t.includes('everyone would be better off') ||
     t.includes("i'm a burden") ||
     t.includes('nobody would miss me') ||
     t.includes('tired of existing') ||
-    t.includes('tired of being alive')
+    t.includes('tired of being alive') ||
+    t.includes('tired of living') ||
+    t.includes('sick of living') ||
+    t.includes("can't go on") ||
+    t.includes("can't do this anymore") ||
+    t.includes("i give up") ||
+    t.includes("giving up") ||
+    t.includes("ready to give up")
   ) {
     return true;
   }
@@ -876,10 +893,17 @@ function isHighDistressText(text) {
 }
 
 function isHighDistressContext(messages) {
+  // Check last 4 user messages (expanded from 2) to catch crisis context better
   const lastUserMessages = [...messages]
     .reverse()
     .filter((m) => m.role === 'user')
-    .slice(0, 2);
+    .slice(0, 4);
+
+  // Log what we're checking for crisis
+  const checked = lastUserMessages.map(m => m.content?.slice(0, 50) + '...');
+  const results = lastUserMessages.map(m => isHighDistressText(m.content));
+  console.log(`[CRISIS SCAN] Checking last 4 user messages:`, checked);
+  console.log(`[CRISIS SCAN] Distress results:`, results);
 
   return lastUserMessages.some((m) => isHighDistressText(m.content));
 }
@@ -2329,6 +2353,9 @@ app.post('/api/chat', async (req, res) => {
     const crisisState = updateCrisisState(effectiveUserId, isCurrentlyDistressed);
     const isCrisisMode = crisisState.active;
     const crisisPendingExitCheckIn = crisisState.pendingExitCheckIn;
+    
+    // CRITICAL: Log crisis state for debugging
+    console.log(`[CRISIS CHECK] userId: ${effectiveUserId?.slice(0,8)}, isCurrentlyDistressed: ${isCurrentlyDistressed}, isCrisisMode: ${isCrisisMode}, safeMessagesSince: ${crisisState.safeMessagesSince}`);
 
     // Load rhythmic awareness line (time/date-based contextual awareness)
     // Uses user's local time from the payload, not server time
