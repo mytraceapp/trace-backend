@@ -25,6 +25,7 @@
     "drizzle-orm": "^0.45.0",
     "expo-av": "^16.0.8",
     "express-session": "^1.18.2",
+    "luxon": "^3.7.2",
     "memoizee": "^0.4.17",
     "node-cron": "^4.2.1",
     "openid-client": "^6.8.1",

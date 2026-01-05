@@ -15,6 +15,7 @@ const cors = require('cors');
 const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
 const { Pool } = require('pg');
+const { DateTime } = require('luxon');
 
 // PostgreSQL pool for activity_logs (Replit database)
 const pool = process.env.DATABASE_URL ? new Pool({
