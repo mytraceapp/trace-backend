@@ -4816,7 +4816,206 @@ app.post('/api/activity-log', async (req, res) => {
   }
 });
 
-// POST /api/patterns/insights - Query activity_logs for Peak Window and Most Helpful Activity
+// ---- PATTERNS INSIGHTS HELPERS ----
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function getWeekdayIndex(dateLike) {
+  const d = new Date(dateLike);
+  return d.getDay(); // 0–6
+}
+
+const STRESS_MOODS = ["overwhelmed", "anxious", "stressed", "fried", "burned_out", "exhausted", "drained"];
+const WORK_KEYWORDS = ["work", "shift", "manager", "boss", "hr", "clinic", "charting", "meeting", "deadline"];
+const SOFT_MOODS = ["calm", "okay", "relieved", "lighter", "peaceful", "content", "settled"];
+
+function containsAnyKeyword(text, keywords) {
+  const lower = (text || "").toLowerCase();
+  return keywords.some(k => lower.includes(k));
+}
+
+function computeStressEchoes(journals = []) {
+  if (!journals.length) {
+    return {
+      label: "As you journal more, I'll start noticing which days tend to echo the heaviest pressure.",
+      topDayIndex: null,
+      stressCount: 0,
+      totalStressEntries: 0,
+    };
+  }
+
+  const stressByDay = {};
+  let totalStress = 0;
+
+  for (const j of journals) {
+    const mood = (j.mood || "").toLowerCase();
+    const content = j.content || "";
+
+    const isStressMood = STRESS_MOODS.includes(mood);
+    const mentionsOverwhelm = containsAnyKeyword(content, ["overwhelmed", "panic", "too much"]);
+    const mentionsWork = containsAnyKeyword(content, WORK_KEYWORDS);
+
+    if (isStressMood || mentionsOverwhelm || mentionsWork) {
+      const dayIndex = getWeekdayIndex(j.created_at);
+      stressByDay[dayIndex] = (stressByDay[dayIndex] || 0) + 1;
+      totalStress += 1;
+    }
+  }
+
+  if (!totalStress) {
+    return {
+      label: "I haven't seen a repeating stress pattern yet. When it shows up, I'll reflect it back gently.",
+      topDayIndex: null,
+      stressCount: 0,
+      totalStressEntries: 0,
+    };
+  }
+
+  let topDayIndex = null;
+  let topCount = 0;
+
+  Object.entries(stressByDay).forEach(([dayStr, count]) => {
+    const idx = Number(dayStr);
+    if (count > topCount) {
+      topCount = count;
+      topDayIndex = idx;
+    }
+  });
+
+  const dayName = topDayIndex !== null ? WEEKDAY_NAMES[topDayIndex] : null;
+  const pct = Math.round((topCount / totalStress) * 100);
+
+  let label;
+  if (topDayIndex === 3) { // Wednesday
+    label = `You've been writing about feeling under pressure a lot on Wednesdays — about ${pct}% of your heavier entries land there. Midweek seems to echo a bit more weight for you.`;
+  } else if (topDayIndex === 1 || topDayIndex === 2) { // Monday/Tuesday
+    label = `${dayName} keeps showing up as a heavier day — about ${pct}% of your stress entries land there. Early in the week seems to carry more load for you.`;
+  } else {
+    label = `I've noticed ${dayName} tends to hold more of your stress — about ${pct}% of your heavier entries gather there.`;
+  }
+
+  return {
+    label,
+    topDayIndex,
+    stressCount: topCount,
+    totalStressEntries: totalStress,
+  };
+}
+
+function computeEnergyFlowByWeekday(activityLogs = []) {
+  if (!activityLogs.length) {
+    return {
+      label: "As you use activities more, I'll start noticing which days your energy reaches for TRACE the most.",
+      topDayIndex: null,
+      percentage: null,
+      totalActivities: 0,
+    };
+  }
+
+  const countsByDay = {};
+  let total = 0;
+
+  for (const log of activityLogs) {
+    const dayIndex = getWeekdayIndex(log.completed_at || log.created_at);
+    countsByDay[dayIndex] = (countsByDay[dayIndex] || 0) + 1;
+    total += 1;
+  }
+
+  let topDayIndex = null;
+  let topCount = 0;
+
+  Object.entries(countsByDay).forEach(([dayStr, count]) => {
+    const idx = Number(dayStr);
+    if (count > topCount) {
+      topCount = count;
+      topDayIndex = idx;
+    }
+  });
+
+  const dayName = topDayIndex !== null ? WEEKDAY_NAMES[topDayIndex] : null;
+  const pct = total ? Math.round((topCount / total) * 100) : null;
+
+  let label;
+  if (!dayName) {
+    label = "I'm still learning your weekly rhythm. Over time I'll start to see which days your energy reaches for TRACE most often.";
+  } else if (topDayIndex === 1) { // Monday
+    label = `Your energy seems to reach for TRACE most on Mondays — about ${pct}% of your activities land there. That says something about how you meet the start of the week.`;
+  } else if (topDayIndex === 3) { // Wednesday
+    label = `Midweek — especially Wednesdays — is when you most often lean on TRACE (${pct}% of your activities). The middle of the week seems to be where a lot moves for you.`;
+  } else {
+    label = `${dayName} is when you most often reach for TRACE — about ${pct}% of your activities. That day seems to carry a special weight or rhythm for you.`;
+  }
+
+  return {
+    label,
+    topDayIndex,
+    percentage: pct,
+    totalActivities: total,
+  };
+}
+
+function computeSofteningDay(journals = []) {
+  if (!journals.length) {
+    return {
+      label: "As more calm moments show up in your journal, I'll notice where in the week things tend to soften a little.",
+      topDayIndex: null,
+      percentage: null,
+      totalSoftEntries: 0,
+    };
+  }
+
+  const softByDay = {};
+  let totalSoft = 0;
+
+  for (const j of journals) {
+    const mood = (j.mood || "").toLowerCase();
+    if (!SOFT_MOODS.includes(mood)) continue;
+
+    const dayIndex = getWeekdayIndex(j.created_at);
+    softByDay[dayIndex] = (softByDay[dayIndex] || 0) + 1;
+    totalSoft += 1;
+  }
+
+  if (!totalSoft) {
+    return {
+      label: "I haven't seen a clear softening pattern yet, but when those calmer days cluster, I'll reflect that back to you.",
+      topDayIndex: null,
+      percentage: null,
+      totalSoftEntries: 0,
+    };
+  }
+
+  let topDayIndex = null;
+  let topCount = 0;
+
+  Object.entries(softByDay).forEach(([dayStr, count]) => {
+    const idx = Number(dayStr);
+    if (count > topCount) {
+      topCount = count;
+      topDayIndex = idx;
+    }
+  });
+
+  const dayName = WEEKDAY_NAMES[topDayIndex];
+  const pct = Math.round((topCount / totalSoft) * 100);
+
+  let label;
+  if (topDayIndex === 3) { // Wednesday
+    label = `You tend to soften a bit around Wednesdays — about ${pct}% of your calmer entries land there. Midweek seems to hold some tiny exhale moments for you.`;
+  } else if (topDayIndex >= 4) { // Thu/Fri/Sat
+    label = `Toward the end of the week — especially ${dayName} — I see more of your "calm" or "okay" entries (${pct}% of them). There's a gentle easing there.`;
+  } else {
+    label = `${dayName} quietly holds more of your calmer entries (${pct}%). Something about that day seems to let your system exhale, even if just a little.`;
+  }
+
+  return {
+    label,
+    topDayIndex,
+    percentage: pct,
+    totalSoftEntries: totalSoft,
+  };
+}
+
+// POST /api/patterns/insights - Query activity_logs and journal_entries for insights
 app.post('/api/patterns/insights', async (req, res) => {
   try {
     const { userId, deviceId } = req.body;
@@ -4832,120 +5031,173 @@ app.post('/api/patterns/insights', async (req, res) => {
       count: 0,
     };
     
-    if (!pool) {
-      console.log('📊 [PATTERNS INSIGHTS POST] No database pool configured');
-      return res.json({
-        peakWindow: fallbackPeakWindow,
-        mostHelpfulActivity: fallbackActivity,
-        sampleSize: 0,
-      });
-    }
+    const fallbackStressEchoes = {
+      label: "As you journal more, I'll start noticing which days tend to echo the heaviest pressure.",
+      topDayIndex: null,
+      stressCount: 0,
+      totalStressEntries: 0,
+    };
+    
+    const fallbackEnergyFlow = {
+      label: "As you use activities more, I'll start noticing which days your energy reaches for TRACE the most.",
+      topDayIndex: null,
+      percentage: null,
+      totalActivities: 0,
+    };
+    
+    const fallbackSoftening = {
+      label: "As more calm moments show up in your journal, I'll notice where in the week things tend to soften a little.",
+      topDayIndex: null,
+      percentage: null,
+      totalSoftEntries: 0,
+    };
     
     if (!userId && !deviceId) {
       console.log('📊 [PATTERNS INSIGHTS POST] No userId or deviceId provided');
       return res.json({
         peakWindow: fallbackPeakWindow,
         mostHelpfulActivity: fallbackActivity,
+        stressEchoes: fallbackStressEchoes,
+        energyFlow: fallbackEnergyFlow,
+        softening: fallbackSoftening,
         sampleSize: 0,
+        journalSampleSize: 0,
       });
     }
     
-    // Query activity_logs from the past 7 days
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Look back 45 days for patterns
+    const sinceDate = new Date();
+    sinceDate.setDate(sinceDate.getDate() - 45);
     
-    let query = `
-      SELECT activity_type, completed_at, duration_seconds
-      FROM activity_logs
-      WHERE completed_at >= $1
-    `;
-    const params = [sevenDaysAgo.toISOString()];
-    
-    if (userId) {
-      query += ` AND user_id = $${params.length + 1}`;
-      params.push(userId);
-    } else if (deviceId) {
-      query += ` AND device_id = $${params.length + 1}`;
-      params.push(deviceId);
-    }
-    
-    query += ` ORDER BY completed_at DESC`;
-    
-    const { rows: activityLogs } = await pool.query(query, params);
-    
-    console.log('📊 [PATTERNS INSIGHTS POST] Found', activityLogs.length, 'activity logs in past 7 days');
-    
-    if (activityLogs.length < 3) {
-      return res.json({
-        peakWindow: fallbackPeakWindow,
-        mostHelpfulActivity: fallbackActivity,
-        sampleSize: activityLogs.length,
-      });
-    }
-    
-    // Calculate Peak Window (hour with most activities, then create 2-hour window)
-    const hourCounts = {};
-    for (const log of activityLogs) {
-      const hour = new Date(log.completed_at).getHours();
-      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
-    }
-    
-    let peakHour = null;
-    let peakCount = 0;
-    Object.entries(hourCounts).forEach(([hour, count]) => {
-      if (count > peakCount) {
-        peakCount = count;
-        peakHour = parseInt(hour);
+    // 1) Query activity_logs from Replit PostgreSQL
+    let activityLogs = [];
+    if (pool) {
+      let query = `
+        SELECT activity_type, completed_at, duration_seconds
+        FROM activity_logs
+        WHERE completed_at >= $1
+      `;
+      const params = [sinceDate.toISOString()];
+      
+      if (userId) {
+        query += ` AND user_id = $${params.length + 1}`;
+        params.push(userId);
+      } else if (deviceId) {
+        query += ` AND device_id = $${params.length + 1}`;
+        params.push(deviceId);
       }
-    });
+      
+      query += ` ORDER BY completed_at DESC`;
+      
+      const result = await pool.query(query, params);
+      activityLogs = result.rows || [];
+    }
     
-    const formatHour = (h) => {
-      const suffix = h >= 12 ? 'PM' : 'AM';
-      const hour12 = h % 12 || 12;
-      return `${hour12}:00 ${suffix}`;
-    };
+    console.log('📊 [PATTERNS INSIGHTS POST] Found', activityLogs.length, 'activity logs');
     
+    // 2) Query journal_entries from Supabase
+    let journals = [];
+    if (supabaseServer && userId) {
+      const { data: journalData, error: journalError } = await supabaseServer
+        .from('journal_entries')
+        .select('id, user_id, mood, content, created_at')
+        .eq('user_id', userId)
+        .gte('created_at', sinceDate.toISOString())
+        .order('created_at', { ascending: false });
+      
+      if (journalError) {
+        console.error('📊 [PATTERNS INSIGHTS POST] Journal query error:', journalError);
+      } else {
+        journals = journalData || [];
+      }
+    }
+    
+    console.log('📊 [PATTERNS INSIGHTS POST] Found', journals.length, 'journal entries');
+    
+    // Calculate Peak Window (hour with most activities)
     let peakWindow = fallbackPeakWindow;
-    if (peakHour !== null) {
-      const startHour = peakHour;
-      const endHour = (peakHour + 2) % 24;
-      peakWindow = {
-        label: `${formatHour(startHour)} – ${formatHour(endHour)}`,
-        startHour,
-        endHour,
-      };
-    }
-    
-    // Calculate Most Helpful Activity (most frequently completed)
-    const activityCounts = {};
-    for (const log of activityLogs) {
-      const type = log.activity_type;
-      activityCounts[type] = (activityCounts[type] || 0) + 1;
-    }
-    
-    let topActivity = null;
-    let topCount = 0;
-    Object.entries(activityCounts).forEach(([name, count]) => {
-      if (count > topCount) {
-        topCount = count;
-        topActivity = name;
+    if (activityLogs.length >= 3) {
+      const hourCounts = {};
+      for (const log of activityLogs) {
+        const hour = new Date(log.completed_at).getHours();
+        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
       }
-    });
-    
-    let mostHelpfulActivity = fallbackActivity;
-    if (topActivity && topCount >= 2) {
-      mostHelpfulActivity = {
-        label: topActivity,
-        count: topCount,
+      
+      let peakHour = null;
+      let peakCount = 0;
+      Object.entries(hourCounts).forEach(([hour, count]) => {
+        if (count > peakCount) {
+          peakCount = count;
+          peakHour = parseInt(hour);
+        }
+      });
+      
+      const formatHour = (h) => {
+        const suffix = h >= 12 ? 'PM' : 'AM';
+        const hour12 = h % 12 || 12;
+        return `${hour12}:00 ${suffix}`;
       };
+      
+      if (peakHour !== null) {
+        const startHour = peakHour;
+        const endHour = (peakHour + 2) % 24;
+        peakWindow = {
+          label: `${formatHour(startHour)} – ${formatHour(endHour)}`,
+          startHour,
+          endHour,
+        };
+      }
     }
     
-    console.log('📊 [PATTERNS INSIGHTS POST] Result:', { peakWindow, mostHelpfulActivity, sampleSize: activityLogs.length });
+    // Calculate Most Helpful Activity
+    let mostHelpfulActivity = fallbackActivity;
+    if (activityLogs.length >= 2) {
+      const activityCounts = {};
+      for (const log of activityLogs) {
+        const type = log.activity_type;
+        activityCounts[type] = (activityCounts[type] || 0) + 1;
+      }
+      
+      let topActivity = null;
+      let topCount = 0;
+      Object.entries(activityCounts).forEach(([name, count]) => {
+        if (count > topCount) {
+          topCount = count;
+          topActivity = name;
+        }
+      });
+      
+      if (topActivity && topCount >= 2) {
+        mostHelpfulActivity = {
+          label: topActivity,
+          count: topCount,
+        };
+      }
+    }
+    
+    // Calculate Stress Echoes, Energy Flow, and Softening
+    const stressEchoes = computeStressEchoes(journals);
+    const energyFlow = computeEnergyFlowByWeekday(activityLogs);
+    const softening = computeSofteningDay(journals);
+    
+    console.log('📊 [PATTERNS INSIGHTS POST] Result:', { 
+      peakWindow, 
+      mostHelpfulActivity, 
+      stressEchoes: stressEchoes.topDayIndex,
+      energyFlow: energyFlow.topDayIndex,
+      softening: softening.topDayIndex,
+      sampleSize: activityLogs.length,
+      journalSampleSize: journals.length,
+    });
     
     return res.json({
       peakWindow,
       mostHelpfulActivity,
+      stressEchoes,
+      energyFlow,
+      softening,
       sampleSize: activityLogs.length,
+      journalSampleSize: journals.length,
     });
     
   } catch (err) {
@@ -4953,7 +5205,11 @@ app.post('/api/patterns/insights', async (req, res) => {
     return res.json({
       peakWindow: { label: "Not enough data yet", startHour: null, endHour: null },
       mostHelpfulActivity: { label: "Once you've tried a few activities, I'll start noticing which ones you return to the most.", count: 0 },
+      stressEchoes: { label: "As you journal more, I'll start noticing which days tend to echo the heaviest pressure.", topDayIndex: null, stressCount: 0, totalStressEntries: 0 },
+      energyFlow: { label: "As you use activities more, I'll start noticing which days your energy reaches for TRACE the most.", topDayIndex: null, percentage: null, totalActivities: 0 },
+      softening: { label: "As more calm moments show up in your journal, I'll notice where in the week things tend to soften a little.", topDayIndex: null, percentage: null, totalSoftEntries: 0 },
       sampleSize: 0,
+      journalSampleSize: 0,
     });
   }
 });
