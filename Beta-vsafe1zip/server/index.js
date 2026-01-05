@@ -14,6 +14,13 @@ const express = require('express');
 const cors = require('cors');
 const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
+const { Pool } = require('pg');
+
+// PostgreSQL pool for activity_logs (Replit database)
+const pool = process.env.DATABASE_URL ? new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+}) : null;
 const {
   buildMemoryContext,
   summarizeToLongTermMemory,
@@ -4769,6 +4776,184 @@ app.get('/api/patterns/insights', async (req, res) => {
       peakWindow: fallbackPeakWindow,
       mostHelpfulActivity: fallbackActivity,
       sampleSize: 0
+    });
+  }
+});
+
+// POST /api/activity-log - Log a completed activity
+app.post('/api/activity-log', async (req, res) => {
+  try {
+    const { userId, deviceId, activityType, durationSeconds, metadata } = req.body;
+    
+    if (!activityType) {
+      return res.status(400).json({ error: 'activityType is required' });
+    }
+    
+    if (!userId && !deviceId) {
+      return res.status(400).json({ error: 'userId or deviceId is required' });
+    }
+    
+    if (!pool) {
+      console.log('📝 [ACTIVITY LOG] No database pool configured');
+      return res.json({ ok: true, logged: null, note: 'No database configured' });
+    }
+    
+    console.log('📝 [ACTIVITY LOG] Logging:', { userId, deviceId, activityType, durationSeconds });
+    
+    const result = await pool.query(
+      `INSERT INTO activity_logs (user_id, device_id, activity_type, duration_seconds, metadata)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, completed_at`,
+      [userId || null, deviceId || null, activityType, durationSeconds || null, JSON.stringify(metadata || {})]
+    );
+    
+    console.log('📝 [ACTIVITY LOG] Success:', result.rows?.[0]);
+    
+    return res.json({ ok: true, logged: result.rows?.[0] });
+  } catch (err) {
+    console.error('📝 [ACTIVITY LOG] Error:', err);
+    return res.status(500).json({ error: 'Failed to log activity' });
+  }
+});
+
+// POST /api/patterns/insights - Query activity_logs for Peak Window and Most Helpful Activity
+app.post('/api/patterns/insights', async (req, res) => {
+  try {
+    const { userId, deviceId } = req.body;
+    
+    const fallbackPeakWindow = {
+      label: "Not enough data yet",
+      startHour: null,
+      endHour: null,
+    };
+    
+    const fallbackActivity = {
+      label: "Once you've tried a few activities, I'll start noticing which ones you return to the most.",
+      count: 0,
+    };
+    
+    if (!pool) {
+      console.log('📊 [PATTERNS INSIGHTS POST] No database pool configured');
+      return res.json({
+        peakWindow: fallbackPeakWindow,
+        mostHelpfulActivity: fallbackActivity,
+        sampleSize: 0,
+      });
+    }
+    
+    if (!userId && !deviceId) {
+      console.log('📊 [PATTERNS INSIGHTS POST] No userId or deviceId provided');
+      return res.json({
+        peakWindow: fallbackPeakWindow,
+        mostHelpfulActivity: fallbackActivity,
+        sampleSize: 0,
+      });
+    }
+    
+    // Query activity_logs from the past 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    let query = `
+      SELECT activity_type, completed_at, duration_seconds
+      FROM activity_logs
+      WHERE completed_at >= $1
+    `;
+    const params = [sevenDaysAgo.toISOString()];
+    
+    if (userId) {
+      query += ` AND user_id = $${params.length + 1}`;
+      params.push(userId);
+    } else if (deviceId) {
+      query += ` AND device_id = $${params.length + 1}`;
+      params.push(deviceId);
+    }
+    
+    query += ` ORDER BY completed_at DESC`;
+    
+    const { rows: activityLogs } = await pool.query(query, params);
+    
+    console.log('📊 [PATTERNS INSIGHTS POST] Found', activityLogs.length, 'activity logs in past 7 days');
+    
+    if (activityLogs.length < 3) {
+      return res.json({
+        peakWindow: fallbackPeakWindow,
+        mostHelpfulActivity: fallbackActivity,
+        sampleSize: activityLogs.length,
+      });
+    }
+    
+    // Calculate Peak Window (hour with most activities, then create 2-hour window)
+    const hourCounts = {};
+    for (const log of activityLogs) {
+      const hour = new Date(log.completed_at).getHours();
+      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+    }
+    
+    let peakHour = null;
+    let peakCount = 0;
+    Object.entries(hourCounts).forEach(([hour, count]) => {
+      if (count > peakCount) {
+        peakCount = count;
+        peakHour = parseInt(hour);
+      }
+    });
+    
+    const formatHour = (h) => {
+      const suffix = h >= 12 ? 'PM' : 'AM';
+      const hour12 = h % 12 || 12;
+      return `${hour12}:00 ${suffix}`;
+    };
+    
+    let peakWindow = fallbackPeakWindow;
+    if (peakHour !== null) {
+      const startHour = peakHour;
+      const endHour = (peakHour + 2) % 24;
+      peakWindow = {
+        label: `${formatHour(startHour)} – ${formatHour(endHour)}`,
+        startHour,
+        endHour,
+      };
+    }
+    
+    // Calculate Most Helpful Activity (most frequently completed)
+    const activityCounts = {};
+    for (const log of activityLogs) {
+      const type = log.activity_type;
+      activityCounts[type] = (activityCounts[type] || 0) + 1;
+    }
+    
+    let topActivity = null;
+    let topCount = 0;
+    Object.entries(activityCounts).forEach(([name, count]) => {
+      if (count > topCount) {
+        topCount = count;
+        topActivity = name;
+      }
+    });
+    
+    let mostHelpfulActivity = fallbackActivity;
+    if (topActivity && topCount >= 2) {
+      mostHelpfulActivity = {
+        label: topActivity,
+        count: topCount,
+      };
+    }
+    
+    console.log('📊 [PATTERNS INSIGHTS POST] Result:', { peakWindow, mostHelpfulActivity, sampleSize: activityLogs.length });
+    
+    return res.json({
+      peakWindow,
+      mostHelpfulActivity,
+      sampleSize: activityLogs.length,
+    });
+    
+  } catch (err) {
+    console.error('📊 [PATTERNS INSIGHTS POST] Error:', err);
+    return res.json({
+      peakWindow: { label: "Not enough data yet", startHour: null, endHour: null },
+      mostHelpfulActivity: { label: "Once you've tried a few activities, I'll start noticing which ones you return to the most.", count: 0 },
+      sampleSize: 0,
     });
   }
 });
