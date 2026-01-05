@@ -5181,7 +5181,7 @@ function computeSofteningDay(journals = []) {
 function trendDirection(thisWeek, lastWeek) {
   if (thisWeek > lastWeek) return "up";
   if (thisWeek < lastWeek) return "down";
-  return "flat";
+  return "stable";
 }
 
 function buildTrendLabel(kind, thisWeek, lastWeek, dir) {
@@ -5501,6 +5501,7 @@ app.post('/api/patterns/insights', async (req, res) => {
     });
     
     return res.json({
+      // Core pattern objects (nested)
       peakWindow,
       mostHelpfulActivity,
       stressEchoes,
@@ -5509,18 +5510,47 @@ app.post('/api/patterns/insights', async (req, res) => {
       weeklyMoodTrend,
       crossPatternHint,
       predictiveHint,
+      
+      // Flattened fields for mobile frontend convenience
+      energyRhythmLabel: energyFlow.label,
+      stressEchoesLabel: stressEchoes.label,
+      reliefLabel: softening.label,
+      totalSoftEntries: softening.totalSoftEntries,
+      mostHelpfulActivityLabel: mostHelpfulActivity.label,
+      mostHelpfulActivityCount: mostHelpfulActivity.count,
+      
       sampleSize: activityLogs.length,
       journalSampleSize: journals.length,
     });
     
   } catch (err) {
     console.error('📊 [PATTERNS INSIGHTS POST] Error:', err);
+    const fallbackEnergy = "As you use activities more, I'll start noticing which days your energy reaches for TRACE the most.";
+    const fallbackStress = "As you journal more, I'll start noticing which days tend to echo the heaviest pressure.";
+    const fallbackRelief = "As more calm moments show up in your journal, I'll notice where in the week things tend to soften a little.";
+    const fallbackActivity = "Once you've tried a few activities, I'll start noticing which ones you return to the most.";
+    
     return res.json({
       peakWindow: { label: "Not enough data yet", startHour: null, endHour: null },
-      mostHelpfulActivity: { label: "Once you've tried a few activities, I'll start noticing which ones you return to the most.", count: 0 },
-      stressEchoes: { label: "As you journal more, I'll start noticing which days tend to echo the heaviest pressure.", topDayIndex: null, stressCount: 0, totalStressEntries: 0 },
-      energyFlow: { label: "As you use activities more, I'll start noticing which days your energy reaches for TRACE the most.", topDayIndex: null, percentage: null, totalActivities: 0 },
-      softening: { label: "As more calm moments show up in your journal, I'll notice where in the week things tend to soften a little.", topDayIndex: null, percentage: null, totalSoftEntries: 0 },
+      mostHelpfulActivity: { label: fallbackActivity, count: 0 },
+      stressEchoes: { label: fallbackStress, topDayIndex: null, stressCount: 0, totalStressEntries: 0 },
+      energyFlow: { label: fallbackEnergy, topDayIndex: null, percentage: null, totalActivities: 0 },
+      softening: { label: fallbackRelief, topDayIndex: null, percentage: null, totalSoftEntries: 0 },
+      weeklyMoodTrend: {
+        calm: { thisWeek: 0, lastWeek: 0, direction: "stable", label: "As more calm and heavy days show up in your journal, I'll start reflecting how this week compares to the last." },
+        stress: { thisWeek: 0, lastWeek: 0, direction: "stable", label: "Once there's a little more to go on, I'll gently name how your heavier entries are shifting week to week." },
+      },
+      crossPatternHint: "As more weeks unfold, I'll start noticing how your heavier days and your go-to supports interact.",
+      predictiveHint: null,
+      
+      // Flattened fields for mobile frontend convenience
+      energyRhythmLabel: fallbackEnergy,
+      stressEchoesLabel: fallbackStress,
+      reliefLabel: fallbackRelief,
+      totalSoftEntries: 0,
+      mostHelpfulActivityLabel: fallbackActivity,
+      mostHelpfulActivityCount: 0,
+      
       sampleSize: 0,
       journalSampleSize: 0,
     });
