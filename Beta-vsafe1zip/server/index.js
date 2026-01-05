@@ -5965,6 +5965,169 @@ function buildPredictiveHint(stressEchoes, energyFlow) {
   return null;
 }
 
+// ============================================================================
+// PATTERN PERSISTENCE - Never show empty data once patterns have been calculated
+// ============================================================================
+
+// In-memory pattern cache (persists across requests, cleared on server restart)
+// This is the primary persistence layer to ensure patterns never show empty
+const patternPersistence = new Map();
+
+// File-based backup persistence (survives server restarts)
+const fs = require('fs');
+const PATTERNS_CACHE_FILE = '/tmp/trace_patterns_cache.json';
+
+// Load file-based cache on startup
+try {
+  if (fs.existsSync(PATTERNS_CACHE_FILE)) {
+    const fileData = JSON.parse(fs.readFileSync(PATTERNS_CACHE_FILE, 'utf8'));
+    for (const [key, value] of Object.entries(fileData)) {
+      patternPersistence.set(key, value);
+    }
+    console.log('📊 [PATTERNS CACHE] Loaded', patternPersistence.size, 'cached patterns from file');
+  }
+} catch (err) {
+  console.warn('[PATTERNS CACHE] Could not load file cache:', err.message);
+}
+
+// Save file-based cache periodically
+function savePatternCacheToFile() {
+  try {
+    const cacheObj = Object.fromEntries(patternPersistence);
+    fs.writeFileSync(PATTERNS_CACHE_FILE, JSON.stringify(cacheObj, null, 2));
+  } catch (err) {
+    console.warn('[PATTERNS CACHE] Could not save file cache:', err.message);
+  }
+}
+
+// Load cached patterns for a user from memory (fast) with file backup
+async function loadCachedPatterns(userId) {
+  if (!userId) return null;
+  
+  // Primary: Check in-memory cache
+  const memCached = patternPersistence.get(userId);
+  if (memCached) {
+    return memCached;
+  }
+  
+  // Fallback: Try Supabase if available
+  if (supabaseServer) {
+    try {
+      const { data, error } = await supabaseServer
+        .from('user_patterns_cache')
+        .select('patterns_data')
+        .eq('user_id', userId)
+        .single();
+      
+      if (!error && data?.patterns_data) {
+        // Store in memory for next time
+        patternPersistence.set(userId, data.patterns_data);
+        return data.patterns_data;
+      }
+    } catch (err) {
+      // Table might not exist - that's okay, use memory cache
+    }
+  }
+  
+  return null;
+}
+
+// Save patterns to the cache, merging with existing values
+async function saveCachedPatterns(userId, newPatterns) {
+  if (!userId) return;
+  
+  try {
+    const existing = patternPersistence.get(userId) || {};
+    // Deep merge: keep existing values where new values are null/undefined
+    const merged = mergePatterns(existing, newPatterns);
+    
+    // Save to in-memory cache (always works)
+    patternPersistence.set(userId, merged);
+    
+    // Periodically save to file (non-blocking)
+    if (patternPersistence.size % 5 === 0) {
+      savePatternCacheToFile();
+    }
+    
+    // Try to save to Supabase (optional, may fail if table doesn't exist)
+    if (supabaseServer) {
+      try {
+        await supabaseServer
+          .from('user_patterns_cache')
+          .upsert({
+            user_id: userId,
+            patterns_data: merged,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id' });
+      } catch (err) {
+        // Table might not exist - that's okay
+      }
+    }
+    
+    console.log('📊 [PATTERNS CACHE] Saved patterns for user:', userId.slice(0, 8));
+  } catch (err) {
+    console.error('[PATTERNS CACHE] Exception saving:', err.message);
+  }
+}
+
+// Merge patterns: prefer new non-null values, keep cached values for nulls
+function mergePatterns(cached, current) {
+  const merged = { ...cached };
+  
+  // List of fields that should be persisted
+  const persistFields = [
+    'peakWindowLabel', 'peakWindowStartRatio', 'peakWindowEndRatio',
+    'stressEchoesLabel', 'reliefLabel', 'energyRhythmLabel',
+    'mostHelpfulActivityLabel', 'mostHelpfulActivityCount',
+    'crossPatternHint', 'predictiveHint',
+    'peakWindow', 'mostHelpfulActivity', 'stressEchoes', 'energyFlow', 'softening'
+  ];
+  
+  for (const field of persistFields) {
+    const currentVal = current?.[field];
+    const cachedVal = cached?.[field];
+    
+    // For objects (nested patterns), merge recursively
+    if (typeof currentVal === 'object' && currentVal !== null && !Array.isArray(currentVal)) {
+      merged[field] = mergePatternObject(cachedVal || {}, currentVal);
+    } else if (currentVal !== null && currentVal !== undefined && currentVal !== '') {
+      // Use new value if non-null
+      merged[field] = currentVal;
+    } else if (cachedVal !== null && cachedVal !== undefined && cachedVal !== '') {
+      // Keep cached value if new value is null
+      merged[field] = cachedVal;
+    }
+  }
+  
+  // Always update non-persisted fields with current values
+  const nonPersistedFields = [
+    'sampleSize', 'journalSampleSize', 'stillLearning', 
+    'energyDayBuckets', 'totalSoftEntries', 'lastHourSummary',
+    'weeklyMoodTrend', 'studioInsights'
+  ];
+  for (const field of nonPersistedFields) {
+    if (current?.[field] !== undefined) {
+      merged[field] = current[field];
+    }
+  }
+  
+  return merged;
+}
+
+// Merge nested pattern objects (e.g., peakWindow, stressEchoes)
+function mergePatternObject(cached, current) {
+  const merged = { ...cached };
+  for (const key of Object.keys(current)) {
+    const val = current[key];
+    if (val !== null && val !== undefined && val !== '') {
+      merged[key] = val;
+    } else if (cached?.[key] !== null && cached?.[key] !== undefined) {
+      merged[key] = cached[key];
+    }
+  }
+  return merged;
+}
+
 // POST /api/patterns/insights - Query activity_logs and journal_entries for insights
 app.post('/api/patterns/insights', async (req, res) => {
   try {
@@ -6029,10 +6192,23 @@ app.post('/api/patterns/insights', async (req, res) => {
         const crisisCore = "When things feel really intense, patterns can become blurry — and that's okay. Right now the most important thing is how you're feeling in this moment.";
         const crisisActivity = "Whatever you need right now is enough.";
         
+        // PATTERN PERSISTENCE: Even in crisis mode, preserve cached peakWindow data
+        // The UI can still show the time range while displaying softer messaging elsewhere
+        const cachedPatterns = await loadCachedPatterns(userId);
+        const cachedPeakWindow = cachedPatterns?.peakWindow || {};
+        const cachedPeakLabel = cachedPatterns?.peakWindowLabel || null;
+        const cachedPeakStartRatio = cachedPatterns?.peakWindowStartRatio || null;
+        const cachedPeakEndRatio = cachedPatterns?.peakWindowEndRatio || null;
+        
         return res.json({
           // Nested objects - softer crisis-specific messaging per card
-          // Peak window label is null in crisis mode (mobile handles empty state)
-          peakWindow: { label: null, startHour: null, endHour: null, confidence: "crisis" },
+          // Preserve cached peakWindow data - never show empty
+          peakWindow: { 
+            label: cachedPeakWindow.label || null, 
+            startHour: cachedPeakWindow.startHour || null, 
+            endHour: cachedPeakWindow.endHour || null, 
+            confidence: "crisis" 
+          },
           mostHelpfulActivity: { label: crisisActivity, count: 0 },
           stressEchoes: { label: crisisCore, topDayIndex: null, stressCount: 0, totalStressEntries: 0, confidence: "crisis" },
           energyFlow: { label: crisisCore, topDayIndex: null, percentage: null, totalActivities: 0 },
@@ -6055,9 +6231,10 @@ app.post('/api/patterns/insights', async (req, res) => {
           studioInsights: null,
           
           // Flattened fields - matching the exact mobile contract
-          peakWindowLabel: null,
-          peakWindowStartRatio: null,
-          peakWindowEndRatio: null,
+          // Preserve cached peakWindow data - never show empty
+          peakWindowLabel: cachedPeakLabel,
+          peakWindowStartRatio: cachedPeakStartRatio,
+          peakWindowEndRatio: cachedPeakEndRatio,
           energyDayBuckets: [0, 0, 0, 0, 0, 0, 0],
           stressEchoesLabel: crisisCore,
           reliefLabel: crisisCore,
@@ -6387,8 +6564,8 @@ app.post('/api/patterns/insights', async (req, res) => {
       journalSampleSize: journals.length,
     });
     
-    // Build response object
-    const responseData = {
+    // Build response object with calculated values
+    const calculatedResponse = {
       // Core pattern objects (nested) - kept for backward compatibility
       peakWindow,
       mostHelpfulActivity,
@@ -6421,7 +6598,19 @@ app.post('/api/patterns/insights', async (req, res) => {
       journalSampleSize: journals.length,
     };
     
-    // Cache the response (5-minute TTL)
+    // PATTERN PERSISTENCE: Load cached patterns and merge with calculated values
+    // This ensures once data exists, it never shows as empty
+    const effectiveUserId = userId || deviceId;
+    const cachedPatterns = await loadCachedPatterns(effectiveUserId);
+    const responseData = mergePatterns(cachedPatterns || {}, calculatedResponse);
+    
+    // Save merged patterns back to cache for persistence
+    // Don't await - fire and forget to avoid blocking response
+    saveCachedPatterns(effectiveUserId, responseData).catch(err => {
+      console.error('[PATTERNS CACHE] Background save failed:', err.message);
+    });
+    
+    // In-memory cache for quick repeated requests (5-minute TTL)
     patternsCache.set(cacheKey, { data: responseData, timestamp: Date.now() });
     console.log('📊 [PATTERNS] Response cached for', cacheKey);
     
@@ -6429,6 +6618,18 @@ app.post('/api/patterns/insights', async (req, res) => {
     
   } catch (err) {
     console.error('📊 [PATTERNS INSIGHTS POST] Error:', err);
+    
+    // PATTERN PERSISTENCE: On error, try to return cached patterns
+    const { userId, deviceId } = req.body || {};
+    const effectiveUserId = userId || deviceId;
+    const cachedPatterns = await loadCachedPatterns(effectiveUserId);
+    
+    if (cachedPatterns && Object.keys(cachedPatterns).length > 0) {
+      console.log('📊 [PATTERNS] Error occurred but returning cached patterns');
+      return res.json(cachedPatterns);
+    }
+    
+    // No cached data - return fallback
     const fallbackEnergy = "As you use activities more, I'll start noticing which days your energy reaches for TRACE the most.";
     const fallbackStress = "As you journal more, I'll start noticing which days tend to echo the heaviest pressure.";
     const fallbackRelief = "As more calm moments show up in your journal, I'll notice where in the week things tend to soften a little.";
