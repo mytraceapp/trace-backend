@@ -1,0 +1,109 @@
+You are updating the TRACE backend in this Replit.
+
+Context:
+- This is the TRACE backend (Node / Express) that already:
+  - Handles /api/chat and /api/patterns/insights
+  - Has crisis detection logic inside /api/chat (e.g., based on distress/self-harm keywords)
+  - Uses Supabase for auth and data storage
+- TRACE already:
+  - Switches to a “crisis-safe” prompt for OpenAI when distress is detected
+  - Disables jokes / playful APIs in crisis mode
+  - Softens or disables prediction fields in the patterns insights response
+
+Goal:
+Implement **Step 2: Persist crisis state to the database** so that crisis mode is consistent across endpoints and doesn’t disappear if the server restarts.
+
+Please do the following in a SAFE and SURGICAL way:
+
+1. Create / define a Supabase table for crisis state (DO NOT run it, just output the SQL as a comment so I can paste it in Supabase):
+
+   --- BEGIN SQL (as a comment) ---
+   create table if not exists public.user_safety_state (
+     user_id uuid primary key references auth.users(id) on delete cascade,
+     last_crisis_at timestamptz,
+     last_crisis_source text, -- e.g. 'chat', 'journal'
+     last_crisis_tag text,    -- e.g. 'self-harm-language', 'overwhelmed', 'hopelessness'
+     updated_at timestamptz default now()
+   );
+   --- END SQL ---
+
+   • This table should only store minimal, safety-related metadata.
+   • No duplicate storage of full messages.
+
+2. Add a small helper module or functions for crisis state, for example in server/safety.ts (or similar). If that file doesn’t exist, create it. Functions:
+
+   - async markUserInCrisis(userId: string, opts?: { source?: string; tag?: string })
+     • Upsert into public.user_safety_state:
+       - last_crisis_at = now()
+       - last_crisis_source = opts.source or 'chat'
+       - last_crisis_tag = opts.tag or 'distress'
+       - updated_at = now()
+
+   - async isUserInCrisisWindow(userId: string, windowMinutes = 90): Promise<boolean>
+     • Query public.user_safety_state by user_id
+     • If last_crisis_at is null → return false
+     • If now() - last_crisis_at <= windowMinutes → return true
+     • Else return false
+
+   - Optionally, async getUserCrisisState(userId: string) to return:
+     {
+       inCrisis: boolean;
+       lastCrisisAt: string | null;
+       lastCrisisTag: string | null;
+       lastCrisisSource: string | null;
+     }
+
+3. Integrate with /api/chat:
+
+   - Locate the existing crisis detection logic in /api/chat (where we currently decide whether to use a “crisis-safe” system prompt).
+   - When a message is classified as crisis / high distress, call:
+
+       await markUserInCrisis(userId, {
+         source: 'chat',
+         tag: 'high-distress' // or more specific if available
+       });
+
+   - Before building the prompt for OpenAI, call:
+     
+       const inCrisis = await isUserInCrisisWindow(userId, 90);
+
+     and use this boolean to:
+       • Choose crisis-safe system prompt if inCrisis is true
+       • Disable jokes, playful APIs, and light content if inCrisis is true
+       • Pass a `crisisMode: true` flag into the OpenAI context if helpful
+
+4. Integrate with /api/patterns/insights:
+
+   - In the handler for /api/patterns/insights, before building the response, call:
+
+       const inCrisis = await isUserInCrisisWindow(userId, 90);
+
+   - If inCrisis is true:
+       • Set `crisisMode: true` on the JSON response
+       • Set `predictiveHint` to null
+       • Soften or skip pattern language where appropriate:
+         - Do NOT generate strong predictive phrasing
+         - Prefer gentle, present-focused text like:
+           "When things feel this intense, patterns can blur — that’s okay. Right now the important thing is how you’re feeling in this moment."
+
+   - If inCrisis is false:
+       • Keep the current behavior (existing insights, predictiveHint, etc.).
+
+5. Be careful not to break existing mobile contracts:
+
+   - Do NOT rename or remove existing fields that mobile already uses.
+   - You may ADD:
+       crisisMode: boolean
+   - predictiveHint should remain present as a field but set to null in crisis mode, not removed entirely.
+
+6. General coding guidelines:
+
+   - Keep everything TypeScript/JavaScript-idiomatic and consistent with the existing codebase style.
+   - Add basic error handling and console logging if Supabase queries fail, but do NOT crash the request.
+   - Do NOT modify mobile app files (this Replit is backend only).
+   - Make your changes minimal and clearly commented so I can review them easily.
+
+End result:
+- When a user enters crisis once, TRACE remembers that for about 90 minutes using the user_safety_state table.
+- /api/chat and /api/patterns/insights can both see that state and respond in a crisis-safe way.
+- If the server restarts, crisis mode still works because the state is persisted in Supabase.

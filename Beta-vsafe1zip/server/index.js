@@ -39,6 +39,12 @@ const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeekly
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion } = require('./newsClient');
+const { 
+  markUserInCrisis, 
+  isUserInCrisisWindow, 
+  getUserCrisisState, 
+  updateCrisisStateInDb 
+} = require('./safety');
 
 // ---- WEATHER HELPER ----
 // TRACE-style weather summary using AccuWeather API
@@ -2357,9 +2363,23 @@ app.post('/api/chat', async (req, res) => {
 
     // ---- CRISIS MODE DETECTION ----
     // Check if the user is in high distress - if so, skip all playful APIs
-    // Crisis mode persists: requires 3+ safe messages + 30 min to exit
+    // Crisis mode now persists to Supabase for consistency across server restarts
     const isCurrentlyDistressed = isHighDistressContext(messages);
-    const crisisState = updateCrisisState(effectiveUserId, isCurrentlyDistressed);
+    
+    // Use database-backed crisis state (falls back to in-memory if Supabase unavailable)
+    let crisisState = { active: false, safeMessagesSince: 0, pendingExitCheckIn: false };
+    try {
+      if (supabaseServer && effectiveUserId) {
+        crisisState = await updateCrisisStateInDb(supabaseServer, effectiveUserId, isCurrentlyDistressed);
+      } else {
+        // Fallback to in-memory state if Supabase not available
+        crisisState = updateCrisisState(effectiveUserId, isCurrentlyDistressed);
+      }
+    } catch (err) {
+      console.error('[CRISIS] Failed to update crisis state in DB, using in-memory fallback:', err.message);
+      crisisState = updateCrisisState(effectiveUserId, isCurrentlyDistressed);
+    }
+    
     const isCrisisMode = crisisState.active;
     const crisisPendingExitCheckIn = crisisState.pendingExitCheckIn;
     
@@ -5429,9 +5449,24 @@ app.post('/api/patterns/insights', async (req, res) => {
     
     // Crisis Mode Override - per interpretive guidelines:
     // "If distress keywords appear in recent logs, TRACE must disable patterns language & predictions"
+    // Now uses database-backed crisis state for consistency across server restarts
     if (userId) {
-      const crisisState = getCrisisState(userId);
-      if (crisisState.active) {
+      let inCrisis = false;
+      try {
+        if (supabaseServer) {
+          inCrisis = await isUserInCrisisWindow(supabaseServer, userId, 90);
+        } else {
+          // Fallback to in-memory state
+          const memState = getCrisisState(userId);
+          inCrisis = memState.active;
+        }
+      } catch (err) {
+        console.error('[PATTERNS] Failed to check crisis state from DB:', err.message);
+        const memState = getCrisisState(userId);
+        inCrisis = memState.active;
+      }
+      
+      if (inCrisis) {
         console.log('📊 [PATTERNS INSIGHTS POST] Crisis mode active for user, returning soft response');
         // Use tailored crisis copy per insight card type
         const crisisCore = "When things feel really intense, patterns can become blurry — and that's okay. Right now the most important thing is how you're feeling in this moment.";
