@@ -4969,6 +4969,24 @@ function getStressEchoesConfidence(repeatCount) {
   return "emerging";
 }
 
+// Time-decay weighting: recent data matters more than older data
+// This week = 1.0, last week = 0.7, 2 weeks ago = 0.4, older = 0.2
+function weekWeight(weeksAgo) {
+  if (weeksAgo === 0) return 1.0;
+  if (weeksAgo === 1) return 0.7;
+  if (weeksAgo === 2) return 0.4;
+  return 0.2;
+}
+
+// Calculate how many weeks ago a date is from now
+function getWeeksAgo(dateLike) {
+  const now = new Date();
+  const date = new Date(dateLike);
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  return Math.floor(diffDays / 7);
+}
+
 function computeStressEchoes(journals = []) {
   if (!journals.length) {
     return {
@@ -4996,9 +5014,11 @@ function computeStressEchoes(journals = []) {
       const date = new Date(j.created_at);
       const dayIndex = date.getDay();
       const hour = date.getHours();
-      stressByDay[dayIndex] = (stressByDay[dayIndex] || 0) + 1;
-      stressEntriesWithTime.push({ dayIndex, hour });
-      totalStress += 1;
+      const weeksAgo = getWeeksAgo(j.created_at);
+      const weight = weekWeight(weeksAgo);
+      stressByDay[dayIndex] = (stressByDay[dayIndex] || 0) + weight;
+      stressEntriesWithTime.push({ dayIndex, hour, weight });
+      totalStress += weight;
     }
   }
 
@@ -5106,8 +5126,10 @@ function computeEnergyFlowByWeekday(activityLogs = []) {
 
   for (const log of activityLogs) {
     const dayIndex = getWeekdayIndex(log.completed_at || log.created_at);
-    countsByDay[dayIndex] = (countsByDay[dayIndex] || 0) + 1;
-    total += 1;
+    const weeksAgo = getWeeksAgo(log.completed_at || log.created_at);
+    const weight = weekWeight(weeksAgo);
+    countsByDay[dayIndex] = (countsByDay[dayIndex] || 0) + weight;
+    total += weight;
   }
 
   let topDayIndex = null;
@@ -5165,9 +5187,11 @@ function computeSofteningDay(journals = []) {
     const date = new Date(j.created_at);
     const dayIndex = date.getDay();
     const hour = date.getHours();
-    softByDay[dayIndex] = (softByDay[dayIndex] || 0) + 1;
-    softEntriesWithTime.push({ dayIndex, hour });
-    totalSoft += 1;
+    const weeksAgo = getWeeksAgo(j.created_at);
+    const weight = weekWeight(weeksAgo);
+    softByDay[dayIndex] = (softByDay[dayIndex] || 0) + weight;
+    softEntriesWithTime.push({ dayIndex, hour, weight });
+    totalSoft += weight;
   }
 
   if (!totalSoft) {
@@ -5601,12 +5625,17 @@ app.post('/api/patterns/insights', async (req, res) => {
     
     // Calculate Peak Window (hour with most activities) with confidence tiers
     // Per guidelines: ≥6 data points, ≥45-50% cluster in 2-3 hour window
+    // Apply time-decay weighting: this week = 1.0, last week = 0.7, 2 weeks ago = 0.4, older = 0.2
     let peakWindow = fallbackPeakWindow;
     if (activityLogs.length >= 6) {
       const hourCounts = {};
+      let totalWeighted = 0;
       for (const log of activityLogs) {
         const hour = new Date(log.completed_at).getHours();
-        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+        const weeksAgo = getWeeksAgo(log.completed_at);
+        const weight = weekWeight(weeksAgo);
+        hourCounts[hour] = (hourCounts[hour] || 0) + weight;
+        totalWeighted += weight;
       }
       
       let peakHour = null;
@@ -5625,9 +5654,9 @@ app.post('/api/patterns/insights', async (req, res) => {
         // Use timezone-aware formatting
         const timeRange = `${formatHourInTimezone(peakHour)} – ${formatHourInTimezone((peakHour + 2) % 24)}`;
         
-        // Calculate percentage of activities in this 2-hour window
+        // Calculate percentage of activities in this 2-hour window (using weighted totals)
         const adjacentCount = peakCount + (hourCounts[(peakHour + 1) % 24] || 0);
-        const windowPct = Math.round((adjacentCount / activityLogs.length) * 100);
+        const windowPct = Math.round((adjacentCount / totalWeighted) * 100);
         const confidence = getPeakWindowConfidence(windowPct);
         
         // Apply confidence-tiered language per interpretive guidelines
@@ -5653,10 +5682,13 @@ app.post('/api/patterns/insights', async (req, res) => {
       }
     } else if (activityLogs.length >= 3) {
       // Not enough for confident pattern, but show emerging data
+      // Still apply time-decay weighting for consistency
       const hourCounts = {};
       for (const log of activityLogs) {
         const hour = new Date(log.completed_at).getHours();
-        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+        const weeksAgo = getWeeksAgo(log.completed_at);
+        const weight = weekWeight(weeksAgo);
+        hourCounts[hour] = (hourCounts[hour] || 0) + weight;
       }
       
       let peakHour = null;
@@ -5685,13 +5717,15 @@ app.post('/api/patterns/insights', async (req, res) => {
       }
     }
     
-    // Calculate Most Helpful Activity
+    // Calculate Most Helpful Activity with time-decay weighting
     let mostHelpfulActivity = fallbackActivity;
     if (activityLogs.length >= 2) {
       const activityCounts = {};
       for (const log of activityLogs) {
         const type = log.activity_type;
-        activityCounts[type] = (activityCounts[type] || 0) + 1;
+        const weeksAgo = getWeeksAgo(log.completed_at || log.created_at);
+        const weight = weekWeight(weeksAgo);
+        activityCounts[type] = (activityCounts[type] || 0) + weight;
       }
       
       let topActivity = null;
@@ -5703,10 +5737,11 @@ app.post('/api/patterns/insights', async (req, res) => {
         }
       });
       
+      // Use weighted count threshold (2.0 is equivalent to 2 activities this week)
       if (topActivity && topCount >= 2) {
         mostHelpfulActivity = {
           label: topActivity,
-          count: topCount,
+          count: Math.round(topCount),
         };
       }
     }
@@ -5719,11 +5754,17 @@ app.post('/api/patterns/insights', async (req, res) => {
     const crossPatternHint = buildCrossPatternHint(stressEchoes, energyFlow);
     const predictiveHint = buildPredictiveHint(stressEchoes, energyFlow);
     
-    // Calculate energyDayBuckets (Sun-Sat activity counts)
+    // Calculate energyDayBuckets (Sun-Sat activity counts) with time-decay weighting
     const energyDayBuckets = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
     for (const log of activityLogs) {
       const dayIndex = new Date(log.completed_at || log.created_at).getDay();
-      energyDayBuckets[dayIndex] += 1;
+      const weeksAgo = getWeeksAgo(log.completed_at || log.created_at);
+      const weight = weekWeight(weeksAgo);
+      energyDayBuckets[dayIndex] += weight;
+    }
+    // Round to integers for UI display
+    for (let i = 0; i < energyDayBuckets.length; i++) {
+      energyDayBuckets[i] = Math.round(energyDayBuckets[i]);
     }
     
     // Calculate peak window ratios (0-1 scale)
