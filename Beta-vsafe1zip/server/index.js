@@ -4780,7 +4780,7 @@ app.get('/api/patterns/insights', async (req, res) => {
   }
 });
 
-// POST /api/activity-log - Log a completed activity
+// POST /api/activity-log - Log a completed activity (legacy endpoint)
 app.post('/api/activity-log', async (req, res) => {
   try {
     const { userId, deviceId, activityType, durationSeconds, metadata } = req.body;
@@ -4813,6 +4813,49 @@ app.post('/api/activity-log', async (req, res) => {
   } catch (err) {
     console.error('📝 [ACTIVITY LOG] Error:', err);
     return res.status(500).json({ error: 'Failed to log activity' });
+  }
+});
+
+// POST /api/activity/log - Log a completed activity (new endpoint with proper response)
+app.post('/api/activity/log', async (req, res) => {
+  try {
+    const { userId, deviceId, activityType, durationSeconds, completedAt } = req.body;
+    
+    console.log('📝 [ACTIVITY/LOG] Request received:', { userId, deviceId, activityType, durationSeconds, completedAt });
+    
+    if (!activityType) {
+      return res.status(400).json({ success: false, error: 'activityType is required' });
+    }
+    
+    if (!userId && !deviceId) {
+      return res.status(400).json({ success: false, error: 'userId or deviceId is required' });
+    }
+    
+    if (!pool) {
+      console.log('📝 [ACTIVITY/LOG] No database pool configured');
+      return res.json({ success: true, activityId: null, note: 'No database configured' });
+    }
+    
+    const result = await pool.query(
+      `INSERT INTO activity_logs (user_id, device_id, activity_type, duration_seconds, completed_at)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id`,
+      [
+        userId || null, 
+        deviceId || null, 
+        activityType, 
+        durationSeconds || null, 
+        completedAt ? new Date(completedAt) : new Date()
+      ]
+    );
+    
+    const activityId = result.rows?.[0]?.id;
+    console.log('📝 [ACTIVITY/LOG] Success - activityId:', activityId);
+    
+    return res.json({ success: true, activityId });
+  } catch (err) {
+    console.error('📝 [ACTIVITY/LOG] Error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to log activity' });
   }
 });
 
