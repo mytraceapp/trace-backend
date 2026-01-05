@@ -5391,7 +5391,34 @@ function buildPredictiveHint(stressEchoes, energyFlow) {
 // POST /api/patterns/insights - Query activity_logs and journal_entries for insights
 app.post('/api/patterns/insights', async (req, res) => {
   try {
-    const { userId, deviceId } = req.body;
+    const { userId, deviceId, userTimezone } = req.body;
+    
+    // Validate userTimezone - use luxon to check if it's a valid IANA timezone
+    let validatedTimezone = 'UTC';
+    let tzAbbreviation = 'UTC';
+    if (userTimezone) {
+      const testDt = DateTime.now().setZone(userTimezone);
+      if (testDt.isValid && testDt.zoneName) {
+        validatedTimezone = userTimezone;
+        tzAbbreviation = testDt.toFormat('ZZZZ') || testDt.offsetNameShort || 'UTC';
+        console.log(`📊 [PATTERNS] Using user timezone: ${validatedTimezone} (${tzAbbreviation})`);
+      } else {
+        console.warn(`📊 [PATTERNS] Invalid timezone "${userTimezone}", defaulting to UTC`);
+      }
+    } else {
+      console.log('📊 [PATTERNS] No userTimezone provided, defaulting to UTC');
+    }
+    
+    // Helper: Format hour in user's local timezone with abbreviation
+    const formatHourInTimezone = (utcHour) => {
+      // Create a UTC datetime for today at the given hour
+      const utcDt = DateTime.utc().set({ hour: utcHour, minute: 0 });
+      // Convert to user's timezone
+      const localDt = utcDt.setZone(validatedTimezone);
+      // Format as "3:00 AM PST"
+      const hourStr = localDt.toFormat('h:mm a');
+      return `${hourStr} ${tzAbbreviation}`;
+    };
     
     // Crisis Mode Override - per interpretive guidelines:
     // "If distress keywords appear in recent logs, TRACE must disable patterns language & predictions"
@@ -5549,16 +5576,11 @@ app.post('/api/patterns/insights', async (req, res) => {
         }
       });
       
-      const formatHour = (h) => {
-        const suffix = h >= 12 ? 'PM' : 'AM';
-        const hour12 = h % 12 || 12;
-        return `${hour12}:00 ${suffix}`;
-      };
-      
       if (peakHour !== null) {
         const startHour = peakHour;
         const endHour = (peakHour + 2) % 24;
-        const timeRange = `${formatHour(startHour)} – ${formatHour(endHour)}`;
+        // Use timezone-aware formatting - peakHour is the UTC hour, convert to local
+        const timeRange = `${formatHourInTimezone(startHour)} – ${formatHourInTimezone(endHour)}`;
         
         // Calculate percentage of activities in this 2-hour window
         const adjacentCount = peakCount + (hourCounts[(peakHour + 1) % 24] || 0);
@@ -5604,14 +5626,10 @@ app.post('/api/patterns/insights', async (req, res) => {
       });
       
       if (peakHour !== null) {
-        const formatHour = (h) => {
-          const suffix = h >= 12 ? 'PM' : 'AM';
-          const hour12 = h % 12 || 12;
-          return `${hour12}:00 ${suffix}`;
-        };
         const startHour = peakHour;
         const endHour = (peakHour + 2) % 24;
-        const timeRange = `${formatHour(startHour)} – ${formatHour(endHour)}`;
+        // Use timezone-aware formatting
+        const timeRange = `${formatHourInTimezone(startHour)} – ${formatHourInTimezone(endHour)}`;
         
         peakWindow = {
           label: `Your peak window is still emerging. Early signals point toward ${timeRange}.`,
