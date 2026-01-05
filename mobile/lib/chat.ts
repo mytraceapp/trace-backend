@@ -210,3 +210,75 @@ export async function fetchPatternsWeeklySummary(params: {
       null,
   };
 }
+
+export interface PeakWindowResult {
+  label: string;
+  startHour: number | null;
+  endHour: number | null;
+  percentage: number | null;
+}
+
+export interface MostHelpfulActivityResult {
+  label: string;
+  topActivity: string | null;
+  percentage: number | null;
+}
+
+export interface PatternsInsightsResult {
+  peakWindow: PeakWindowResult;
+  mostHelpfulActivity: MostHelpfulActivityResult;
+  sampleSize: number;
+}
+
+export async function fetchPatternsInsights(params: {
+  userId?: string | null;
+  deviceId?: string | null;
+}): Promise<PatternsInsightsResult> {
+  const { userId, deviceId } = params;
+  
+  const fallback: PatternsInsightsResult = {
+    peakWindow: {
+      label: "Not enough data yet",
+      startHour: null,
+      endHour: null,
+      percentage: null,
+    },
+    mostHelpfulActivity: {
+      label: "Once you've tried a few activities, I'll start noticing which ones you return to the most.",
+      topActivity: null,
+      percentage: null,
+    },
+    sampleSize: 0,
+  };
+  
+  const queryParams = new URLSearchParams();
+  if (userId) queryParams.append('userId', userId);
+  if (deviceId) queryParams.append('deviceId', deviceId);
+  
+  const url = `${TRACE_API_URL}/patterns/insights?${queryParams.toString()}`;
+  console.log('📊 TRACE patterns/insights: fetching from', url);
+  
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    
+    if (!res.ok) {
+      console.error('📊 TRACE patterns/insights error status:', res.status);
+      return fallback;
+    }
+    
+    const json = await res.json();
+    console.log('📊 TRACE patterns/insights result:', json);
+    
+    return {
+      peakWindow: json.peakWindow || fallback.peakWindow,
+      mostHelpfulActivity: json.mostHelpfulActivity || fallback.mostHelpfulActivity,
+      sampleSize: json.sampleSize || 0,
+    };
+  } catch (err) {
+    console.error('📊 TRACE patterns/insights fetch error:', err);
+    return fallback;
+  }
+}

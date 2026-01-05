@@ -4586,6 +4586,193 @@ If no clear pattern exists, set hasPattern to false and provide an encouraging i
   }
 });
 
+// GET /api/patterns/insights - Peak Window and Most Helpful Activity analysis
+app.get('/api/patterns/insights', async (req, res) => {
+  const { userId, deviceId } = req.query;
+  
+  const fallbackPeakWindow = {
+    label: "Not enough data yet",
+    startHour: null,
+    endHour: null,
+    percentage: null,
+  };
+  
+  const fallbackActivity = {
+    label: "Once you've tried a few activities, I'll start noticing which ones you return to the most.",
+    topActivity: null,
+    percentage: null,
+  };
+  
+  console.log('📊 [PATTERNS INSIGHTS] Request for:', userId || deviceId);
+  
+  if (!userId && !deviceId) {
+    return res.status(400).json({ 
+      error: 'userId or deviceId required',
+      peakWindow: fallbackPeakWindow,
+      mostHelpfulActivity: fallbackActivity,
+      sampleSize: 0
+    });
+  }
+  
+  if (!supabaseServer) {
+    console.log('⚠️ [PATTERNS INSIGHTS] No Supabase configured');
+    return res.json({
+      peakWindow: fallbackPeakWindow,
+      mostHelpfulActivity: fallbackActivity,
+      sampleSize: 0
+    });
+  }
+  
+  try {
+    // Get last 30 days of messages
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+    
+    let query = supabaseServer
+      .from('chat_messages')
+      .select('content, created_at, role')
+      .gte('created_at', since.toISOString())
+      .order('created_at', { ascending: false });
+    
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+    
+    const { data: messages, error } = await query;
+    
+    if (error) {
+      console.error('📊 [PATTERNS INSIGHTS] Supabase error:', error);
+      return res.json({
+        peakWindow: fallbackPeakWindow,
+        mostHelpfulActivity: fallbackActivity,
+        sampleSize: 0
+      });
+    }
+    
+    // Activity keywords to detect from user messages
+    const activityPatterns = [
+      { name: 'Rising', patterns: ['rising', 'i just finished rising', 'completed rising'] },
+      { name: 'Drift', patterns: ['drift', 'i just finished drift', 'completed drift'] },
+      { name: 'Walking', patterns: ['walking', 'walk reset', 'walking reset', 'i just finished walking'] },
+      { name: 'Breathing', patterns: ['breathing', 'breathe', 'breath exercise', 'i just finished breathing'] },
+      { name: 'Grounding', patterns: ['grounding', '5-4-3-2-1', 'grounding exercise', 'i just finished grounding'] },
+      { name: 'Maze', patterns: ['maze', 'i just finished maze', 'completed maze'] },
+      { name: 'Power Nap', patterns: ['power nap', 'nap', 'i just finished power nap'] },
+      { name: 'Pearl Ripple', patterns: ['pearl ripple', 'pearl', 'ripple', 'i just finished pearl'] },
+    ];
+    
+    // Extract activities from user messages
+    const activityLogs = [];
+    
+    for (const msg of messages || []) {
+      if (msg.role !== 'user') continue;
+      const content = (msg.content || '').toLowerCase();
+      
+      for (const activity of activityPatterns) {
+        if (activity.patterns.some(p => content.includes(p))) {
+          activityLogs.push({
+            activity_type: activity.name,
+            created_at: msg.created_at
+          });
+          break; // Only count one activity per message
+        }
+      }
+    }
+    
+    console.log('📊 [PATTERNS INSIGHTS] Found', activityLogs.length, 'activity references');
+    
+    // Calculate Peak Window (when user most often uses TRACE)
+    let peakWindow = fallbackPeakWindow;
+    if (messages && messages.length >= 3) {
+      const hourCounts = {};
+      let total = 0;
+      
+      for (const msg of messages) {
+        if (msg.role !== 'user') continue;
+        const d = new Date(msg.created_at);
+        const hour = d.getHours();
+        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+        total += 1;
+      }
+      
+      let peakHour = null;
+      let peakCount = 0;
+      
+      Object.entries(hourCounts).forEach(([hourStr, count]) => {
+        const h = Number(hourStr);
+        if (count > peakCount) {
+          peakCount = count;
+          peakHour = h;
+        }
+      });
+      
+      if (peakHour !== null && total >= 3) {
+        const pct = Math.round((peakCount / total) * 100);
+        const formatHour = (h) => {
+          const suffix = h >= 12 ? 'PM' : 'AM';
+          const hour12 = ((h + 11) % 12) + 1;
+          return `${hour12}${suffix}`;
+        };
+        
+        peakWindow = {
+          label: `${formatHour(peakHour)} is when you most often reach for TRACE (${pct}% of your activity).`,
+          startHour: peakHour,
+          endHour: (peakHour + 1) % 24,
+          percentage: pct,
+        };
+      }
+    }
+    
+    // Calculate Most Helpful Activity
+    let mostHelpfulActivity = fallbackActivity;
+    if (activityLogs.length >= 2) {
+      const counts = {};
+      let total = 0;
+      
+      for (const log of activityLogs) {
+        const type = log.activity_type;
+        counts[type] = (counts[type] || 0) + 1;
+        total += 1;
+      }
+      
+      let topActivity = null;
+      let topCount = 0;
+      
+      Object.entries(counts).forEach(([name, count]) => {
+        if (count > topCount) {
+          topCount = count;
+          topActivity = name;
+        }
+      });
+      
+      if (topActivity) {
+        const pct = Math.round((topCount / total) * 100);
+        mostHelpfulActivity = {
+          label: `You reach for ${topActivity} about ${pct}% of the time when you use TRACE. That says something about what your nervous system trusts.`,
+          topActivity,
+          percentage: pct,
+        };
+      }
+    }
+    
+    console.log('📊 [PATTERNS INSIGHTS] Result:', { peakWindow, mostHelpfulActivity, sampleSize: activityLogs.length });
+    
+    return res.json({
+      peakWindow,
+      mostHelpfulActivity,
+      sampleSize: activityLogs.length,
+    });
+    
+  } catch (err) {
+    console.error('📊 [PATTERNS INSIGHTS] Unexpected error:', err);
+    return res.json({
+      peakWindow: fallbackPeakWindow,
+      mostHelpfulActivity: fallbackActivity,
+      sampleSize: 0
+    });
+  }
+});
+
 // POST /api/sessions/daily-summary - Count chat sessions based on session START time
 app.post('/api/sessions/daily-summary', async (req, res) => {
   try {

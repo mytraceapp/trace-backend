@@ -18,7 +18,7 @@ import { Colors } from '../constants/colors';
 import { FontFamily, TraceWordmark } from '../constants/typography';
 import { Shadows } from '../constants/shadows';
 import { getStableId } from '../lib/stableId';
-import { fetchPatternsWeeklySummary } from '../lib/chat';
+import { fetchPatternsWeeklySummary, fetchPatternsInsights, PatternsInsightsResult } from '../lib/chat';
 import { getTraceUserId } from '../lib/supabase';
 
 const API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
@@ -69,6 +69,9 @@ export default function PatternsReport() {
 
   const [patternsSummary, setPatternsSummary] = useState<string | null>(null);
   const [isPatternsSummaryLoading, setPatternsSummaryLoading] = useState(false);
+
+  const [insights, setInsights] = useState<PatternsInsightsResult | null>(null);
+  const [isInsightsLoading, setInsightsLoading] = useState(false);
 
   console.log(
     '💠 [TRACE PATTERNS] stableId / userId / lastHour state =',
@@ -150,6 +153,30 @@ export default function PatternsReport() {
     }
   }, [stableId, userId]);
 
+  const loadInsights = useCallback(async () => {
+    try {
+      if (!stableId && !userId) {
+        console.log('📊 TRACE insights: no stable device id or userId yet, skipping');
+        return;
+      }
+
+      setInsightsLoading(true);
+
+      const result = await fetchPatternsInsights({
+        userId: userId,
+        deviceId: stableId,
+      });
+
+      console.log('📊 TRACE insights result:', result);
+      setInsights(result);
+    } catch (err) {
+      console.error('📊 TRACE insights fetch error:', err);
+      setInsights(null);
+    } finally {
+      setInsightsLoading(false);
+    }
+  }, [stableId, userId]);
+
   useEffect(() => {
     console.log('💠 [TRACE PATTERNS] useEffect -> loadLastHourSummary');
     loadLastHourSummary();
@@ -160,12 +187,18 @@ export default function PatternsReport() {
     loadWeeklySummary();
   }, [loadWeeklySummary]);
 
+  useEffect(() => {
+    console.log('📊 [TRACE PATTERNS] useEffect -> loadInsights');
+    loadInsights();
+  }, [loadInsights]);
+
   useFocusEffect(
     useCallback(() => {
-      console.log('💠 [TRACE PATTERNS] useFocusEffect -> loadLastHourSummary + loadWeeklySummary');
+      console.log('💠 [TRACE PATTERNS] useFocusEffect -> loadLastHourSummary + loadWeeklySummary + loadInsights');
       loadLastHourSummary();
       loadWeeklySummary();
-    }, [loadLastHourSummary, loadWeeklySummary])
+      loadInsights();
+    }, [loadLastHourSummary, loadWeeklySummary, loadInsights])
   );
 
   return (
@@ -265,6 +298,41 @@ export default function PatternsReport() {
               : patternsSummary ??
                 'As you keep checking in, TRACE will gently offer a small reflection on how your week is unfolding.'}
           </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
+            Your Rhythm
+          </Text>
+          
+          {isInsightsLoading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#6B7B6E" />
+              <Text style={[styles.loadingText, { fontFamily: canelaFont }]}>
+                Noticing your patterns...
+              </Text>
+            </View>
+          )}
+
+          {!isInsightsLoading && (
+            <View style={styles.insightsContainer}>
+              <View style={styles.insightRow}>
+                <Text style={[styles.insightLabel, { fontFamily: canelaFont }]}>Peak Window</Text>
+                <Text style={[styles.insightValue, { fontFamily: canelaFont }]}>
+                  {insights?.peakWindow?.label || "Not enough data yet"}
+                </Text>
+              </View>
+              
+              <View style={styles.insightDivider} />
+              
+              <View style={styles.insightRow}>
+                <Text style={[styles.insightLabel, { fontFamily: canelaFont }]}>What Helps Most</Text>
+                <Text style={[styles.insightValue, { fontFamily: canelaFont }]}>
+                  {insights?.mostHelpfulActivity?.label || "Once you've tried a few activities, I'll start noticing which ones you return to the most."}
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -384,5 +452,28 @@ const styles = StyleSheet.create({
     color: '#6B7B6E',
     fontStyle: 'italic',
     lineHeight: 22,
+  },
+  insightsContainer: {
+    gap: 16,
+  },
+  insightRow: {
+    gap: 6,
+  },
+  insightLabel: {
+    fontSize: 13,
+    color: '#6B7B6E',
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  insightValue: {
+    fontSize: 15,
+    color: '#4A5A4C',
+    lineHeight: 22,
+  },
+  insightDivider: {
+    height: 1,
+    backgroundColor: 'rgba(107, 123, 110, 0.15)',
+    marginVertical: 4,
   },
 });

@@ -1,0 +1,181 @@
+Replit: add /api/patterns/insights endpoint
+
+Assumptions (you can tweak names):
+	•	Table: activity_logs
+	•	Columns:
+	•	user_id (uuid)
+	•	activity_type (text: ‘Rising’, ‘Drift’, ‘Walking’, etc.)
+	•	created_at (timestamp)
+
+🧪 Replit prompt (paste this into your Replit assistant or into server/patterns.js)
+// server/patterns.js
+import express from "express";
+import { supabase } from "./supabaseClient.js"; // adjust path to your Supabase client
+
+const router = express.Router();
+
+/**
+ * Helper: group activity logs by hour of day
+ */
+function calculatePeakWindow(logs) {
+  if (!logs.length) {
+    return {
+      label: "Not enough data yet",
+      startHour: null,
+      endHour: null,
+      percentage: null,
+    };
+  }
+
+  const hourCounts = {};
+  let total = 0;
+
+  for (const log of logs) {
+    const ts = log.created_at || log.createdAt;
+    const d = new Date(ts);
+    const hour = d.getHours(); // 0–23
+    hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+    total += 1;
+  }
+
+  // Find the single peak hour for now (you can later expand to 2-hour windows)
+  let peakHour = null;
+  let peakCount = 0;
+
+  Object.entries(hourCounts).forEach(([hourStr, count]) => {
+    const h = Number(hourStr);
+    if (count > peakCount) {
+      peakCount = count;
+      peakHour = h;
+    }
+  });
+
+  if (peakHour === null) {
+    return {
+      label: "Not enough data yet",
+      startHour: null,
+      endHour: null,
+      percentage: null,
+    };
+  }
+
+  const pct = Math.round((peakCount / total) * 100);
+
+  const formatHour = (h) => {
+    const suffix = h >= 12 ? "PM" : "AM";
+    const hour12 = ((h + 11) % 12) + 1;
+    return `${hour12}${suffix}`;
+  };
+
+  const label = `${formatHour(peakHour)} is when you most often reach for TRACE (${pct}% of your activities).`;
+
+  return {
+    label,
+    startHour: peakHour,
+    endHour: (peakHour + 1) % 24,
+    percentage: pct,
+  };
+}
+
+/**
+ * Helper: find most frequently used activity_type
+ */
+function calculateMostHelpfulActivity(logs) {
+  if (!logs.length) {
+    return {
+      label: "Once you’ve tried a few activities, I’ll start noticing which ones you return to the most.",
+      topActivity: null,
+      percentage: null,
+    };
+  }
+
+  const counts = {};
+  let total = 0;
+
+  for (const log of logs) {
+    const type = log.activity_type || log.activityType || "Unknown";
+    counts[type] = (counts[type] || 0) + 1;
+    total += 1;
+  }
+
+  let topActivity = null;
+  let topCount = 0;
+
+  Object.entries(counts).forEach(([name, count]) => {
+    if (count > topCount) {
+      topCount = count;
+      topActivity = name;
+    }
+  });
+
+  if (!topActivity) {
+    return {
+      label: "Once you’ve tried a few activities, I’ll start noticing which ones you return to the most.",
+      topActivity: null,
+      percentage: null,
+    };
+  }
+
+  const pct = Math.round((topCount / total) * 100);
+  const label = `You reach for ${topActivity} about ${pct}% of the time when you use TRACE. That says something about what your nervous system trusts.`;
+
+  return {
+    label,
+    topActivity,
+    percentage: pct,
+  };
+}
+
+// GET /api/patterns/insights?userId=...
+router.get("/patterns/insights", async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    // Pull recent activity logs – last 30 days
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    const { data: logs, error } = await supabase
+      .from("activity_logs")
+      .select("id, user_id, activity_type, created_at")
+      .eq("user_id", userId)
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("[TRACE PATTERNS] Supabase error:", error);
+      return res.status(500).json({ error: "failed_to_fetch_activity_logs" });
+    }
+
+    const peakWindow = calculatePeakWindow(logs || []);
+    const mostHelpfulActivity = calculateMostHelpfulActivity(logs || []);
+
+    return res.json({
+      peakWindow,
+      mostHelpfulActivity,
+      sampleSize: logs?.length || 0,
+    });
+  } catch (err) {
+    console.error("[TRACE PATTERNS] Unexpected error:", err);
+    return res.status(500).json({ error: "unexpected_error" });
+  }
+});
+
+export default router;
+
+Then in your main server/index.js (or wherever you mount routers):
+import patternsRouter from "./server/patterns.js"; // path to the file above
+
+app.use("/api", patternsRouter);
+
+That gives you:
+GET /api/patterns/insights?userId=<uuid>
+→ {
+  peakWindow: { label: "...", startHour, endHour, percentage },
+  mostHelpfulActivity: { label: "...", topActivity, percentage },
+  sampleSize: 27
+}
