@@ -1,0 +1,329 @@
+extend /api/patterns/insights for Stress & Energy
+
+In the same server/patterns.js where we already added peakWindow + mostHelpfulActivity, add a few helpers.
+
+A. Helpers for weekday + names
+
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function getWeekdayIndex(dateLike) {
+  const d = new Date(dateLike);
+  return d.getDay(); // 0–6
+}
+
+ Stress Echoes from journals (overwhelmed/work midweek)
+
+Assumptions:
+	•	Table: journal_entries
+	•	Columns: user_id, created_at, mood, content
+
+Add this helper:
+const STRESS_MOODS = ["overwhelmed", "anxious", "stressed", "fried", "burned_out"];
+const WORK_KEYWORDS = ["work", "shift", "manager", "boss", "hr", "clinic", "charting"];
+
+function containsAnyKeyword(text, keywords) {
+  const lower = (text || "").toLowerCase();
+  return keywords.some(k => lower.includes(k));
+}
+
+function computeStressEchoes(journals = []) {
+  if (!journals.length) {
+    return {
+      label: "As you journal more, I’ll start noticing which days tend to echo the heaviest pressure.",
+      topDayIndex: null,
+      stressCount: 0,
+      totalStressEntries: 0,
+    };
+  }
+
+  const stressByDay = {};
+  let totalStress = 0;
+
+  for (const j of journals) {
+    const mood = (j.mood || "").toLowerCase();
+    const content = j.content || "";
+
+    const isStressMood = STRESS_MOODS.includes(mood);
+    const mentionsOverwhelm = containsAnyKeyword(content, ["overwhelmed", "panic", "too much"]);
+    const mentionsWork = containsAnyKeyword(content, WORK_KEYWORDS);
+
+    // stress-like entry
+    if (isStressMood || mentionsOverwhelm || mentionsWork) {
+      const dayIndex = getWeekdayIndex(j.created_at);
+      stressByDay[dayIndex] = (stressByDay[dayIndex] || 0) + 1;
+      totalStress += 1;
+    }
+  }
+
+  if (!totalStress) {
+    return {
+      label: "I haven’t seen a repeating stress pattern yet. When it shows up, I’ll reflect it back gently.",
+      topDayIndex: null,
+      stressCount: 0,
+      totalStressEntries: 0,
+    };
+  }
+
+  let topDayIndex = null;
+  let topCount = 0;
+
+  Object.entries(stressByDay).forEach(([dayStr, count]) => {
+    const idx = Number(dayStr);
+    if (count > topCount) {
+      topCount = count;
+      topDayIndex = idx;
+    }
+  });
+
+  const dayName = topDayIndex !== null ? WEEKDAY_NAMES[topDayIndex] : null;
+  const pct = Math.round((topCount / totalStress) * 100);
+
+  let label;
+  if (topDayIndex === 3) { // Wednesday
+    label = `You’ve been writing about feeling under pressure a lot on Wednesdays — about ${pct}% of your heavier entries land there. Midweek seems to echo a bit more weight for you.`;
+  } else if (topDayIndex === 1 || topDayIndex === 2) { // Monday/Tuesday
+    label = `${dayName} keeps showing up as a heavier day — about ${pct}% of your stress entries land there. Early in the week seems to carry more load for you.`;
+  } else {
+    label = `I’ve noticed ${dayName} tends to hold more of your stress — about ${pct}% of your heavier entries gather there.`;
+  }
+
+  return {
+    label,
+    topDayIndex,
+    stressCount: topCount,
+    totalStressEntries: totalStress,
+  };
+}
+
+Energy flow from activity logs (When you reach for TRACE most)
+
+We’ll look at activity_logs and group by weekday:
+function computeEnergyFlowByWeekday(activityLogs = []) {
+  if (!activityLogs.length) {
+    return {
+      label: "As you use activities more, I’ll start noticing which days your energy reaches for TRACE the most.",
+      topDayIndex: null,
+      percentage: null,
+      totalActivities: 0,
+    };
+  }
+
+  const countsByDay = {};
+  let total = 0;
+
+  for (const log of activityLogs) {
+    const dayIndex = getWeekdayIndex(log.created_at);
+    countsByDay[dayIndex] = (countsByDay[dayIndex] || 0) + 1;
+    total += 1;
+  }
+
+  let topDayIndex = null;
+  let topCount = 0;
+
+  Object.entries(countsByDay).forEach(([dayStr, count]) => {
+    const idx = Number(dayStr);
+    if (count > topCount) {
+      topCount = count;
+      topDayIndex = idx;
+    }
+  });
+
+  const dayName = topDayIndex !== null ? WEEKDAY_NAMES[topDayIndex] : null;
+  const pct = total ? Math.round((topCount / total) * 100) : null;
+
+  let label;
+  if (!dayName) {
+    label = "I’m still learning your weekly rhythm. Over time I’ll start to see which days your energy reaches for TRACE most often.";
+  } else if (topDayIndex === 1) { // Monday
+    label = `Your energy seems to reach for TRACE most on Mondays — about ${pct}% of your activities land there. That says something about how you meet the start of the week.`;
+  } else if (topDayIndex === 3) { // Wednesday
+    label = `Midweek — especially Wednesdays — is when you most often lean on TRACE (${pct}% of your activities). The middle of the week seems to be where a lot moves for you.`;
+  } else {
+    label = `${dayName} is when you most often reach for TRACE — about ${pct}% of your activities. That day seems to carry a special weight or rhythm for you.`;
+  }
+
+  return {
+    label,
+    topDayIndex,
+    percentage: pct,
+    totalActivities: total,
+  };
+}
+
+function computeEnergyFlowByWeekday(activityLogs = []) {
+  if (!activityLogs.length) {
+    return {
+      label: "As you use activities more, I’ll start noticing which days your energy reaches for TRACE the most.",
+      topDayIndex: null,
+      percentage: null,
+      totalActivities: 0,
+    };
+  }
+
+  const countsByDay = {};
+  let total = 0;
+
+  for (const log of activityLogs) {
+    const dayIndex = getWeekdayIndex(log.created_at);
+    countsByDay[dayIndex] = (countsByDay[dayIndex] || 0) + 1;
+    total += 1;
+  }
+
+  let topDayIndex = null;
+  let topCount = 0;
+
+  Object.entries(countsByDay).forEach(([dayStr, count]) => {
+    const idx = Number(dayStr);
+    if (count > topCount) {
+      topCount = count;
+      topDayIndex = idx;
+    }
+  });
+
+  const dayName = topDayIndex !== null ? WEEKDAY_NAMES[topDayIndex] : null;
+  const pct = total ? Math.round((topCount / total) * 100) : null;
+
+  let label;
+  if (!dayName) {
+    label = "I’m still learning your weekly rhythm. Over time I’ll start to see which days your energy reaches for TRACE most often.";
+  } else if (topDayIndex === 1) { // Monday
+    label = `Your energy seems to reach for TRACE most on Mondays — about ${pct}% of your activities land there. That says something about how you meet the start of the week.`;
+  } else if (topDayIndex === 3) { // Wednesday
+    label = `Midweek — especially Wednesdays — is when you most often lean on TRACE (${pct}% of your activities). The middle of the week seems to be where a lot moves for you.`;
+  } else {
+    label = `${dayName} is when you most often reach for TRACE — about ${pct}% of your activities. That day seems to carry a special weight or rhythm for you.`;
+  }
+
+  return {
+    label,
+    topDayIndex,
+    percentage: pct,
+    totalActivities: total,
+  };
+}
+const SOFT_MOODS = ["calm", "okay", "relieved", "lighter"];
+
+function computeSofteningDay(journals = []) {
+  if (!journals.length) {
+    return {
+      label: "As more calm moments show up in your journal, I’ll notice where in the week things tend to soften a little.",
+      topDayIndex: null,
+      percentage: null,
+      totalSoftEntries: 0,
+    };
+  }
+
+  const softByDay = {};
+  let totalSoft = 0;
+
+  for (const j of journals) {
+    const mood = (j.mood || "").toLowerCase();
+    if (!SOFT_MOODS.includes(mood)) continue;
+
+    const dayIndex = getWeekdayIndex(j.created_at);
+    softByDay[dayIndex] = (softByDay[dayIndex] || 0) + 1;
+    totalSoft += 1;
+  }
+
+  if (!totalSoft) {
+    return {
+      label: "I haven’t seen a clear softening pattern yet, but when those calmer days cluster, I’ll reflect that back to you.",
+      topDayIndex: null,
+      percentage: null,
+      totalSoftEntries: 0,
+    };
+  }
+
+  let topDayIndex = null;
+  let topCount = 0;
+
+  Object.entries(softByDay).forEach(([dayStr, count]) => {
+    const idx = Number(dayStr);
+    if (count > topCount) {
+      topCount = count;
+      topDayIndex = idx;
+    }
+  });
+
+  const dayName = WEEKDAY_NAMES[topDayIndex];
+  const pct = Math.round((topCount / totalSoft) * 100);
+
+  let label;
+  if (topDayIndex === 3) { // Wednesday
+    label = `You tend to soften a bit around Wednesdays — about ${pct}% of your calmer entries land there. Midweek seems to hold some tiny exhale moments for you.`;
+  } else if (topDayIndex >= 4) { // Thu/Fri/Sat
+    label = `Toward the end of the week — especially ${dayName} — I see more of your “calm” or “okay” entries (${pct}% of them). There’s a gentle easing there.`;
+  } else {
+    label = `${dayName} quietly holds more of your calmer entries (${pct}%). Something about that day seems to let your system exhale, even if just a little.`;
+  }
+
+  return {
+    label,
+    topDayIndex,
+    percentage: pct,
+    totalSoftEntries: totalSoft,
+  };
+}
+
+Wire journals into /api/patterns/insights
+
+Update the route to fetch both activity_logs and journal_entries, then attach these new insights:
+
+router.get("/patterns/insights", async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const since = new Date();
+    since.setDate(since.getDate() - 45); // look back ~6 weeks
+
+    // 1) Activity logs
+    const { data: activityLogs, error: activityError } = await supabase
+      .from("activity_logs")
+      .select("id, user_id, activity_type, created_at")
+      .eq("user_id", userId)
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: false });
+
+    if (activityError) {
+      console.error("[TRACE PATTERNS] activity error:", activityError);
+    }
+
+    // 2) Journal entries
+    const { data: journals, error: journalError } = await supabase
+      .from("journal_entries")
+      .select("id, user_id, mood, content, created_at")
+      .eq("user_id", userId)
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: false });
+
+    if (journalError) {
+      console.error("[TRACE PATTERNS] journal error:", journalError);
+    }
+
+    const logs = activityLogs || [];
+    const js = journals || [];
+
+    const peakWindow = calculatePeakWindow(logs);
+    const mostHelpfulActivity = calculateMostHelpfulActivity(logs);
+    const stressEchoes = computeStressEchoes(js);
+    const energyFlow = computeEnergyFlowByWeekday(logs);
+    const softening = computeSofteningDay(js);
+
+    return res.json({
+      peakWindow,
+      mostHelpfulActivity,
+      stressEchoes,
+      energyFlow,
+      softening,
+      sampleSize: logs.length,
+      journalSampleSize: js.length,
+    });
+  } catch (err) {
+    console.error("[TRACE PATTERNS] Unexpected error:", err);
+    return res.status(500).json({ error: "unexpected_error" });
+  }
+});
