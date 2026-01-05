@@ -5176,6 +5176,149 @@ function computeSofteningDay(journals = []) {
   };
 }
 
+// ---- WEEKLY MOOD TREND + CROSS-PATTERN + PREDICTIVE HINTS ----
+
+function trendDirection(thisWeek, lastWeek) {
+  if (thisWeek > lastWeek) return "up";
+  if (thisWeek < lastWeek) return "down";
+  return "flat";
+}
+
+function buildTrendLabel(kind, thisWeek, lastWeek, dir) {
+  if (kind === "calm") {
+    if (dir === "up") {
+      return `↑ More calm or "okay" check-ins than last week (${thisWeek} vs ${lastWeek}). That matters.`;
+    }
+    if (dir === "down") {
+      return `↓ Fewer calm moments than last week (${thisWeek} vs ${lastWeek}). That doesn't mean you're failing — just that this week has been heavier.`;
+    }
+    return `↔ About the same number of calm or "okay" moments as last week (${thisWeek}). Steady doesn't have to mean perfect.`;
+  }
+
+  // kind === "stress"
+  if (dir === "up") {
+    return `↑ More overwhelmed or stressed entries than last week (${thisWeek} vs ${lastWeek}). No judgment — it just means your system has been carrying more.`;
+  }
+  if (dir === "down") {
+    return `↓ Fewer overwhelmed or stressed entries than last week (${thisWeek} vs ${lastWeek}). Even tiny shifts like that are worth noticing.`;
+  }
+  return `↔ About the same number of heavy-feeling entries as last week (${thisWeek}). This might be a season of holding a lot.`;
+}
+
+function computeWeeklyMoodTrend(journals = []) {
+  if (!journals.length) {
+    return {
+      calm: {
+        thisWeek: 0,
+        lastWeek: 0,
+        direction: "flat",
+        label: "As more calm and heavy days show up in your journal, I'll start reflecting how this week compares to the last.",
+      },
+      stress: {
+        thisWeek: 0,
+        lastWeek: 0,
+        direction: "flat",
+        label: "Once there's a little more to go on, I'll gently name how your heavier entries are shifting week to week.",
+      },
+    };
+  }
+
+  const now = new Date();
+  const startThisWeek = new Date(now);
+  startThisWeek.setDate(now.getDate() - 7);
+  const startLastWeek = new Date(now);
+  startLastWeek.setDate(now.getDate() - 14);
+
+  let calmThisWeek = 0;
+  let calmLastWeek = 0;
+  let stressThisWeek = 0;
+  let stressLastWeek = 0;
+
+  for (const j of journals) {
+    const ts = new Date(j.created_at);
+    const mood = (j.mood || "").toLowerCase();
+    const content = j.content || "";
+
+    const isCalm = SOFT_MOODS.includes(mood);
+    const isStress =
+      STRESS_MOODS.includes(mood) ||
+      content.toLowerCase().includes("overwhelmed") ||
+      content.toLowerCase().includes("too much") ||
+      content.toLowerCase().includes("burned out");
+
+    const inThisWeek = ts >= startThisWeek;
+    const inLastWeek = ts < startThisWeek && ts >= startLastWeek;
+
+    if (isCalm) {
+      if (inThisWeek) calmThisWeek++;
+      else if (inLastWeek) calmLastWeek++;
+    }
+
+    if (isStress) {
+      if (inThisWeek) stressThisWeek++;
+      else if (inLastWeek) stressLastWeek++;
+    }
+  }
+
+  const calmDir = trendDirection(calmThisWeek, calmLastWeek);
+  const stressDir = trendDirection(stressThisWeek, stressLastWeek);
+
+  return {
+    calm: {
+      thisWeek: calmThisWeek,
+      lastWeek: calmLastWeek,
+      direction: calmDir,
+      label: buildTrendLabel("calm", calmThisWeek, calmLastWeek, calmDir),
+    },
+    stress: {
+      thisWeek: stressThisWeek,
+      lastWeek: stressLastWeek,
+      direction: stressDir,
+      label: buildTrendLabel("stress", stressThisWeek, stressLastWeek, stressDir),
+    },
+  };
+}
+
+function buildCrossPatternHint(stressEchoes, energyFlow) {
+  const stressDayIndex = stressEchoes?.topDayIndex;
+  const energyDayIndex = energyFlow?.topDayIndex;
+
+  if (stressDayIndex == null || energyDayIndex == null) {
+    return "As more weeks unfold, I'll start noticing how your heavier days and your go-to supports interact.";
+  }
+
+  const stressDay = WEEKDAY_NAMES[stressDayIndex];
+  const energyDay = WEEKDAY_NAMES[energyDayIndex];
+
+  if (stressDayIndex === energyDayIndex) {
+    return `When ${stressDay}s feel heavier, you also tend to reach for TRACE more often. It's like your system already knows that day needs extra support.`;
+  }
+
+  return `Your heavier entries tend to gather on ${stressDay}s, but you reach for TRACE most on ${energyDay}s. There might be room to bring a bit more support into those ${stressDay}s too.`;
+}
+
+function buildPredictiveHint(stressEchoes, energyFlow) {
+  const today = new Date();
+  const todayIndex = today.getDay(); // 0–6
+  const tomorrowIndex = (todayIndex + 1) % 7;
+
+  const stressDayIndex = stressEchoes?.topDayIndex ?? null;
+  const energyDayIndex = energyFlow?.topDayIndex ?? null;
+
+  // Only offer a hint if tomorrow is a known "heavier" or "high-activity" day
+  if (stressDayIndex === tomorrowIndex) {
+    const dayName = WEEKDAY_NAMES[tomorrowIndex];
+    return `Based on the last few weeks, ${dayName}s tend to carry more weight for you. If tomorrow follows that rhythm, it might help to plan even one small anchor — a walk, a breath, or a few quiet minutes here.`;
+  }
+
+  if (energyDayIndex === tomorrowIndex) {
+    const dayName = WEEKDAY_NAMES[tomorrowIndex];
+    return `${dayName}s are when you most often lean on TRACE. If tomorrow fits that pattern, you might gently treat it as a day where you're allowed to need more support, not less.`;
+  }
+
+  return null;
+}
+
 // POST /api/patterns/insights - Query activity_logs and journal_entries for insights
 app.post('/api/patterns/insights', async (req, res) => {
   try {
@@ -5340,6 +5483,9 @@ app.post('/api/patterns/insights', async (req, res) => {
     const stressEchoes = computeStressEchoes(journals);
     const energyFlow = computeEnergyFlowByWeekday(activityLogs);
     const softening = computeSofteningDay(journals);
+    const weeklyMoodTrend = computeWeeklyMoodTrend(journals);
+    const crossPatternHint = buildCrossPatternHint(stressEchoes, energyFlow);
+    const predictiveHint = buildPredictiveHint(stressEchoes, energyFlow);
     
     console.log('📊 [PATTERNS INSIGHTS POST] Result:', { 
       peakWindow, 
@@ -5347,6 +5493,9 @@ app.post('/api/patterns/insights', async (req, res) => {
       stressEchoes: stressEchoes.topDayIndex,
       energyFlow: energyFlow.topDayIndex,
       softening: softening.topDayIndex,
+      weeklyMoodTrend: weeklyMoodTrend.calm.direction + '/' + weeklyMoodTrend.stress.direction,
+      crossPatternHint: crossPatternHint?.slice(0, 50) + '...',
+      predictiveHint: predictiveHint ? 'yes' : 'no',
       sampleSize: activityLogs.length,
       journalSampleSize: journals.length,
     });
@@ -5357,6 +5506,9 @@ app.post('/api/patterns/insights', async (req, res) => {
       stressEchoes,
       energyFlow,
       softening,
+      weeklyMoodTrend,
+      crossPatternHint,
+      predictiveHint,
       sampleSize: activityLogs.length,
       journalSampleSize: journals.length,
     });
