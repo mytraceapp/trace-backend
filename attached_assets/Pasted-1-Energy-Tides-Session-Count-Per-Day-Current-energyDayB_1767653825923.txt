@@ -1,0 +1,68 @@
+1️⃣ Energy Tides → Session Count Per Day
+
+# Current: energyDayBuckets = check-ins per day
+# Keep this, but rename to energyFrequencyBuckets or keep as-is
+
+energy_frequency_buckets = [0] * 7
+for log in last_7_days_logs:
+    day_index = (log.timestamp.date() - start_of_week).days
+    if 0 <= day_index < 7:
+        energy_frequency_buckets[day_index] += 1  # Pure session count
+
+# Glance calculation (keep existing logic)
+active_days = sum(1 for count in energy_frequency_buckets if count > 0)
+rhythm = "Steady" if active_days >= 5 else "Building" if active_days >= 3 else "Sporadic"
+energy_tides_glance = f"{rhythm} • {active_days} active day{'s' if active_days != 1 else ''}"
+
+2️⃣ Weekly Rhythm Map → Emotional Load Per Day
+
+# NEW: Calculate emotional weight per day
+emotional_load_buckets = [0.0] * 7
+
+for log in last_7_days_logs:
+    day_index = (log.timestamp.date() - start_of_week).days
+    if 0 <= day_index < 7:
+        stress_score = 0
+        relief_score = 0
+        
+        # Stress signals
+        if log.emotion in ['anxious', 'overwhelmed', 'restless']:
+            stress_score += 2
+        if log.crisis_mode:
+            stress_score += 3
+        if any(word in (log.chat_content or '').lower() 
+               for word in ['panic', 'crisis', 'can\'t', 'help']):
+            stress_score += 1
+            
+        # Relief signals
+        if log.activity_category in ['breathe', 'walk', 'rest']:
+            relief_score += 1
+        if log.felt_better:  # If user marked activity as helpful
+            relief_score += 2
+        if log.emotion in ['calm', 'grounded', 'safe']:
+            relief_score += 1
+            
+        # Net emotional load
+        emotional_load_buckets[day_index] += (stress_score - relief_score)
+
+# Normalize to 0-10 scale for waveform display
+max_load = max(abs(x) for x in emotional_load_buckets) or 1
+emotional_rhythm_buckets = [
+    int((load / max_load) * 10) for load in emotional_load_buckets
+]
+
+# Generate narrative based on emotional weight (not frequency)
+weekly_rhythm_label = generate_emotional_rhythm_narrative(emotional_rhythm_buckets)
+Updated Response Schema
+
+return {
+    # Energy Tides (behavioral frequency)
+    "energyFrequencyBuckets": energy_frequency_buckets,  # [4, 2, 0, 1, 0, 0, 0]
+    "energyTidesGlance": energy_tides_glance,  # "Sporadic • 3 active days"
+    
+    # Weekly Rhythm Map (emotional weight)
+    "emotionalRhythmBuckets": emotional_rhythm_buckets,  # [7, 3, 0, 8, 2, 1, 0]
+    "energyRhythmLabel": weekly_rhythm_label,  # "Your week gathered emotional weight Tuesday–Thursday..."
+    
+    # ... rest of insights
+}

@@ -6153,6 +6153,7 @@ function mergePatterns(cached, current) {
     'stressEchoesLabel', 'reliefLabel', 'energyRhythmLabel',
     'mostHelpfulActivityLabel', 'mostHelpfulActivityCount',
     'crossPatternHint', 'predictiveHint', 'weeklyNarrative',
+    'energyFrequencyBuckets', 'energyTidesGlance', 'emotionalRhythmBuckets', 'emotionalRhythmLabel',
     'peakWindow', 'mostHelpfulActivity', 'stressEchoes', 'energyFlow', 'softening'
   ];
   
@@ -6606,17 +6607,113 @@ app.post('/api/patterns/insights', async (req, res) => {
       }
     }
     
-    // Calculate energyDayBuckets (Sun-Sat activity counts) with time-decay weighting
-    const energyDayBuckets = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
+    // 1️⃣ ENERGY TIDES: Session count per day (behavioral frequency)
+    const energyFrequencyBuckets = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
     for (const log of activityLogs) {
       const dayIndex = new Date(log.completed_at || log.created_at).getDay();
       const weeksAgo = getWeeksAgo(log.completed_at || log.created_at);
       const weight = weekWeight(weeksAgo);
-      energyDayBuckets[dayIndex] += weight;
+      energyFrequencyBuckets[dayIndex] += weight;
     }
     // Round to integers for UI display
-    for (let i = 0; i < energyDayBuckets.length; i++) {
-      energyDayBuckets[i] = Math.round(energyDayBuckets[i]);
+    for (let i = 0; i < energyFrequencyBuckets.length; i++) {
+      energyFrequencyBuckets[i] = Math.round(energyFrequencyBuckets[i]);
+    }
+    
+    // Energy Tides Glance - quick summary of activity rhythm
+    const activeDays = energyFrequencyBuckets.filter(count => count > 0).length;
+    let rhythmLabel = 'Sporadic';
+    if (activeDays >= 5) rhythmLabel = 'Steady';
+    else if (activeDays >= 3) rhythmLabel = 'Building';
+    const energyTidesGlance = `${rhythmLabel} • ${activeDays} active day${activeDays !== 1 ? 's' : ''}`;
+    
+    // Keep energyDayBuckets as alias for backward compatibility
+    const energyDayBuckets = energyFrequencyBuckets;
+    
+    // 2️⃣ WEEKLY RHYTHM MAP: Emotional load per day (stress vs relief weight)
+    const emotionalLoadBuckets = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat (raw scores)
+    
+    // Process activity logs for relief signals
+    for (const log of activityLogs) {
+      const dayIndex = new Date(log.completed_at || log.created_at).getDay();
+      let reliefScore = 0;
+      
+      // Relief signals from activity type
+      const activityType = (log.activity_type || '').toLowerCase();
+      if (['breathe', 'breathing', 'walk', 'walking', 'rest', 'power_nap', 'pearl', 'rising'].includes(activityType)) {
+        reliefScore += 1;
+      }
+      // If duration is substantial, add more relief
+      if (log.duration_seconds && log.duration_seconds > 60) {
+        reliefScore += 1;
+      }
+      
+      emotionalLoadBuckets[dayIndex] -= reliefScore; // Relief reduces load (negative)
+    }
+    
+    // Process journal entries for stress/relief signals
+    for (const entry of journals) {
+      const dayIndex = new Date(entry.created_at).getDay();
+      let stressScore = 0;
+      let reliefScore = 0;
+      
+      const content = (entry.content || '').toLowerCase();
+      const moodTags = entry.mood_tags || [];
+      
+      // Stress signals from mood tags
+      const stressMoods = ['anxious', 'overwhelmed', 'restless', 'angry', 'frustrated', 'sad', 'hopeless'];
+      for (const mood of moodTags) {
+        if (stressMoods.includes(mood.toLowerCase())) {
+          stressScore += 2;
+        }
+      }
+      
+      // Stress signals from content keywords
+      const stressKeywords = ['panic', 'crisis', "can't", 'help', 'scared', 'terrified', 'breaking', 'falling apart'];
+      for (const keyword of stressKeywords) {
+        if (content.includes(keyword)) {
+          stressScore += 1;
+        }
+      }
+      
+      // Relief signals from mood tags
+      const reliefMoods = ['calm', 'grounded', 'safe', 'peaceful', 'hopeful', 'grateful', 'content'];
+      for (const mood of moodTags) {
+        if (reliefMoods.includes(mood.toLowerCase())) {
+          reliefScore += 2;
+        }
+      }
+      
+      // Relief signals from content keywords
+      const reliefKeywords = ['better', 'helped', 'calmer', 'breathing', 'okay', 'relief'];
+      for (const keyword of reliefKeywords) {
+        if (content.includes(keyword)) {
+          reliefScore += 1;
+        }
+      }
+      
+      // Net emotional load (positive = stress, negative = relief)
+      emotionalLoadBuckets[dayIndex] += (stressScore - reliefScore);
+    }
+    
+    // Normalize to 0-10 scale for waveform display
+    const maxLoad = Math.max(...emotionalLoadBuckets.map(x => Math.abs(x))) || 1;
+    const emotionalRhythmBuckets = emotionalLoadBuckets.map(load => 
+      Math.round((load / maxLoad) * 5) + 5 // Center at 5, range 0-10
+    );
+    
+    // Generate emotional rhythm narrative
+    let emotionalRhythmLabel = null;
+    const heaviestDayIndex = emotionalLoadBuckets.indexOf(Math.max(...emotionalLoadBuckets));
+    const lightestDayIndex = emotionalLoadBuckets.indexOf(Math.min(...emotionalLoadBuckets));
+    const hasVariation = Math.max(...emotionalLoadBuckets) !== Math.min(...emotionalLoadBuckets);
+    
+    if (hasVariation && journals.length >= 3) {
+      const heaviestDay = WEEKDAY_NAMES[heaviestDayIndex];
+      const lightestDay = WEEKDAY_NAMES[lightestDayIndex];
+      emotionalRhythmLabel = `Your week gathered emotional weight around ${heaviestDay}, with ${lightestDay} feeling lighter.`;
+    } else if (journals.length > 0) {
+      emotionalRhythmLabel = "Your emotional rhythm is still emerging — keep checking in.";
     }
     
     // Generate Weekly Narrative using AI
@@ -6708,13 +6805,22 @@ Write a 2-3 sentence poetic but grounded reflection on this person's week. Notic
       peakWindowLabel: peakWindow.label,
       peakWindowStartRatio,
       peakWindowEndRatio,
-      energyDayBuckets,
+      
+      // Energy Tides (behavioral frequency)
+      energyDayBuckets, // Alias for backward compatibility
+      energyFrequencyBuckets,
+      energyTidesGlance,
+      
+      // Weekly Rhythm Map (emotional weight)
+      emotionalRhythmBuckets,
+      emotionalRhythmLabel,
+      
       stressEchoesLabel: stressEchoes.label,
       reliefLabel: softening.label,
       totalSoftEntries: softening.totalSoftEntries,
       mostHelpfulActivityLabel: mostHelpfulActivity.label,
       mostHelpfulActivityCount: mostHelpfulActivity.count,
-      energyRhythmLabel: energyFlow.label,
+      energyRhythmLabel: emotionalRhythmLabel || energyFlow.label, // Use emotional rhythm if available
       
       // Weekly narrative for "Your Week" card
       weeklyNarrative,
