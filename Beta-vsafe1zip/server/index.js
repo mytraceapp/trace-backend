@@ -4192,18 +4192,83 @@ Write 2-3 gentle, observational sentences reflecting on the emotional patterns a
 app.post('/api/patterns/weekly-summary', async (req, res) => {
   try {
     const {
+      userId,
+      deviceId,
       userName,
       localDate,
       localDay,
       localTime,
-      weekSessions = 0,
-      weekActiveDays = 0,
-      dominantKind = null,
-      dominantKindCount = 0,
-      journalWeekCount = 0,
+      peakWindowLabel,
+      energyRhythmLabel,
+      energyRhythmDetail,
+      behaviorSignatures = [],
     } = req.body || {};
 
-    console.log('🧠 /api/patterns/weekly-summary sessions:', weekSessions, 'days:', weekActiveDays);
+    console.log('🧠 /api/patterns/weekly-summary userId:', userId?.slice?.(0, 8) || 'none');
+
+    // Fetch actual data from database if userId is provided
+    let weekSessions = 0;
+    let weekActiveDays = 0;
+    let dominantKind = null;
+    let dominantKindCount = 0;
+    let journalWeekCount = 0;
+
+    if (supabaseServer && userId) {
+      try {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const weekAgoISO = oneWeekAgo.toISOString();
+
+        // Fetch activity logs
+        const { data: activityLogs } = await supabaseServer
+          .from('activity_logs')
+          .select('activity_type, completed_at')
+          .eq('user_id', userId)
+          .gte('completed_at', weekAgoISO);
+
+        if (activityLogs && activityLogs.length > 0) {
+          weekSessions = activityLogs.length;
+          
+          // Count unique active days
+          const activeDays = new Set();
+          const activityCounts = {};
+          for (const log of activityLogs) {
+            const day = new Date(log.completed_at).toDateString();
+            activeDays.add(day);
+            activityCounts[log.activity_type] = (activityCounts[log.activity_type] || 0) + 1;
+          }
+          weekActiveDays = activeDays.size;
+
+          // Find dominant activity
+          let maxCount = 0;
+          for (const [type, count] of Object.entries(activityCounts)) {
+            if (count > maxCount) {
+              maxCount = count;
+              dominantKind = type;
+              dominantKindCount = count;
+            }
+          }
+        }
+
+        // Fetch journal entries
+        const { data: journals } = await supabaseServer
+          .from('journal_entries')
+          .select('id')
+          .eq('user_id', userId)
+          .gte('created_at', weekAgoISO);
+
+        journalWeekCount = journals?.length || 0;
+
+        console.log('🧠 /api/patterns/weekly-summary fetched data:', {
+          weekSessions,
+          weekActiveDays,
+          dominantKind,
+          journalWeekCount
+        });
+      } catch (dbErr) {
+        console.warn('🧠 /api/patterns/weekly-summary db error:', dbErr.message);
+      }
+    }
 
     // If no activity at all this week
     if (weekSessions === 0 && journalWeekCount === 0) {
@@ -4228,21 +4293,29 @@ app.post('/api/patterns/weekly-summary', async (req, res) => {
       dataParts.push(`Most used practice: ${dominantKind} (${dominantKindCount} times)`);
     }
     if (journalWeekCount > 0) dataParts.push(`Journal entries: ${journalWeekCount}`);
+    
+    // Add pattern insights if available
+    if (peakWindowLabel) dataParts.push(`Peak window: ${peakWindowLabel}`);
+    if (energyRhythmLabel) dataParts.push(`Energy rhythm: ${energyRhythmLabel}`);
+    if (behaviorSignatures && behaviorSignatures.length > 0) {
+      dataParts.push(`Behavior signatures: ${behaviorSignatures.join(', ')}`);
+    }
     const dataLine = dataParts.join('\n');
 
     const systemPrompt = `You are TRACE, summarizing a week of check-ins and journaling.
 mode: patterns_weekly_narrative
 
-Tone: calm, validating, no advice, no instructions.
+Tone: calm, validating, poetic but grounded. No advice, no instructions.
 - 2–3 sentences maximum.
-- Focus on noticing consistency, effort, and the kinds of practices they're drawn to (breathing, grounding, gratitude, etc.).
-- Do not mention exact counts mechanically; weave them into natural language.
+- Focus on noticing consistency, effort, rhythm, and the kinds of practices they're drawn to.
+- Do not mention exact counts mechanically; weave them into natural, observant language.
 - Do not ask questions.
-- Talk directly to the user as "you".`;
+- Talk directly to the user as "you".
+- Speak like a gentle observer noticing patterns from the outside.`;
 
     const userPrompt = `${contextLine ? contextLine + '\n' : ''}${dataLine}
 
-In 2–3 sentences, gently reflect what this week's rhythm suggests about how this person has been showing up for themselves. No advice, no questions, just noticing and affirming.`;
+In 2–3 sentences, gently reflect what this week's rhythm suggests about how this person has been showing up for themselves. Notice when they sought TRACE, what patterns emerged, and what that might say about their week. No advice, no questions, just noticing and affirming.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
