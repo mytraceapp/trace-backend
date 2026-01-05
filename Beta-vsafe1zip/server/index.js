@@ -53,6 +53,11 @@ const ACCUWEATHER_API_KEY = process.env.ACCUWEATHER_API_KEY;
 // Cache location keys to reduce API calls (AccuWeather has rate limits)
 const locationKeyCache = new Map();
 
+// Cache for patterns insights (5-minute TTL to reduce DB queries)
+const patternsCache = new Map();
+const PATTERNS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const MIN_DATA_THRESHOLD = 7; // Minimum activities + journals for patterns
+
 async function getAccuWeatherLocationKey(lat, lon) {
   const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
   if (locationKeyCache.has(cacheKey)) {
@@ -6112,6 +6117,14 @@ app.post('/api/patterns/insights', async (req, res) => {
       });
     }
     
+    // Check cache first (5-minute TTL)
+    const cacheKey = `patterns:${userId || deviceId}:${validatedTimezone}`;
+    const cachedEntry = patternsCache.get(cacheKey);
+    if (cachedEntry && (Date.now() - cachedEntry.timestamp) < PATTERNS_CACHE_TTL_MS) {
+      console.log('📊 [PATTERNS] Returning cached response (age:', Math.round((Date.now() - cachedEntry.timestamp) / 1000), 's)');
+      return res.json(cachedEntry.data);
+    }
+    
     // Look back 45 days for patterns
     const sinceDate = new Date();
     sinceDate.setDate(sinceDate.getDate() - 45);
@@ -6160,6 +6173,45 @@ app.post('/api/patterns/insights', async (req, res) => {
     }
     
     console.log('📊 [PATTERNS INSIGHTS POST] Found', journals.length, 'journal entries');
+    
+    // MINIMUM DATA THRESHOLD: Return "still learning" for users with < 7 total data points
+    // This prevents showing premature patterns that could mislead users
+    const totalDataPoints = activityLogs.length + journals.length;
+    if (totalDataPoints < MIN_DATA_THRESHOLD) {
+      console.log(`📊 [PATTERNS] Insufficient data (${totalDataPoints} < ${MIN_DATA_THRESHOLD}), returning "still learning" response`);
+      
+      const stillLearningCore = "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.";
+      const stillLearningResponse = {
+        peakWindow: { label: stillLearningCore, startHour: null, endHour: null, confidence: "emerging" },
+        mostHelpfulActivity: { label: "Once you've tried a few more activities, I'll notice which ones you return to.", count: 0 },
+        stressEchoes: { label: stillLearningCore, topDayIndex: null, stressCount: 0, totalStressEntries: 0, confidence: "emerging" },
+        energyFlow: { label: stillLearningCore, topDayIndex: null, percentage: null, totalActivities: activityLogs.length },
+        softening: { label: stillLearningCore, topDayIndex: null, percentage: null, totalSoftEntries: 0, confidence: "emerging" },
+        weeklyMoodTrend: {
+          calm: { thisWeek: 0, lastWeek: 0, direction: "stable", label: stillLearningCore },
+          stress: { thisWeek: 0, lastWeek: 0, direction: "stable", label: stillLearningCore },
+        },
+        crossPatternHint: null,
+        predictiveHint: null,
+        lastHourSummary: { checkinsLastHour: 0, checkinsToday: 0, comparisonLabel: null },
+        studioInsights: null,
+        peakWindowLabel: stillLearningCore,
+        peakWindowStartRatio: null,
+        peakWindowEndRatio: null,
+        energyDayBuckets: [0, 0, 0, 0, 0, 0, 0],
+        stressEchoesLabel: stillLearningCore,
+        reliefLabel: stillLearningCore,
+        totalSoftEntries: 0,
+        mostHelpfulActivityLabel: "Once you've tried a few more activities, I'll notice which ones you return to.",
+        mostHelpfulActivityCount: 0,
+        energyRhythmLabel: stillLearningCore,
+        sampleSize: activityLogs.length,
+        journalSampleSize: journals.length,
+        stillLearning: true,
+      };
+      
+      return res.json(stillLearningResponse);
+    }
     
     // Calculate Peak Window (hour with most activities) with confidence tiers
     // Per guidelines: ≥6 data points, ≥45-50% cluster in 2-3 hour window
@@ -6345,7 +6397,8 @@ app.post('/api/patterns/insights', async (req, res) => {
       journalSampleSize: journals.length,
     });
     
-    return res.json({
+    // Build response object
+    const responseData = {
       // Core pattern objects (nested) - kept for backward compatibility
       peakWindow,
       mostHelpfulActivity,
@@ -6376,7 +6429,13 @@ app.post('/api/patterns/insights', async (req, res) => {
       
       sampleSize: activityLogs.length,
       journalSampleSize: journals.length,
-    });
+    };
+    
+    // Cache the response (5-minute TTL)
+    patternsCache.set(cacheKey, { data: responseData, timestamp: Date.now() });
+    console.log('📊 [PATTERNS] Response cached for', cacheKey);
+    
+    return res.json(responseData);
     
   } catch (err) {
     console.error('📊 [PATTERNS INSIGHTS POST] Error:', err);
