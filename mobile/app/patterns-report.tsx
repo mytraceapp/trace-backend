@@ -29,6 +29,28 @@ interface LastHourResult {
   summaryText: string | null;
 }
 
+function getOrdinalSuffix(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function getComparisonText(label: 'heavier' | 'lighter' | 'similar' | null): string | null {
+  if (!label) return null;
+  switch (label) {
+    case 'heavier': return "This feels heavier compared to yesterday.";
+    case 'lighter': return "This feels lighter compared to yesterday.";
+    case 'similar': return "This feels pretty similar to this time yesterday.";
+    default: return null;
+  }
+}
+
+function getCheckinCountText(count: number): string | null {
+  if (count <= 0) return null;
+  if (count === 1) return "This is your first check-in today.";
+  return `This is the ${getOrdinalSuffix(count)} time you've checked in today.`;
+}
+
 async function fetchLastHourSummary(params: { userId: string | null; deviceId: string }): Promise<LastHourResult> {
   console.log('🧠 fetchLastHourSummary called with:', params);
   const res = await fetch(`${API_BASE}/api/patterns/last-hour`, {
@@ -285,6 +307,21 @@ export default function PatternsReport() {
                   No conversations in the last hour. That's okay - sometimes quiet is what we need.
                 </Text>
               )}
+              
+              {insights?.lastHourSummary && (
+                <View style={styles.recentActivitySection}>
+                  {getComparisonText(insights.lastHourSummary.comparisonLabel) && (
+                    <Text style={[styles.recentActivityText, { fontFamily: canelaFont }]}>
+                      {getComparisonText(insights.lastHourSummary.comparisonLabel)}
+                    </Text>
+                  )}
+                  {getCheckinCountText(insights.lastHourSummary.checkinsToday) && (
+                    <Text style={[styles.recentActivityText, { fontFamily: canelaFont }]}>
+                      {getCheckinCountText(insights.lastHourSummary.checkinsToday)}
+                    </Text>
+                  )}
+                </View>
+              )}
             </>
           )}
         </View>
@@ -429,5 +466,17 @@ const styles = StyleSheet.create({
     color: '#6B7B6E',
     fontStyle: 'italic',
     lineHeight: 22,
+  },
+  recentActivitySection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(107, 123, 110, 0.15)',
+  },
+  recentActivityText: {
+    fontSize: 14,
+    color: '#6B7B6E',
+    lineHeight: 22,
+    marginBottom: 6,
   },
 });

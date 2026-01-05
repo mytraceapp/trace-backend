@@ -224,9 +224,16 @@ export interface MostHelpfulActivityResult {
   percentage: number | null;
 }
 
+export interface LastHourSummary {
+  checkinsLastHour: number;
+  checkinsToday: number;
+  comparisonLabel: 'heavier' | 'lighter' | 'similar' | null;
+}
+
 export interface PatternsInsightsResult {
   peakWindow: PeakWindowResult;
   mostHelpfulActivity: MostHelpfulActivityResult;
+  lastHourSummary?: LastHourSummary;
   sampleSize: number;
 }
 
@@ -247,6 +254,11 @@ export async function fetchPatternsInsights(params: {
       label: "Once you've tried a few activities, I'll start noticing which ones you return to the most.",
       topActivity: null,
       percentage: null,
+    },
+    lastHourSummary: {
+      checkinsLastHour: 0,
+      checkinsToday: 0,
+      comparisonLabel: null,
     },
     sampleSize: 0,
   };
@@ -275,6 +287,7 @@ export async function fetchPatternsInsights(params: {
     return {
       peakWindow: json.peakWindow || fallback.peakWindow,
       mostHelpfulActivity: json.mostHelpfulActivity || fallback.mostHelpfulActivity,
+      lastHourSummary: json.lastHourSummary || fallback.lastHourSummary,
       sampleSize: json.sampleSize || 0,
     };
   } catch (err) {
