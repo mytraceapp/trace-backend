@@ -136,7 +136,7 @@ export default function PatternsReport() {
         userId: userId,
         deviceId: stableId,
         userName: null,
-        peakWindowLabel: null,
+        peakWindowLabel: insights?.peakWindow?.label || null,
         energyRhythmLabel: null,
         energyRhythmDetail: null,
         behaviorSignatures: [],
@@ -151,7 +151,7 @@ export default function PatternsReport() {
     } finally {
       setPatternsSummaryLoading(false);
     }
-  }, [stableId, userId]);
+  }, [stableId, userId, insights]);
 
   const loadInsights = useCallback(async () => {
     try {
@@ -183,22 +183,23 @@ export default function PatternsReport() {
   }, [loadLastHourSummary]);
 
   useEffect(() => {
-    console.log('💠 [TRACE PATTERNS] useEffect -> loadWeeklySummary');
-    loadWeeklySummary();
-  }, [loadWeeklySummary]);
-
-  useEffect(() => {
     console.log('📊 [TRACE PATTERNS] useEffect -> loadInsights');
     loadInsights();
   }, [loadInsights]);
 
+  useEffect(() => {
+    console.log('💠 [TRACE PATTERNS] useEffect -> loadWeeklySummary (after insights)');
+    if (insights) {
+      loadWeeklySummary();
+    }
+  }, [loadWeeklySummary, insights]);
+
   useFocusEffect(
     useCallback(() => {
-      console.log('💠 [TRACE PATTERNS] useFocusEffect -> loadLastHourSummary + loadWeeklySummary + loadInsights');
+      console.log('💠 [TRACE PATTERNS] useFocusEffect -> loadLastHourSummary + loadInsights');
       loadLastHourSummary();
-      loadWeeklySummary();
       loadInsights();
-    }, [loadLastHourSummary, loadWeeklySummary, loadInsights])
+    }, [loadLastHourSummary, loadInsights])
   );
 
   return (
@@ -302,37 +303,13 @@ export default function PatternsReport() {
 
         <View style={styles.card}>
           <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
-            Your Rhythm
+            What Helps Most
           </Text>
-          
-          {isInsightsLoading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#6B7B6E" />
-              <Text style={[styles.loadingText, { fontFamily: canelaFont }]}>
-                Noticing your patterns...
-              </Text>
-            </View>
-          )}
-
-          {!isInsightsLoading && (
-            <View style={styles.insightsContainer}>
-              <View style={styles.insightRow}>
-                <Text style={[styles.insightLabel, { fontFamily: canelaFont }]}>Peak Window</Text>
-                <Text style={[styles.insightValue, { fontFamily: canelaFont }]}>
-                  {insights?.peakWindow?.label || "Not enough data yet"}
-                </Text>
-              </View>
-              
-              <View style={styles.insightDivider} />
-              
-              <View style={styles.insightRow}>
-                <Text style={[styles.insightLabel, { fontFamily: canelaFont }]}>What Helps Most</Text>
-                <Text style={[styles.insightValue, { fontFamily: canelaFont }]}>
-                  {insights?.mostHelpfulActivity?.label || "Once you've tried a few activities, I'll start noticing which ones you return to the most."}
-                </Text>
-              </View>
-            </View>
-          )}
+          <Text style={[styles.summaryText, { fontFamily: canelaFont }]}>
+            {isInsightsLoading
+              ? 'Noticing your patterns...'
+              : insights?.mostHelpfulActivity?.label || "Once you've tried a few activities, I'll start noticing which ones you return to the most."}
+          </Text>
         </View>
       </ScrollView>
     </View>
@@ -452,28 +429,5 @@ const styles = StyleSheet.create({
     color: '#6B7B6E',
     fontStyle: 'italic',
     lineHeight: 22,
-  },
-  insightsContainer: {
-    gap: 16,
-  },
-  insightRow: {
-    gap: 6,
-  },
-  insightLabel: {
-    fontSize: 13,
-    color: '#6B7B6E',
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  insightValue: {
-    fontSize: 15,
-    color: '#4A5A4C',
-    lineHeight: 22,
-  },
-  insightDivider: {
-    height: 1,
-    backgroundColor: 'rgba(107, 123, 110, 0.15)',
-    marginVertical: 4,
   },
 });
