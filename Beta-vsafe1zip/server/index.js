@@ -5094,14 +5094,18 @@ function computeSofteningDay(journals = []) {
   }
 
   const softByDay = {};
+  const softEntriesWithTime = [];
   let totalSoft = 0;
 
   for (const j of journals) {
     const mood = (j.mood || "").toLowerCase();
     if (!SOFT_MOODS.includes(mood)) continue;
 
-    const dayIndex = getWeekdayIndex(j.created_at);
+    const date = new Date(j.created_at);
+    const dayIndex = date.getDay();
+    const hour = date.getHours();
     softByDay[dayIndex] = (softByDay[dayIndex] || 0) + 1;
+    softEntriesWithTime.push({ dayIndex, hour });
     totalSoft += 1;
   }
 
@@ -5128,8 +5132,35 @@ function computeSofteningDay(journals = []) {
   const dayName = WEEKDAY_NAMES[topDayIndex];
   const pct = Math.round((topCount / totalSoft) * 100);
 
+  // Analyze time-of-day pattern for the top day
+  const entriesOnTopDay = softEntriesWithTime.filter(e => e.dayIndex === topDayIndex);
+  const timeRangeCounts = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+  
+  for (const entry of entriesOnTopDay) {
+    const range = getTimeOfDayRange(entry.hour);
+    timeRangeCounts[range] += 1;
+  }
+
+  let dominantTimeRange = null;
+  let dominantTimeCount = 0;
+  const topDayTotal = entriesOnTopDay.length;
+
+  for (const [range, count] of Object.entries(timeRangeCounts)) {
+    if (count > dominantTimeCount) {
+      dominantTimeCount = count;
+      dominantTimeRange = range;
+    }
+  }
+
+  const timePct = topDayTotal > 0 ? Math.round((dominantTimeCount / topDayTotal) * 100) : 0;
+  const hasTimePattern = timePct >= 60 && topDayTotal >= 2;
+
   let label;
-  if (topDayIndex === 3) { // Wednesday
+  if (hasTimePattern && dominantTimeRange) {
+    // Include time-of-day in the label
+    const dayTimeName = `${dayName} ${dominantTimeRange}s`;
+    label = `${dayTimeName} seem to bring more relief — about ${timePct}% of your calm moments land there.`;
+  } else if (topDayIndex === 3) { // Wednesday
     label = `You tend to soften a bit around Wednesdays — about ${pct}% of your calmer entries land there. Midweek seems to hold some tiny exhale moments for you.`;
   } else if (topDayIndex >= 4) { // Thu/Fri/Sat
     label = `Toward the end of the week — especially ${dayName} — I see more of your "calm" or "okay" entries (${pct}% of them). There's a gentle easing there.`;
