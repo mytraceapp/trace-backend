@@ -1,0 +1,200 @@
+# 🎯 Mobile Patterns Page Cleanup - Replit Integration Prompt
+
+## Changes Made to Mobile App
+
+### Removed Redundant Elements from Main Patterns Page
+
+**Goal**: Streamline the main Patterns page by removing duplicate/redundant sections that are better served in the Full Patterns Report.
+
+#### 1. Removed "Last hour with TRACE" Card
+- **Why**: Full Patterns Report already has comprehensive "This Last Hour" section
+- **Impact**: Main patterns page now focuses on broader pattern insights, not recency
+- **Files Modified**: `mobile/app/patterns.tsx`
+
+**Removed Code**:
+- State variables: `lastHourSummary`, `hasLastHourHistory`, `isLastHourLoading`
+- Function: `loadLastHourSummary()` (~70 lines)
+- Import: `fetchLastHourSummary` from lib/patterns
+- UI Card with lastHourAnalytics display
+
+**Kept in Full Report**:
+- `screens/FullPatternsReportScreen.tsx` → "This Last Hour" card remains unchanged
+- Uses `/api/patterns/last-hour` endpoint with `analysisType: 'detailed'`
+
+#### 2. Removed Weekly Narrative Block + Behavior Signatures Pills
+- **Why**: Confusing overlap with "Your Week" in Full Patterns Report
+- **Impact**: Main patterns page is now cleaner, focused on 3 core pattern cards
+- **Files Modified**: `mobile/app/patterns.tsx`
+
+**Removed Code**:
+- State variables: `weeklyNarrative`, `isWeeklyNarrativeLoading`
+- Function: `loadWeeklyNarrative()` (~90 lines)
+- Imports: `fetchWeeklyNarrative`, `getActivityLogsForWeek`
+- UI: Narrative block with poetic weekly summary
+- UI: 4 Behavior Signature pills (Evening Overthinking, Midweek Burnout, Morning Sharpness, Solitude Recovery)
+
+**Kept in Full Report**:
+- `screens/FullPatternsReportScreen.tsx` → "Your Week" card remains unchanged
+- Uses `/api/patterns/weekly-summary` endpoint (or should use patterns/reflection)
+- Shows raw metrics + AI narrative reflection
+
+---
+
+## Current Architecture
+
+### Main Patterns Page (Simplified)
+Now shows only:
+1. **Peak Window** card - Focus hours visualization
+2. **Emotional Patterns** card - Stress Echoes + Relief Insights + What Helped Most
+3. **Rhythm Map** - Weekly energy waveform with narrative
+4. **"View Full Patterns →"** button
+
+### Full Patterns Report (Unchanged)
+Shows comprehensive analysis:
+1. **Today** - Today's sessions, minutes, journal entries
+2. **This Last Hour** - Recent chat activity summary (uses `/api/patterns/last-hour`)
+3. **Your Week** - Weekly metrics + AI reflection (should use `/api/patterns/weekly-summary` or reflection endpoint)
+4. **Journal entry section** - Freeform reflection + save to journal
+
+---
+
+## Backend Validation Needed
+
+### 1. `/api/patterns/last-hour` Endpoint
+**Current Usage**: Only called by Full Patterns Report now
+
+**Request**:
+```json
+{
+  "userId": "...",
+  "deviceId": "...",
+  "analysisType": "detailed"  // Full report uses "detailed", brief option removed
+}
+```
+
+**Response Requirements**:
+```json
+{
+  "hasHistory": boolean,
+  "summaryText": string | null
+}
+```
+
+**Narrative Guidelines**:
+- Should provide 2-3 sentences about recent chat activity
+- Poetic, TRACE-toned interpretation of last hour's check-ins
+- Empty state: "This hour has been quiet so far. Sometimes the spaces between words are just as meaningful."
+- Include emotional analysis if available from chat messages
+
+### 2. `/api/patterns/weekly-summary` (or `/reflection`) Endpoint
+**Current Usage**: Only called by Full Patterns Report → "Your Week" card
+
+**Request**:
+```json
+{
+  "userName": string | null,
+  "localDate": "2026-01-04",
+  "localDay": "Saturday",
+  "localTime": "3:45 PM",
+  "weekSessions": number,
+  "weekActiveDays": number,
+  "dominantKind": string | null,  // e.g. "Walking", "Meditation"
+  "dominantKindCount": number,
+  "journalWeekCount": number
+}
+```
+
+**Response Requirements**:
+```json
+{
+  "summaryText": string | null  // AI-generated poetic weekly reflection
+}
+```
+
+**Narrative Guidelines**:
+- 3-5 sentences of compassionate weekly reflection
+- Weave in metrics naturally (sessions, dominant activities, rhythms)
+- TRACE tone: poetic, non-clinical, hopeful
+- Should complement raw metrics shown above it in the card
+- Example: "Your rhythm is taking shape — 12 sessions across 5 days of connection. There's a rising current in your days. Walking has been your anchor (8 times this week), and your focus peaks around late afternoon."
+
+**QUESTION for Replit**: 
+Should Full Patterns Report use:
+- `/api/patterns/weekly-summary` (current implementation)
+- `/api/patterns/reflection` (if this endpoint provides richer analysis)
+
+If using `/reflection`, please document expected request/response format.
+
+---
+
+## Testing Checklist
+
+After these changes, verify:
+
+### Mobile Testing:
+- [ ] Main Patterns page shows only 3 pattern cards + "View Full Patterns" button
+- [ ] No "Last hour with TRACE" card on main page
+- [ ] No weekly narrative block or Behavior Signatures pills on main page
+- [ ] "View Full Patterns →" button opens Full Patterns Report
+- [ ] Full Report shows "This Last Hour" card correctly
+- [ ] Full Report shows "Your Week" card with AI narrative correctly
+
+### Backend Testing:
+- [ ] `/api/patterns/last-hour` returns detailed narrative for Full Report
+- [ ] `/api/patterns/weekly-summary` (or reflection) returns poetic weekly summary
+- [ ] Both endpoints handle empty state gracefully (null summaryText)
+- [ ] Narratives match TRACE tone (poetic, non-clinical, compassionate)
+
+---
+
+## Empty State Copy (For Backend Reference)
+
+### This Last Hour (Full Report):
+**When no data**: "This hour has been quiet so far. Sometimes the spaces between words are just as meaningful."
+
+### Your Week (Full Report):
+**When 0 sessions**: "TRACE is still learning your weekly rhythm. A few more days and the shape of your week will start to appear."
+
+**When data exists**: Combine metrics + AI narrative:
+```
+You've had 12 sessions across 5 days this week. Your focus has been on Walking (8 times). 
+Your peak window appears around 7:00 PM – 9:00 PM.
+
+[AI REFLECTION]: Your rhythm is taking shape — momentum is building. Even brief 
+moments show a calming thread. You're finding moments of balance.
+```
+
+---
+
+## Summary
+
+**Removed from Main Patterns Page**:
+- ❌ "Last hour with TRACE" card
+- ❌ Weekly narrative block
+- ❌ Behavior Signatures pills
+
+**Kept in Full Patterns Report**:
+- ✅ "This Last Hour" card (detailed analysis)
+- ✅ "Your Week" card (metrics + AI narrative)
+- ✅ All existing functionality
+
+**Result**:
+- Main page: Clean, focused on pattern visualization
+- Full Report: Comprehensive narrative + metrics analysis
+- No redundancy between the two screens
+- All narrative interpretation happens in Full Report where there's more context
+
+**Files Modified**:
+- `mobile/app/patterns.tsx` (~200 lines removed)
+- `mobile/screens/FullPatternsReportScreen.tsx` (unchanged)
+
+**Backend Endpoints Affected**:
+- `/api/patterns/last-hour` (only called by Full Report now)
+- `/api/patterns/weekly-summary` (only called by Full Report now)
+
+---
+
+**Questions for Replit**:
+1. Should we consolidate `/api/patterns/weekly-summary` and `/api/patterns/reflection` into one endpoint?
+2. Are the narrative guidelines above aligned with current backend implementation?
+3. Any caching strategy changes needed now that these endpoints are called less frequently?
