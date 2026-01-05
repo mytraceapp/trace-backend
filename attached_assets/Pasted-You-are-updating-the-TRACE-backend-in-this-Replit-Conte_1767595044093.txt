@@ -1,0 +1,272 @@
+You are updating the TRACE backend in this Replit.
+
+Context:
+- This is the TRACE backend (Node/Express) using Supabase.
+- There is already an `/api/patterns/insights` endpoint returning:
+  - peakWindow, energyFlow, stressEchoes, softening/relief, mostHelpfulActivity, weeklyMoodTrend, crossPatternHint, predictiveHint, etc.
+  - crisisMode softening and sample-size “emerging / soft” logic.
+- The mobile app has a Patterns page that uses `/api/patterns/insights` as its main data source.
+- Users have subscription tiers (e.g., Free vs Studio). Advanced analytics should be **Studio only**, but crisis-mode softening is for **all users**.
+
+Goal:
+Add **five new advanced analytics** for Studio users, with:
+
+- Edge-case handling
+- Crisis-mode softening
+- “Emerging” guardrails
+- `null` or “soft/unknown” outputs when confidence is low
+- No breaking changes to the existing response shape
+
+These new analytics:
+
+1) Rhythm Consistency
+   “You check in most consistently on [days], creating a natural anchor.”
+
+2) Response Time
+   “When something feels heavy, you tend to reach for TRACE within [time].”
+
+3) Session Depth
+   “Your conversations with TRACE average [X] exchanges, suggesting [deep reflection / quick check-ins].”
+
+4) Emotional Range
+   Tracks mood variety across the week (“narrow”, “moderate”, “wide” range).
+
+5) Activity Diversity
+   “You use [X] different tools, with [tool] as your foundation.”
+
+Please implement all of this in a **new structured analytics block**, gated by Studio tier, while keeping the current insights intact.
+
+---
+
+### 1. Add a `studioInsights` block to the response
+
+Extend the `/api/patterns/insights` response object to include a **new nested object** called `studioInsights`:
+
+```ts
+studioInsights?: {
+  rhythmConsistency?: {
+    anchorDays: number[];  // indices 0-6 or 1-7 depending on existing convention
+    consistencyScore: number | null; // 0–1, null if weak data
+    label: 'emerging' | 'soft' | 'clear' | 'strong' | null;
+  } | null;
+
+  responseTime?: {
+    avgMinutesAfterHeavy?: number | null;  // e.g. 12.3
+    label: 'emerging' | 'soft' | 'clear' | 'strong' | null;
+  } | null;
+
+  sessionDepth?: {
+    avgTurnsPerSession?: number | null;
+    style: 'quick' | 'balanced' | 'deep' | null;
+    label: 'emerging' | 'soft' | 'clear' | 'strong' | null;
+  } | null;
+
+  emotionalRange?: {
+    distinctMoodsThisWeek: number | null;
+    range: 'narrow' | 'moderate' | 'wide' | null;
+    label: 'emerging' | 'soft' | 'clear' | 'strong' | null;
+  } | null;
+
+  activityDiversity?: {
+    distinctActivitiesThisWeek: number | null;
+    anchorActivityLabel: string | null;  // e.g. "Rising", "Walking"
+    label: 'emerging' | 'soft' | 'clear' | 'strong' | null;
+  } | null;
+};
+
+Notes:
+	•	studioInsights should only be populated if the user is on Studio tier.
+	•	For Free users, studioInsights can be omitted or set to null.
+	•	For each sub-analytic, if data is too weak or missing, set that field to null and/or label: 'emerging' instead of fabricating numbers.
+
+Do NOT remove or rename any existing top-level fields.
+
+⸻
+
+2. Determine Studio tier
+
+Wherever you identify the user in /api/patterns/insights, also determine if they are Studio tier.
+
+If you already have a helper (e.g. getUserSubscriptionTier(userId)), reuse it. Otherwise, add a small helper that:
+	•	Queries Supabase for the user’s subscription / plan (e.g., subscription_tier, plan, etc.).
+	•	Returns an enum or string like 'free' | 'studio'.
+
+Inside the /api/patterns/insights handler:
+const subscriptionTier = await getUserSubscriptionTier(userId);
+const isStudio = subscriptionTier === 'studio';
+
+If !isStudio, do not compute or return studioInsights (or set it to null).
+
+⸻
+
+3. Crisis-mode behavior (for ALL users)
+
+You already have some crisis logic (crisisMode overrides, predictiveHint nulling, etc).
+
+Extend that logic:
+	•	If crisisMode === true:
+	•	Keep existing crisis softening behavior.
+	•	For studioInsights, you have two options (choose one, but be consistent):
+	•	Option A (simpler): Do not include studioInsights at all in crisis mode.
+	•	Option B (gentle): Include studioInsights but set all fields to null or label: 'emerging' with NO normative interpretation.
+	•	DO NOT generate strong comparative language (e.g., “you always”, “you reliably”, “you’re improving”, etc.) when in crisis.
+
+Either way, crisis mode should never produce hard judgments or performance-like metrics.
+
+⸻
+
+4. Implement each analytic with guardrails
+
+Use your existing data sources (activity logs, chat sessions, journal entries, mood logs, etc). Keep the logic approximate but safe.
+
+4.1 Rhythm Consistency
+Goal:
+	•	Detect which day(s) of week the user checks in most consistently.
+	•	Return:
+	•	anchorDays: array of day indices where check-ins are most stable/frequent.
+	•	consistencyScore: 0–1 measure of how pronounced the anchor is.
+	•	label: based on sample size + spread.
+
+Approach:
+	•	Use the same 2–3 week window and time-decay weighting you already have for patterns.
+	•	Count “check-ins” per day-of-week (journal entries + meaningful chat sessions + activities).
+	•	If total check-ins < some minimum (e.g., 5–7), treat as emerging:
+	•	anchorDays: []
+	•	consistencyScore: null
+	•	label: 'emerging'
+	•	Else:
+	•	Find the day(s) with highest weighted count.
+	•	Compute a simple consistencyScore (for example: topDayCount / totalCount).
+	•	Map consistencyScore → label:
+	•	< 0.3 → ‘soft’
+	•	0.3–0.5 → ‘clear’
+	•	0.5 → ‘strong’
+
+Populate:
+studioInsights.rhythmConsistency = {
+  anchorDays,
+  consistencyScore,
+  label
+};
+
+4.2 Response Time (heavy → TRACE)
+Goal:
+	•	Estimate how quickly a user tends to reach for TRACE after “heavy” moments.
+	•	Only show when there’s enough data.
+
+Approach:
+	•	Use your existing crisis/heavy detection logic (moods like “overwhelmed”, “not okay”, etc).
+	•	For each “heavy” event:
+	•	Find the next TRACE check-in (journal, chat, or activity).
+	•	Compute delta in minutes.
+	•	Require a minimum number of heavy events (e.g., 3–5) to compute an average.
+	•	If below threshold → label: 'emerging', avgMinutesAfterHeavy: null.
+	•	Else:
+	•	Compute avgMinutesAfterHeavy.
+	•	Map confidence to label based on sample size:
+	•	3–4 events → ‘soft’
+	•	5–7 → ‘clear’
+	•	8+ → ‘strong’
+
+Populate:
+studioInsights.responseTime = {
+  avgMinutesAfterHeavy,
+  label
+};
+
+Do NOT interpret or evaluate in the backend. Let the mobile app turn this into gentle language.
+
+4.3 Session Depth
+Goal:
+	•	Measure average conversation length with TRACE (number of turns per session).
+	•	Classify style: quick / balanced / deep.
+
+Approach:
+	•	Use your chat session logs.
+	•	For each session, count turns (user + assistant messages).
+	•	Require a minimum number of sessions (e.g., at least 3) in the window.
+	•	If below threshold → avgTurnsPerSession: null, style: null, label: 'emerging'.
+	•	Else:
+	•	Compute avgTurnsPerSession.
+	•	Map to style:
+	•	<= 6 → ‘quick’
+	•	7–14 → ‘balanced’
+	•	14 → ‘deep’
+	•	Set label based on sample size, similar to others.
+
+Populate:
+studioInsights.sessionDepth = {
+  avgTurnsPerSession,
+  style,
+  label
+};
+
+4.4 Emotional Range
+Goal:
+	•	Track mood variety, not just intensity.
+	•	Classify range as ‘narrow’, ‘moderate’, or ‘wide’.
+
+Approach:
+	•	Use mood values stored with journal entries and/or check-ins for the last week (or weighted recent window).
+	•	Count distinct moods used this week (distinctMoodsThisWeek).
+	•	If total mood-tagged events < some minimum (e.g., 5) → label: 'emerging', range: null.
+	•	Else:
+	•	Map distinct count:
+	•	1–2 → ‘narrow’
+	•	3–4 → ‘moderate’
+	•	5+ → ‘wide’
+	•	Set label based on sample size similarly.
+
+Populate:
+studioInsights.emotionalRange = {
+  distinctMoodsThisWeek,
+  range,
+  label
+};
+4.5 Activity Diversity
+Goal:
+	•	Detect how many different activities the user actually uses, and which one is their “anchor.”
+
+Approach:
+	•	Use your activity_logs table (or equivalent) over recent weeks with time-decay weighting.
+	•	Count distinct activity types the user has used (distinctActivitiesThisWeek).
+	•	Find the most frequently used activity → anchorActivityLabel.
+	•	If total activity count < some minimum (e.g., 3–4) → label: 'emerging', distinctActivitiesThisWeek: null, anchorActivityLabel: null.
+	•	Else:
+	•	Distinct count → as-is.
+	•	anchorActivityLabel → string name (e.g., “Rising”, “Walking”, “Breathing”).
+	•	Label based on sample strength.
+
+Populate:
+studioInsights.activityDiversity = {
+  distinctActivitiesThisWeek,
+  anchorActivityLabel,
+  label
+};
+Edge Cases and Guardrails
+
+For all five analytics:
+	•	If data is sparse or noisy:
+	•	Return null for numeric fields.
+	•	Set label: 'emerging'.
+	•	Never fabricate:
+	•	If there are 0 relevant events, return the field as null (or omit it) instead of inventing patterns.
+	•	Respect crisisMode:
+	•	In crisisMode, either skip studioInsights entirely or set everything to null / ‘emerging’.
+	•	Do NOT include any future-facing or performance language on the backend. Let the mobile UI create human-sounding copy.
+
+⸻
+
+6. Do NOT break existing API contract
+	•	Do NOT rename or remove existing fields.
+	•	Only ADD the studioInsights nested object.
+	•	Existing mobile app calls should continue to work even if studioInsights is missing or null.
+
+End result:
+	•	Studio users get a richer studioInsights block on /api/patterns/insights.
+	•	Free users see no change.
+	•	Crisis-mode stays gentle and non-judgmental for all users.
+	•	All new analytics have:
+	•	edge-case handling,
+	•	emerging-data guardrails,
+	•	and null when confidence is low.
