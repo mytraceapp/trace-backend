@@ -805,20 +805,21 @@ function isHighDistressText(text) {
     t.includes("don't want to be here") ||
     t.includes("don't want to live") ||
     t.includes("not wanting to live") ||
-    t.includes("wanting to live") ||  // catches "not wanting to live", "someone wanting to live"
+    (t.includes("wanting to live") && (t.includes("not") || t.includes("stop") || t.includes("don't"))) ||  // only negative context
     t.includes('kill myself') ||
     t.includes('end my life') ||
     t.includes('end it all') ||
     t.includes("i'm done with life") ||
     t.includes("done with life") ||
     t.includes('no reason to live') ||
-    t.includes('reason to live') ||  // catches "is there a reason to live", etc.
+    (t.includes('reason to live') && (t.includes("no") || t.includes("any") || t.includes("is there"))) ||  // only questioning context
     t.includes('better off dead') ||
     t.includes('hurt myself') ||
     t.includes('self harm') ||
     t.includes('cutting again') ||
     t.includes('relapsed on self harm') ||
-    t.includes('is life worth') ||  // more flexible - catches "is life worth it", "is life worth living"
+    t.includes('is life worth') ||  // catches "is life worth it", "is life worth living"
+    t.includes('life is worth') ||  // catches "if life is worth", "not sure if life is worth it"
     t.includes('life worth it') ||  // catches "if life is worth it", "is life worth it"
     t.includes('life even worth') ||
     t.includes('worth living') ||
