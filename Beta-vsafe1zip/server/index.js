@@ -4816,6 +4816,55 @@ app.post('/api/activity-log', async (req, res) => {
   }
 });
 
+// POST /api/journal/log - Log a journal entry to Supabase
+app.post('/api/journal/log', async (req, res) => {
+  try {
+    const { userId, deviceId, content, mood, createdAt } = req.body;
+    
+    console.log('📓 [JOURNAL/LOG] Request received:', { userId, mood, contentLength: content?.length, createdAt });
+    
+    if (!content) {
+      return res.status(400).json({ success: false, error: 'content is required' });
+    }
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'userId is required for journal entries' });
+    }
+    
+    if (!supabaseServer) {
+      console.log('📓 [JOURNAL/LOG] No Supabase configured');
+      return res.json({ success: true, entryId: null, note: 'No Supabase configured' });
+    }
+    
+    // Generate UUID on server side since table may not have default
+    const entryId = crypto.randomUUID();
+    
+    const { data, error } = await supabaseServer
+      .from('journal_entries')
+      .insert({
+        id: entryId,
+        user_id: userId,
+        content: content,
+        mood: mood || null,
+        created_at: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString()
+      })
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error('📓 [JOURNAL/LOG] Supabase error:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    
+    console.log('📓 [JOURNAL/LOG] Success - entryId:', data?.id || entryId);
+    
+    return res.json({ success: true, entryId: data?.id || entryId });
+  } catch (err) {
+    console.error('📓 [JOURNAL/LOG] Error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to log journal entry' });
+  }
+});
+
 // POST /api/activity/log - Log a completed activity (new endpoint with proper response)
 app.post('/api/activity/log', async (req, res) => {
   try {
