@@ -1,0 +1,111 @@
+# Replit Backend Fix: Peak Window Label Format
+
+## Issue
+The `/api/patterns/insights` endpoint is currently returning interpretive narrative text in the `peakWindow.label` field, but the mobile app now displays this label directly on the UI without processing. The label should contain ONLY the time range, not interpretive commentary.
+
+## Current Behavior
+```json
+{
+  "peakWindow": {
+    "label": "Your peak window is still emerging. Early signals point toward 7:00 PM PST - 9:00 PM PST.",
+    "startHour": 19,
+    "endHour": 21,
+    // ...
+  }
+}
+```
+
+**Mobile displays:** "Your peak window is still emerging. Early signals point toward 7:00 PM PST - 9:00 PM PST."
+
+## Desired Behavior
+```json
+{
+  "peakWindow": {
+    "label": "7:00 PM PST - 9:00 PM PST",
+    "startHour": 19,
+    "endHour": 21,
+    // ...
+  }
+}
+```
+
+**Mobile displays:** "7:00 PM PST - 9:00 PM PST"
+
+## Required Changes
+
+### 1. Update Backend Peak Window Label Generation
+In your patterns insights endpoint (likely `api/patterns/insights.ts` or similar):
+
+**Current logic (remove narrative):**
+- ❌ "Your peak window is still emerging. Early signals point toward X - Y"
+- ❌ "You tend to reach for TRACE around X - Y"
+- ❌ Any other interpretive text wrapping the time range
+
+**New logic (time range only):**
+- ✅ "9:00 AM - 11:30 AM PST"
+- ✅ "7:00 PM - 9:00 PM PST"
+- ✅ "2:15 PM - 4:45 PM EST"
+
+### 2. Format Requirements
+- Include start and end times
+- Include time zone (PST/EST/etc.)
+- Use 12-hour format with AM/PM
+- Use " - " (space dash space) as separator
+- NO narrative text, NO sentences, just the time range
+
+### 3. When There's Insufficient Data
+If there's not enough data to determine a peak window:
+- **Option A:** Return `null` for the entire `peakWindow` object
+- **Option B:** Return `peakWindow` with `label: null`
+
+**DO NOT** return placeholder text like:
+- ❌ "Not enough data yet"
+- ❌ "Waiting for more check-ins"
+- ❌ "Your rhythm is forming"
+
+The mobile app will handle empty states gracefully.
+
+## Why This Matters
+
+### Backend-Only Architecture
+Mobile has been refactored to a **thin client** model:
+- ALL pattern interpretation happens on backend
+- Mobile displays backend responses directly without processing
+- No local text manipulation or fallback messages on mobile
+
+### UI Design
+The peak window label appears in a compact pill UI element that's designed for SHORT time ranges only, not full sentences.
+
+## Testing Checklist
+After making changes, verify:
+
+1. ✅ Peak window label contains ONLY time range (no narrative)
+2. ✅ Time format is correct (12-hour with AM/PM and timezone)
+3. ✅ When insufficient data: label is `null` (not placeholder text)
+4. ✅ Label persists correctly (doesn't revert to narrative on subsequent calls)
+5. ✅ Other fields in peakWindow object remain unchanged (startHour, endHour, etc.)
+
+## Example API Response (Target)
+```json
+{
+  "peakWindow": {
+    "label": "7:00 PM - 9:00 PM PST",
+    "startHour": 19,
+    "endHour": 21,
+    "totalActivitiesInWindow": 12,
+    "confidence": "medium"
+  },
+  "energyFlow": {
+    "label": "Your energy peaks midweek around Tuesday afternoon.",
+    // ... other fields
+  },
+  "stressEchoes": {
+    // ... other insights
+  }
+}
+```
+
+## Notes
+- The `energyFlow.label` and other narrative fields can remain as full sentences - this fix applies ONLY to `peakWindow.label`
+- The time range format should match existing conventions in your codebase
+- Consider extracting time formatting into a shared utility function if you format times elsewhere

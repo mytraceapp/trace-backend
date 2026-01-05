@@ -6027,12 +6027,12 @@ app.post('/api/patterns/insights', async (req, res) => {
         console.log('📊 [PATTERNS INSIGHTS POST] Crisis mode active for user, returning soft response');
         // Use tailored crisis copy per insight card type
         const crisisCore = "When things feel really intense, patterns can become blurry — and that's okay. Right now the most important thing is how you're feeling in this moment.";
-        const crisisPeak = "Right now, the most important window is this one.";
         const crisisActivity = "Whatever you need right now is enough.";
         
         return res.json({
           // Nested objects - softer crisis-specific messaging per card
-          peakWindow: { label: crisisPeak, startHour: null, endHour: null, confidence: "crisis" },
+          // Peak window label is null in crisis mode (mobile handles empty state)
+          peakWindow: { label: null, startHour: null, endHour: null, confidence: "crisis" },
           mostHelpfulActivity: { label: crisisActivity, count: 0 },
           stressEchoes: { label: crisisCore, topDayIndex: null, stressCount: 0, totalStressEntries: 0, confidence: "crisis" },
           energyFlow: { label: crisisCore, topDayIndex: null, percentage: null, totalActivities: 0 },
@@ -6055,7 +6055,7 @@ app.post('/api/patterns/insights', async (req, res) => {
           studioInsights: null,
           
           // Flattened fields - matching the exact mobile contract
-          peakWindowLabel: crisisPeak,
+          peakWindowLabel: null,
           peakWindowStartRatio: null,
           peakWindowEndRatio: null,
           energyDayBuckets: [0, 0, 0, 0, 0, 0, 0],
@@ -6073,9 +6073,10 @@ app.post('/api/patterns/insights', async (req, res) => {
     }
     
     const fallbackPeakWindow = {
-      label: "Your patterns are still emerging",
+      label: null,
       startHour: null,
       endHour: null,
+      confidence: "emerging",
     };
     
     const fallbackActivity = {
@@ -6182,7 +6183,7 @@ app.post('/api/patterns/insights', async (req, res) => {
       
       const stillLearningCore = "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.";
       const stillLearningResponse = {
-        peakWindow: { label: stillLearningCore, startHour: null, endHour: null, confidence: "emerging" },
+        peakWindow: { label: null, startHour: null, endHour: null, confidence: "emerging" },
         mostHelpfulActivity: { label: "Once you've tried a few more activities, I'll notice which ones you return to.", count: 0 },
         stressEchoes: { label: stillLearningCore, topDayIndex: null, stressCount: 0, totalStressEntries: 0, confidence: "emerging" },
         energyFlow: { label: stillLearningCore, topDayIndex: null, percentage: null, totalActivities: activityLogs.length },
@@ -6195,7 +6196,7 @@ app.post('/api/patterns/insights', async (req, res) => {
         predictiveHint: null,
         lastHourSummary: { checkinsLastHour: 0, checkinsToday: 0, comparisonLabel: null },
         studioInsights: null,
-        peakWindowLabel: stillLearningCore,
+        peakWindowLabel: null,
         peakWindowStartRatio: null,
         peakWindowEndRatio: null,
         energyDayBuckets: [0, 0, 0, 0, 0, 0, 0],
@@ -6249,21 +6250,9 @@ app.post('/api/patterns/insights', async (req, res) => {
         const windowPct = Math.round((adjacentCount / totalWeighted) * 100);
         const confidence = getPeakWindowConfidence(windowPct);
         
-        // Apply confidence-tiered language per interpretive guidelines
-        let label;
-        if (confidence === "high") {
-          label = `There seems to be a part of your day where things feel steadier for you. Lately, that's been around ${timeRange}. You don't have to do anything with that — but if you ever need a gentler place to land, that time might already know how to hold you.`;
-        } else if (confidence === "medium") {
-          label = `A soft pattern might be forming. Some of your more grounded moments have been showing up around ${timeRange}. If that changes, that's okay — TRACE adjusts with you.`;
-        } else if (confidence === "low") {
-          label = `There may be a gentle leaning toward ${timeRange}. I'll keep watching with you.`;
-        } else {
-          // "emerging" confidence (<30%) - don't present as confident pattern
-          label = `Your peak window is still emerging. Early signals point toward ${timeRange}, but I'll keep watching gently.`;
-        }
-        
+        // Peak window label should be time range ONLY (mobile displays directly in compact pill UI)
         peakWindow = {
-          label,
+          label: timeRange,
           startHour: localStartHour,
           endHour: localEndHour,
           confidence,
@@ -6297,8 +6286,9 @@ app.post('/api/patterns/insights', async (req, res) => {
         // Use timezone-aware formatting
         const timeRange = `${formatHourInTimezone(peakHour)} – ${formatHourInTimezone((peakHour + 2) % 24)}`;
         
+        // Peak window label should be time range ONLY (mobile displays directly in compact pill UI)
         peakWindow = {
-          label: `Your peak window is still emerging. Early signals point toward ${timeRange}.`,
+          label: timeRange,
           startHour: localStartHour,
           endHour: localEndHour,
           confidence: "emerging",
@@ -6439,7 +6429,6 @@ app.post('/api/patterns/insights', async (req, res) => {
     
   } catch (err) {
     console.error('📊 [PATTERNS INSIGHTS POST] Error:', err);
-    const fallbackPeakLabel = "Your patterns are still emerging";
     const fallbackEnergy = "As you use activities more, I'll start noticing which days your energy reaches for TRACE the most.";
     const fallbackStress = "As you journal more, I'll start noticing which days tend to echo the heaviest pressure.";
     const fallbackRelief = "As more calm moments show up in your journal, I'll notice where in the week things tend to soften a little.";
@@ -6447,7 +6436,7 @@ app.post('/api/patterns/insights', async (req, res) => {
     
     return res.json({
       // Core pattern objects (nested) - kept for backward compatibility
-      peakWindow: { label: fallbackPeakLabel, startHour: null, endHour: null },
+      peakWindow: { label: null, startHour: null, endHour: null, confidence: "emerging" },
       mostHelpfulActivity: { label: fallbackActivity, count: 0 },
       stressEchoes: { label: fallbackStress, topDayIndex: null, stressCount: 0, totalStressEntries: 0 },
       energyFlow: { label: fallbackEnergy, topDayIndex: null, percentage: null, totalActivities: 0 },
@@ -6470,7 +6459,7 @@ app.post('/api/patterns/insights', async (req, res) => {
       studioInsights: null,
       
       // Flattened fields for mobile frontend (exact field names per spec)
-      peakWindowLabel: fallbackPeakLabel,
+      peakWindowLabel: null,
       peakWindowStartRatio: null,
       peakWindowEndRatio: null,
       energyDayBuckets: [0, 0, 0, 0, 0, 0, 0],
