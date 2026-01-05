@@ -5409,6 +5409,13 @@ app.post('/api/patterns/insights', async (req, res) => {
       console.log('📊 [PATTERNS] No userTimezone provided, defaulting to UTC');
     }
     
+    // Helper: Convert UTC hour to local hour
+    const utcHourToLocal = (utcHour) => {
+      const utcDt = DateTime.utc().set({ hour: utcHour, minute: 0 });
+      const localDt = utcDt.setZone(validatedTimezone);
+      return localDt.hour;
+    };
+    
     // Helper: Format hour in user's local timezone with abbreviation
     const formatHourInTimezone = (utcHour) => {
       // Create a UTC datetime for today at the given hour
@@ -5577,10 +5584,11 @@ app.post('/api/patterns/insights', async (req, res) => {
       });
       
       if (peakHour !== null) {
-        const startHour = peakHour;
-        const endHour = (peakHour + 2) % 24;
-        // Use timezone-aware formatting - peakHour is the UTC hour, convert to local
-        const timeRange = `${formatHourInTimezone(startHour)} – ${formatHourInTimezone(endHour)}`;
+        // peakHour is in UTC - convert to local timezone for display
+        const localStartHour = utcHourToLocal(peakHour);
+        const localEndHour = utcHourToLocal((peakHour + 2) % 24);
+        // Use timezone-aware formatting
+        const timeRange = `${formatHourInTimezone(peakHour)} – ${formatHourInTimezone((peakHour + 2) % 24)}`;
         
         // Calculate percentage of activities in this 2-hour window
         const adjacentCount = peakCount + (hourCounts[(peakHour + 1) % 24] || 0);
@@ -5602,8 +5610,8 @@ app.post('/api/patterns/insights', async (req, res) => {
         
         peakWindow = {
           label,
-          startHour,
-          endHour,
+          startHour: localStartHour,
+          endHour: localEndHour,
           confidence,
           timeRange,
         };
@@ -5626,15 +5634,16 @@ app.post('/api/patterns/insights', async (req, res) => {
       });
       
       if (peakHour !== null) {
-        const startHour = peakHour;
-        const endHour = (peakHour + 2) % 24;
+        // Convert UTC hours to local timezone
+        const localStartHour = utcHourToLocal(peakHour);
+        const localEndHour = utcHourToLocal((peakHour + 2) % 24);
         // Use timezone-aware formatting
-        const timeRange = `${formatHourInTimezone(startHour)} – ${formatHourInTimezone(endHour)}`;
+        const timeRange = `${formatHourInTimezone(peakHour)} – ${formatHourInTimezone((peakHour + 2) % 24)}`;
         
         peakWindow = {
           label: `Your peak window is still emerging. Early signals point toward ${timeRange}.`,
-          startHour,
-          endHour,
+          startHour: localStartHour,
+          endHour: localEndHour,
           confidence: "emerging",
           timeRange,
         };
