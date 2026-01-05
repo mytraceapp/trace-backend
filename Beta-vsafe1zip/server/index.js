@@ -4925,6 +4925,13 @@ function containsAnyKeyword(text, keywords) {
   return keywords.some(k => lower.includes(k));
 }
 
+function getTimeOfDayRange(hour) {
+  if (hour >= 6 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 18) return "afternoon";
+  if (hour >= 18 && hour < 23) return "evening";
+  return "night"; // 11pm-5:59am
+}
+
 function computeStressEchoes(journals = []) {
   if (!journals.length) {
     return {
@@ -4936,6 +4943,7 @@ function computeStressEchoes(journals = []) {
   }
 
   const stressByDay = {};
+  const stressEntriesWithTime = [];
   let totalStress = 0;
 
   for (const j of journals) {
@@ -4947,8 +4955,11 @@ function computeStressEchoes(journals = []) {
     const mentionsWork = containsAnyKeyword(content, WORK_KEYWORDS);
 
     if (isStressMood || mentionsOverwhelm || mentionsWork) {
-      const dayIndex = getWeekdayIndex(j.created_at);
+      const date = new Date(j.created_at);
+      const dayIndex = date.getDay();
+      const hour = date.getHours();
       stressByDay[dayIndex] = (stressByDay[dayIndex] || 0) + 1;
+      stressEntriesWithTime.push({ dayIndex, hour });
       totalStress += 1;
     }
   }
@@ -4976,8 +4987,35 @@ function computeStressEchoes(journals = []) {
   const dayName = topDayIndex !== null ? WEEKDAY_NAMES[topDayIndex] : null;
   const pct = Math.round((topCount / totalStress) * 100);
 
+  // Analyze time-of-day pattern for the top day
+  const entriesOnTopDay = stressEntriesWithTime.filter(e => e.dayIndex === topDayIndex);
+  const timeRangeCounts = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+  
+  for (const entry of entriesOnTopDay) {
+    const range = getTimeOfDayRange(entry.hour);
+    timeRangeCounts[range] += 1;
+  }
+
+  let dominantTimeRange = null;
+  let dominantTimeCount = 0;
+  const topDayTotal = entriesOnTopDay.length;
+
+  for (const [range, count] of Object.entries(timeRangeCounts)) {
+    if (count > dominantTimeCount) {
+      dominantTimeCount = count;
+      dominantTimeRange = range;
+    }
+  }
+
+  const timePct = topDayTotal > 0 ? Math.round((dominantTimeCount / topDayTotal) * 100) : 0;
+  const hasTimePattern = timePct >= 60 && topDayTotal >= 2;
+
   let label;
-  if (topDayIndex === 3) { // Wednesday
+  if (hasTimePattern && dominantTimeRange) {
+    // Include time-of-day in the label
+    const dayTimeName = `${dayName} ${dominantTimeRange}s`;
+    label = `${dayTimeName} seem to echo the heaviest pressure — about ${timePct}% of your ${dayName} stress clusters then.`;
+  } else if (topDayIndex === 3) { // Wednesday
     label = `You've been writing about feeling under pressure a lot on Wednesdays — about ${pct}% of your heavier entries land there. Midweek seems to echo a bit more weight for you.`;
   } else if (topDayIndex === 1 || topDayIndex === 2) { // Monday/Tuesday
     label = `${dayName} keeps showing up as a heavier day — about ${pct}% of your stress entries land there. Early in the week seems to carry more load for you.`;
