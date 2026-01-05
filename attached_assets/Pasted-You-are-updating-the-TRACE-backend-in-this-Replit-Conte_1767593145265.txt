@@ -1,0 +1,134 @@
+You are updating the TRACE backend in this Replit.
+
+Context:
+- This is the TRACE backend (Node/Express) that powers the mobile app.
+- There is already an `/api/patterns/insights` endpoint which returns:
+  - peakWindow, stressEchoes, reliefLabel, mostHelpfulActivity, weeklyMoodTrend, predictiveHint, etc.
+  - It respects crisisMode and sample-size thresholds.
+- The mobile Full Patterns screen also has a “Last Hour” / “recent” section that currently feels thin.
+
+Goal:
+Enrich the “recent” / “Last Hour” analytics so the frontend can show:
+
+1) A comparison line like:
+   - "This feels heavier compared to yesterday."
+   - "This feels lighter compared to yesterday."
+   - "This feels pretty similar to this time yesterday."
+
+2) A small check-in count line like:
+   - "This is the 3rd time you've checked in today."
+
+We want to compute this server-side and expose it in the `/api/patterns/insights` response.
+
+Data assumptions:
+- You already have tables for:
+  - chat sessions / messages and/or
+  - journal entries / mood logs and/or
+  - activities or sessions that include timestamps and optional mood/state.
+- Use whatever you already use for weeklyMoodTrend/mood-based analytics (journal + mood, “soft entries”, etc.) as the source of truth.
+
+Please implement the following in a SAFE and MINIMAL way:
+
+1. Add a helper to compute "recent window" analytics
+
+Create a helper function in your patterns service module (wherever `/api/patterns/insights` logic lives), for example:
+
+  async function computeLastHourAnalytics(userId: string): Promise<{
+    checkinsLastHour: number;
+    checkinsToday: number;
+    comparisonLabel: 'heavier' | 'lighter' | 'similar' | null;
+    comparisonScoreDiff?: number | null; // optional numeric delta
+  }>
+
+Behavior:
+
+- Define "check-in" as whatever you consider a meaningful emotional interaction:
+  - e.g. journal entries, mood-tagged events, or chat sessions with mood metadata.
+- Time windows:
+  - last hour window: now - 60 minutes → now
+  - today window: from start-of-day (local, or UTC if simpler) → now
+  - comparison window: same 60-minute slice "yesterday":
+      - yesterdayStart = now - 1 day - 60 minutes
+      - yesterdayEnd   = now - 1 day
+
+Inside computeLastHourAnalytics:
+
+a) Count how many check-ins the user has in the last hour → checkinsLastHour
+b) Count how many check-ins the user has today (from start of day) → checkinsToday
+
+c) If you have mood/intensity data (e.g. calm/okay/overwhelmed or numeric scores):
+   - Compute an average “distress score” or “heaviness score” for:
+     - lastHourAvg (last 60 minutes)
+     - yesterdayHourAvg (same hour block, previous day)
+   - Define comparisonLabel:
+     - If there is not enough data in either window (e.g. < 2 events per window), return comparisonLabel = null.
+     - Else compute diff = lastHourAvg - yesterdayHourAvg
+       - If diff >= +0.3 → 'heavier'
+       - If diff <= -0.3 → 'lighter'
+       - Else → 'similar'
+   - Set comparisonScoreDiff to diff (optional, useful for debugging).
+
+d) If you do NOT have numeric mood scores, you can approximate:
+   - Map moods to numbers (e.g., calm = 1, okay = 2, overwhelmed = 3)
+   - Then compute the same averages and diff logic.
+
+2. Integrate into `/api/patterns/insights`
+
+In the handler for `/api/patterns/insights` (the main function that builds the insights response):
+
+- After you’ve identified the userId and performed any crisis checks, call:
+
+   const lastHour = await computeLastHourAnalytics(userId);
+
+- Then inject these fields into the JSON response:
+
+   lastHourSummary: {
+     checkinsLastHour: number;   // e.g. 1, 2, 3
+     checkinsToday: number;      // e.g. 3
+     comparisonLabel: 'heavier' | 'lighter' | 'similar' | null;
+   }
+
+Important:
+- Do NOT change or remove existing fields used by the mobile app.
+- Just ADD `lastHourSummary` as a new top-level field or nested under an appropriate key (e.g. `insights.lastHourSummary`), but keep naming consistent with the rest of the file.
+- If there is not enough data, you can return:
+
+   lastHourSummary: {
+     checkinsLastHour: 0,
+     checkinsToday: existingTodayCountOr0,
+     comparisonLabel: null
+   }
+
+3. Respect crisis mode
+
+- If the user is currently in crisisMode (if you already compute this for patterns), keep the logic but be conservative:
+  - You can still populate `checkinsLastHour` and `checkinsToday`.
+  - For `comparisonLabel`, you may:
+    - either still compute it OR
+    - set it to null in crisis mode if you want to avoid any comparative language.
+- Do NOT add any predictive or future-facing phrasing here. This is strictly “how this moment compares to this time yesterday” and “how many times today.”
+
+4. Keep language generation on the mobile side
+
+- The backend should not return full text sentences like "This feels heavier compared to yesterday."
+- Instead, just return structured data:
+   - comparisonLabel: 'heavier' | 'lighter' | 'similar' | null
+   - checkinsToday: number
+- The mobile app will turn that into user-facing copy using TRACE’s tone.
+
+5. Confirm field names in response
+
+Final shape (example):
+
+{
+  ...existingInsightFields,
+  "lastHourSummary": {
+    "checkinsLastHour": 1,
+    "checkinsToday": 3,
+    "comparisonLabel": "heavier"
+  }
+}
+
+This must NOT break existing consumers of `/api/full-patterns/insights`.
+
+Please implement this in a type-safe, minimal way consistent with the existing codebase structure and style.

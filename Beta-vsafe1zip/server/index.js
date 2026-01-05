@@ -4962,6 +4962,11 @@ function getPeakWindowConfidence(percentage) {
 }
 
 // Confidence tier helper for Stress Echoes (2-3 = soft, 4-5 = clear, 6+ = strong)
+// Note: With time-decay weighting, these thresholds effectively require:
+// - "soft": 2+ recent entries (or more older entries to compensate for lower weights)
+// - "clear": 4+ recent entries
+// - "strong": 6+ recent entries
+// This is intentional: confidence should reflect recent patterns, not just historical totals
 function getStressEchoesConfidence(repeatCount) {
   if (repeatCount >= 6) return "strong";
   if (repeatCount >= 4) return "clear";
@@ -5047,18 +5052,19 @@ function computeStressEchoes(journals = []) {
   const pct = Math.round((topCount / totalStress) * 100);
   const confidence = getStressEchoesConfidence(topCount);
 
-  // Analyze time-of-day pattern for the top day
+  // Analyze time-of-day pattern for the top day (using weighted counts)
   const entriesOnTopDay = stressEntriesWithTime.filter(e => e.dayIndex === topDayIndex);
   const timeRangeCounts = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+  let topDayWeightedTotal = 0;
   
   for (const entry of entriesOnTopDay) {
     const range = getTimeOfDayRange(entry.hour);
-    timeRangeCounts[range] += 1;
+    timeRangeCounts[range] += entry.weight;
+    topDayWeightedTotal += entry.weight;
   }
 
   let dominantTimeRange = null;
   let dominantTimeCount = 0;
-  const topDayTotal = entriesOnTopDay.length;
 
   for (const [range, count] of Object.entries(timeRangeCounts)) {
     if (count > dominantTimeCount) {
@@ -5067,8 +5073,8 @@ function computeStressEchoes(journals = []) {
     }
   }
 
-  const timePct = topDayTotal > 0 ? Math.round((dominantTimeCount / topDayTotal) * 100) : 0;
-  const hasTimePattern = timePct >= 60 && topDayTotal >= 2;
+  const timePct = topDayWeightedTotal > 0 ? Math.round((dominantTimeCount / topDayWeightedTotal) * 100) : 0;
+  const hasTimePattern = timePct >= 60 && entriesOnTopDay.length >= 2;
 
   let label;
   
@@ -5218,21 +5224,24 @@ function computeSofteningDay(journals = []) {
   const dayName = WEEKDAY_NAMES[topDayIndex];
   const pct = Math.round((topCount / totalSoft) * 100);
   
-  // Confidence tier: 3+ instances = strong, else mild
+  // Confidence tier: 3+ weighted instances = strong, else mild
+  // With time-decay weighting, this effectively requires 3+ recent entries
+  // or more older entries to compensate for lower weights
   const confidence = topCount >= 3 ? "strong" : "mild";
 
-  // Analyze time-of-day pattern for the top day
+  // Analyze time-of-day pattern for the top day (using weighted counts)
   const entriesOnTopDay = softEntriesWithTime.filter(e => e.dayIndex === topDayIndex);
   const timeRangeCounts = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+  let topDayWeightedTotal = 0;
   
   for (const entry of entriesOnTopDay) {
     const range = getTimeOfDayRange(entry.hour);
-    timeRangeCounts[range] += 1;
+    timeRangeCounts[range] += entry.weight;
+    topDayWeightedTotal += entry.weight;
   }
 
   let dominantTimeRange = null;
   let dominantTimeCount = 0;
-  const topDayTotal = entriesOnTopDay.length;
 
   for (const [range, count] of Object.entries(timeRangeCounts)) {
     if (count > dominantTimeCount) {
@@ -5241,8 +5250,8 @@ function computeSofteningDay(journals = []) {
     }
   }
 
-  const timePct = topDayTotal > 0 ? Math.round((dominantTimeCount / topDayTotal) * 100) : 0;
-  const hasTimePattern = timePct >= 60 && topDayTotal >= 2;
+  const timePct = topDayWeightedTotal > 0 ? Math.round((dominantTimeCount / topDayWeightedTotal) * 100) : 0;
+  const hasTimePattern = timePct >= 60 && entriesOnTopDay.length >= 2;
 
   let label;
   
