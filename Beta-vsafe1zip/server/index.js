@@ -4932,6 +4932,22 @@ function getTimeOfDayRange(hour) {
   return "night"; // 11pm-5:59am
 }
 
+// Confidence tier helper for Peak Window (30-44% = low, 45-59% = med, 60%+ = high)
+function getPeakWindowConfidence(percentage) {
+  if (percentage >= 60) return "high";
+  if (percentage >= 45) return "medium";
+  if (percentage >= 30) return "low";
+  return "emerging";
+}
+
+// Confidence tier helper for Stress Echoes (2-3 = soft, 4-5 = clear, 6+ = strong)
+function getStressEchoesConfidence(repeatCount) {
+  if (repeatCount >= 6) return "strong";
+  if (repeatCount >= 4) return "clear";
+  if (repeatCount >= 2) return "soft";
+  return "emerging";
+}
+
 function computeStressEchoes(journals = []) {
   if (!journals.length) {
     return {
@@ -4939,6 +4955,7 @@ function computeStressEchoes(journals = []) {
       topDayIndex: null,
       stressCount: 0,
       totalStressEntries: 0,
+      confidence: "emerging",
     };
   }
 
@@ -4970,6 +4987,7 @@ function computeStressEchoes(journals = []) {
       topDayIndex: null,
       stressCount: 0,
       totalStressEntries: 0,
+      confidence: "emerging",
     };
   }
 
@@ -4986,6 +5004,7 @@ function computeStressEchoes(journals = []) {
 
   const dayName = topDayIndex !== null ? WEEKDAY_NAMES[topDayIndex] : null;
   const pct = Math.round((topCount / totalStress) * 100);
+  const confidence = getStressEchoesConfidence(topCount);
 
   // Analyze time-of-day pattern for the top day
   const entriesOnTopDay = stressEntriesWithTime.filter(e => e.dayIndex === topDayIndex);
@@ -5011,16 +5030,35 @@ function computeStressEchoes(journals = []) {
   const hasTimePattern = timePct >= 60 && topDayTotal >= 2;
 
   let label;
-  if (hasTimePattern && dominantTimeRange) {
-    // Include time-of-day in the label
-    const dayTimeName = `${dayName} ${dominantTimeRange}s`;
-    label = `${dayTimeName} seem to echo the heaviest pressure — about ${timePct}% of your ${dayName} stress clusters then.`;
-  } else if (topDayIndex === 3) { // Wednesday
-    label = `You've been writing about feeling under pressure a lot on Wednesdays — about ${pct}% of your heavier entries land there. Midweek seems to echo a bit more weight for you.`;
-  } else if (topDayIndex === 1 || topDayIndex === 2) { // Monday/Tuesday
-    label = `${dayName} keeps showing up as a heavier day — about ${pct}% of your stress entries land there. Early in the week seems to carry more load for you.`;
+  
+  // Apply confidence-tiered language per interpretive guidelines
+  if (confidence === "strong") {
+    // Strong signal (6+ repeating events)
+    if (hasTimePattern && dominantTimeRange) {
+      const dayTimeName = `${dayName} ${dominantTimeRange}s`;
+      label = `Some moments seem to echo. Overwhelm has shown up a few times around ${dayTimeName}. That doesn't mean it will — just that those times may carry more weight for you. You're not weak for feeling it.`;
+    } else {
+      label = `Some moments seem to echo. Overwhelm has shown up a few times around ${dayName}s. That doesn't mean it will — just that those times may carry more weight for you. You're not weak for feeling it.`;
+    }
+  } else if (confidence === "clear") {
+    // Clear signal (4-5 repeating events)
+    if (hasTimePattern && dominantTimeRange) {
+      const dayTimeName = `${dayName} ${dominantTimeRange}s`;
+      label = `${dayTimeName} seem to echo the heaviest pressure, like the week arrives before you're fully ready.`;
+    } else {
+      label = `${dayName}s seem to echo the heaviest pressure, like the week arrives before you're fully ready.`;
+    }
+  } else if (confidence === "soft") {
+    // Soft signal (2-3 repeating events)
+    if (hasTimePattern && dominantTimeRange) {
+      const dayTimeName = `${dayName} ${dominantTimeRange}s`;
+      label = `There may be a small echo forming around ${dayTimeName}. I won't assume anything — I'll just keep watching with you.`;
+    } else {
+      label = `There may be a small echo forming around ${dayName}s. I won't assume anything — I'll just keep watching with you.`;
+    }
   } else {
-    label = `I've noticed ${dayName} tends to hold more of your stress — about ${pct}% of your heavier entries gather there.`;
+    // Emerging - not enough to say anything specific
+    label = "Your stress patterns are still emerging. I'll keep watching gently — and we can adjust together.";
   }
 
   return {
@@ -5028,6 +5066,7 @@ function computeStressEchoes(journals = []) {
     topDayIndex,
     stressCount: topCount,
     totalStressEntries: totalStress,
+    confidence,
   };
 }
 
@@ -5090,6 +5129,7 @@ function computeSofteningDay(journals = []) {
       topDayIndex: null,
       percentage: null,
       totalSoftEntries: 0,
+      confidence: "emerging",
     };
   }
 
@@ -5115,6 +5155,7 @@ function computeSofteningDay(journals = []) {
       topDayIndex: null,
       percentage: null,
       totalSoftEntries: 0,
+      confidence: "emerging",
     };
   }
 
@@ -5131,6 +5172,9 @@ function computeSofteningDay(journals = []) {
 
   const dayName = WEEKDAY_NAMES[topDayIndex];
   const pct = Math.round((topCount / totalSoft) * 100);
+  
+  // Confidence tier: 3+ instances = strong, else mild
+  const confidence = topCount >= 3 ? "strong" : "mild";
 
   // Analyze time-of-day pattern for the top day
   const entriesOnTopDay = softEntriesWithTime.filter(e => e.dayIndex === topDayIndex);
@@ -5156,16 +5200,24 @@ function computeSofteningDay(journals = []) {
   const hasTimePattern = timePct >= 60 && topDayTotal >= 2;
 
   let label;
-  if (hasTimePattern && dominantTimeRange) {
-    // Include time-of-day in the label
-    const dayTimeName = `${dayName} ${dominantTimeRange}s`;
-    label = `${dayTimeName} seem to bring more relief — about ${timePct}% of your calm moments land there.`;
-  } else if (topDayIndex === 3) { // Wednesday
-    label = `You tend to soften a bit around Wednesdays — about ${pct}% of your calmer entries land there. Midweek seems to hold some tiny exhale moments for you.`;
-  } else if (topDayIndex >= 4) { // Thu/Fri/Sat
-    label = `Toward the end of the week — especially ${dayName} — I see more of your "calm" or "okay" entries (${pct}% of them). There's a gentle easing there.`;
+  
+  // Apply confidence-tiered language per interpretive guidelines
+  if (confidence === "strong") {
+    // Strong signal (3+ instances)
+    if (hasTimePattern && dominantTimeRange) {
+      const dayTimeName = `${dayName} ${dominantTimeRange}s`;
+      label = `Relief seems to visit you most often around ${dayTimeName}. You don't need to chase it — but it's worth knowing your body already has a doorway home.`;
+    } else {
+      label = `Relief seems to visit you most often around ${dayName}s. You don't need to chase it — but it's worth knowing your body already has a doorway home.`;
+    }
   } else {
-    label = `${dayName} quietly holds more of your calmer entries (${pct}%). Something about that day seems to let your system exhale, even if just a little.`;
+    // Mild signal (1-2 instances)
+    if (hasTimePattern && dominantTimeRange) {
+      const dayTimeName = `${dayName} ${dominantTimeRange}s`;
+      label = `There may be a gentle leaning toward relief around ${dayTimeName}. If that ever changes, TRACE changes too.`;
+    } else {
+      label = `There may be a gentle leaning toward relief around ${dayName}s. If that ever changes, TRACE changes too.`;
+    }
   }
 
   return {
@@ -5173,12 +5225,28 @@ function computeSofteningDay(journals = []) {
     topDayIndex,
     percentage: pct,
     totalSoftEntries: totalSoft,
+    confidence,
   };
 }
 
 // ---- WEEKLY MOOD TREND + CROSS-PATTERN + PREDICTIVE HINTS ----
 
+// Per interpretive guidelines: require ≥20% difference for up/down, otherwise "stable"
 function trendDirection(thisWeek, lastWeek) {
+  // Handle edge cases with small numbers
+  if (thisWeek === 0 && lastWeek === 0) return "stable";
+  
+  // Edge case: if lastWeek is 0 but thisWeek has entries, that's a meaningful "up"
+  if (lastWeek === 0 && thisWeek > 0) return "up";
+  // Edge case: if thisWeek is 0 but lastWeek had entries, that's a meaningful "down"
+  if (thisWeek === 0 && lastWeek > 0) return "down";
+  
+  // Calculate percentage change against baseline (lastWeek)
+  const pctChange = Math.abs((thisWeek - lastWeek) / lastWeek) * 100;
+  
+  // Only report up/down if ≥20% difference
+  if (pctChange < 20) return "stable";
+  
   if (thisWeek > lastWeek) return "up";
   if (thisWeek < lastWeek) return "down";
   return "stable";
@@ -5324,8 +5392,51 @@ app.post('/api/patterns/insights', async (req, res) => {
   try {
     const { userId, deviceId } = req.body;
     
+    // Crisis Mode Override - per interpretive guidelines:
+    // "If distress keywords appear in recent logs, TRACE must disable patterns language & predictions"
+    if (userId) {
+      const crisisState = getCrisisState(userId);
+      if (crisisState.active) {
+        console.log('📊 [PATTERNS INSIGHTS POST] Crisis mode active for user, returning soft response');
+        // Use tailored crisis copy per insight card type
+        const crisisCore = "When things feel really intense, patterns can become blurry — and that's okay. Right now the most important thing is how you're feeling in this moment.";
+        const crisisPeak = "Right now, the most important window is this one.";
+        const crisisActivity = "Whatever you need right now is enough.";
+        
+        return res.json({
+          // Nested objects - softer crisis-specific messaging per card
+          peakWindow: { label: crisisPeak, startHour: null, endHour: null, confidence: "crisis" },
+          mostHelpfulActivity: { label: crisisActivity, count: 0 },
+          stressEchoes: { label: crisisCore, topDayIndex: null, stressCount: 0, totalStressEntries: 0, confidence: "crisis" },
+          energyFlow: { label: crisisCore, topDayIndex: null, percentage: null, totalActivities: 0 },
+          softening: { label: crisisCore, topDayIndex: null, percentage: null, totalSoftEntries: 0, confidence: "crisis" },
+          weeklyMoodTrend: {
+            calm: { thisWeek: 0, lastWeek: 0, direction: "stable", label: crisisCore },
+            stress: { thisWeek: 0, lastWeek: 0, direction: "stable", label: crisisCore },
+          },
+          crossPatternHint: null,
+          predictiveHint: null,
+          
+          // Flattened fields - matching the exact mobile contract
+          peakWindowLabel: crisisPeak,
+          peakWindowStartRatio: null,
+          peakWindowEndRatio: null,
+          energyDayBuckets: [0, 0, 0, 0, 0, 0, 0],
+          stressEchoesLabel: crisisCore,
+          reliefLabel: crisisCore,
+          totalSoftEntries: 0,
+          mostHelpfulActivityLabel: crisisActivity,
+          mostHelpfulActivityCount: 0,
+          energyRhythmLabel: crisisCore,
+          sampleSize: 0,
+          journalSampleSize: 0,
+          crisisMode: true,
+        });
+      }
+    }
+    
     const fallbackPeakWindow = {
-      label: "Not enough data yet",
+      label: "Your patterns are still emerging",
       startHour: null,
       endHour: null,
     };
@@ -5418,9 +5529,10 @@ app.post('/api/patterns/insights', async (req, res) => {
     
     console.log('📊 [PATTERNS INSIGHTS POST] Found', journals.length, 'journal entries');
     
-    // Calculate Peak Window (hour with most activities)
+    // Calculate Peak Window (hour with most activities) with confidence tiers
+    // Per guidelines: ≥6 data points, ≥45-50% cluster in 2-3 hour window
     let peakWindow = fallbackPeakWindow;
-    if (activityLogs.length >= 3) {
+    if (activityLogs.length >= 6) {
       const hourCounts = {};
       for (const log of activityLogs) {
         const hour = new Date(log.completed_at).getHours();
@@ -5445,10 +5557,67 @@ app.post('/api/patterns/insights', async (req, res) => {
       if (peakHour !== null) {
         const startHour = peakHour;
         const endHour = (peakHour + 2) % 24;
+        const timeRange = `${formatHour(startHour)} – ${formatHour(endHour)}`;
+        
+        // Calculate percentage of activities in this 2-hour window
+        const adjacentCount = peakCount + (hourCounts[(peakHour + 1) % 24] || 0);
+        const windowPct = Math.round((adjacentCount / activityLogs.length) * 100);
+        const confidence = getPeakWindowConfidence(windowPct);
+        
+        // Apply confidence-tiered language per interpretive guidelines
+        let label;
+        if (confidence === "high") {
+          label = `There seems to be a part of your day where things feel steadier for you. Lately, that's been around ${timeRange}. You don't have to do anything with that — but if you ever need a gentler place to land, that time might already know how to hold you.`;
+        } else if (confidence === "medium") {
+          label = `A soft pattern might be forming. Some of your more grounded moments have been showing up around ${timeRange}. If that changes, that's okay — TRACE adjusts with you.`;
+        } else if (confidence === "low") {
+          label = `There may be a gentle leaning toward ${timeRange}. I'll keep watching with you.`;
+        } else {
+          // "emerging" confidence (<30%) - don't present as confident pattern
+          label = `Your peak window is still emerging. Early signals point toward ${timeRange}, but I'll keep watching gently.`;
+        }
+        
         peakWindow = {
-          label: `${formatHour(startHour)} – ${formatHour(endHour)}`,
+          label,
           startHour,
           endHour,
+          confidence,
+          timeRange,
+        };
+      }
+    } else if (activityLogs.length >= 3) {
+      // Not enough for confident pattern, but show emerging data
+      const hourCounts = {};
+      for (const log of activityLogs) {
+        const hour = new Date(log.completed_at).getHours();
+        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+      }
+      
+      let peakHour = null;
+      let peakCount = 0;
+      Object.entries(hourCounts).forEach(([hour, count]) => {
+        if (count > peakCount) {
+          peakCount = count;
+          peakHour = parseInt(hour);
+        }
+      });
+      
+      if (peakHour !== null) {
+        const formatHour = (h) => {
+          const suffix = h >= 12 ? 'PM' : 'AM';
+          const hour12 = h % 12 || 12;
+          return `${hour12}:00 ${suffix}`;
+        };
+        const startHour = peakHour;
+        const endHour = (peakHour + 2) % 24;
+        const timeRange = `${formatHour(startHour)} – ${formatHour(endHour)}`;
+        
+        peakWindow = {
+          label: `Your peak window is still emerging. Early signals point toward ${timeRange}.`,
+          startHour,
+          endHour,
+          confidence: "emerging",
+          timeRange,
         };
       }
     }

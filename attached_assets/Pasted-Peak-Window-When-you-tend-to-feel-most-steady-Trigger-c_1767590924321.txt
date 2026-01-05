@@ -1,0 +1,229 @@
+Peak Window — “When you tend to feel most steady”
+
+Trigger condition
+
+Enough activity + journal behavior clusters around a repeating time window.
+
+Template variations
+
+If signal is strong
+
+There seems to be a part of your day where things feel steadier for you. Lately, that’s been around {time-range}. You don’t have to do anything with that — but if you ever need a gentler place to land, that time might already know how to hold you.
+
+—
+
+If the signal is light / emerging
+
+A soft pattern might be forming. Some of your more grounded moments have been showing up around {time-range}. If that changes, that’s okay — TRACE adjusts with you.
+
+—
+
+If signal breaks later
+
+Your rhythms shifted recently. You used to find steadiness around {old-time-range}, and lately it’s been closer to {new-time-range}. That kind of change can say a lot about what life is asking of you — gently.
+
+⸻
+
+🌊 Weekly Rhythm — “How your week seems to move”
+
+(Lives inside your Rhythm Map narrative)
+
+Steady
+
+Your week has been moving in a steady rhythm lately. Some days rise and fall — but nothing feels too sharp or alarming. Often this kind of pattern belongs to people who keep going quietly, even when it costs a little energy.
+
+—
+
+Mid-week heaviness
+
+Your week seems to gather weight around the middle. When that happens, your nervous system may just be asking for a softer landing somewhere mid-week — even ten minutes counts.
+
+—
+
+Weekend softening
+
+Your body seems to loosen toward the end of the week. There’s a kind of exhale around {Fri/Sat/Sun}. You don’t need to force it — just noticing the pattern can be grounding.
+
+⸻
+
+💫 Stress Echoes — “When overwhelm repeats”
+
+If a strong recurring echo exists
+
+Some moments seem to echo. Overwhelm has shown up a few times around {day + rough time}. That doesn’t mean it will — just that those times may carry more weight for you. You’re not weak for feeling it.
+
+—
+
+If the signal is mild
+
+There may be a small echo forming around {time/day}. I won’t assume anything — I’ll just keep watching with you.
+
+—
+
+If the pattern stops
+
+Something shifted. Places that used to feel heavy haven’t echoed in the same way recently. That can happen when life changes, or when your nervous system finds a new way to move through things.
+
+⸻
+
+🌱 Relief Insights — “Where relief likes to land”
+
+Strong signal
+
+Relief seems to visit you most often around {time/day}. You don’t need to chase it — but it’s worth knowing your body already has a doorway home.
+
+—
+
+Mild signal
+
+There may be a gentle leaning toward relief around {time/day}. If that ever changes, TRACE changes too.
+
+⸻
+
+🫶 What Helps Most — “What your body keeps returning to”
+
+Clear pattern
+
+You tend to return to {activity} when things feel heavy. That tells me it’s doing something meaningful for you — even if it’s small.
+
+—
+
+If multiple activities help
+
+You seem to have a few steady anchors — like {A} and {B}. That flexibility is a kind of strength.
+
+then the following below belongs to full patterns page narrative analysis
+
+Thresholds — When TRACE is allowed to “notice” patterns
+
+This protects users from false certainty & over-analysis.
+
+⸻
+
+🟢 Baseline Requirement (before TRACE says anything)
+
+User must have at least 7–10 meaningful data points across journals, chat check-ins, or activities.
+
+If not → say nothing analytical.
+
+Fallback line:
+
+You don’t have enough here yet to show patterns — which is completely okay. TRACE only notices gently, and only when the signal feels real.
+
+⸻
+
+🌅 Peak Window Threshold
+
+Pattern appears if BOTH are true:
+
+✔ ≥ 6 data points in relevant time buckets
+✔ ≥ 45–50% cluster inside a 2–3 hour window
+
+Confidence tiers:
+Tier
+Name
+Requirement
+Low
+“soft leaning”
+30–44%
+Med
+“likely window”
+45–59%
+High
+“strong window”
+≥60%
+
+Stress Echoes Threshold
+
+Trigger when:
+
+✔ same weekday occurs ≥ 3 times in last 5–6 entries
+✔ OR same time-of-day window repeats ≥ 4 times
+
+Confidence tiers:
+Tier
+Requirement
+Soft
+2–3 repeating events
+Clear
+4+
+Strong
+6+
+
+elief Signal Threshold
+
+Trigger when:
+
+✔ ≥3 instances of mood improving after activity OR time window
+
+Direction detection = “before mood lower → after mood higher”
+
+⸻
+
+📈 Weekly Mood Direction Threshold
+
+Say “up / down / stable” ONLY IF:
+
+✔ direction change ≥ 20% difference
+otherwise → stable
+
+This prevents fake trends.
+
+⸻
+
+🛑 Crisis Mode Override
+
+If distress keywords appear in recent logs:
+
+TRACE must disable patterns language & predictions.
+
+Fallback language:
+
+When things feel really intense, patterns can become blurry — and that’s okay. Right now the most important thing is how you’re feeling in this moment. I’m here with you.
+
+⸻
+
+3️⃣ Language Guardrails (VERY IMPORTANT)
+
+TRACE should NOT use
+
+⛔ prediction
+⛔ forecasting
+⛔ always / never
+⛔ trends implying certainty
+⛔ diagnosis-adjacent language
+
+⸻
+
+TRACE SHOULD use
+
+✔ “seems to”
+✔ “might be”
+✔ “often”
+✔ “sometimes”
+✔ “right now”
+✔ “if this continues”
+✔ “you don’t need to do anything with this”
+✔ “I’ll keep noticing gently — and we can adjust together”
+
+⸻
+
+4️⃣ Edge Cases & Safety
+
+If user has grief / trauma markers
+
+TRACE uses slower, quieter language and avoids asking them to change behavior.
+
+⸻
+
+If patterns suddenly contradict each other
+
+Sometimes rhythms change — especially when life does. That doesn’t mean anything is wrong. It just means you’re human, and TRACE is adapting with you.
+
+⸻
+
+If sample size drops
+
+(e.g., user stops journaling)
+
+With fewer recent moments to look at, the picture is a little softer right now. That’s okay. I’ll keep noticing gently — at your pace.
