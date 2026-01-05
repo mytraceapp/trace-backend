@@ -6152,7 +6152,7 @@ function mergePatterns(cached, current) {
     'peakWindowLabel', 'peakWindowStartRatio', 'peakWindowEndRatio',
     'stressEchoesLabel', 'reliefLabel', 'energyRhythmLabel',
     'mostHelpfulActivityLabel', 'mostHelpfulActivityCount',
-    'crossPatternHint', 'predictiveHint',
+    'crossPatternHint', 'predictiveHint', 'weeklyNarrative',
     'peakWindow', 'mostHelpfulActivity', 'stressEchoes', 'energyFlow', 'softening'
   ];
   
@@ -6619,6 +6619,55 @@ app.post('/api/patterns/insights', async (req, res) => {
       energyDayBuckets[i] = Math.round(energyDayBuckets[i]);
     }
     
+    // Generate Weekly Narrative using AI
+    let weeklyNarrative = null;
+    if (openai && (activityLogs.length > 0 || journals.length > 0)) {
+      try {
+        // Build data summary for the AI
+        const narrativeDataParts = [];
+        if (activityLogs.length > 0) {
+          narrativeDataParts.push(`Activities completed: ${activityLogs.length}`);
+          // Find most used activity
+          const activityCounts = {};
+          for (const log of activityLogs) {
+            activityCounts[log.activity_type] = (activityCounts[log.activity_type] || 0) + 1;
+          }
+          const topActivity = Object.entries(activityCounts).sort((a, b) => b[1] - a[1])[0];
+          if (topActivity) {
+            narrativeDataParts.push(`Most used: ${topActivity[0]} (${topActivity[1]}x)`);
+          }
+        }
+        if (journals.length > 0) {
+          narrativeDataParts.push(`Journal entries: ${journals.length}`);
+        }
+        if (peakWindow.label) {
+          narrativeDataParts.push(`Peak window: ${peakWindow.label}`);
+        }
+        if (energyFlow.topDayIndex !== null) {
+          narrativeDataParts.push(`Energy peak day: ${WEEKDAY_NAMES[energyFlow.topDayIndex]}`);
+        }
+        
+        const narrativePrompt = `You are TRACE, a calm emotional companion.
+
+Based on this week's data:
+${narrativeDataParts.join('\n')}
+
+Write a 2-3 sentence poetic but grounded reflection on this person's week. Notice their rhythm, when they showed up for themselves, and what patterns emerged. No advice, no questions. Speak directly to them as "you". Keep it warm but not overly sentimental.`;
+
+        const narrativeCompletion = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: narrativePrompt }],
+          temperature: 0.8,
+          max_tokens: 150,
+        });
+        
+        weeklyNarrative = narrativeCompletion.choices?.[0]?.message?.content?.trim() || null;
+        console.log('📊 [PATTERNS] Generated weeklyNarrative:', weeklyNarrative?.slice(0, 60) + '...');
+      } catch (narrativeErr) {
+        console.warn('📊 [PATTERNS] Failed to generate weeklyNarrative:', narrativeErr.message);
+      }
+    }
+    
     // Calculate peak window ratios (0-1 scale)
     const peakWindowStartRatio = peakWindow.startHour != null ? peakWindow.startHour / 24 : null;
     const peakWindowEndRatio = peakWindow.endHour != null ? peakWindow.endHour / 24 : null;
@@ -6666,6 +6715,9 @@ app.post('/api/patterns/insights', async (req, res) => {
       mostHelpfulActivityLabel: mostHelpfulActivity.label,
       mostHelpfulActivityCount: mostHelpfulActivity.count,
       energyRhythmLabel: energyFlow.label,
+      
+      // Weekly narrative for "Your Week" card
+      weeklyNarrative,
       
       sampleSize: activityLogs.length,
       journalSampleSize: journals.length,
