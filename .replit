@@ -98,3 +98,6 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi
 TRACE_GROUND_URI = "spotify:playlist:5cAoML12eNgt4J1XAXYU77"
 TRACE_DRIFT_URI = "spotify:playlist:5ahaGLZi7wB40G2PQFfdvt"
 TRACE_RISING_URI = "spotify:playlist:7LHWpQChAU89LqBO7bVYeU"
+TRACE_GROUND_URL = "https://open.spotify.com/playlist/5cAoML12eNgt4J1XAXYU77"
+TRACE_DRIFT_URL = "https://open.spotify.com/playlist/5ahaGLZi7wB40G2PQFfdvt"
+TRACE_RISING_URL = "https://open.spotify.com/playlist/7LHWpQChAU89LqBO7bVYeU"

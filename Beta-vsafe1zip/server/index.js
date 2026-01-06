@@ -3729,9 +3729,9 @@ app.get('/api/music-config', (req, res) => {
   res.json({
     spotifyClientId: process.env.SPOTIFY_CLIENT_ID || '',
     playlists: {
-      ground: process.env.TRACE_GROUND_URI || '',
-      drift: process.env.TRACE_DRIFT_URI || '',
-      rising: process.env.TRACE_RISING_URI || '',
+      ground: process.env.TRACE_GROUND_URL || process.env.TRACE_GROUND_URI || '',
+      drift: process.env.TRACE_DRIFT_URL || process.env.TRACE_DRIFT_URI || '',
+      rising: process.env.TRACE_RISING_URL || process.env.TRACE_RISING_URI || '',
     },
   });
 });
