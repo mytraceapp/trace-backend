@@ -58,6 +58,35 @@ const patternsCache = new Map();
 const PATTERNS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MIN_DATA_THRESHOLD = 7; // Minimum activities + journals for patterns
 
+// ============================================
+// MUSIC TEMPLATES & GUARDRAILS
+// ============================================
+const MUSIC_TEMPLATES = {
+  ground: `I'm right here with you.
+
+Inside the journal there's a space called **Ground**. The music there is slow and steady — the kind that helps the body remember it's safe.
+
+If you want to go there, we can take our time. There's no rush.`,
+
+  drift: `This feels really heavy — thank you for trusting me with it.
+
+There's a quiet space inside the journal called **Drift**. It doesn't rush feelings. It just holds them gently.
+
+If you want to sit there for a while, I'll be right here with you.`,
+
+  rising: `I can feel you opening a little — even if it's small.
+
+Inside the journal there's a space called **Rising**. The music there warms slowly. It doesn't push you — it just lets the light return at your pace.
+
+If that sounds right, we can visit whenever you're ready.`,
+};
+
+function pickMusicSpace(context = {}) {
+  if (context.grief || context.sad || context.heavy) return 'drift';
+  if (context.panicky || context.anxious || context.overwhelmed) return 'ground';
+  return 'rising';
+}
+
 async function getAccuWeatherLocationKey(lat, lon) {
   const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
   if (locationKeyCache.has(cacheKey)) {
@@ -2245,6 +2274,60 @@ app.post('/api/chat', async (req, res) => {
         message: breathingReply,
         activity_suggestion: { name: null, reason: null, should_navigate: false },
       });
+    }
+
+    // MUSIC MODE: Intercept music requests with hard guardrail
+    // Only invites once per session, only if user explicitly asks
+    if (effectiveUserId && detectUserRequestedMusic(userText)) {
+      const musicState = getMusicState(effectiveUserId);
+      musicState.userRequestedMusic = true;
+      
+      // Build context from user message for emotion detection
+      const textLower = userText.toLowerCase();
+      const musicContext = {
+        grief: textLower.includes('grief') || textLower.includes('loss') || textLower.includes('died'),
+        sad: textLower.includes('sad') || textLower.includes('crying') || textLower.includes('tears'),
+        heavy: textLower.includes('heavy') || textLower.includes('hard') || textLower.includes('tired'),
+        panicky: textLower.includes('panic') || textLower.includes('freaking'),
+        anxious: textLower.includes('anxious') || textLower.includes('anxiety') || textLower.includes('worried'),
+        overwhelmed: textLower.includes('overwhelmed') || textLower.includes('too much'),
+        crisis: false, // Will be set by crisis detection below
+      };
+      
+      // Check crisis state
+      let inCrisis = false;
+      try {
+        if (supabaseServer) {
+          inCrisis = await isUserInCrisisWindow(supabaseServer, effectiveUserId, 90);
+        }
+      } catch (err) {
+        console.error('[MUSIC] Crisis check failed:', err.message);
+      }
+      musicContext.crisis = inCrisis;
+      
+      const allowedMusic = canInviteMusic(musicState, musicContext);
+      
+      if (allowedMusic) {
+        console.log('[TRACE CHAT] Music invite allowed, returning templated response');
+        musicState.musicInviteUsed = true;
+        musicState.lastInviteTimestamp = Date.now();
+        
+        const space = pickMusicSpace(musicContext);
+        const text = MUSIC_TEMPLATES[space];
+        
+        return res.json({
+          type: 'music_invite',
+          moodSpace: space,
+          message: text,
+          activity_suggestion: { name: null, reason: null, should_navigate: false },
+        });
+      } else {
+        console.log('[TRACE CHAT] Music request detected but blocked:', {
+          musicInviteUsed: musicState.musicInviteUsed,
+          musicDeclined: musicState.musicDeclined,
+          crisis: musicContext.crisis,
+        });
+      }
     }
 
     // Hard-route simple factual questions (dynamic facts from database)

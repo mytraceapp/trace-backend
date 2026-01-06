@@ -1,0 +1,128 @@
+In server/index.js (or wherever /api/chat lives), we’re going to:
+	•	detect if the user is asking for music
+	•	check canInviteMusic (the conservative rule we wrote)
+	•	if allowed → skip the model and return a templated music invitation
+	•	else → normal chat
+
+a) First, add your music templates near the top of server/index.js
+const MUSIC_TEMPLATES = {
+  ground: `
+I’m right here with you.
+
+Inside the journal there’s a space called **Ground**. The music there is slow and steady — the kind that helps the body remember it’s safe.
+
+If you want to go there, we can take our time. There’s no rush.
+  `.trim(),
+
+  drift: `
+This feels really heavy — thank you for trusting me with it.
+
+There’s a quiet space inside the journal called **Drift**. It doesn’t rush feelings. It just holds them gently.
+
+If you want to sit there for a while, I’ll be right here with you.
+  `.trim(),
+
+  rising: `
+I can feel you opening a little — even if it’s small.
+
+Inside the journal there’s a space called **Rising**. The music there warms slowly. It doesn’t push you — it just lets the light return at your pace.
+
+If that sounds right, we can visit whenever you’re ready.
+  `.trim(),
+};
+
+const MUSIC_TEMPLATES = {
+  ground: `
+I’m right here with you.
+
+Inside the journal there’s a space called **Ground**. The music there is slow and steady — the kind that helps the body remember it’s safe.
+
+If you want to go there, we can take our time. There’s no rush.
+  `.trim(),
+
+  drift: `
+This feels really heavy — thank you for trusting me with it.
+
+There’s a quiet space inside the journal called **Drift**. It doesn’t rush feelings. It just holds them gently.
+
+If you want to sit there for a while, I’ll be right here with you.
+  `.trim(),
+
+  rising: `
+I can feel you opening a little — even if it’s small.
+
+Inside the journal there’s a space called **Rising**. The music there warms slowly. It doesn’t push you — it just lets the light return at your pace.
+
+If that sounds right, we can visit whenever you’re ready.
+  `.trim(),
+};
+function pickMusicSpace(context = {}) {
+  // tweak this logic as your emotion detection improves
+  if (context.grief || context.sad || context.heavy) return 'drift';
+  if (context.panicky || context.anxious || context.overwhelmed) return 'ground';
+  return 'rising'; // gentle default when user is more open/hopeful
+}
+c) Now modify /api/chat to intercept music moments
+
+Find your /api/chat route in server/index.js.
+Inside it, before you call OpenAI, add something like this:
+app.post('/api/chat', async (req, res) => {
+  const { userId, messageText, context } = req.body;
+
+  // 1) Get or create session music state
+  const state = getMusicState(userId);
+
+  // 2) See if user explicitly asked for music in THIS message
+  if (detectUserRequestedMusic(messageText)) {
+    state.userRequestedMusic = true;
+  }
+
+  // 3) Decide if we’re allowed to invite music
+  const allowedMusic = canInviteMusic(state, context);
+
+  if (allowedMusic) {
+    // This is our ONE invite for the session
+    state.musicInviteUsed = true;
+    state.lastInviteTimestamp = Date.now();
+
+    const space = pickMusicSpace(context); // 'ground' | 'drift' | 'rising'
+    const text = MUSIC_TEMPLATES[space];
+
+    // Respond directly – NO model call, NO playlist
+    return res.json({
+      type: 'music_invite',
+      moodSpace: space,
+      message: text,
+    });
+  }
+
+  // 4) If not allowed / not requested, fall back to normal chat
+  // (your existing OpenAI call goes here)
+  // ...
+});
+Now:
+	•	If TRACE is allowed to talk about music → backend returns ONLY that gentle “invite to Ground/Drift/Rising”.
+	•	The model never gets a chance to go into “here are 20 tracks” mode.
+	•	If user keeps talking about music after that, musicInviteUsed is already true, so canInviteMusic blocks any further invites this session.
+
+This is the hard guardrail you wanted.
+Even if the model is chaotic, your server says: “Nope, we’re doing it my way.”
+
+⸻
+
+🔵 2) Tighten the system prompt (soft guardrail)
+
+On top of the backend, we’ll also remind the model of the rules.
+
+Wherever you define your system prompt in Replit (often a SYSTEM_PROMPT string in server/index.js), append this block:
+
+MUSIC & PLAYLIST RULES (IMPORTANT):
+
+- You must never generate a playlist or list more than ONE specific song title or artist, even if the user asks for a playlist or “more songs”.
+- TRACE has exactly three curated music spaces: Ground, Drift, and Rising.
+- When the user asks for music, you may ONLY:
+  (a) briefly describe ONE of these spaces in gentle, compassionate language, and
+  (b) invite the user to visit that space inside the journal.
+- Do NOT invent or recommend any songs outside the pre-curated Ground/Drift/Rising spaces.
+- If the user asks for “a playlist”, “more songs”, or similar, explain that TRACE uses these three spaces instead of custom playlists, and invite them to the one that fits emotionally, without listing tracks.
+- Never mention Spotify, URIs, or technical playback details to the user.
