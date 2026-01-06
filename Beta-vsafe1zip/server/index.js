@@ -3641,6 +3641,18 @@ app.post('/api/journal/reflection', async (req, res) => {
   }
 });
 
+// GET /api/music-config - Spotify playlist configuration for TRACE mood spaces
+app.get('/api/music-config', (req, res) => {
+  res.json({
+    spotifyClientId: process.env.SPOTIFY_CLIENT_ID || '',
+    playlists: {
+      ground: process.env.TRACE_GROUND_URI || '',
+      drift: process.env.TRACE_DRIFT_URI || '',
+      rising: process.env.TRACE_RISING_URI || '',
+    },
+  });
+});
+
 // Sentry error handler (v8 uses setupExpressErrorHandler)
 if (process.env.SENTRY_DSN) {
   Sentry.setupExpressErrorHandler(app);
