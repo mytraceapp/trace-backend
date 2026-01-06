@@ -3653,6 +3653,87 @@ app.get('/api/music-config', (req, res) => {
   });
 });
 
+// ============================================
+// MUSIC SESSION STATE MANAGEMENT
+// ============================================
+const sessionMusicState = new Map();
+
+function getMusicState(userId) {
+  if (!sessionMusicState.has(userId)) {
+    sessionMusicState.set(userId, {
+      musicInviteUsed: false,
+      userRequestedMusic: false,
+      musicDeclined: false,
+      lastInviteTimestamp: null,
+    });
+  }
+  return sessionMusicState.get(userId);
+}
+
+function detectUserRequestedMusic(messageText = '') {
+  const txt = messageText.toLowerCase();
+  return (
+    txt.includes('music') ||
+    txt.includes('playlist') ||
+    txt.includes('ground') ||
+    txt.includes('drift') ||
+    txt.includes('rising') ||
+    txt.includes('song')
+  );
+}
+
+function canInviteMusic(state, context = {}) {
+  if (!state.userRequestedMusic) return false;
+  if (state.musicInviteUsed) return false;
+  if (state.musicDeclined) return false;
+  if (context.requestsSilence) return false;
+  if (context.crisis) return false;
+  if (context.panicUnregulated) return false;
+  return true;
+}
+
+// POST /api/can-invite-music - Check if TRACE can invite music
+app.post('/api/can-invite-music', (req, res) => {
+  const { userId, messageText, context } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'Missing userId' });
+  }
+
+  const state = getMusicState(userId);
+
+  if (detectUserRequestedMusic(messageText)) {
+    state.userRequestedMusic = true;
+  }
+
+  const allowed = canInviteMusic(state, context);
+
+  return res.json({ allowed, state });
+});
+
+// POST /api/mark-music-invited - Lock music invite after TRACE invites
+app.post('/api/mark-music-invited', (req, res) => {
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
+
+  const state = getMusicState(userId);
+  state.musicInviteUsed = true;
+  state.lastInviteTimestamp = Date.now();
+
+  return res.json({ ok: true });
+});
+
+// POST /api/mark-music-declined - Lock music if user declines
+app.post('/api/mark-music-declined', (req, res) => {
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
+
+  const state = getMusicState(userId);
+  state.musicDeclined = true;
+
+  return res.json({ ok: true });
+});
+
 // Sentry error handler (v8 uses setupExpressErrorHandler)
 if (process.env.SENTRY_DSN) {
   Sentry.setupExpressErrorHandler(app);

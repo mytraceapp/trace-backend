@@ -1,0 +1,160 @@
+First — define the session state shape
+
+Add this near the top:
+// Simple in-memory cache for session music state
+// (replace with DB if you want persistence)
+const sessionMusicState = new Map();
+
+/*
+sessionMusicState[userId] = {
+  musicInviteUsed: boolean,
+  userRequestedMusic: boolean,
+  musicDeclined: boolean,
+  lastInviteTimestamp: number
+}
+*/
+Helper: get or create session state
+function getMusicState(userId) {
+  if (!sessionMusicState.has(userId)) {
+    sessionMusicState.set(userId, {
+      musicInviteUsed: false,
+      userRequestedMusic: false,
+      musicDeclined: false,
+      lastInviteTimestamp: null,
+    });
+  }
+
+  return sessionMusicState.get(userId);
+}
+Helper: detect whether user initiated music
+
+You’ll call this whenever processing a message:
+function detectUserRequestedMusic(messageText = "") {
+  const txt = messageText.toLowerCase();
+
+  return (
+    txt.includes("music") ||
+    txt.includes("playlist") ||
+    txt.includes("ground") ||
+    txt.includes("drift") ||
+    txt.includes("rising") ||
+    txt.includes("song")
+  );
+}
+You can expand keywords later — this keeps it user-led.
+
+⸻
+
+🧮 Core Guardrail Logic — THE RULES
+function canInviteMusic(state, context = {}) {
+
+  // user must explicitly ask
+  if (!state.userRequestedMusic) return false;
+
+  // only once per session
+  if (state.musicInviteUsed) return false;
+
+  // respect "no"
+  if (state.musicDeclined) return false;
+
+  // respect user silence
+  if (context.requestsSilence) return false;
+
+  // crisis mode? do NOT use music
+  if (context.crisis) return false;
+
+  // panic is too high? ground first.
+  if (context.panicUnregulated) return false;
+
+  return true;
+}
+ontext is whatever emotional flags you already generate
+(or leave empty for now — it defaults safe)
+
+⸻
+
+🟦 Now — add the API endpoint TRACE will call
+
+This endpoint will:
+	•	read user message
+	•	update session state
+	•	decide whether TRACE is allowed to invite music
+
+Add this:
+app.post('/api/can-invite-music', (req, res) => {
+  const { userId, messageText, context } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: "Missing userId" });
+  }
+
+  const state = getMusicState(userId);
+
+  // detect if user requested music in this message
+  if (detectUserRequestedMusic(messageText)) {
+    state.userRequestedMusic = true;
+  }
+
+  const allowed = canInviteMusic(state, context);
+
+  return res.json({
+    allowed,
+    state
+  });
+});
+When TRACE DOES invite music — lock the session
+
+Wherever your app actually triggers the invite, call this API:
+app.post('/api/mark-music-invited', (req, res) => {
+  const { userId } = req.body;
+
+  const state = getMusicState(userId);
+
+  state.musicInviteUsed = true;
+  state.lastInviteTimestamp = Date.now();
+
+  return res.json({ ok: true });
+});
+ If the user declines — lock the “NO”
+app.post('/api/mark-music-declined', (req, res) => {
+  const { userId } = req.body;
+
+  const state = getMusicState(userId);
+
+  state.musicDeclined = true;
+
+  return res.json({ ok: true });
+});
+EXAMPLE FLOW (how TRACE uses it)
+
+1️⃣ User sends a message
+
+Your app calls:
+POST /api/can-invite-music
+{
+  "userId": "abc123",
+  "messageText": "do you have music?",
+  "context": {
+     "crisis": false,
+     "panicUnregulated": false,
+     "requestsSilence": false
+  }
+}
+Backend replies:
+{ "allowed": true }
+TRACE gently invites music.
+
+⸻
+
+2️⃣ TRACE invites → you lock it
+POST /api/mark-music-invited
+{ "userId": "abc123" }
+Now further invites are blocked this session.
+
+⸻
+
+3️⃣ If user says “no music”
+
+You call:
+POST /api/mark-music-declined
+{ "userId": "abc123" }
