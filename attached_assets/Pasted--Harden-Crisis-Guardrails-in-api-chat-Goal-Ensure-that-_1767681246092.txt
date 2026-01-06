@@ -1,0 +1,121 @@
+ Harden Crisis Guardrails in /api/chat
+
+Goal:
+Ensure that once a user enters a crisis window, TRACE:
+	•	Never calls playful APIs (jokes, movies, light recs)
+	•	Never shifts into entertainment tone
+	•	Remains in a grounded, validating, safety-focused mode until the crisis has clearly passed.
+
+⸻
+
+1. Create in-memory crisis window tracking
+
+In the chat backend (where /api/chat lives), create a small in-memory store:
+type CrisisState = {
+  userId: string;
+  isInCrisis: boolean;
+  lastTriggeredAt: Date;
+  crisisWindowExpiresAt: Date;
+};
+
+const crisisStateByUser = new Map<string, CrisisState>();
+
+function markUserInCrisis(userId: string, windowMinutes = 90) {
+  const now = new Date();
+  const expires = new Date(now.getTime() + windowMinutes * 60 * 1000);
+
+  crisisStateByUser.set(userId, {
+    userId,
+    isInCrisis: true,
+    lastTriggeredAt: now,
+    crisisWindowExpiresAt: expires,
+  });
+}
+
+function isUserInCrisisWindow(userId: string): boolean {
+  const state = crisisStateByUser.get(userId);
+  if (!state) return false;
+
+  const now = new Date();
+  if (now > state.crisisWindowExpiresAt) {
+    crisisStateByUser.delete(userId);
+    return false;
+  }
+
+  return state.isInCrisis;
+}
+
+This is in-memory only (good enough for now).
+Later we can persist to DB, but this immediately fixes the behavior across multiple messages.
+
+⸻
+
+2. Wire crisis detection to mark the window
+
+Wherever we currently detect crisis / self-harm intent (e.g., classification or safety analysis):
+	•	After we determine isCrisis === true for the current user message:
+if (isCrisis) {
+  markUserInCrisis(userId);
+}
+This should happen before we build tools or pick which personality mode to use.
+
+⸻
+
+3. Gate all playful APIs and recs on crisis window
+
+In /api/chat, before calling any non-essential APIs (movies, jokes, casual music recs, dad jokes, etc.):
+	•	Check isUserInCrisisWindow(userId).
+
+For example:
+const inCrisisWindow = isUserInCrisisWindow(userId) || isCrisis;
+
+if (inCrisisWindow) {
+  // 1) Force crisis-safe system prompt
+  // 2) DO NOT call:
+  //    - jokes API
+  //    - movie recommendation API
+  //    - light-weather small talk beyond simple context
+  //    - playful dog facts when distress is active
+  // 3) Keep all responses validation-focused, slow, and grounded
+} else {
+  // Normal behavior:
+  // - can consider jokes, movies, dog API, recipes, etc.
+}
+Specifically:
+	•	Disable:
+	•	Dad joke API
+	•	Movie recommendation API
+	•	“fun” music recommendations
+	•	Playful small talk branches
+	•	Allow:
+	•	Crisis language
+	•	Grounding suggestions
+	•	Breathing reminders
+	•	Very gentle neutral topics only if they also acknowledge the heaviness.
+
+⸻
+
+4. Crisis prompt vs normal prompt
+
+Ensure that:
+	•	When inCrisisWindow === true, we use a dedicated crisis system prompt, e.g.:
+“User may be in emotional or safety crisis.
+You must prioritize validation, grounding, and safety.
+Do NOT make jokes, recommend entertainment, or change the topic to something light unless the user explicitly insists and has clearly stabilized.
+If user asks for jokes, movies, or playful distractions, gently acknowledge the request but center their emotional safety first.”
+
+And we send zero tool calls for jokes, movies, etc. in that mode.
+
+⸻
+
+5. Exit criteria (soft exit)
+
+We should only exit crisis window when:
+	•	Crisis window time expires and
+	•	Recent messages show:
+	•	no crisis keywords
+	•	neutral/regulated tone for some time
+
+For now, keep it simple:
+	•	Crisis window TTL = 60–90 minutes.
+	•	We do not exit early on the first “lol” or “movie?” — we stay cautious.
