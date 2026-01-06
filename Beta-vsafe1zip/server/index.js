@@ -6378,6 +6378,174 @@ function mergePatternObject(cached, current) {
   return merged;
 }
 
+// ============================================
+// PRESENCE TREND: Baseline-aware presence comparison
+// ============================================
+function computePresenceTrend(activityLogs = [], journals = [], sampleSize = 0) {
+  const now = new Date();
+  const thisWeekStart = new Date(now);
+  thisWeekStart.setDate(now.getDate() - 7);
+  const lastWeekStart = new Date(now);
+  lastWeekStart.setDate(now.getDate() - 14);
+  
+  let thisWeekCheckins = 0;
+  let lastWeekCheckins = 0;
+  
+  // Count activity logs
+  for (const log of activityLogs) {
+    const ts = new Date(log.completed_at || log.created_at);
+    if (ts >= thisWeekStart) {
+      thisWeekCheckins++;
+    } else if (ts >= lastWeekStart && ts < thisWeekStart) {
+      lastWeekCheckins++;
+    }
+  }
+  
+  // Count journal entries
+  for (const j of journals) {
+    const ts = new Date(j.created_at);
+    if (ts >= thisWeekStart) {
+      thisWeekCheckins++;
+    } else if (ts >= lastWeekStart && ts < thisWeekStart) {
+      lastWeekCheckins++;
+    }
+  }
+  
+  // Minimum 3 total check-ins across both weeks
+  if (thisWeekCheckins + lastWeekCheckins < 3) {
+    return null;
+  }
+  
+  // Determine direction
+  let direction = 'stable';
+  if (thisWeekCheckins === 0 && lastWeekCheckins === 0) {
+    direction = 'stable';
+  } else if (thisWeekCheckins >= lastWeekCheckins * 1.2) {
+    direction = 'up';
+  } else if (thisWeekCheckins <= lastWeekCheckins * 0.8) {
+    direction = 'down';
+  }
+  
+  // Build label (only if sampleSize >= 7)
+  let label = null;
+  if (sampleSize >= 7) {
+    if (direction === 'up') {
+      label = "You were a bit more present with TRACE this week than last.";
+    } else if (direction === 'down') {
+      label = "You checked in less with TRACE this week than you usually do.";
+    } else {
+      label = "Your check-ins this week were pretty similar to last week.";
+    }
+  }
+  
+  return {
+    thisWeek: thisWeekCheckins,
+    lastWeek: lastWeekCheckins,
+    direction,
+    label,
+  };
+}
+
+// ============================================
+// EMOTIONAL LOAD TREND: Heavier/lighter comparison
+// ============================================
+function computeEmotionalLoadTrend(journals = [], sampleSize = 0) {
+  const now = new Date();
+  const thisWeekStart = new Date(now);
+  thisWeekStart.setDate(now.getDate() - 7);
+  const lastWeekStart = new Date(now);
+  lastWeekStart.setDate(now.getDate() - 14);
+  
+  let thisWeekLoad = 0;
+  let lastWeekLoad = 0;
+  
+  for (const j of journals) {
+    const ts = new Date(j.created_at);
+    const mood = (j.mood || '').toLowerCase();
+    const content = (j.content || '').toLowerCase();
+    
+    // Calculate emotional load for this entry
+    let load = 0;
+    
+    // Stress signals (+points)
+    if (STRESS_MOODS.includes(mood)) load += 2;
+    if (content.includes('overwhelm')) load += 1;
+    if (content.includes('panic')) load += 2;
+    if (content.includes('anxious') || content.includes('anxiety')) load += 1;
+    if (content.includes('exhausted') || content.includes('drained')) load += 1;
+    
+    // Relief signals (-points)
+    if (RELIEF_MOODS.includes(mood)) load -= 1;
+    if (content.includes('breathing') || content.includes('breath')) load -= 1;
+    if (content.includes('calm') || content.includes('peaceful')) load -= 1;
+    
+    if (ts >= thisWeekStart) {
+      thisWeekLoad += load;
+    } else if (ts >= lastWeekStart && ts < thisWeekStart) {
+      lastWeekLoad += load;
+    }
+  }
+  
+  // If both weeks have no load, return null
+  if (thisWeekLoad === 0 && lastWeekLoad === 0) {
+    return null;
+  }
+  
+  // Determine direction
+  let direction = 'stable';
+  const maxLoad = Math.max(Math.abs(thisWeekLoad), Math.abs(lastWeekLoad));
+  if (maxLoad > 0) {
+    if (thisWeekLoad >= lastWeekLoad * 1.2) {
+      direction = 'up';
+    } else if (thisWeekLoad <= lastWeekLoad * 0.8) {
+      direction = 'down';
+    }
+  }
+  
+  // Build label (only if sampleSize >= 7 and there's actual load)
+  let label = null;
+  if (sampleSize >= 7 && maxLoad > 0) {
+    if (direction === 'up') {
+      label = "This week seemed to carry a little more emotional weight than last.";
+    } else if (direction === 'down') {
+      label = "This week felt a bit softer compared to the week before.";
+    } else {
+      label = "Your emotional load felt fairly similar to last week.";
+    }
+  }
+  
+  return {
+    thisWeek: thisWeekLoad,
+    lastWeek: lastWeekLoad,
+    direction,
+    label,
+  };
+}
+
+// ============================================
+// RELIEF SPOTLIGHT: What helped most this week
+// ============================================
+function computeReliefSpotlight(mostHelpfulActivityLabel, mostHelpfulActivityCount) {
+  if (!mostHelpfulActivityLabel || mostHelpfulActivityCount <= 0) {
+    return null;
+  }
+  
+  let label;
+  if (mostHelpfulActivityCount === 1) {
+    label = `You reached for ${mostHelpfulActivityLabel} once this week when things felt heavy.`;
+  } else if (mostHelpfulActivityCount >= 2 && mostHelpfulActivityCount <= 4) {
+    label = `${mostHelpfulActivityLabel} showed up a few times this week as a place you reached for steadiness.`;
+  } else {
+    label = `${mostHelpfulActivityLabel} has become a steady go-to for you when things rise up.`;
+  }
+  
+  return {
+    activityLabel: mostHelpfulActivityLabel,
+    count: mostHelpfulActivityCount,
+    label,
+  };
+}
+
 // POST /api/patterns/insights - Query activity_logs and journal_entries for insights
 app.post('/api/patterns/insights', async (req, res) => {
   try {
@@ -6492,6 +6660,10 @@ app.post('/api/patterns/insights', async (req, res) => {
           mostHelpfulActivityLabel: crisisActivity,
           mostHelpfulActivityCount: 0,
           energyRhythmLabel: crisisCore,
+          // New trend fields - null in crisis mode
+          presenceTrend: null,
+          emotionalLoadTrend: null,
+          reliefSpotlight: null,
           sampleSize: 0,
           journalSampleSize: 0,
           crisisMode: true,
@@ -6633,6 +6805,11 @@ app.post('/api/patterns/insights', async (req, res) => {
         mostHelpfulActivityLabel: "Once you've tried a few more activities, I'll notice which ones you return to.",
         mostHelpfulActivityCount: 0,
         energyRhythmLabel: stillLearningCore,
+        // New trend fields - null when still learning
+        presenceTrend: null,
+        emotionalLoadTrend: null,
+        reliefSpotlight: null,
+        
         sampleSize: activityLogs.length,
         journalSampleSize: journals.length,
         stillLearning: true,
@@ -6945,6 +7122,15 @@ Write a 2-3 sentence poetic but grounded reflection on this person's week. Notic
     const peakWindowStartRatio = peakWindow.startHour != null ? peakWindow.startHour / 24 : null;
     const peakWindowEndRatio = peakWindow.endHour != null ? peakWindow.endHour / 24 : null;
     
+    // Calculate the three new trend fields
+    const totalSampleSize = activityLogs.length + journals.length;
+    const presenceTrend = computePresenceTrend(activityLogs, journals, totalSampleSize);
+    const emotionalLoadTrend = computeEmotionalLoadTrend(journals, totalSampleSize);
+    const reliefSpotlight = computeReliefSpotlight(
+      mostHelpfulActivity.label?.replace(/ about \d+% of the time.*$/, '') || null, // Extract activity name
+      mostHelpfulActivity.count
+    );
+    
     console.log('📊 [PATTERNS INSIGHTS POST] Result:', { 
       peakWindow, 
       mostHelpfulActivity, 
@@ -7000,6 +7186,11 @@ Write a 2-3 sentence poetic but grounded reflection on this person's week. Notic
       
       // Weekly narrative for "Your Week" card
       weeklyNarrative,
+      
+      // Three new emotionally intelligent trend fields
+      presenceTrend,
+      emotionalLoadTrend,
+      reliefSpotlight,
       
       sampleSize: activityLogs.length,
       journalSampleSize: journals.length,
@@ -7077,6 +7268,11 @@ Write a 2-3 sentence poetic but grounded reflection on this person's week. Notic
       mostHelpfulActivityLabel: fallbackActivity,
       mostHelpfulActivityCount: 0,
       energyRhythmLabel: fallbackEnergy,
+      
+      // New trend fields - null on error
+      presenceTrend: null,
+      emotionalLoadTrend: null,
+      reliefSpotlight: null,
       
       sampleSize: 0,
       journalSampleSize: 0,

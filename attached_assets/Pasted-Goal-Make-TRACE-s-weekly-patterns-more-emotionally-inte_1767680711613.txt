@@ -1,0 +1,148 @@
+Goal:
+Make TRACE’s weekly patterns more emotionally intelligent without changing the API shape drastically or overwhelming the UI.
+
+We already have:
+	•	weeklyMoodTrend (calm/stress, thisWeek/lastWeek/direction/label)
+	•	mostHelpfulActivityLabel, mostHelpfulActivityCount
+	•	stillLearning, sampleSize
+
+Please implement three new, lightweight fields in the /api/patterns/insights response:
+
+1. presenceTrend (baseline-aware presence)
+
+What it represents:
+
+“How present was the user with TRACE this week compared to their usual?”
+
+Implementation details:
+	•	Compute for the last 2 full weeks:
+	•	thisWeekCheckins = count of:
+	•	activity logs
+	•	chats
+	•	journal entries
+in the current 7-day window.
+	•	lastWeekCheckins = same but for previous 7 days.
+	•	Decide direction:
+	•	if both are 0 → direction = 'stable', label = null
+	•	else if thisWeek >= lastWeek * 1.2 → direction = 'up'
+	•	else if thisWeek <= lastWeek * 0.8 → direction = 'down'
+	•	else → direction = 'stable'
+	•	Build label strings like:
+	•	up:
+	•	“You were a bit more present with TRACE this week than last.”
+	•	down:
+	•	“You checked in less with TRACE this week than you usually do.”
+	•	stable:
+	•	“Your check-ins this week were pretty similar to last week.”
+	•	Only set a non-null label if sampleSize >= 7.
+For very low data, keep label = null.
+
+Return shape:
+presenceTrend: {
+  thisWeek: number;
+  lastWeek: number;
+  direction: 'up' | 'down' | 'stable';
+  label: string | null;
+} | null;
+If there isn’t enough data (e.g., fewer than 3 total check-ins across both weeks), set presenceTrend = null.
+
+⸻
+
+2. emotionalLoadTrend (soft “heavier / lighter” sense)
+
+We already compute stress & relief signals to create emotional load.
+Expose a single trend object that summarizes this:
+
+Implementation details:
+	•	Use the existing stress-related emotional load logic (the same weights used for emotionalLoadBuckets, if present).
+	•	For each of the last 2 weeks:
+	•	thisWeekLoad = total emotional load score this week.
+	•	lastWeekLoad = same for previous week.
+	•	Decide direction:
+	•	If both are ~0 → no label.
+	•	If thisWeekLoad >= lastWeekLoad * 1.2 → 'up' (heavier).
+	•	If thisWeekLoad <= lastWeekLoad * 0.8 → 'down' (lighter).
+	•	Else → 'stable'.
+	•	Build label text:
+	•	up:
+	•	“This week seemed to carry a little more emotional weight than last.”
+	•	down:
+	•	“This week felt a bit softer compared to the week before.”
+	•	stable:
+	•	“Your emotional load felt fairly similar to last week.”
+
+Guardrails:
+	•	Only set a non-null label if:
+	•	sampleSize >= 7 and
+	•	Math.max(thisWeekLoad, lastWeekLoad) > 0 (don’t fabricate intensity).
+
+Return shape:
+emotionalLoadTrend: {
+  thisWeek: number;
+  lastWeek: number;
+  direction: 'up' | 'down' | 'stable';
+  label: string | null;
+} | null;
+
+If not enough data, set emotionalLoadTrend = null.
+
+⸻
+
+3. reliefSpotlight (what helped most, this week)
+
+We already send:
+	•	mostHelpfulActivityLabel
+	•	mostHelpfulActivityCount
+	•	totalSoftEntries
+
+Add a relief spotlight object that gives a softly-worded summary of what helped:
+
+Implementation details:
+	•	If mostHelpfulActivityLabel is null → reliefSpotlight = null.
+	•	If mostHelpfulActivityCount <= 0 → reliefSpotlight = null.
+	•	Otherwise:
+	•	Base on mostHelpfulActivityLabel and mostHelpfulActivityCount.
+Example labels:
+	•	If count = 1:
+	•	“You reached for {activity} once this week when things felt heavy.”
+	•	If count = 2–4:
+	•	“{activity} showed up a few times this week as a place you reached for steadiness.”
+	•	If count >= 5:
+	•	“{activity} has become a steady go-to for you when things rise up.”
+	•	Do not include any productivity language (no “good job”, “streak”, “habit”).
+
+Return shape:
+reliefSpotlight: {
+  activityLabel: string;
+  count: number;
+  label: string;
+} | null;
+ Response Contract (Summary)
+
+Please update /api/patterns/insights to include these new optional fields:
+presenceTrend?: {
+  thisWeek: number;
+  lastWeek: number;
+  direction: 'up' | 'down' | 'stable';
+  label: string | null;
+} | null;
+
+emotionalLoadTrend?: {
+  thisWeek: number;
+  lastWeek: number;
+  direction: 'up' | 'down' | 'stable';
+  label: string | null;
+} | null;
+
+reliefSpotlight?: {
+  activityLabel: string;
+  count: number;
+  label: string;
+} | null;
+
+All of these should respect existing guardrails:
+	•	If stillLearning === true or sampleSize < 7:
+	•	keep these fields null or with label = null
+	•	do not invent strong-sounding trends.
+
+Do not change any existing fields (peakWindow, energyDayBuckets, weeklyNarrative, etc.). This is purely additive.
