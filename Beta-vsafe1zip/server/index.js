@@ -46,6 +46,7 @@ const {
   getUserCrisisState, 
   updateCrisisStateInDb 
 } = require('./safety');
+const { getSuggestionContext, ACTIVITY_LABELS } = require('./activityCorrelation');
 
 // ---- WEATHER HELPER ----
 // TRACE-style weather summary using AccuWeather API
@@ -2684,6 +2685,27 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
     if (musicContext) {
       contextParts.push(musicContext);
     }
+    
+    // Add personalized activity suggestion context (if user is seeking help)
+    const latestUserMessage = messages?.filter(m => m.role === 'user').pop()?.content || '';
+    let suggestionContext = null;
+    if (supabaseServer && !isCrisisMode) {
+      try {
+        suggestionContext = await getSuggestionContext(
+          supabaseServer, 
+          userId, 
+          deviceId, 
+          latestUserMessage
+        );
+        if (suggestionContext) {
+          contextParts.push(suggestionContext);
+          console.log('[TRACE] Added personalized activity suggestion context');
+        }
+      } catch (suggErr) {
+        console.warn('[TRACE] Activity suggestion context failed:', suggErr.message);
+      }
+    }
+    
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
     // Check for hydration moment and optionally add hint

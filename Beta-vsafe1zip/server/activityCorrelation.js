@@ -1,0 +1,98 @@
+/**
+ * Activity Frequency Analysis
+ * Tracks which activities users return to most often as a preference signal
+ */
+const { subDays } = require('date-fns');
+
+/**
+ * Activity key to human-readable name mapping
+ */
+const ACTIVITY_LABELS = {
+  rising: 'Rising',
+  breathing: 'Breathing',
+  maze: 'Trace the Maze',
+  drift: 'Drift',
+  ripple: 'Ripple',
+  grounding: 'Grounding',
+  rest: 'Rest',
+  walking: 'Walking Reset',
+  window: 'Rain Window',
+  echo: 'Echo',
+};
+
+/**
+ * Get user's most frequent activity from last 2 weeks
+ * Returns null if no strong preference, or { activity, count, label }
+ */
+async function getActivityFrequency(supabase, userId, deviceId) {
+  const since = subDays(new Date(), 14).toISOString();
+  const effectiveId = userId || deviceId;
+  if (!effectiveId) return null;
+  
+  const idColumn = userId ? 'user_id' : 'device_id';
+  
+  const { data, error } = await supabase
+    .from('activity_logs')
+    .select('activity_type, completed_at')
+    .eq(idColumn, effectiveId)
+    .gte('completed_at', since);
+  
+  if (error || !data?.length) return null;
+  
+  // Count frequency of each activity
+  const counts = {};
+  data.forEach(log => {
+    const key = log.activity_type;
+    if (key) {
+      counts[key] = (counts[key] || 0) + 1;
+    }
+  });
+  
+  // Find most repeated activity (minimum 3 completions)
+  const sorted = Object.entries(counts)
+    .filter(([_, count]) => count >= 3)
+    .sort((a, b) => b[1] - a[1]);
+  
+  if (!sorted.length) return null;
+  
+  const [activity, count] = sorted[0];
+  const label = ACTIVITY_LABELS[activity] || activity;
+  
+  return { activity, count, label };
+}
+
+/**
+ * Get personalized activity suggestion context for system prompt
+ * Only includes if user is seeking help/suggestions
+ */
+async function getSuggestionContext(supabase, userId, deviceId, userMessage) {
+  // Only suggest if user is asking for help
+  const msg = (userMessage || '').toLowerCase();
+  const isSeekingHelp =
+    msg.includes('help') ||
+    msg.includes('stuck') ||
+    msg.includes('what should i do') ||
+    msg.includes('suggest') ||
+    msg.includes('anything that might help') ||
+    msg.includes('what can i do') ||
+    msg.includes('not sure what to do') ||
+    msg.includes('what would you recommend');
+  
+  if (!isSeekingHelp) return null;
+  
+  const freq = await getActivityFrequency(supabase, userId, deviceId);
+  if (!freq) return null;
+  
+  return `
+PERSONALIZED PATTERN (use gently, do not sound like you're tracking them):
+"${freq.label}" seems to resonate with this user — they've returned to it ${freq.count} times recently.
+You may gently suggest it as one option, using soft language like "you might try" or "it's seemed to help before."
+Never say exact numbers or sound analytical. Speak warmly, like "I've noticed [activity] seems to help you."
+  `.trim();
+}
+
+module.exports = {
+  getActivityFrequency,
+  getSuggestionContext,
+  ACTIVITY_LABELS,
+};
