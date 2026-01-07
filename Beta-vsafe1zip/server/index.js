@@ -46,7 +46,7 @@ const {
   getUserCrisisState, 
   updateCrisisStateInDb 
 } = require('./safety');
-const { getSuggestionContext, ACTIVITY_LABELS } = require('./activityCorrelation');
+const { getSuggestionContext, getTimeAwarenessContext, ACTIVITY_LABELS } = require('./activityCorrelation');
 
 // ---- WEATHER HELPER ----
 // TRACE-style weather summary using AccuWeather API
@@ -2745,6 +2745,23 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
         }
       } catch (suggErr) {
         console.warn('[TRACE] Activity suggestion context failed:', suggErr.message);
+      }
+    }
+    
+    // Get time-awareness context (category-level intelligence)
+    if (supabaseServer && !isCrisisMode) {
+      try {
+        const timeContext = await getTimeAwarenessContext(
+          supabaseServer,
+          userId,
+          deviceId
+        );
+        if (timeContext) {
+          contextParts.push(timeContext);
+          console.log('[TRACE] Added time-awareness context');
+        }
+      } catch (timeErr) {
+        console.warn('[TRACE] Time awareness context failed:', timeErr.message);
       }
     }
     

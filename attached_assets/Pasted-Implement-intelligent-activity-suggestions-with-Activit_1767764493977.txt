@@ -1,3 +1,13 @@
+Implement intelligent activity suggestions with:
+
+✅ Activity frequency tracking (who returns to what)
+✅ Time-of-day intelligence (category-level awareness)
+✅ Post-activity follow-up prompts
+✅ Comprehensive logging
+✅ Graceful error handling
+Zero mobile/UI changes required.
+
+FILE 1: Complete server/activityCorrelation.js
 /**
  * Activity Intelligence Engine
  * - Tracks user preferences via frequency
@@ -238,3 +248,84 @@ module.exports = {
   ACTIVITY_LABELS,
   ACTIVITY_CATEGORIES,
 };
+
+FILE 2: Update server/index.js
+A. Add Import (top of file)
+
+const { getSuggestionContext, getTimeAwarenessContext } = require('./activityCorrelation');
+B. Add Mood Check-in Endpoint (before /api/chat)
+// POST /api/mood-checkin - Record a mood check-in
+app.post('/api/mood-checkin', async (req, res) => {
+  try {
+    const { userId, deviceId, moodScore, moodLabel } = req.body;
+    
+    if (!supabaseServer) {
+      return res.status(503).json({ error: 'Database not available' });
+    }
+    
+    if (!moodScore || !moodLabel) {
+      return res.status(400).json({ error: 'Missing moodScore or moodLabel' });
+    }
+    
+    if (!userId && !deviceId) {
+      return res.status(400).json({ error: 'Missing userId or deviceId' });
+    }
+    
+    const { data, error } = await supabaseServer
+      .from('mood_checkins')
+      .insert({
+        user_id: userId || null,
+        device_id: deviceId || null,
+        mood_score: moodScore,
+        mood_label: moodLabel,
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('[MOOD CHECKIN] Error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    
+    console.log('[MOOD CHECKIN] Recorded:', { userId: userId || deviceId, moodScore, moodLabel });
+    return res.json({ ok: true, id: data.id });
+  } catch (err) {
+    console.error('[MOOD CHECKIN] Error:', err);
+    return res.status(500).json({ error: 'Failed to record mood' });
+  }
+});
+const systemPrompt = buildTraceSystemPrompt({
+  // ...existing params
+  contextSnapshot: existingContext + 
+    (suggestionContext ? '\n\n' + suggestionContext : '') +
+    (timeContext ? '\n\n' + timeContext : '') +
+    postActivityContext,
+});
+TESTING
+1. Activity Frequency:
+# User completes "breathing" 5 times in 2 weeks
+# User messages: "I'm stuck"
+# Expected log: [SUGGESTION ENGINE] Pattern found: { activity: 'breathing', count: 5, label: 'Breathing' }
+# Expected AI: "If you feel up for it, you might try Breathing again..."
+2. Time Awareness:
+# User completes "rising" activities mostly at 8-9pm
+# User messages at 8:30pm: "What should I do?"
+# Expected log: [TIME AWARENESS] Top category for now: { timeOfDay: 'evening', topCategory: 'reflection' }
+# Expected AI: "Since it's later in the day, something softer might land better. You could try a reflection practice..."
+3. Post-Activity:
+# User completes activity, returns to chat
+# Last AI message: "Great work on Rising! 🌅"
+# Expected log: [POST-ACTIVITY] Detected recent completion
+# Expected AI: "How are you feeling after that?"
+4. Mood Endpoint:
+curl -X POST http://localhost:3001/api/mood-checkin \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"test","moodScore":4,"moodLabel":"calm"}'
+# Expected: {"ok":true,"id":1}
+EXPECTED BEHAVIOR
+At 9pm, user who does reflection activities in evening:
+
+User: "I'm not sure what to do"
+TRACE: "Since it's later in the day, something softer might land better. You could try Rising again — I've noticed it seems to help you settle in."
+
+No tracking language. Feels wise, not data-mined. ✅
