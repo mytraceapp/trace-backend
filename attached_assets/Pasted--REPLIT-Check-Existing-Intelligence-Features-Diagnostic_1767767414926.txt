@@ -1,0 +1,93 @@
+# REPLIT: Check Existing Intelligence Features
+
+## Diagnostic Request
+
+Please check if the following features are already implemented in the backend and report your findings:
+
+---
+
+## 1. Activity Frequency Tracking
+
+**Check for:**
+- Module/file that tracks how often users complete specific activities
+- Logic that queries activity completion history (last 2 weeks)
+- Minimum threshold check (e.g., 3+ completions before suggesting)
+- Database queries that count activity completions per user
+
+**Report:**
+- ✅ Implemented / ❌ Not Found
+- File locations if found
+- Current logic summary
+
+---
+
+## 2. Time-of-Day Intelligence
+
+**Check for:**
+- Category-level time tracking (when users typically do 'reflection', 'focus', 'body' activities)
+- Time-based scoring algorithm (proximity windows, weighted scoring)
+- Logic that considers current time when making suggestions
+- Database queries that analyze completion timestamps
+
+**Report:**
+- ✅ Implemented / ❌ Not Found
+- File locations if found
+- Current algorithm (if any)
+
+---
+
+## 3. Post-Activity Reflection System
+
+**Check for:**
+- Database table: `activity_reflection_state` or similar
+- Logic that triggers after activity completion
+- 30-minute window tracking
+- One-time reflection prompt flag
+- Trauma-informed language in prompts
+- Mood check-in endpoint
+
+**Report:**
+- ✅ Implemented / ❌ Not Found
+- File locations if found
+- Database schema if exists
+
+---
+
+## 4. Activity Suggestion Endpoint Integration
+
+**Check the `/chat` endpoint for:**
+- Does it accept `activityHistory` or frequency data?
+- Does it consider time-of-day when suggesting activities?
+- Does it return `ActivitySuggestion` objects with these fields:
+  - `name` (activity name)
+  - `reason` (why suggesting it)
+  - `should_navigate` (boolean)
+  - `target` (optional: 'journal_music' or activity path)
+
+**Report:**
+- Current endpoint behavior
+- What data it receives
+- What data it returns
+- Any existing intelligence logic
+
+---
+
+## Summary Needed
+
+After checking all four areas above, provide:
+
+1. **What's Already Working:** List features fully implemented
+2. **What's Missing:** List features not found
+3. **What Needs Enhancement:** List features partially implemented
+4. **Recommendation:** Should we implement from scratch or build on existing code?
+
+---
+
+## Context
+
+The mobile app is ready to receive intelligent suggestions. We want to add:
+- Frequency-based suggestions (suggest activities user completes often)
+- Time-aware suggestions (suggest activities at times user typically does them)
+- Post-activity check-ins (gentle trauma-informed reflections)
+
+But we don't want to duplicate work if some of this already exists.
