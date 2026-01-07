@@ -2748,6 +2748,19 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
       }
     }
     
+    // Post-activity follow-up detection
+    const lastAssistantMsg = messages?.filter(m => m.role === 'assistant').pop()?.content || '';
+    const isPostActivity = lastAssistantMsg.includes('Great work on') ||
+      lastAssistantMsg.includes('completed') ||
+      lastAssistantMsg.includes('finished') ||
+      lastAssistantMsg.includes('You just did') ||
+      lastAssistantMsg.includes('nice job with');
+    
+    if (isPostActivity && !isCrisisMode) {
+      contextParts.push('USER JUST COMPLETED ACTIVITY: Gently ask how they feel now, what shifted, or what they notice. Keep it soft and curious, not clinical.');
+      console.log('[TRACE] Post-activity follow-up context added');
+    }
+    
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
     // Check for hydration moment and optionally add hint

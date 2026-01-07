@@ -1,0 +1,293 @@
+ Time-of-Day Pattern Analysis
+Add to activityCorrelation.js:
+
+/**
+ * Analyze when user completes activities most often
+ * Returns best time category for each activity type
+ */
+async function getActivityTimePatterns(supabase, userId, deviceId) {
+  const since = subDays(new Date(), 14).toISOString();
+  const effectiveId = userId || deviceId;
+  if (!effectiveId) return null;
+  
+  const idColumn = userId ? 'user_id' : 'device_id';
+  
+  const { data } = await supabase
+    .from('activity_logs')
+    .select('activity_type, completed_at')
+    .eq(idColumn, effectiveId)
+    .gte('completed_at', since);
+  
+  if (!data?.length) return null;
+  
+  // Group by activity and time of day
+  const patterns = {};
+  data.forEach(log => {
+    const hour = new Date(log.completed_at).getHours();
+    const timeSlot = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+    const key = log.activity_type;
+    
+    if (!patterns[key]) patterns[key] = { morning: 0, afternoon: 0, evening: 0 };
+    patterns[key][timeSlot]++;
+  });
+  
+  return patterns;
+}
+
+// Update getSuggestionContext to include time awareness:
+async function getSuggestionContext(supabase, userId, deviceId, userMessage) {
+  // ... existing code ...
+  
+  const freq = await getActivityFrequency(supabase, userId, deviceId);
+  if (!freq) return null;
+  
+  // Add time pattern
+  const timePatterns = await getActivityTimePatterns(supabase, userId, deviceId);
+  const currentHour = new Date().getHours();
+  const currentSlot = currentHour < 12 ? 'morning' : currentHour < 18 ? 'afternoon' : 'evening';
+  
+  let timeContext = '';
+  if (timePatterns?.[freq.activity]) {
+    const pattern = timePatterns[freq.activity];
+    const maxSlot = Object.entries(pattern).sort((a, b) => b[1] - a[1])[0][0];
+    
+    if (maxSlot === currentSlot) {
+      timeContext = `\nThis is typically when they do ${freq.label} (${currentSlot}).`;
+    }
+  }
+  
+  return `
+PERSONALIZED PATTERN (use gently):
+"${freq.label}" seems to resonate with this user — they've returned to it ${freq.count} times recently.${timeContext}
+You may gently suggest it as one option, using soft language like "you might try" or "it's seemed to help before."
+  `.trim();
+}
+
+**Additional Enhancements (No UI Changes Required):**
+
+---
+
+## 1. **Time-of-Day Pattern Analysis**
+
+Add to `activityCorrelation.js`:
+
+```javascript
+/**
+ * Analyze when user completes activities most often
+ * Returns best time category for each activity type
+ */
+async function getActivityTimePatterns(supabase, userId, deviceId) {
+  const since = subDays(new Date(), 14).toISOString();
+  const effectiveId = userId || deviceId;
+  if (!effectiveId) return null;
+  
+  const idColumn = userId ? 'user_id' : 'device_id';
+  
+  const { data } = await supabase
+    .from('activity_logs')
+    .select('activity_type, completed_at')
+    .eq(idColumn, effectiveId)
+    .gte('completed_at', since);
+  
+  if (!data?.length) return null;
+  
+  // Group by activity and time of day
+  const patterns = {};
+  data.forEach(log => {
+    const hour = new Date(log.completed_at).getHours();
+    const timeSlot = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+    const key = log.activity_type;
+    
+    if (!patterns[key]) patterns[key] = { morning: 0, afternoon: 0, evening: 0 };
+    patterns[key][timeSlot]++;
+  });
+  
+  return patterns;
+}
+
+// Update getSuggestionContext to include time awareness:
+async function getSuggestionContext(supabase, userId, deviceId, userMessage) {
+  // ... existing code ...
+  
+  const freq = await getActivityFrequency(supabase, userId, deviceId);
+  if (!freq) return null;
+  
+  // Add time pattern
+  const timePatterns = await getActivityTimePatterns(supabase, userId, deviceId);
+  const currentHour = new Date().getHours();
+  const currentSlot = currentHour < 12 ? 'morning' : currentHour < 18 ? 'afternoon' : 'evening';
+  
+  let timeContext = '';
+  if (timePatterns?.[freq.activity]) {
+    const pattern = timePatterns[freq.activity];
+    const maxSlot = Object.entries(pattern).sort((a, b) => b[1] - a[1])[0][0];
+    
+    if (maxSlot === currentSlot) {
+      timeContext = `\nThis is typically when they do ${freq.label} (${currentSlot}).`;
+    }
+  }
+  
+  return `
+PERSONALIZED PATTERN (use gently):
+"${freq.label}" seems to resonate with this user — they've returned to it ${freq.count} times recently.${timeContext}
+You may gently suggest it as one option, using soft language like "you might try" or "it's seemed to help before."
+  `.trim();
+}
+```
+
+---
+
+## 2. **Post-Activity Smart Follow-Up**
+
+Add to `/api/chat` route:
+
+```javascript
+// After fetching conversation history, detect if last message was activity acknowledgment
+const lastMessage = conversationHistory[conversationHistory.length - 1];
+const isPostActivity = lastMessage?.role === 'assistant' && 
+  lastMessage?.content?.includes('Great work on') ||
+  lastMessage?.content?.includes('completed');
+
+// Add to system prompt if applicable
+if (isPostActivity) {
+  contextSnapshot += '\n\nUSER JUST COMPLETED ACTIVITY: Gently ask how they feel now, what shifted, or what they notice. Keep it soft and curious, not clinical.';
+}
+```
+
+---
+
+## 3. **Category-Aware Suggestions**
+
+Add to `activityCorrelation.js`:
+
+```javascript
+// Map activities to categories
+const ACTIVITY_CATEGORIES = {
+  breathing: 'breath',
+  rising: 'reflection',
+  ripple: 'reflection',
+  window: 'reflection',
+  echo: 'reflection',
+  maze: 'focus',
+  drift: 'focus',
+  grounding: 'body',
+  rest: 'body',
+  walking: 'body',
+};
+
+// In getSuggestionContext, add category context:
+const category = ACTIVITY_CATEGORIES[freq.activity];
+let categoryHint = '';
+if (category === 'reflection' && (currentHour >= 18 || currentHour < 6)) {
+  categoryHint = '\nReflection practices tend to work well in evening/quiet hours.';
+} else if (category === 'focus' && currentHour >= 8 && currentHour < 17) {
+  categoryHint = '\nFocus practices align well with active hours.';
+}
+```
+
+---
+
+## 4. **Logging & Monitoring**
+
+Add to `getSuggestionContext`:
+
+```javascript
+console.log('[SUGGESTION ENGINE] Checking for patterns...', { userId, deviceId });
+
+if (!isSeekingHelp) {
+  console.log('[SUGGESTION ENGINE] User not seeking help, skipping');
+  return null;
+}
+
+const freq = await getActivityFrequency(supabase, userId, deviceId);
+if (freq) {
+  console.log('[SUGGESTION ENGINE] Pattern found:', freq);
+} else {
+  console.log('[SUGGESTION ENGINE] No strong patterns yet');
+}
+```
+
+---
+
+## 5. **Graceful Fallbacks**
+
+Wrap the suggestion logic in try-catch:
+
+```javascript
+// In /api/chat route:
+let suggestionContext = null;
+try {
+  suggestionContext = await getSuggestionContext(
+    supabaseServer,
+    userId,
+    deviceId,
+    userMessage
+  );
+} catch (error) {
+  console.error('[SUGGESTION ENGINE] Error:', error);
+  // Continue without suggestions rather than breaking chat
+}
+```
+
+---
+
+**Priority Order:**
+1. ✅ **Logging** - Immediate visibility into when suggestions trigger
+2. ✅ **Post-activity follow-up** - High value, simple implementation
+3. ⭐ **Time-of-day patterns** - Medium complexity, good personalization
+4. ⭐ **Category-aware suggestions** - Uses your new categorization work
+5. ✅ **Graceful fallbacks** - Production safety
+
+**Recommendation:** Implement #1, #2, and #5 now (all simple). Add #3 and #4 later after seeing real usage patterns.
+
+Want me to create a consolidated Replit prompt with these additions?
+
+// After fetching conversation history, detect if last message was activity acknowledgment
+const lastMessage = conversationHistory[conversationHistory.length - 1];
+const isPostActivity = lastMessage?.role === 'assistant' && 
+  lastMessage?.content?.includes('Great work on') ||
+  lastMessage?.content?.includes('completed');
+
+// Add to system prompt if applicable
+if (isPostActivity) {
+  contextSnapshot += '\n\nUSER JUST COMPLETED ACTIVITY: Gently ask how they feel now, what shifted, or what they notice. Keep it soft and curious, not clinical.';
+}
+
+3. Category-Aware Suggestions
+Add to activityCorrelation.js:
+
+
+// Map activities to categoriesconst ACTIVITY_CATEGORIES = {  breathing: 'breath',  rising: 'reflection',  ripple: 'reflection',  window: 'reflection',  echo: 'reflection',  maze: 'focus',  drift: 'focus',  grounding: 'body',  rest: 'body',  walking: 'body',};// In getSuggestionContext, add category context:const category = ACTIVITY_CATEGORIES[freq.activity];let categoryHint = '';if (category === 'reflection' && (currentHour >= 18 || currentHour < 6)) {  categoryHint = '\nReflection practices tend to work well in evening/quiet hours.';} else if (category === 'focus' && currentHour >= 8 && currentHour < 17) {  categoryHint = '\nFocus practices align well with active hours.';}
+console.log('[SUGGESTION ENGINE] Checking for patterns...', { userId, deviceId });
+
+if (!isSeekingHelp) {
+  console.log('[SUGGESTION ENGINE] User not seeking help, skipping');
+  return null;
+}
+
+const freq = await getActivityFrequency(supabase, userId, deviceId);
+if (freq) {
+  console.log('[SUGGESTION ENGINE] Pattern found:', freq);
+} else {
+  console.log('[SUGGESTION ENGINE] No strong patterns yet');
+}
+// In /api/chat route:
+let suggestionContext = null;
+try {
+  suggestionContext = await getSuggestionContext(
+    supabaseServer,
+    userId,
+    deviceId,
+    userMessage
+  );
+} catch (error) {
+  console.error('[SUGGESTION ENGINE] Error:', error);
+  // Continue without suggestions rather than breaking chat
+}
+Priority Order:
+
+✅ Logging - Immediate visibility into when suggestions trigger
+✅ Post-activity follow-up - High value, simple implementation
+⭐ Time-of-day patterns - Medium complexity, good personalization
+⭐ Category-aware suggestions - Uses your new categorization work
+✅ Graceful fallbacks - Production safety
