@@ -1,0 +1,179 @@
+a) Fetch last 2 weeks from Supabase
+import { subDays } from 'date-fns';
+import { supabase } from './supabaseClient';
+
+async function getRecentData(userId: string) {
+  const since = subDays(new Date(), 14).toISOString();
+
+  const { data: activities } = await supabase
+    .from('activity_logs')
+    .select('activity_key, completed_at')
+    .eq('user_id', userId)
+    .gte('completed_at', since)
+    .order('completed_at', { ascending: true });
+
+  const { data: moods } = await supabase
+    .from('mood_checkins')
+    .select('mood_score, mood_label, created_at')
+    .eq('user_id', userId)
+    .gte('created_at', since)
+    .order('created_at', { ascending: true });
+
+  return { activities: activities ?? [], moods: moods ?? [] };
+}
+
+b) Compute “activity → better mood within 1–2 hours”
+type Activity = { activity_key: string; completed_at: string };
+type Mood = { mood_score: number | null; mood_label: string | null; created_at: string };
+
+type ActivityEffect = {
+  activity_key: string;
+  count: number;
+  avgDelta: number;
+  exampleLabel?: string | null;
+};
+
+function correlate(activities: Activity[], moods: Mood[]): ActivityEffect[] {
+  const effects: Record<string, ActivityEffect> = {};
+  const windowMs = 2 * 60 * 60 * 1000; // 2 hours
+
+  for (const act of activities) {
+    const t = new Date(act.completed_at).getTime();
+
+    const before = [...moods].reverse().find(m => {
+      const tm = new Date(m.created_at).getTime();
+      return tm <= t && m.mood_score != null;
+    });
+
+    const after = moods.find(m => {
+      const tm = new Date(m.created_at).getTime();
+      return tm >= t && tm - t <= windowMs && m.mood_score != null;
+    });
+
+    if (!before || !after) continue;
+
+    const delta = (after.mood_score ?? 0) - (before.mood_score ?? 0);
+    if (delta <= 0) continue; // only care about improvement
+
+    if (!effects[act.activity_key]) {
+      effects[act.activity_key] = {
+        activity_key: act.activity_key,
+        count: 0,
+        avgDelta: 0,
+        exampleLabel: after.mood_label,
+      };
+    }
+
+    const e = effects[act.activity_key];
+    e.count += 1;
+    e.avgDelta = ((e.avgDelta * (e.count - 1)) + delta) / e.count;
+  }
+
+  // Keep only “meaningful” patterns
+  return Object.values(effects)
+    .filter(e => e.count >= 2 && e.avgDelta > 0.25)
+    .sort((a, b) => b.avgDelta - a.avgDelta);
+}
+
+Gate it so it’s gentle, not spammy
+
+Still backend-only:
+async function getSuggestionContext(userId: string, userMessage: string) {
+  // 1) Check user setting + cooldown
+  const { data: settings } = await supabase
+    .from('user_settings')
+    .select('allow_personalized_suggestions, last_suggestion_at')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (settings && settings.allow_personalized_suggestions === false) {
+    return null;
+  }
+
+  // simple 24h cooldown
+  if (settings?.last_suggestion_at) {
+    const last = new Date(settings.last_suggestion_at).getTime();
+    const now = Date.now();
+    if (now - last < 24 * 60 * 60 * 1000) return null;
+  }
+
+  // 2) Only if user is asking for support / what to do
+  const msg = userMessage.toLowerCase();
+  const isSeekingHelp =
+    msg.includes('help') ||
+    msg.includes('stuck') ||
+    msg.includes('what should i do') ||
+    msg.includes('suggest') ||
+    msg.includes('anything that might help');
+
+  if (!isSeekingHelp) return null;
+
+  // 3) Pull correlations
+  const { activities, moods } = await getRecentData(userId);
+  if (!activities.length || !moods.length) return null;
+
+  const effects = correlate(activities, moods);
+  if (!effects.length) return null;
+
+  const top = effects[0];
+
+  // Optionally map internal key -> human label
+  const labelMap: Record<string, string> = {
+    rising: 'Rising',
+    breathing: 'Breathing reset',
+    maze: 'Trace the Maze',
+  };
+  const niceName = labelMap[top.activity_key] ?? top.activity_key;
+
+  // 4) Update cooldown (no UI)
+  await supabase
+    .from('user_settings')
+    .upsert({
+      user_id: userId,
+      last_suggestion_at: new Date().toISOString(),
+    });
+
+  // 5) Return a short, *soft* hint for the system prompt
+  return `
+In the last 2 weeks, the activity "${niceName}" has often been followed by a better mood for this user (avg improvement ${top.avgDelta.toFixed(
+    1
+  )} on their mood scale, at least ${top.count} times). 
+You may gently suggest "${niceName}" as one possible option, but always in soft language and only if it fits what they're talking about. Do not sound like you're tracking them; speak in general terms like "earlier this week" rather than exact times.
+  `.trim();
+}
+
+Wire it into your existing chat route (no UI touched)
+
+In your /api/chat handler, where you already build messages:
+async function buildMessages(userId: string, userMessage: string) {
+  const suggestionContext = await getSuggestionContext(userId, userMessage);
+
+  const systemContent = `
+You are TRACE, a calm, reflective companion.
+You can refer to past patterns, but always gently and with choice.
+Never be commanding; use language like "you might" or "if it helped before".
+
+${suggestionContext ? '\n' + suggestionContext + '\n' : ''}
+`.trim();
+
+  const messages = [
+    { role: 'system', content: systemContent },
+    { role: 'user', content: userMessage },
+  ];
+
+  return messages;
+}
+
+Then:
+const messages = await buildMessages(userId, userMessage);
+
+const completion = await openai.chat.completions.create({
+  model: 'gpt-5.1-mini', // or your model
+  messages,
+});
+
+No front-end changes.
+No new components.
+TRACE just starts saying things like:
+
+“If you feel up for it, you might try Rising again — it’s seemed to help settle your evenings before.”
