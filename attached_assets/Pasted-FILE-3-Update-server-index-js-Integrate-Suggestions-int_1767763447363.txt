@@ -1,0 +1,76 @@
+FILE 3: Update server/index.js - Integrate Suggestions into Chat
+Inside your /api/chat route, BEFORE calling OpenAI:
+
+Find where you build the system prompt (likely near where you call buildTraceSystemPrompt or similar). Add this:
+
+// Get personalized activity suggestion context
+const suggestionContext = await getSuggestionContext(
+  supabaseServer,
+  userId,
+  deviceId,
+  userMessage
+);
+
+// Add to your existing context snapshot
+if (suggestionContext) {
+  contextSnapshot += '\n\n' + suggestionContext;
+}
+Example integration location:
+// BEFORE:
+const systemPrompt = buildTraceSystemPrompt({
+  // ...existing params
+  contextSnapshot: existingContext,
+});
+
+// AFTER:
+const suggestionContext = await getSuggestionContext(
+  supabaseServer,
+  userId,
+  deviceId,
+  userMessage
+);
+
+const systemPrompt = buildTraceSystemPrompt({
+  // ...existing params
+  contextSnapshot: existingContext + (suggestionContext ? '\n\n' + suggestionContext : ''),
+});
+
+TESTING
+1. Test Activity Frequency:
+
+
+# User with 3+ completions of "breathing" should see suggestions# When they message: "I'm stuck, what should I do?"# Expected: AI mentions "Breathing seems to help you" or similar
+# User with 3+ completions of "breathing" should see suggestions
+# When they message: "I'm stuck, what should I do?"
+# Expected: AI mentions "Breathing seems to help you" or similar
+2. Test Mood Endpoint:
+curl -X POST http://localhost:3001/api/mood-checkin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "test-user-id",
+    "moodScore": 4,
+    "moodLabel": "calm"
+  }'
+
+# Should return: { "ok": true, "id": <number> }
+3. Verify No Suggestions When Not Asking for Help:
+
+
+# User messages: "I feel anxious"# Expected: NO activity suggestion in context (user didn't ask for help)
+# User messages: "I feel anxious"
+# Expected: NO activity suggestion in context (user didn't ask for help)
+EXPECTED BEHAVIOR
+User completes Breathing 5 times in 2 weeks
+User messages: "I'm not sure what to do right now"
+AI responds: "If you feel up for it, you might try Breathing again — I've noticed it seems to help you settle in."
+
+Benefits:
+
+✅ Uses existing activity data
+✅ No mobile changes needed
+✅ Personalized without feeling invasive
+✅ Only appears when user asks for help
+Questions/Clarifications:
+
+Confirm the exact function name for building system prompts in your codebase
+Let me know if /api/chat route structure differs fro
