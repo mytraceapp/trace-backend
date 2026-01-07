@@ -293,6 +293,19 @@ Activity aliases (accept these as equivalent):
 - "pearl ripple" / "pearl_ripple" → name: "ripple"
 - "walking reset" → name: "walking"
 
+MUSIC BROWSING (target: "journal_music"):
+When user wants to explore or browse music without a specific activity in mind:
+- Triggers: "I want to listen to something", "play some music", "what music do you have?", "browse music", "show me music options"
+- Set: should_navigate: true, name: "Rising" (default), target: "journal_music"
+- Response: "Okay, I'll walk you there now..."
+- This opens the journal music modal where user can browse all spaces
+
+DO NOT use journal_music when:
+- User confirms a specific activity: "yes, let's do breathing", "I'll try Rising"
+- User explicitly accepts your suggestion: "okay, that sounds good"
+- User names a specific playlist: "play drift playlist"
+- For these, use target: null for direct navigation
+
 RESPONSE FORMAT:
 You must respond in valid JSON with this structure:
 {
@@ -301,7 +314,7 @@ You must respond in valid JSON with this structure:
     "name": null or "activity_name",
     "reason": null or "why you suggest it",
     "should_navigate": false or true,
-    "target": null or "specific_target"
+    "target": null or "journal_music"
   }
 }
 
