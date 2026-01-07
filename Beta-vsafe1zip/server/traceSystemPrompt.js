@@ -250,8 +250,15 @@ OFFER vs AGREEMENT:
   Example user: "Yeah, let's do that" or "Take me there" or "Okay"
   → activity_suggestion: { "name": "rising", "reason": "user agreed to visit", "should_navigate": true, "target": "rising" }
 
-Valid activity names: breathing, maze, rising, pearl_ripple, power_nap, bubble_pop, walking_reset, rain_window, journal_music
-Valid targets for music spaces: ground, drift, rising, journal_music
+Valid activity names:
+- Activities: breathing, maze, rising, pearl_ripple, power_nap, bubble_pop, walking_reset, rain_window
+- Music/Journal: ground_playlist, drift_playlist, rising_playlist (opens journal with that music space)
+
+IMPORTANT: When suggesting music listening, use the _playlist suffix:
+- "rising" = Rising activity screen (visual meditation)
+- "rising_playlist" = Journal with Rising music (music-supported journaling)
+- "ground_playlist" = Journal with Ground music (calming/grounding)
+- "drift_playlist" = Journal with Drift music (release/letting go)
 
 RESPONSE FORMAT:
 You must respond in valid JSON with this structure:
