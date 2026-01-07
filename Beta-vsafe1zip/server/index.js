@@ -2164,9 +2164,9 @@ Example format: ["Message one.", "Message two.", "Message three."]`
 // POST /api/mood-checkin - Record a mood check-in
 app.post('/api/mood-checkin', async (req, res) => {
   try {
-    const { userId, deviceId, moodScore, moodLabel } = req.body;
+    const { userId, deviceId, moodScore, moodLabel, context } = req.body;
     
-    if (!supabaseServer) {
+    if (!pool) {
       return res.status(503).json({ error: 'Database not available' });
     }
     
@@ -2179,24 +2179,16 @@ app.post('/api/mood-checkin', async (req, res) => {
       return res.status(400).json({ error: 'Missing userId or deviceId' });
     }
     
-    const { data, error } = await supabaseServer
-      .from('mood_checkins')
-      .insert({
-        user_id: userId || null,
-        device_id: deviceId || null,
-        mood_score: moodScore, // 1-5 scale
-        mood_label: moodLabel, // "calm", "anxious", etc.
-      })
-      .select()
-      .single();
+    const result = await pool.query(
+      `INSERT INTO mood_checkins (user_id, device_id, mood_score, mood_label, context)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, created_at`,
+      [userId || null, deviceId || null, moodScore, moodLabel, context || null]
+    );
     
-    if (error) {
-      console.error('[MOOD CHECKIN] Error:', error);
-      return res.status(500).json({ error: error.message });
-    }
-    
+    const data = result.rows[0];
     console.log('[MOOD CHECKIN] Recorded:', { userId: userId || deviceId, moodScore, moodLabel });
-    return res.json({ ok: true, id: data.id });
+    return res.json({ ok: true, id: data.id, createdAt: data.created_at });
   } catch (err) {
     console.error('[MOOD CHECKIN] Error:', err);
     return res.status(500).json({ error: 'Failed to record mood' });

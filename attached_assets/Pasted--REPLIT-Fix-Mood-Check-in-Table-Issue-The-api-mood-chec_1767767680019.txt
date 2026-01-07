@@ -1,0 +1,78 @@
+# REPLIT: Fix Mood Check-in Table
+
+## Issue
+The `/api/mood-checkin` endpoint exists but references a Supabase `mood_checkins` table that doesn't exist in PostgreSQL.
+
+## Task
+
+### 1. Create PostgreSQL Table
+
+Add this schema to your PostgreSQL database:
+
+```sql
+CREATE TABLE IF NOT EXISTS mood_checkins (
+  id SERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  device_id TEXT,
+  mood_rating INTEGER NOT NULL CHECK (mood_rating >= 1 AND mood_rating <= 5),
+  activity_id INTEGER REFERENCES activity_logs(id),
+  activity_name TEXT,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_mood_checkins_user_id ON mood_checkins(user_id);
+CREATE INDEX idx_mood_checkins_created_at ON mood_checkins(created_at);
+CREATE INDEX idx_mood_checkins_activity_id ON mood_checkins(activity_id);
+```
+
+### 2. Update `/api/mood-checkin` Endpoint
+
+**Current code (using Supabase):**
+```javascript
+// Currently references supabase.from('mood_checkins')
+```
+
+**Update to use PostgreSQL `pool` instead:**
+```javascript
+app.post('/api/mood-checkin', async (req, res) => {
+  const { userId, deviceId, moodRating, activityId, activityName, notes } = req.body;
+  
+  try {
+    const result = await pool.query(
+      `INSERT INTO mood_checkins (user_id, device_id, mood_rating, activity_id, activity_name, notes)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [userId, deviceId, moodRating, activityId, activityName, notes]
+    );
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Mood check-in error:', error);
+    res.status(500).json({ error: 'Failed to save mood check-in' });
+  }
+});
+```
+
+### 3. Test
+
+After implementing, test with:
+
+```bash
+curl -X POST http://localhost:3000/api/mood-checkin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "test-user",
+    "deviceId": "test-device",
+    "moodRating": 4,
+    "activityId": null,
+    "activityName": "breathing",
+    "notes": "Feeling calmer after this"
+  }'
+```
+
+Should return: `{ success: true, data: { ... } }`
+
+---
+
+**That's it!** Once this is done, all intelligence features will be 100% operational.
