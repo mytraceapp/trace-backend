@@ -2164,15 +2164,26 @@ Example format: ["Message one.", "Message two.", "Message three."]`
 // POST /api/mood-checkin - Record a mood check-in
 app.post('/api/mood-checkin', async (req, res) => {
   try {
-    const { userId, deviceId, moodScore, moodLabel, context } = req.body;
+    // Support both old (moodScore/context) and new (moodRating/notes) field names
+    const { 
+      userId, deviceId, 
+      moodScore, moodRating, 
+      moodLabel, 
+      context, notes,
+      activityId, activityName 
+    } = req.body;
     
     if (!pool) {
       return res.status(503).json({ error: 'Database not available' });
     }
     
+    // Use new field names with fallback to old
+    const rating = moodRating || moodScore;
+    const noteText = notes || context;
+    
     // Validate inputs
-    if (!moodScore || !moodLabel) {
-      return res.status(400).json({ error: 'Missing moodScore or moodLabel' });
+    if (!rating) {
+      return res.status(400).json({ error: 'Missing moodRating' });
     }
     
     if (!userId && !deviceId) {
@@ -2180,15 +2191,15 @@ app.post('/api/mood-checkin', async (req, res) => {
     }
     
     const result = await pool.query(
-      `INSERT INTO mood_checkins (user_id, device_id, mood_score, mood_label, context)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, created_at`,
-      [userId || null, deviceId || null, moodScore, moodLabel, context || null]
+      `INSERT INTO mood_checkins (user_id, device_id, mood_rating, mood_label, notes, activity_id, activity_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [userId || null, deviceId || null, rating, moodLabel || null, noteText || null, activityId || null, activityName || null]
     );
     
     const data = result.rows[0];
-    console.log('[MOOD CHECKIN] Recorded:', { userId: userId || deviceId, moodScore, moodLabel });
-    return res.json({ ok: true, id: data.id, createdAt: data.created_at });
+    console.log('[MOOD CHECKIN] Recorded:', { userId: userId || deviceId, moodRating: rating, activityName });
+    return res.json({ success: true, data });
   } catch (err) {
     console.error('[MOOD CHECKIN] Error:', err);
     return res.status(500).json({ error: 'Failed to record mood' });
