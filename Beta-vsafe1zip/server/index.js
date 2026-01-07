@@ -47,6 +47,7 @@ const {
   updateCrisisStateInDb 
 } = require('./safety');
 const { getSuggestionContext, getTimeAwarenessContext, ACTIVITY_LABELS } = require('./activityCorrelation');
+const { markActivityCompletedForReflection, getReflectionContext, clearReflectionFlag } = require('./reflectionTracking');
 
 // ---- WEATHER HELPER ----
 // TRACE-style weather summary using AccuWeather API
@@ -2765,17 +2766,60 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
       }
     }
     
-    // Post-activity follow-up detection
-    const lastAssistantMsg = messages?.filter(m => m.role === 'assistant').pop()?.content || '';
-    const isPostActivity = lastAssistantMsg.includes('Great work on') ||
-      lastAssistantMsg.includes('completed') ||
-      lastAssistantMsg.includes('finished') ||
-      lastAssistantMsg.includes('You just did') ||
-      lastAssistantMsg.includes('nice job with');
-    
-    if (isPostActivity && !isCrisisMode) {
-      contextParts.push('USER JUST COMPLETED ACTIVITY: Gently ask how they feel now, what shifted, or what they notice. Keep it soft and curious, not clinical.');
-      console.log('[TRACE] Post-activity follow-up context added');
+    // Post-activity reflection tracking (database-backed, 30-minute window)
+    let postActivityReflectionContext = null;
+    const reflectionUserId = userId || deviceId;
+    if (pool && reflectionUserId && !isCrisisMode) {
+      try {
+        postActivityReflectionContext = await getReflectionContext(pool, reflectionUserId);
+        
+        if (postActivityReflectionContext) {
+          await clearReflectionFlag(pool, reflectionUserId);
+          
+          const { lastActivityName, minutesSinceCompletion } = postActivityReflectionContext;
+          const minutesRounded = Math.round(minutesSinceCompletion);
+          
+          const reflectionPrompt = `
+POST-ACTIVITY REFLECTION CONTEXT:
+The user just completed "${lastActivityName}" about ${minutesRounded} minute${minutesRounded === 1 ? '' : 's'} ago.
+
+Behavior for this response:
+1. Gently acknowledge they completed the activity. Use calm, neutral language:
+   - "I've saved this session with ${lastActivityName} for you."
+   
+2. Follow with at most ONE soft invitation to notice any shift. Choose based on activity type:
+   
+   For calming activities (Rising, Rest, Breathing, Ripple, Window):
+   - "If you feel like sharing, what feels even 1% different right now?"
+   - "Sometimes the shift is small — a tiny bit more air in your chest, or a little less noise in your mind. If you want to, you can put a few words to it."
+   
+   For focus activities (Maze, Echo, Walking):
+   - "If you want to capture it while it's fresh, what feels a bit clearer or more manageable now?"
+   
+   For grounding/body activities (Grounding, Rest):
+   - "No pressure to answer, but if anything feels even slightly softer or clearer, you can put a few words here."
+
+3. IMPORTANT BOUNDARIES:
+   - Do not ask multiple reflection questions
+   - If user is already talking about something else, prioritize THEIR topic
+   - Never force the conversation back to the activity
+   - Never imply the activity "should" have helped
+   - If user says nothing changed or feels worse → validate their experience, do not minimize
+
+Example good responses:
+   "I've saved this session with Rising for you. If you feel like sharing, what feels even 1% different right now?"
+   
+Example of what NOT to do:
+   ❌ "Great job! How do you feel? Did it help? What changed?"
+   ❌ "You should feel calmer now. Tell me what shifted."
+`.trim();
+          
+          contextParts.push(reflectionPrompt);
+          console.log('[TRACE] Post-activity reflection context added for:', lastActivityName);
+        }
+      } catch (reflErr) {
+        console.warn('[TRACE] Reflection context failed:', reflErr.message);
+      }
     }
     
     const fullContext = contextParts.filter(Boolean).join('\n\n');
@@ -5178,6 +5222,17 @@ app.post('/api/activity-log', async (req, res) => {
     );
     
     console.log('📝 [ACTIVITY LOG] Success:', result.rows?.[0]);
+    
+    // Mark activity for post-completion reflection
+    const reflectionId = userId || deviceId;
+    if (pool && reflectionId && activityType) {
+      await markActivityCompletedForReflection(
+        pool,
+        reflectionId,
+        activityType,
+        activityType
+      );
+    }
     
     return res.json({ ok: true, logged: result.rows?.[0] });
   } catch (err) {

@@ -1,0 +1,750 @@
+OVERVIEW
+Implement intelligent, trauma-informed post-activity check-ins that:
+
+Trigger once after activity completion (30-minute window)
+Use gentle, permission-based language
+Respect user boundaries and validate difficult experiences
+Include crisis safety protocols
+Zero mobile/UI changes required.
+
+PART 1: Database Schema
+Option A: New Table (Recommended for clean separation)
+-- Create activity reflection state tracking
+CREATE TABLE activity_reflection_state (
+  user_id VARCHAR(255) PRIMARY KEY,
+  last_activity_id VARCHAR(255),
+  last_activity_name VARCHAR(100),
+  completed_at TIMESTAMPTZ,
+  awaiting_reflection BOOLEAN DEFAULT false,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_reflection_user ON activity_reflection_state(user_id);
+CREATE INDEX idx_reflection_awaiting ON activity_reflection_state(awaiting_reflection);
+Create server/reflectionTracking.js:
+/**
+ * Post-Activity Reflection Tracking
+ * Manages gentle check-ins after activity completion
+ */
+
+const REFLECTION_WINDOW_MINUTES = 30;
+
+/**
+ * Mark that user completed an activity and awaits reflection prompt
+ */
+async function markActivityCompletedForReflection(supabase, userId, activityId, activityName) {
+  if (!userId) return;
+  
+  const now = new Date().toISOString();
+  
+  const { error } = await supabase
+    .from('activity_reflection_state')
+    .upsert({
+      user_id: userId,
+      last_activity_id: activityId,
+      last_activity_name: activityName,
+      completed_at: now,
+      awaiting_reflection: true,
+      updated_at: now,
+    }, { onConflict: 'user_id' });
+  
+  if (error) {
+    console.error('[REFLECTION] Failed to mark activity:', error);
+  } else {
+    console.log('[REFLECTION] Marked activity for reflection:', { userId, activityName });
+  }
+}
+
+/**
+ * Get reflection state and check if within time window
+ */
+async function getReflectionContext(supabase, userId) {
+  if (!userId) return null;
+  
+  const { data, error } = await supabase
+    .from('activity_reflection_state')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  
+  if (error || !data || !data.awaiting_reflection) {
+    return null;
+  }
+  
+  const completedAt = new Date(data.completed_at).getTime();
+  const now = Date.now();
+  const diffMinutes = (now - completedAt) / (1000 * 60);
+  
+  // Only return context if within window
+  if (diffMinutes > REFLECTION_WINDOW_MINUTES) {
+    console.log('[REFLECTION] Outside 30min window, skipping');
+    // Clear stale flag
+    await clearReflectionFlag(supabase, userId);
+    return null;
+  }
+  
+  console.log('[REFLECTION] Active reflection window:', {
+    activityName: data.last_activity_name,
+    minutesAgo: Math.round(diffMinutes * 10) / 10
+  });
+  
+  return {
+    lastActivityName: data.last_activity_name ?? 'an activity',
+    minutesSinceCompletion: diffMinutes,
+  };
+}
+
+/**
+ * Clear reflection flag after first check-in
+ */
+async function clearReflectionFlag(supabase, userId) {
+  if (!userId) return;
+  
+  const { error } = await supabase
+    .from('activity_reflection_state')
+    .update({ awaiting_reflection: false })
+    .eq('user_id', userId);
+  
+  if (error) {
+    console.error('[REFLECTION] Failed to clear flag:', error);
+  } else {
+    console.log('[REFLECTION] Cleared awaiting_reflection flag');
+  }
+}
+
+module.exports = {
+  markActivityCompletedForReflection,
+  getReflectionContext,
+  clearReflectionFlag,
+  REFLECTION_WINDOW_MINUTES,
+};
+PART 3: Update Activity Completion Endpoint
+In server/index.js, find your activity logging endpoint (likely /api/activity-log or similar):
+// At top of file
+const { markActivityCompletedForReflection } = require('./reflectionTracking');
+
+// In your activity completion endpoint
+app.post('/api/activity-log', async (req, res) => {
+  try {
+    const { userId, deviceId, activityType, durationMinutes } = req.body;
+    
+    // ... existing activity logging logic ...
+    
+    // After successfully logging activity, mark for reflection
+    const effectiveUserId = userId || deviceId;
+    if (effectiveUserId && activityType) {
+      await markActivityCompletedForReflection(
+        supabaseServer,
+        effectiveUserId,
+        activityType,  // Use as ID
+        activityType   // Also use as display name
+      );
+    }
+    
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('[ACTIVITY LOG] Error:', error);
+    return res.status(500).json({ error: 'Failed to log activity' });
+  }
+});
+PART 4: Update Chat Endpoint
+In server/index.js, modify /api/chat route:
+// At top
+const { getReflectionContext, clearReflectionFlag } = require('./reflectionTracking');
+
+// Inside /api/chat route, AFTER loading conversation history
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { userId, deviceId, messages } = req.body;
+    const effectiveUserId = userId || deviceId;
+    
+    // ... existing code to load conversation history, weather, etc. ...
+    
+    // Check for post-activity reflection context
+    let postActivityReflectionContext = null;
+    try {
+      postActivityReflectionContext = await getReflectionContext(supabaseServer, effectiveUserId);
+      
+      // Immediately clear flag so we only ask once
+      if (postActivityReflectionContext) {
+        await clearReflectionFlag(supabaseServer, effectiveUserId);
+      }
+    } catch (error) {
+      console.error('[REFLECTION] Error checking context:', error);
+    }
+    
+    // ... existing suggestion context, time awareness, etc. ...
+    
+    // Build system prompt with reflection context
+    const systemPrompt = buildTraceSystemPrompt({
+      // ... existing params ...
+      postActivityReflectionContext,
+    });
+    
+    // ... rest of chat logic ...
+  }
+});
+ART 5: System Prompt Updates
+Add to your buildTraceSystemPrompt function or system prompt template:
+
+
+function buildTraceSystemPrompt({   // ... existing params ...  postActivityReflectionContext }) {  let prompt = `You are TRACE, a compassionate AI companion for mental wellness.// ... your existing personality/behavior instructions ...`;  // ADD POST-ACTIVITY REFLECTION SECTION  if (postActivityReflectionContext) {    const { lastActivityName, minutesSinceCompletion } = postActivityReflectionContext;    const minutesRounded = Math.round(minutesSinceCompletion);        prompt += `POST-ACTIVITY REFLECTION CONTEXT:The user just completed "${lastActivityName}" about ${minutesRounded} minute${minutesRounded === 1 ? '' : 's'} ago.Behavior for this response:1. Gently acknowledge they completed the activity. Use calm, neutral language:   - "I've saved this session with ${lastActivityName} for you."   2. Follow with at most ONE soft invitation to notice any shift. Choose based on activity type:      For calming activities (Rising, Rest, Breathing, Ripple, Window):   - "If you feel like sharing, what feels even 1% different right now?"   - "Sometimes the shift is small — a tiny bit more air in your chest, or a little less noise in your mind. If you want to, you can put a few words to it."      For focus activities (Maze, Echo, Walking):   - "If you want to capture it while it's fresh, what feels a bit clearer or more manageable now?"      For grounding/body activities (Grounding, Rest):   - "No pressure to answer, but if anything feels even slightly softer or clearer, you can put a few words here."3. IMPORTANT BOUNDARIES:   - Do not ask multiple reflection questions   - If user is already talking about something else (work, relationships, crisis), prioritize THEIR topic   - Never force the conversation back to the activity   - Never imply the activity "should" have helped   - If user says nothing changed or feels worse → validate their experience, do not minimizeExample good responses:   "I've saved this session with Rising for you. If you feel like sharing, what feels even 1% different right now?"      "I've saved this session with Breathing for you. No pressure — but if anything feels slightly lighter or clearer, you can put a few words to it."Example of what NOT to do:   ❌ "Great job! How do you feel? Did it help? What changed?"   ❌ "You should feel calmer now. Tell me what shifted."`;  }  // ADD TRAUMA-INFORMED SAFETY GUARDRAILS  prompt += `TONE, SAFETY, AND TRAUMA-INFORMED BEHAVIOR:Core Principles:- Always assume the user may have a trauma history, even if they don't say so- Use gentle, non-directive language: "If you feel like…", "If it helps…", "You're allowed to…"- NEVER use: "You need to…", "You should…", "You must…"When user says nothing changed or feels worse:- Validate and normalize: "Thank you for being honest with me. Sometimes things don't shift right away, and that's okay."- Do NOT say: "Keep trying", "It takes time", "You'll feel better soon"When user says "I can't do this" / "It's too much":- De-escalate: "That sounds really heavy. We don't have to push anything right now. We can just name what's here."- Offer to slow down or shift topics- Never minimize: "It's not that bad", "You can do it"Crisis Mentions (self-harm, suicidal thoughts, feeling unsafe):- Acknowledge seriousness without panic: "I hear you. That sounds really painful."- Encourage real-world support: "Is there someone you trust who you could reach out to right now?"- If immediate danger: "If you're in immediate danger, please call emergency services or a crisis line."- Stay calm, non-judgmental, supportive- Do NOT promise: "TRACE will fix this", "Everything will be fine", "I understand exactly how you feel"- Instead: "I can't know exactly how this feels for you, but I'm listening."Validation Over Solutions:- Prioritize being WITH the user over fixing them- Reflection beats advice unless explicitly requested- "That sounds hard" beats "Have you tried…"`;  return prompt;}
+function buildTraceSystemPrompt({ 
+  // ... existing params ...
+  postActivityReflectionContext 
+}) {
+  let prompt = `
+You are TRACE, a compassionate AI companion for mental wellness.
+// ... your existing personality/behavior instructions ...
+`;
+
+  // ADD POST-ACTIVITY REFLECTION SECTION
+  if (postActivityReflectionContext) {
+    const { lastActivityName, minutesSinceCompletion } = postActivityReflectionContext;
+    const minutesRounded = Math.round(minutesSinceCompletion);
+    
+    prompt += `
+
+POST-ACTIVITY REFLECTION CONTEXT:
+The user just completed "${lastActivityName}" about ${minutesRounded} minute${minutesRounded === 1 ? '' : 's'} ago.
+
+Behavior for this response:
+1. Gently acknowledge they completed the activity. Use calm, neutral language:
+   - "I've saved this session with ${lastActivityName} for you."
+   
+2. Follow with at most ONE soft invitation to notice any shift. Choose based on activity type:
+   
+   For calming activities (Rising, Rest, Breathing, Ripple, Window):
+   - "If you feel like sharing, what feels even 1% different right now?"
+   - "Sometimes the shift is small — a tiny bit more air in your chest, or a little less noise in your mind. If you want to, you can put a few words to it."
+   
+   For focus activities (Maze, Echo, Walking):
+   - "If you want to capture it while it's fresh, what feels a bit clearer or more manageable now?"
+   
+   For grounding/body activities (Grounding, Rest):
+   - "No pressure to answer, but if anything feels even slightly softer or clearer, you can put a few words here."
+
+3. IMPORTANT BOUNDARIES:
+   - Do not ask multiple reflection questions
+   - If user is already talking about something else (work, relationships, crisis), prioritize THEIR topic
+   - Never force the conversation back to the activity
+   - Never imply the activity "should" have helped
+   - If user says nothing changed or feels worse → validate their experience, do not minimize
+
+Example good responses:
+   "I've saved this session with Rising for you. If you feel like sharing, what feels even 1% different right now?"
+   
+   "I've saved this session with Breathing for you. No pressure — but if anything feels slightly lighter or clearer, you can put a few words to it."
+
+Example of what NOT to do:
+   ❌ "Great job! How do you feel? Did it help? What changed?"
+   ❌ "You should feel calmer now. Tell me what shifted."
+`;
+  }
+
+  // ADD TRAUMA-INFORMED SAFETY GUARDRAILS
+  prompt += `
+
+TONE, SAFETY, AND TRAUMA-INFORMED BEHAVIOR:
+
+Core Principles:
+- Always assume the user may have a trauma history, even if they don't say so
+- Use gentle, non-directive language: "If you feel like…", "If it helps…", "You're allowed to…"
+- NEVER use: "You need to…", "You should…", "You must…"
+
+When user says nothing changed or feels worse:
+- Validate and normalize: "Thank you for being honest with me. Sometimes things don't shift right away, and that's okay."
+- Do NOT say: "Keep trying", "It takes time", "You'll feel better soon"
+
+When user says "I can't do this" / "It's too much":
+- De-escalate: "That sounds really heavy. We don't have to push anything right now. We can just name what's here."
+- Offer to slow down or shift topics
+- Never minimize: "It's not that bad", "You can do it"
+
+Crisis Mentions (self-harm, suicidal thoughts, feeling unsafe):
+- Acknowledge seriousness without panic: "I hear you. That sounds really painful."
+- Encourage real-world support: "Is there someone you trust who you could reach out to right now?"
+- If immediate danger: "If you're in immediate danger, please call emergency services or a crisis line."
+- Stay calm, non-judgmental, supportive
+- Do NOT promise: "TRACE will fix this", "Everything will be fine", "I understand exactly how you feel"
+- Instead: "I can't know exactly how this feels for you, but I'm listening."
+
+Validation Over Solutions:
+- Prioritize being WITH the user over fixing them
+- Reflection beats advice unless explicitly requested
+- "That sounds hard" beats "Have you tried…"
+`;
+
+  return prompt;
+}
+PART 6: Testing Checklist
+After implementation:
+
+Activity Completion Flow:
+# Complete an activity
+# Check database: awaiting_reflection should be TRUE
+SELECT * FROM activity_reflection_state WHERE user_id = 'test-user';
+
+# Expected:
+# { awaiting_reflection: true, last_activity_name: 'Rising', completed_at: <recent> }
+First Message After Activity:
+# User sends any message within 30 minutes
+# Expected response: "I've saved this session with Rising for you. If you feel like sharing..."
+# Check database: awaiting_reflection should now be FALSE
+Second Message (No Nag):
+# User sends another message immediately
+# Expected: Normal conversation, NO reflection prompt
+Outside Window:
+# Complete activity, wait 31+ minutes, send message
+# Expected: No reflection prompt (window expired)
+User Ignores Prompt:
+# User gets reflection invite, responds about something else
+# Expected: TRACE follows user's topic, doesn't force back to activity
+Negative Response:
+User: "Nothing changed, I still feel terrible"
+Expected: "Thank you for being honest with me. Sometimes things don't shift right away, and that's okay."
+Negative Response:
+[User completes Rising activity]
+[2 minutes later, opens chat]
+
+User: "hey"
+TRACE: "I've saved this session with Rising for you. If you feel like sharing, what feels even 1% different right now?"
+
+User: "I don't know, maybe a bit calmer"
+TRACE: "That 'bit calmer' is something. Even small shifts matter."
+Scenario 2: User Changes Topic
+User: "hey"
+TRACE: "I've saved this session with Breathing for you. If you feel like—"
+
+User: "I'm worried about work tomorrow"
+TRACE: "What's coming up at work that's weighing on you?"
+[Follows user's lead, doesn't circle back to breathing]
+Scenario 3: Nothing Helped
+User: "that didn't help at all"
+TRACE: "Thank you for being honest with me. Sometimes things don't shift right away, and that's okay. What's still feeling heavy?"
+**REPLIT PROMPT - Trauma-Informed Post-Activity Reflection System**
+
+---
+
+## OVERVIEW
+
+Implement intelligent, trauma-informed post-activity check-ins that:
+- Trigger once after activity completion (30-minute window)
+- Use gentle, permission-based language
+- Respect user boundaries and validate difficult experiences
+- Include crisis safety protocols
+
+**Zero mobile/UI changes required.**
+
+---
+
+## PART 1: Database Schema
+
+### Option A: New Table (Recommended for clean separation)
+
+```sql
+-- Create activity reflection state tracking
+CREATE TABLE activity_reflection_state (
+  user_id VARCHAR(255) PRIMARY KEY,
+  last_activity_id VARCHAR(255),
+  last_activity_name VARCHAR(100),
+  completed_at TIMESTAMPTZ,
+  awaiting_reflection BOOLEAN DEFAULT false,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_reflection_user ON activity_reflection_state(user_id);
+CREATE INDEX idx_reflection_awaiting ON activity_reflection_state(awaiting_reflection);
+```
+
+### Option B: Add to Existing User Settings Table
+
+```sql
+-- Add columns to existing user_settings or users table
+ALTER TABLE user_settings ADD COLUMN last_activity_id VARCHAR(255);
+ALTER TABLE user_settings ADD COLUMN last_activity_name VARCHAR(100);
+ALTER TABLE user_settings ADD COLUMN activity_completed_at TIMESTAMPTZ;
+ALTER TABLE user_settings ADD COLUMN awaiting_reflection BOOLEAN DEFAULT false;
+```
+
+---
+
+## PART 2: Helper Functions
+
+**Create `server/reflectionTracking.js`:**
+
+```javascript
+/**
+ * Post-Activity Reflection Tracking
+ * Manages gentle check-ins after activity completion
+ */
+
+const REFLECTION_WINDOW_MINUTES = 30;
+
+/**
+ * Mark that user completed an activity and awaits reflection prompt
+ */
+async function markActivityCompletedForReflection(supabase, userId, activityId, activityName) {
+  if (!userId) return;
+  
+  const now = new Date().toISOString();
+  
+  const { error } = await supabase
+    .from('activity_reflection_state')
+    .upsert({
+      user_id: userId,
+      last_activity_id: activityId,
+      last_activity_name: activityName,
+      completed_at: now,
+      awaiting_reflection: true,
+      updated_at: now,
+    }, { onConflict: 'user_id' });
+  
+  if (error) {
+    console.error('[REFLECTION] Failed to mark activity:', error);
+  } else {
+    console.log('[REFLECTION] Marked activity for reflection:', { userId, activityName });
+  }
+}
+
+/**
+ * Get reflection state and check if within time window
+ */
+async function getReflectionContext(supabase, userId) {
+  if (!userId) return null;
+  
+  const { data, error } = await supabase
+    .from('activity_reflection_state')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  
+  if (error || !data || !data.awaiting_reflection) {
+    return null;
+  }
+  
+  const completedAt = new Date(data.completed_at).getTime();
+  const now = Date.now();
+  const diffMinutes = (now - completedAt) / (1000 * 60);
+  
+  // Only return context if within window
+  if (diffMinutes > REFLECTION_WINDOW_MINUTES) {
+    console.log('[REFLECTION] Outside 30min window, skipping');
+    // Clear stale flag
+    await clearReflectionFlag(supabase, userId);
+    return null;
+  }
+  
+  console.log('[REFLECTION] Active reflection window:', {
+    activityName: data.last_activity_name,
+    minutesAgo: Math.round(diffMinutes * 10) / 10
+  });
+  
+  return {
+    lastActivityName: data.last_activity_name ?? 'an activity',
+    minutesSinceCompletion: diffMinutes,
+  };
+}
+
+/**
+ * Clear reflection flag after first check-in
+ */
+async function clearReflectionFlag(supabase, userId) {
+  if (!userId) return;
+  
+  const { error } = await supabase
+    .from('activity_reflection_state')
+    .update({ awaiting_reflection: false })
+    .eq('user_id', userId);
+  
+  if (error) {
+    console.error('[REFLECTION] Failed to clear flag:', error);
+  } else {
+    console.log('[REFLECTION] Cleared awaiting_reflection flag');
+  }
+}
+
+module.exports = {
+  markActivityCompletedForReflection,
+  getReflectionContext,
+  clearReflectionFlag,
+  REFLECTION_WINDOW_MINUTES,
+};
+```
+
+---
+
+## PART 3: Update Activity Completion Endpoint
+
+**In `server/index.js`, find your activity logging endpoint (likely `/api/activity-log` or similar):**
+
+```javascript
+// At top of file
+const { markActivityCompletedForReflection } = require('./reflectionTracking');
+
+// In your activity completion endpoint
+app.post('/api/activity-log', async (req, res) => {
+  try {
+    const { userId, deviceId, activityType, durationMinutes } = req.body;
+    
+    // ... existing activity logging logic ...
+    
+    // After successfully logging activity, mark for reflection
+    const effectiveUserId = userId || deviceId;
+    if (effectiveUserId && activityType) {
+      await markActivityCompletedForReflection(
+        supabaseServer,
+        effectiveUserId,
+        activityType,  // Use as ID
+        activityType   // Also use as display name
+      );
+    }
+    
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('[ACTIVITY LOG] Error:', error);
+    return res.status(500).json({ error: 'Failed to log activity' });
+  }
+});
+```
+
+---
+
+## PART 4: Update Chat Endpoint
+
+**In `server/index.js`, modify `/api/chat` route:**
+
+```javascript
+// At top
+const { getReflectionContext, clearReflectionFlag } = require('./reflectionTracking');
+
+// Inside /api/chat route, AFTER loading conversation history
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { userId, deviceId, messages } = req.body;
+    const effectiveUserId = userId || deviceId;
+    
+    // ... existing code to load conversation history, weather, etc. ...
+    
+    // Check for post-activity reflection context
+    let postActivityReflectionContext = null;
+    try {
+      postActivityReflectionContext = await getReflectionContext(supabaseServer, effectiveUserId);
+      
+      // Immediately clear flag so we only ask once
+      if (postActivityReflectionContext) {
+        await clearReflectionFlag(supabaseServer, effectiveUserId);
+      }
+    } catch (error) {
+      console.error('[REFLECTION] Error checking context:', error);
+    }
+    
+    // ... existing suggestion context, time awareness, etc. ...
+    
+    // Build system prompt with reflection context
+    const systemPrompt = buildTraceSystemPrompt({
+      // ... existing params ...
+      postActivityReflectionContext,
+    });
+    
+    // ... rest of chat logic ...
+  }
+});
+```
+
+---
+
+## PART 5: System Prompt Updates
+
+**Add to your `buildTraceSystemPrompt` function or system prompt template:**
+
+```javascript
+function buildTraceSystemPrompt({ 
+  // ... existing params ...
+  postActivityReflectionContext 
+}) {
+  let prompt = `
+You are TRACE, a compassionate AI companion for mental wellness.
+// ... your existing personality/behavior instructions ...
+`;
+
+  // ADD POST-ACTIVITY REFLECTION SECTION
+  if (postActivityReflectionContext) {
+    const { lastActivityName, minutesSinceCompletion } = postActivityReflectionContext;
+    const minutesRounded = Math.round(minutesSinceCompletion);
+    
+    prompt += `
+
+POST-ACTIVITY REFLECTION CONTEXT:
+The user just completed "${lastActivityName}" about ${minutesRounded} minute${minutesRounded === 1 ? '' : 's'} ago.
+
+Behavior for this response:
+1. Gently acknowledge they completed the activity. Use calm, neutral language:
+   - "I've saved this session with ${lastActivityName} for you."
+   
+2. Follow with at most ONE soft invitation to notice any shift. Choose based on activity type:
+   
+   For calming activities (Rising, Rest, Breathing, Ripple, Window):
+   - "If you feel like sharing, what feels even 1% different right now?"
+   - "Sometimes the shift is small — a tiny bit more air in your chest, or a little less noise in your mind. If you want to, you can put a few words to it."
+   
+   For focus activities (Maze, Echo, Walking):
+   - "If you want to capture it while it's fresh, what feels a bit clearer or more manageable now?"
+   
+   For grounding/body activities (Grounding, Rest):
+   - "No pressure to answer, but if anything feels even slightly softer or clearer, you can put a few words here."
+
+3. IMPORTANT BOUNDARIES:
+   - Do not ask multiple reflection questions
+   - If user is already talking about something else (work, relationships, crisis), prioritize THEIR topic
+   - Never force the conversation back to the activity
+   - Never imply the activity "should" have helped
+   - If user says nothing changed or feels worse → validate their experience, do not minimize
+
+Example good responses:
+   "I've saved this session with Rising for you. If you feel like sharing, what feels even 1% different right now?"
+   
+   "I've saved this session with Breathing for you. No pressure — but if anything feels slightly lighter or clearer, you can put a few words to it."
+
+Example of what NOT to do:
+   ❌ "Great job! How do you feel? Did it help? What changed?"
+   ❌ "You should feel calmer now. Tell me what shifted."
+`;
+  }
+
+  // ADD TRAUMA-INFORMED SAFETY GUARDRAILS
+  prompt += `
+
+TONE, SAFETY, AND TRAUMA-INFORMED BEHAVIOR:
+
+Core Principles:
+- Always assume the user may have a trauma history, even if they don't say so
+- Use gentle, non-directive language: "If you feel like…", "If it helps…", "You're allowed to…"
+- NEVER use: "You need to…", "You should…", "You must…"
+
+When user says nothing changed or feels worse:
+- Validate and normalize: "Thank you for being honest with me. Sometimes things don't shift right away, and that's okay."
+- Do NOT say: "Keep trying", "It takes time", "You'll feel better soon"
+
+When user says "I can't do this" / "It's too much":
+- De-escalate: "That sounds really heavy. We don't have to push anything right now. We can just name what's here."
+- Offer to slow down or shift topics
+- Never minimize: "It's not that bad", "You can do it"
+
+Crisis Mentions (self-harm, suicidal thoughts, feeling unsafe):
+- Acknowledge seriousness without panic: "I hear you. That sounds really painful."
+- Encourage real-world support: "Is there someone you trust who you could reach out to right now?"
+- If immediate danger: "If you're in immediate danger, please call emergency services or a crisis line."
+- Stay calm, non-judgmental, supportive
+- Do NOT promise: "TRACE will fix this", "Everything will be fine", "I understand exactly how you feel"
+- Instead: "I can't know exactly how this feels for you, but I'm listening."
+
+Validation Over Solutions:
+- Prioritize being WITH the user over fixing them
+- Reflection beats advice unless explicitly requested
+- "That sounds hard" beats "Have you tried…"
+`;
+
+  return prompt;
+}
+```
+
+---
+
+## PART 6: Testing Checklist
+
+**After implementation:**
+
+1. **Activity Completion Flow:**
+```bash
+# Complete an activity
+# Check database: awaiting_reflection should be TRUE
+SELECT * FROM activity_reflection_state WHERE user_id = 'test-user';
+
+# Expected:
+# { awaiting_reflection: true, last_activity_name: 'Rising', completed_at: <recent> }
+```
+
+2. **First Message After Activity:**
+```bash
+# User sends any message within 30 minutes
+# Expected response: "I've saved this session with Rising for you. If you feel like sharing..."
+# Check database: awaiting_reflection should now be FALSE
+```
+
+3. **Second Message (No Nag):**
+```bash
+# User sends another message immediately
+# Expected: Normal conversation, NO reflection prompt
+```
+
+4. **Outside Window:**
+```bash
+# Complete activity, wait 31+ minutes, send message
+# Expected: No reflection prompt (window expired)
+```
+
+5. **User Ignores Prompt:**
+```bash
+# User gets reflection invite, responds about something else
+# Expected: TRACE follows user's topic, doesn't force back to activity
+```
+
+6. **Negative Response:**
+```bash
+User: "Nothing changed, I still feel terrible"
+Expected: "Thank you for being honest with me. Sometimes things don't shift right away, and that's okay."
+```
+
+---
+
+## EXPECTED BEHAVIOR EXAMPLES
+
+**Scenario 1: Normal Flow**
+```
+[User completes Rising activity]
+[2 minutes later, opens chat]
+
+User: "hey"
+TRACE: "I've saved this session with Rising for you. If you feel like sharing, what feels even 1% different right now?"
+
+User: "I don't know, maybe a bit calmer"
+TRACE: "That 'bit calmer' is something. Even small shifts matter."
+```
+
+**Scenario 2: User Changes Topic**
+```
+User: "hey"
+TRACE: "I've saved this session with Breathing for you. If you feel like—"
+
+User: "I'm worried about work tomorrow"
+TRACE: "What's coming up at work that's weighing on you?"
+[Follows user's lead, doesn't circle back to breathing]
+```
+
+**Scenario 3: Nothing Helped**
+```
+User: "that didn't help at all"
+TRACE: "Thank you for being honest with me. Sometimes things don't shift right away, and that's okay. What's still feeling heavy?"
+```
+
+**Scenario 4: Crisis Mention**
+```
+User: "I don't want to be here anymore"
+TRACE: "I hear you. That sounds really painful. Is there someone you trust who you could reach out to right now? If you're in immediate danger, please call emergency services or a crisis line. I'm here to listen, but I want to make sure you have the support you need."
+```
+
+---
+
+## IMPLEMENTATION ORDER
+
+1. ✅ **Database schema** - Create table/columns first
+2. ✅ **Helper functions** - `reflectionTracking.js` module
+3. ✅ **Activity logging** - Add `markActivityCompletedForReflection` call
+4. ✅ **Chat endpoint** - Add `getReflectionContext` check
+5. ✅ **System prompt** - Add reflection + safety sections
+6. ✅ **Test all scenarios** - Use checklist above
+
+---
+
+**This creates a thoughtful, trauma-informed post-activity experience with zero UI changes. TRACE becomes a more respectful and emotionally intelligent companion.**
