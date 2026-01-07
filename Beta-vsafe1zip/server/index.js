@@ -2160,6 +2160,48 @@ Example format: ["Message one.", "Message two.", "Message three."]`
   }
 });
 
+// POST /api/mood-checkin - Record a mood check-in
+app.post('/api/mood-checkin', async (req, res) => {
+  try {
+    const { userId, deviceId, moodScore, moodLabel } = req.body;
+    
+    if (!supabaseServer) {
+      return res.status(503).json({ error: 'Database not available' });
+    }
+    
+    // Validate inputs
+    if (!moodScore || !moodLabel) {
+      return res.status(400).json({ error: 'Missing moodScore or moodLabel' });
+    }
+    
+    if (!userId && !deviceId) {
+      return res.status(400).json({ error: 'Missing userId or deviceId' });
+    }
+    
+    const { data, error } = await supabaseServer
+      .from('mood_checkins')
+      .insert({
+        user_id: userId || null,
+        device_id: deviceId || null,
+        mood_score: moodScore, // 1-5 scale
+        mood_label: moodLabel, // "calm", "anxious", etc.
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('[MOOD CHECKIN] Error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    
+    console.log('[MOOD CHECKIN] Recorded:', { userId: userId || deviceId, moodScore, moodLabel });
+    return res.json({ ok: true, id: data.id });
+  } catch (err) {
+    console.error('[MOOD CHECKIN] Error:', err);
+    return res.status(500).json({ error: 'Failed to record mood' });
+  }
+});
+
 app.post('/api/chat', async (req, res) => {
   try {
     const {
