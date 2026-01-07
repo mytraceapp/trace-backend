@@ -33,6 +33,7 @@ const {
   buildReturningGreetingPrompt,
   buildBreathingGuidancePrompt,
   buildCrisisSystemPrompt,
+  buildPatternsEnginePrompt,
 } = require('./traceSystemPrompt');
 const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
@@ -7069,52 +7070,101 @@ app.post('/api/patterns/insights', async (req, res) => {
       emotionalRhythmLabel = "Your emotional rhythm is still emerging — keep checking in.";
     }
     
-    // Generate Weekly Narrative using AI
+    // Generate AI-driven insights using Patterns Engine
     let weeklyNarrative = null;
+    let aiEnergyRhythmLabel = null;
+    let aiStressEchoesLabel = null;
+    let aiReliefLabel = null;
+    let aiCrossPatternHint = null;
+    let aiPredictiveHint = null;
+    let aiWeeklyMoodTrend = null;
+    
+    const sampleSize = activityLogs.length + journals.length;
+    const stillLearning = sampleSize < MIN_DATA_THRESHOLD;
+    
+    // Check if user is Studio tier for predictive hints
+    let isStudioUser = false;
+    if (userId) {
+      try {
+        const subscriptionTier = await getUserSubscriptionTier(supabaseServer, userId);
+        isStudioUser = subscriptionTier === 'studio';
+      } catch (tierErr) {
+        console.warn('📊 [PATTERNS] Failed to check subscription tier:', tierErr.message);
+      }
+    }
+    
     if (openai && (activityLogs.length > 0 || journals.length > 0)) {
       try {
-        // Build data summary for the AI
-        const narrativeDataParts = [];
-        if (activityLogs.length > 0) {
-          narrativeDataParts.push(`Activities completed: ${activityLogs.length}`);
-          // Find most used activity
-          const activityCounts = {};
-          for (const log of activityLogs) {
-            activityCounts[log.activity_type] = (activityCounts[log.activity_type] || 0) + 1;
-          }
-          const topActivity = Object.entries(activityCounts).sort((a, b) => b[1] - a[1])[0];
-          if (topActivity) {
-            narrativeDataParts.push(`Most used: ${topActivity[0]} (${topActivity[1]}x)`);
-          }
-        }
-        if (journals.length > 0) {
-          narrativeDataParts.push(`Journal entries: ${journals.length}`);
-        }
-        if (peakWindow.label) {
-          narrativeDataParts.push(`Peak window: ${peakWindow.label}`);
-        }
-        if (energyFlow.topDayIndex !== null) {
-          narrativeDataParts.push(`Energy peak day: ${WEEKDAY_NAMES[energyFlow.topDayIndex]}`);
-        }
+        // Build comprehensive input for Patterns Engine
+        const patternsInput = {
+          timezone: validatedTimezone,
+          crisisMode: false,
+          isStudioUser,
+          sampleSize,
+          journalSampleSize: journals.length,
+          activitySampleSize: activityLogs.length,
+          peakWindowStats: {
+            startHour: peakWindow.startHour,
+            endHour: peakWindow.endHour,
+            confidence: peakWindow.confidence === 'strong' ? 0.8 : 0.5,
+          },
+          energyFrequencyBuckets,
+          emotionalRhythmBuckets,
+          softEntryCount: softening.totalSoftEntries || 0,
+          stressEchoCount: stressEchoes.stressCount || 0,
+          mostHelpfulActivity: {
+            label: mostHelpfulActivity.label !== fallbackActivity.label ? mostHelpfulActivity.label : null,
+            count: mostHelpfulActivity.count,
+          },
+          weeklyMoodCounts: {
+            thisWeek: {
+              calm: weeklyMoodTrend?.calm?.thisWeek || 0,
+              stressed: weeklyMoodTrend?.stress?.thisWeek || 0,
+            },
+            lastWeek: {
+              calm: weeklyMoodTrend?.calm?.lastWeek || 0,
+              stressed: weeklyMoodTrend?.stress?.lastWeek || 0,
+            },
+          },
+          heaviestDayIndex,
+          lightestDayIndex,
+          stressTopDayIndex: stressEchoes.topDayIndex,
+          energyTopDayIndex: energyFlow.topDayIndex,
+        };
         
-        const narrativePrompt = `You are TRACE, a calm emotional companion.
-
-Based on this week's data:
-${narrativeDataParts.join('\n')}
-
-Write a 2-3 sentence poetic but grounded reflection on this person's week. Notice their rhythm, when they showed up for themselves, and what patterns emerged. No advice, no questions. Speak directly to them as "you". Keep it warm but not overly sentimental.`;
-
-        const narrativeCompletion = await openai.chat.completions.create({
+        const patternsEnginePrompt = buildPatternsEnginePrompt(patternsInput);
+        
+        const patternsCompletion = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
-          messages: [{ role: 'user', content: narrativePrompt }],
+          messages: [{ role: 'user', content: patternsEnginePrompt }],
           temperature: 0.8,
-          max_tokens: 150,
+          max_tokens: 600,
+          response_format: { type: 'json_object' },
         });
         
-        weeklyNarrative = narrativeCompletion.choices?.[0]?.message?.content?.trim() || null;
-        console.log('📊 [PATTERNS] Generated weeklyNarrative:', weeklyNarrative?.slice(0, 60) + '...');
+        const patternsResult = patternsCompletion.choices?.[0]?.message?.content;
+        if (patternsResult) {
+          try {
+            const parsed = JSON.parse(patternsResult);
+            weeklyNarrative = parsed.weeklyNarrative || null;
+            aiEnergyRhythmLabel = parsed.energyRhythmLabel || null;
+            aiStressEchoesLabel = parsed.stressEchoesLabel || null;
+            aiReliefLabel = parsed.reliefLabel || null;
+            aiCrossPatternHint = parsed.crossPatternHint || null;
+            aiPredictiveHint = parsed.predictiveHint || null;
+            aiWeeklyMoodTrend = parsed.weeklyMoodTrend || null;
+            console.log('📊 [PATTERNS ENGINE] Generated insights:', {
+              weeklyNarrative: weeklyNarrative?.slice(0, 50) + '...',
+              hasEnergyRhythm: !!aiEnergyRhythmLabel,
+              hasStressEchoes: !!aiStressEchoesLabel,
+              hasRelief: !!aiReliefLabel,
+            });
+          } catch (parseErr) {
+            console.warn('📊 [PATTERNS ENGINE] Failed to parse AI response:', parseErr.message);
+          }
+        }
       } catch (narrativeErr) {
-        console.warn('📊 [PATTERNS] Failed to generate weeklyNarrative:', narrativeErr.message);
+        console.warn('📊 [PATTERNS ENGINE] Failed to generate insights:', narrativeErr.message);
       }
     }
     
@@ -7145,7 +7195,22 @@ Write a 2-3 sentence poetic but grounded reflection on this person's week. Notic
       journalSampleSize: journals.length,
     });
     
-    // Build response object with calculated values
+    // Merge AI-generated mood trend labels with computed data
+    const finalWeeklyMoodTrend = weeklyMoodTrend;
+    if (aiWeeklyMoodTrend?.calm?.label) {
+      finalWeeklyMoodTrend.calm.label = aiWeeklyMoodTrend.calm.label;
+      if (aiWeeklyMoodTrend.calm.direction) {
+        finalWeeklyMoodTrend.calm.direction = aiWeeklyMoodTrend.calm.direction;
+      }
+    }
+    if (aiWeeklyMoodTrend?.stress?.label) {
+      finalWeeklyMoodTrend.stress.label = aiWeeklyMoodTrend.stress.label;
+      if (aiWeeklyMoodTrend.stress.direction) {
+        finalWeeklyMoodTrend.stress.direction = aiWeeklyMoodTrend.stress.direction;
+      }
+    }
+    
+    // Build response object with calculated values, preferring AI labels when available
     const calculatedResponse = {
       // Core pattern objects (nested) - kept for backward compatibility
       peakWindow,
@@ -7153,9 +7218,9 @@ Write a 2-3 sentence poetic but grounded reflection on this person's week. Notic
       stressEchoes,
       energyFlow,
       softening,
-      weeklyMoodTrend,
-      crossPatternHint,
-      predictiveHint,
+      weeklyMoodTrend: finalWeeklyMoodTrend,
+      crossPatternHint: aiCrossPatternHint || crossPatternHint,
+      predictiveHint: aiPredictiveHint || predictiveHint,
       
       // Last Hour analytics for Full Patterns page
       lastHourSummary,
@@ -7175,16 +7240,17 @@ Write a 2-3 sentence poetic but grounded reflection on this person's week. Notic
       
       // Weekly Rhythm Map (emotional weight)
       emotionalRhythmBuckets,
-      emotionalRhythmLabel,
+      emotionalRhythmLabel: aiEnergyRhythmLabel || emotionalRhythmLabel,
       
-      stressEchoesLabel: stressEchoes.label,
-      reliefLabel: softening.label,
+      // Prefer AI-generated labels, fall back to computed labels
+      stressEchoesLabel: aiStressEchoesLabel || stressEchoes.label,
+      reliefLabel: aiReliefLabel || softening.label,
       totalSoftEntries: softening.totalSoftEntries,
       mostHelpfulActivityLabel: mostHelpfulActivity.label,
       mostHelpfulActivityCount: mostHelpfulActivity.count,
-      energyRhythmLabel: emotionalRhythmLabel || energyFlow.label, // Use emotional rhythm if available
+      energyRhythmLabel: aiEnergyRhythmLabel || emotionalRhythmLabel || energyFlow.label,
       
-      // Weekly narrative for "Your Week" card
+      // Weekly narrative for "Your Week" card (AI-generated)
       weeklyNarrative,
       
       // Three new emotionally intelligent trend fields
@@ -7192,7 +7258,9 @@ Write a 2-3 sentence poetic but grounded reflection on this person's week. Notic
       emotionalLoadTrend,
       reliefSpotlight,
       
-      sampleSize: activityLogs.length,
+      // Data humility flags
+      stillLearning,
+      sampleSize,
       journalSampleSize: journals.length,
     };
     
