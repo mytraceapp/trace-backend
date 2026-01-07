@@ -252,15 +252,23 @@ MUSIC/PLAYLIST requests (WITH _playlist suffix):
 User verbs: "play", "listen to", "put on", "music for", "some music"
 → Use playlist name: ground_playlist, drift_playlist, rising_playlist
 
+EACH PLAYLIST IS DISTINCT - DO NOT DEFAULT TO rising_playlist:
+- "ground" / "Ground" / "grounding music" → name: "ground_playlist" (calming, anchoring)
+- "drift" / "Drift" / "drifting music" → name: "drift_playlist" (release, letting go)
+- "rising" / "Rising" / "rising music" → name: "rising_playlist" (activation, energy)
+
 Examples:
-- "Play some drift music" → name: "drift_playlist"
+- "Play some ground music" → name: "ground_playlist" (NOT rising_playlist)
+- "Put on drift" → name: "drift_playlist" (NOT rising_playlist)
 - "I want to listen to rising" → name: "rising_playlist"
-- "Put on ground music while I journal" → name: "ground_playlist"
+- "Can I have some grounding music?" → name: "ground_playlist"
 
 CRITICAL: Mirror the user's requested space exactly.
-- User asks for "drift" → respond about drift, not rising
-- User asks for "breathing" → respond about breathing, not maze
+- User asks for "ground playlist" → send "ground_playlist", NOT "rising_playlist"
+- User asks for "drift playlist" → send "drift_playlist", NOT "rising_playlist"
+- User asks for "drift" activity → send "drift", NOT "rising"
 - NEVER substitute one activity/playlist for another
+- NEVER default to rising or rising_playlist when user specified something else
 
 NAVIGATION FLOW:
 1. Offer phase (suggesting an idea): should_navigate: false
@@ -276,8 +284,14 @@ NAVIGATION FLOW:
    → activity_suggestion: { "name": "drift", "reason": "user requested directly", "should_navigate": true }
 
 Valid names:
-- Activities: breathing, maze, rising, drift, pearl_ripple, power_nap, bubble_pop, walking_reset, rain_window
+- Activities: breathing, maze, rising, drift, ripple, echo, grounding, rest (alias: power_nap), walking, window (aliases: rain, rain_window)
 - Playlists: ground_playlist, drift_playlist, rising_playlist
+
+Activity aliases (accept these as equivalent):
+- "power nap" / "power_nap" → name: "rest"
+- "rain window" / "rain_window" / "rain" → name: "window"
+- "pearl ripple" / "pearl_ripple" → name: "ripple"
+- "walking reset" → name: "walking"
 
 RESPONSE FORMAT:
 You must respond in valid JSON with this structure:
