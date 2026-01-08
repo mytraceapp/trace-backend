@@ -152,23 +152,27 @@ async function shouldOfferPatternConsent(pool, userId, settings, stats, isCrisis
 
 /**
  * Check if user is revoking consent (keyword-based for safety)
+ * Uses regex patterns to handle word variations and filler words
  */
 function isRevokingPatternConsent(text) {
   if (!text) return false;
   const lower = text.toLowerCase();
   
   const revokePatterns = [
-    'stop reflecting patterns',
-    'stop reflecting my patterns',
-    'stop analyzing my patterns',
-    'stop noticing patterns',
-    'stop pattern reflections',
-    'no more patterns',
-    'don\'t reflect patterns',
-    'don\'t analyze my patterns',
+    /stop\s+(?:\w+\s+)?reflect(?:ing)?\s+(?:my\s+)?patterns/,
+    /stop\s+(?:\w+\s+)?analyz(?:ing|e)\s+(?:my\s+)?patterns/,
+    /stop\s+(?:\w+\s+)?notic(?:ing|e)\s+(?:my\s+)?patterns/,
+    /stop\s+(?:\w+\s+)?track(?:ing)?\s+(?:my\s+)?patterns/,
+    /stop\s+pattern\s+reflections?/,
+    /no\s+more\s+patterns?/,
+    /don'?t\s+(?:\w+\s+)?reflect\s+(?:my\s+)?patterns/,
+    /don'?t\s+(?:\w+\s+)?analyz(?:e|ing)\s+(?:my\s+)?patterns/,
+    /don'?t\s+(?:\w+\s+)?notice\s+(?:my\s+)?patterns/,
+    /disable\s+pattern/,
+    /turn\s+off\s+pattern/,
   ];
   
-  return revokePatterns.some(phrase => lower.includes(phrase));
+  return revokePatterns.some(pattern => pattern.test(lower));
 }
 
 /**
