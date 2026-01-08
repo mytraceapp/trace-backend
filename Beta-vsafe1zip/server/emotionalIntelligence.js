@@ -56,31 +56,29 @@ async function getMoodTrajectory(pool, effectiveUserId) {
 }
 
 /**
- * Get absence awareness context using Supabase
- * Returns object with absence info if user has been away
+ * Get absence awareness context using local pool
+ * Uses mood_checkins and activity_logs to determine last interaction
  */
-async function getAbsenceContext(supabase, userId) {
+async function getAbsenceContext(pool, queryId) {
   try {
-    if (!supabase || !userId) return null;
+    if (!pool || !queryId) return null;
     
-    const { data, error } = await supabase
-      .from('conversation_messages')
-      .select('created_at')
-      .eq('user_id', userId)
-      .eq('role', 'user')
-      .order('created_at', { ascending: false })
-      .limit(1);
+    // Query both mood_checkins and activity_logs to find last interaction
+    const result = await pool.query(`
+      SELECT last_time FROM (
+        SELECT created_at AS last_time FROM mood_checkins WHERE user_id = $1 OR device_id = $1
+        UNION ALL
+        SELECT completed_at AS last_time FROM activity_logs WHERE user_id = $1 OR device_id = $1
+      ) combined
+      ORDER BY last_time DESC
+      LIMIT 1
+    `, [queryId]);
     
-    if (error) {
-      console.error('[ABSENCE CONTEXT] Supabase error:', error.message);
-      return null;
-    }
-    
-    if (!data || data.length === 0) {
+    if (result.rows.length === 0) {
       return { isFirstInteraction: true, daysSinceLastInteraction: null };
     }
     
-    const lastInteraction = new Date(data[0].created_at);
+    const lastInteraction = new Date(result.rows[0].last_time);
     const hoursSince = (Date.now() - lastInteraction.getTime()) / (1000 * 60 * 60);
     const daysSince = Math.floor(hoursSince / 24);
     
@@ -156,17 +154,27 @@ async function getCheckbackTopics(supabase, userId) {
 /**
  * Build emotional intelligence context for system prompt
  */
-async function buildEmotionalIntelligenceContext({ pool, supabase, userId, effectiveUserId, isCrisisMode }) {
+async function buildEmotionalIntelligenceContext({ pool, supabase, userId, deviceId, effectiveUserId, isCrisisMode }) {
   if (isCrisisMode) {
     return null;
   }
   
   try {
+    // Use userId for Supabase queries, deviceId for pool queries
+    const supabaseQueryId = userId || effectiveUserId;
+    const poolQueryId = deviceId || userId || effectiveUserId;
+    
     const [trajectory, absence, checkbacks] = await Promise.all([
-      getMoodTrajectory(pool, effectiveUserId),
-      getAbsenceContext(supabase, userId),
-      getCheckbackTopics(supabase, userId)
+      getMoodTrajectory(pool, poolQueryId),
+      getAbsenceContext(pool, poolQueryId),
+      getCheckbackTopics(supabase, supabaseQueryId)
     ]);
+    
+    console.log('[EMOTIONAL INTELLIGENCE] Context:', {
+      trajectory,
+      isReturning: absence?.isReturning || false,
+      checkbacks: checkbacks.length
+    });
     
     const parts = [];
     

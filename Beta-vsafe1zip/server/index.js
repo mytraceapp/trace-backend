@@ -2919,8 +2919,9 @@ CRISIS OVERRIDE:
     try {
       const emotionalContext = await buildEmotionalIntelligenceContext({
         pool,
-        supabase,
+        supabase: supabaseServer,
         userId: userId || null,
+        deviceId: deviceId || null,
         effectiveUserId,
         isCrisisMode
       });
