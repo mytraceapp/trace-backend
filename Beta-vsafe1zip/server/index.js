@@ -60,6 +60,20 @@ const { buildEmotionalIntelligenceContext } = require('./emotionalIntelligence')
 const { logPatternFallback, logEmotionalIntelligenceFallback, TRIGGERS } = require('./patternAuditLog');
 
 /**
+ * Feature Flags - Panic switches for smart features
+ * Set to 'false' in environment to disable without code changes
+ */
+const FEATURE_FLAGS = {
+  PATTERN_REFLECTIONS_ENABLED: process.env.PATTERN_REFLECTIONS_ENABLED !== 'false',
+  EMOTIONAL_INTELLIGENCE_ENABLED: process.env.EMOTIONAL_INTELLIGENCE_ENABLED !== 'false',
+  CONSENT_SYSTEM_ENABLED: process.env.CONSENT_SYSTEM_ENABLED !== 'false',
+  ACTIVITY_SUGGESTIONS_ENABLED: process.env.ACTIVITY_SUGGESTIONS_ENABLED !== 'false',
+  LONG_TERM_MEMORY_ENABLED: process.env.LONG_TERM_MEMORY_ENABLED !== 'false',
+};
+
+console.log('[FEATURE FLAGS]', FEATURE_FLAGS);
+
+/**
  * System Confidence Level Calculator
  * Tracks how reliable our "smart" features are for this request
  * Passed to AI so it can adapt its tone when internal context fails
@@ -2922,7 +2936,9 @@ Example of what NOT to do:
     // Pattern Reflections consent system (opt-in, revocable, crisis-safe)
     let patternContext = null;
     const patternUserId = userId || deviceId;
-    if (pool && patternUserId) {
+    if (!FEATURE_FLAGS.PATTERN_REFLECTIONS_ENABLED) {
+      console.log('[FEATURE FLAG] Pattern reflections disabled');
+    } else if (pool && patternUserId) {
       try {
         const lastUserMessage = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
         
@@ -3003,7 +3019,9 @@ CRISIS OVERRIDE:
     
     // ---- EMOTIONAL INTELLIGENCE CONTEXT ----
     // Mood trajectory, absence awareness, gentle check-backs
-    try {
+    if (!FEATURE_FLAGS.EMOTIONAL_INTELLIGENCE_ENABLED) {
+      console.log('[FEATURE FLAG] Emotional intelligence disabled');
+    } else try {
       const emotionalContext = await buildEmotionalIntelligenceContext({
         pool,
         supabase: supabaseServer,
