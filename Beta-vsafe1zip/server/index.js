@@ -3161,11 +3161,13 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
     
     const messageText = (parsed.message || '').trim();
     if (!messageText) {
+      // Use only safe fallbacks that work in ANY context
+      // Never use responses that assume a specific user action (like asking a question)
       const fallbacks = [
-        "I'm here with you. What's on your mind?",
+        "I'm here with you.",
         "mm, take your time. I'm listening.",
-        "I'm here. No pressure to talk, but I'm listening if you'd like to.",
-        "that's a meaningful question. I think the answer is different for everyone, but I'm here to help you find yours.",
+        "I'm here. No pressure.",
+        "I hear you.",
       ];
       parsed.message = fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
