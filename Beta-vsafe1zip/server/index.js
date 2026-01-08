@@ -2870,6 +2870,15 @@ Example of what NOT to do:
           const patternPrompt = `
 PATTERN REFLECTIONS (CONSENT-BASED):
 
+DEFINITION: "Pattern reflections" = gentle observations about longer-term rhythms, like:
+- "Mondays often feel heavier"
+- "Evenings are when you tend to reflect"
+- "Breathing exercises seem to be a go-to for you"
+These are SEPARATE from:
+- One-time observations ("You seem tired today") ✅ Always allowed without consent
+- Activity suggestions ("Would you like to try breathing?") ✅ Always allowed
+- The Patterns tab UI (that's a different feature)
+
 Context:
 - pattern_reflection_consent: "${patternContext.consent}"
 - canOfferPatternConsent: ${patternContext.canOfferConsent}
