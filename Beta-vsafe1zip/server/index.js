@@ -5537,6 +5537,9 @@ app.post('/api/activity/log', async (req, res) => {
       return res.json({ success: true, activityId: null, note: 'No database configured' });
     }
     
+    // Convert durationSeconds to integer (database column is integer type)
+    const durationInt = durationSeconds != null ? Math.round(durationSeconds) : null;
+    
     const result = await pool.query(
       `INSERT INTO activity_logs (user_id, device_id, activity_type, duration_seconds, completed_at)
        VALUES ($1, $2, $3, $4, $5)
@@ -5545,7 +5548,7 @@ app.post('/api/activity/log', async (req, res) => {
         userId || null, 
         deviceId || null, 
         activityType, 
-        durationSeconds || null, 
+        durationInt, 
         completedAt ? new Date(completedAt) : new Date()
       ]
     );
