@@ -8,6 +8,7 @@
  */
 
 const auditLog = require('./patternAuditLog');
+const { TRIGGERS } = auditLog;
 
 const TRAJECTORY_LOOKBACK_DAYS = 14;
 const TRAJECTORY_MIN_CHECKINS = 3;
@@ -157,11 +158,11 @@ async function getCheckbackTopics(supabase, userId) {
  * Build emotional intelligence context for system prompt
  * GUARDRAIL: This function NEVER throws - always returns null on error (graceful degradation)
  */
-async function buildEmotionalIntelligenceContext({ pool, supabase, userId, deviceId, effectiveUserId, isCrisisMode }) {
+async function buildEmotionalIntelligenceContext({ pool, supabase, userId, deviceId, effectiveUserId, isCrisisMode, trigger = TRIGGERS.USER_MESSAGE }) {
   const queryUserId = userId || effectiveUserId;
   
   if (isCrisisMode) {
-    auditLog.logEmotionalIntelligenceBlocked(queryUserId, 'crisis_mode');
+    auditLog.logEmotionalIntelligenceBlocked(queryUserId, 'crisis_mode', trigger);
     return null;
   }
   
@@ -195,11 +196,25 @@ async function buildEmotionalIntelligenceContext({ pool, supabase, userId, devic
       checkbacks = [];
     }
     
+    // Check if all features returned nothing meaningful
+    const hasTrajectory = trajectory !== null;
+    const hasAbsence = absence?.isReturning || absence?.isFirstInteraction;
+    const hasCheckbacks = checkbacks.length > 0;
+    
+    if (!hasTrajectory && !hasAbsence && !hasCheckbacks) {
+      auditLog.logEmotionalIntelligenceSkipped(queryUserId, 'subthreshold', {
+        trajectoryNull: !hasTrajectory,
+        absenceNull: !hasAbsence,
+        checkbacksEmpty: !hasCheckbacks
+      }, trigger);
+      return null;
+    }
+    
     auditLog.logEmotionalIntelligenceUsed(queryUserId, {
       trajectory,
       isReturning: absence?.isReturning || false,
       checkbackCount: checkbacks.length
-    });
+    }, trigger);
     
     const parts = [];
     

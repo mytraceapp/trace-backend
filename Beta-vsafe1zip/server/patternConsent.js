@@ -13,6 +13,7 @@
  */
 
 const auditLog = require('./patternAuditLog');
+const { TRIGGERS } = auditLog;
 
 const PATTERN_MIN_DAYS_SINCE_FIRST_USE = 14;
 const PATTERN_MIN_ACTIVITY_COUNT = 6;
@@ -304,7 +305,7 @@ async function computePatternSummary(pool, userId) {
  * Get safe pattern context for the model
  * GUARDRAIL: This function NEVER throws - always returns safe fallback
  */
-async function getSafePatternContext(pool, userId, settings, stats, isCrisisMode) {
+async function getSafePatternContext(pool, userId, settings, stats, isCrisisMode, trigger = TRIGGERS.USER_MESSAGE) {
   const SAFE_FALLBACK = {
     consent: 'undecided',
     canOfferConsent: false,
@@ -313,11 +314,12 @@ async function getSafePatternContext(pool, userId, settings, stats, isCrisisMode
   
   try {
     if (!pool || !userId) {
+      auditLog.logPatternFeaturesSkipped(userId, 'missing_pool_or_userId', trigger);
       return SAFE_FALLBACK;
     }
     
     if (isCrisisMode) {
-      auditLog.logPatternReflectionBlocked(userId, 'crisis_mode');
+      auditLog.logPatternReflectionBlocked(userId, 'crisis_mode', trigger);
       return {
         consent: settings?.pattern_reflection_consent || 'undecided',
         canOfferConsent: false,
@@ -349,7 +351,17 @@ async function getSafePatternContext(pool, userId, settings, stats, isCrisisMode
     try {
       canOfferConsent = await shouldOfferPatternConsent(pool, userId, settings, stats, false);
       if (canOfferConsent) {
-        auditLog.logConsentOffered(userId, stats);
+        auditLog.logConsentOffered(userId, stats, trigger);
+      } else if (consent === 'undecided') {
+        let skipReason = 'unknown';
+        if (stats.daysSinceFirstUse < PATTERN_MIN_DAYS_SINCE_FIRST_USE) {
+          skipReason = 'insufficient_days';
+        } else if (stats.activityCount < PATTERN_MIN_ACTIVITY_COUNT) {
+          skipReason = 'insufficient_activities';
+        } else if (stats.totalMessages < PATTERN_MIN_MESSAGES_FOR_TRUST) {
+          skipReason = 'insufficient_messages';
+        }
+        auditLog.logConsentCheckSkipped(userId, skipReason, trigger);
       }
     } catch (offerErr) {
       auditLog.logPatternFallback(userId, offerErr, 'shouldOfferPatternConsent');
@@ -363,14 +375,18 @@ async function getSafePatternContext(pool, userId, settings, stats, isCrisisMode
       try {
         patternSummary = await computePatternSummary(pool, userId);
         if (patternSummary && patternSummary.notes && patternSummary.notes.length > 0) {
-          auditLog.logPatternReflectionIncluded(userId, patternSummary);
+          auditLog.logPatternReflectionIncluded(userId, patternSummary, trigger);
+        } else {
+          auditLog.logPatternFeaturesSkipped(userId, 'no_pattern_data', trigger);
         }
       } catch (summaryErr) {
         auditLog.logPatternFallback(userId, summaryErr, 'computePatternSummary');
         patternSummary = null;
       }
-    } else if (consent !== 'yes' && consent !== 'undecided') {
-      auditLog.logPatternReflectionBlocked(userId, 'consent_denied');
+    } else if (consent === 'no') {
+      auditLog.logPatternReflectionBlocked(userId, 'consent_denied', trigger);
+    } else if (consent === 'undecided') {
+      auditLog.logPatternFeaturesSkipped(userId, 'consent_undecided', trigger);
     }
     
     return {

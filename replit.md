@@ -90,7 +90,12 @@ Preferred communication style: Simple, everyday language.
   - `EMOTIONAL_INTELLIGENCE_BLOCKED`: When EI is blocked (crisis mode)
   - `PATTERN_FALLBACK`: When pattern system gracefully degrades due to error
   - `EMOTIONAL_INTELLIGENCE_FALLBACK`: When EI system gracefully degrades due to error
+  - `PATTERN_FEATURES_SKIPPED`: When patterns intentionally not used (no data, consent undecided)
+  - `EI_NOT_USED`: When EI intentionally skipped (subthreshold data)
+  - `CONSENT_CHECK_SKIPPED`: When consent check skipped (insufficient days/activities/messages)
 - All logs include truncated userId (8 chars) for privacy while enabling debugging
+- **Policy Versions**: Each log includes `policyVersion` (e.g., `pattern_v3.1`, `ei_v1.4`, `consent_v2.0`) for regression tracking
+- **Trigger Sources**: Each log includes `trigger` field (e.g., `user_message`, `post_activity`, `daily_check_in`) for flow debugging
 
 **Bug Guardrails (Graceful Degradation)**
 - Pattern and Emotional Intelligence systems are wrapped in multiple layers of try-catch
