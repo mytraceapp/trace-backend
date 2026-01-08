@@ -1,0 +1,196 @@
+Context
+You’re editing my TRACE backend in Replit.
+	•	Main server file: server/index.js (Express + OpenAI + Supabase)
+	•	Existing endpoints:
+	•	POST /api/chat — main chat
+	•	POST /api/greeting
+	•	/api/analyze-emotion or an equivalent emotion/crisis helper
+
+I want a simple, safe “Pattern Reflections” feature:
+	•	It only controls verbal pattern comments in chat, like:
+“Mondays often feel heavier for you.” / “You usually come here in the evenings.”
+	•	It should NOT change:
+	•	the Patterns tab UI
+	•	existing time-of-day / activity logic
+	•	It must be:
+	•	opt-in (verbal consent)
+	•	revocable at any time
+	•	disabled in crisis/high distress
+	•	high-level only (no timestamps, no creepy specifics)
+
+⸻
+
+1. DB fields
+
+In the profiles table (or equivalent), ensure we have:
+	•	pattern_reflection_consent text — 'yes' | 'no' | 'undecided' (default 'undecided')
+	•	pattern_reflection_last_prompt_at timestamptz, nullable
+	•	pattern_reflection_enabled_at timestamptz, nullable
+
+Add them if missing. Reuse them if they already exist.
+
+⸻
+
+2. Basic thresholds & crisis gate
+
+In a helper file (e.g. server/patterns/consent.js), add:
+const PATTERN_MIN_DAYS_SINCE_FIRST_USE = 14;   // simple, March-safe
+const PATTERN_MIN_ACTIVITY_COUNT = 6;          // across last ~2–3 months
+const PATTERN_MIN_MESSAGES_FOR_TRUST = 25;     // enough convo history
+const PATTERN_COOLDOWN_DAYS_AFTER_NO = 60;     // don’t nag after a no
+
+Implement:
+async function getUserPatternStats(userId) {
+  // TODO: use real Supabase queries.
+  const firstActivityDate = await getFirstActivityDate(userId); // earliest log/msg
+  const daysSinceFirstUse = firstActivityDate
+    ? Math.floor((Date.now() - new Date(firstActivityDate).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  const activityCount = await getActivityCountLastNMonths(userId, 3);
+  const totalMessages = await getTotalMessageCount(userId);
+
+  return { daysSinceFirstUse, activityCount, totalMessages };
+}
+Crisis / distress gate — reuse the existing emotion analysis:
+async function isUserInCrisisOrHighDistress(userId, recentMessages) {
+  const analysis = await analyzeEmotionForChatWindow({ userId, messages: recentMessages });
+  if (!analysis) return false;
+  const { crisis_level, is_distressed } = analysis;
+  return crisis_level > 0.6 || is_distressed === true;
+}
+Decide if we’re allowed to even ask about patterns:
+async function shouldOfferPatternConsent({ userId, profile, stats, recentMessages }) {
+  if (profile.pattern_reflection_consent === 'no') {
+    if (!profile.pattern_reflection_last_prompt_at) return false;
+    const lastAsk = new Date(profile.pattern_reflection_last_prompt_at);
+    const diffDays = (Date.now() - lastAsk.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays < PATTERN_COOLDOWN_DAYS_AFTER_NO) return false;
+  }
+
+  if (profile.pattern_reflection_consent === 'yes') return false;
+
+  if (stats.daysSinceFirstUse < PATTERN_MIN_DAYS_SINCE_FIRST_USE) return false;
+  if (stats.activityCount < PATTERN_MIN_ACTIVITY_COUNT) return false;
+  if (stats.totalMessages < PATTERN_MIN_MESSAGES_FOR_TRUST) return false;
+
+  const inCrisis = await isUserInCrisisOrHighDistress(userId, recentMessages);
+  if (inCrisis) return false;
+
+  return true;
+}
+
+3. Consent classification via OpenAI
+
+Add a small helper to classify the user’s reply as YES / NO / UNCLEAR:
+async function classifyPatternConsentResponse(openaiClient, userMessageText) {
+  const prompt = `
+The user was asked: "Would you like me to occasionally reflect gentle patterns back to you, like when certain days or times feel heavier or lighter?"
+Their response was:
+"${userMessageText}"
+
+Classify their response as one of:
+- YES
+- NO
+- UNCLEAR
+
+Only answer with exactly one of: YES, NO, UNCLEAR.
+  `.trim();
+
+  const completion = await openaiClient.chat.completions.create({
+    model: 'gpt-4.1-mini',
+    messages: [
+      { role: 'system', content: 'You classify consent responses very conservatively.' },
+      { role: 'user', content: prompt },
+    ],
+    max_tokens: 3,
+    temperature: 0,
+  });
+
+  const raw = completion.choices[0]?.message?.content?.trim().toUpperCase();
+  if (raw === 'YES') return 'yes';
+  if (raw === 'NO') return 'no';
+  return 'unclear';
+}
+
+In /api/chat:
+	•	When you send a message that asks for consent, tag it: metadata.intent = 'ask_pattern_consent'.
+	•	On the next user reply, if the last assistant message had that intent, call classifyPatternConsentResponse and update the profile:
+	•	'yes' → pattern_reflection_consent = 'yes', set pattern_reflection_enabled_at
+	•	'no' → pattern_reflection_consent = 'no', set pattern_reflection_last_prompt_at
+
+Also add a hard opt-out helper:
+function isRevokingPatternConsent(text) {
+  const lower = text.toLowerCase();
+  return [
+    'stop reflecting patterns',
+    'stop reflecting my patterns',
+    'stop analyzing my patterns',
+  ].some(phrase => lower.includes(phrase));
+}
+If that returns true, immediately set pattern_reflection_consent = 'no' and don’t include pattern context for that response.
+
+⸻
+
+4. High-level pattern context only
+
+Only compute pattern summary if consent is yes and thresholds are met:
+async function getSafePatternContextForModel({ userId, profile, stats }) {
+  if (profile.pattern_reflection_consent !== 'yes') return null;
+  if (stats.daysSinceFirstUse < PATTERN_MIN_DAYS_SINCE_FIRST_USE) return null;
+  if (stats.activityCount < PATTERN_MIN_ACTIVITY_COUNT) return null;
+
+  const summary = await computeHighLevelPatternSummary(userId);
+  return summary; // e.g. { common_heavy_days: ["Monday"], most_used_activity: "Breathing", ... }
+}
+Keep it simple. No creepy specifics like exact timestamps or personal details.
+Only soft aggregates like:
+	•	common heavy days (e.g. “Mondays”)
+	•	typical reflection times (e.g. “most evenings”)
+	•	most-used activities
+
+⸻
+
+5. System prompt text for chat
+
+Append this block to the existing system prompt for /api/chat:
+You are TRACE, a reflective, trauma-informed companion.
+
+You receive the following JSON context:
+- pattern_reflection_consent: "yes" | "no" | "undecided"
+- canOfferPatternConsent: boolean
+- pattern_summary: optional high-level pattern info (only when consent is "yes" and thresholds are met)
+
+"Pattern reflections" here means ONLY gentle, zoomed-out comments on rhythms over time, such as:
+- "Mondays often feel heavier for you."
+- "Evenings seem to be when you come back to reflect."
+
+Rules:
+- If consent is "no": do NOT bring up long-term patterns unless the user explicitly asks.
+- If consent is "undecided" and canOfferPatternConsent is true: you may gently ask ONCE if they would like occasional pattern reflections. Make it easy and safe to say no.
+- If consent is "yes": you may occasionally weave in soft pattern reflections, but:
+  - Never mention exact dates, timestamps, or specific personal events.
+  - Use tentative language: "It seems like...", "Often it looks like...", "It feels as though..."
+  - If the user ever asks you to stop reflecting patterns, thank them and stop.
+
+Trauma-informed safety:
+- When the user is in visible distress or crisis, do NOT introduce new pattern reflections or ask for consent. Stay with the present moment.
+6. Testing requirements (VERY IMPORTANT)
+
+Please make sure the implementation passes these tests:
+	1.	New user (0 activities)
+	•	No consent question. No pattern reflections in chat.
+	2.	User with ~15 days of use and ≥7 activities
+	•	shouldOfferPatternConsent returns true at some point.
+	•	TRACE asks once, gently.
+	3.	User answers “yes please”
+	•	pattern_reflection_consent saved as 'yes'.
+	•	Future model calls receive pattern_summary (when thresholds met).
+	4.	User later says “actually no” / “stop reflecting patterns”
+	•	Consent set to 'no'.
+	•	No further pattern reflections appear unless they explicitly re-opt in in the future.
+	5.	User in crisis / high distress
+	•	isUserInCrisisOrHighDistress returns true.
+	•	No consent question and no pattern comments in that window.
+
+Do not add any new UI toggles. This whole feature must live in the backend + wording only.

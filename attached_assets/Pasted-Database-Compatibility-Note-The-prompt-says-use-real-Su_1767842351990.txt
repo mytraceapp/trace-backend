@@ -1,0 +1,126 @@
+Database Compatibility Note
+
+The prompt says "use real Supabase queries" but you're on PostgreSQL with pool.query().
+
+Add this section:
+
+
+## DATABASE COMPATIBILITYWe use **PostgreSQL with `pool.query()`**, not Supabase client SDK.Convert all database operations to parameterized queries:```javascript// ✅ Correct:await pool.query(  'UPDATE profiles SET pattern_reflection_consent = $1 WHERE user_id = $2',  ['yes', userId]);// ❌ Wrong (don't use):await supabase.from('profiles').update({...}).eq('user_id', userId);
+
+## DATABASE COMPATIBILITY
+
+We use **PostgreSQL with `pool.query()`**, not Supabase client SDK.
+
+Convert all database operations to parameterized queries:
+
+```javascript
+// ✅ Correct:
+await pool.query(
+  'UPDATE profiles SET pattern_reflection_consent = $1 WHERE user_id = $2',
+  ['yes', userId]
+);
+
+// ❌ Wrong (don't use):
+await supabase.from('profiles').update({...}).eq('user_id', userId);
+
+---
+
+**2. Message Metadata Schema**
+
+You reference `metadata.intent = 'ask_pattern_consent'` but don't specify how to store it.
+
+**Add this section:**
+
+```markdown
+## MESSAGE METADATA TRACKING
+
+Add a `metadata` JSONB column to your messages table if it doesn't exist:
+
+```sql
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}';
+When TRACE asks about pattern consent, store the intent:
+
+
+// When saving the assistant message to DB:await pool.query(  'INSERT INTO messages (user_id, role, content, metadata) VALUES ($1, $2, $3, $4)',  [userId, 'assistant', messageContent, JSON.stringify({ intent: 'ask_pattern_consent' })]);
+
+// When saving the assistant message to DB:
+await pool.query(
+  'INSERT INTO messages (user_id, role, content, metadata) VALUES ($1, $2, $3, $4)',
+  [userId, 'assistant', messageContent, JSON.stringify({ intent: 'ask_pattern_consent' })]
+);
+Then detect it on the next user reply:
+
+
+const lastAssistantMessage = await pool.query(  'SELECT metadata FROM messages WHERE user_id = $1 AND role = \'assistant\' ORDER BY created_at DESC LIMIT 1',  [userId]);if (lastAssistantMessage.rows[0]?.metadata?.intent === 'ask_pattern_consent') {  // Classify the user's response}
+
+const lastAssistantMessage = await pool.query(
+  'SELECT metadata FROM messages WHERE user_id = $1 AND role = \'assistant\' ORDER BY created_at DESC LIMIT 1',
+  [userId]
+);
+
+if (lastAssistantMessage.rows[0]?.metadata?.intent === 'ask_pattern_consent') {
+  // Classify the user's response
+}
+---
+
+**3. Pattern Summary Implementation Guidance**
+
+Still vague on what `computeHighLevelPatternSummary()` should actually return.
+
+**Add this section:**
+
+```markdown
+## PATTERN SUMMARY IMPLEMENTATION
+
+For `computeHighLevelPatternSummary(userId)`, query existing tables and return **only aggregated, soft observations**:
+
+```javascript
+async function computeHighLevelPatternSummary(userId) {
+  // 1. Most common heavy days (from mood_checkins where mood_rating < 3)
+  const heavyDaysResult = await pool.query(`
+    SELECT EXTRACT(DOW FROM created_at) as day_of_week, COUNT(*) as count
+    FROM mood_checkins
+    WHERE user_id = $1 AND mood_rating < 3 AND created_at > NOW() - INTERVAL '60 days'
+    GROUP BY day_of_week
+    ORDER BY count DESC
+    LIMIT 2
+  `, [userId]);
+  
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const commonHeavyDays = heavyDaysResult.rows.map(r => dayNames[r.day_of_week]);
+
+  // 2. Typical reflection time (morning/afternoon/evening)
+  const timeResult = await pool.query(`
+    SELECT EXTRACT(HOUR FROM created_at) as hour, COUNT(*) as count
+    FROM activity_logs
+    WHERE user_id = $1 AND created_at > NOW() - INTERVAL '60 days'
+    GROUP BY hour
+    ORDER BY count DESC
+    LIMIT 1
+  `, [userId]);
+  
+  const topHour = timeResult.rows[0]?.hour;
+  const timeOfDay = topHour < 12 ? 'morning' : topHour < 18 ? 'afternoon' : 'evening';
+
+  // 3. Most-used activity
+  const activityResult = await pool.query(`
+    SELECT activity_type, COUNT(*) as count
+    FROM activity_logs
+    WHERE user_id = $1 AND created_at > NOW() - INTERVAL '60 days'
+    GROUP BY activity_type
+    ORDER BY count DESC
+    LIMIT 1
+  `, [userId]);
+  
+  const mostUsedActivity = activityResult.rows[0]?.activity_type;
+
+  return {
+    common_heavy_days: commonHeavyDays,
+    preferred_time: timeOfDay,
+    most_used_activity: mostUsedActivity,
+    notes: [
+      commonHeavyDays.length > 0 ? `${commonHeavyDays.join(' and ')} often feel heavier` : null,
+      timeOfDay ? `Usually engages during ${timeOfDay}` : null,
+    ].filter(Boolean)
+  };
+}
