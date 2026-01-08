@@ -56,6 +56,7 @@ const {
   getUserSettings,
   getUserPatternStats
 } = require('./patternConsent');
+const { buildEmotionalIntelligenceContext } = require('./emotionalIntelligence');
 
 // ---- WEATHER HELPER ----
 // TRACE-style weather summary using AccuWeather API
@@ -2911,6 +2912,25 @@ CRISIS OVERRIDE:
       } catch (patternErr) {
         console.warn('[PATTERN] Pattern context failed:', patternErr.message);
       }
+    }
+    
+    // ---- EMOTIONAL INTELLIGENCE CONTEXT ----
+    // Mood trajectory, absence awareness, gentle check-backs
+    try {
+      const emotionalContext = await buildEmotionalIntelligenceContext({
+        pool,
+        supabase,
+        userId: userId || null,
+        effectiveUserId,
+        isCrisisMode
+      });
+      
+      if (emotionalContext) {
+        contextParts.push(emotionalContext);
+        console.log('[EMOTIONAL INTELLIGENCE] Added context to prompt');
+      }
+    } catch (eiErr) {
+      console.warn('[EMOTIONAL INTELLIGENCE] Failed to build context:', eiErr.message);
     }
     
     const fullContext = contextParts.filter(Boolean).join('\n\n');
