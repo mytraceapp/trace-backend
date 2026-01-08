@@ -183,9 +183,46 @@ If that sounds right, we can visit whenever you're ready.`,
 };
 
 function pickMusicSpace(context = {}) {
+  // First: Check if user explicitly requested a specific space by name
+  if (context.explicitSpace) {
+    return context.explicitSpace;
+  }
+  
+  // Second: Infer from emotional keywords
   if (context.grief || context.sad || context.heavy) return 'drift';
   if (context.panicky || context.anxious || context.overwhelmed) return 'ground';
   return 'rising';
+}
+
+// Detect if user explicitly asked for a specific music space/activity
+function detectExplicitMusicSpace(messageText = '') {
+  const txt = messageText.toLowerCase();
+  
+  // Check for explicit "take me to X" or "go to X" patterns first
+  const takePatterns = [
+    /take\s+me\s+to\s+(drift|ground|rising)/i,
+    /go\s+to\s+(drift|ground|rising)/i,
+    /open\s+(drift|ground|rising)/i,
+    /play\s+(drift|ground|rising)/i,
+    /start\s+(drift|ground|rising)/i,
+  ];
+  
+  for (const pattern of takePatterns) {
+    const match = txt.match(pattern);
+    if (match) {
+      return match[1].toLowerCase();
+    }
+  }
+  
+  // Check for standalone space names (less reliable, but still explicit)
+  // Only if the message is short and focused on the space name
+  if (txt.length < 30) {
+    if (txt.includes('drift') && !txt.includes('rising') && !txt.includes('ground')) return 'drift';
+    if (txt.includes('ground') && !txt.includes('rising') && !txt.includes('drift')) return 'ground';
+    if (txt.includes('rising') && !txt.includes('drift') && !txt.includes('ground')) return 'rising';
+  }
+  
+  return null;
 }
 
 async function getAccuWeatherLocationKey(lat, lon) {
@@ -2428,9 +2465,13 @@ app.post('/api/chat', async (req, res) => {
       const musicState = getMusicState(effectiveUserId);
       musicState.userRequestedMusic = true;
       
+      // First: Check if user explicitly requested a specific space by name
+      const explicitSpace = detectExplicitMusicSpace(userText);
+      
       // Build context from user message for emotion detection
       const textLower = userText.toLowerCase();
       const musicContext = {
+        explicitSpace, // Prioritize explicit user request
         grief: textLower.includes('grief') || textLower.includes('loss') || textLower.includes('died'),
         sad: textLower.includes('sad') || textLower.includes('crying') || textLower.includes('tears'),
         heavy: textLower.includes('heavy') || textLower.includes('hard') || textLower.includes('tired'),
@@ -2439,6 +2480,8 @@ app.post('/api/chat', async (req, res) => {
         overwhelmed: textLower.includes('overwhelmed') || textLower.includes('too much'),
         crisis: false, // Will be set by crisis detection below
       };
+      
+      console.log('[MUSIC] Detected explicit space:', explicitSpace || 'none (will infer from emotions)');
       
       // Check crisis state
       let inCrisis = false;
