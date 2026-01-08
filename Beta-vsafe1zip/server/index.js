@@ -57,7 +57,81 @@ const {
   getUserPatternStats
 } = require('./patternConsent');
 const { buildEmotionalIntelligenceContext } = require('./emotionalIntelligence');
-const { logPatternFallback, logEmotionalIntelligenceFallback } = require('./patternAuditLog');
+const { logPatternFallback, logEmotionalIntelligenceFallback, TRIGGERS } = require('./patternAuditLog');
+
+/**
+ * System Confidence Level Calculator
+ * Tracks how reliable our "smart" features are for this request
+ * Passed to AI so it can adapt its tone when internal context fails
+ */
+function calculateSystemConfidence(results) {
+  const { patternSuccess, eiSuccess, patternFallback, eiFallback, memoryLoaded, crisisCheckOk } = results;
+  
+  let score = 100;
+  let issues = [];
+  
+  // Major failures (each -30 points)
+  if (patternFallback) {
+    score -= 30;
+    issues.push('pattern_system_error');
+  }
+  if (eiFallback) {
+    score -= 30;
+    issues.push('emotional_intelligence_error');
+  }
+  
+  // Minor issues (each -10 points)
+  if (!memoryLoaded) {
+    score -= 10;
+    issues.push('memory_unavailable');
+  }
+  if (!crisisCheckOk) {
+    score -= 10;
+    issues.push('crisis_check_failed');
+  }
+  
+  // Determine confidence level
+  let level;
+  if (score >= 80) {
+    level = 'HIGH';
+  } else if (score >= 50) {
+    level = 'MEDIUM';
+  } else {
+    level = 'LOW';
+  }
+  
+  return { level, score, issues };
+}
+
+/**
+ * Build confidence guidance for AI when confidence is not HIGH
+ */
+function buildConfidenceGuidance(confidence) {
+  if (confidence.level === 'HIGH') {
+    return null;
+  }
+  
+  if (confidence.level === 'LOW') {
+    return `
+SYSTEM CONFIDENCE: LOW
+Some internal systems encountered errors. Please:
+- Do NOT infer long-term patterns or make assumptions about user history
+- Do NOT reference previous conversations unless user explicitly mentions them
+- Remain supportive, warm, and present-focused
+- Respond as if this is a fresh conversation
+- Focus entirely on what the user is saying right now
+Issues: ${confidence.issues.join(', ')}`;
+  }
+  
+  // MEDIUM confidence
+  return `
+SYSTEM CONFIDENCE: MEDIUM
+Some context may be incomplete. Please:
+- Be cautious about inferring patterns
+- Prioritize the user's current message
+- If unsure about history, ask gently rather than assume
+Issues: ${confidence.issues.join(', ')}`;
+}
 
 // ---- WEATHER HELPER ----
 // TRACE-style weather summary using AccuWeather API
@@ -2835,6 +2909,16 @@ Example of what NOT to do:
       }
     }
     
+    // Track confidence for this request
+    let confidenceTracking = {
+      patternSuccess: true,
+      eiSuccess: true,
+      patternFallback: false,
+      eiFallback: false,
+      memoryLoaded: true,
+      crisisCheckOk: true
+    };
+    
     // Pattern Reflections consent system (opt-in, revocable, crisis-safe)
     let patternContext = null;
     const patternUserId = userId || deviceId;
@@ -2912,6 +2996,8 @@ CRISIS OVERRIDE:
         }
       } catch (patternErr) {
         logPatternFallback(patternUserId, patternErr, 'chat_endpoint_outer');
+        confidenceTracking.patternFallback = true;
+        confidenceTracking.patternSuccess = false;
       }
     }
     
@@ -2933,6 +3019,16 @@ CRISIS OVERRIDE:
       }
     } catch (eiErr) {
       logEmotionalIntelligenceFallback(effectiveUserId, eiErr, 'chat_endpoint_outer');
+      confidenceTracking.eiFallback = true;
+      confidenceTracking.eiSuccess = false;
+    }
+    
+    // Calculate system confidence and build guidance for AI
+    const systemConfidence = calculateSystemConfidence(confidenceTracking);
+    const confidenceGuidance = buildConfidenceGuidance(systemConfidence);
+    if (confidenceGuidance) {
+      contextParts.push(confidenceGuidance);
+      console.log('[SYSTEM CONFIDENCE]', { level: systemConfidence.level, score: systemConfidence.score, issues: systemConfidence.issues });
     }
     
     const fullContext = contextParts.filter(Boolean).join('\n\n');
