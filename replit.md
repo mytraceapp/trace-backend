@@ -71,6 +71,12 @@ Preferred communication style: Simple, everyday language.
 
 **Design Rationale**: Server-side proxy protects API keys and allows for message filtering, rate limiting, and custom response formatting without exposing credentials to the client.
 
+**Emotional Intelligence Module**
+- **Mood Trajectory**: Analyzes 14 days of mood check-ins to detect if user is improving, declining, or stable. Requires 3+ data points, uses 0.5 rating threshold.
+- **Absence Awareness**: Detects 48+ hour gaps and provides warm return greetings without guilt. Uses mood_checkins and activity_logs timestamps.
+- **Gentle Check-backs**: References recent themes/goals/triggers from long_term_memories (7-day window) for natural follow-ups.
+- All features are blocked during crisis mode for safety.
+
 ## Interactive Activities
 
 **Maze Mini-Game**
