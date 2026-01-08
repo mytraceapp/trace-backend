@@ -48,6 +48,14 @@ const {
 } = require('./safety');
 const { getSuggestionContext, getTimeAwarenessContext, ACTIVITY_LABELS } = require('./activityCorrelation');
 const { markActivityCompletedForReflection, getReflectionContext, clearReflectionFlag } = require('./reflectionTracking');
+const { 
+  getSafePatternContext, 
+  isRevokingPatternConsent, 
+  classifyConsentResponse, 
+  updatePatternConsent,
+  getUserSettings,
+  getUserPatternStats
+} = require('./patternConsent');
 
 // ---- WEATHER HELPER ----
 // TRACE-style weather summary using AccuWeather API
@@ -2822,6 +2830,77 @@ Example of what NOT to do:
         }
       } catch (reflErr) {
         console.warn('[TRACE] Reflection context failed:', reflErr.message);
+      }
+    }
+    
+    // Pattern Reflections consent system (opt-in, revocable, crisis-safe)
+    let patternContext = null;
+    const patternUserId = userId || deviceId;
+    if (pool && patternUserId) {
+      try {
+        const lastUserMessage = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+        
+        // Check if user is revoking consent
+        if (isRevokingPatternConsent(lastUserMessage)) {
+          await updatePatternConsent(pool, patternUserId, 'no');
+          console.log('[PATTERN] User revoked pattern consent');
+        }
+        
+        // Check if TRACE just asked about consent (look at last assistant message)
+        const lastAssistantMessage = messages.filter(m => m.role === 'assistant').slice(-1)[0]?.content || '';
+        const askedAboutPatterns = lastAssistantMessage.toLowerCase().includes('notice gentle patterns') ||
+                                   lastAssistantMessage.toLowerCase().includes('pattern reflections') ||
+                                   lastAssistantMessage.toLowerCase().includes('reflect patterns back');
+        
+        if (askedAboutPatterns && lastUserMessage) {
+          const consentResponse = classifyConsentResponse(lastUserMessage);
+          if (consentResponse === 'yes') {
+            await updatePatternConsent(pool, patternUserId, 'yes');
+            console.log('[PATTERN] User gave consent for pattern reflections');
+          } else if (consentResponse === 'no') {
+            await updatePatternConsent(pool, patternUserId, 'no');
+            console.log('[PATTERN] User declined pattern reflections');
+          }
+        }
+        
+        // Get safe pattern context
+        patternContext = await getSafePatternContext(pool, patternUserId, null, null, isCrisisMode);
+        
+        if (patternContext) {
+          const patternPrompt = `
+PATTERN REFLECTIONS (CONSENT-BASED):
+
+Context:
+- pattern_reflection_consent: "${patternContext.consent}"
+- canOfferPatternConsent: ${patternContext.canOfferConsent}
+${patternContext.patternSummary ? `- patternSummary: ${JSON.stringify(patternContext.patternSummary)}` : '- patternSummary: null'}
+
+Rules:
+1. If consent is "no": NEVER mention patterns unless user explicitly asks
+2. If consent is "undecided" AND canOfferPatternConsent is true:
+   - You may ask ONCE: "Would you like me to occasionally notice gentle patterns in when certain days or times feel heavier or lighter for you? It's completely okay to say no."
+   - Make it safe and easy to decline
+   - Do NOT ask during crisis or high distress
+3. If consent is "yes":
+   - Occasionally weave in soft observations: "It seems like Mondays often carry more weight" or "Evenings feel like your reflection time"
+   - NEVER mention exact dates, timestamps, or specific events
+   - Use tentative language: "It seems like...", "Often it looks like..."
+4. If user says "stop reflecting patterns" or similar → immediately stop, thank them
+
+CRISIS OVERRIDE:
+- When user is in crisis or high distress, do NOT ask about consent or mention patterns
+- Stay present in the moment
+`.trim();
+          
+          contextParts.push(patternPrompt);
+          console.log('[PATTERN] Added pattern context:', { 
+            consent: patternContext.consent, 
+            canOffer: patternContext.canOfferConsent,
+            hasSummary: !!patternContext.patternSummary 
+          });
+        }
+      } catch (patternErr) {
+        console.warn('[PATTERN] Pattern context failed:', patternErr.message);
       }
     }
     
