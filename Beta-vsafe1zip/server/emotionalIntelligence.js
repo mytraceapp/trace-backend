@@ -7,6 +7,8 @@
  * 3. Gentle Check-backs - Follow up on things user mentioned previously
  */
 
+const auditLog = require('./patternAuditLog');
+
 const TRAJECTORY_LOOKBACK_DAYS = 14;
 const TRAJECTORY_MIN_CHECKINS = 3;
 const ABSENCE_THRESHOLD_HOURS = 48;
@@ -155,7 +157,10 @@ async function getCheckbackTopics(supabase, userId) {
  * Build emotional intelligence context for system prompt
  */
 async function buildEmotionalIntelligenceContext({ pool, supabase, userId, deviceId, effectiveUserId, isCrisisMode }) {
+  const queryUserId = userId || effectiveUserId;
+  
   if (isCrisisMode) {
+    auditLog.logEmotionalIntelligenceBlocked(queryUserId, 'crisis_mode');
     return null;
   }
   
@@ -170,10 +175,10 @@ async function buildEmotionalIntelligenceContext({ pool, supabase, userId, devic
       getCheckbackTopics(supabase, supabaseQueryId)
     ]);
     
-    console.log('[EMOTIONAL INTELLIGENCE] Context:', {
+    auditLog.logEmotionalIntelligenceUsed(queryUserId, {
       trajectory,
       isReturning: absence?.isReturning || false,
-      checkbacks: checkbacks.length
+      checkbackCount: checkbacks.length
     });
     
     const parts = [];

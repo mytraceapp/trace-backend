@@ -12,6 +12,8 @@
  * - High-level only (no timestamps, no creepy specifics)
  */
 
+const auditLog = require('./patternAuditLog');
+
 const PATTERN_MIN_DAYS_SINCE_FIRST_USE = 14;
 const PATTERN_MIN_ACTIVITY_COUNT = 6;
 const PATTERN_MIN_MESSAGES_FOR_TRUST = 25;
@@ -89,7 +91,7 @@ async function getUserSettings(pool, userId) {
 /**
  * Update consent status
  */
-async function updatePatternConsent(pool, userId, consent) {
+async function updatePatternConsent(pool, userId, consent, method = 'verbal') {
   if (!pool || !userId) return false;
   
   try {
@@ -105,6 +107,7 @@ async function updatePatternConsent(pool, userId, consent) {
            updated_at = $2`,
         [userId, now]
       );
+      auditLog.logConsentGranted(userId, method);
     } else if (consent === 'no') {
       await pool.query(
         `INSERT INTO user_settings (user_id, pattern_reflection_consent, pattern_reflection_last_prompt_at, updated_at)
@@ -115,9 +118,19 @@ async function updatePatternConsent(pool, userId, consent) {
            updated_at = $2`,
         [userId, now]
       );
+      auditLog.logConsentDenied(userId, method);
+    } else if (consent === 'revoked') {
+      await pool.query(
+        `UPDATE user_settings SET 
+           pattern_reflection_consent = 'no',
+           pattern_reflection_last_prompt_at = $2,
+           updated_at = $2
+         WHERE user_id = $1`,
+        [userId, now]
+      );
+      auditLog.logConsentRevoked(userId, method);
     }
     
-    console.log(`[PATTERN CONSENT] Updated consent for ${userId}: ${consent}`);
     return true;
   } catch (error) {
     console.error('[PATTERN CONSENT] Error updating:', error.message);
@@ -292,6 +305,7 @@ async function computePatternSummary(pool, userId) {
  */
 async function getSafePatternContext(pool, userId, settings, stats, isCrisisMode) {
   if (isCrisisMode) {
+    auditLog.logPatternReflectionBlocked(userId, 'crisis_mode');
     return {
       consent: settings?.pattern_reflection_consent || 'undecided',
       canOfferConsent: false,
@@ -305,11 +319,20 @@ async function getSafePatternContext(pool, userId, settings, stats, isCrisisMode
   const consent = settings?.pattern_reflection_consent || 'undecided';
   const canOfferConsent = await shouldOfferPatternConsent(pool, userId, settings, stats, false);
   
+  if (canOfferConsent) {
+    auditLog.logConsentOffered(userId, stats);
+  }
+  
   let patternSummary = null;
   if (consent === 'yes' && 
       stats.daysSinceFirstUse >= PATTERN_MIN_DAYS_SINCE_FIRST_USE && 
       stats.activityCount >= PATTERN_MIN_ACTIVITY_COUNT) {
     patternSummary = await computePatternSummary(pool, userId);
+    if (patternSummary && patternSummary.notes && patternSummary.notes.length > 0) {
+      auditLog.logPatternReflectionIncluded(userId, patternSummary);
+    }
+  } else if (consent !== 'yes' && consent !== 'undecided') {
+    auditLog.logPatternReflectionBlocked(userId, 'consent_denied');
   }
   
   return {

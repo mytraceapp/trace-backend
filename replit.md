@@ -77,6 +77,19 @@ Preferred communication style: Simple, everyday language.
 - **Gentle Check-backs**: References recent themes/goals/triggers from long_term_memories (7-day window) for natural follow-ups.
 - All features are blocked during crisis mode for safety.
 
+**Audit Logging System** (patternAuditLog.js)
+- Structured JSON logs with `[PATTERN AUDIT]` prefix for easy filtering
+- Events logged:
+  - `CONSENT_OFFERED`: When pattern consent prompt is shown (includes stats)
+  - `CONSENT_GRANTED`: When user says yes to pattern reflections
+  - `CONSENT_DENIED`: When user says no (60-day cooldown applied)
+  - `CONSENT_REVOKED`: When user revokes via keyword ("stop reflecting patterns")
+  - `PATTERN_REFLECTION_INCLUDED`: When pattern observations are added to prompt
+  - `PATTERN_REFLECTION_BLOCKED`: When blocked (reason: crisis_mode, consent_denied)
+  - `EMOTIONAL_INTELLIGENCE_USED`: When EI context is added (trajectory, returning, checkbacks)
+  - `EMOTIONAL_INTELLIGENCE_BLOCKED`: When EI is blocked (crisis mode)
+- All logs include truncated userId (8 chars) for privacy while enabling debugging
+
 ## Interactive Activities
 
 **Maze Mini-Game**
