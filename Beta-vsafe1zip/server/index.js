@@ -5439,13 +5439,16 @@ app.post('/api/activity-log', async (req, res) => {
       return res.json({ ok: true, logged: null, note: 'No database configured' });
     }
     
-    console.log('📝 [ACTIVITY LOG] Logging:', { userId, deviceId, activityType, durationSeconds });
+    // Convert durationSeconds to integer (database column is integer type)
+    const durationInt = durationSeconds != null ? Math.round(durationSeconds) : null;
+    
+    console.log('📝 [ACTIVITY LOG] Logging:', { userId, deviceId, activityType, durationSeconds: durationInt });
     
     const result = await pool.query(
       `INSERT INTO activity_logs (user_id, device_id, activity_type, duration_seconds, metadata)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, completed_at`,
-      [userId || null, deviceId || null, activityType, durationSeconds || null, JSON.stringify(metadata || {})]
+      [userId || null, deviceId || null, activityType, durationInt, JSON.stringify(metadata || {})]
     );
     
     console.log('📝 [ACTIVITY LOG] Success:', result.rows?.[0]);
