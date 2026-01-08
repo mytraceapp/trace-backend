@@ -302,44 +302,86 @@ async function computePatternSummary(pool, userId) {
 
 /**
  * Get safe pattern context for the model
+ * GUARDRAIL: This function NEVER throws - always returns safe fallback
  */
 async function getSafePatternContext(pool, userId, settings, stats, isCrisisMode) {
-  if (isCrisisMode) {
-    auditLog.logPatternReflectionBlocked(userId, 'crisis_mode');
-    return {
-      consent: settings?.pattern_reflection_consent || 'undecided',
-      canOfferConsent: false,
-      patternSummary: null,
-    };
-  }
-  
-  if (!settings) settings = await getUserSettings(pool, userId);
-  if (!stats) stats = await getUserPatternStats(pool, userId);
-  
-  const consent = settings?.pattern_reflection_consent || 'undecided';
-  const canOfferConsent = await shouldOfferPatternConsent(pool, userId, settings, stats, false);
-  
-  if (canOfferConsent) {
-    auditLog.logConsentOffered(userId, stats);
-  }
-  
-  let patternSummary = null;
-  if (consent === 'yes' && 
-      stats.daysSinceFirstUse >= PATTERN_MIN_DAYS_SINCE_FIRST_USE && 
-      stats.activityCount >= PATTERN_MIN_ACTIVITY_COUNT) {
-    patternSummary = await computePatternSummary(pool, userId);
-    if (patternSummary && patternSummary.notes && patternSummary.notes.length > 0) {
-      auditLog.logPatternReflectionIncluded(userId, patternSummary);
-    }
-  } else if (consent !== 'yes' && consent !== 'undecided') {
-    auditLog.logPatternReflectionBlocked(userId, 'consent_denied');
-  }
-  
-  return {
-    consent,
-    canOfferConsent,
-    patternSummary,
+  const SAFE_FALLBACK = {
+    consent: 'undecided',
+    canOfferConsent: false,
+    patternSummary: null,
   };
+  
+  try {
+    if (!pool || !userId) {
+      return SAFE_FALLBACK;
+    }
+    
+    if (isCrisisMode) {
+      auditLog.logPatternReflectionBlocked(userId, 'crisis_mode');
+      return {
+        consent: settings?.pattern_reflection_consent || 'undecided',
+        canOfferConsent: false,
+        patternSummary: null,
+      };
+    }
+    
+    if (!settings) {
+      try {
+        settings = await getUserSettings(pool, userId);
+      } catch (settingsErr) {
+        auditLog.logPatternFallback(userId, settingsErr, 'getUserSettings');
+        settings = { pattern_reflection_consent: 'undecided' };
+      }
+    }
+    
+    if (!stats) {
+      try {
+        stats = await getUserPatternStats(pool, userId);
+      } catch (statsErr) {
+        auditLog.logPatternFallback(userId, statsErr, 'getUserPatternStats');
+        stats = { daysSinceFirstUse: 0, activityCount: 0, totalMessages: 0 };
+      }
+    }
+    
+    const consent = settings?.pattern_reflection_consent || 'undecided';
+    
+    let canOfferConsent = false;
+    try {
+      canOfferConsent = await shouldOfferPatternConsent(pool, userId, settings, stats, false);
+      if (canOfferConsent) {
+        auditLog.logConsentOffered(userId, stats);
+      }
+    } catch (offerErr) {
+      auditLog.logPatternFallback(userId, offerErr, 'shouldOfferPatternConsent');
+      canOfferConsent = false;
+    }
+    
+    let patternSummary = null;
+    if (consent === 'yes' && 
+        stats.daysSinceFirstUse >= PATTERN_MIN_DAYS_SINCE_FIRST_USE && 
+        stats.activityCount >= PATTERN_MIN_ACTIVITY_COUNT) {
+      try {
+        patternSummary = await computePatternSummary(pool, userId);
+        if (patternSummary && patternSummary.notes && patternSummary.notes.length > 0) {
+          auditLog.logPatternReflectionIncluded(userId, patternSummary);
+        }
+      } catch (summaryErr) {
+        auditLog.logPatternFallback(userId, summaryErr, 'computePatternSummary');
+        patternSummary = null;
+      }
+    } else if (consent !== 'yes' && consent !== 'undecided') {
+      auditLog.logPatternReflectionBlocked(userId, 'consent_denied');
+    }
+    
+    return {
+      consent,
+      canOfferConsent,
+      patternSummary,
+    };
+  } catch (outerErr) {
+    auditLog.logPatternFallback(userId, outerErr, 'getSafePatternContext_outer');
+    return SAFE_FALLBACK;
+  }
 }
 
 module.exports = {

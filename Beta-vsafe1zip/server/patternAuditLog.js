@@ -137,6 +137,36 @@ function logPatternReflectionBlocked(userId, reason) {
   return entry;
 }
 
+/**
+ * Log when pattern system gracefully degrades due to error
+ */
+function logPatternFallback(userId, error, component) {
+  const entry = {
+    event: 'PATTERN_FALLBACK',
+    timestamp: new Date().toISOString(),
+    userId: userId?.slice(0, 8) + '...',
+    component: component,
+    error: error?.message || String(error)
+  };
+  console.warn(`${LOG_PREFIX} ${JSON.stringify(entry)}`);
+  return entry;
+}
+
+/**
+ * Log when emotional intelligence gracefully degrades due to error
+ */
+function logEmotionalIntelligenceFallback(userId, error, component) {
+  const entry = {
+    event: 'EMOTIONAL_INTELLIGENCE_FALLBACK',
+    timestamp: new Date().toISOString(),
+    userId: userId?.slice(0, 8) + '...',
+    component: component,
+    error: error?.message || String(error)
+  };
+  console.warn(`${LOG_PREFIX} ${JSON.stringify(entry)}`);
+  return entry;
+}
+
 module.exports = {
   logConsentOffered,
   logConsentGranted,
@@ -145,5 +175,7 @@ module.exports = {
   logPatternReflectionIncluded,
   logEmotionalIntelligenceUsed,
   logEmotionalIntelligenceBlocked,
-  logPatternReflectionBlocked
+  logPatternReflectionBlocked,
+  logPatternFallback,
+  logEmotionalIntelligenceFallback
 };

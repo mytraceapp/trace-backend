@@ -57,6 +57,7 @@ const {
   getUserPatternStats
 } = require('./patternConsent');
 const { buildEmotionalIntelligenceContext } = require('./emotionalIntelligence');
+const { logPatternFallback, logEmotionalIntelligenceFallback } = require('./patternAuditLog');
 
 // ---- WEATHER HELPER ----
 // TRACE-style weather summary using AccuWeather API
@@ -2910,7 +2911,7 @@ CRISIS OVERRIDE:
           });
         }
       } catch (patternErr) {
-        console.warn('[PATTERN] Pattern context failed:', patternErr.message);
+        logPatternFallback(patternUserId, patternErr, 'chat_endpoint_outer');
       }
     }
     
@@ -2931,7 +2932,7 @@ CRISIS OVERRIDE:
         console.log('[EMOTIONAL INTELLIGENCE] Added context to prompt');
       }
     } catch (eiErr) {
-      console.warn('[EMOTIONAL INTELLIGENCE] Failed to build context:', eiErr.message);
+      logEmotionalIntelligenceFallback(effectiveUserId, eiErr, 'chat_endpoint_outer');
     }
     
     const fullContext = contextParts.filter(Boolean).join('\n\n');

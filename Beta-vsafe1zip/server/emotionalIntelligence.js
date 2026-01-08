@@ -155,6 +155,7 @@ async function getCheckbackTopics(supabase, userId) {
 
 /**
  * Build emotional intelligence context for system prompt
+ * GUARDRAIL: This function NEVER throws - always returns null on error (graceful degradation)
  */
 async function buildEmotionalIntelligenceContext({ pool, supabase, userId, deviceId, effectiveUserId, isCrisisMode }) {
   const queryUserId = userId || effectiveUserId;
@@ -169,11 +170,30 @@ async function buildEmotionalIntelligenceContext({ pool, supabase, userId, devic
     const supabaseQueryId = userId || effectiveUserId;
     const poolQueryId = deviceId || userId || effectiveUserId;
     
-    const [trajectory, absence, checkbacks] = await Promise.all([
-      getMoodTrajectory(pool, poolQueryId),
-      getAbsenceContext(pool, poolQueryId),
-      getCheckbackTopics(supabase, supabaseQueryId)
-    ]);
+    // Each sub-function has its own try-catch, but we also wrap them individually
+    // to ensure one failure doesn't break the others
+    let trajectory = null;
+    let absence = null;
+    let checkbacks = [];
+    
+    try {
+      trajectory = await getMoodTrajectory(pool, poolQueryId);
+    } catch (trajErr) {
+      auditLog.logEmotionalIntelligenceFallback(queryUserId, trajErr, 'getMoodTrajectory');
+    }
+    
+    try {
+      absence = await getAbsenceContext(pool, poolQueryId);
+    } catch (absErr) {
+      auditLog.logEmotionalIntelligenceFallback(queryUserId, absErr, 'getAbsenceContext');
+    }
+    
+    try {
+      checkbacks = await getCheckbackTopics(supabase, supabaseQueryId);
+    } catch (cbErr) {
+      auditLog.logEmotionalIntelligenceFallback(queryUserId, cbErr, 'getCheckbackTopics');
+      checkbacks = [];
+    }
     
     auditLog.logEmotionalIntelligenceUsed(queryUserId, {
       trajectory,
@@ -240,7 +260,7 @@ GUIDELINES:
 - If in doubt, just be present without using any of this context`;
     
   } catch (error) {
-    console.error('[EMOTIONAL INTELLIGENCE] Error building context:', error.message);
+    auditLog.logEmotionalIntelligenceFallback(queryUserId, error, 'buildEmotionalIntelligenceContext_outer');
     return null;
   }
 }
