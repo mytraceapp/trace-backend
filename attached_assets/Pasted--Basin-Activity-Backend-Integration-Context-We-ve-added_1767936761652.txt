@@ -1,0 +1,183 @@
+# Basin Activity Backend Integration
+
+## Context
+We've added a new activity called **Basin** to the mobile app. Basin is an ASMR-style presence activity featuring:
+- Full-bleed looping wave video with ocean sounds
+- Audio-focused sensory entrainment (no guidance, no instructions)
+- Sound control (tappable to mute/unmute)
+- Category: `audio` (not reflection - we have enough of those)
+- Luna theme optimized with midnight glass atmosphere
+
+## Mobile Integration Status ✅
+- [x] Basin activity screen created (`app/activities/basin.tsx`)
+- [x] Activity logging implemented (logs as `kind: 'audio'`, `label: 'Basin'`)
+- [x] Added to activities menu with wave icon and Ember gradient
+- [x] Chat routing configured (`navigateToActivity` map includes 'basin')
+- [x] Activity completion flows to chat with acknowledgment params
+- [x] Entries page will display Basin logs automatically
+
+## Backend Integration Requirements
+
+### 1. Activity Type Recognition
+**File: Likely in activity types/constants**
+- [ ] Add `Basin` to list of recognized activity types
+- [ ] Map Basin to `audio` category (not `reflection`)
+- [ ] Ensure activity type is case-insensitive or normalized
+
+### 2. Activity Logging Endpoint
+**Endpoint: `/api/activity/log`**
+- [ ] Verify Basin activity type is accepted
+- [ ] Test that `activityType: 'Basin'` logs successfully
+- [ ] Confirm `durationSeconds` is stored properly
+- [ ] Check that activity logs associate with correct userId/deviceId
+
+### 3. Activity Acknowledgment System
+**Endpoint: `/api/activity-acknowledgment`**
+- [ ] Add Basin to acknowledgment logic
+- [ ] Create contextual acknowledgment responses for Basin completions
+- [ ] Example acknowledgments:
+  - "The stillness settles in you"
+  - "That crash and retreat—felt it?"
+  - "Deep water, deep breath"
+  - "The waves know their rhythm"
+- [ ] Respect natural pacing (shouldn't acknowledge every Basin completion)
+- [ ] Consider time-of-day context (Basin at night vs. morning)
+
+### 4. Navigation & Activity Suggestions
+**Files: Chat intelligence, activity recommendation logic**
+- [ ] Add Basin to activity suggestion pool
+- [ ] TRACE should be able to guide users to Basin when appropriate
+- [ ] Trigger conditions for Basin suggestions:
+  - User mentions stress, overwhelm, overstimulation
+  - Late evening/bedtime window
+  - After energetically demanding activities
+  - When user needs sensory reset or ASMR-style support
+  - Keywords: "quiet", "calm", "stillness", "ASMR", "overwhelmed", "too much"
+- [ ] Navigation phrase examples:
+  - "Try Basin—just waves and stillness"
+  - "Basin might ground you right now"
+  - "Let the crash settle you"
+  - "Basin's here when you need it"
+
+### 5. Analytics & Tracking
+**Files: Analytics service, dashboard queries**
+- [ ] Basin should appear in activity completion metrics
+- [ ] Track Basin usage patterns:
+  - Time of day distribution
+  - Average duration
+  - Completion rate (vs. early exits)
+  - Mute/unmute behavior (if tracked via frontend events)
+- [ ] Compare Basin vs. other audio activities (if applicable)
+- [ ] Include Basin in daily/weekly activity reports
+
+### 6. Pattern Recognition & Insights
+**Files: Pattern analysis, insights generation**
+- [ ] Basin should contribute to user pattern signatures
+- [ ] Consider Basin in stress/regulation patterns
+- [ ] Basin + other activities (e.g., Basin after Walking, Basin before Rest)
+- [ ] Evening Basin usage as part of wind-down rhythm
+- [ ] Basin as sensory regulation signal
+
+### 7. Scoring System (if applicable)
+**Files: Scoring/points logic**
+- [ ] If app has activity scoring, ensure Basin awards points
+- [ ] Basin duration should count toward daily activity goals
+- [ ] Audio category should be properly weighted
+
+### 8. Database Schema
+**Tables: activities, activity_logs, etc.**
+- [ ] Verify `activityType = 'Basin'` doesn't require schema changes
+- [ ] Check that `audio` category exists in enum/constraints
+- [ ] Ensure no hardcoded activity type validations exclude Basin
+
+## Testing Checklist
+
+### Backend API Tests
+```bash
+# Test activity logging
+POST /api/activity/log
+{
+  "userId": "test-user-123",
+  "deviceId": "test-device-456",
+  "activityType": "Basin",
+  "durationSeconds": 180,
+  "completedAt": "2026-01-08T23:45:00.000Z"
+}
+# Expected: 200 OK, activity logged successfully
+
+# Test activity acknowledgment
+POST /api/activity-acknowledgment
+{
+  "userId": "test-user-123",
+  "activityType": "Basin",
+  "activityCount": 3,
+  "lastActivityTime": 120,
+  "timeOfDay": "evening",
+  "activityDuration": 180000
+}
+# Expected: 200 OK with contextual acknowledgment message
+```
+
+### Chat Navigation Tests
+- [ ] User says "I'm overwhelmed" → TRACE suggests Basin
+- [ ] User says "I need quiet" → TRACE suggests Basin
+- [ ] User asks "what activities do I have?" → Basin appears in list
+- [ ] User says "start basin" or "do basin" → TRACE navigates to Basin
+
+### Analytics Verification
+- [ ] Basin appears in activity completion reports
+- [ ] Basin duration tracked correctly
+- [ ] Basin categorized as `audio` not `reflection`
+- [ ] Basin included in daily totals
+
+## Mobile-Backend Contract
+
+**Activity Log Payload (from mobile):**
+```json
+{
+  "userId": "stable-user-id",
+  "deviceId": "stable-device-id",
+  "activityType": "Basin",
+  "durationSeconds": 300,
+  "completedAt": "2026-01-08T23:45:00.000Z"
+}
+```
+
+**Chat Completion Params (from mobile):**
+```json
+{
+  "completedActivity": "Basin",
+  "activityDuration": "5.0"
+}
+```
+
+**Activity Properties:**
+- **Label:** `Basin`
+- **Kind:** `audio`
+- **Category:** Audio/ASMR presence
+- **Source Screen:** `basin`
+- **Typical Duration:** 3-10 minutes
+- **User Intent:** Sensory reset, ASMR entrainment, stillness
+
+## Priority Order
+1. **Critical:** Activity logging endpoint accepts Basin ✅
+2. **Critical:** Activity acknowledgment generates Basin responses ✅
+3. **High:** Chat can suggest/navigate to Basin ✅
+4. **High:** Basin included in analytics/tracking ✅
+5. **Medium:** Pattern recognition includes Basin
+6. **Medium:** Scoring system includes Basin (if applicable)
+
+## Notes
+- Basin is the 11th activity in the app (after Breathing, Maze, Walking, Rest, Ripple, Grounding, Window, Echo, Rising, Drift)
+- Basin uses landscape orientation (optional, graceful fallback if not available)
+- Basin has sound mute control - users can experience with or without ocean waves
+- Basin is Luna-optimized but works in both Sage and Luna themes
+- Basin should be acknowledged thoughtfully - it's a deep presence activity, not a quick task
+
+## Success Criteria
+✅ User completes Basin → activity logged in database
+✅ User completes Basin → receives contextual acknowledgment from TRACE
+✅ User expresses overwhelm → TRACE suggests Basin
+✅ Basin appears in analytics dashboard
+✅ Basin contributes to daily activity metrics
+✅ Backend recognizes Basin as valid `audio` activity type

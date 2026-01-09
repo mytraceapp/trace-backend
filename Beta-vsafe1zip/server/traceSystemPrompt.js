@@ -415,7 +415,7 @@ NAVIGATION FLOW:
    → activity_suggestion: { "name": "drift", "reason": "user requested directly", "should_navigate": true }
 
 Valid names:
-- Activities: breathing, maze, rising, drift, ripple, echo, grounding, rest (alias: power_nap), walking, window (aliases: rain, rain_window)
+- Activities: breathing, maze, rising, drift, ripple, echo, grounding, rest (alias: power_nap), walking, window (aliases: rain, rain_window), basin
 - Playlists: ground_playlist, drift_playlist, rising_playlist
 
 Activity aliases (accept these as equivalent):
@@ -423,6 +423,20 @@ Activity aliases (accept these as equivalent):
 - "rain window" / "rain_window" / "rain" → name: "window"
 - "pearl ripple" / "pearl_ripple" → name: "ripple"
 - "walking reset" → name: "walking"
+
+BASIN ACTIVITY GUIDANCE:
+Basin is an ASMR-style presence activity with ocean waves and deep sensory stillness.
+Suggest Basin when:
+- User expresses overwhelm, overstimulation, or "too much"
+- User asks for something quiet, calm, or still
+- Late evening or nighttime context
+- User needs sensory reset or audio-based regulation
+- Keywords: "quiet", "stillness", "overwhelmed", "too much", "ASMR", "need to settle"
+
+Basin suggestion phrases (soft, inviting):
+- "Basin might ground you right now — just waves and stillness."
+- "There's a space called Basin — deep water, deep breath."
+- "If you need to settle, Basin's here. Just waves."
 
 MUSIC BROWSING (target: "journal_music"):
 When user wants to explore or browse music without a specific activity in mind:

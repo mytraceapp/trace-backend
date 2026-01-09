@@ -20,6 +20,7 @@ const ACTIVITY_LABELS = {
   walking: 'Walking Reset',
   window: 'Rain Window',
   echo: 'Echo',
+  basin: 'Basin',
 };
 
 const ACTIVITY_CATEGORIES = {
@@ -33,6 +34,7 @@ const ACTIVITY_CATEGORIES = {
   grounding: 'body',
   rest: 'body',
   walking: 'body',
+  basin: 'audio',
 };
 
 /**
