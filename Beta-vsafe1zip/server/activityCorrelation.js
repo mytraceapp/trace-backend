@@ -21,6 +21,7 @@ const ACTIVITY_LABELS = {
   window: 'Rain Window',
   echo: 'Echo',
   basin: 'Basin',
+  dreamscape: 'Dreamscape',
 };
 
 const ACTIVITY_CATEGORIES = {
@@ -29,12 +30,13 @@ const ACTIVITY_CATEGORIES = {
   ripple: 'reflection',
   window: 'reflection',
   echo: 'reflection',
+  basin: 'reflection',
+  dreamscape: 'reflection',
   maze: 'focus',
   drift: 'focus',
   grounding: 'body',
   rest: 'body',
   walking: 'body',
-  basin: 'audio',
 };
 
 /**

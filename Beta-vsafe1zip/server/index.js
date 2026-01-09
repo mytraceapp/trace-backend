@@ -1930,7 +1930,7 @@ BAD (never say):
 
 8. App knowledge
    - You know the TRACE app well.
-   - Activities available: Breathing, Trace the Maze, Walking Reset, Rest, Window, Echo, Rising, Drift, Grounding, Pearl Ripple, Basin.
+   - Activities available: Breathing, Trace the Maze, Walking Reset, Rest, Window, Echo, Rising, Drift, Grounding, Pearl Ripple, Basin, Dreamscape.
    - Make appropriate activity suggestions without being pushy.
    - Some activities don't have a finish button—let users know to tap the activity name to return.
 
@@ -1981,7 +1981,7 @@ Always respond with JSON in this shape:
 - message: your natural, written reply to the user.
 - activity_suggestion.name:
   - null if you are not suggesting anything.
-  - Or one of: "Breathing", "Trace the Maze", "Walking Reset", "Rest", "Window", "Echo", "Rising", "Drift", "Grounding", "Pearl Ripple", "Basin".
+  - Or one of: "Breathing", "Trace the Maze", "Walking Reset", "Rest", "Window", "Echo", "Rising", "Drift", "Grounding", "Pearl Ripple", "Basin", "Dreamscape".
 - activity_suggestion.reason: brief, user-friendly reason if you suggest something.
 - activity_suggestion.should_navigate:
   - false by default.
@@ -2933,7 +2933,7 @@ Behavior for this response:
    
 2. Follow with at most ONE soft invitation to notice any shift. Choose based on activity type:
    
-   For calming activities (Rising, Rest, Breathing, Ripple, Window, Basin):
+   For calming activities (Rising, Rest, Breathing, Ripple, Window, Basin, Dreamscape):
    - "If you feel like sharing, what feels even 1% different right now?"
    - "Sometimes the shift is small — a tiny bit more air in your chest, or a little less noise in your mind. If you want to, you can put a few words to it."
    
@@ -3262,6 +3262,7 @@ app.post('/api/activity-acknowledgment', async (req, res) => {
       Pearl: 'Pearl Ripple is an ocean wave immersion. A brief escape from mental noise.',
       Nap: 'Power Nap is a short rest. They may feel refreshed or still waking up.',
       Basin: 'Basin is an ASMR-style presence activity with ocean waves. Deep sensory stillness and audio entrainment. They may feel deeply settled or reset.',
+      Dreamscape: 'Dreamscape is an ultra-minimal lull experience with slow-moving clouds. Complete mental rest requiring nothing. They may feel deeply rested or still emerging from stillness.',
     };
 
     const activityNote = activityNotes[activityType] || `${activityType} is a grounding activity.`;
@@ -5354,6 +5355,7 @@ app.get('/api/patterns/insights', async (req, res) => {
       { name: 'Power Nap', patterns: ['power nap', 'nap', 'i just finished power nap'] },
       { name: 'Pearl Ripple', patterns: ['pearl ripple', 'pearl', 'ripple', 'i just finished pearl'] },
       { name: 'Basin', patterns: ['basin', 'i just finished basin', 'completed basin'] },
+      { name: 'Dreamscape', patterns: ['dreamscape', 'i just finished dreamscape', 'completed dreamscape'] },
     ];
     
     // Extract activities from user messages

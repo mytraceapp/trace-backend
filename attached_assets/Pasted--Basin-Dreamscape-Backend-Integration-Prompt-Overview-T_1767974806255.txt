@@ -1,0 +1,521 @@
+# Basin & Dreamscape Backend Integration Prompt
+
+## Overview
+Two new **reflection/ambient presence** activities require full backend integration: **Basin** and **Dreamscape**. Both must be recognized by TRACE AI, logged properly, included in analytics, and woven into pattern synthesis.
+
+---
+
+## 1. Activity Recognition & Logging
+
+### Basin
+- **Activity Type:** `Basin`
+- **Category:** `reflection` 
+- **Description:** "Find your depth. Rest inside."
+- **Visual:** Ocean waves video with layered ambient audio
+- **Duration:** Typically 5-20 minutes
+- **Exit Method:** TRACE wordmark tap
+- **User Intent:** Deep calm, sensory grounding, water-based stillness
+
+### Dreamscape  
+- **Activity Type:** `Dreamscape`
+- **Category:** `reflection` (was `other`, now updated to `reflection`)
+- **Description:** "Lull in the stillness."
+- **Visual:** Slow-moving cloud video (landscape-only, first horizontal experience)
+- **Audio:** Single ambient track that plays once then silence
+- **Duration:** Typically 5-15 minutes
+- **Exit Method:** TRACE wordmark tap
+- **User Intent:** Mental exhaustion relief, pre-sleep lull, complete mental rest
+
+### Backend Tasks:
+```typescript
+// Ensure these activity types are recognized
+const VALID_ACTIVITIES = [
+  // ... existing activities
+  'Basin',
+  'Dreamscape',
+];
+
+// Map to reflection category
+const ACTIVITY_CATEGORIES = {
+  // ... existing mappings
+  'Basin': 'reflection',
+  'Dreamscape': 'reflection',
+};
+```
+
+---
+
+## 2. Activity Logging Endpoint
+
+**Endpoint:** `POST /api/activity/log`
+
+Both activities send identical payload structure:
+
+```json
+{
+  "userId": "stable-user-id",
+  "deviceId": "stable-device-id",
+  "activityType": "Basin" | "Dreamscape",
+  "durationSeconds": 420,
+  "completedAt": "2026-01-09T23:45:00.000Z"
+}
+```
+
+**Backend Requirements:**
+- ✅ Accept `Basin` and `Dreamscape` as valid activity types
+- ✅ Store under `reflection` category
+- ✅ Record duration in seconds
+- ✅ Associate with userId/deviceId
+- ✅ Return 200 OK on success
+
+---
+
+## 3. TRACE AI Navigation & Suggestions
+
+### Chat Routing
+TRACE must be able to navigate users when requested:
+
+```typescript
+const ACTIVITY_ROUTES = {
+  // ... existing routes
+  'basin': '/activities/basin',
+  'dreamscape': '/activities/dreamscape',
+};
+
+const ACTIVITY_KEYWORDS = {
+  'basin': ['basin', 'stillness', 'settle', 'ocean', 'waves', 'water'],
+  'dreamscape': ['dreamscape', 'lull', 'clouds', 'drift', 'horizontal'],
+};
+```
+
+**User Navigation Examples:**
+- "Take me to basin" → Navigate to `/activities/basin`
+- "Start dreamscape" → Navigate to `/activities/dreamscape`  
+- "Show me basin" → Navigate to Basin
+- "I want dreamscape" → Navigate to Dreamscape
+
+### Activity Suggestions
+
+#### Basin Suggestions
+**When to suggest:**
+- User mentions: water, ocean, waves, deep calm, sensory grounding
+- Evening/nighttime sessions
+- After intense emotional activities
+- User seeking prolonged stillness
+- Keywords: "sink into calm", "need depth", "water sounds", "ocean"
+
+**Suggestion phrases:**
+- "Basin might hold you — ocean waves, deep stillness"
+- "Let yourself settle into Basin"
+- "Basin's there — just waves and quiet"
+- "Sink into Basin when you're ready"
+- "Try Basin — find your depth"
+
+#### Dreamscape Suggestions  
+**When to suggest:**
+- User mentions: exhaustion, mental fatigue, "need nothing", drained, pre-sleep
+- Late evening (9pm-midnight)
+- After cognitively demanding activities
+- User can't think anymore
+- Keywords: "exhausted", "drained", "mental fog", "need to drift"
+
+**Suggestion phrases:**
+- "Dreamscape might hold you right now"
+- "Try Dreamscape — just stillness"  
+- "Dreamscape's there when you need it"
+- "Let yourself lull into Dreamscape"
+- "Drift into Dreamscape for a bit"
+
+**Tone Guidelines:**
+- Basin: Sensory, grounding, water-based imagery
+- Dreamscape: Ultra-minimal, quiet, subdued (acknowledge sparingly)
+
+---
+
+## 4. Activity Acknowledgments
+
+**Endpoint:** `POST /api/activity-acknowledgment`
+
+### Basin Acknowledgments
+**Tone:** Grounding, water metaphors, sensory awareness
+
+**Suggested responses:**
+- "The depth holds — felt it?"
+- "Waves have their own rhythm"
+- "Stillness settles in the deep"
+- "Basin's kind of presence lingers"
+- "That water — grounding, right?"
+- "Depth restores in its own time"
+
+**Pacing:** Moderate acknowledgment frequency
+
+### Dreamscape Acknowledgments  
+**Tone:** Ultra-minimal, quiet, reflective (less frequent than other activities)
+
+**Suggested responses:**
+- "Stillness holds its own kind of clarity"
+- "That drift — felt it settle?"
+- "Sometimes nothing is exactly what's needed"
+- "The lull lingers"
+- "Deep calm, deep breath"
+- "Drift has its own wisdom"
+
+**Pacing:** Sparse acknowledgment (less than other activities)
+
+---
+
+## 5. Analytics & Data Tracking
+
+### Metrics to Track
+Both Basin and Dreamscape should appear in:
+
+#### Activity Completion Reports
+```sql
+SELECT 
+  activityType,
+  COUNT(*) as total_completions,
+  AVG(durationSeconds) as avg_duration,
+  DATE(completedAt) as date
+FROM activity_logs
+WHERE activityType IN ('Basin', 'Dreamscape')
+GROUP BY activityType, DATE(completedAt)
+```
+
+#### Time of Day Distribution
+- Basin: Expected usage spread throughout day/evening
+- Dreamscape: Expected heavy evening usage (8pm-midnight)
+
+#### Duration Analysis
+- Basin average: 10-20 minutes (longer sessions common)
+- Dreamscape average: 5-15 minutes (shorter, focused presence)
+
+#### Comparison Metrics
+Compare Basin and Dreamscape to other reflection activities:
+- Window (rain watching)
+- Ripple (flowing light)
+- Drift (gentle energy)
+- Rising (cloud bubbles)
+
+---
+
+## 6. Pattern Recognition & Synthesis
+
+### Full Patterns Report Integration
+
+**Both activities MUST be included in:**
+
+#### 1. Weekly Activity Summaries
+```
+Example synthesis:
+"This week, you found stillness in Basin (3 times) and drifted through Dreamscape (2 times) — both signs of seeking deeper rest."
+```
+
+#### 2. Time of Day Patterns
+- "Your evening ritual includes Basin or Dreamscape — water and sky holding space"
+- "Late nights draw you to Dreamscape — the lull before sleep"
+
+#### 3. Activity Clustering
+Recognize sequences:
+- Stressful day → Basin/Dreamscape → better sleep
+- Mental fatigue → Dreamscape → restored clarity
+- Emotional intensity → Basin → grounding
+
+#### 4. Seasonal/Temporal Patterns
+- Basin as consistent grounding practice
+- Dreamscape as exhaustion response
+- Both as evening wind-down rituals
+
+#### 5. Restoration Signatures
+Both contribute to "restoration" patterns:
+- Basin: Sensory/somatic restoration (water, waves, embodied calm)
+- Dreamscape: Cognitive restoration (mental rest, nothing required)
+
+### Pattern Synthesis Examples
+
+**If user does Basin frequently:**
+"Basin has become a go-to — those waves ground you in a way words can't capture."
+
+**If user does Dreamscape after intense days:**
+"When things feel too much, you drift into Dreamscape — the lull that asks nothing of you."
+
+**If user alternates Basin and Dreamscape:**
+"You move between Basin's depth and Dreamscape's drift — both holding you differently."
+
+**If user does both in evening:**
+"Evenings pull you toward water or sky — Basin and Dreamscape bookending your days."
+
+---
+
+## 7. Database Schema Verification
+
+### Activity Logs Table
+Ensure these fields support Basin and Dreamscape:
+
+```sql
+CREATE TABLE activity_logs (
+  id UUID PRIMARY KEY,
+  user_id VARCHAR(255),
+  device_id VARCHAR(255),
+  activity_type VARCHAR(100), -- Must accept 'Basin' and 'Dreamscape'
+  duration_seconds INTEGER,
+  completed_at TIMESTAMP,
+  category VARCHAR(50), -- Should be 'reflection' for both
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Validation:**
+- No hardcoded enum constraints excluding Basin/Dreamscape
+- `reflection` category exists and is valid
+- Activity type field supports new activity names
+
+---
+
+## 8. Testing Checklist
+
+### API Tests
+
+#### Basin Activity Logging
+```bash
+POST /api/activity/log
+{
+  "userId": "test-user-123",
+  "deviceId": "test-device-456",
+  "activityType": "Basin",
+  "durationSeconds": 840,
+  "completedAt": "2026-01-09T22:30:00.000Z"
+}
+# Expected: 200 OK, logged as 'reflection' category
+```
+
+#### Dreamscape Activity Logging  
+```bash
+POST /api/activity/log
+{
+  "userId": "test-user-123",
+  "deviceId": "test-device-456",
+  "activityType": "Dreamscape",
+  "durationSeconds": 420,
+  "completedAt": "2026-01-09T23:45:00.000Z"
+}
+# Expected: 200 OK, logged as 'reflection' category
+```
+
+#### Basin Acknowledgment
+```bash
+POST /api/activity-acknowledgment
+{
+  "userId": "test-user-123",
+  "activityType": "Basin",
+  "activityCount": 3,
+  "lastActivityTime": 840,
+  "timeOfDay": "evening"
+}
+# Expected: Grounding, water-based acknowledgment
+```
+
+#### Dreamscape Acknowledgment
+```bash
+POST /api/activity-acknowledgment  
+{
+  "userId": "test-user-123",
+  "activityType": "Dreamscape",
+  "activityCount": 1,
+  "lastActivityTime": 420,
+  "timeOfDay": "lateNight"
+}
+# Expected: Minimal, quiet acknowledgment
+```
+
+### Chat Navigation Tests
+- [ ] "Take me to basin" → Navigate to Basin
+- [ ] "Start dreamscape" → Navigate to Dreamscape
+- [ ] "I'm exhausted" → TRACE suggests Dreamscape
+- [ ] "I need ocean sounds" → TRACE suggests Basin
+- [ ] "What activities are there?" → Basin and Dreamscape appear
+
+### Analytics Verification
+- [ ] Basin appears in activity reports
+- [ ] Dreamscape appears in activity reports
+- [ ] Both categorized as `reflection`
+- [ ] Both included in weekly summaries
+- [ ] Duration tracked correctly
+- [ ] Time of day distribution accurate
+
+### Pattern Synthesis Tests
+- [ ] Full patterns report includes Basin completions
+- [ ] Full patterns report includes Dreamscape completions
+- [ ] Basin recognized in restoration patterns
+- [ ] Dreamscape recognized in exhaustion/pre-sleep patterns
+- [ ] Sequences like "stress → Basin → calm" detected
+- [ ] Evening rituals including Basin/Dreamscape identified
+
+---
+
+## 9. Mobile-Backend Contract
+
+### Activity Completion Payloads
+
+**From Basin:**
+```json
+{
+  "userId": "stable-user-id",
+  "deviceId": "stable-device-id",
+  "activityType": "Basin",
+  "durationSeconds": 840,
+  "completedAt": "2026-01-09T22:30:00.000Z"
+}
+```
+
+**From Dreamscape:**
+```json
+{
+  "userId": "stable-user-id",
+  "deviceId": "stable-device-id",
+  "activityType": "Dreamscape",
+  "durationSeconds": 420,
+  "completedAt": "2026-01-09T23:45:00.000Z"
+}
+```
+
+### Chat Completion Params
+
+**From Basin:**
+```json
+{
+  "completedActivity": "Basin",
+  "activityDuration": "14.0"
+}
+```
+
+**From Dreamscape:**
+```json
+{
+  "completedActivity": "Dreamscape",
+  "activityDuration": "7.0"
+}
+```
+
+---
+
+## 10. Implementation Priority
+
+### Critical (Must Work Immediately)
+1. ✅ Activity logging accepts Basin and Dreamscape
+2. ✅ Both categorized as `reflection`
+3. ✅ Chat can navigate to Basin and Dreamscape
+4. ✅ Acknowledgments generate appropriate responses
+
+### High Priority
+5. ✅ Basin and Dreamscape included in analytics
+6. ✅ TRACE can suggest Basin and Dreamscape contextually
+7. ✅ Weekly activity summaries include both
+
+### Medium Priority  
+8. ✅ Pattern recognition includes Basin and Dreamscape
+9. ✅ Full patterns report synthesizes Basin/Dreamscape usage
+10. ✅ Time of day patterns for both activities
+
+### Low Priority
+11. Scoring (if reflection activities should award points)
+12. Streaks/consistency tracking for Basin/Dreamscape
+
+---
+
+## 11. Success Criteria
+
+### Basin
+✅ User completes Basin → logged in database as `reflection`  
+✅ User completes Basin → receives grounding acknowledgment  
+✅ User says "ocean sounds" → TRACE suggests Basin  
+✅ Basin appears in weekly activity report  
+✅ Basin contributes to restoration patterns  
+✅ Full patterns report synthesizes Basin usage  
+
+### Dreamscape
+✅ User completes Dreamscape → logged in database as `reflection`  
+✅ User completes Dreamscape → receives minimal acknowledgment  
+✅ User says "exhausted" → TRACE suggests Dreamscape  
+✅ Dreamscape appears in weekly activity report  
+✅ Dreamscape contributes to exhaustion/pre-sleep patterns  
+✅ Full patterns report synthesizes Dreamscape usage  
+
+### Combined  
+✅ Both activities recognized by TRACE AI  
+✅ Both included in all analytics and reports  
+✅ Both woven into pattern synthesis naturally  
+✅ Backend treats both as first-class reflection activities  
+
+---
+
+## 12. Design Philosophy Notes
+
+### Basin
+- **Water as container** - depth, waves, sensory immersion
+- **Longer sessions** expected - users "sink in" for extended periods
+- **Sensory grounding** - ASMR-like presence through audio/video
+- **Acknowledgments:** Grounding, water metaphors, embodied calm
+
+### Dreamscape
+- **Sky as void** - nothing required, pure mental rest
+- **Shorter focused sessions** - quick lull before sleep or after exhaustion
+- **Cognitive restoration** - mental fog dissipates in stillness
+- **Acknowledgments:** Ultra-minimal, sparse, quiet (less is more)
+- **Landscape-only** - first horizontal experience creates ritual separation
+
+---
+
+## Implementation Checklist
+
+### Backend Code Changes
+- [ ] Add `Basin` to activity type constants
+- [ ] Add `Dreamscape` to activity type constants  
+- [ ] Map both to `reflection` category
+- [ ] Update activity logging endpoint validation
+- [ ] Add Basin acknowledgment responses
+- [ ] Add Dreamscape acknowledgment responses
+- [ ] Update chat navigation routes
+- [ ] Add Basin suggestion logic
+- [ ] Add Dreamscape suggestion logic
+- [ ] Include Basin in analytics queries
+- [ ] Include Dreamscape in analytics queries
+- [ ] Add Basin to pattern recognition
+- [ ] Add Dreamscape to pattern recognition
+- [ ] Update full patterns report to include both
+
+### Testing
+- [ ] Test Basin activity logging
+- [ ] Test Dreamscape activity logging
+- [ ] Test Basin acknowledgments
+- [ ] Test Dreamscape acknowledgments
+- [ ] Test Basin navigation
+- [ ] Test Dreamscape navigation
+- [ ] Test Basin suggestions
+- [ ] Test Dreamscape suggestions
+- [ ] Verify Basin in analytics
+- [ ] Verify Dreamscape in analytics
+- [ ] Verify Basin in patterns report
+- [ ] Verify Dreamscape in patterns report
+
+### Documentation
+- [ ] Update API documentation with Basin/Dreamscape
+- [ ] Document acknowledgment tone for both
+- [ ] Document suggestion triggers for both
+- [ ] Update activity list in knowledge base
+
+---
+
+## Questions for Backend Team
+
+1. Does the current activity logging schema support `Basin` and `Dreamscape` without migration?
+2. Is `reflection` category already defined, or does it need to be added?
+3. Are there any hardcoded activity validations that would reject these new types?
+4. How are acknowledgment responses currently selected (random, contextual, learning-based)?
+5. Where should Basin and Dreamscape suggestion logic live (chat intelligence, activity recommender)?
+6. Does the full patterns report have a modular structure for adding new activity types?
+
+---
+
+**End of Integration Prompt**
+
+Please implement full backend integration for Basin and Dreamscape following this specification. Both activities are critical to the TRACE experience and must be seamlessly woven into all systems: logging, acknowledgments, suggestions, analytics, and pattern synthesis.
