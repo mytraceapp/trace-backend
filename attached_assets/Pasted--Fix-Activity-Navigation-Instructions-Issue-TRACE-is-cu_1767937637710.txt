@@ -1,0 +1,118 @@
+# Fix Activity Navigation Instructions
+
+## Issue
+TRACE is currently telling users to "press the play button" when navigating to auto-play activities. This is incorrect - most activities auto-play immediately when the user arrives.
+
+**Current incorrect response:**
+```
+"Okay, I'll walk you there now. When you see the play button, press it when you're ready. I'll be here when you come back."
+```
+
+## Auto-Play Activities (No Play Button)
+These activities start automatically when the user arrives - they have **no play button**:
+
+1. **Basin** - Ocean waves video + audio, auto-plays on entry
+2. **Window** (Rain) - Rain on window video + audio, auto-plays on entry
+3. **Ripple** - 60-second ripple animation + audio sequence, auto-starts
+4. **Echo** - Visualization activity, auto-plays
+5. **Rising** - Particle field activity, auto-plays
+6. **Drift** - Particle field activity, auto-plays
+7. **Dreamscape** - (Coming soon) Will auto-play
+
+## Activities with Play Buttons
+These activities DO have play buttons and require user action:
+
+- **Breathing** - Has play button for breath exercise
+- **Walking** - Has play button for guided walk
+- **Maze** - Interactive maze, user-controlled
+- **Rest** - Has timer/play control
+- **Grounding** - Has play button for guided exercise
+
+## Correct Navigation Instructions
+
+### For Auto-Play Activities (Basin, Window, Ripple, Echo, Rising, Drift, Dreamscape):
+```
+"Okay, I'll walk you there now. When you're ready to return, press TRACE at the top. I'll be here when you come back."
+```
+
+Alternative phrasing:
+- "Heading there now. When you're done, tap TRACE to come back."
+- "Taking you there. Press TRACE at the top when you're ready to return."
+- "I'll guide you there. Tap TRACE when you want to come back."
+
+### For Activities with Play Buttons (Breathing, Walking, Maze, Rest, Grounding):
+```
+"Okay, I'll walk you there now. When you see the play button, press it when you're ready. I'll be here when you come back."
+```
+
+## Implementation Requirements
+
+**File: Likely in chat navigation/routing logic or system prompt**
+
+1. Update navigation instruction logic to differentiate between:
+   - Auto-play activities → "press TRACE to return"
+   - User-initiated activities → "press play button when ready"
+
+2. Activity classification:
+```javascript
+const AUTO_PLAY_ACTIVITIES = [
+  'basin',
+  'window', 
+  'rain',
+  'ripple',
+  'echo',
+  'rising',
+  'drift',
+  'dreamscape'
+];
+
+const USER_INITIATED_ACTIVITIES = [
+  'breathing',
+  'walking',
+  'maze',
+  'rest',
+  'grounding'
+];
+```
+
+3. Update system prompt/instructions to include:
+```
+When navigating users to activities:
+- Auto-play activities (Basin, Window, Ripple, Echo, Rising, Drift, Dreamscape): Tell users "When you're ready to return, press TRACE at the top."
+- User-initiated activities (Breathing, Walking, Maze, Rest, Grounding): Tell users "When you see the play button, press it when you're ready."
+```
+
+## Exit Pattern for All Activities
+All activities have the **TRACE wordmark** at the top of the screen. When pressed, it:
+1. Logs activity completion (duration tracked)
+2. Returns user to chat
+3. Passes completion params for acknowledgment
+4. Shows acknowledgment message (if conditions met)
+
+This is the consistent exit pattern across ALL activities.
+
+## Testing
+After implementation, verify navigation phrases for each activity:
+
+```
+User: "Can you take me to basin"
+Expected: "Okay, I'll walk you there now. When you're ready to return, press TRACE at the top. I'll be here when you come back."
+
+User: "Start breathing"
+Expected: "Okay, I'll walk you there now. When you see the play button, press it when you're ready. I'll be here when you come back."
+
+User: "Take me to ripple"
+Expected: Navigation response mentioning TRACE at top, not play button
+
+User: "I want to do the maze"
+Expected: Navigation response mentioning play button
+```
+
+## Priority
+**High** - This is user-facing messaging that creates confusion when incorrect.
+
+## Notes
+- The TRACE wordmark exit is intentional design - it's the consistent way to exit all activities
+- Auto-play activities are presence/ambient experiences - they don't require user initiation
+- The "press TRACE to return" instruction helps users understand the exit pattern
+- This fix improves user onboarding and reduces confusion about activity controls
