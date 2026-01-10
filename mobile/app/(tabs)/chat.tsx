@@ -26,6 +26,22 @@ import { fetchActivityAcknowledgment, logActivityCompletion } from '../../lib/ac
 
 const CHAT_API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
 
+const ACTIVITY_ROUTES: Record<string, string> = {
+  'Breathing': '/activities/breathing',
+  'Trace the Maze': '/activities/maze',
+  'Walking Reset': '/activities/walking',
+  'Rest': '/activities/rest',
+  'Window': '/activities/window',
+  'Echo': '/activities/echo',
+  'Rising': '/activities/rising',
+  'Drift': '/activities/drift',
+  'Grounding': '/activities/grounding',
+  'Pearl Ripple': '/activities/ripple',
+  'Ripple': '/activities/ripple',
+  'Basin': '/activities/basin',
+  'Dreamscape': '/activities/dreamscape',
+};
+
 type ChatRole = 'user' | 'assistant';
 
 interface ChatMessage {
@@ -264,6 +280,19 @@ export default function ChatScreen() {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      const suggestion = result?.activity_suggestion;
+      if (suggestion?.should_navigate === true && suggestion?.name) {
+        const route = ACTIVITY_ROUTES[suggestion.name];
+        if (route) {
+          console.log('🧭 TRACE navigating to activity:', suggestion.name, route);
+          setTimeout(() => {
+            router.push(route as any);
+          }, 800);
+        } else {
+          console.warn('🧭 TRACE unknown activity route:', suggestion.name);
+        }
+      }
     } catch (err: any) {
       console.error('❌ TRACE handleSend error:', err.message || String(err));
     } finally {
