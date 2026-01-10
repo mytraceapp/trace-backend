@@ -1,0 +1,107 @@
+Backend: ✅ Ready
+
+/api/activity-acknowledgment endpoint exists and works
+Generates natural, varied acknowledgments based on:
+Activity type
+Activity count for the day
+Time of day
+Gap since last activity
+Returns grounded responses like "that felt like a good pause" (not cheerleader-y)
+Mobile: ❌ Not calling the endpoint
+
+Activities like breathing.tsx just do router.replace('/(tabs)/chat') when finished
+No params passed to chat screen
+Chat screen doesn't check for activity completion params
+No API call to /api/activity-acknowledgment
+VS Prompt for Mobile Integration
+MOBILE ACTIVITY ACKNOWLEDGMENT INTEGRATION
+Currently, when users complete an activity, they return to chat without 
+TRACE acknowledging their activity. The backend is ready at 
+POST /api/activity-acknowledgment.
+REQUIRED CHANGES:
+1. ACTIVITY SCREENS (breathing.tsx, drift.tsx, rising.tsx, etc.)
+   When user finishes/exits, pass params to chat:
+   
+   const handleFinish = () => {
+     const durationSeconds = Math.round(progress); // or track actual duration
+     router.replace({
+       pathname: '/(tabs)/chat',
+       params: {
+         completedActivity: 'Breathing',
+         activityDuration: durationSeconds.toString(),
+       }
+     });
+   };
+2. CHAT SCREEN (chat.tsx)
+   Check for activity completion on focus and call acknowledgment API:
+   
+   import { useLocalSearchParams, useRouter } from 'expo-router';
+   
+   const params = useLocalSearchParams<{ 
+     completedActivity?: string; 
+     activityDuration?: string; 
+   }>();
+   
+   useEffect(() => {
+     if (params.completedActivity) {
+       fetchActivityAcknowledgment(params.completedActivity, params.activityDuration);
+       // Clear params after handling
+       router.setParams({ completedActivity: undefined, activityDuration: undefined });
+     }
+   }, [params.completedActivity]);
+3. ACKNOWLEDGMENT API CALL
+   Add function to fetch acknowledgment:
+   
+   const fetchActivityAcknowledgment = async (activityType: string, duration?: string) => {
+     try {
+       const response = await fetch(`${CHAT_API_BASE}/api/activity-acknowledgment`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           userId: authUserId || stableId,
+           activityType,
+           activityCount: 1, // or track daily count
+           lastActivityTime: null,
+           timeOfDay: getTimeOfDay(), // morning/afternoon/evening/night
+           activityDuration: duration ? parseInt(duration) * 1000 : null,
+         }),
+       });
+       
+       const data = await response.json();
+       if (data.message) {
+         // Add acknowledgment as assistant message
+         setMessages(prev => [...prev, {
+           id: `ack-${Date.now()}`,
+           role: 'assistant',
+           content: data.message,
+         }]);
+       }
+     } catch (err) {
+       console.warn('Activity acknowledgment failed:', err);
+     }
+   };
+4. ACTIVITY LOG (also send to /api/activity/log for analytics)
+   When activity completes, also POST to /api/activity/log:
+   
+   await fetch(`${CHAT_API_BASE}/api/activity/log`, {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       userId: authUserId,
+       deviceId: stableId,
+       activityType: 'Breathing',
+       durationSeconds: durationSeconds,
+       completedAt: new Date().toISOString(),
+     }),
+   });
+FILES TO UPDATE:
+- mobile/app/activities/breathing.tsx
+- mobile/app/activities/drift.tsx
+- mobile/app/activities/rising.tsx
+- mobile/app/activities/ripple.tsx
+- mobile/app/activities/window.tsx
+- mobile/app/activities/echo.tsx
+- mobile/app/activities/grounding.tsx
+- mobile/app/(tabs)/chat.tsx
+The acknowledgment will appear naturally as TRACE's response when
+the user returns from an activity.
