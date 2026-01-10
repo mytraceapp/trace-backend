@@ -149,7 +149,14 @@ export default function EchoScreen() {
             if (status.didJustFinish) {
               setIsVoicePlaying(false);
               setTimeout(() => {
-                router.replace('/(tabs)/chat');
+                const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+                router.replace({
+                  pathname: '/(tabs)/chat',
+                  params: {
+                    completedActivity: 'Echo',
+                    activityDuration: durationSeconds.toString(),
+                  },
+                });
               }, 2000);
             }
           }
@@ -170,8 +177,17 @@ export default function EchoScreen() {
     if (audioRef.current) {
       await audioRef.current.stopAsync();
     }
-    router.replace('/(tabs)/chat');
+    const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    router.replace({
+      pathname: '/(tabs)/chat',
+      params: {
+        completedActivity: 'Echo',
+        activityDuration: durationSeconds.toString(),
+      },
+    });
   };
+  
+  const sessionStartRef = useRef<number>(Date.now());
 
   const handleScreenPress = async () => {
     if (audioRef.current) {

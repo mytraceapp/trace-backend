@@ -85,7 +85,14 @@ export default function BreathingActivityScreen() {
   const handleFinish = () => {
     if (progressInterval.current) clearInterval(progressInterval.current);
     if (phaseInterval.current) clearInterval(phaseInterval.current);
-    router.replace('/(tabs)/chat');
+    const durationSeconds = Math.round(progress);
+    router.replace({
+      pathname: '/(tabs)/chat',
+      params: {
+        completedActivity: 'Breathing',
+        activityDuration: durationSeconds.toString(),
+      },
+    });
   };
 
   const TAB_BAR_HEIGHT = 60;

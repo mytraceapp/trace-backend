@@ -208,8 +208,17 @@ export default function WindowScreen() {
     if (audioRef.current) {
       audioRef.current.stopAsync();
     }
-    router.replace('/(tabs)/chat');
+    const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    router.replace({
+      pathname: '/(tabs)/chat',
+      params: {
+        completedActivity: 'Window',
+        activityDuration: durationSeconds.toString(),
+      },
+    });
   };
+  
+  const sessionStartRef = useRef<number>(Date.now());
 
   const dayVideoStyle = useAnimatedStyle(() => ({
     opacity: dayOpacity.value,

@@ -235,12 +235,28 @@ export default function DriftScreen() {
     opacity: helperOpacity.value,
   }));
   
+  const sessionStartRef = useRef<number>(Date.now());
+
   const handleTracePress = () => {
-    router.replace('/(tabs)/chat');
+    const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    router.replace({
+      pathname: '/(tabs)/chat',
+      params: {
+        completedActivity: 'Drift',
+        activityDuration: durationSeconds.toString(),
+      },
+    });
   };
 
   const handleEndSession = () => {
-    router.replace('/(tabs)/chat');
+    const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    router.replace({
+      pathname: '/(tabs)/chat',
+      params: {
+        completedActivity: 'Drift',
+        activityDuration: durationSeconds.toString(),
+      },
+    });
   };
 
   const TAB_BAR_HEIGHT = 60;

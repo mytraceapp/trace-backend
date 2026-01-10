@@ -97,7 +97,13 @@ export default function RisingScreen() {
     if (sessionRef.current) {
       clearInterval(sessionRef.current);
     }
-    router.replace('/(tabs)/chat');
+    router.replace({
+      pathname: '/(tabs)/chat',
+      params: {
+        completedActivity: 'Rising',
+        activityDuration: sessionSeconds.toString(),
+      },
+    });
   };
 
   const formatTime = (seconds: number) => {

@@ -1,0 +1,131 @@
+MOBILE ACTIVITY ACKNOWLEDGMENT INTEGRATION
+
+Currently, when users complete an activity, they return to chat without 
+TRACE acknowledging their activity. The backend is ready at 
+POST /api/activity-acknowledgment.
+
+REQUIRED CHANGES:
+
+1. ACTIVITY SCREENS - Pass params when exiting
+   When user finishes/exits, pass params to chat:
+   
+   const handleFinish = () => {
+     const durationSeconds = Math.round(progress); // or track actual duration
+     router.replace({
+       pathname: '/(tabs)/chat',
+       params: {
+         completedActivity: 'ActivityName',
+         activityDuration: durationSeconds.toString(),
+       }
+     });
+   };
+
+2. CHAT SCREEN (chat.tsx)
+   Check for activity completion on focus and call acknowledgment API:
+   
+   import { useLocalSearchParams, useRouter } from 'expo-router';
+   
+   const params = useLocalSearchParams<{ 
+     completedActivity?: string; 
+     activityDuration?: string; 
+   }>();
+   
+   useEffect(() => {
+     if (params.completedActivity) {
+       fetchActivityAcknowledgment(params.completedActivity, params.activityDuration);
+       // Clear params after handling
+       router.setParams({ completedActivity: undefined, activityDuration: undefined });
+     }
+   }, [params.completedActivity]);
+
+3. ACKNOWLEDGMENT API CALL
+   Add function to fetch acknowledgment:
+   
+   const fetchActivityAcknowledgment = async (activityType: string, duration?: string) => {
+     try {
+       const response = await fetch(`${CHAT_API_BASE}/api/activity-acknowledgment`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           userId: authUserId || stableId,
+           activityType,
+           activityCount: 1, // or track daily count
+           lastActivityTime: null,
+           timeOfDay: getTimeOfDay(), // morning/afternoon/evening/night
+           activityDuration: duration ? parseInt(duration) * 1000 : null,
+         }),
+       });
+       
+       const data = await response.json();
+       if (data.message) {
+         // Add acknowledgment as assistant message
+         setMessages(prev => [...prev, {
+           id: `ack-${Date.now()}`,
+           role: 'assistant',
+           content: data.message,
+         }]);
+       }
+     } catch (err) {
+       console.warn('Activity acknowledgment failed:', err);
+     }
+   };
+
+4. ACTIVITY LOG (also send to /api/activity/log for analytics)
+   When activity completes, also POST to /api/activity/log:
+   
+   await fetch(`${CHAT_API_BASE}/api/activity/log`, {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       userId: authUserId,
+       deviceId: stableId,
+       activityType: 'ActivityName',
+       durationSeconds: durationSeconds,
+       completedAt: new Date().toISOString(),
+     }),
+   });
+
+FILES TO UPDATE:
+
+Existing activity files:
+- mobile/app/activities/breathing.tsx (Breathing)
+- mobile/app/activities/drift.tsx (Drift)
+- mobile/app/activities/rising.tsx (Rising)
+- mobile/app/activities/ripple.tsx (Ripple)
+- mobile/app/activities/window.tsx (Window)
+- mobile/app/activities/echo.tsx (Echo)
+- mobile/app/activities/grounding.tsx (Grounding)
+
+Activities that need dedicated files OR are in [id].tsx:
+- mobile/app/activities/rest.tsx (Rest / Power Nap)
+- mobile/app/activities/maze.tsx (Maze)
+- mobile/app/activities/walking.tsx (Walking Reset)
+- mobile/app/activities/basin.tsx (Basin)
+- mobile/app/activities/dreamscape.tsx (Dreamscape)
+
+Dynamic route (may handle some activities):
+- mobile/app/activities/[id].tsx
+
+Chat screen (receives completion data):
+- mobile/app/(tabs)/chat.tsx
+
+FULL ACTIVITY LIST FOR ACKNOWLEDGMENTS:
+1. Breathing
+2. Drift
+3. Rising
+4. Ripple
+5. Window
+6. Echo
+7. Grounding
+8. Rest (Power Nap)
+9. Maze
+10. Walking (Walking Reset)
+11. Basin
+12. Dreamscape
+
+ACKNOWLEDGMENT FREQUENCY NOTES:
+- Don't acknowledge EVERY time (feels robotic)
+- Backend already handles this via activityCount and timeOfDay
+- First activity of day = warmest acknowledgment
+- 4+ activities = very brief or skip
+- Consider adding randomization: ~70% chance to acknowledge

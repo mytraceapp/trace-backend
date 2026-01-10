@@ -310,12 +310,28 @@ export default function GroundingScreen() {
     }
   };
 
+  const sessionStartRef = useRef<number>(Date.now());
+
   const handleClose = () => {
-    router.back();
+    const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    router.replace({
+      pathname: '/(tabs)/chat',
+      params: {
+        completedActivity: 'Grounding',
+        activityDuration: durationSeconds.toString(),
+      },
+    });
   };
 
   const handleTracePress = () => {
-    router.replace('/(tabs)/chat');
+    const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    router.replace({
+      pathname: '/(tabs)/chat',
+      params: {
+        completedActivity: 'Grounding',
+        activityDuration: durationSeconds.toString(),
+      },
+    });
   };
 
   const contentAnimatedStyle = useAnimatedStyle(() => ({

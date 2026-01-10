@@ -155,7 +155,13 @@ export default function RippleActivityScreen() {
 
         sound.setOnPlaybackStatusUpdate((status) => {
           if (status.isLoaded && status.didJustFinish && isMounted) {
-            router.replace('/(tabs)/chat');
+            router.replace({
+              pathname: '/(tabs)/chat',
+              params: {
+                completedActivity: 'Ripple',
+                activityDuration: TOTAL_DURATION.toString(),
+              },
+            });
           }
         });
 
@@ -292,7 +298,14 @@ export default function RippleActivityScreen() {
     }
     
     setTimeout(() => {
-      router.replace('/(tabs)/chat');
+      const durationSeconds = TOTAL_DURATION - timeRemaining;
+      router.replace({
+        pathname: '/(tabs)/chat',
+        params: {
+          completedActivity: 'Ripple',
+          activityDuration: durationSeconds.toString(),
+        },
+      });
     }, 500);
   };
 

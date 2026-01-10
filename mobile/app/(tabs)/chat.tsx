@@ -13,7 +13,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '../../constants/colors';
 import { Spacing } from '../../constants/spacing';
 import { BodyText, FontFamily } from '../../constants/typography';
@@ -22,6 +22,7 @@ import { playAmbient } from '../../lib/ambientAudio';
 import { sendChatMessage, fetchWelcomeGreeting } from '../../lib/chat';
 import { getStableId } from '../../lib/stableId';
 import { supabase } from '../../lib/supabaseClient';
+import { fetchActivityAcknowledgment, logActivityCompletion } from '../../lib/activityAcknowledgment';
 
 const CHAT_API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
 
@@ -38,6 +39,11 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const theme = colorScheme === 'dark' ? Colors.night : Colors.day;
   const flatListRef = useRef<FlatList>(null);
+  const router = useRouter();
+  const params = useLocalSearchParams<{ 
+    completedActivity?: string; 
+    activityDuration?: string; 
+  }>();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
@@ -46,6 +52,10 @@ export default function ChatScreen() {
   const [stableId, setStableId] = useState<string | null>(null);
   const [welcomeText, setWelcomeText] = useState<string | null>(null);
   const [welcomeLoading, setWelcomeLoading] = useState(false);
+  const [pendingAcknowledgment, setPendingAcknowledgment] = useState<{
+    activity: string;
+    duration?: number;
+  } | null>(null);
 
   const [fontsLoaded] = useFonts({
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
@@ -154,6 +164,52 @@ export default function ChatScreen() {
       fetchGreeting();
     }
   }, [authUserId, stableId, fetchChatHistory, fetchGreeting]);
+
+  useEffect(() => {
+    if (params.completedActivity && stableId !== null) {
+      const activity = params.completedActivity;
+      const duration = params.activityDuration ? parseInt(params.activityDuration, 10) : undefined;
+      
+      console.log('🎯 Activity completion detected:', activity, duration);
+      
+      logActivityCompletion({
+        userId: authUserId,
+        deviceId: stableId,
+        activityType: activity,
+        durationSeconds: duration || 0,
+      });
+      
+      setPendingAcknowledgment({ activity, duration });
+      
+      router.setParams({ completedActivity: undefined, activityDuration: undefined });
+    }
+  }, [params.completedActivity, stableId, authUserId]);
+
+  useEffect(() => {
+    if (pendingAcknowledgment && stableId !== null) {
+      const handleAcknowledgment = async () => {
+        const ackMessage = await fetchActivityAcknowledgment({
+          userId: authUserId,
+          deviceId: stableId,
+          activityType: pendingAcknowledgment.activity,
+          durationSeconds: pendingAcknowledgment.duration,
+        });
+        
+        if (ackMessage) {
+          const assistantMessage: ChatMessage = {
+            id: `ack-${Date.now()}`,
+            role: 'assistant',
+            content: ackMessage,
+          };
+          setMessages(prev => [...prev, assistantMessage]);
+        }
+        
+        setPendingAcknowledgment(null);
+      };
+      
+      handleAcknowledgment();
+    }
+  }, [pendingAcknowledgment, stableId, authUserId]);
 
   const handleSend = async () => {
     const trimmed = inputText.trim();
