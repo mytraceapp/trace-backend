@@ -117,7 +117,8 @@ ${JSON.stringify(brief, null, 2)}`;
 
 function isNewsQuestion(text) {
   if (!text) return false;
-  const t = text.toLowerCase().trim();
+  // Normalize curly quotes to straight quotes
+  const t = text.toLowerCase().trim().replace(/['']/g, "'");
 
   // Simple check: if user mentions "news", fetch news
   if (t.includes('news')) {
@@ -128,9 +129,12 @@ function isNewsQuestion(text) {
   const eventPatterns = [
     'current events',
     "what's happening",
+    'whats happening',
     'what is happening',
     "what's going on",
+    'whats going on',
     'what is going on',
+    'going on in',
     'did you hear about',
     'have you heard about',
     'situation in',
@@ -151,12 +155,15 @@ function isInsistingOnNews(messages) {
   let newsRequests = 0;
   
   for (const msg of recentUserMessages) {
-    const content = (msg.content || '').toLowerCase();
+    // Normalize curly quotes
+    const content = (msg.content || '').toLowerCase().replace(/['']/g, "'");
     if (
       content.includes('news') ||
       content.includes('headlines') ||
       content.includes("what's going on") ||
+      content.includes('whats going on') ||
       content.includes('what is going on') ||
+      content.includes('going on in') ||
       content.includes('tell me what')
     ) {
       newsRequests++;
