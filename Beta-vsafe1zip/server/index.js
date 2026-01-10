@@ -2692,12 +2692,45 @@ app.post('/api/chat', async (req, res) => {
     let anniversaryContext = null;
     let musicContext = null;
 
+    // ============================================================
+    // SERVER-SIDE STRESS DETECTION
+    // ============================================================
+    // Check if user indicated stress/overwhelm earlier in conversation
+    const stressIndicators = [
+      /need.*(break|distraction|take.*mind.*off)/i,
+      /overwhelmed/i,
+      /stressed/i,
+      /too much/i,
+      /can't handle/i,
+      /need.*relax/i,
+      /need.*calm/i,
+      /anxiety|anxious/i,
+      /escape/i,
+    ];
+    
+    const recentUserMessages = messages.filter(m => m.role === 'user').slice(-6);
+    const userWasStressed = recentUserMessages.some(msg => 
+      stressIndicators.some(pattern => pattern.test(msg.content || ''))
+    );
+    
+    if (userWasStressed) {
+      console.log('[TRACE STRESS] User indicated stress earlier in conversation');
+    }
+
     if (!isCrisisMode) {
       // Load news context if user is asking about current events
       try {
         if (isNewsQuestion(userText)) {
           console.log('[TRACE NEWS] News question detected, fetching...');
-          newsContext = await buildNewsContextSummary(userText);
+          let rawNewsContext = await buildNewsContextSummary(userText);
+          
+          // If user was stressed earlier, add stress-aware instruction to news context
+          if (userWasStressed && rawNewsContext) {
+            rawNewsContext += `\n\nIMPORTANT: The user indicated stress/overwhelm earlier in this conversation (they mentioned needing a break or distraction). Before sharing these headlines, acknowledge this tension and ask if they truly want news right now, OR share only the most neutral/lightest item. Do NOT list multiple potentially heavy headlines and then ask "How does this sit with you?" - that adds stress.`;
+            console.log('[TRACE NEWS] Added stress-aware context');
+          }
+          
+          newsContext = rawNewsContext;
           if (newsContext) {
             console.log('[TRACE NEWS] Loaded news context');
           }
@@ -3238,15 +3271,25 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
     
     const messageText = (parsed.message || '').trim();
     if (!messageText) {
-      // Use only safe fallbacks that work in ANY context
-      // Never use responses that assume a specific user action (like asking a question)
-      const fallbacks = [
-        "I'm here with you.",
-        "mm, take your time. I'm listening.",
-        "I'm here. No pressure.",
-        "I hear you.",
-      ];
-      parsed.message = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+      // Contextually-aware fallbacks based on what the user asked
+      const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content?.toLowerCase() || '';
+      
+      // Check if user asked about news/current events
+      const isNewsRequest = /news|happening|current events|what'?s going on|headlines|politics|election|venezuela|immigration/i.test(lastUserMsg);
+      
+      if (isNewsRequest) {
+        // News-specific fallback - acknowledge limitation honestly
+        parsed.message = "I don't have real-time news access, so I may not have the latest on that. Is there something specific that's been on your mind about this?";
+      } else {
+        // Use only safe fallbacks that work in ANY context
+        const fallbacks = [
+          "I'm here with you.",
+          "mm, take your time. I'm listening.",
+          "I'm here. No pressure.",
+          "I hear you.",
+        ];
+        parsed.message = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+      }
     }
 
     const assistantText = parsed.message || "I'm here.";
