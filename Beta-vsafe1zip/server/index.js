@@ -39,7 +39,7 @@ const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
-const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic } = require('./newsClient');
+const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
 const { 
   markUserInCrisis, 
   isUserInCrisisWindow, 
@@ -2722,6 +2722,7 @@ app.post('/api/chat', async (req, res) => {
       try {
         const isDirectNewsQuestion = isNewsQuestion(userText);
         const isConfirmingNews = isNewsConfirmation(userText, messages);
+        const userInsisting = isInsistingOnNews(messages);
         
         if (isDirectNewsQuestion || isConfirmingNews) {
           console.log('[TRACE NEWS] News question detected, fetching...');
@@ -2743,10 +2744,14 @@ app.post('/api/chat', async (req, res) => {
           
           let rawNewsContext = await buildNewsContextSummary(searchTopic);
           
-          // If user was stressed earlier, add stress-aware instruction to news context
-          if (userWasStressed && rawNewsContext) {
+          // If user was stressed earlier BUT not insisting, add stress-aware instruction
+          // If user is insisting (asked multiple times), respect their choice and share all headlines
+          if (userWasStressed && rawNewsContext && !userInsisting) {
             rawNewsContext += `\n\nIMPORTANT: The user indicated stress/overwhelm earlier in this conversation (they mentioned needing a break or distraction). Before sharing these headlines, acknowledge this tension and ask if they truly want news right now, OR share only the most neutral/lightest item. Do NOT list multiple potentially heavy headlines and then ask "How does this sit with you?" - that adds stress.`;
             console.log('[TRACE NEWS] Added stress-aware context');
+          } else if (userInsisting && rawNewsContext) {
+            rawNewsContext += `\n\nNOTE: The user has asked multiple times about this news topic. They clearly want the information. Share ALL the headlines you found - do not filter or withhold. Respect their choice.`;
+            console.log('[TRACE NEWS] User insisting - will share all headlines');
           }
           
           newsContext = rawNewsContext;

@@ -127,16 +127,49 @@ function isNewsQuestion(text) {
   // Also catch current events questions without the word "news"
   const eventPatterns = [
     'current events',
-    "what's happening in",
-    'what is happening in',
-    "what's going on in",
-    'what is going on in',
+    "what's happening",
+    'what is happening',
+    "what's going on",
+    'what is going on',
     'did you hear about',
     'have you heard about',
     'situation in',
+    'want to know what',
+    'tell me what',
+    'headlines',
   ];
   
   return eventPatterns.some(pattern => t.includes(pattern));
+}
+
+// Check if user is repeatedly asking for news (insisting)
+function isInsistingOnNews(messages) {
+  if (!messages?.length) return false;
+  
+  // Count how many times user asked about news/events in recent messages
+  const recentUserMessages = messages.filter(m => m.role === 'user').slice(-5);
+  let newsRequests = 0;
+  
+  for (const msg of recentUserMessages) {
+    const content = (msg.content || '').toLowerCase();
+    if (
+      content.includes('news') ||
+      content.includes('headlines') ||
+      content.includes("what's going on") ||
+      content.includes('what is going on') ||
+      content.includes('tell me what')
+    ) {
+      newsRequests++;
+    }
+  }
+  
+  // If user has asked 2+ times about news, they're insisting
+  if (newsRequests >= 2) {
+    console.log('[NEWS] User is insisting on news (' + newsRequests + ' requests)');
+    return true;
+  }
+  
+  return false;
 }
 
 // Check if user is confirming they want news after TRACE offered
@@ -217,4 +250,5 @@ module.exports = {
   isNewsConfirmation,
   extractPendingNewsTopic,
   extractNewsTopic,
+  isInsistingOnNews,
 };
