@@ -3159,6 +3159,83 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
       };
     }
     
+    // ============================================================
+    // SERVER-SIDE TWO-STEP CONFIRMATION ENFORCEMENT
+    // ============================================================
+    // Detect if user is confirming after an activity was offered
+    const lastUserMessage = messages.filter(m => m.role === 'user').pop()?.content?.toLowerCase().trim() || '';
+    const confirmationPatterns = [
+      /^yes[.!]?$/i,
+      /^yes please[.!]?$/i,
+      /^yeah[.!]?$/i,
+      /^yep[.!]?$/i,
+      /^ok[ay]?[.!]?$/i,
+      /^sure[.!]?$/i,
+      /^ready[.!]?$/i,
+      /^let'?s go[.!]?$/i,
+      /^let'?s do it[.!]?$/i,
+      /^take me[.!]?$/i,
+      /^take me there[.!]?$/i,
+      /^sounds good[.!]?$/i,
+      /^i'?ll try it[.!]?$/i,
+      /^i'?d like (to|that)[.!]?$/i,
+    ];
+    
+    const isConfirmation = confirmationPatterns.some(pattern => pattern.test(lastUserMessage));
+    
+    // Look for activity offer in previous assistant messages
+    let pendingActivity = null;
+    if (isConfirmation) {
+      // Check the last 2 assistant messages for activity offers
+      const recentAssistant = messages.filter(m => m.role === 'assistant').slice(-2);
+      for (const msg of recentAssistant.reverse()) {
+        const content = (msg.content || '').toLowerCase();
+        // Detect activity mentions in offers
+        const activityMentions = [
+          { pattern: /basin/i, name: 'Basin' },
+          { pattern: /dreamscape/i, name: 'Dreamscape' },
+          { pattern: /breathing/i, name: 'Breathing' },
+          { pattern: /drift/i, name: 'Drift' },
+          { pattern: /rising/i, name: 'Rising' },
+          { pattern: /ripple/i, name: 'Ripple' },
+          { pattern: /window|rain/i, name: 'Window' },
+          { pattern: /echo/i, name: 'Echo' },
+          { pattern: /grounding/i, name: 'Grounding' },
+          { pattern: /maze/i, name: 'Trace the Maze' },
+          { pattern: /walking.*reset/i, name: 'Walking Reset' },
+          { pattern: /rest|power.*nap/i, name: 'Rest' },
+        ];
+        
+        for (const { pattern, name } of activityMentions) {
+          // Check if this message mentions an activity AND has offer language
+          const hasOfferLanguage = /would you like|want to try|ready when you are|let me know|guide you|take you/i.test(content);
+          if (pattern.test(content) && hasOfferLanguage) {
+            pendingActivity = name;
+            break;
+          }
+        }
+        if (pendingActivity) break;
+      }
+    }
+    
+    // If user confirmed and there was a pending activity offer, force navigation
+    if (isConfirmation && pendingActivity) {
+      console.log(`[NAVIGATION ENFORCEMENT] User confirmed "${lastUserMessage}" - forcing navigation to: ${pendingActivity}`);
+      
+      // Override the response to navigate
+      parsed.activity_suggestion = {
+        name: pendingActivity,
+        reason: 'user confirmed',
+        should_navigate: true,
+      };
+      
+      // If the message doesn't mention navigation, update it
+      if (!/heading|walking|taking|going|guide|i'll be here when/i.test(parsed.message)) {
+        parsed.message = "Heading there now. I'll be here when you're back.";
+      }
+    }
+    // ============================================================
+    
     const messageText = (parsed.message || '').trim();
     if (!messageText) {
       // Use only safe fallbacks that work in ANY context
