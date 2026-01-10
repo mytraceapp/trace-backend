@@ -13,42 +13,49 @@ function extractNewsTopic(text) {
   
   const t = text.toLowerCase().trim();
   
-  // Common patterns to strip out
-  const stripPatterns = [
-    /^(can you |could you |please |tell me |share |what's |what is |any |some )/gi,
-    /(about the |about |the )?news (about |on |regarding )?/gi,
-    /^(i'm stressed |i am stressed |i need )/gi,
-    /(happening |going on )(in |with )?/gi,
-    /\?$/g,
+  // First, try to extract topic from common patterns
+  const topicPatterns = [
+    /news (?:about |on |in |regarding |for )(.+?)(?:\?|$)/i,
+    /(?:about |on |in |regarding )(.+?)(?:\s+news|\?|$)/i,
+    /what's happening (?:in |with )(.+?)(?:\?|$)/i,
+    /what is going on (?:in |with )(.+?)(?:\?|$)/i,
+    /tell me (?:about )?(?:the )?news (?:in |on |about )(.+?)(?:\?|$)/i,
+    /headlines? (?:about |on |in |for )(.+?)(?:\?|$)/i,
   ];
   
-  let topic = t;
-  for (const pattern of stripPatterns) {
-    topic = topic.replace(pattern, '').trim();
-  }
-  
-  // If we stripped too much or nothing left, try to find key nouns
-  if (!topic || topic.length < 3) {
-    // Look for specific topics mentioned
-    const topicMatches = t.match(/(?:about|on|regarding|in)\s+(\w+(?:\s+\w+)?)/i);
-    if (topicMatches && topicMatches[1]) {
-      topic = topicMatches[1];
-    } else {
-      // Fall back to removing just the obvious filler
-      topic = t.replace(/^(tell me |what's |can you )/gi, '').trim();
+  for (const pattern of topicPatterns) {
+    const match = t.match(pattern);
+    if (match && match[1]) {
+      const topic = match[1].trim();
+      if (topic && topic.length >= 3) {
+        console.log('[NEWS] Extracted topic from user message:', topic);
+        return topic;
+      }
     }
   }
   
-  // Final cleanup - remove common noise words if topic is still too long
-  if (topic.split(' ').length > 4) {
-    topic = topic
-      .replace(/^(the |a |an )/gi, '')
-      .replace(/(right now|today|lately|recently)$/gi, '')
-      .trim();
+  // Fallback: strip common prefixes and look for what's left
+  let topic = t
+    .replace(/^(can you |could you |please |i'm stressed |i am stressed )/gi, '')
+    .replace(/^(tell me |share |what's |what is )/gi, '')
+    .replace(/(about the |about |the )?news/gi, '')
+    .replace(/\?$/g, '')
+    .trim();
+  
+  // Remove remaining filler
+  topic = topic
+    .replace(/^(about |on |in |regarding |for )/gi, '')
+    .replace(/^(the |a |an )/gi, '')
+    .trim();
+  
+  // If we have something reasonable, use it
+  if (topic && topic.length >= 3 && topic.split(' ').length <= 5) {
+    console.log('[NEWS] Extracted topic from user message:', topic);
+    return topic;
   }
   
-  console.log('[NEWS] Extracted topic from user message:', topic);
-  return topic || 'general news';
+  console.log('[NEWS] Could not extract specific topic, using general');
+  return 'general news';
 }
 
 async function fetchNewsArticles(query) {
@@ -138,14 +145,22 @@ function isNewsConfirmation(userMessage, previousMessages) {
   
   const t = userMessage.toLowerCase().trim();
   
-  // Short confirmations that might be news topic confirmations
-  const confirmationWords = ['yes', 'yeah', 'yep', 'sure', 'ok', 'okay', 'please'];
-  const isShortConfirmation = confirmationWords.some(w => t === w || t === w + '!');
+  // Confirmation patterns - starts with yes/yeah/sure/ok or contains headline/news
+  const confirmationPatterns = [
+    /^(yes|yeah|yep|sure|ok|okay|please)/i,
+    /headline/i,
+    /tell me/i,
+    /share/i,
+  ];
+  const matchesConfirmation = confirmationPatterns.some(p => p.test(t));
   
   // Single word that could be a topic (like "Immigration", "Venezuela")
   const isSingleWordTopic = /^[a-z]+$/i.test(t) && t.length >= 4 && t.length <= 20;
   
-  if (isShortConfirmation || isSingleWordTopic) {
+  // Short message (under 30 chars) that might be a confirmation
+  const isShortMessage = t.length < 30;
+  
+  if ((matchesConfirmation && isShortMessage) || isSingleWordTopic) {
     // Check if TRACE recently offered to share news
     const recentAssistant = previousMessages.filter(m => m.role === 'assistant').slice(-2);
     for (const msg of recentAssistant) {
@@ -154,7 +169,7 @@ function isNewsConfirmation(userMessage, previousMessages) {
         content.includes('share what i know') ||
         content.includes('news') ||
         content.includes('headlines') ||
-        content.includes('would you like me to') && content.includes('news')
+        content.includes('would you like me to share')
       ) {
         console.log('[NEWS] Detected news confirmation after TRACE offered');
         return true;
