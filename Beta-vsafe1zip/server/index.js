@@ -39,7 +39,7 @@ const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
-const { buildNewsContextSummary, isNewsQuestion } = require('./newsClient');
+const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic } = require('./newsClient');
 const { 
   markUserInCrisis, 
   isUserInCrisisWindow, 
@@ -2720,9 +2720,28 @@ app.post('/api/chat', async (req, res) => {
     if (!isCrisisMode) {
       // Load news context if user is asking about current events
       try {
-        if (isNewsQuestion(userText)) {
+        const isDirectNewsQuestion = isNewsQuestion(userText);
+        const isConfirmingNews = isNewsConfirmation(userText, messages);
+        
+        if (isDirectNewsQuestion || isConfirmingNews) {
           console.log('[TRACE NEWS] News question detected, fetching...');
-          let rawNewsContext = await buildNewsContextSummary(userText);
+          
+          // Determine the topic to search for
+          let searchTopic = userText;
+          if (isConfirmingNews) {
+            // User is confirming after TRACE offered - look for pending topic
+            const pendingTopic = extractPendingNewsTopic(messages);
+            if (pendingTopic) {
+              searchTopic = pendingTopic;
+              console.log('[TRACE NEWS] Using pending topic from earlier:', pendingTopic);
+            } else if (/^[a-z]+$/i.test(userText.trim()) && userText.trim().length >= 4) {
+              // User replied with a single topic word (like "Immigration")
+              searchTopic = userText.trim();
+              console.log('[TRACE NEWS] Using single-word topic from user:', searchTopic);
+            }
+          }
+          
+          let rawNewsContext = await buildNewsContextSummary(searchTopic);
           
           // If user was stressed earlier, add stress-aware instruction to news context
           if (userWasStressed && rawNewsContext) {
