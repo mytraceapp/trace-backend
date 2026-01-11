@@ -273,13 +273,26 @@ export default function ChatScreen() {
         result?.message ||
         "I'm here with you. Something went wrong on my end, but you can still tell me what's on your mind.";
 
-      const assistantMessage: ChatMessage = {
-        id: `local-assistant-${Date.now()}`,
-        role: 'assistant',
-        content: assistantText,
-      };
+      // Split on ||| delimiter for back-to-back messages
+      const messageParts = assistantText.split('|||').map(s => s.trim()).filter(s => s.length > 0);
+      
+      // Create separate message bubbles for each part
+      const newMessages: ChatMessage[] = messageParts.map((part, index) => ({
+        id: `local-assistant-${Date.now()}-${index}`,
+        role: 'assistant' as const,
+        content: part,
+      }));
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      // Add messages with a slight stagger for natural feel
+      for (let i = 0; i < newMessages.length; i++) {
+        if (i === 0) {
+          setMessages((prev) => [...prev, newMessages[i]]);
+        } else {
+          // Small delay between back-to-back messages (300ms)
+          await new Promise(resolve => setTimeout(resolve, 300));
+          setMessages((prev) => [...prev, newMessages[i]]);
+        }
+      }
 
       const suggestion = result?.activity_suggestion;
       if (suggestion?.should_navigate === true && suggestion?.name) {
