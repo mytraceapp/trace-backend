@@ -2374,6 +2374,16 @@ app.post('/api/chat', async (req, res) => {
       "I'm here with you.",
       "mm, I'm here.",
       "I'm listening.",
+      "Tell me more about that.",
+      "What's on your mind?",
+      "I want to understand better. Can you tell me more about that?",
+      "I'm here with you. What's going on?",
+      "That sounds challenging. Tell me more about what's going on with your family.",
+      "Work stuff can be heavy. What's been happening?",
+      "I'm here. What's weighing on you?",
+      "That sounds draining. How long have you been feeling this way?",
+      "I'm having trouble connecting right now. Please check your internet connection and try again.",
+      "I'm here — seems like we're offline for a moment.",
     ];
     
     // Check if an assistant message is just a banned phrase
