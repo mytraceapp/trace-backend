@@ -4460,6 +4460,20 @@ function getMusicState(userId) {
 
 function detectUserRequestedMusic(messageText = '') {
   const txt = messageText.toLowerCase();
+  
+  // Skip if user is asking about activity comparisons (not requesting music)
+  const isActivityComparison = (
+    txt.includes('why') && (txt.includes('over') || txt.includes('vs') || txt.includes('versus')) ||
+    txt.includes('should i try') ||
+    txt.includes('good for') ||
+    txt.includes('what\'s') && (txt.includes('for') || txt.includes('like')) ||
+    txt.includes('difference between')
+  );
+  
+  if (isActivityComparison) {
+    return false;
+  }
+  
   return (
     txt.includes('music') ||
     txt.includes('playlist') ||
