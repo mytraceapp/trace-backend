@@ -3209,19 +3209,37 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
 - Focus on answering or gently reflecting on the user's latest message.`;
     }
     
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messagesWithHydration
-      ],
-      max_tokens: 300,
-      temperature: chatTemperature,
-      response_format: { type: "json_object" },
-    });
-
-    const rawContent = response.choices[0]?.message?.content || '';
-    console.log('[TRACE OPENAI RAW]', rawContent.substring(0, 500));
+    // Retry logic for OpenAI - sometimes it returns empty responses
+    let rawContent = '';
+    let attempts = 0;
+    const maxAttempts = 2;
+    
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        const response = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...messagesWithHydration
+          ],
+          max_tokens: 300,
+          temperature: chatTemperature,
+          response_format: { type: "json_object" },
+        });
+        
+        rawContent = response.choices[0]?.message?.content || '';
+        
+        if (rawContent.trim()) {
+          console.log('[TRACE OPENAI RAW] attempt', attempts, ':', rawContent.substring(0, 300));
+          break; // Got a response, exit retry loop
+        } else {
+          console.warn('[TRACE OPENAI] Empty response on attempt', attempts);
+        }
+      } catch (apiErr) {
+        console.error('[TRACE OPENAI API ERROR] attempt', attempts, ':', apiErr.message);
+      }
+    }
     
     let parsed;
     try {
@@ -3229,9 +3247,25 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
       console.log('[TRACE OPENAI PARSED] message length:', (parsed.message || '').length);
     } catch (parseErr) {
       console.error('[TRACE OPENAI PARSE ERROR]', parseErr.message, 'Raw:', rawContent.substring(0, 200));
-      // If JSON parsing fails, try to use the raw content as the message
+      // If JSON parsing fails, create a contextual fallback based on user's last message
+      const lastUserContent = messages.filter(m => m.role === 'user').pop()?.content || '';
+      let contextualFallback = "What's on your mind?";
+      
+      // Generate a contextual response based on what user said
+      if (/daughter|son|kid|child/i.test(lastUserContent)) {
+        contextualFallback = "That sounds challenging. Tell me more about what's going on with your family.";
+      } else if (/work|job|boss/i.test(lastUserContent)) {
+        contextualFallback = "Work stuff can be heavy. What's been happening?";
+      } else if (/stress|anxious|worried|nervous/i.test(lastUserContent)) {
+        contextualFallback = "I'm here. What's weighing on you?";
+      } else if (/tired|exhaust|sleep/i.test(lastUserContent)) {
+        contextualFallback = "That sounds draining. How long have you been feeling this way?";
+      } else if (lastUserContent.length > 10) {
+        contextualFallback = "Tell me more about that.";
+      }
+      
       parsed = {
-        message: rawContent.trim() || '',
+        message: contextualFallback,
         activity_suggestion: { name: null, reason: null, should_navigate: false }
       };
     }
