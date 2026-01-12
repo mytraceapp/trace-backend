@@ -1,0 +1,221 @@
+ TRACE Backend API Reference
+
+Complete backend integration guide for TRACE mobile app.
+
+---
+
+## 1. Patterns API
+
+### Endpoint: `/api/patterns/insights`
+
+Mobile expects **backend-only pattern calculations**. Local fallback logic has been removed to prevent drift.
+
+**Request:**
+```json
+{
+  "userId": "string",
+  "deviceId": "string",
+  "userTimezone": "America/Los_Angeles"
+}
+```
+
+**Response:**
+```typescript
+{
+  peakWindow: {
+    label: string | null,           // "7:00 PM – 9:00 PM" or null
+    startHour: number | null,
+    endHour: number | null
+  },
+  mostHelpfulActivity: {
+    label: string | null,           // "Walking" or null
+    count: number                   // 0 if null
+  },
+  stressEchoes?: {
+    label: string,
+    topDayIndex: number | null,
+    stressCount: number,
+    totalStressEntries: number
+  },
+  energyFlow?: {
+    label: string,
+    topDayIndex: number | null,
+    percentage: number | null,
+    totalActivities: number
+  },
+  softening?: {
+    label: string,
+    topDayIndex: number | null,
+    percentage: number | null,
+    totalSoftEntries: number
+  },
+  weeklyMoodTrend?: object,
+  studioInsights?: object | null,
+  sampleSize?: number,
+  journalSampleSize?: number
+}
+```
+
+**Sample Size Thresholds:**
+- Return `null` for any pattern when sample size < 7 activities
+- Better to show "still learning" message than low-confidence data
+- Mobile shows graceful empty states for all null values
+
+**Empty State Messages (Mobile):**
+- **Peak Window**: "Your focus rhythm is still emerging"
+- **Stress Echoes**: "When stress shows up in patterns, TRACE will notice them here."
+- **Energy Flow**: "Your rhythm is quietly forming..."
+- **What Helped Most**: Hidden entirely when null
+
+**Testing Checklist:**
+- [ ] New user (0 activities): All cards show empty states
+- [ ] 1-6 activities: Empty states persist
+- [ ] 7+ activities: Patterns appear
+- [ ] Backend unreachable: Mobile shows cached data + fallback
+- [ ] Timezone conversions work (local time, not UTC)
+- [ ] Studio tier gating works (free users see null)
+- [ ] Crisis mode returns null for studioInsights
+
+---
+
+## 2. Chat API
+
+### Endpoint: `/api/chat`
+
+**Request:**
+```json
+{
+  "messages": [
+    { "role": "user", "content": "hey" },
+    { "role": "assistant", "content": "Hey. How are you?" }
+  ],
+  "userName": "friend",
+  "chatStyle": "conversation",
+  "localTime": "4:30:15 PM",
+  "localDay": "Thursday",
+  "localDate": "1/9/2026",
+  "timezone": "America/Los_Angeles",
+  "userId": "string",
+  "deviceId": "string",
+  "weatherContext": {
+    "temperature": 72,
+    "windSpeed": 5,
+    "summary": "Partly cloudy"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Hey. How's it going?",
+  "activity_suggestion": {
+    "name": "Rising",
+    "reason": "When stress builds, this helps",
+    "should_navigate": true,
+    "target": "rising"
+  }
+}
+```
+
+### Chat Tone Requirements
+
+**CRITICAL:** TRACE sounds like a close friend, not a therapist or AI assistant.
+
+**❌ NEVER Say:**
+- "That does sound like a lot to juggle"
+- "can be challenging and overwhelming"
+- "especially when there's a lot on your plate"
+- "How are you managing with all those responsibilities?"
+- "If you want to talk more about it..."
+
+**✅ DO Say:**
+- "Oof, that's a lot"
+- "Yeah, juggling all that"
+- "That's heavy"
+- "How's it going?"
+- "Makes sense"
+- "Mm"
+
+**Name Usage:**
+- Use first name only (e.g., "Nina")
+- NEVER use full display name (e.g., "Nina Tested" ❌)
+- Use sparingly - often better to skip
+
+**Length:**
+- **1-2 sentences max** for most responses
+- Shorter = more genuine
+- Longer = sounds like therapist
+
+**CRITICAL: Never explain, describe, or educate**
+- Don't say what activities "offer" or "provide"
+- Don't explain how/why things work
+- Don't list benefits or describe experiences
+- Just suggest or state differences
+
+**Examples:**
+
+User: "i have a lot going on between work and homeschooling"
+
+❌ Bad: "That does sound like a lot to juggle, Nina Tested. Balancing work and homeschooling can be challenging and overwhelming. How are you managing with all those responsibilities?"
+
+✅ Good: "Oof, that's a lot. How's it going?"
+
+---
+
+User: "just taking it day by day"
+
+❌ Bad: "Taking it day by day can be a gentle way to handle things, especially when there's a lot on your plate."
+
+✅ Good: "Yeah, one day at a time. How's today been?"
+
+---
+
+### Activity Comparisons
+
+When users ask "why X over Y?" or compare activities, use the Activity Reference Guide above.
+
+User: "Why do rising over basin?"
+
+❌ Bad: "Dreamscape tends to be helpful because it offers a space of calm and stillness..." (WRONG ACTIVITY!)
+
+✅ Good: "Rising has music and gentle warmth — it's about slow forward movement. Basin is pure ocean stillness, no music. Rising for when you need lifting, Basin for when you need settling. Want to try Rising?"
+
+---
+
+User: "Should I try walking or basin?"
+
+❌ Bad: "Walking is great for when you need movement and to shift energy, while Basin provides deep stillness through ocean sounds. It really depends on what you're feeling right now - do you need to move through it or sit with it?"
+
+✅ Good: "Walking for movement, Basin for stillness. What do you need right now?"
+
+---
+
+User: "What's drift good for?"
+
+❌ Bad: "Drift is a concentration practice that helps when your mind is scattered."
+
+✅ Good: "Drift helps when your mind's scattered. Want to try it?"
+
+Or if they want more detail: "Drift is for concentration practice. Good when your thoughts are all over the place. Want to try?"
+
+---
+
+### Activity Suggestions
+
+**Rules:**
+- Never describe what activities "provide" or "offer"
+- Never explain mechanisms or benefits
+- Just name the activity and ask
+
+❌ Bad: "It sounds like you might benefit from something grounding. Basin is an immersive ocean soundscape that provides deep sensory stillness and can help when things feel overwhelming. Would you like me to take you there?"
+
+✅ Good: "Basin might help. Want to go there?"
+
+Or: "Maybe try Basin?"
+
+Or: "Basin?"
+
+**Activity Targets:**
+- `rising` - Rising activity
+- `drift` - Drift activit
