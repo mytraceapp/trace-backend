@@ -1,4 +1,12 @@
-export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone }: {
+export interface PatternContext {
+  peakWindow?: string | null;
+  stressEchoes?: string | null;
+  mostHelpfulActivity?: string | null;
+  mostHelpfulCount?: number | null;
+  weeklyRhythmPeak?: string | null;
+}
+
+export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone, patternContext }: {
   messages: Array<{ role: string; content: string }>;
   userName?: string | null;
   chatStyle?: string;
@@ -8,6 +16,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
   userId?: string | null;
   deviceId?: string | null;
   timezone?: string | null;
+  patternContext?: PatternContext | null;
 }) {
   console.log(
     '🆔 TRACE sendChatMessage ids:',
@@ -36,6 +45,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
           userId: userId || null,
           deviceId: deviceId || null,
           timezone: timezone || null,
+          patternContext: patternContext || null,
         }),
         signal: controller.signal,
       }

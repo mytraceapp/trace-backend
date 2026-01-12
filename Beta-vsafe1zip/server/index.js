@@ -2361,6 +2361,7 @@ app.post('/api/chat', async (req, res) => {
       deviceId,
       timezone,
       weatherContext: clientWeatherContext,
+      patternContext,
     } = req.body;
     
     // Filter out invalid placeholder names like "friend", "buddy", "pal"
@@ -3079,7 +3080,7 @@ Example of what NOT to do:
     };
     
     // Pattern Reflections consent system (opt-in, revocable, crisis-safe)
-    let patternContext = null;
+    let patternReflectionContext = null;
     const patternUserId = userId || deviceId;
     if (!FEATURE_FLAGS.PATTERN_REFLECTIONS_ENABLED) {
       console.log('[FEATURE FLAG] Pattern reflections disabled');
@@ -3111,9 +3112,9 @@ Example of what NOT to do:
         }
         
         // Get safe pattern context
-        patternContext = await getSafePatternContext(pool, patternUserId, null, null, isCrisisMode);
+        patternReflectionContext = await getSafePatternContext(pool, patternUserId, null, null, isCrisisMode);
         
-        if (patternContext) {
+        if (patternReflectionContext) {
           const patternPrompt = `
 PATTERN REFLECTIONS (CONSENT-BASED):
 
@@ -3127,9 +3128,9 @@ These are SEPARATE from:
 - The Patterns tab UI (that's a different feature)
 
 Context:
-- pattern_reflection_consent: "${patternContext.consent}"
-- canOfferPatternConsent: ${patternContext.canOfferConsent}
-${patternContext.patternSummary ? `- patternSummary: ${JSON.stringify(patternContext.patternSummary)}` : '- patternSummary: null'}
+- pattern_reflection_consent: "${patternReflectionContext.consent}"
+- canOfferPatternConsent: ${patternReflectionContext.canOfferConsent}
+${patternReflectionContext.patternSummary ? `- patternSummary: ${JSON.stringify(patternReflectionContext.patternSummary)}` : '- patternSummary: null'}
 
 Rules:
 1. If consent is "no": NEVER mention patterns unless user explicitly asks
@@ -3150,9 +3151,9 @@ CRISIS OVERRIDE:
           
           contextParts.push(patternPrompt);
           console.log('[PATTERN] Added pattern context:', { 
-            consent: patternContext.consent, 
-            canOffer: patternContext.canOfferConsent,
-            hasSummary: !!patternContext.patternSummary 
+            consent: patternReflectionContext.consent, 
+            canOffer: patternReflectionContext.canOfferConsent,
+            hasSummary: !!patternReflectionContext.patternSummary 
           });
         }
       } catch (patternErr) {
@@ -3218,6 +3219,7 @@ CRISIS OVERRIDE:
       systemPrompt = buildTraceSystemPrompt({
         displayName: displayName || null,
         contextSnapshot: fullContext || null,
+        patternContext: patternContext || null,
       });
 
       // Add time awareness if available

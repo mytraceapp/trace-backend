@@ -19,8 +19,42 @@ import { Spacing } from '../../constants/spacing';
 import { BodyText, FontFamily } from '../../constants/typography';
 import { useFonts } from 'expo-font';
 import { playAmbient } from '../../lib/ambientAudio';
-import { sendChatMessage, fetchWelcomeGreeting } from '../../lib/chat';
+import { sendChatMessage, fetchWelcomeGreeting, PatternContext } from '../../lib/chat';
 import { getStableId } from '../../lib/stableId';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Helper to detect pattern-related questions
+function isPatternQuestion(text: string): boolean {
+  const lowerText = text.toLowerCase();
+  const patternKeywords = [
+    'pattern', 'patterns', 'peak window', 'peakwindow',
+    'stress echo', 'rhythm', 'what helped', 'what helps',
+    'weekly rhythm', 'energy tide', 'my patterns', 'explain patterns',
+    'review my patterns', 'patterns page'
+  ];
+  return patternKeywords.some(k => lowerText.includes(k));
+}
+
+// Fetch cached patterns from AsyncStorage
+async function getCachedPatterns(): Promise<PatternContext | null> {
+  try {
+    const cached = await AsyncStorage.getItem('cached_patterns');
+    if (cached) {
+      const data = JSON.parse(cached);
+      return {
+        peakWindow: data.peakWindow?.label || null,
+        stressEchoes: data.stressEchoes?.label || null,
+        mostHelpfulActivity: data.mostHelpfulActivity?.label || null,
+        mostHelpfulCount: data.mostHelpfulActivity?.count || null,
+        weeklyRhythmPeak: data.weeklyMoodTrend?.peakDay || null,
+      };
+    }
+  } catch (err) {
+    console.log('Could not fetch cached patterns:', err);
+  }
+  return null;
+}
+// These imports were moved here for organization but work fine
 import { supabase } from '../../lib/supabaseClient';
 import { fetchActivityAcknowledgment, logActivityCompletion } from '../../lib/activityAcknowledgment';
 
@@ -255,6 +289,16 @@ export default function ChatScreen() {
 
       console.log('📤 TRACE sending payload messages:', payloadMessages.length);
 
+      // Check if user is asking about patterns - if so, fetch cached patterns
+      let patternContext: PatternContext | null = null;
+      if (isPatternQuestion(trimmed)) {
+        console.log('📊 TRACE detected pattern question, fetching cached patterns');
+        patternContext = await getCachedPatterns();
+        if (patternContext) {
+          console.log('📊 TRACE found cached patterns:', patternContext);
+        }
+      }
+
       const result = await sendChatMessage({
         messages: payloadMessages,
         userName: null,
@@ -265,6 +309,7 @@ export default function ChatScreen() {
         userId: authUserId,
         deviceId: stableId,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        patternContext,
       });
 
       console.log('📥 TRACE received reply:', result);

@@ -1,0 +1,100 @@
+
+**CRITICAL:** Know what each pattern on the Patterns page analyzes so you can explain them when users ask.
+
+### Peak Window
+**What it is:** Time of day when user's check-ins are most frequent (based on hourly histogram)  
+**Data shown:** Time range (e.g., "10:30 AM – 1:30 PM")  
+**What it means:** When they naturally reach for TRACE most often  
+**How to explain:** "Peak Window is when you tend to check in with TRACE most. Yours is [time range]. That's when your mind seems to need presence most."
+
+### Stress Echoes
+**What it is:** AI clustering of journal entries with stressful/heavy emotions  
+**Data shown:** Pattern description from backend (e.g., "Work stress clusters around Tuesday afternoons")  
+**What it means:** Recurring stress patterns the AI has noticed  
+**How to explain:** "Stress Echoes are patterns I've noticed in when stress shows up for you. [Insert their specific pattern if available]."  
+**Empty state:** "As you journal more, I'll start noticing which days tend to echo the heaviest pressure."
+
+### Relief Insights (Softening)
+**What it is:** Clustering of calmer/lighter journal entries  
+**Data shown:** When relief tends to happen  
+**What it means:** What times/conditions bring ease  
+**How to explain:** "Relief Insights show when calmer moments tend to appear. [Insert their pattern]."
+
+### What Seems to Help Most
+**What it is:** Activity that appears most frequently during or after calm check-ins  
+**Data shown:** Activity name + count (e.g., "Walking • 5")  
+**What it means:** Which coping tool they reach for most  
+**How to explain:** "You've used [activity name] [count] times this week. It seems to be something you turn to."
+
+### Weekly Rhythm Map
+**What it is:** Waveform showing emotional load across the week (Sun-Sat)  
+**Data shown:** 7-day curve with peak day highlighted  
+**What it means:** How emotional intensity rises and falls through their week  
+**How to explain:** "Weekly Rhythm Map shows how your emotional load moves through the week. [Day of week] tends to be your heaviest day."
+
+### Peak vs. Patterns Page
+**Peak Window** = when they check in most  
+**Weekly Rhythm Map** = how heavy/light each day feels emotionally
+
+### Energy Tides (if exists)
+**What it is:** Behavioral frequency - how many activities completed each day  
+**Not the same as:** Weekly Rhythm Map (which is emotional load, not behavior frequency)
+
+---
+
+## How to Handle Pattern Questions
+
+**User asks: "What is peak window?"**  
+✅ Good: "Peak Window is when you tend to check in most. Yours is 10:30 AM – 1:30 PM. That's when your mind seems to need presence."
+
+**User asks: "Explain the patterns page"**  
+✅ Good: "The Patterns page shows rhythms I've noticed: when you check in most (Peak Window), which days feel heaviest (Weekly Rhythm Map), and what tends to help (like Walking for you). Want me to go through any specific one?"
+
+**User asks: "Review my patterns with me"**  
+✅ Good: "Your Peak Window is 10:30 AM – 1:30 PM. Your heaviest day this week was [day]. Walking is what you've reached for most. Anything stand out to you?"
+
+**User asks: "Why is my peak window at 10am?"**  
+✅ Good: "That's when you check in most. Maybe that's when work pressure builds, or when you naturally pause. What do you think happens around then?"
+
+**DON'T:**
+- Explain all patterns unless asked
+- Use clinical language ("this indicates", "you exhibit")
+- Over-interpret ("you must be stressed at work")
+
+---
+
+## Backend Requirements for Pattern Context in Chat
+
+To enable pattern explanations, your chat endpoint should accept optional `patternContext`:
+
+```json
+{
+  "messages": [...],
+  "userName": "friend",
+  "userId": "...",
+  "deviceId": "...",
+  "patternContext": {
+    "peakWindow": "10:30 AM – 1:30 PM",
+    "stressEchoes": "Work stress clusters around Tuesday afternoons",
+    "mostHelpfulActivity": "Walking",
+    "mostHelpfulCount": 5,
+    "weeklyRhythmPeak": "Wednesday"
+  }
+}
+```
+
+When user asks about patterns, use this context to give specific answers about THEIR data.
+
+**Mobile implementation needed:** Chat screen should fetch current patterns and send as context when relevant.
+
+---
+
+## Migration Notes
+
+Mobile is now a "thin client" - all intelligence lives in backend:
+- ✅ Single source of truth for patterns
+- ✅ No drift between mobile and backend calculations
+- ✅ Easier to improve algorithms (backend-only changes)
+- ✅ Consistent experience across platforms
+
+**Status**: Backend API fully integrated ✅
