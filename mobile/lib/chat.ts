@@ -1,9 +1,13 @@
 export interface PatternContext {
   peakWindow?: string | null;
+  peakWindowConfidence?: 'high' | 'medium' | 'low' | 'insufficient' | null;
   stressEchoes?: string | null;
+  stressEchoesConfidence?: 'high' | 'medium' | 'low' | 'insufficient' | null;
   mostHelpfulActivity?: string | null;
   mostHelpfulCount?: number | null;
+  mostHelpfulConfidence?: 'high' | 'medium' | 'low' | 'insufficient' | null;
   weeklyRhythmPeak?: string | null;
+  lastCalculatedAt?: string | null;
 }
 
 export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone, patternContext }: {
@@ -227,12 +231,17 @@ export interface PeakWindowResult {
   startHour: number | null;
   endHour: number | null;
   percentage: number | null;
+  confidence?: 'high' | 'medium' | 'low' | 'insufficient' | null;
+  sampleSize?: number | null;
 }
 
 export interface MostHelpfulActivityResult {
   label: string;
   topActivity: string | null;
   percentage: number | null;
+  count?: number | null;
+  confidence?: 'high' | 'medium' | 'low' | 'insufficient' | null;
+  sampleSize?: number | null;
 }
 
 export interface LastHourSummary {
@@ -246,6 +255,8 @@ export interface PatternsInsightsResult {
   mostHelpfulActivity: MostHelpfulActivityResult;
   lastHourSummary?: LastHourSummary;
   sampleSize: number;
+  messageSampleSize?: number;
+  lastCalculatedAt?: string | null;
 }
 
 export async function fetchPatternsInsights(params: {
@@ -300,6 +311,8 @@ export async function fetchPatternsInsights(params: {
       mostHelpfulActivity: json.mostHelpfulActivity || fallback.mostHelpfulActivity,
       lastHourSummary: json.lastHourSummary || fallback.lastHourSummary,
       sampleSize: json.sampleSize || 0,
+      messageSampleSize: json.messageSampleSize || 0,
+      lastCalculatedAt: json.lastCalculatedAt || null,
     };
   } catch (err) {
     console.error('📊 TRACE patterns/insights fetch error:', err);

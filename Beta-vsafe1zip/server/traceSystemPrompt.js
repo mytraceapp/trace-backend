@@ -9,16 +9,77 @@ function buildTraceSystemPrompt({ displayName, contextSnapshot, patternContext }
   // Extract first name only (e.g., "Nina Tested" → "Nina")
   const firstName = displayName ? displayName.split(' ')[0] : null;
   
-  // Build pattern context block if user's patterns are available
+  // Validate and filter pattern data based on quality thresholds
+  // Treat missing confidence as 'insufficient' to prevent placeholders from leaking through
+  let validatedPatterns = {};
+  if (patternContext) {
+    // Helper to check if confidence is valid (not insufficient and not missing)
+    const hasValidConfidence = (conf) => conf && conf !== 'insufficient';
+    
+    // Only include patterns that meet minimum thresholds AND have valid confidence
+    // Missing confidence = treat as insufficient
+    if (patternContext.peakWindow && hasValidConfidence(patternContext.peakWindowConfidence)) {
+      validatedPatterns.peakWindow = patternContext.peakWindow;
+      validatedPatterns.peakWindowConfidence = patternContext.peakWindowConfidence;
+    }
+    if (patternContext.stressEchoes && hasValidConfidence(patternContext.stressEchoesConfidence)) {
+      validatedPatterns.stressEchoes = patternContext.stressEchoes;
+      validatedPatterns.stressEchoesConfidence = patternContext.stressEchoesConfidence;
+    }
+    if (patternContext.mostHelpfulActivity && 
+        hasValidConfidence(patternContext.mostHelpfulConfidence) && 
+        (patternContext.mostHelpfulCount || 0) >= 2) {
+      validatedPatterns.mostHelpfulActivity = patternContext.mostHelpfulActivity;
+      validatedPatterns.mostHelpfulCount = patternContext.mostHelpfulCount;
+      validatedPatterns.mostHelpfulConfidence = patternContext.mostHelpfulConfidence;
+    }
+    if (patternContext.weeklyRhythmPeak) {
+      validatedPatterns.weeklyRhythmPeak = patternContext.weeklyRhythmPeak;
+    }
+    // Pass through timestamp if available
+    if (patternContext.lastCalculatedAt) {
+      validatedPatterns.lastCalculatedAt = patternContext.lastCalculatedAt;
+    }
+  }
+  
+  const hasAnyPatterns = Object.keys(validatedPatterns).length > 0;
+  
+  // Build pattern context block with hedging rules based on confidence
   const patternBlock = patternContext ? `
 PATTERN CONTEXT (User's current patterns - use when they ask about patterns):
-${patternContext.peakWindow ? `- Peak Window: ${patternContext.peakWindow}` : '- Peak Window: Still learning'}
-${patternContext.stressEchoes ? `- Stress Echoes: ${patternContext.stressEchoes}` : '- Stress Echoes: Not enough data yet'}
-${patternContext.mostHelpfulActivity ? `- Most Helpful Activity: ${patternContext.mostHelpfulActivity}${patternContext.mostHelpfulCount ? ` (${patternContext.mostHelpfulCount} times)` : ''}` : ''}
-${patternContext.weeklyRhythmPeak ? `- Heaviest Day: ${patternContext.weeklyRhythmPeak}` : ''}
+${validatedPatterns.peakWindow ? `- Peak Window: ${validatedPatterns.peakWindow} (confidence: ${validatedPatterns.peakWindowConfidence || 'medium'})` : '- Peak Window: Not enough data yet'}
+${validatedPatterns.stressEchoes ? `- Stress Echoes: ${validatedPatterns.stressEchoes} (confidence: ${validatedPatterns.stressEchoesConfidence || 'medium'})` : '- Stress Echoes: Not enough data yet'}
+${validatedPatterns.mostHelpfulActivity ? `- Most Helpful Activity: ${validatedPatterns.mostHelpfulActivity} (${validatedPatterns.mostHelpfulCount || 0} times, confidence: ${validatedPatterns.mostHelpfulConfidence || 'medium'})` : ''}
+${validatedPatterns.weeklyRhythmPeak ? `- Heaviest Day: ${validatedPatterns.weeklyRhythmPeak}` : ''}
 
-When user asks about patterns, use THEIR specific data above. Don't speak generically.
-` : '';
+PATTERN EXPLANATION CONFIDENCE RULES:
+1. If confidence is "high" (10+ samples): State patterns directly
+   Example: "Your Peak Window is 10:30 AM – 1:30 PM"
+2. If confidence is "medium" (7-9 samples): Use gentle hedging
+   Example: "Your Peak Window seems to be around 10:30 AM – 1:30 PM"
+3. If confidence is "low" (4-6 samples): Acknowledge limitations
+   Example: "Early pattern suggests you check in more around 10am, but I need more data to be sure"
+4. If NO pattern data provided or "insufficient": Be honest
+   Example: "I don't have enough data yet to see patterns. Keep checking in and I'll start noticing rhythms."
+${validatedPatterns.lastCalculatedAt ? `
+DATA FRESHNESS (lastCalculatedAt: ${validatedPatterns.lastCalculatedAt}):
+- Pattern data has a timestamp. Use this to speak about data age naturally.
+- If data is < 2 hours old: No need to mention age
+- If data is 2-6 hours old: "Based on your patterns from earlier today..."
+- If data is 6-24 hours old: "Looking at your patterns from today..."
+- If data is > 24 hours old: "Based on your patterns from yesterday..." or "this week"
+- NEVER say "right now" or "currently" when referring to pattern data` : ''}
+
+CRITICAL PATTERN RULES:
+- NEVER invent patterns that aren't in the context above
+- NEVER be more confident than the confidence score allows
+- When user asks about patterns, use THEIR specific data above. Don't speak generically.
+- If a pattern field says "Not enough data yet", tell them honestly and encourage more check-ins
+` : `
+PATTERN CONTEXT:
+No pattern data available for this user yet.
+If user asks about patterns, honestly say you don't have enough data yet and encourage them to keep checking in.
+`;
   
   const nameBlock = firstName
     ? `

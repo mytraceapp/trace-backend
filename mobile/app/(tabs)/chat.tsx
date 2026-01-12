@@ -35,20 +35,62 @@ function isPatternQuestion(text: string): boolean {
   return patternKeywords.some(k => lowerText.includes(k));
 }
 
-// Fetch cached patterns from AsyncStorage
+// Max age for pattern cache when sending to chat (5 minutes)
+const PATTERN_CHAT_CONTEXT_MAX_AGE = 5 * 60 * 1000;
+
+// Fetch cached patterns from AsyncStorage with freshness check
 async function getCachedPatterns(): Promise<PatternContext | null> {
   try {
     const cached = await AsyncStorage.getItem('cached_patterns');
-    if (cached) {
-      const data = JSON.parse(cached);
-      return {
-        peakWindow: data.peakWindow?.label || null,
-        stressEchoes: data.stressEchoes?.label || null,
-        mostHelpfulActivity: data.mostHelpfulActivity?.label || null,
-        mostHelpfulCount: data.mostHelpfulActivity?.count || null,
-        weeklyRhythmPeak: data.weeklyMoodTrend?.peakDay || null,
-      };
+    if (!cached) return null;
+    
+    const data = JSON.parse(cached);
+    
+    // Check cache freshness - don't send stale data to chat
+    const lastCalculatedAt = data.lastCalculatedAt || data.timestamp;
+    if (lastCalculatedAt) {
+      const age = Date.now() - new Date(lastCalculatedAt).getTime();
+      if (age > PATTERN_CHAT_CONTEXT_MAX_AGE) {
+        console.log('[CHAT] Pattern cache too old for chat context:', Math.round(age / 60000), 'min');
+        return null;
+      }
     }
+    
+    // Only send patterns that have valid data
+    const context: PatternContext = {};
+    
+    // Peak Window - only include if has actual label (not fallback)
+    if (data.peakWindow?.label && !data.peakWindow.label.includes('Not enough')) {
+      context.peakWindow = data.peakWindow.label;
+      context.peakWindowConfidence = data.peakWindow.confidence || 'medium';
+    }
+    
+    // Stress Echoes - only if has label
+    if (data.stressEchoes?.label && !data.stressEchoes.label.includes('Not enough')) {
+      context.stressEchoes = data.stressEchoes.label;
+      context.stressEchoesConfidence = data.stressEchoes.confidence || 'medium';
+    }
+    
+    // Most Helpful Activity - only include if count >= 2
+    const activityCount = data.mostHelpfulActivity?.count || 0;
+    if (data.mostHelpfulActivity?.label && activityCount >= 2) {
+      context.mostHelpfulActivity = data.mostHelpfulActivity.label;
+      context.mostHelpfulCount = activityCount;
+      context.mostHelpfulConfidence = data.mostHelpfulActivity.confidence || 'medium';
+    }
+    
+    // Weekly rhythm peak day
+    if (data.weeklyMoodTrend?.peakDay) {
+      context.weeklyRhythmPeak = data.weeklyMoodTrend.peakDay;
+    }
+    
+    // Include timestamp for AI to reference data age
+    if (lastCalculatedAt) {
+      context.lastCalculatedAt = lastCalculatedAt;
+    }
+    
+    // Only return if we have at least one valid pattern
+    return Object.keys(context).length > 0 ? context : null;
   } catch (err) {
     console.log('Could not fetch cached patterns:', err);
   }

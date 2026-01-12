@@ -5760,12 +5760,88 @@ app.get('/api/patterns/insights', async (req, res) => {
       }
     }
     
-    console.log('📊 [PATTERNS INSIGHTS] Result:', { peakWindow, mostHelpfulActivity, sampleSize: activityLogs.length });
+    // Calculate confidence levels based on sample sizes
+    const messageSampleSize = messages?.filter(m => m.role === 'user').length || 0;
+    const activitySampleSize = activityLogs.length;
+    
+    function getConfidence(sampleSize, thresholds = { high: 10, medium: 7, low: 4 }) {
+      if (sampleSize >= thresholds.high) return 'high';
+      if (sampleSize >= thresholds.medium) return 'medium';
+      if (sampleSize >= thresholds.low) return 'low';
+      return 'insufficient';
+    }
+    
+    // Apply sample size gates - only include patterns that meet minimum thresholds
+    // Return null fields with confidence="insufficient" when thresholds fail
+    let finalPeakWindow;
+    let finalMostHelpfulActivity;
+    
+    // Peak Window: Require 4+ messages (low threshold)
+    if (peakWindow.startHour !== null && messageSampleSize >= 4) {
+      finalPeakWindow = {
+        ...peakWindow,
+        confidence: getConfidence(messageSampleSize, { high: 10, medium: 7, low: 4 }),
+        sampleSize: messageSampleSize
+      };
+    } else {
+      // Explicitly mark as insufficient so downstream filters work
+      finalPeakWindow = {
+        label: null,
+        startHour: null,
+        endHour: null,
+        percentage: null,
+        confidence: 'insufficient',
+        sampleSize: messageSampleSize
+      };
+    }
+    
+    // Most Helpful Activity: Require 2+ uses of the top activity
+    if (mostHelpfulActivity.topActivity) {
+      const topCount = activityLogs.filter(a => a.activity_type === mostHelpfulActivity.topActivity).length;
+      if (topCount >= 2) {
+        finalMostHelpfulActivity = {
+          ...mostHelpfulActivity,
+          confidence: getConfidence(topCount, { high: 5, medium: 3, low: 2 }),
+          count: topCount,
+          sampleSize: activitySampleSize
+        };
+      } else {
+        finalMostHelpfulActivity = {
+          label: null,
+          topActivity: null,
+          percentage: null,
+          confidence: 'insufficient',
+          count: topCount,
+          sampleSize: activitySampleSize
+        };
+      }
+    } else {
+      finalMostHelpfulActivity = {
+        label: null,
+        topActivity: null,
+        percentage: null,
+        confidence: 'insufficient',
+        count: 0,
+        sampleSize: activitySampleSize
+      };
+    }
+    
+    const lastCalculatedAt = new Date().toISOString();
+    
+    console.log('📊 [PATTERNS INSIGHTS] Result:', { 
+      peakWindow: finalPeakWindow, 
+      mostHelpfulActivity: finalMostHelpfulActivity, 
+      sampleSize: activityLogs.length,
+      messageSampleSize,
+      lastCalculatedAt
+    });
     
     return res.json({
-      peakWindow,
-      mostHelpfulActivity,
+      peakWindow: finalPeakWindow,
+      mostHelpfulActivity: finalMostHelpfulActivity,
       sampleSize: activityLogs.length,
+      messageSampleSize,
+      lastCalculatedAt,
     });
     
   } catch (err) {
