@@ -3220,14 +3220,18 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
       response_format: { type: "json_object" },
     });
 
-    const rawContent = response.choices[0]?.message?.content || '{"message": "mm, what\'s on your mind?", "activity_suggestion": {"name": null, "reason": null, "should_navigate": false}}';
+    const rawContent = response.choices[0]?.message?.content || '';
+    console.log('[TRACE OPENAI RAW]', rawContent.substring(0, 500));
     
     let parsed;
     try {
       parsed = JSON.parse(rawContent);
-    } catch {
+      console.log('[TRACE OPENAI PARSED] message length:', (parsed.message || '').length);
+    } catch (parseErr) {
+      console.error('[TRACE OPENAI PARSE ERROR]', parseErr.message, 'Raw:', rawContent.substring(0, 200));
+      // If JSON parsing fails, try to use the raw content as the message
       parsed = {
-        message: '',
+        message: rawContent.trim() || '',
         activity_suggestion: { name: null, reason: null, should_navigate: false }
       };
     }
