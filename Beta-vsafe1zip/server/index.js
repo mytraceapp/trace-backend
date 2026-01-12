@@ -3212,27 +3212,47 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
     // Retry logic for OpenAI - sometimes it returns empty responses
     let rawContent = '';
     let attempts = 0;
-    const maxAttempts = 2;
+    const maxAttempts = 3;
+    
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     
     while (attempts < maxAttempts) {
       attempts++;
       try {
+        // Add delay between retries (not on first attempt)
+        if (attempts > 1) {
+          console.log('[TRACE OPENAI] Waiting 500ms before retry...');
+          await sleep(500);
+        }
+        
         const response = await openai.chat.completions.create({
           model: 'gpt-4o',
           messages: [
             { role: 'system', content: systemPrompt },
             ...messagesWithHydration
           ],
-          max_tokens: 300,
+          max_tokens: 400,
           temperature: chatTemperature,
           response_format: { type: "json_object" },
         });
         
         rawContent = response.choices[0]?.message?.content || '';
         
+        // Check if we got valid JSON with a non-empty message
         if (rawContent.trim()) {
-          console.log('[TRACE OPENAI RAW] attempt', attempts, ':', rawContent.substring(0, 300));
-          break; // Got a response, exit retry loop
+          try {
+            const testParse = JSON.parse(rawContent);
+            if (testParse.message && testParse.message.trim()) {
+              console.log('[TRACE OPENAI RAW] attempt', attempts, ':', rawContent.substring(0, 300));
+              break; // Got a valid response with message, exit retry loop
+            } else {
+              console.warn('[TRACE OPENAI] Empty message in JSON on attempt', attempts);
+              rawContent = ''; // Reset so we retry
+            }
+          } catch {
+            console.warn('[TRACE OPENAI] Invalid JSON on attempt', attempts);
+            rawContent = ''; // Reset so we retry
+          }
         } else {
           console.warn('[TRACE OPENAI] Empty response on attempt', attempts);
         }
