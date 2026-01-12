@@ -1,0 +1,100 @@
+/ Display: persist old data, show age
+if (Date.now() - patternCache.lastCalculatedAt > DISPLAY_CACHE_MAX_AGE) {
+  showRefreshPrompt(); // Don't hide old data
+} else {
+  showPatterns(patternCache.data); // Always show cached data
+}
+
+// Chat: fetch fresh if stale
+if (Date.now() - patternCache.lastCalculatedAt > CHAT_CONTEXT_MAX_AGE) {
+  await fetchFreshPatterns(); // Only then send to chat
+}
+```
+
+**Chat AI Timestamp Communication:**
+- AI MUST mention data age when explaining patterns older than 2 hours
+- Use natural language: "Based on your patterns from this morning..." (2-6 hours old)
+- Use explicit timestamps: "Looking at your patterns from yesterday..." (24+ hours old)
+- NEVER imply real-time analysis when data is old
+
+**System Prompt Rules for Backend:**
+```
+When explaining patterns from `patternContext`:
+- If lastCalculatedAt < 2 hours ago: No timestamp mention needed
+- If lastCalculatedAt 2-6 hours ago: "Based on your patterns from earlier today..."
+- If lastCalculatedAt 6-24 hours ago: "Looking at your patterns from today..."
+- If lastCalculatedAt > 24 hours ago: "Based on your patterns from [day]..." (e.g., "yesterday", "this week")
+- NEVER say "right now" or "currently" when referring to pattern data
+```
+
+### 7. User Feedback Loop (Future Enhancement)
+
+Add ability for users to correct patterns:
+
+```
+User: "My peak window isn't actually at 10am"
+TRACE: "Got it. I'll keep learning. When do you tend to check in most?"
+
+[Store correction, adjust confidence scores]
+```
+
+### 8. Crisis Mode Override (Backend)
+
+```javascript
+// In chat endpoint
+if (userInCrisisMode) {
+  // Don't send pattern context at all
+  patternContext = null;
+  
+  // System prompt addition:
+  "User is in crisis mode. Do not discuss patterns or analytics. 
+   Focus only on immediate support and grounding."
+}
+```
+
+### 9. A/B Fallback Responses
+
+Train AI to give two-tier responses:
+
+```
+// If pattern context is provided:
+"Your Peak Window is 10:30 AM – 1:30 PM. That's when your mind seems to need presence most."
+
+// If pattern context is missing (insufficient data):
+"I don't have enough check-ins yet to see when you tend to reach for TRACE most. 
+ As you use TRACE more, I'll start noticing your rhythms."
+```
+
+---
+
+## Implementation Checklist: Foolproof Patterns
+
+**Backend:**
+- [ ] Add `lastCalculatedAt` timestamp (ISO 8601) to ALL pattern responses
+- [ ] Include `lastCalculatedAt` for EACH pattern type (peak, stress, relief, etc.)
+- [ ] Accept `patternContext` with timestamps in `/api/chat` endpoint
+- [ ] Add sample size gates (7+ for Peak, 5+ for Stress Echoes, 3+ for What Helps)
+- [ ] Add confidence scoring (high/medium/low)
+- [ ] Run data quality validation before sending
+- [ ] Add hedging rules to system prompt based on confidence
+- [ ] Add timestamp communication rules to system prompt (2hr/6hr/24hr thresholds)
+- [ ] Override pattern context in crisis mode
+- [ ] Log pattern explanations for monitoring
+
+**Mobile:**
+- [ ] Add `lastCalculatedAt` timestamp to pattern cache storage
+- [ ] NEVER clear displayed patterns until new data arrives (persist old data)
+- [ ] Show "last updated X hours ago" on patterns page
+- [ ] Show refresh prompt after 24 hours (keep displaying old data)
+- [ ] Check cache age before sending to chat (max 5 minutes old for context)
+- [ ] Fetch fresh patterns if cache is stale for chat
+- [ ] Send pattern context WITH timestamps to backend
+- [ ] Only send patterns that meet minimum thresholds
+- [ ] Detect pattern-related keywords to trigger context fetch
+- [ ] Handle missing pattern context gracefully
+
+**Monitoring:**
+- [ ] Log when AI explains patterns (for quality review)
+- [ ] Track user corrections/disagreements
+- [ ] Alert if confidence scores consistently low
+- [ ] Review pattern explanation accuracy monthly
