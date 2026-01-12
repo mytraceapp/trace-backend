@@ -1034,8 +1034,25 @@ function isHighDistressText(text) {
   }
 
   // Very acute panic / overwhelm / emotional collapse
+  // IMPORTANT: Distinguish ACTIVE crisis vs SYMPTOM discussion
+  // "I'm having a panic attack" = ACTIVE (crisis)
+  // "I keep having panic attacks" = SYMPTOM (not crisis)
+  const isActivePanic = (
+    t.includes('having a panic attack') ||
+    t.includes('panic attack right now') ||
+    t.includes('in the middle of a panic') ||
+    t.includes('panicking right now')
+  );
+  const isSymptomPanic = (
+    t.includes('keep having panic') ||
+    t.includes('get panic attacks') ||
+    t.includes('have panic attacks') ||
+    t.includes('had panic attacks') ||
+    t.includes('been having panic')
+  );
+  
   if (
-    t.includes('panic attack') ||
+    (t.includes('panic attack') && isActivePanic && !isSymptomPanic) ||
     t.includes("can't breathe") ||
     t.includes('hyperventilating') ||
     t.includes('shaking so bad') ||
