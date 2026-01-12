@@ -2384,6 +2384,7 @@ app.post('/api/chat', async (req, res) => {
       "That sounds draining. How long have you been feeling this way?",
       "I'm having trouble connecting right now. Please check your internet connection and try again.",
       "I'm here — seems like we're offline for a moment.",
+      "Just reconnecting... try sending that again in a moment.",
     ];
     
     // Check if an assistant message is just a banned phrase

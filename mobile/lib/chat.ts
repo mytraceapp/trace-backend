@@ -66,8 +66,9 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
 
     console.log('Chat API failed:', err?.message);
 
+    // Don't show a message that looks like a fallback - just indicate we're reconnecting
     return {
-      message: "I'm here — seems like we're offline for a moment.",
+      message: "Just reconnecting... try sending that again in a moment.",
       activity_suggestion: {
         name: null,
         reason: null,
