@@ -1989,14 +1989,14 @@ Always respond with JSON in this shape:
 `;
 
 const fallbackResponses = [
-  "mm, I'm here with you.",
-  "I hear you... tell me more?",
-  "that's okay. take your time.",
-  "mm, what's on your mind?",
-  "I'm listening.",
-  "how does that feel?",
-  "mm... that sounds like a lot.",
-  "I'm here.",
+  "What's on your mind?",
+  "Tell me more about that.",
+  "How are you feeling right now?",
+  "What's going on?",
+  "What would help right now?",
+  "How does that feel?",
+  "That sounds like a lot. Want to talk about it?",
+  "What's weighing on you?",
 ];
 
 function getFallbackResponse() {
@@ -3305,12 +3305,12 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
         // News-specific fallback - acknowledge limitation honestly
         parsed.message = "I don't have real-time news access, so I may not have the latest on that. Is there something specific that's been on your mind about this?";
       } else {
-        // Use only safe fallbacks that work in ANY context
+        // Use engaging fallbacks that invite conversation
         const fallbacks = [
-          "I'm here with you.",
-          "mm, take your time. I'm listening.",
-          "I'm here. No pressure.",
-          "I hear you.",
+          "What's on your mind?",
+          "How are you feeling right now?",
+          "Tell me what's going on.",
+          "What would help right now?",
         ];
         parsed.message = fallbacks[Math.floor(Math.random() * fallbacks.length)];
       }
@@ -3341,7 +3341,7 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
     });
   } catch (error) {
     console.error('TRACE API error:', error.message || error);
-    res.status(500).json({ error: 'Failed to get response', message: "mm, I'm here." });
+    res.status(500).json({ error: 'Failed to get response', message: "Something went wrong on my end. What's on your mind?" });
   }
 });
 
