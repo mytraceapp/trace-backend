@@ -2366,11 +2366,37 @@ app.post('/api/chat', async (req, res) => {
     );
     console.log('🧠 /api/chat mode=chat_core userId:', userId, 'deviceId:', deviceId);
     
-    // Filter out garbage/corrupted messages from history (empty or whitespace-only content)
+    // Banned phrases that should not be in conversation history (causes AI to copy them)
+    const BANNED_ASSISTANT_PHRASES = [
+      "I hear you.",
+      "I'm here. No pressure.",
+      "mm, take your time. I'm listening.",
+      "I'm here with you.",
+      "mm, I'm here.",
+      "I'm listening.",
+    ];
+    
+    // Check if an assistant message is just a banned phrase
+    function isBannedResponse(content) {
+      const trimmed = (content || '').trim();
+      return BANNED_ASSISTANT_PHRASES.some(phrase => 
+        trimmed === phrase || trimmed.toLowerCase() === phrase.toLowerCase()
+      );
+    }
+    
+    // Filter out garbage/corrupted messages AND sanitize banned assistant responses
     const messages = (rawMessages || []).filter(msg => {
       const content = (msg.content || '').trim();
       // Keep message only if it has meaningful content (not just whitespace/newlines)
-      return content.length > 0 && !/^\s*$/.test(content);
+      if (content.length === 0 || /^\s*$/.test(content)) {
+        return false;
+      }
+      // Remove banned assistant responses from history so AI doesn't copy them
+      if (msg.role === 'assistant' && isBannedResponse(content)) {
+        console.log('[TRACE CHAT] Filtered out banned assistant response from history:', content);
+        return false;
+      }
+      return true;
     });
 
     // Detect light closure messages and respond with short acknowledgement
