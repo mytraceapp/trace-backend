@@ -3209,21 +3209,23 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
 - Focus on answering or gently reflecting on the user's latest message.`;
     }
     
-    // Retry logic for OpenAI - sometimes it returns empty responses
-    let rawContent = '';
-    let attempts = 0;
-    const maxAttempts = 3;
-    
+    // ============================================================
+    // BULLETPROOF OPENAI RESPONSE SYSTEM
+    // Layer 1: Primary model with retries
+    // Layer 2: Backup model (gpt-4o-mini) 
+    // Layer 3: Plain text mode (no JSON requirement)
+    // Layer 4: AI-generated contextual response via mini model
+    // ============================================================
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     
-    while (attempts < maxAttempts) {
-      attempts++;
+    let rawContent = '';
+    let parsed = null;
+    const lastUserContent = messages.filter(m => m.role === 'user').pop()?.content || '';
+    
+    // LAYER 1: Primary model (gpt-4o) with 3 retries
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        // Add delay between retries (not on first attempt)
-        if (attempts > 1) {
-          console.log('[TRACE OPENAI] Waiting 500ms before retry...');
-          await sleep(500);
-        }
+        if (attempt > 1) await sleep(300 * attempt); // Exponential backoff
         
         const response = await openai.chat.completions.create({
           model: 'gpt-4o',
@@ -3231,64 +3233,129 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
             { role: 'system', content: systemPrompt },
             ...messagesWithHydration
           ],
-          max_tokens: 400,
+          max_tokens: 500,
           temperature: chatTemperature,
           response_format: { type: "json_object" },
         });
         
         rawContent = response.choices[0]?.message?.content || '';
         
-        // Check if we got valid JSON with a non-empty message
         if (rawContent.trim()) {
-          try {
-            const testParse = JSON.parse(rawContent);
-            if (testParse.message && testParse.message.trim()) {
-              console.log('[TRACE OPENAI RAW] attempt', attempts, ':', rawContent.substring(0, 300));
-              break; // Got a valid response with message, exit retry loop
-            } else {
-              console.warn('[TRACE OPENAI] Empty message in JSON on attempt', attempts);
-              rawContent = ''; // Reset so we retry
-            }
-          } catch {
-            console.warn('[TRACE OPENAI] Invalid JSON on attempt', attempts);
-            rawContent = ''; // Reset so we retry
+          const testParse = JSON.parse(rawContent);
+          if (testParse.message && testParse.message.trim().length > 0) {
+            parsed = testParse;
+            console.log('[TRACE OPENAI L1] Success on attempt', attempt);
+            break;
           }
-        } else {
-          console.warn('[TRACE OPENAI] Empty response on attempt', attempts);
         }
-      } catch (apiErr) {
-        console.error('[TRACE OPENAI API ERROR] attempt', attempts, ':', apiErr.message);
+        console.warn('[TRACE OPENAI L1] Empty/invalid on attempt', attempt);
+      } catch (err) {
+        console.error('[TRACE OPENAI L1] Error on attempt', attempt, ':', err.message);
       }
     }
     
-    let parsed;
-    try {
-      parsed = JSON.parse(rawContent);
-      console.log('[TRACE OPENAI PARSED] message length:', (parsed.message || '').length);
-    } catch (parseErr) {
-      console.error('[TRACE OPENAI PARSE ERROR]', parseErr.message, 'Raw:', rawContent.substring(0, 200));
-      // If JSON parsing fails, create a contextual fallback based on user's last message
-      const lastUserContent = messages.filter(m => m.role === 'user').pop()?.content || '';
-      let contextualFallback = "What's on your mind?";
-      
-      // Generate a contextual response based on what user said
-      if (/daughter|son|kid|child/i.test(lastUserContent)) {
-        contextualFallback = "That sounds challenging. Tell me more about what's going on with your family.";
-      } else if (/work|job|boss/i.test(lastUserContent)) {
-        contextualFallback = "Work stuff can be heavy. What's been happening?";
-      } else if (/stress|anxious|worried|nervous/i.test(lastUserContent)) {
-        contextualFallback = "I'm here. What's weighing on you?";
-      } else if (/tired|exhaust|sleep/i.test(lastUserContent)) {
-        contextualFallback = "That sounds draining. How long have you been feeling this way?";
-      } else if (lastUserContent.length > 10) {
-        contextualFallback = "Tell me more about that.";
+    // LAYER 2: Backup model (gpt-4o-mini) if primary failed
+    if (!parsed) {
+      console.log('[TRACE OPENAI L2] Trying backup model gpt-4o-mini...');
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          if (attempt > 1) await sleep(400);
+          
+          const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...messagesWithHydration
+            ],
+            max_tokens: 500,
+            temperature: chatTemperature,
+            response_format: { type: "json_object" },
+          });
+          
+          rawContent = response.choices[0]?.message?.content || '';
+          
+          if (rawContent.trim()) {
+            const testParse = JSON.parse(rawContent);
+            if (testParse.message && testParse.message.trim().length > 0) {
+              parsed = testParse;
+              console.log('[TRACE OPENAI L2] Success with mini model');
+              break;
+            }
+          }
+        } catch (err) {
+          console.error('[TRACE OPENAI L2] Error:', err.message);
+        }
       }
-      
+    }
+    
+    // LAYER 3: Plain text mode (no JSON format requirement)
+    if (!parsed) {
+      console.log('[TRACE OPENAI L3] Trying plain text mode...');
+      try {
+        const plainPrompt = `You are TRACE, a calm and grounded companion. Respond naturally to what the user just said. Keep it warm and conversational, 1-2 sentences max.
+
+User said: "${lastUserContent}"
+
+Your response:`;
+        
+        const response = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: plainPrompt }],
+          max_tokens: 150,
+          temperature: 0.8,
+        });
+        
+        const plainText = response.choices[0]?.message?.content?.trim() || '';
+        if (plainText.length > 5) {
+          parsed = {
+            message: plainText,
+            activity_suggestion: { name: null, reason: null, should_navigate: false }
+          };
+          console.log('[TRACE OPENAI L3] Success with plain text');
+        }
+      } catch (err) {
+        console.error('[TRACE OPENAI L3] Error:', err.message);
+      }
+    }
+    
+    // LAYER 4: Final AI-generated contextual response (last resort)
+    if (!parsed) {
+      console.log('[TRACE OPENAI L4] Generating contextual AI response...');
+      try {
+        const contextPrompt = `Generate a single warm, empathetic response (1 sentence) for someone who just said: "${lastUserContent}". Be curious and caring. Do not use cliché therapy phrases. Just respond naturally like a supportive friend would.`;
+        
+        const response = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: contextPrompt }],
+          max_tokens: 100,
+          temperature: 0.9,
+        });
+        
+        const contextText = response.choices[0]?.message?.content?.trim() || '';
+        if (contextText.length > 5) {
+          parsed = {
+            message: contextText,
+            activity_suggestion: { name: null, reason: null, should_navigate: false }
+          };
+          console.log('[TRACE OPENAI L4] Success with contextual generation');
+        }
+      } catch (err) {
+        console.error('[TRACE OPENAI L4] Error:', err.message);
+      }
+    }
+    
+    // FINAL SAFETY NET: This should almost never happen
+    if (!parsed || !parsed.message) {
+      console.error('[TRACE OPENAI] ALL LAYERS FAILED - using emergency response');
       parsed = {
-        message: contextualFallback,
+        message: lastUserContent.length > 10 
+          ? "I want to understand better. Can you tell me more about that?"
+          : "I'm here with you. What's going on?",
         activity_suggestion: { name: null, reason: null, should_navigate: false }
       };
     }
+    
+    console.log('[TRACE OPENAI FINAL] message length:', parsed.message.length);
     
     // ============================================================
     // SERVER-SIDE TWO-STEP CONFIRMATION ENFORCEMENT
