@@ -1988,19 +1988,9 @@ Always respond with JSON in this shape:
   - Set to true only after the user clearly agrees (e.g., "okay", "yes let's try it", "sure, breathing sounds good").
 `;
 
-const fallbackResponses = [
-  "What's on your mind?",
-  "Tell me more about that.",
-  "How are you feeling right now?",
-  "What's going on?",
-  "What would help right now?",
-  "How does that feel?",
-  "That sounds like a lot. Want to talk about it?",
-  "What's weighing on you?",
-];
-
+// Simple fallback only used when AI truly fails to respond
 function getFallbackResponse() {
-  return fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+  return "What's on your mind?";
 }
 
 // GPT-based emotion analysis for message tagging
@@ -3293,30 +3283,8 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
     }
     // ============================================================
     
-    const messageText = (parsed.message || '').trim();
-    if (!messageText) {
-      // Contextually-aware fallbacks based on what the user asked
-      const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content?.toLowerCase() || '';
-      
-      // Check if user asked about news/current events
-      const isNewsRequest = /news|happening|current events|what'?s going on|headlines|politics|election|venezuela|immigration/i.test(lastUserMsg);
-      
-      if (isNewsRequest) {
-        // News-specific fallback - acknowledge limitation honestly
-        parsed.message = "I don't have real-time news access, so I may not have the latest on that. Is there something specific that's been on your mind about this?";
-      } else {
-        // Use engaging fallbacks that invite conversation
-        const fallbacks = [
-          "What's on your mind?",
-          "How are you feeling right now?",
-          "Tell me what's going on.",
-          "What would help right now?",
-        ];
-        parsed.message = fallbacks[Math.floor(Math.random() * fallbacks.length)];
-      }
-    }
-
-    const assistantText = parsed.message || "I'm here.";
+    // Only use a fallback if AI truly returned nothing (rare edge case)
+    const assistantText = (parsed.message || '').trim() || "What's on your mind?";
 
     // Save assistant reply safely
     try {
