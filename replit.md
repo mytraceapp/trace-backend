@@ -28,6 +28,8 @@ An Express server acts as a proxy to the OpenAI API, defining the TRACE AI perso
 
 **Spotify Music Integration**: TRACE can suggest Spotify playlists during conversation to be with users through sound. Three playlists available: Ground (anxiety/overwhelm), Drift (tiredness/numbness), Rising (low energy/hopelessness). Uses a two-step flow: TRACE offers first, then launches after user consents. Music is framed relationally ("I can be with you through sound") rather than prescriptively.
 
+**Contextual Feature Introduction**: Features are introduced through relationship, not explanation. Rather than UI tours or tooltips, TRACE offers features contextually when users need them (e.g., mentioning patterns after 3-4 journal entries, suggesting Dreamscape when user mentions sleep trouble). This creates discovery through care, not instruction.
+
 ## Interactive Activities
 
 Activities are designed to be short (45 seconds to 5 minutes) to reduce commitment anxiety. They include a procedural Maze mini-game, timed Breathing Exercises with synchronized visuals and audio, a 5-4-3-2-1 Grounding technique, and "Rising" – a full-screen WebGL shader animation with device tilt support and procedural particle systems. Other activities include Power Nap, Pearl Ripple, and Walking Reset. All activities auto-save an entry upon completion.

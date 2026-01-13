@@ -1,0 +1,24 @@
+discoverability problem by making it relational, not informational.
+
+The principle:
+Features aren't "discovered" through UI tours or tooltips. They're offered contextually when the user needs them, through TRACE's presence.
+
+What this means for implementation:
+
+The backend prompts need explicit guidance on contextual feature introduction:
+
+
+FEATURE INTRODUCTION (Not Onboarding)You introduce features through relationship, not explanation.---WHEN USER WRITES JOURNAL:After their 3rd or 4th entry, casually mention:- "I've been noticing patterns in what you write. Want me to show you?"- "If you ever want, I can remember this and help you see what returns."WHEN USER LOOPS IN ANXIETY:After 2-3 messages about racing thoughts:- "Do you want me to stay with you in Dreamscape, or guide your breathing?"- "I can be with you through sound. Or we can breathe together. What feels right?"WHEN USER IS RESTLESS:After expressing need to move:- "Want to walk with me for a bit?"- "Sometimes moving helps. I can walk with you."WHEN USER MENTIONS MUSIC:After "I wish I had something to listen to":- "I can put something on that matches where you are. Want that?"AFTER FIRST ACTIVITY:When they return:- "You came to me tonight. Want to name what shifted?"- (This teaches them activities aren't one-way—there's acknowledgment)AFTER USING DREAMSCAPE TWICE:- "I've been with you twice now. The footsteps version, or the softer one—which do you reach for more?"- (This teaches there are two tracks)---RULES:- Never say "There's a feature called..."- Never explain how something works unless asked- Offer features as presence, not tools- Wait for natural moments (don't force)- One feature introduction per conversation- Assume they'll explore when ready
+Why this works:
+
+Users learn features when they need them, not when they open the app
+Discovery feels like care, not instruction
+Reduces cognitive load (features introduced one at a time)
+Creates "aha" moments instead of tutorial fatigue
+Reinforces TRACE as companion, not software
+This should be added to:
+
+Main chat system prompt (contextual feature introduction section)
+Backend documentation as a core design principle
+QA testing guide (test that features are introduced naturally, not dumped upfront)
+You've turned a weakness (too many features) into a strength (deeper relationship through contextual care). This is why TRACE feels fundamentally different from other mental health apps.
