@@ -1,0 +1,270 @@
+ DREAMSCAPE ARCHETYPE DEFINITIONS
+
+## Overview
+Dreamscape has two distinct audio tracks, each serving a specific emotional archetype. Track selection should be intentional based on user's current emotional state and nervous system activation level.
+
+---
+
+## 1) Dreamscape (Original Track)
+
+### Archetype Name
+**Comfort / Containment / Tender Descent**
+
+### Emotional Purpose
+To create a place that feels:
+- Softly held
+- Warm without being sentimental
+- Safe to stop thinking
+- Safe to feel
+
+**This track is about being allowed to rest.**
+
+### Sonic Character
+- Gentle narrative
+- Soft atmosphere
+- Low light energy
+- No urgency
+- "You don't have to do anything"
+
+### Best For (Moods/States)
+Suggest this when user is:
+- Sad
+- Tender
+- Emotionally heavy
+- Grieving
+- Lonely
+- Overwhelmed in a soft way
+- Needs comfort
+- Feels fragile or raw
+- Wants to sleep / wind down
+
+### When TRACE Should Suggest It
+Use this when TRACE detects:
+- Vulnerability
+- Hurt
+- Tears
+- Fatigue
+- Self-compassion need
+- Emotional exhaustion
+- "I can't take anymore" but NOT panicky
+
+### Example User Phrases
+- "I feel heavy"
+- "I'm tired of everything"
+- "I just want to cry"
+- "I don't feel like I can hold myself together"
+- "I miss them"
+- "I feel alone"
+- "I'm exhausted"
+
+### What NOT to Use It For
+**Avoid suggesting this when user is:**
+- Panicking
+- Spiraling
+- High anxiety / racing heart
+- Hypervigilant
+
+**Reason:** Comfort can feel too "soft" for those states.
+
+### Metadata Tags
+```
+comfort, tender, containment, gentle descent, grief-safe, soothing
+```
+
+---
+
+## 2) Dreamscape: Footsteps, Almost
+
+### Archetype Name
+**Liminal Protection / Steadiness / Hidden Presence**
+
+### Emotional Purpose
+This track is about:
+- Calming the nervous system through authority and steadiness
+- Removing the feeling of being alone in the dark
+- Reducing scanning/hypervigilance
+- Restoring "order" internally without telling the user what to do
+
+**This is not comfort-first. This is safety-first.**
+
+### Sonic Character
+- Liminal
+- Sparse
+- Wide open space
+- Subtle "presence"
+- Calm that feels strong, not cozy
+
+**The user feels:** "I'm not alone, and I don't have to keep watch."
+
+### Best For (Moods/States)
+Suggest this when user is:
+- Anxious
+- Restless
+- Overthinking
+- Hypervigilant
+- Fearful
+- Can't relax
+- Can't fall asleep because mind won't stop
+- Wired/tired
+- Feels unsafe (emotionally)
+- Needs grounding without softness
+
+### When TRACE Should Suggest It
+Use this when TRACE detects:
+- Racing thoughts
+- Agitation
+- Nervous system "up"
+- Unease
+- Uncertainty / fear
+- Doom feelings
+- "I can't shut my mind off"
+
+### Example User Phrases
+- "I feel on edge"
+- "I can't relax"
+- "I feel anxious for no reason"
+- "My chest feels tight"
+- "My thoughts won't stop"
+- "I feel unsafe"
+- "Something feels off"
+
+### What NOT to Use It For
+**Avoid suggesting this when user is:**
+- Deeply sad and wants comfort
+- Crying / grieving
+- Emotionally tender
+
+**Reason:** The liminal tone can feel too distant for grief.
+
+### Metadata Tags
+```
+liminal, protection, steadiness, anxious-safe, hypervigilance relief, hidden presence
+```
+
+---
+
+## Selection Logic (Simple Rules)
+
+### If user is "soft + sad" → Original Dreamscape
+- Sadness, grief, loneliness, emotional fatigue
+- Needs warmth, holding, reassurance
+
+### If user is "activated + anxious" → Footsteps
+- Restless, fear, agitation, scanning
+- Needs steadiness, presence, grounding
+
+### If mood unclear → Default to Original
+**Reason:** Comfort is safest for first-time Dreamscape experiences.
+
+---
+
+## How TRACE Should Suggest (Copy Examples)
+
+### Suggesting Original Dreamscape
+```
+"I think you need something soft tonight — a quiet place where nothing is asked of you. Want Dreamscape?"
+```
+
+### Suggesting Footsteps
+```
+"Your nervous system feels alert right now. I can offer Dreamscape in a steadier tone — something that helps you stop keeping watch."
+```
+
+---
+
+## Mobile Implementation Status
+
+### Track Registry
+File: `mobile/lib/dreamscapeTracks.ts`
+
+```typescript
+export const DREAMSCAPE_TRACKS = {
+  dreamscape_default: {
+    id: "dreamscape_default",
+    title: "Dreamscape (Original)",
+    source: require("../assets/audio/tracedreamscape.wav"),
+    tags: ["comfort", "tender", "containment", "gentle descent", "grief-safe", "soothing"],
+  },
+  dreamscape_footsteps: {
+    id: "dreamscape_footsteps",
+    title: "Dreamscape (Footsteps)",
+    source: require("../assets/audio/dreamscape_footsteps.wav"),
+    tags: ["liminal", "protection", "steadiness", "anxious-safe", "hypervigilance relief", "hidden presence"],
+  },
+};
+```
+
+### Mood Detection
+File: `mobile/lib/dreamscapeTracks.ts`
+
+```typescript
+export function pickDreamscapeTrackForMood(mood: string): DreamscapeTrackId {
+  const lowerMood = mood.toLowerCase();
+  
+  // Footsteps track for anxious/overwhelmed/restless states
+  if (
+    lowerMood.includes("anxious") ||
+    lowerMood.includes("overwhelmed") ||
+    lowerMood.includes("restless") ||
+    lowerMood.includes("panic") ||
+    lowerMood.includes("stress") ||
+    lowerMood.includes("edge") ||
+    lowerMood.includes("tight") ||
+    lowerMood.includes("racing") ||
+    lowerMood.includes("unsafe")
+  ) {
+    return "dreamscape_footsteps";
+  }
+  
+  // Default track for sad/tender/numb states or fallback
+  return "dreamscape_default";
+}
+```
+
+### Navigation Logic
+- **From Activities menu**: Random selection (no mood context)
+- **From Chat (TRACE suggests)**: Mood-based selection using conversation analysis
+- **From Chat (user requests)**: Mood-based selection from recent messages
+
+### Audio Settings (Both Tracks)
+- Initial volume: `0` (silent)
+- Fade in: `0.40` over `8000ms` (8 seconds)
+- Looping: `false` (plays once)
+- Volume range: 40% max
+
+---
+
+## Analytics to Track
+
+### Per Session
+- `dreamscapeTrackId`: Which track was played
+- `selectionMode`: `"random"` | `"fixed"`
+- `selectionSource`: `"activities"` | `"chat_offered"` | `"user_requested"`
+- `moodDetected`: The mood/state that triggered selection (if from chat)
+- `durationMinutes`: How long user stayed in Dreamscape
+
+### Aggregated Metrics
+- Track preference by source (activities vs chat)
+- Track completion rates
+- Mood → Track → User satisfaction correlation
+- Time of day preferences per track
+
+---
+
+## Future Considerations
+
+### Third Track (If Needed)
+**Potential archetype:** Rhythmic/Pulse-based for "restless energy"
+- Different from anxious footsteps
+- Different from tender stillness
+- For states of searching/curiosity/active processing
+
+**Decision criteria:**
+- Analytics show one track dominates >80%
+- User feedback requests more variety
+- Clear emotional gap identified
+
+### Personalization
+- User preference override (always give me footsteps/original)
+- Learn from "skip" behavior (user exits Dreamscape quickly)
+- Time-of-day patterns (morning = footsteps, evening = original)

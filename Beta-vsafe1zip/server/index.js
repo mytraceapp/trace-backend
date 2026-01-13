@@ -3587,10 +3587,47 @@ Your response:`;
         .catch(err => console.error('[TRACE MEMORY] Background summarization failed:', err.message));
     }
     
+    // Build activity suggestion with dreamscapeTrackId handling
+    let activitySuggestion = parsed.activity_suggestion || { name: null, reason: null, should_navigate: false };
+    
+    // Ensure dreamscapeTrackId is properly set for Dreamscape activities
+    if (activitySuggestion.name && activitySuggestion.name.toLowerCase() === 'dreamscape') {
+      // If AI didn't provide dreamscapeTrackId, infer from target or default
+      if (!activitySuggestion.dreamscapeTrackId) {
+        const target = activitySuggestion.target || '';
+        const lowerTarget = target.toLowerCase();
+        
+        // Footsteps track for anxious/restless/hypervigilant states
+        if (lowerTarget.includes('anxious') || 
+            lowerTarget.includes('restless') || 
+            lowerTarget.includes('panic') ||
+            lowerTarget.includes('racing') ||
+            lowerTarget.includes('edge') ||
+            lowerTarget.includes('unsafe') ||
+            lowerTarget.includes('tight')) {
+          activitySuggestion.dreamscapeTrackId = 'dreamscape_footsteps';
+          console.log('[DREAMSCAPE] Inferred footsteps track from target:', target);
+        } else {
+          // Default to original track for comfort/sad/tender states
+          activitySuggestion.dreamscapeTrackId = 'dreamscape_default';
+          console.log('[DREAMSCAPE] Using default track, target was:', target || 'none');
+        }
+      } else {
+        // Validate the provided dreamscapeTrackId
+        const validTracks = ['dreamscape_default', 'dreamscape_footsteps'];
+        if (!validTracks.includes(activitySuggestion.dreamscapeTrackId)) {
+          console.warn('[DREAMSCAPE] Invalid dreamscapeTrackId, using default:', activitySuggestion.dreamscapeTrackId);
+          activitySuggestion.dreamscapeTrackId = 'dreamscape_default';
+        } else {
+          console.log('[DREAMSCAPE] Using AI-provided track:', activitySuggestion.dreamscapeTrackId);
+        }
+      }
+    }
+    
     // Build response - include messages array if crisis mode
     const response = {
       message: messagesArray ? messagesArray[0] : assistantText, // First message or single message
-      activity_suggestion: parsed.activity_suggestion || { name: null, reason: null, should_navigate: false }
+      activity_suggestion: activitySuggestion
     };
     
     // Add messages array for crisis multi-message display
@@ -6268,12 +6305,36 @@ app.post('/api/activity/log', async (req, res) => {
     
     console.log('📝 [ACTIVITY/LOG] Request received:', { 
       userId, deviceId, activityType, durationSeconds, completedAt,
-      dreamscapeTrack: activityMeta.dreamscapeTrack,
-      selectionMode: activityMeta.selectionMode
+      dreamscapeTrackId: activityMeta.dreamscapeTrackId,
+      selectionMode: activityMeta.selectionMode,
+      selectionSource: activityMeta.selectionSource
     });
     
     if (!activityType) {
       return res.status(400).json({ success: false, error: 'activityType is required' });
+    }
+    
+    // Validate Dreamscape-specific metadata if present
+    if (activityType === 'dreamscape' && activityMeta.dreamscapeTrackId) {
+      const validTrackIds = ['dreamscape_default', 'dreamscape_footsteps'];
+      if (!validTrackIds.includes(activityMeta.dreamscapeTrackId)) {
+        console.warn(`[ACTIVITY/LOG] Invalid dreamscapeTrackId: ${activityMeta.dreamscapeTrackId}, using default`);
+        activityMeta.dreamscapeTrackId = 'dreamscape_default';
+      }
+    }
+    
+    if (activityMeta.selectionMode) {
+      const validModes = ['random', 'fixed'];
+      if (!validModes.includes(activityMeta.selectionMode)) {
+        console.warn(`[ACTIVITY/LOG] Invalid selectionMode: ${activityMeta.selectionMode}`);
+      }
+    }
+    
+    if (activityMeta.selectionSource) {
+      const validSources = ['activities', 'chat_offered', 'user_requested'];
+      if (!validSources.includes(activityMeta.selectionSource)) {
+        console.warn(`[ACTIVITY/LOG] Invalid selectionSource: ${activityMeta.selectionSource}`);
+      }
     }
     
     if (!userId && !deviceId) {
