@@ -49,6 +49,7 @@ const {
   updateCrisisStateInDb 
 } = require('./safety');
 const { getSuggestionContext, getTimeAwarenessContext, ACTIVITY_LABELS } = require('./activityCorrelation');
+const { getActivityOutcomes, formatActivityOutcomesForContext } = require('./activityOutcomes');
 const { markActivityCompletedForReflection, getReflectionContext, clearReflectionFlag } = require('./reflectionTracking');
 const { 
   getSafePatternContext, 
@@ -3055,6 +3056,26 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
         }
       } catch (timeErr) {
         console.warn('[TRACE] Time awareness context failed:', timeErr.message);
+      }
+    }
+    
+    // Get activity outcomes learning (mood correlation patterns)
+    if (supabaseServer && !isCrisisMode) {
+      try {
+        const outcomes = await getActivityOutcomes(
+          supabaseServer,
+          userId,
+          deviceId
+        );
+        if (outcomes?.length) {
+          const outcomesContext = formatActivityOutcomesForContext(outcomes);
+          if (outcomesContext) {
+            contextParts.push(outcomesContext);
+            console.log('[TRACE] Added activity outcomes context:', outcomes.length, 'helpful activities found');
+          }
+        }
+      } catch (outErr) {
+        console.warn('[TRACE] Activity outcomes context failed:', outErr.message);
       }
     }
     

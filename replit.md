@@ -46,6 +46,14 @@ An Express server acts as a proxy to the OpenAI API, defining the TRACE AI perso
 
 **Hedging Language**: System prompt enforces hedging language when referencing journals: "I remember you wrote about...", "You mentioned something about...", "A while back you shared about...". TRACE never quotes journal content directly - only references themes contextually when relevant.
 
+### Activity Outcomes Learning (January 2026)
+
+**Mood Correlation Patterns**: The `activityOutcomes.js` module correlates activity completions with mood check-ins to identify which activities consistently help users feel better. It analyzes mood ratings within 30 minutes before/after activities over the past 30 days.
+
+**Pattern Detection**: Activities with 3+ completions and positive mood improvement (>0.3 average) are identified as helpful. TRACE can then say things like "I've noticed Walking Reset tends to help you feel a bit lighter..." based on actual data.
+
+**Hedging Language**: Activity outcomes use warm, tentative phrases: "Something about [activity] seems to work for you...", "You often seem a little better after [activity]...". Never quotes statistics or sounds analytical.
+
 ## Interactive Activities
 
 Activities are designed to be short (45 seconds to 5 minutes) to reduce commitment anxiety. They include a procedural Maze mini-game, timed Breathing Exercises with synchronized visuals and audio, a 5-4-3-2-1 Grounding technique, and "Rising" – a full-screen WebGL shader animation with device tilt support and procedural particle systems. Other activities include Power Nap, Pearl Ripple, and Walking Reset. All activities auto-save an entry upon completion.
