@@ -18,7 +18,7 @@ import { Colors } from '../../constants/colors';
 import { Spacing } from '../../constants/spacing';
 import { BodyText, FontFamily } from '../../constants/typography';
 import { useFonts } from 'expo-font';
-import { playAmbient } from '../../lib/ambientAudio';
+import { playAmbient, stopAmbient } from '../../lib/ambientAudio';
 import { sendChatMessage, fetchWelcomeGreeting, PatternContext } from '../../lib/chat';
 import { getStableId } from '../../lib/stableId';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -132,6 +132,13 @@ interface ChatMessage {
   content: string;
 }
 
+const MAX_MESSAGES = 150;
+
+const limitMessages = (msgs: ChatMessage[]): ChatMessage[] => {
+  if (msgs.length <= MAX_MESSAGES) return msgs;
+  return msgs.slice(-MAX_MESSAGES);
+};
+
 export default function ChatScreen() {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
@@ -144,6 +151,14 @@ export default function ChatScreen() {
   }>();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  
+  const addMessage = useCallback((msg: ChatMessage) => {
+    setMessages(prev => limitMessages([...prev, msg]));
+  }, []);
+  
+  const addMessages = useCallback((msgs: ChatMessage[]) => {
+    setMessages(prev => limitMessages([...prev, ...msgs]));
+  }, []);
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
@@ -165,6 +180,10 @@ export default function ChatScreen() {
   useFocusEffect(
     useCallback(() => {
       playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
+      
+      return () => {
+        stopAmbient().catch(() => {});
+      };
     }, [])
   );
 
@@ -215,7 +234,7 @@ export default function ChatScreen() {
           console.log('✅ TRACE chat history loaded, hydrating messages:', historyMessages.length);
 
           setMessages((current) =>
-            current.length === 0 ? historyMessages : current
+            current.length === 0 ? limitMessages(historyMessages) : current
           );
         } else {
           console.warn('⚠️ TRACE chat history: invalid payload', json);
@@ -299,7 +318,7 @@ export default function ChatScreen() {
             role: 'assistant',
             content: ackMessage,
           };
-          setMessages(prev => [...prev, assistantMessage]);
+          addMessage(assistantMessage);
         }
         
         setPendingAcknowledgment(null);
@@ -332,7 +351,7 @@ export default function ChatScreen() {
           content: message,
         };
 
-        setMessages(prev => [...prev, traceMsg]);
+        addMessage(traceMsg);
         console.log('[Chat] Journal invitation displayed');
 
         // Clear the pending invite
@@ -360,7 +379,7 @@ export default function ChatScreen() {
 
     const previousMessages = messages;
 
-    setMessages((prev) => [...prev, userMessage]);
+    addMessage(userMessage);
     setInputText('');
     setIsSending(true);
 
@@ -419,7 +438,7 @@ export default function ChatScreen() {
             content: messageText,
           };
           
-          setMessages((prev) => [...prev, assistantMessage]);
+          addMessage(assistantMessage);
         }
       } else {
         // Normal single message response
@@ -433,7 +452,7 @@ export default function ChatScreen() {
           content: assistantText,
         };
 
-        setMessages((prev) => [...prev, assistantMessage]);
+        addMessage(assistantMessage);
       }
 
       const suggestion = result?.activity_suggestion;
