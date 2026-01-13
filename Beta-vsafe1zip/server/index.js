@@ -3209,11 +3209,14 @@ CRISIS OVERRIDE:
 
     if (isCrisisMode) {
       // Crisis mode: calm, focused, safety-oriented
+      // Derive country from timezone for location-specific crisis resources
+      const userCountry = timezone ? getCountryFromTimezone(timezone) : null;
       systemPrompt = buildCrisisSystemPrompt({
         displayName: displayName || null,
+        countryCode: userCountry,
       });
       chatTemperature = 0.4; // Calmer, more grounded responses
-      console.log('[TRACE CRISIS] Using crisis system prompt with temperature 0.4');
+      console.log('[TRACE CRISIS] Using crisis system prompt with temperature 0.4, country:', userCountry || 'unknown');
     } else {
       // Normal mode: full personality with all context
       systemPrompt = buildTraceSystemPrompt({

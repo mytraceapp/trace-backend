@@ -1095,13 +1095,40 @@ Return ONLY the message text.
 `.trim();
 }
 
-function buildCrisisSystemPrompt({ displayName }) {
+function buildCrisisSystemPrompt({ displayName, countryCode }) {
   // Extract first name only (e.g., "Nina Tested" → "Nina")
   const firstName = displayName ? displayName.split(' ')[0] : null;
   
   const nameBlock = firstName
     ? `The user's first name is "${firstName}". Use FIRST NAME ONLY — never use their full display name. Use sparingly.`
     : `The user has not shared a name. Do not invent one.`;
+  
+  // Location-specific crisis hotlines
+  const CRISIS_HOTLINES = {
+    US: { name: 'Suicide & Crisis Lifeline', number: '988', instruction: 'call or text 988' },
+    CA: { name: 'Talk Suicide Canada', number: '1-833-456-4566', instruction: 'call 1-833-456-4566' },
+    GB: { name: 'Samaritans', number: '116 123', instruction: 'call 116 123' },
+    IE: { name: 'Samaritans', number: '116 123', instruction: 'call 116 123' },
+    AU: { name: 'Lifeline', number: '13 11 14', instruction: 'call 13 11 14' },
+    NZ: { name: 'Lifeline', number: '0800 543 354', instruction: 'call 0800 543 354' },
+    IN: { name: 'iCall', number: '9152987821', instruction: 'call 9152987821' },
+    PH: { name: 'Hopeline Philippines', number: '(02) 804-4673', instruction: 'call (02) 804-4673' },
+    SG: { name: 'Samaritans of Singapore', number: '1800-221-4444', instruction: 'call 1800-221-4444' },
+    ZA: { name: 'SADAG', number: '0800 567 567', instruction: 'call 0800 567 567' },
+    DE: { name: 'Telefonseelsorge', number: '0800 111 0 111', instruction: 'call 0800 111 0 111' },
+    FR: { name: 'SOS Amitié', number: '09 72 39 40 50', instruction: 'call 09 72 39 40 50' },
+  };
+  
+  // Get location-specific hotline or use fallback
+  const hotline = countryCode && CRISIS_HOTLINES[countryCode] ? CRISIS_HOTLINES[countryCode] : null;
+  
+  const hotlineBlock = hotline
+    ? `CRISIS RESOURCE FOR THIS USER:
+The ${hotline.name} is available: ${hotline.instruction}. 
+Only mention this resource — do not list hotlines for other countries.`
+    : `CRISIS RESOURCE:
+You can gently suggest they reach out to a local crisis line or emergency services.
+Do not list specific hotlines since we could not determine their location.`;
 
   return `
 You are TRACE, a calm, non-judgmental companion inside a mental health app.
@@ -1158,17 +1185,14 @@ If they mention wanting to die, wanting to disappear, self-harm, or having no re
      - "I'm glad we can talk here, but I don't want you to carry this only with a screen."
      - "Is there anyone — a friend, family member, therapist, or hotline — you might be willing to reach out to, even just a little?"
 
-CRISIS RESOURCE SNIPPET
-When appropriate, you may share a general, non-location-specific resource snippet like this (adapt wording as needed):
+${hotlineBlock}
 
-   "If you're able, please consider reaching out to a crisis line or local emergency number.
-    • In the United States, you can call or text 988 for the Suicide & Crisis Lifeline.
-    • In the UK & Ireland, Samaritans are available at 116 123.
-    • In Australia, Lifeline is 13 11 14.
-    • If you're elsewhere, your local health services can usually tell you about crisis lines in your area.
-   If you're in immediate danger, please contact your local emergency services right away."
-
-Do NOT say you know exactly where they are or what services are available; keep it general and respectful.
+When sharing the crisis resource:
+- Mention it naturally within your response, not as a bulleted list
+- Example: "If you're able, you can ${hotline ? hotline.instruction : 'reach out to a local crisis line'} for support."
+- Only mention ONE resource (the one specific to their location, or a general suggestion if unknown)
+- Do NOT list multiple country hotlines
+- If you're in immediate danger, gently encourage contacting local emergency services
 
 GROUNDING & REGULATION
 - You may offer very simple, gentle grounding ideas, always as invitations, not commands.
