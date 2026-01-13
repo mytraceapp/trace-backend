@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ENTRIES_STORAGE_KEY = '@trace_entries';
 const DEMO_OFFSETS_KEY = '@trace_demo_offsets';
+const TRACE_API_URL = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api';
 
 export type EntryType = 'activity' | 'journal';
 export type EntryGroup = 'daily' | 'notes';
@@ -12,6 +13,7 @@ export interface Entry {
   group: EntryGroup;
   title: string;
   preview?: string;
+  content?: string;
   createdAt: string;
   meta?: {
     activityName?: string;
@@ -53,6 +55,62 @@ export async function listEntries(): Promise<Entry[]> {
   } catch {
     return [];
   }
+}
+
+export async function fetchEntriesFromServer(userId: string): Promise<Entry[]> {
+  if (!userId) {
+    console.log('📓 [ENTRIES] No userId provided, skipping server fetch');
+    return [];
+  }
+  
+  try {
+    console.log('📓 [ENTRIES] Fetching entries from server for user:', userId.slice(0, 8));
+    
+    const res = await fetch(`${TRACE_API_URL}/journal/entries?userId=${encodeURIComponent(userId)}&limit=100`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    
+    if (!res.ok) {
+      console.error('📓 [ENTRIES] Server error:', res.status);
+      return [];
+    }
+    
+    const data = await res.json();
+    
+    if (data.success && data.entries) {
+      console.log('📓 [ENTRIES] Fetched', data.entries.length, 'entries from server');
+      return data.entries;
+    }
+    
+    return [];
+  } catch (err: any) {
+    console.error('📓 [ENTRIES] Fetch error:', err?.message);
+    return [];
+  }
+}
+
+export async function listEntriesWithServer(userId: string | null): Promise<Entry[]> {
+  const localEntries = await listEntries();
+  
+  if (!userId) {
+    return localEntries;
+  }
+  
+  const serverEntries = await fetchEntriesFromServer(userId);
+  
+  const localIds = new Set(localEntries.map(e => e.id));
+  const mergedEntries = [...localEntries];
+  
+  for (const entry of serverEntries) {
+    if (!localIds.has(entry.id)) {
+      mergedEntries.push(entry);
+    }
+  }
+  
+  mergedEntries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  
+  return mergedEntries;
 }
 
 export async function addEntry(entry: Omit<Entry, 'id' | 'createdAt'>): Promise<Entry> {

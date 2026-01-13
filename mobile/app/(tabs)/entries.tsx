@@ -22,10 +22,11 @@ import { playAmbient } from '../../lib/ambientAudio';
 import { EntryAccordion } from '../../components/EntryAccordion';
 import { EntryPreviewCard } from '../../components/EntryPreviewCard';
 import { 
-  listEntries,
+  listEntriesWithServer,
   seedDemoEntriesIfEmpty,
   Entry 
 } from '../../lib/entries';
+import { supabase } from '../../lib/supabaseClient';
 
 function formatTimestamp(date: Date): string {
   const now = new Date();
@@ -59,22 +60,29 @@ export default function EntriesScreen() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [dailyExpanded, setDailyExpanded] = useState(true);
   const [notesExpanded, setNotesExpanded] = useState(false);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
 
-  const loadEntries = async () => {
+  const loadEntries = async (userId: string | null) => {
     await seedDemoEntriesIfEmpty();
-    const allEntries = await listEntries();
+    const allEntries = await listEntriesWithServer(userId);
     setEntries(allEntries);
   };
 
   useEffect(() => {
-    loadEntries();
+    const initAuth = async () => {
+      const { data } = await supabase.auth.getUser();
+      const userId = data?.user?.id ?? null;
+      setAuthUserId(userId);
+      loadEntries(userId);
+    };
+    initAuth();
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadEntries();
+      loadEntries(authUserId);
       playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
-    }, [])
+    }, [authUserId])
   );
 
   const dailyEntries = entries.filter(e => e.group === 'daily');

@@ -6201,6 +6201,63 @@ app.post('/api/journal/log', async (req, res) => {
   }
 });
 
+// GET /api/journal/entries - Fetch journal entries for a user
+app.get('/api/journal/entries', async (req, res) => {
+  try {
+    const { userId, limit = 100 } = req.query;
+    
+    console.log('📓 [JOURNAL/ENTRIES] Request received:', { userId, limit });
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'userId is required' });
+    }
+    
+    // Validate UUID
+    const validation = validateUserId(userId, null);
+    if (!validation.valid) {
+      return res.status(400).json({ success: false, error: validation.error });
+    }
+    
+    if (!supabaseServer) {
+      console.log('📓 [JOURNAL/ENTRIES] No Supabase configured');
+      return res.json({ success: true, entries: [], note: 'No Supabase configured' });
+    }
+    
+    const { data, error } = await supabaseServer
+      .from('journal_entries')
+      .select('id, content, mood, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(parseInt(limit) || 100);
+    
+    if (error) {
+      console.error('📓 [JOURNAL/ENTRIES] Supabase error:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    
+    console.log('📓 [JOURNAL/ENTRIES] Found', data?.length || 0, 'entries');
+    
+    // Transform to match mobile Entry interface
+    const entries = (data || []).map(entry => ({
+      id: entry.id,
+      type: 'journal',
+      group: 'notes',
+      title: entry.mood ? `Feeling ${entry.mood.charAt(0).toUpperCase() + entry.mood.slice(1)}` : 'Journal Entry',
+      preview: entry.content?.slice(0, 100) || '',
+      content: entry.content,
+      createdAt: entry.created_at,
+      meta: {
+        mood: entry.mood || null,
+      }
+    }));
+    
+    return res.json({ success: true, entries });
+  } catch (err) {
+    console.error('📓 [JOURNAL/ENTRIES] Error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch journal entries' });
+  }
+});
+
 // POST /api/activity/log - Log a completed activity (new endpoint with proper response)
 app.post('/api/activity/log', async (req, res) => {
   try {

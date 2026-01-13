@@ -26,10 +26,12 @@ import { Spacing } from '../../constants/spacing';
 import { playAmbient } from '../../lib/ambientAudio';
 import { 
   listEntries,
+  listEntriesWithServer,
   addEntry,
   seedDemoEntriesIfEmpty,
   Entry 
 } from '../../lib/entries';
+import { supabase } from '../../lib/supabaseClient';
 
 type MoodType = 'calm' | 'okay' | 'heavy' | 'overwhelmed';
 
@@ -121,6 +123,7 @@ export default function JournalScreen() {
   const [newEntryMood, setNewEntryMood] = useState<MoodType>('calm');
   const [aiReflection, setAiReflection] = useState<string>('"I\'m here whenever you\'re ready. No rush, no pressure."');
   const [isLoadingReflection, setIsLoadingReflection] = useState(false);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
 
   const toothpickAnim = useRef(new Animated.Value(0)).current;
 
@@ -129,21 +132,30 @@ export default function JournalScreen() {
   const todayYear = now.getFullYear();
   const isViewingCurrentMonth = currentMonthIndex === todayMonth && currentYear === todayYear;
 
-  const loadEntries = async () => {
+  const loadEntries = async (userId: string | null) => {
+    console.log('📓 [JOURNAL] Loading entries for user:', userId?.slice(0, 8) || 'local');
     await seedDemoEntriesIfEmpty();
-    const allEntries = await listEntries();
+    const allEntries = await listEntriesWithServer(userId);
+    console.log('📓 [JOURNAL] Loaded', allEntries.length, 'entries');
     setEntries(allEntries);
   };
 
   useEffect(() => {
-    loadEntries();
+    const initAuth = async () => {
+      const { data } = await supabase.auth.getUser();
+      const userId = data?.user?.id ?? null;
+      setAuthUserId(userId);
+      console.log('📓 [JOURNAL] Auth userId:', userId?.slice(0, 8) || 'null');
+      loadEntries(userId);
+    };
+    initAuth();
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadEntries();
+      loadEntries(authUserId);
       playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
-    }, [])
+    }, [authUserId])
   );
 
   useEffect(() => {
@@ -253,7 +265,7 @@ export default function JournalScreen() {
     setNewEntryText('');
     setNewEntryMood('calm');
     setShowNewEntryModal(false);
-    loadEntries();
+    loadEntries(authUserId);
   };
 
   const handleCancelEntry = () => {
