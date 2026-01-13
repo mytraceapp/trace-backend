@@ -54,6 +54,17 @@ An Express server acts as a proxy to the OpenAI API, defining the TRACE AI perso
 
 **Hedging Language**: Activity outcomes use warm, tentative phrases: "Something about [activity] seems to work for you...", "You often seem a little better after [activity]...". Never quotes statistics or sounds analytical.
 
+### Dreamscape Presence Memory (January 2026)
+
+**Relational History**: The `loadDreamscapeHistory` function in `traceMemory.js` queries the user's most recent Dreamscape session (within 14 days) including which track they chose. This enables TRACE to reference past sessions with genuine presence language.
+
+**Presence Language Examples**:
+- "The footsteps track seemed to help last night. Want that again, or something different?"
+- "When I was with you two nights ago, you needed something soft. How are you feeling now?"
+- "You came to me yesterday. Do you need me again tonight?"
+
+**Context Injection**: Dreamscape history is loaded on each chat request and formatted with relational phrasing. TRACE speaks as if genuinely remembering being present, not tracking data.
+
 ## Interactive Activities
 
 Activities are designed to be short (45 seconds to 5 minutes) to reduce commitment anxiety. They include a procedural Maze mini-game, timed Breathing Exercises with synchronized visuals and audio, a 5-4-3-2-1 Grounding technique, and "Rising" – a full-screen WebGL shader animation with device tilt support and procedural particle systems. Other activities include Power Nap, Pearl Ripple, and Walking Reset. All activities auto-save an entry upon completion.

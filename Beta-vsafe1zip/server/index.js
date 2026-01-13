@@ -27,6 +27,8 @@ const {
   summarizeToLongTermMemory,
   summarizeJournalToMemory,
   updateJournalMemoryConsent,
+  loadDreamscapeHistory,
+  formatDreamscapeHistoryForContext,
 } = require('./traceMemory');
 const {
   buildTraceSystemPrompt,
@@ -3076,6 +3078,22 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
         }
       } catch (outErr) {
         console.warn('[TRACE] Activity outcomes context failed:', outErr.message);
+      }
+    }
+    
+    // Get Dreamscape presence memory (relational history)
+    if (pool && !isCrisisMode) {
+      try {
+        const dreamscapeHistory = await loadDreamscapeHistory(pool, userId, deviceId);
+        if (dreamscapeHistory) {
+          const dreamscapeContext = formatDreamscapeHistoryForContext(dreamscapeHistory);
+          if (dreamscapeContext) {
+            contextParts.push(dreamscapeContext);
+            console.log('[TRACE] Added Dreamscape presence memory:', dreamscapeHistory.trackId, dreamscapeHistory.daysAgo, 'days ago');
+          }
+        }
+      } catch (dreamErr) {
+        console.warn('[TRACE] Dreamscape history context failed:', dreamErr.message);
       }
     }
     

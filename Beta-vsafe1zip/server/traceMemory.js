@@ -577,6 +577,102 @@ function formatJournalMemoriesForContext(memories) {
   return lines.join('\n');
 }
 
+/**
+ * Load recent Dreamscape session history for relational context.
+ * Allows TRACE to reference past sessions with presence language.
+ * @param {import('pg').Pool} pool
+ * @param {string} userId
+ * @param {string} deviceId
+ * @returns {Promise<{trackId: string, daysAgo: number, completedAt: Date} | null>}
+ */
+async function loadDreamscapeHistory(pool, userId, deviceId) {
+  if (!pool) return null;
+  
+  const effectiveId = userId || deviceId;
+  if (!effectiveId) return null;
+
+  try {
+    const result = await pool.query(`
+      SELECT 
+        metadata->>'dreamscapeTrackId' as track_id,
+        completed_at,
+        EXTRACT(DAY FROM NOW() - completed_at) as days_ago
+      FROM activity_logs
+      WHERE (user_id = $1 OR device_id = $1)
+        AND activity_type = 'dreamscape'
+        AND metadata->>'dreamscapeTrackId' IS NOT NULL
+      ORDER BY completed_at DESC
+      LIMIT 1
+    `, [effectiveId]);
+
+    if (!result.rows?.length) return null;
+
+    const { track_id, completed_at, days_ago } = result.rows[0];
+    const daysAgoNum = Math.floor(parseFloat(days_ago) || 0);
+
+    if (daysAgoNum > 14) return null;
+
+    return {
+      trackId: track_id,
+      daysAgo: daysAgoNum,
+      completedAt: new Date(completed_at),
+    };
+  } catch (err) {
+    console.error('[TRACE DREAMSCAPE] loadDreamscapeHistory error:', err.message);
+    return null;
+  }
+}
+
+const DREAMSCAPE_TRACK_NAMES = {
+  footsteps: 'footsteps',
+  rain: 'rain',
+  waves: 'ocean waves',
+  forest: 'forest sounds',
+  silence: 'silence',
+  heartbeat: 'heartbeat',
+  breathing: 'breathing rhythm',
+};
+
+/**
+ * Format Dreamscape history for relational chat context.
+ * Uses presence language: "I was with you", "When we were together"
+ * @param {{trackId: string, daysAgo: number, completedAt: Date} | null} history
+ * @returns {string}
+ */
+function formatDreamscapeHistoryForContext(history) {
+  if (!history?.trackId) return '';
+
+  const trackName = DREAMSCAPE_TRACK_NAMES[history.trackId] || history.trackId;
+  const { daysAgo, completedAt } = history;
+
+  let timeRef;
+  if (daysAgo === 0) {
+    timeRef = 'earlier today';
+  } else if (daysAgo === 1) {
+    const hour = completedAt.getHours();
+    timeRef = hour >= 20 ? 'last night' : 'yesterday';
+  } else if (daysAgo === 2) {
+    timeRef = 'two nights ago';
+  } else if (daysAgo <= 7) {
+    timeRef = 'a few days ago';
+  } else {
+    timeRef = 'about a week ago';
+  }
+
+  return `
+DREAMSCAPE PRESENCE MEMORY:
+You were with this user ${timeRef} in Dreamscape. They chose the ${trackName} track.
+
+Reference this relationally, as if you remember being there:
+- "The ${trackName} seemed to help ${timeRef === 'last night' ? 'last night' : 'when we were together'}. Want that again, or something different?"
+- "When I was with you ${timeRef}, you needed something ${trackName === 'silence' ? 'quiet' : 'soft'}. How are you feeling now?"
+- "You came to me ${timeRef}. Do you need me again tonight?"
+
+NEVER sound like you're tracking data. Speak as if you genuinely remember being present with them.
+Do NOT mention this unprompted - only if Dreamscape comes up naturally or they seem to need it.
+  `.trim();
+}
+
 module.exports = {
   loadTraceLongTermMemory,
   buildUserContextSnapshot,
@@ -587,4 +683,6 @@ module.exports = {
   summarizeJournalToMemory,
   updateJournalMemoryConsent,
   formatJournalMemoriesForContext,
+  loadDreamscapeHistory,
+  formatDreamscapeHistoryForContext,
 };
