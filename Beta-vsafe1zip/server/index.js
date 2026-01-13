@@ -57,7 +57,7 @@ const {
   getUserPatternStats
 } = require('./patternConsent');
 const { buildEmotionalIntelligenceContext } = require('./emotionalIntelligence');
-const { logPatternFallback, logEmotionalIntelligenceFallback, TRIGGERS } = require('./patternAuditLog');
+const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
 
 /**
  * Feature Flags - Panic switches for smart features
@@ -3224,6 +3224,40 @@ CRISIS OVERRIDE:
         contextSnapshot: fullContext || null,
         patternContext: patternContext || null,
       });
+      
+      // Audit log: Pattern explanation tracking
+      // Per BACKEND_API.md lines 941-944: Track when AI explains patterns
+      if (patternContext && Object.keys(patternContext).length > 0) {
+        const hasPatternData = patternContext.peakWindow || patternContext.stressEchoes || 
+          patternContext.mostHelpfulActivity || patternContext.weeklyRhythmPeak;
+        if (hasPatternData) {
+          logPatternExplanation(effectiveUserId, patternContext, TRIGGERS.USER_MESSAGE);
+        }
+      }
+      
+      // Audit log: User pattern correction tracking
+      // Per BACKEND_API.md lines 941-944: Track user corrections/disagreements
+      const lastUserMessage = messages.filter(m => m.role === 'user').pop()?.content || '';
+      const patternCorrectionPhrases = [
+        /my peak window isn't/i,
+        /that's not my peak/i,
+        /not actually at/i,
+        /that's wrong/i,
+        /that's not right/i,
+        /i don't think that's/i,
+        /i check in more at/i,
+        /actually i usually/i,
+      ];
+      const isCorrectingPattern = patternCorrectionPhrases.some(p => p.test(lastUserMessage));
+      if (isCorrectingPattern) {
+        // Detect which pattern type is being corrected
+        let patternType = 'unknown';
+        if (/peak window|check in|when i/i.test(lastUserMessage)) patternType = 'peakWindow';
+        else if (/stress|heavy|hard day/i.test(lastUserMessage)) patternType = 'stressEchoes';
+        else if (/activity|exercise|helped/i.test(lastUserMessage)) patternType = 'mostHelpfulActivity';
+        
+        logPatternCorrection(effectiveUserId, patternType, lastUserMessage, TRIGGERS.USER_MESSAGE);
+      }
 
       // Add time awareness if available
       if (localTime || localDay || localDate) {
@@ -7600,18 +7634,23 @@ app.post('/api/patterns/insights', async (req, res) => {
       console.log(`📊 [PATTERNS] Insufficient data (${totalDataPoints} < ${MIN_DATA_THRESHOLD}), returning "still learning" response`);
       
       const stillLearningCore = "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.";
+      const lastCalculatedAtNow = new Date().toISOString();
+      
       const stillLearningResponse = {
-        peakWindow: { label: null, startHour: null, endHour: null, confidence: "emerging" },
-        mostHelpfulActivity: { label: "Once you've tried a few more activities, I'll notice which ones you return to.", count: 0 },
-        stressEchoes: { label: stillLearningCore, topDayIndex: null, stressCount: 0, totalStressEntries: 0, confidence: "emerging" },
-        energyFlow: { label: stillLearningCore, topDayIndex: null, percentage: null, totalActivities: activityLogs.length },
-        softening: { label: stillLearningCore, topDayIndex: null, percentage: null, totalSoftEntries: 0, confidence: "emerging" },
+        // Per BACKEND_API.md 762-790: Include lastCalculatedAt on all patterns
+        peakWindow: { label: null, startHour: null, endHour: null, confidence: "emerging", lastCalculatedAt: lastCalculatedAtNow, sampleSize: 0 },
+        mostHelpfulActivity: { label: "Once you've tried a few more activities, I'll notice which ones you return to.", count: 0, lastCalculatedAt: lastCalculatedAtNow },
+        stressEchoes: { label: stillLearningCore, topDayIndex: null, stressCount: 0, totalStressEntries: 0, confidence: "emerging", lastCalculatedAt: lastCalculatedAtNow, sampleSize: journals.length },
+        energyFlow: { label: stillLearningCore, topDayIndex: null, percentage: null, totalActivities: activityLogs.length, lastCalculatedAt: lastCalculatedAtNow, sampleSize: activityLogs.length },
+        softening: { label: stillLearningCore, topDayIndex: null, percentage: null, totalSoftEntries: 0, confidence: "emerging", lastCalculatedAt: lastCalculatedAtNow, sampleSize: journals.length },
         weeklyMoodTrend: {
           calm: { thisWeek: 0, lastWeek: 0, direction: "stable", label: stillLearningCore },
           stress: { thisWeek: 0, lastWeek: 0, direction: "stable", label: stillLearningCore },
         },
         crossPatternHint: null,
         predictiveHint: null,
+        // Global lastCalculatedAt for the entire response
+        lastCalculatedAt: lastCalculatedAtNow,
         lastHourSummary: { checkinsLastHour: 0, checkinsToday: 0, comparisonLabel: null },
         studioInsights: null,
         peakWindowLabel: null,
@@ -7986,10 +8025,6 @@ app.post('/api/patterns/insights', async (req, res) => {
       }
     }
     
-    // Calculate peak window ratios (0-1 scale)
-    const peakWindowStartRatio = peakWindow.startHour != null ? peakWindow.startHour / 24 : null;
-    const peakWindowEndRatio = peakWindow.endHour != null ? peakWindow.endHour / 24 : null;
-    
     // Calculate the three new trend fields
     const totalSampleSize = activityLogs.length + journals.length;
     const presenceTrend = computePresenceTrend(activityLogs, journals, totalSampleSize);
@@ -8028,17 +8063,57 @@ app.post('/api/patterns/insights', async (req, res) => {
       }
     }
     
+    // Data Quality Validation: Peak Window Range (1-8 hours)
+    // Per BACKEND_API.md lines 700-710: Invalid windows > 8 hours or < 1 hour should be discarded
+    let validatedPeakWindow = peakWindow;
+    if (peakWindow.startHour != null && peakWindow.endHour != null) {
+      let windowSize = peakWindow.endHour - peakWindow.startHour;
+      // Handle wrap-around (e.g., 11 PM to 1 AM)
+      if (windowSize < 0) windowSize += 24;
+      
+      if (windowSize > 8 || windowSize < 1) {
+        console.warn('[PATTERN QUALITY] Invalid peak window range:', windowSize, 'hours - discarding');
+        validatedPeakWindow = { label: null, startHour: null, endHour: null, confidence: "insufficient" };
+      }
+    }
+    
+    // Generate lastCalculatedAt timestamp (ISO 8601) for all patterns
+    const lastCalculatedAt = new Date().toISOString();
+    
     // Build response object with calculated values, preferring AI labels when available
     const calculatedResponse = {
       // Core pattern objects (nested) - kept for backward compatibility
-      peakWindow,
-      mostHelpfulActivity,
-      stressEchoes,
-      energyFlow,
-      softening,
+      // Each pattern includes lastCalculatedAt per BACKEND_API.md lines 762-790
+      peakWindow: {
+        ...validatedPeakWindow,
+        lastCalculatedAt,
+        sampleSize: sampleSize,
+      },
+      mostHelpfulActivity: {
+        ...mostHelpfulActivity,
+        lastCalculatedAt,
+      },
+      stressEchoes: {
+        ...stressEchoes,
+        lastCalculatedAt,
+        sampleSize: journals.length,
+      },
+      energyFlow: {
+        ...energyFlow,
+        lastCalculatedAt,
+        sampleSize: activityLogs.length,
+      },
+      softening: {
+        ...softening,
+        lastCalculatedAt,
+        sampleSize: journals.length,
+      },
       weeklyMoodTrend: finalWeeklyMoodTrend,
       crossPatternHint: aiCrossPatternHint || crossPatternHint,
       predictiveHint: aiPredictiveHint || predictiveHint,
+      
+      // Global lastCalculatedAt for the entire response
+      lastCalculatedAt,
       
       // Last Hour analytics for Full Patterns page
       lastHourSummary,
@@ -8047,9 +8122,9 @@ app.post('/api/patterns/insights', async (req, res) => {
       studioInsights,
       
       // Flattened fields for mobile frontend (exact field names per spec)
-      peakWindowLabel: peakWindow.label,
-      peakWindowStartRatio,
-      peakWindowEndRatio,
+      peakWindowLabel: validatedPeakWindow.label,
+      peakWindowStartRatio: validatedPeakWindow.startHour != null ? validatedPeakWindow.startHour / 24 : null,
+      peakWindowEndRatio: validatedPeakWindow.endHour != null ? validatedPeakWindow.endHour / 24 : null,
       
       // Energy Tides (behavioral frequency)
       energyDayBuckets, // Alias for backward compatibility
@@ -8118,20 +8193,25 @@ app.post('/api/patterns/insights', async (req, res) => {
     const fallbackStress = "As you journal more, I'll start noticing which days tend to echo the heaviest pressure.";
     const fallbackRelief = "As more calm moments show up in your journal, I'll notice where in the week things tend to soften a little.";
     const fallbackActivity = "Once you've tried a few activities, I'll start noticing which ones you return to the most.";
+    const lastCalculatedAtNow = new Date().toISOString();
     
     return res.json({
       // Core pattern objects (nested) - kept for backward compatibility
-      peakWindow: { label: null, startHour: null, endHour: null, confidence: "emerging" },
-      mostHelpfulActivity: { label: fallbackActivity, count: 0 },
-      stressEchoes: { label: fallbackStress, topDayIndex: null, stressCount: 0, totalStressEntries: 0 },
-      energyFlow: { label: fallbackEnergy, topDayIndex: null, percentage: null, totalActivities: 0 },
-      softening: { label: fallbackRelief, topDayIndex: null, percentage: null, totalSoftEntries: 0 },
+      // Per BACKEND_API.md 762-790: Include lastCalculatedAt on all patterns
+      peakWindow: { label: null, startHour: null, endHour: null, confidence: "emerging", lastCalculatedAt: lastCalculatedAtNow, sampleSize: 0 },
+      mostHelpfulActivity: { label: fallbackActivity, count: 0, lastCalculatedAt: lastCalculatedAtNow },
+      stressEchoes: { label: fallbackStress, topDayIndex: null, stressCount: 0, totalStressEntries: 0, lastCalculatedAt: lastCalculatedAtNow, sampleSize: 0 },
+      energyFlow: { label: fallbackEnergy, topDayIndex: null, percentage: null, totalActivities: 0, lastCalculatedAt: lastCalculatedAtNow, sampleSize: 0 },
+      softening: { label: fallbackRelief, topDayIndex: null, percentage: null, totalSoftEntries: 0, lastCalculatedAt: lastCalculatedAtNow, sampleSize: 0 },
       weeklyMoodTrend: {
         calm: { thisWeek: 0, lastWeek: 0, direction: "stable", label: "As more calm and heavy days show up in your journal, I'll start reflecting how this week compares to the last." },
         stress: { thisWeek: 0, lastWeek: 0, direction: "stable", label: "Once there's a little more to go on, I'll gently name how your heavier entries are shifting week to week." },
       },
       crossPatternHint: "As more weeks unfold, I'll start noticing how your heavier days and your go-to supports interact.",
       predictiveHint: null,
+      
+      // Global lastCalculatedAt for the entire response
+      lastCalculatedAt: lastCalculatedAtNow,
       
       // Last Hour analytics fallback
       lastHourSummary: {

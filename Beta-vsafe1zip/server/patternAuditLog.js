@@ -228,6 +228,45 @@ function logConsentCheckSkipped(userId, reason, trigger = TRIGGERS.USER_MESSAGE)
   return entry;
 }
 
+/**
+ * Log when AI explains patterns to the user
+ * Per BACKEND_API.md lines 941-944: Track when AI explains patterns for quality review
+ */
+function logPatternExplanation(userId, patternContext, trigger = TRIGGERS.USER_MESSAGE) {
+  const entry = {
+    ...baseEntry('PATTERN_EXPLANATION', userId, 'pattern_reflections'),
+    trigger,
+    patternsExplained: {
+      peakWindow: !!patternContext?.peakWindow,
+      peakWindowConfidence: patternContext?.peakWindowConfidence || null,
+      stressEchoes: !!patternContext?.stressEchoes,
+      stressEchoesConfidence: patternContext?.stressEchoesConfidence || null,
+      mostHelpfulActivity: !!patternContext?.mostHelpfulActivity,
+      weeklyRhythmPeak: !!patternContext?.weeklyRhythmPeak,
+    },
+    dataAge: patternContext?.lastCalculatedAt 
+      ? Math.round((Date.now() - new Date(patternContext.lastCalculatedAt).getTime()) / 60000) + ' minutes'
+      : 'unknown'
+  };
+  console.log(`${LOG_PREFIX} ${JSON.stringify(entry)}`);
+  return entry;
+}
+
+/**
+ * Log when user corrects a pattern (disagreement tracking)
+ * Per BACKEND_API.md lines 941-944: Track user corrections/disagreements
+ */
+function logPatternCorrection(userId, patternType, userMessage, trigger = TRIGGERS.USER_MESSAGE) {
+  const entry = {
+    ...baseEntry('PATTERN_CORRECTION', userId, 'pattern_reflections'),
+    trigger,
+    patternType,
+    userMessageSnippet: userMessage ? userMessage.slice(0, 100) : null
+  };
+  console.log(`${LOG_PREFIX} ${JSON.stringify(entry)}`);
+  return entry;
+}
+
 module.exports = {
   logConsentOffered,
   logConsentGranted,
@@ -242,6 +281,8 @@ module.exports = {
   logPatternFeaturesSkipped,
   logEmotionalIntelligenceSkipped,
   logConsentCheckSkipped,
+  logPatternExplanation,
+  logPatternCorrection,
   POLICY_VERSIONS,
   TRIGGERS
 };
