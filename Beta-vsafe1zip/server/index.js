@@ -74,6 +74,28 @@ const FEATURE_FLAGS = {
 console.log('[FEATURE FLAGS]', FEATURE_FLAGS);
 
 /**
+ * UUID Validation Helper
+ * Ensures user IDs are valid UUIDs before making Supabase calls
+ * Prevents "invalid input syntax for type uuid" errors
+ */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidUuid(id) {
+  return typeof id === 'string' && UUID_REGEX.test(id);
+}
+
+function validateUserId(userId, deviceId) {
+  const effectiveId = userId || deviceId;
+  if (!effectiveId) {
+    return { valid: false, error: 'Missing userId or deviceId', effectiveId: null };
+  }
+  if (!isValidUuid(effectiveId)) {
+    return { valid: false, error: `Invalid UUID format: ${effectiveId.slice(0, 20)}...`, effectiveId: null };
+  }
+  return { valid: true, error: null, effectiveId };
+}
+
+/**
  * System Confidence Level Calculator
  * Tracks how reliable our "smart" features are for this request
  * Passed to AI so it can adapt its tone when internal context fails
@@ -3557,6 +3579,143 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// ==================== DATA INTEGRITY HEALTH CHECK ====================
+// Verifies data is being collected and retrieved properly for a given user
+app.post('/api/health/data-integrity', async (req, res) => {
+  try {
+    const { userId } = req.body || {};
+    
+    // Validate UUID format
+    const validation = validateUserId(userId, null);
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: validation.error,
+        hint: 'Provide a valid Supabase user UUID'
+      });
+    }
+    
+    const results = {
+      userId: userId.slice(0, 8) + '...',
+      timestamp: new Date().toISOString(),
+      supabase: { connected: !!supabaseServer },
+      postgres: { connected: !!pool },
+      tables: {},
+      issues: [],
+    };
+    
+    if (!supabaseServer) {
+      results.issues.push('Supabase not configured');
+      return res.json({ ok: false, ...results });
+    }
+    
+    // Check chat_messages
+    try {
+      const { data, error, count } = await supabaseServer
+        .from('chat_messages')
+        .select('id, created_at', { count: 'exact', head: false })
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (error) {
+        results.tables.chat_messages = { ok: false, error: error.message };
+        results.issues.push(`chat_messages: ${error.message}`);
+      } else {
+        results.tables.chat_messages = { 
+          ok: true, 
+          count: count || 0,
+          lastEntry: data?.[0]?.created_at || null
+        };
+      }
+    } catch (e) {
+      results.tables.chat_messages = { ok: false, error: e.message };
+    }
+    
+    // Check activity_logs (Replit PostgreSQL)
+    if (pool) {
+      try {
+        const result = await pool.query(
+          `SELECT COUNT(*) as count, MAX(completed_at) as last_entry 
+           FROM activity_logs WHERE user_id = $1`,
+          [userId]
+        );
+        results.tables.activity_logs = { 
+          ok: true, 
+          count: parseInt(result.rows[0]?.count || 0),
+          lastEntry: result.rows[0]?.last_entry || null
+        };
+      } catch (e) {
+        results.tables.activity_logs = { ok: false, error: e.message };
+        results.issues.push(`activity_logs: ${e.message}`);
+      }
+    }
+    
+    // Check journal_entries (Supabase)
+    try {
+      const { data, error, count } = await supabaseServer
+        .from('journal_entries')
+        .select('id, created_at', { count: 'exact', head: false })
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (error) {
+        results.tables.journal_entries = { ok: false, error: error.message };
+      } else {
+        results.tables.journal_entries = { 
+          ok: true, 
+          count: count || 0,
+          lastEntry: data?.[0]?.created_at || null
+        };
+      }
+    } catch (e) {
+      results.tables.journal_entries = { ok: false, error: e.message };
+    }
+    
+    // Check profiles (Supabase)
+    try {
+      const { data, error } = await supabaseServer
+        .from('profiles')
+        .select('preferred_name, timezone, country, created_at, updated_at')
+        .eq('user_id', userId)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
+        results.tables.profiles = { ok: false, error: error.message };
+      } else {
+        results.tables.profiles = { 
+          ok: true, 
+          exists: !!data,
+          hasName: !!data?.preferred_name,
+          hasTimezone: !!data?.timezone,
+          hasCountry: !!data?.country
+        };
+      }
+    } catch (e) {
+      results.tables.profiles = { ok: false, error: e.message };
+    }
+    
+    // Summary
+    const allOk = results.issues.length === 0;
+    const totalRecords = 
+      (results.tables.chat_messages?.count || 0) +
+      (results.tables.activity_logs?.count || 0) +
+      (results.tables.journal_entries?.count || 0);
+    
+    return res.json({
+      ok: allOk,
+      totalRecords,
+      sufficient_for_patterns: totalRecords >= MIN_DATA_THRESHOLD,
+      ...results
+    });
+    
+  } catch (err) {
+    console.error('[DATA INTEGRITY] Error:', err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ==================== ACTIVITY ACKNOWLEDGMENT ====================
 
 app.post('/api/activity-acknowledgment', async (req, res) => {
@@ -6068,6 +6227,8 @@ function getWeekdayIndex(dateLike) {
 const STRESS_MOODS = ["overwhelmed", "anxious", "stressed", "fried", "burned_out", "exhausted", "drained"];
 const WORK_KEYWORDS = ["work", "shift", "manager", "boss", "hr", "clinic", "charting", "meeting", "deadline"];
 const SOFT_MOODS = ["calm", "okay", "relieved", "lighter", "peaceful", "content", "settled"];
+// Relief moods for emotional load trend calculation (opposite of stress)
+const RELIEF_MOODS = ["calm", "peaceful", "content", "relieved", "lighter", "settled", "rested", "okay"];
 
 function containsAnyKeyword(text, keywords) {
   const lower = (text || "").toLowerCase();
