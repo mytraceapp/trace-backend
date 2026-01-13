@@ -993,10 +993,13 @@ ${contextSnapshot || '(no additional context provided)'}
 }
 
 function buildGreetingSystemPrompt({ displayName }) {
-  const nameLine = displayName
+  // Extract first name only (e.g., "Nina Tested" → "Nina")
+  const firstName = displayName ? displayName.split(' ')[0] : null;
+  
+  const nameLine = firstName
     ? `
-The user prefers to be called "${displayName}".
-Use it gently (e.g. "Hi ${displayName}") but not in every sentence.
+The user's first name is "${firstName}".
+Use FIRST NAME ONLY — never use their full display name. Use sparingly (e.g. "Hi ${firstName}").
 Never say "you told me your name is X" or "you've shared your name as X".`
     : `
 The user has not provided a name or nickname.
@@ -1022,8 +1025,11 @@ Guidelines:
 }
 
 function buildFirstRunGreetingPrompt({ displayName }) {
-  const nameLine = displayName
-    ? `You may gently use the name "${displayName}" once if it feels natural, but do not overuse it.`
+  // Extract first name only (e.g., "Nina Tested" → "Nina")
+  const firstName = displayName ? displayName.split(' ')[0] : null;
+  
+  const nameLine = firstName
+    ? `You may gently use the first name "${firstName}" once if it feels natural, but do not overuse it. NEVER use full name.`
     : `The user has not shared a name. Do not invent one or call them "friend" as if it were saved.`;
 
   return `
@@ -1052,8 +1058,11 @@ Return ONLY the message text.
 }
 
 function buildReturningGreetingPrompt({ displayName }) {
-  const nameLine = displayName
-    ? `If it feels natural, you may gently use "${displayName}" once, but do not overuse it.`
+  // Extract first name only (e.g., "Nina Tested" → "Nina")
+  const firstName = displayName ? displayName.split(' ')[0] : null;
+  
+  const nameLine = firstName
+    ? `If it feels natural, you may gently use the first name "${firstName}" once, but do not overuse it. NEVER use full name.`
     : `The user has not shared a name. Do not invent one or call them "friend" as if it were saved.`;
 
   return `
@@ -1087,8 +1096,11 @@ Return ONLY the message text.
 }
 
 function buildCrisisSystemPrompt({ displayName }) {
-  const nameBlock = displayName
-    ? `The user goes by "${displayName}". You may use this name gently and sparingly.`
+  // Extract first name only (e.g., "Nina Tested" → "Nina")
+  const firstName = displayName ? displayName.split(' ')[0] : null;
+  
+  const nameBlock = firstName
+    ? `The user's first name is "${firstName}". Use FIRST NAME ONLY — never use their full display name. Use sparingly.`
     : `The user has not shared a name. Do not invent one.`;
 
   return `
