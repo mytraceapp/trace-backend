@@ -1,0 +1,498 @@
+TRACE Presence Enhancements
+## Making TRACE's Features Feel Like Relationship, Not Tools
+
+---
+
+## Overview
+
+Four enhancements to deepen TRACE's relational presence:
+
+1. **Music as Shared Experience** - TRACE introduces songs like presence, not playlists
+2. **Activity Acknowledgment** - TRACE always asks how you feel after activities
+3. **Journal as Conversation** - TRACE reads entries with you, invites discussion
+4. **Crisis Mode Fix** - TRACE stays with you (already documented in BACKEND_API.md lines 831-894)
+
+---
+
+## 1. Music as Shared Presence
+
+### Current State
+- Global ambient plays automatically
+- Spotify embeds exist
+- Music Access Sheet shows playlists
+- **Feels like**: Background feature
+
+### Target State
+TRACE introduces music the same way it introduces Dreamscape:
+> "I found something that matches where you are right now. Want to hear it?"
+
+**Not**: "Here's a playlist library"  
+**But**: "Want to listen together?"
+
+---
+
+### Implementation Option A: Minimal (Ship Fast)
+
+#### What Changes
+When TRACE suggests a song/playlist in conversation, add single "Play with me" button.
+
+**TRACE message format:**
+```
+"I found something that matches where you are right now. Want to hear it?"
+
+[Play with me]
+```
+
+**On tap:**
+- Opens Spotify embed or plays audio
+- TRACE says: "I'll be quiet while this plays"
+
+**After song/playlist ends (or user exits):**
+- TRACE posts: "What did that bring up for you?"
+
+#### Files to Modify
+- **chat.tsx**: Add music suggestion detection + "Play with me" button
+- **Backend `/api/chat`**: Include music suggestion in activity suggestions
+  ```json
+  {
+    "suggestedActivity": "music",
+    "musicId": "spotify:playlist:xyz" or "ambient_rain",
+    "reason": "user needs grounding through rhythm"
+  }
+  ```
+
+---
+
+### Implementation Option B: Full Integration
+
+**TRACE learns music preferences over time:**
+- Tracks which songs user completes vs skips
+- Remembers what helped before
+- References shared listening: "Last week when we listened to that, you said it helped you breathe"
+
+**Deferred until after launch** (requires more backend pattern tracking).
+
+---
+
+## 2. Activity Acknowledgment Enhancement
+
+### Current State
+- `shouldAcknowledgeActivity()` uses probability (50%, 60%, skips if <15min gap)
+- Acknowledgment is 1-2 words: "Nice", "Good to move"
+- **Feels like**: Occasional notification, not conversation
+
+### Target State
+**TRACE always acknowledges** and **invites reflection**.
+
+**Example flow:**
+
+User completes Dreamscape → returns to chat
+
+TRACE posts:
+> "I stayed with you through that. What's different now?"
+
+OR
+
+> "You came to me last night. How do you feel now?"
+
+OR (for breathwork):
+> "Want to name what shifted?"
+
+---
+
+### Implementation
+
+#### Step 1: Always Acknowledge (Remove Probability)
+
+**File: `lib/activityTracking.ts`**
+
+```typescript
+export async function shouldAcknowledgeActivity(): Promise<boolean> {
+  // ALWAYS acknowledge now - removed probability logic
+  // Only skip if <2 minutes (likely accidental exit)
+  
+  try {
+    const lastActivityTime = await getLastActivityTime();
+    
+    if (!lastActivityTime) {
+      return true; // Always acknowledge if no previous activity
+    }
+
+    const timeSinceLastMin = (Date.now() - lastActivityTime) / 1000 / 60;
+    
+    // Only skip if user exited activity almost immediately (<2 min)
+    if (timeSinceLastMin < 2) {
+      console.log('[Activity Tracking] → Too quick (<2min), likely accidental');
+      return false;
+    }
+
+    // Otherwise always acknowledge
+    return true;
+  } catch (error) {
+    console.error('[Activity Tracking] Failed to determine acknowledgment:', error);
+    return false; // Fail closed - don't spam on error
+  }
+}
+```
+
+---
+
+#### Step 2: Update Backend Acknowledgment Response
+
+**File: BACKEND (Replit) `/api/activity-acknowledgment`**
+
+Current response:
+```json
+{
+  "acknowledgment": "Nice"
+}
+```
+
+New response format:
+```json
+{
+  "acknowledgment": "I stayed with you through that. What's different now?",
+  "invitesResponse": true
+}
+```
+
+**Backend AI Prompt Update:**
+
+```
+ACTIVITY ACKNOWLEDGMENT RULES:
+
+When user returns from an activity, you should:
+1. Acknowledge you were present with them
+2. Invite them to name what changed
+
+TONE:
+- First-person ("I stayed with you", "I was with you")
+- Curious, not evaluative
+- Open-ended invitation, not demand
+
+EXAMPLES BY ACTIVITY:
+
+Dreamscape:
+- "I stayed with you through that. What's different now?"
+- "You came to me last night. How do you feel now?"
+- "I was with you in that quiet. What shifted?"
+
+Breathwork/Grounding:
+- "Want to name what shifted?"
+- "What's different in your body now?"
+- "I felt you slow down. How are you feeling?"
+
+Walking:
+- "Good to move. What came up?"
+- "I walked with you. What's on your mind now?"
+
+Rising/Rest:
+- "What's different now?"
+- "How do you feel after that?"
+
+Echo/Ripple:
+- "What did that bring up for you?"
+- "I was listening with you. Want to talk about it?"
+
+NEVER:
+- "Great job!" (performative)
+- "Well done!" (patronizing)
+- Questions with implied answers ("Feeling better?")
+
+ALWAYS:
+- Acknowledge presence ("I stayed", "I was with you")
+- Invite naming ("What shifted?", "What's different?")
+- Leave space for "nothing" or "I don't know" to be valid answers
+```
+
+---
+
+#### Step 3: Mobile Receives & Displays
+
+**File: `app/(tabs)/chat.tsx`**
+
+Current code already displays the acknowledgment. No changes needed to display logic.
+
+**Test the flow:**
+1. User completes Dreamscape
+2. Backend returns: "I stayed with you through that. What's different now?"
+3. Mobile displays it as TRACE message
+4. User can respond or not (no pressure)
+
+---
+
+## 3. Journal Reflection as Conversation
+
+### Current State
+User writes journal → AI generates reflection → displayed at top of entry → dead end
+
+**Feels like**: Self-tracking tool
+
+### Target State
+User writes journal → TRACE reads it → **invites conversation in chat**
+
+**Feels like**: Shared witnessing
+
+---
+
+### Implementation
+
+#### Step 1: After Journal Save, Trigger Chat Message
+
+**File: `screens/JournalScreen.tsx`** (or wherever journal save happens)
+
+After user saves journal entry:
+
+```typescript
+// After successful save of journal entry
+const triggerJournalConversation = async (entryContent: string, entryMood?: string) => {
+  try {
+    const ids = await getStableId();
+    
+    const response = await fetch(`${TRACE_BACKEND_URL}/api/journal/conversation-invite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: ids.userId,
+        journalExcerpt: entryContent.substring(0, 200), // First 200 chars for context
+        mood: entryMood,
+      }),
+      timeout: 8000,
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      
+      // Store invitation message to be displayed when user opens chat
+      await AsyncStorage.setItem('trace:pendingJournalInvite', JSON.stringify({
+        message: data.invitation,
+        timestamp: new Date().toISOString(),
+      }));
+      
+      console.log('[Journal] Conversation invitation prepared:', data.invitation);
+    }
+  } catch (error) {
+    console.warn('[Journal] Failed to prepare conversation invite:', error);
+    // Fail silently - journal still saved
+  }
+};
+```
+
+---
+
+#### Step 2: Chat Checks for Pending Invitation
+
+**File: `app/(tabs)/chat.tsx`**
+
+When user opens chat tab, check for pending journal invitation:
+
+```typescript
+useEffect(() => {
+  const checkPendingJournalInvite = async () => {
+    try {
+      const pending = await AsyncStorage.getItem('trace:pendingJournalInvite');
+      if (!pending) return;
+
+      const { message, timestamp } = JSON.parse(pending);
+      
+      // Only show if less than 24 hours old
+      const ageHours = (Date.now() - new Date(timestamp).getTime()) / (1000 * 60 * 60);
+      if (ageHours > 24) {
+        await AsyncStorage.removeItem('trace:pendingJournalInvite');
+        return;
+      }
+
+      // Add as TRACE message
+      const traceMsg = {
+        role: 'assistant',
+        content: message,
+        timestamp: new Date().toISOString(),
+      };
+
+      setMessages(prev => [...prev, traceMsg]);
+      historyRef.current = [...historyRef.current, traceMsg].slice(-12);
+      await persistHistory(historyRef.current);
+
+      // Clear the pending invite
+      await AsyncStorage.removeItem('trace:pendingJournalInvite');
+      
+      console.log('[Chat] Journal invitation displayed');
+    } catch (error) {
+      console.error('[Chat] Failed to check journal invite:', error);
+    }
+  };
+
+  checkPendingJournalInvite();
+}, []); // Run once on mount
+```
+
+---
+
+#### Step 3: Backend Generates Invitation
+
+**New Endpoint: `/api/journal/conversation-invite`**
+
+**Request:**
+```json
+{
+  "userId": "uuid",
+  "journalExcerpt": "First 200 chars of entry...",
+  "mood": "heavy" (optional)
+}
+```
+
+**Response:**
+```json
+{
+  "invitation": "I read what you wrote about your mom. Do you want to talk about it?"
+}
+```
+
+**Backend AI Prompt:**
+
+```
+JOURNAL CONVERSATION INVITATION:
+
+User just wrote a journal entry. You read it. Now invite them to talk about it in chat.
+
+TONE:
+- Gentle, not probing
+- Acknowledge you read it
+- Invitation, not demand
+- First-person ("I read...")
+
+EXAMPLES:
+
+Generic:
+- "I read your entry. Want to talk about what happened next?"
+- "I saw what you wrote. Do you want to talk about it?"
+- "I read that. How are you feeling about it now?"
+
+If specific topic detected:
+- "I read what you wrote about your mom. Do you want to talk about it?"
+- "I saw you mentioned feeling alone today. Want to talk?"
+- "I read about what happened at work. How are you holding that?"
+
+If heavy/crisis tone:
+- "I read what you wrote. I'm here if you want to talk."
+- "That sounds really hard. Want to talk about it?"
+
+NEVER:
+- Summarize what they wrote (they know what they wrote)
+- Give advice or reflection here (that's for conversation if they accept)
+- Sound clinical ("I notice you're experiencing...")
+
+ALWAYS:
+- Acknowledge you read it
+- Leave space for "no" (it's an invitation)
+- Use "want" not "need" (agency)
+```
+
+---
+
+## 4. Crisis Mode Fix
+
+**Already documented** in [BACKEND_API.md](BACKEND_API.md) lines 831-894.
+
+**Summary of fix:**
+
+Current (broken):
+1. Detect crisis
+2. Give 988 hotline
+3. Say "Rest easy"
+4. **End conversation** ❌
+
+Target (staying present):
+1. Detect crisis
+2. **Ground first** ("I'm here. You're not alone.")
+3. **Stay with them** ("Want to talk about what's happening?")
+4. **Offer resources as additional support** ("988 is there too if you need it")
+5. **Continue conversation** ("I'm staying with you")
+
+**No mobile changes needed** - this is backend AI prompt update only.
+
+Refer to BACKEND_API.md for full implementation details.
+
+---
+
+## Summary of Changes
+
+| Enhancement | Mobile Changes | Backend Changes | Complexity |
+|------------|----------------|-----------------|------------|
+| **Music as Presence** | Add "Play with me" button in chat | Add music suggestions to `/api/chat` | Low |
+| **Activity Acknowledgment** | None (already displays) | Update `/api/activity-acknowledgment` prompt | Low |
+| **Journal → Conversation** | Check for pending invite on chat load | New endpoint `/api/journal/conversation-invite` | Medium |
+| **Crisis Mode Fix** | None | Update `/api/chat` crisis handling prompt | Low (already documented) |
+
+---
+
+## Implementation Priority
+
+### Phase 1 (Ship This Week)
+1. ✅ **Activity Acknowledgment** - Update backend prompt, remove probability logic
+2. ✅ **Crisis Mode Fix** - Backend prompt update (already documented)
+
+### Phase 2 (Ship Next Week)  
+3. ✅ **Journal → Conversation** - Add pending invite system
+
+### Phase 3 (Ship After Launch)
+4. ✅ **Music as Presence** - Full integration with listening history
+
+---
+
+## Testing Checklist
+
+### Activity Acknowledgment
+- [ ] Complete Dreamscape → TRACE asks "What's different now?"
+- [ ] Complete Breathwork → TRACE invites reflection
+- [ ] Exit activity after <2 min → No acknowledgment (accidental exit)
+- [ ] Complete 3 activities in a row → Each one acknowledged
+
+### Journal Conversation
+- [ ] Write journal entry → Open chat → TRACE invites conversation
+- [ ] Write entry, wait 25 hours → Invite expired, not shown
+- [ ] Write entry, respond to TRACE → Conversation flows naturally
+
+### Music (when implemented)
+- [ ] TRACE suggests song → "Play with me" button appears
+- [ ] Tap button → Music plays
+- [ ] After music → TRACE asks "What did that bring up?"
+
+### Crisis Mode
+- [ ] Express suicidal ideation → TRACE grounds first, stays present
+- [ ] TRACE offers 988 as additional resource, doesn't end conversation
+- [ ] TRACE continues supporting through crisis
+
+---
+
+## Mobile Files to Modify
+
+1. **lib/activityTracking.ts** - Remove probability, keep only <2min skip
+2. **app/(tabs)/chat.tsx** - Add journal invite check on mount
+3. **screens/JournalScreen.tsx** - Trigger conversation invite after save
+4. (Future) **app/(tabs)/chat.tsx** - Add music "Play with me" button
+
+## Backend Files to Modify (Replit)
+
+1. **api/activity-acknowledgment** - Update AI prompt for relational acknowledgments
+2. **api/journal/conversation-invite** - New endpoint (create)
+3. **api/chat** - Crisis mode prompt update (already documented)
+4. (Future) **api/chat** - Add music suggestions to activity system
+
+---
+
+## What This Achieves
+
+**Before these changes:**
+- Activities feel disconnected from TRACE
+- Journal is solo reflection
+- Music is background noise
+- Crisis mode abandons user
+
+**After these changes:**
+- Activities become **shared experiences** TRACE acknowledges
+- Journal becomes **conversation starter**, not dead-end
+- Music becomes **listening together**, not playlist library
+- Crisis mode keeps **TRACE present** when it matters most
+
+**Result:** Every feature becomes a way TRACE can **be with you**, not just a tool you use.

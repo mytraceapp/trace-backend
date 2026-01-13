@@ -303,6 +303,45 @@ export default function ChatScreen() {
     }
   }, [pendingAcknowledgment, stableId, authUserId]);
 
+  // Check for pending journal conversation invite
+  useEffect(() => {
+    const checkPendingJournalInvite = async () => {
+      try {
+        const pending = await AsyncStorage.getItem('trace:pendingJournalInvite');
+        if (!pending) return;
+
+        const { message, timestamp } = JSON.parse(pending);
+        
+        // Only show if less than 24 hours old
+        const ageHours = (Date.now() - new Date(timestamp).getTime()) / (1000 * 60 * 60);
+        if (ageHours > 24) {
+          await AsyncStorage.removeItem('trace:pendingJournalInvite');
+          return;
+        }
+
+        // Add as TRACE message
+        const traceMsg: ChatMessage = {
+          id: `journal-invite-${Date.now()}`,
+          role: 'assistant',
+          content: message,
+        };
+
+        setMessages(prev => [...prev, traceMsg]);
+        console.log('[Chat] Journal invitation displayed');
+
+        // Clear the pending invite
+        await AsyncStorage.removeItem('trace:pendingJournalInvite');
+      } catch (error) {
+        console.error('[Chat] Failed to check journal invite:', error);
+      }
+    };
+
+    // Check on mount
+    if (stableId !== null) {
+      checkPendingJournalInvite();
+    }
+  }, [stableId]);
+
   const handleSend = async () => {
     const trimmed = inputText.trim();
     if (!trimmed || isSending) return;

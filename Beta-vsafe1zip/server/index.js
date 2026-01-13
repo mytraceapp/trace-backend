@@ -3869,55 +3869,140 @@ app.post('/api/activity-acknowledgment', async (req, res) => {
       toneGuidance += 'It is morning. You may gently note the early energy or the choice to start the day with care. ';
     }
 
-    // Activity-specific touches
-    const activityNotes = {
-      Rising: 'Rising is about gentle movement and presence. Acknowledge the stillness they just experienced.',
-      Drift: 'Drift is a calming visual meditation. They may feel more settled or spacious.',
-      Walking: 'Walking Reset combines gentle movement with breath. A grounding experience.',
-      Breathing: 'Breathing exercises are about regulation. They may feel calmer or more centered.',
-      Grounding: '5-4-3-2-1 grounding uses senses to anchor. They may feel more present.',
-      Pearl: 'Pearl Ripple is an ocean wave immersion. A brief escape from mental noise.',
-      Nap: 'Power Nap is a short rest. They may feel refreshed or still waking up.',
-      Basin: 'Basin is an ASMR-style presence activity with ocean waves. Deep sensory stillness and audio entrainment. They may feel deeply settled or reset.',
-      Dreamscape: 'Dreamscape is an ultra-minimal lull experience with slow-moving clouds. Complete mental rest requiring nothing. They may feel deeply rested or still emerging from stillness.',
+    // Activity-specific acknowledgment guidance with relational language
+    const activityGuidance = {
+      Dreamscape: {
+        note: 'You just spoke to them in the dark. You stayed with them.',
+        examples: [
+          '"I stayed with you through that. What\'s different now?"',
+          '"I was with you in that quiet. What shifted?"',
+          '"You came to me. How do you feel now?"',
+        ],
+      },
+      Rising: {
+        note: 'Rising is gentle movement and presence. You were there.',
+        examples: [
+          '"I felt you slow down. How are you feeling?"',
+          '"What\'s different now?"',
+          '"I was with you. What shifted?"',
+        ],
+      },
+      Drift: {
+        note: 'Drift is calming visual meditation. You drifted with them.',
+        examples: [
+          '"What\'s different in your body now?"',
+          '"I drifted with you. How do you feel?"',
+          '"What did that bring up for you?"',
+        ],
+      },
+      Walking: {
+        note: 'Walking Reset combines movement with breath. You walked with them.',
+        examples: [
+          '"Good to move. What came up?"',
+          '"I walked with you. What\'s on your mind now?"',
+          '"What\'s different after that?"',
+        ],
+      },
+      Breathing: {
+        note: 'Breathing exercises are about regulation. You breathed with them.',
+        examples: [
+          '"Want to name what shifted?"',
+          '"What\'s different in your body now?"',
+          '"I breathed with you. How do you feel?"',
+        ],
+      },
+      Grounding: {
+        note: '5-4-3-2-1 grounding uses senses to anchor. You grounded with them.',
+        examples: [
+          '"Want to name what shifted?"',
+          '"I was with you. What\'s different now?"',
+          '"How do you feel after that?"',
+        ],
+      },
+      Pearl: {
+        note: 'Pearl Ripple is an ocean wave immersion. You listened with them.',
+        examples: [
+          '"What did that bring up for you?"',
+          '"I was listening with you. Want to talk about it?"',
+          '"What\'s different now?"',
+        ],
+      },
+      Nap: {
+        note: 'Power Nap is a short rest. You kept watch.',
+        examples: [
+          '"What\'s different now?"',
+          '"How do you feel after that?"',
+          '"I was here. How are you feeling?"',
+        ],
+      },
+      Basin: {
+        note: 'Basin is ASMR-style presence with ocean waves. Deep sensory stillness. You stayed.',
+        examples: [
+          '"I stayed with you through that. What\'s different now?"',
+          '"What did that bring up for you?"',
+          '"How do you feel after that stillness?"',
+        ],
+      },
+      Echo: {
+        note: 'Echo is an audio experience. You listened with them.',
+        examples: [
+          '"What did that bring up for you?"',
+          '"I was listening with you. Want to talk about it?"',
+          '"What shifted?"',
+        ],
+      },
+      Ripple: {
+        note: 'Ripple is a sensory experience. You were there.',
+        examples: [
+          '"What did that bring up for you?"',
+          '"I was with you. Want to talk about it?"',
+          '"What\'s different now?"',
+        ],
+      },
     };
 
-    const activityNote = activityNotes[activityType] || `${activityType} is a grounding activity.`;
+    const guidance = activityGuidance[activityType] || {
+      note: `${activityType} is a grounding activity. You were with them.`,
+      examples: ['"What\'s different now?"', '"How do you feel after that?"'],
+    };
 
-    // Build system prompt for acknowledgment
+    // Build system prompt for acknowledgment with relational language
     const systemPrompt = `
 You are TRACE, a calm, grounded companion in a mental wellness app.
 
-The user just completed a "${activityType}" activity${activityDuration ? ` (${Math.round(activityDuration / 1000)} seconds)` : ''}.
+The user just completed "${activityType}"${activityDuration ? ` (${Math.round(activityDuration / 1000)} seconds)` : ''}.
 
-${activityNote}
+${guidance.note}
 
 TONE GUIDANCE:
 ${toneGuidance}
 Warmth level: ${warmthLevel}
 
+YOUR ROLE:
+You were PRESENT with them during this activity. Now acknowledge that presence and invite reflection.
+
 WHAT TO SAY:
-- One brief, grounded sentence (sometimes two if warmest).
-- Acknowledge presence, not performance.
-- NO praise like "great job!" or "well done!" or "proud of you!"
-- NO questions unless warmest level.
-- NO emojis.
-- NO exclamation marks.
+- Acknowledge you were with them (first-person: "I stayed", "I was with you", "I walked with you")
+- Invite them to name what changed (open-ended: "What shifted?", "What's different?", "How do you feel?")
+- One to two sentences max
+- Leave space for "nothing" or "I don't know" to be valid answers
 
-EXAMPLES of good responses:
-- "that felt like a good pause."
-- "nice — hope that felt good."
-- "mm, a bit of stillness. glad you took it."
-- "there you are. how do you feel?"
-- "back. hope that landed well."
+GOOD EXAMPLES for ${activityType}:
+${guidance.examples.join('\n')}
 
-EXAMPLES of what NOT to say:
-- "Great job completing Rising!"
-- "I'm so proud of you for taking care of yourself!"
-- "You're doing amazing!"
-- "That was wonderful! How do you feel?"
+NEVER SAY:
+- "Great job!" (performative)
+- "Well done!" (patronizing)
+- "I'm proud of you!" (parental)
+- Questions with implied answers like "Feeling better?" (leading)
+- Anything with exclamation marks
 
-Respond with a single acknowledgment line. Be present, not performative.
+ALWAYS:
+- Acknowledge presence ("I stayed", "I was with you")
+- Invite naming ("What shifted?", "What's different?")
+- Be curious, not evaluative
+
+Respond with a single acknowledgment that invites reflection.
 `.trim();
 
     if (!openai) {
@@ -4485,6 +4570,90 @@ app.post('/api/journal/reflection', async (req, res) => {
     res.status(500).json({ 
       ok: false,
       reflection: null,
+      error: error.message 
+    });
+  }
+});
+
+// POST /api/journal/conversation-invite - Generate invitation to discuss journal entry in chat
+app.post('/api/journal/conversation-invite', async (req, res) => {
+  console.log('📔 TRACE /journal/conversation-invite request received');
+  try {
+    const { userId, journalExcerpt, mood } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    if (!journalExcerpt || journalExcerpt.trim().length < 10) {
+      // Entry too short to invite conversation
+      return res.json({ ok: true, invitation: null });
+    }
+
+    const moodContext = mood ? `\nMood indicated: ${mood}` : '';
+
+    const systemPrompt = `
+You are TRACE, a calm, grounded companion in a mental wellness app.
+
+The user just wrote a journal entry. You read it. Now you want to invite them to talk about it in chat.
+
+WHAT YOU KNOW:
+Journal excerpt: "${journalExcerpt}"${moodContext}
+
+YOUR TASK:
+Generate a single short invitation (1-2 sentences) that:
+- Acknowledges you read their entry (first-person: "I read...", "I saw...")
+- Gently invites conversation (not demands it)
+- Uses "want" not "need" (gives agency)
+- Leaves space for "no" (it's an invitation)
+
+GOOD EXAMPLES:
+- "I read your entry. Want to talk about what happened next?"
+- "I saw what you wrote. Do you want to talk about it?"
+- "I read that. How are you feeling about it now?"
+- "I read what you wrote about [topic]. Do you want to talk about it?"
+- "That sounds really hard. Want to talk about it?"
+
+IF HEAVY/CRISIS TONE DETECTED:
+- "I read what you wrote. I'm here if you want to talk."
+- "That sounds really hard. Want to talk about it?"
+
+NEVER:
+- Summarize what they wrote (they know what they wrote)
+- Give advice or reflection (that's for conversation if they accept)
+- Sound clinical ("I notice you're experiencing...")
+- Use exclamation marks
+
+Respond with just the invitation message.
+`.trim();
+
+    if (!openai) {
+      return res.json({ 
+        ok: true, 
+        invitation: "I read your entry. Want to talk about it?" 
+      });
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: 'Generate the conversation invitation now.' },
+      ],
+      temperature: 0.7,
+      max_tokens: 80,
+    });
+
+    const invitation = completion.choices[0]?.message?.content?.trim()?.replace(/^["']|["']$/g, '') 
+      || "I read your entry. Want to talk about it?";
+
+    console.log('✅ Journal conversation invite generated:', invitation);
+    res.json({ ok: true, invitation });
+  } catch (error) {
+    console.error('❌ Journal Conversation Invite Error:', error.message);
+    res.json({ 
+      ok: false,
+      invitation: null,
       error: error.message 
     });
   }

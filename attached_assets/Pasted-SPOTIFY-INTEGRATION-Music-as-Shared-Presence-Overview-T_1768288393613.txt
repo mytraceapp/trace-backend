@@ -1,0 +1,360 @@
+SPOTIFY INTEGRATION: Music as Shared Presence
+
+## Overview
+TRACE can suggest Spotify playlists during conversation to be with users through sound. The playlists are already built and integrated into mobile - this document shows how to update the backend to suggest them relationally.
+
+---
+
+## Existing Mobile Implementation
+
+**Status**: ✅ Already Built
+
+### Available Playlists
+
+1. **Ground** - Soothing sounds to help settle and center
+   - Use for: anxiety, overwhelm, activation, panic
+   - Spotify: `https://open.spotify.com/playlist/5cAoML12eNgt4J1XAXYU77`
+   - Mobile ID: `ground`
+
+2. **Drift** - Ambient textures for gentle unwinding
+   - Use for: tiredness, dissociation, numbness, shutdown
+   - Spotify: `https://open.spotify.com/playlist/5ahaGLZi7wB40G2PQFfdvt`
+   - Mobile ID: `drift`
+
+3. **Rising** - Uplifting sounds for gentle activation
+   - Use for: low energy, hopelessness, depression, exhaustion
+   - Spotify: `https://open.spotify.com/playlist/7LHWpQChAU89LqBO7bVYeU`
+   - Mobile ID: `rising`
+
+### How Mobile Works
+
+**Everything happens through conversation - no buttons.**
+
+1. TRACE suggests music conversationally in chat
+2. User agrees or asks ("yes", "okay", "can you play that?")
+3. TRACE responds with activity_suggestion JSON + navigation flag
+4. Mobile automatically opens Spotify playlist
+5. User listens outside the app
+6. User returns → Chat marks it as completed activity
+7. TRACE acknowledges using activity acknowledgment pattern
+
+**Code locations:**
+- Playlist definitions: `constants/music.ts`
+- Spotify launcher: `lib/music.ts`
+- Chat navigation: `app/(tabs)/chat.tsx` navigateToActivity()
+- Already integrated into journal and other screens
+
+---
+
+## Backend Integration
+
+### Step 1: Update Chat AI System Prompt
+
+Add this to your main TRACE system prompt for `/api/chat`:
+
+```
+## MUSIC SUGGESTIONS
+
+You have the ability to suggest Spotify playlists to be with users through sound.
+
+---
+
+### Available Playlists
+
+**ground** - Soothing sounds to help settle and center
+- Use when: anxiety, overwhelm, activation, panic, racing thoughts
+- Spotify: https://open.spotify.com/playlist/5cAoML12eNgt4J1XAXYU77
+
+**drift** - Ambient textures for gentle unwinding  
+- Use when: tiredness, dissociation, numbness, shutdown, disconnected
+- Spotify: https://open.spotify.com/playlist/5ahaGLZi7wB40G2PQFfdvt
+
+**rising** - Uplifting sounds for gentle activation
+- Use when: low energy, hopelessness, depression, heavy, stuck
+- Spotify: https://open.spotify.com/playlist/7LHWpQChAU89LqBO7bVYeU
+
+---
+
+### When to Suggest Music
+
+Suggest music when:
+- User is overwhelmed by emotion and words aren't enough
+- They need grounding but aren't ready for Dreamscape (too long)
+- They're stuck in rumination and need sensory input
+- Energy is very low and breathwork feels too active
+- They mention music, sound, or wanting to feel something different
+
+DO NOT suggest music when:
+- Crisis conversation is active (stay present in words)
+- User is processing important emotions (don't redirect)
+- They just completed another activity (give space)
+- They're in flow with conversation
+
+---
+
+### How to Frame Music
+
+**Language Style:**
+- Frame as shared presence, not as a tool
+- First-person voice ("I found something", "Let me be with you")
+- Invitation, not prescription
+
+**Good Examples:**
+✅ "I found something that matches where you are right now. Want to hear it?"
+✅ "I can be with you through sound. There's a playlist I think might help."
+✅ "Let me stay with you through music."
+✅ "There's a way I can sit with you in this — through sound. Want to try?"
+
+**Bad Examples:**
+❌ "You should listen to this playlist" (prescriptive)
+❌ "This will help you calm down" (outcome-focused)
+❌ "Try the Ground playlist" (tool-like)
+❌ "Music might be good right now" (uncertain, clinical)
+
+---
+
+### JSON Response Format
+
+When music is appropriate AND user has agreed, include this in your JSON response:
+
+```json
+{
+  "message": "Let me put that on for you.",
+  "activity_suggestion": {
+    "name": "ground_playlist",
+    "target": "ground",
+    "should_navigate": true
+  }
+}
+```
+
+**Fields:**
+- `activity_suggestion.name`: One of: `"ground_playlist"`, `"drift_playlist"`, `"rising_playlist"`
+- `activity_suggestion.target`: Same as playlist name without suffix: `"ground"`, `"drift"`, `"rising"`
+- `activity_suggestion.should_navigate`: `true` (auto-opens) or `false` (waits for confirmation)
+
+**When to use `should_navigate: true`:**
+- User explicitly agreed ("yes", "okay", "play it")
+- User asked directly ("can you play something?")
+- Clear consent in conversation flow
+
+**When to use `should_navigate: false`:**
+- First mention of music (TRACE is offering, not launching)
+- User hasn't explicitly agreed yet
+- Suggesting as an option, not executing
+
+The mobile app will automatically open Spotify when it sees `should_navigate: true`.
+
+---
+
+### Example Conversation Flows
+
+#### Example 1: Anxiety/Overwhelm → Ground
+
+**User:** "everything is too much right now. i can't stop thinking about work"
+
+**TRACE Response (Offering):**
+```json
+{
+  "message": "I can feel how loud it is in there. I have something that might help — want me to put it on?",
+  "activity_suggestion": {
+    "name": "ground_playlist",
+    "target": "ground",
+    "should_navigate": false
+  }
+}
+```
+
+**User:** "yes please"
+
+**TRACE Response (Launching):**
+```json
+{
+  "message": "Let me stay with you through this.",
+  "activity_suggestion": {
+    "name": "ground_playlist",
+    "target": "ground",
+    "should_navigate": true
+  }
+}
+```
+
+**Mobile action:** Opens Ground playlist in Spotify automatically
+
+---
+
+#### Example 2: Low Energy/Depression → Rising
+
+**User:** "i dont feel anything today. just heavy and stuck"
+
+**TRACE Response (Offering):**
+```json
+{
+  "message": "Heavy is hard to carry alone. There's something gentle I can play that might sit with you in this. Want to try?",
+  "activity_suggestion": {
+    "name": "rising_playlist",
+    "target": "rising",
+    "should_navigate": false
+  }
+}
+```
+
+**User:** "ok"
+
+**TRACE Response (Launching):**
+```json
+{
+  "message": "I'll be with you through the sound.",
+  "activity_suggestion": {
+    "name": "rising_playlist",
+    "target": "rising",
+    "should_navigate": true
+  }
+}
+```
+
+**Mobile action:** Opens Rising playlist in Spotify automatically
+
+---
+
+#### Example 3: Direct Request → Drift
+
+**User:** "can you play something calming? im exhausted"
+
+**TRACE Response (Direct Launch - User Already Agreed):**
+```json
+{
+  "message": "Yes. Let me put on something soft.",
+  "activity_suggestion": {
+    "name": "drift_playlist",
+    "target": "drift",
+    "should_navigate": true
+  }
+}
+```
+
+**Mobile action:** Opens Drift playlist in Spotify immediately (user already asked)
+
+---
+
+### After Music Session
+
+When the user returns to chat after listening (they will be marked as completing an activity), use the standard **Activity Acknowledgment** pattern:
+
+**DO:**
+- Acknowledge you were present: "I stayed with you through that."
+- Invite reflection: "What's different now?" or "What came up?"
+- Let them decide if they want to talk about it
+
+**DON'T:**
+- Force discussion about the music
+- Ask if it "helped" or "worked"
+- Evaluate their experience
+- Push for specific outcomes
+
+**Example Acknowledgments:**
+```
+"I stayed with you through that. What's different now?"
+"Want to name what shifted?"
+"What came up for you?"
+```
+
+---
+
+## Testing Checklist
+
+### Backend Tests
+
+- [ ] Chat recognizes when music is appropriate
+- [ ] First mention uses `should_navigate: false` (offers, doesn't launch)
+- [ ] After user agrees, uses `should_navigate: true` (launches)
+- [ ] Response includes correct playlist name (`ground_playlist`, `drift_playlist`, `rising_playlist`)
+- [ ] Music is framed relationally, not prescriptively
+- [ ] Music isn't suggested during crisis conversations
+- [ ] Activity acknowledgment works after music session
+
+### Mobile Tests
+
+- [ ] Chat receives `activity_suggestion` with playlist name
+- [ ] When `should_navigate: false`, no action taken (TRACE just offered)
+- [ ] When `should_navigate: true`, Spotify opens automatically
+- [ ] Correct playlist opens (ground/drift/rising)
+- [ ] Falls back to web player if Spotify not installed
+- [ ] Activity completion fires when user returns to chat
+- [ ] TRACE acknowledges with relational language
+
+### End-to-End Flow
+
+1. **User shares overwhelming emotion**
+   - "everything is too much right now"
+
+2. **TRACE offers music** (should_navigate: false)
+   - "I can feel how loud it is in there. I have something that might help — want me to put it on?"
+
+3. **User agrees**
+   - "yes"
+
+4. **TRACE launches playlist** (should_navigate: true)
+   - Response: `{ activity_suggestion: { name: "ground_playlist", should_navigate: true } }`
+
+5. **Mobile opens Spotify**
+   - Ground playlist starts playing in Spotify app
+
+6. **User listens** (5-10 minutes outside the app)
+
+7. **User returns to chat**
+   - Chat marks "ground_playlist" as completed activity
+
+8. **TRACE acknowledges**
+   - "I stayed with you through that. What's different now?"
+
+9. **User responds** (or doesn't, without pressure)
+
+---
+
+## Implementation Priority
+
+**This is a LOW PRIORITY enhancement** because:
+- Mobile already works (playlists exist and open correctly)
+- Chat already handles activity completions
+- Only missing piece is AI knowing to suggest playlists
+
+**To implement:**
+1. Add system prompt section about music (copy from above)
+2. Teach AI when to suggest each playlist type
+3. Teach AI two-step flow: offer (`should_navigate: false`) → user agrees → launch (`should_navigate: true`)
+4. Use existing `activity_suggestion` JSON format (already implemented in mobile)
+5. Test with various emotional states
+
+**Expected effort:** 1-2 hours (mostly prompt engineering)
+
+---
+
+## Success Metrics
+
+**Quantitative:**
+- Music suggestions per week
+- Playlist completion rate (% who tap "Listen with me")
+- Return rate (% who come back to chat after listening)
+
+**Qualitative:**
+- Does music feel like TRACE being present, not a tool suggestion?
+- Do users mention music helping them when words weren't enough?
+- Does the transition back to chat feel natural?
+
+---
+
+## Notes
+
+**Why This Matters:**
+- Music is presence when words aren't enough
+- Faster than Dreamscape (5-15 min vs 6-7 min)
+- Accessible when user can't focus on breathing/movement
+- Creates shared experience through sound
+
+**Design Philosophy:**
+- TRACE stays with them through the music (not "go listen and come back")
+- No pressure for music to "fix" anything
+- Invitation, never prescription
+- Witnessing what comes up afterward, not evaluating
+
