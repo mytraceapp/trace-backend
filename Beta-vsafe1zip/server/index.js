@@ -989,12 +989,18 @@ function isHighDistressText(text) {
     t.includes('want to die') ||
     t.includes('i want to disappear') ||
     t.includes("don't want to be here") ||
+    t.includes("dont want to be here") ||  // without apostrophe
+    t.includes("don't want to be here anymore") ||
+    t.includes("dont want to be here anymore") ||  // without apostrophe
     t.includes("don't want to live") ||
     t.includes("not wanting to live") ||
     (t.includes("wanting to live") && (t.includes("not") || t.includes("stop") || t.includes("don't"))) ||  // only negative context
     t.includes('kill myself') ||
     t.includes('end my life') ||
     t.includes('end it all') ||
+    t.includes('ending it all') ||  // "I keep thinking about ending it all"
+    t.includes('ending it') ||  // catches variations
+    t.includes('thinking about ending') ||  // "thinking about ending my life/it all"
     t.includes("i'm done with life") ||
     t.includes("done with life") ||
     t.includes('no reason to live') ||
@@ -2443,15 +2449,14 @@ app.post('/api/chat', async (req, res) => {
       return closers.includes(t) || (t.length <= 18 && closers.some(c => t.startsWith(c)));
     }
     
+    // CRISIS-SAFE: These responses avoid goodbye language that could abandon users
+    // Removed: "Rest easy", "Take care", emoji-heavy responses
     const LIGHT_ACKS = [
-      "You're welcome. 😊",
-      "Got you. I'm here if you need me.",
-      "Anytime. Take good care of yourself.",
-      "Of course. I'm nearby if you want to share more later.",
-      "You're welcome. Rest easy.",
+      "Got you. I'm here.",
+      "Anytime.",
+      "Of course.",
       "No problem.",
-      "Anytime. 🙏",
-      "Take care."
+      "I'm here if you want to share more.",
     ];
     
     function pickRandom(arr) {
@@ -2687,7 +2692,22 @@ app.post('/api/chat', async (req, res) => {
     // ---- CRISIS MODE DETECTION ----
     // Check if the user is in high distress - if so, skip all playful APIs
     // Crisis mode now persists to Supabase for consistency across server restarts
-    const isCurrentlyDistressed = isHighDistressContext(messages);
+    
+    // CRITICAL FIX: Also check the CURRENT user message, not just history
+    // This catches crisis indicators in the first message of a conversation
+    const isCurrentMessageDistressed = isHighDistressText(userText);
+    const isHistoryDistressed = isHighDistressContext(messages);
+    const isCurrentlyDistressed = isCurrentMessageDistressed || isHistoryDistressed;
+    
+    // Also respect explicit crisisMode flag from client
+    const clientCrisisMode = req.body.crisisMode === true;
+    
+    if (isCurrentMessageDistressed) {
+      console.log('[CRISIS] Current message contains distress indicators:', userText.slice(0, 50) + '...');
+    }
+    if (clientCrisisMode) {
+      console.log('[CRISIS] Client sent crisisMode=true flag');
+    }
     
     // Use database-backed crisis state (falls back to in-memory if Supabase unavailable)
     let crisisState = { active: false, safeMessagesSince: 0, pendingExitCheckIn: false };
@@ -2703,11 +2723,12 @@ app.post('/api/chat', async (req, res) => {
       crisisState = updateCrisisState(effectiveUserId, isCurrentlyDistressed);
     }
     
-    const isCrisisMode = crisisState.active;
+    // Crisis mode is active if: database says so, OR current message is distressed, OR client explicitly says so
+    const isCrisisMode = crisisState.active || isCurrentlyDistressed || clientCrisisMode;
     const crisisPendingExitCheckIn = crisisState.pendingExitCheckIn;
     
     // CRITICAL: Log crisis state for debugging
-    console.log(`[CRISIS CHECK] userId: ${effectiveUserId?.slice(0,8)}, isCurrentlyDistressed: ${isCurrentlyDistressed}, isCrisisMode: ${isCrisisMode}, safeMessagesSince: ${crisisState.safeMessagesSince}`);
+    console.log(`[CRISIS CHECK] userId: ${effectiveUserId?.slice(0,8)}, currentMsgDistressed: ${isCurrentMessageDistressed}, historyDistressed: ${isHistoryDistressed}, clientFlag: ${clientCrisisMode}, isCrisisMode: ${isCrisisMode}`);
 
     // Load rhythmic awareness line (time/date-based contextual awareness)
     // Uses user's local time from the payload, not server time

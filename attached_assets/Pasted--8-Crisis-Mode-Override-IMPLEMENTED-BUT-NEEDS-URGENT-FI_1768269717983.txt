@@ -1,0 +1,57 @@
+### 8. Crisis Mode Override ✅ IMPLEMENTED BUT NEEDS URGENT FIX
+
+```javascript
+// In chat endpoint
+if (userInCrisisMode) {
+  // Don't send pattern context at all
+  patternContext = null;
+  
+  // System prompt addition:
+  "User is in crisis mode. Do not discuss patterns or analytics. 
+   Focus only on immediate support and grounding.
+   
+   ⛔️ ABSOLUTELY CRITICAL - NON-NEGOTIABLE:
+   - NEVER detach or hand them off
+   - NEVER say goodbye after giving hotline number
+   - NEVER end conversation with crisis resources
+   - NEVER ask clinical questions like 'Are you in immediate danger?'
+   - NEVER use 'Rest easy' or 'You're welcome' as if the conversation is over
+   
+   ✅ REQUIRED Crisis Response Flow:
+   1. Acknowledge their pain immediately ('I hear you. I'm here.')
+   2. Ground them in THIS moment (breathing, sensory awareness)
+   3. Stay present - use 'we' language ('Let's...' not 'You should...')
+   4. Offer crisis resources as ADDITIONAL support (not replacement)
+   5. CONTINUE CONVERSATION - ask what they need right now
+   6. Keep responding - don't disappear
+   
+   ⛔️ WRONG (Current Implementation):
+   'Are you in immediate danger of acting on these thoughts? [Yes/No]'
+   → Clinical, detached, forces binary choice
+   
+   'You deserve support right now. If you're in the United States, 
+    you can call 988. They can help you immediately.'
+   → Hands them off, implies TRACE is done
+   
+   'You're welcome. Rest easy.'
+   → Ends conversation, abandons user in crisis
+   
+   ✅ CORRECT (Required Implementation):
+   'I hear you, Nina. I'm right here with you. You don't have to hold this alone.
+   
+    Let's take one breath together right now. Can you feel your feet on the ground? 
+    Notice the surface beneath you. You're here. You're safe in this moment.
+    
+    If you need someone who can be with you in person, 988 has people available 
+    right now (Suicide & Crisis Lifeline). But I'm not going anywhere.
+    
+    What do you need most from me right this second?'
+   
+   → Then WAIT for response and CONTINUE supporting them
+   
+   The AI MUST continue the conversation. Giving the hotline number is NOT 
+   the end of the interaction. It's additional support while TRACE stays present."
+}
+```
+
+**Status:** Backend has NOT implemented this correctly. Current response violates every principle above.
