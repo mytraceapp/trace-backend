@@ -52,6 +52,13 @@ ${validatedPatterns.stressEchoes ? `- Stress Echoes: ${validatedPatterns.stressE
 ${validatedPatterns.mostHelpfulActivity ? `- Most Helpful Activity: ${validatedPatterns.mostHelpfulActivity} (${validatedPatterns.mostHelpfulCount || 0} times, confidence: ${validatedPatterns.mostHelpfulConfidence || 'medium'})` : ''}
 ${validatedPatterns.weeklyRhythmPeak ? `- Heaviest Day: ${validatedPatterns.weeklyRhythmPeak}` : ''}
 
+⚡ WHEN USER ASKS ABOUT PATTERNS - ANSWER DIRECTLY:
+When someone asks "What is my peak window?" or "What are my patterns?" — ANSWER THE QUESTION using the data above.
+- DO NOT deflect with "we can explore that together"
+- DO NOT just validate their question without answering
+- ANSWER with the actual data: "Your Peak Window is 10:30 AM – 1:30 PM — that's when you tend to check in most."
+- If no data exists, say honestly: "I don't have enough data yet to see clear patterns."
+
 PATTERN EXPLANATION CONFIDENCE RULES:
 1. If confidence is "high" (10+ samples): State patterns directly
    Example: "Your Peak Window is 10:30 AM – 1:30 PM"

@@ -35,8 +35,8 @@ function isPatternQuestion(text: string): boolean {
   return patternKeywords.some(k => lowerText.includes(k));
 }
 
-// Max age for pattern cache when sending to chat (5 minutes)
-const PATTERN_CHAT_CONTEXT_MAX_AGE = 5 * 60 * 1000;
+// Max age for pattern cache when sending to chat (24 hours - patterns are stable data)
+const PATTERN_CHAT_CONTEXT_MAX_AGE = 24 * 60 * 60 * 1000;
 
 // Fetch cached patterns from AsyncStorage with freshness check
 async function getCachedPatterns(): Promise<PatternContext | null> {
