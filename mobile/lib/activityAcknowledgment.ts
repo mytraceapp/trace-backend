@@ -13,22 +13,38 @@ export async function logActivityCompletion(params: {
   deviceId: string | null;
   activityType: string;
   durationSeconds: number;
+  dreamscapeTrackId?: string | null;
+  selectionMode?: 'ai_selected' | 'user_selected' | 'random' | null;
+  selectionSource?: 'chat' | 'activities_tab' | 'direct' | null;
 }): Promise<void> {
   try {
+    const body: Record<string, any> = {
+      userId: params.userId,
+      deviceId: params.deviceId,
+      activityType: params.activityType,
+      durationSeconds: params.durationSeconds,
+      completedAt: new Date().toISOString(),
+    };
+    
+    // Include Dreamscape metadata if available
+    if (params.dreamscapeTrackId) {
+      body.dreamscapeTrackId = params.dreamscapeTrackId;
+    }
+    if (params.selectionMode) {
+      body.selectionMode = params.selectionMode;
+    }
+    if (params.selectionSource) {
+      body.selectionSource = params.selectionSource;
+    }
+    
     const response = await fetch(`${CHAT_API_BASE}/api/activity/log`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: params.userId,
-        deviceId: params.deviceId,
-        activityType: params.activityType,
-        durationSeconds: params.durationSeconds,
-        completedAt: new Date().toISOString(),
-      }),
+      body: JSON.stringify(body),
     });
     
     if (response.ok) {
-      console.log('📝 Activity logged:', params.activityType);
+      console.log('📝 Activity logged:', params.activityType, params.dreamscapeTrackId ? `track=${params.dreamscapeTrackId}` : '');
     }
   } catch (err: any) {
     console.warn('Activity log failed:', err.message);

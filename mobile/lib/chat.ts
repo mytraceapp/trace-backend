@@ -67,15 +67,23 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
       data = {};
     }
 
+    const activitySuggestion = data.activity_suggestion || {
+      name: null,
+      reason: null,
+      should_navigate: false,
+      dreamscapeTrackId: null,
+    };
+    
+    // Ensure dreamscapeTrackId is always present (even if null)
+    if (!('dreamscapeTrackId' in activitySuggestion)) {
+      activitySuggestion.dreamscapeTrackId = null;
+    }
+    
     return {
       message: data.message || "mm, I'm here.",
       messages: data.messages || null, // Multi-message array for crisis mode
       isCrisisMultiMessage: data.isCrisisMultiMessage || false,
-      activity_suggestion: data.activity_suggestion || {
-        name: null,
-        reason: null,
-        should_navigate: false,
-      },
+      activity_suggestion: activitySuggestion,
     };
   } catch (err: any) {
     clearTimeout(timeout);
@@ -89,6 +97,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
         name: null,
         reason: null,
         should_navigate: false,
+        dreamscapeTrackId: null,
       },
     };
   }

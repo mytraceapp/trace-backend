@@ -397,7 +397,20 @@ export default function ChatScreen() {
         if (route) {
           console.log('🧭 TRACE navigating to activity:', suggestion.name, route);
           setTimeout(() => {
-            router.push(route as any);
+            // Pass dreamscapeTrackId for Dreamscape activity
+            if (suggestion.name === 'Dreamscape' && suggestion.dreamscapeTrackId) {
+              console.log('🌙 TRACE Dreamscape with trackId:', suggestion.dreamscapeTrackId);
+              router.push({
+                pathname: route as any,
+                params: { 
+                  dreamscapeTrackId: suggestion.dreamscapeTrackId,
+                  selectionMode: 'ai_selected',
+                  selectionSource: 'chat'
+                }
+              });
+            } else {
+              router.push(route as any);
+            }
           }, 800);
         } else {
           console.warn('🧭 TRACE unknown activity route:', suggestion.name);
