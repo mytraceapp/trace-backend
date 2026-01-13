@@ -30,6 +30,14 @@ An Express server acts as a proxy to the OpenAI API, defining the TRACE AI perso
 
 **Contextual Feature Introduction**: Features are introduced through relationship, not explanation. Rather than UI tours or tooltips, TRACE offers features contextually when users need them (e.g., mentioning patterns after 3-4 journal entries, suggesting Dreamscape when user mentions sleep trouble). This creates discovery through care, not instruction.
 
+### Reliability & Graceful Degradation (January 2026)
+
+**Backend Failure Handling**: When all OpenAI retry layers fail, the backend returns relational TRACE-style fallback messages rather than generic errors. Fallbacks rotate between three responses offering Dreamscape, Breathwork, or Basin activities, maintaining the therapeutic experience even during outages.
+
+**Spotify Fallback System**: The `openSpotifyPlaylist()` utility (`mobile/lib/spotify.ts`) implements a triple safety net: first checks if Spotify app is installed via `canOpenURL`, attempts to open the app URI, and falls back to web player URLs if the app isn't available or fails to open. Playlists are hardcoded as the reliability mechanism ensuring music always works.
+
+**Network Request Timeouts**: All network requests in the mobile app have AbortController timeouts (8-15 seconds) to prevent hanging requests. Activity acknowledgment logs and music config fetches gracefully degrade if requests fail, returning hardcoded fallbacks.
+
 ## Interactive Activities
 
 Activities are designed to be short (45 seconds to 5 minutes) to reduce commitment anxiety. They include a procedural Maze mini-game, timed Breathing Exercises with synchronized visuals and audio, a 5-4-3-2-1 Grounding technique, and "Rising" – a full-screen WebGL shader animation with device tilt support and procedural particle systems. Other activities include Power Nap, Pearl Ripple, and Walking Reset. All activities auto-save an entry upon completion.

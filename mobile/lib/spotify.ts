@@ -1,7 +1,8 @@
 import { Linking, Platform } from 'react-native';
+import { fetchMusicConfig, MoodSpace } from './musicConfig';
 
-// Playlist URLs - web URLs can be opened by browser or Spotify app
-const SPOTIFY_PLAYLISTS: Record<string, { webUrl: string; appUri: string }> = {
+// Last-resort hardcoded fallbacks - only used if config fetch fails
+const FALLBACK_PLAYLISTS: Record<MoodSpace, { webUrl: string; appUri: string }> = {
   ground: {
     webUrl: 'https://open.spotify.com/playlist/5cAoML12eNgt4J1XAXYU77',
     appUri: 'spotify:playlist:5cAoML12eNgt4J1XAXYU77',
@@ -16,13 +17,37 @@ const SPOTIFY_PLAYLISTS: Record<string, { webUrl: string; appUri: string }> = {
   },
 };
 
+function extractPlaylistId(url: string): string | null {
+  const match = url.match(/playlist[:/]([a-zA-Z0-9]+)/);
+  return match ? match[1] : null;
+}
+
+function getPlaylistUrls(configUrl: string, mood: MoodSpace): { webUrl: string; appUri: string } {
+  const playlistId = extractPlaylistId(configUrl);
+  if (playlistId) {
+    return {
+      webUrl: `https://open.spotify.com/playlist/${playlistId}`,
+      appUri: `spotify:playlist:${playlistId}`,
+    };
+  }
+  // Config URL is invalid, use hardcoded fallback
+  console.warn('[Spotify] Invalid config URL, using fallback for:', mood);
+  return FALLBACK_PLAYLISTS[mood];
+}
+
 export async function openSpotifyPlaylist(
-  mood: 'ground' | 'drift' | 'rising'
+  mood: MoodSpace
 ): Promise<boolean> {
-  const playlist = SPOTIFY_PLAYLISTS[mood];
-  if (!playlist) {
-    console.warn('[Spotify] Unknown mood:', mood);
-    return false;
+  // First, try to get dynamic config
+  let playlist: { webUrl: string; appUri: string };
+  try {
+    const config = await fetchMusicConfig();
+    const configUrl = config.playlists[mood];
+    playlist = getPlaylistUrls(configUrl, mood);
+    console.log('[Spotify] Using config playlist:', mood, playlist.appUri);
+  } catch (err: any) {
+    console.warn('[Spotify] Config failed, using hardcoded fallback:', err.message);
+    playlist = FALLBACK_PLAYLISTS[mood];
   }
   
   try {
@@ -55,6 +80,6 @@ export async function openSpotifyPlaylist(
   }
 }
 
-export function getSpotifyWebUrl(mood: 'ground' | 'drift' | 'rising'): string {
-  return SPOTIFY_PLAYLISTS[mood]?.webUrl || '';
+export function getSpotifyWebUrl(mood: MoodSpace): string {
+  return FALLBACK_PLAYLISTS[mood]?.webUrl || '';
 }

@@ -100,6 +100,7 @@ async function getCachedPatterns(): Promise<PatternContext | null> {
 import { supabase } from '../../lib/supabaseClient';
 import { fetchActivityAcknowledgment, logActivityCompletion } from '../../lib/activityAcknowledgment';
 import { openSpotifyPlaylist } from '../../lib/spotify';
+import { MoodSpace } from '../../lib/musicConfig';
 
 const CHAT_API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
 
@@ -441,7 +442,7 @@ export default function ChatScreen() {
         
         // Handle Spotify playlists with fallback
         if (route?.startsWith('spotify:')) {
-          const mood = route.replace('spotify:', '') as 'ground' | 'drift' | 'rising';
+          const mood = route.replace('spotify:', '') as MoodSpace;
           console.log('🎵 TRACE opening Spotify playlist:', mood);
           setTimeout(async () => {
             const success = await openSpotifyPlaylist(mood);
