@@ -38,6 +38,14 @@ An Express server acts as a proxy to the OpenAI API, defining the TRACE AI perso
 
 **Network Request Timeouts**: All network requests in the mobile app have AbortController timeouts (8-15 seconds) to prevent hanging requests. Activity acknowledgment logs and music config fetches gracefully degrade if requests fail, returning hardcoded fallbacks.
 
+### Journal Memory Integration (January 2026)
+
+**Journal-to-Chat Memory**: When users save journal entries, the system extracts high-level themes (e.g., "relationship with mom", "work stress") and stores them in the `journal_memories` table. These themes are fed into chat context when the user has consented, allowing TRACE to naturally reference past journal entries.
+
+**Consent-Gated References**: Journal memory requires explicit verbal consent tracked in `user_settings.journal_memory_consent`. New journal memories inherit the user's current consent preference. Users can grant/revoke consent through conversation with TRACE, which updates both the persistent setting and all existing memories.
+
+**Hedging Language**: System prompt enforces hedging language when referencing journals: "I remember you wrote about...", "You mentioned something about...", "A while back you shared about...". TRACE never quotes journal content directly - only references themes contextually when relevant.
+
 ## Interactive Activities
 
 Activities are designed to be short (45 seconds to 5 minutes) to reduce commitment anxiety. They include a procedural Maze mini-game, timed Breathing Exercises with synchronized visuals and audio, a 5-4-3-2-1 Grounding technique, and "Rising" – a full-screen WebGL shader animation with device tilt support and procedural particle systems. Other activities include Power Nap, Pearl Ripple, and Walking Reset. All activities auto-save an entry upon completion.

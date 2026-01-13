@@ -483,7 +483,7 @@ Examples:
       subject: t.subject ? t.subject.slice(0, 50) : null,
       emotional_tone: t.emotional_tone || 'neutral',
       entry_date: entryDate || new Date().toISOString().split('T')[0],
-      consent_given: false,
+      consent_given: hasConsent,
       is_active: true,
     })).filter(r => r.theme.length > 0);
 
@@ -507,6 +507,7 @@ Examples:
 
 /**
  * Grant consent for TRACE to reference journal memories in chat.
+ * Updates both user_settings (persistent preference) and existing journal_memories.
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
  * @param {string} userId
  * @param {boolean} consent
@@ -515,14 +516,28 @@ async function updateJournalMemoryConsent(supabase, userId, consent = true) {
   if (!supabase || !userId) return;
 
   try {
-    const { error } = await supabase
+    // 1. Update user_settings for persistent preference (upsert)
+    const { error: settingsError } = await supabase
+      .from('user_settings')
+      .upsert({
+        user_id: userId,
+        journal_memory_consent: consent,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+
+    if (settingsError) {
+      console.error('[TRACE JOURNAL MEMORY] Error updating user_settings consent:', settingsError.message);
+    }
+
+    // 2. Update all existing journal_memories for this user
+    const { error: memoriesError } = await supabase
       .from('journal_memories')
       .update({ consent_given: consent, updated_at: new Date().toISOString() })
       .eq('user_id', userId)
       .eq('is_active', true);
 
-    if (error) {
-      console.error('[TRACE JOURNAL MEMORY] Error updating consent:', error.message);
+    if (memoriesError) {
+      console.error('[TRACE JOURNAL MEMORY] Error updating journal_memories consent:', memoriesError.message);
     } else {
       console.log('[TRACE JOURNAL MEMORY] Updated consent to', consent, 'for user:', userId);
     }
