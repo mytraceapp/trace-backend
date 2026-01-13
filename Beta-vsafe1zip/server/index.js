@@ -25,6 +25,8 @@ const pool = process.env.DATABASE_URL ? new Pool({
 const {
   buildMemoryContext,
   summarizeToLongTermMemory,
+  summarizeJournalToMemory,
+  updateJournalMemoryConsent,
 } = require('./traceMemory');
 const {
   buildTraceSystemPrompt,
@@ -4672,6 +4674,35 @@ Respond with just the invitation message.
   }
 });
 
+// POST /api/journal/memory-consent - Update consent for TRACE to reference journal memories
+app.post('/api/journal/memory-consent', async (req, res) => {
+  console.log('📓 [JOURNAL CONSENT] Request received');
+  try {
+    const { userId, consent } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'userId is required' });
+    }
+    
+    if (typeof consent !== 'boolean') {
+      return res.status(400).json({ success: false, error: 'consent must be true or false' });
+    }
+    
+    if (!supabaseServer) {
+      console.log('📓 [JOURNAL CONSENT] No Supabase configured');
+      return res.json({ success: true, note: 'No Supabase configured' });
+    }
+    
+    await updateJournalMemoryConsent(supabaseServer, userId, consent);
+    
+    console.log('📓 [JOURNAL CONSENT] Updated consent to', consent, 'for user:', userId);
+    return res.json({ success: true, consent });
+  } catch (err) {
+    console.error('📓 [JOURNAL CONSENT] Error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to update consent' });
+  }
+});
+
 // GET /api/music-config - Spotify playlist configuration for TRACE mood spaces
 app.get('/api/music-config', (req, res) => {
   res.json({
@@ -6185,9 +6216,17 @@ app.post('/api/journal/log', async (req, res) => {
       return res.status(500).json({ success: false, error: error.message });
     }
     
-    console.log('📓 [JOURNAL/LOG] Success - entryId:', data?.id || entryId);
+    const finalEntryId = data?.id || entryId;
+    console.log('📓 [JOURNAL/LOG] Success - entryId:', finalEntryId);
     
-    return res.json({ success: true, entryId: data?.id || entryId });
+    // Background: Summarize journal to memory (don't wait)
+    if (openai && supabaseServer && content.length >= 50) {
+      const entryDate = createdAt ? new Date(createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      summarizeJournalToMemory(openai, supabaseServer, userId, content, finalEntryId, entryDate)
+        .catch(err => console.error('📓 [JOURNAL/LOG] Background memory summarization failed:', err));
+    }
+    
+    return res.json({ success: true, entryId: finalEntryId });
   } catch (err) {
     console.error('📓 [JOURNAL/LOG] Error:', err);
     return res.status(500).json({ success: false, error: 'Failed to log journal entry' });

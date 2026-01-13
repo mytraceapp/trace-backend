@@ -23,6 +23,15 @@
  */
 
 /**
+ * @typedef {Object} JournalMemory
+ * @property {string} theme - e.g. "relationship with mom"
+ * @property {string|null} subject - e.g. "mom"
+ * @property {string|null} emotional_tone - e.g. "reflective"
+ * @property {string} entry_date - ISO date
+ * @property {boolean} consent_given
+ */
+
+/**
  * Fetch latest long-term memories for a user and group by kind.
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
  * @param {string} userId
@@ -299,9 +308,10 @@ async function buildMemoryContext(supabase, userId, currentMessages = []) {
   if (!supabase || !userId) return '';
 
   try {
-    const [memorySummary, storedMessages] = await Promise.all([
+    const [memorySummary, storedMessages, journalMemories] = await Promise.all([
       loadTraceLongTermMemory(supabase, userId),
       loadRecentMessages(supabase, userId, 10),
+      loadRecentJournalMemories(supabase, userId, 30),
     ]);
 
     const contextSnapshot = buildUserContextSnapshot({
@@ -310,11 +320,246 @@ async function buildMemoryContext(supabase, userId, currentMessages = []) {
       recentMessages: storedMessages.length > 0 ? storedMessages : currentMessages,
     });
 
-    return contextSnapshot;
+    const journalContext = formatJournalMemoriesForContext(journalMemories);
+
+    return contextSnapshot + journalContext;
   } catch (err) {
     console.error('[TRACE MEMORY] buildMemoryContext error:', err);
     return '';
   }
+}
+
+/**
+ * Load recent journal memories for a user (last 30 days).
+ * Only returns consented memories for inclusion in chat context.
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} userId
+ * @param {number} daysBack - How many days back to look (default 30)
+ * @returns {Promise<JournalMemory[]>}
+ */
+async function loadRecentJournalMemories(supabase, userId, daysBack = 30) {
+  if (!supabase || !userId) {
+    console.log('[TRACE JOURNAL MEMORY] Missing supabase client or userId');
+    return [];
+  }
+
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+    const cutoffISO = cutoffDate.toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('journal_memories')
+      .select('theme, subject, emotional_tone, entry_date, consent_given')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .gte('entry_date', cutoffISO)
+      .order('entry_date', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      console.error('[TRACE JOURNAL MEMORY] loadRecentJournalMemories error:', error.message);
+      return [];
+    }
+
+    console.log('[TRACE JOURNAL MEMORY] Loaded', data?.length || 0, 'journal memories');
+    return data || [];
+  } catch (err) {
+    console.error('[TRACE JOURNAL MEMORY] loadRecentJournalMemories exception:', err);
+    return [];
+  }
+}
+
+/**
+ * Check if user has consented to journal memory references.
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} userId
+ * @returns {Promise<boolean>}
+ */
+async function getUserJournalMemoryConsent(supabase, userId) {
+  if (!supabase || !userId) return false;
+  
+  try {
+    // Check user_settings for journal_memory_consent
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('journal_memory_consent')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error || !data) {
+      // No settings found - default to false (opt-in required)
+      return false;
+    }
+    
+    return data.journal_memory_consent === true;
+  } catch (err) {
+    console.error('[TRACE JOURNAL MEMORY] getUserJournalMemoryConsent error:', err);
+    return false;
+  }
+}
+
+/**
+ * Summarize a journal entry into memory themes using AI.
+ * @param {import('openai').OpenAI} openai
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} userId
+ * @param {string} journalText
+ * @param {string} entryId - UUID of the journal entry
+ * @param {string} entryDate - ISO date of entry
+ */
+async function summarizeJournalToMemory(openai, supabase, userId, journalText, entryId, entryDate) {
+  if (!openai || !supabase || !userId) {
+    console.log('[TRACE JOURNAL MEMORY] Missing dependencies for summarization');
+    return;
+  }
+
+  if (!journalText || journalText.length < 50) {
+    console.log('[TRACE JOURNAL MEMORY] Journal too short for summarization:', journalText?.length || 0);
+    return;
+  }
+  
+  // Check if user has consented to journal memory
+  const hasConsent = await getUserJournalMemoryConsent(supabase, userId);
+
+  const prompt = `You are TRACE's background memory system, processing a journal entry.
+
+Extract the core themes and subjects from this journal entry that TRACE might gently reference later.
+
+Return STRICTLY in this JSON format:
+{
+  "themes": [
+    {
+      "theme": "short theme description (under 40 chars)",
+      "subject": "specific person/topic or null",
+      "emotional_tone": "one word: reflective, anxious, hopeful, sad, frustrated, grateful, processing, or neutral"
+    }
+  ]
+}
+
+Guidelines:
+- Extract 1-3 main themes maximum
+- theme: The core topic (e.g., "relationship with mom", "work stress", "childhood memories")
+- subject: Specific person or topic if mentioned (e.g., "mom", "boss", "apartment move")
+- emotional_tone: The feeling behind the entry
+- Keep themes high-level and privacy-conscious (no specific details)
+- Return empty themes array if the entry is too vague or short
+
+Examples:
+- "relationship with mom" (subject: "mom", tone: "reflective")
+- "work deadline stress" (subject: "work", tone: "anxious")
+- "childhood memories" (subject: null, tone: "processing")`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: prompt },
+        { role: 'user', content: journalText.slice(0, 2000) },
+      ],
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+    });
+
+    const rawContent = completion.choices[0]?.message?.content || '{}';
+    let parsed;
+    try {
+      parsed = JSON.parse(rawContent);
+    } catch (e) {
+      console.error('[TRACE JOURNAL MEMORY] Failed to parse journal summary JSON:', e);
+      return;
+    }
+
+    const themes = parsed.themes || [];
+    if (!themes.length) {
+      console.log('[TRACE JOURNAL MEMORY] No themes extracted from journal');
+      return;
+    }
+
+    const rows = themes.map(t => ({
+      user_id: userId,
+      journal_entry_id: entryId || null,
+      theme: (t.theme || '').slice(0, 100),
+      subject: t.subject ? t.subject.slice(0, 50) : null,
+      emotional_tone: t.emotional_tone || 'neutral',
+      entry_date: entryDate || new Date().toISOString().split('T')[0],
+      consent_given: false,
+      is_active: true,
+    })).filter(r => r.theme.length > 0);
+
+    if (!rows.length) {
+      console.log('[TRACE JOURNAL MEMORY] No valid themes to save');
+      return;
+    }
+
+    console.log('[TRACE JOURNAL MEMORY] Inserting', rows.length, 'journal memories for user:', userId);
+
+    const { error } = await supabase.from('journal_memories').insert(rows);
+    if (error) {
+      console.error('[TRACE JOURNAL MEMORY] Error inserting journal_memories:', error.message);
+    } else {
+      console.log('[TRACE JOURNAL MEMORY] Successfully saved', rows.length, 'journal themes');
+    }
+  } catch (err) {
+    console.error('[TRACE JOURNAL MEMORY] summarizeJournalToMemory exception:', err);
+  }
+}
+
+/**
+ * Grant consent for TRACE to reference journal memories in chat.
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} userId
+ * @param {boolean} consent
+ */
+async function updateJournalMemoryConsent(supabase, userId, consent = true) {
+  if (!supabase || !userId) return;
+
+  try {
+    const { error } = await supabase
+      .from('journal_memories')
+      .update({ consent_given: consent, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('[TRACE JOURNAL MEMORY] Error updating consent:', error.message);
+    } else {
+      console.log('[TRACE JOURNAL MEMORY] Updated consent to', consent, 'for user:', userId);
+    }
+  } catch (err) {
+    console.error('[TRACE JOURNAL MEMORY] updateJournalMemoryConsent exception:', err);
+  }
+}
+
+/**
+ * Format journal memories for chat context with hedging language.
+ * Only includes consented memories.
+ * @param {JournalMemory[]} memories
+ * @returns {string}
+ */
+function formatJournalMemoriesForContext(memories) {
+  if (!memories?.length) return '';
+
+  const consentedMemories = memories.filter(m => m.consent_given);
+  if (!consentedMemories.length) return '';
+
+  const lines = [];
+  lines.push('\nJOURNAL CONTEXT (reference gently with hedging language, never quote directly):');
+  lines.push('Use phrases like: "I remember you wrote about...", "You mentioned something about...", "A while back you shared about..."');
+
+  const recentThemes = new Set();
+  for (const m of consentedMemories.slice(0, 5)) {
+    if (recentThemes.has(m.theme)) continue;
+    recentThemes.add(m.theme);
+
+    const daysAgo = Math.floor((Date.now() - new Date(m.entry_date).getTime()) / (1000 * 60 * 60 * 24));
+    const timeRef = daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`;
+    const toneNote = m.emotional_tone && m.emotional_tone !== 'neutral' ? ` (${m.emotional_tone})` : '';
+
+    lines.push(`- ${timeRef}: "${m.theme}"${m.subject ? ` about ${m.subject}` : ''}${toneNote}`);
+  }
+
+  return lines.join('\n');
 }
 
 module.exports = {
@@ -323,4 +568,8 @@ module.exports = {
   loadRecentMessages,
   summarizeToLongTermMemory,
   buildMemoryContext,
+  loadRecentJournalMemories,
+  summarizeJournalToMemory,
+  updateJournalMemoryConsent,
+  formatJournalMemoriesForContext,
 };
