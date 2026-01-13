@@ -99,6 +99,7 @@ async function getCachedPatterns(): Promise<PatternContext | null> {
 // These imports were moved here for organization but work fine
 import { supabase } from '../../lib/supabaseClient';
 import { fetchActivityAcknowledgment, logActivityCompletion } from '../../lib/activityAcknowledgment';
+import { openSpotifyPlaylist } from '../../lib/spotify';
 
 const CHAT_API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
 
@@ -116,6 +117,10 @@ const ACTIVITY_ROUTES: Record<string, string> = {
   'Ripple': '/activities/ripple',
   'Basin': '/activities/basin',
   'Dreamscape': '/activities/dreamscape',
+  // Spotify playlists handled separately via openSpotifyPlaylist
+  'ground_playlist': 'spotify:ground',
+  'drift_playlist': 'spotify:drift',
+  'rising_playlist': 'spotify:rising',
 };
 
 type ChatRole = 'user' | 'assistant';
@@ -433,7 +438,20 @@ export default function ChatScreen() {
       const suggestion = result?.activity_suggestion;
       if (suggestion?.should_navigate === true && suggestion?.name) {
         const route = ACTIVITY_ROUTES[suggestion.name];
-        if (route) {
+        
+        // Handle Spotify playlists with fallback
+        if (route?.startsWith('spotify:')) {
+          const mood = route.replace('spotify:', '') as 'ground' | 'drift' | 'rising';
+          console.log('🎵 TRACE opening Spotify playlist:', mood);
+          setTimeout(async () => {
+            const success = await openSpotifyPlaylist(mood);
+            if (success) {
+              console.log('🎵 TRACE Spotify opened successfully');
+            } else {
+              console.warn('🎵 TRACE Spotify failed to open');
+            }
+          }, 800);
+        } else if (route) {
           console.log('🧭 TRACE navigating to activity:', suggestion.name, route);
           setTimeout(() => {
             // Pass dreamscapeTrackId for Dreamscape activity

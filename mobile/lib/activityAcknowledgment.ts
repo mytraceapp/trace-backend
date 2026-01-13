@@ -19,6 +19,9 @@ export async function logActivityCompletion(params: {
   selectionMode?: 'ai_selected' | 'user_selected' | 'random' | null;
   selectionSource?: 'chat' | 'activities_tab' | 'direct' | null;
 }): Promise<void> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  
   try {
     const body: Record<string, any> = {
       userId: params.userId,
@@ -43,12 +46,16 @@ export async function logActivityCompletion(params: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeout);
     
     if (response.ok) {
       console.log('📝 Activity logged:', params.activityType, params.dreamscapeTrackId ? `track=${params.dreamscapeTrackId}` : '');
     }
   } catch (err: any) {
+    clearTimeout(timeout);
     console.warn('Activity log failed:', err.message);
   }
 }
@@ -60,6 +67,9 @@ export async function fetchActivityAcknowledgment(params: {
   durationSeconds?: number;
   activityCount?: number;
 }): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+  
   try {
     const response = await fetch(`${CHAT_API_BASE}/api/activity-acknowledgment`, {
       method: 'POST',
@@ -72,7 +82,10 @@ export async function fetchActivityAcknowledgment(params: {
         timeOfDay: getTimeOfDay(),
         activityDuration: params.durationSeconds ? params.durationSeconds * 1000 : null,
       }),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeout);
     
     if (response.ok) {
       const data = await response.json();
@@ -81,6 +94,7 @@ export async function fetchActivityAcknowledgment(params: {
     }
     return null;
   } catch (err: any) {
+    clearTimeout(timeout);
     console.warn('Activity acknowledgment failed:', err.message);
     return null;
   }
@@ -99,6 +113,9 @@ export async function triggerJournalConversationInvite(params: {
       return;
     }
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    
     const response = await fetch(`${CHAT_API_BASE}/api/journal/conversation-invite`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -107,7 +124,10 @@ export async function triggerJournalConversationInvite(params: {
         journalExcerpt: params.journalContent.substring(0, 200),
         mood: params.mood,
       }),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeout);
 
     if (response.ok) {
       const data = await response.json();

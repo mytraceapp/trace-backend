@@ -3500,15 +3500,28 @@ Your response:`;
     }
     
     // FINAL SAFETY NET: This should almost never happen
+    // When backend fails, sound like TRACE and offer activities as lifeline
     const hasFinalMessage = parsed && (parsed.message || (parsed.messages && parsed.messages.length > 0));
     if (!hasFinalMessage) {
-      console.error('[TRACE OPENAI] ALL LAYERS FAILED - using emergency response');
-      parsed = {
-        message: lastUserContent.length > 10 
-          ? "I want to understand better. Can you tell me more about that?"
-          : "I'm here with you. What's going on?",
-        activity_suggestion: { name: null, reason: null, should_navigate: false }
-      };
+      console.error('[TRACE OPENAI] ALL LAYERS FAILED - using relational emergency response');
+      
+      // Relational fallbacks that still feel like TRACE and offer help
+      const emergencyResponses = [
+        {
+          message: "I'm here. I'm having trouble connecting, but you're not alone. Want to try Dreamscape or Breathwork while I reconnect?",
+          activity_suggestion: { name: "dreamscape", reason: "connection_issue", should_navigate: false }
+        },
+        {
+          message: "mm, something's not working on my end. But I'm still here. Want to try something grounding while I sort this out?",
+          activity_suggestion: { name: "breathing", reason: "connection_issue", should_navigate: false }
+        },
+        {
+          message: "I'm having trouble right now, but you're not alone. Breathwork or Basin might help while I reconnect.",
+          activity_suggestion: { name: "basin", reason: "connection_issue", should_navigate: false }
+        }
+      ];
+      
+      parsed = emergencyResponses[Math.floor(Math.random() * emergencyResponses.length)];
     }
     
     const finalMsgLength = parsed.messages ? parsed.messages.join('').length : (parsed.message || '').length;
