@@ -6261,9 +6261,16 @@ app.get('/api/journal/entries', async (req, res) => {
 // POST /api/activity/log - Log a completed activity (new endpoint with proper response)
 app.post('/api/activity/log', async (req, res) => {
   try {
-    const { userId, deviceId, activityType, durationSeconds, completedAt } = req.body;
+    const { userId, deviceId, activityType, durationSeconds, completedAt, metadata, meta } = req.body;
     
-    console.log('📝 [ACTIVITY/LOG] Request received:', { userId, deviceId, activityType, durationSeconds, completedAt });
+    // Accept either 'metadata' or 'meta' field for flexibility
+    const activityMeta = metadata || meta || {};
+    
+    console.log('📝 [ACTIVITY/LOG] Request received:', { 
+      userId, deviceId, activityType, durationSeconds, completedAt,
+      dreamscapeTrack: activityMeta.dreamscapeTrack,
+      selectionMode: activityMeta.selectionMode
+    });
     
     if (!activityType) {
       return res.status(400).json({ success: false, error: 'activityType is required' });
@@ -6282,15 +6289,16 @@ app.post('/api/activity/log', async (req, res) => {
     const durationInt = durationSeconds != null ? Math.round(durationSeconds) : null;
     
     const result = await pool.query(
-      `INSERT INTO activity_logs (user_id, device_id, activity_type, duration_seconds, completed_at)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO activity_logs (user_id, device_id, activity_type, duration_seconds, completed_at, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
       [
         userId || null, 
         deviceId || null, 
         activityType, 
         durationInt, 
-        completedAt ? new Date(completedAt) : new Date()
+        completedAt ? new Date(completedAt) : new Date(),
+        JSON.stringify(activityMeta)
       ]
     );
     

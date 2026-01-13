@@ -1,0 +1,78 @@
+BACKEND INTEGRATION: Dreamscape Secondary Track Support
+
+Mobile has implemented dual Dreamscape tracks with intelligent selection. Backend needs to:
+
+1. UPDATE ACTIVITY LOGGING
+File: server/routes/activities.js (or wherever /api/activities/log endpoint is)
+
+When activity.label === "Dreamscape", accept and store optional metadata:
+- dreamscapeTrack: "dreamscape_default" | "dreamscape_footsteps"
+- selectionMode: "random" | "fixed"
+- selectionSource: "activities" | "chat_offered" | "user_requested"
+
+Store in activities.meta JSON field:
+{
+  "dreamscapeTrack": "dreamscape_footsteps",
+  "selectionMode": "fixed",
+  "selectionSource": "chat_offered"
+}
+
+Example log request from mobile:
+POST /api/activities/log
+{
+  "userId": "...",
+  "kind": "reflection",
+  "label": "Dreamscape",
+  "durationMinutes": 8.5,
+  "sourceScreen": "dreamscape",
+  "meta": {
+    "dreamscapeTrack": "dreamscape_footsteps",
+    "selectionMode": "random",
+    "selectionSource": "activities"
+  }
+}
+
+2. CHAT INTEGRATION (OPTIONAL BUT RECOMMENDED)
+When TRACE suggests Dreamscape in chat responses, include mood assessment in activity suggestion:
+
+Example chat response format:
+{
+  "message": "Let's step into Dreamscape together...",
+  "suggestedActivity": {
+    "name": "dreamscape",
+    "target": "anxious"  // or "restless", "overwhelmed", "sad", "tender", etc.
+  }
+}
+
+This allows mobile to select appropriate track via pickDreamscapeTrackForMood(target).
+
+3. ANALYTICS QUERY (FUTURE)
+Add endpoint to analyze track preferences:
+GET /api/analytics/dreamscape-tracks?userId={id}
+
+Return:
+{
+  "totalSessions": 45,
+  "byTrack": {
+    "dreamscape_default": { count: 28, avgDuration: 9.2 },
+    "dreamscape_footsteps": { count: 17, avgDuration: 7.8 }
+  },
+  "bySource": {
+    "activities": { count: 30, "dreamscape_default": 15, "dreamscape_footsteps": 15 },
+    "chat_offered": { count: 12, "dreamscape_default": 10, "dreamscape_footsteps": 2 },
+    "user_requested": { count: 3, "dreamscape_footsteps": 3 }
+  }
+}
+
+TESTING CHECKLIST:
+✓ Activity log accepts meta.dreamscapeTrack field
+✓ Activities table stores JSON metadata correctly
+✓ Chat can suggest dreamscape with mood target
+✓ No breaking changes to existing Dreamscape logs (backward compatible)
+
+MOBILE CONTRACT (already implemented):
+- Always sends dreamscapeTrack, selectionMode, selectionSource in activity completion
+- Parses chat suggestedActivity.target for mood-based selection
+- Falls back to default track if backend doesn't provide target
+
+NO MOBILE CHANGES NEEDED - this is purely backend data capture and optional chat enhancement.

@@ -950,13 +950,31 @@ Basin suggestion phrases (soft, inviting):
 - "If you need to settle, Basin's here. Just waves."
 
 DREAMSCAPE ACTIVITY GUIDANCE:
-Dreamscape is an ultra-minimal lull experience with slow-moving clouds. Complete mental rest.
+Dreamscape has two tracks that are selected based on the user's emotional state:
+- dreamscape_default: Slow-moving clouds. Ultra-minimal. For exhaustion, mental fatigue, drained, "can't think".
+- dreamscape_footsteps: Gentle footsteps in nature. For restlessness, anxious energy, "need to move", racing thoughts.
+
+MOOD-BASED DREAMSCAPE SELECTION:
+When suggesting Dreamscape, include a mood "target" in activity_suggestion so mobile can select the right track:
+- target: "anxious" or "restless" or "racing" → Mobile picks dreamscape_footsteps
+- target: "exhausted" or "drained" or "tired" or "sad" or "tender" → Mobile picks dreamscape_default
+- target: null or "overwhelmed" → Mobile picks randomly
+
+Example activity_suggestion with mood target:
+{
+  "name": "dreamscape",
+  "reason": "When thoughts are racing, sometimes motion helps",
+  "should_navigate": false,
+  "target": "anxious"
+}
+
 Suggest Dreamscape when:
-- User expresses exhaustion, mental fatigue, or being drained
-- User can't think anymore or needs "nothing"
-- Late evening (9pm-midnight) or pre-sleep context
-- After cognitively demanding activities
-- Keywords: "exhausted", "drained", "mental fog", "need to drift", "can't think", "need nothing"
+- User expresses exhaustion, mental fatigue, or being drained → target: "exhausted"
+- User can't think anymore or needs "nothing" → target: "drained"
+- User has racing thoughts, anxious energy, restlessness → target: "anxious" or "restless"
+- Late evening (9pm-midnight) or pre-sleep context → target: "tired"
+- After cognitively demanding activities → target: "drained"
+- Keywords: "exhausted", "drained", "mental fog", "need to drift", "can't think", "need nothing", "racing thoughts", "restless", "can't settle"
 
 Dreamscape suggestion phrases (ultra-minimal, quiet):
 - "Dreamscape might hold you right now"
