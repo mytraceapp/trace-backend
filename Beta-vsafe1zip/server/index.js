@@ -3353,9 +3353,12 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
         
         if (rawContent.trim()) {
           const testParse = JSON.parse(rawContent);
-          if (testParse.message && testParse.message.trim().length > 0) {
+          // Accept either single message OR messages array (for crisis multi-message)
+          const hasValidMessage = testParse.message && testParse.message.trim().length > 0;
+          const hasValidMessages = testParse.messages && Array.isArray(testParse.messages) && testParse.messages.length > 0;
+          if (hasValidMessage || hasValidMessages) {
             parsed = testParse;
-            console.log('[TRACE OPENAI L1] Success on attempt', attempt);
+            console.log('[TRACE OPENAI L1] Success on attempt', attempt, hasValidMessages ? '(multi-message)' : '');
             break;
           }
         }
@@ -3387,9 +3390,12 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
           
           if (rawContent.trim()) {
             const testParse = JSON.parse(rawContent);
-            if (testParse.message && testParse.message.trim().length > 0) {
+            // Accept either single message OR messages array (for crisis multi-message)
+            const hasValidMessage = testParse.message && testParse.message.trim().length > 0;
+            const hasValidMessages = testParse.messages && Array.isArray(testParse.messages) && testParse.messages.length > 0;
+            if (hasValidMessage || hasValidMessages) {
               parsed = testParse;
-              console.log('[TRACE OPENAI L2] Success with mini model');
+              console.log('[TRACE OPENAI L2] Success with mini model', hasValidMessages ? '(multi-message)' : '');
               break;
             }
           }
@@ -3456,7 +3462,8 @@ Your response:`;
     }
     
     // FINAL SAFETY NET: This should almost never happen
-    if (!parsed || !parsed.message) {
+    const hasFinalMessage = parsed && (parsed.message || (parsed.messages && parsed.messages.length > 0));
+    if (!hasFinalMessage) {
       console.error('[TRACE OPENAI] ALL LAYERS FAILED - using emergency response');
       parsed = {
         message: lastUserContent.length > 10 
@@ -3466,7 +3473,8 @@ Your response:`;
       };
     }
     
-    console.log('[TRACE OPENAI FINAL] message length:', parsed.message.length);
+    const finalMsgLength = parsed.messages ? parsed.messages.join('').length : (parsed.message || '').length;
+    console.log('[TRACE OPENAI FINAL] message length:', finalMsgLength, parsed.messages ? `(${parsed.messages.length} messages)` : '');
     
     // ============================================================
     // SERVER-SIDE TWO-STEP CONFIRMATION ENFORCEMENT
@@ -3539,14 +3547,28 @@ Your response:`;
       };
       
       // If the message doesn't mention navigation, update it
-      if (!/heading|walking|taking|going|guide|i'll be here when/i.test(parsed.message)) {
+      const msgToCheck = parsed.message || (parsed.messages && parsed.messages[0]) || '';
+      if (!/heading|walking|taking|going|guide|i'll be here when/i.test(msgToCheck)) {
         parsed.message = "Heading there now. I'll be here when you're back.";
+        // Clear messages array if we're overriding with single message
+        parsed.messages = null;
       }
     }
     // ============================================================
     
-    // Only use a fallback if AI truly returned nothing (rare edge case)
-    const assistantText = (parsed.message || '').trim() || "What's on your mind?";
+    // Handle multi-message responses (crisis mode returns messages array)
+    let messagesArray = null;
+    let assistantText = '';
+    
+    if (parsed.messages && Array.isArray(parsed.messages) && parsed.messages.length > 0) {
+      // Crisis mode: use messages array
+      messagesArray = parsed.messages.filter(m => m && typeof m === 'string' && m.trim());
+      assistantText = messagesArray.join('\n\n'); // Fallback combined text
+      console.log(`[TRACE CRISIS] Multi-message response: ${messagesArray.length} messages`);
+    } else {
+      // Normal mode: use single message
+      assistantText = (parsed.message || '').trim() || "What's on your mind?";
+    }
 
     // Save assistant reply safely
     try {
@@ -3565,10 +3587,19 @@ Your response:`;
         .catch(err => console.error('[TRACE MEMORY] Background summarization failed:', err.message));
     }
     
-    return res.json({
-      message: assistantText,
+    // Build response - include messages array if crisis mode
+    const response = {
+      message: messagesArray ? messagesArray[0] : assistantText, // First message or single message
       activity_suggestion: parsed.activity_suggestion || { name: null, reason: null, should_navigate: false }
-    });
+    };
+    
+    // Add messages array for crisis multi-message display
+    if (messagesArray && messagesArray.length > 1) {
+      response.messages = messagesArray;
+      response.isCrisisMultiMessage = true;
+    }
+    
+    return res.json(response);
   } catch (error) {
     console.error('TRACE API error:', error.message || error);
     res.status(500).json({ error: 'Failed to get response', message: "Something went wrong on my end. What's on your mind?" });

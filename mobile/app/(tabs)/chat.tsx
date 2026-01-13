@@ -356,17 +356,40 @@ export default function ChatScreen() {
 
       console.log('📥 TRACE received reply:', result);
 
-      const assistantText: string =
-        result?.message ||
-        "I'm here with you. Something went wrong on my end, but you can still tell me what's on your mind.";
+      // Handle multi-message crisis responses (2-3 messages displayed sequentially)
+      if (result?.isCrisisMultiMessage && result?.messages && result.messages.length > 1) {
+        console.log('📥 TRACE crisis multi-message mode:', result.messages.length, 'messages');
+        
+        // Add each message with a delay to feel more genuine
+        for (let i = 0; i < result.messages.length; i++) {
+          const messageText = result.messages[i];
+          const messageId = `local-assistant-${Date.now()}-${i}`;
+          
+          // Add message with typing delay (800ms between each)
+          await new Promise(resolve => setTimeout(resolve, i === 0 ? 0 : 800));
+          
+          const assistantMessage: ChatMessage = {
+            id: messageId,
+            role: 'assistant',
+            content: messageText,
+          };
+          
+          setMessages((prev) => [...prev, assistantMessage]);
+        }
+      } else {
+        // Normal single message response
+        const assistantText: string =
+          result?.message ||
+          "I'm here with you. Something went wrong on my end, but you can still tell me what's on your mind.";
 
-      const assistantMessage: ChatMessage = {
-        id: `local-assistant-${Date.now()}`,
-        role: 'assistant',
-        content: assistantText,
-      };
+        const assistantMessage: ChatMessage = {
+          id: `local-assistant-${Date.now()}`,
+          role: 'assistant',
+          content: assistantText,
+        };
 
-      setMessages((prev) => [...prev, assistantMessage]);
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
 
       const suggestion = result?.activity_suggestion;
       if (suggestion?.should_navigate === true && suggestion?.name) {

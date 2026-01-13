@@ -69,6 +69,8 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
 
     return {
       message: data.message || "mm, I'm here.",
+      messages: data.messages || null, // Multi-message array for crisis mode
+      isCrisisMultiMessage: data.isCrisisMultiMessage || false,
       activity_suggestion: data.activity_suggestion || {
         name: null,
         reason: null,
