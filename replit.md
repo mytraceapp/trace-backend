@@ -20,6 +20,12 @@ Custom tone generators built with the Web Audio API create dynamic, procedurally
 
 An Express server acts as a proxy to the OpenAI API, defining the TRACE AI personality through system prompts. The chat maintains client-side conversation history for context and can suggest/auto-navigate to activities. An Emotional Intelligence Module analyzes mood trajectories, detects user absence, and provides gentle check-backs based on recent themes. A robust audit logging system tracks AI interactions and decisions, including consent for pattern reflections. Bug guardrails ensure graceful degradation, allowing the application to function even if AI components encounter errors, logging failures without breaking the user experience. A system confidence level dynamically adjusts AI responses based on the reliability of internal context. Feature flags (environment variables) provide panic switches to disable smart features without code changes: `PATTERN_REFLECTIONS_ENABLED`, `EMOTIONAL_INTELLIGENCE_ENABLED`, `CONSENT_SYSTEM_ENABLED`, `ACTIVITY_SUGGESTIONS_ENABLED`, `LONG_TERM_MEMORY_ENABLED`.
 
+### Presence Enhancements (January 2026)
+
+**Activity Acknowledgments**: After completing activities, TRACE speaks with relational presence ("I stayed with you during that", "I was with you through all of it") rather than performative praise. TRACE invites reflection with open questions like "What's different now?" without forcing engagement.
+
+**Journal Conversation Invites**: When users save journal entries (20+ characters), an invitation is stored and displayed when they next open chat. TRACE references the entry relationally ("I read what you wrote. Want to talk about any of it?") without quoting content. Invites expire after 24 hours.
+
 ## Interactive Activities
 
 Activities are designed to be short (45 seconds to 5 minutes) to reduce commitment anxiety. They include a procedural Maze mini-game, timed Breathing Exercises with synchronized visuals and audio, a 5-4-3-2-1 Grounding technique, and "Rising" – a full-screen WebGL shader animation with device tilt support and procedural particle systems. Other activities include Power Nap, Pearl Ripple, and Walking Reset. All activities auto-save an entry upon completion.
