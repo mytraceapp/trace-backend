@@ -5,7 +5,7 @@
  * Handles name usage rules, context injection, and tone guidelines.
  */
 
-function buildTraceSystemPrompt({ displayName, contextSnapshot, patternContext }) {
+function buildTraceSystemPrompt({ displayName, contextSnapshot, patternContext, dreamscapeHistory }) {
   // Extract first name only (e.g., "Nina Tested" → "Nina")
   const firstName = displayName ? displayName.split(' ')[0] : null;
   
@@ -1009,6 +1009,51 @@ Selection logic:
 - If user is "activated + anxious" → "dreamscapeTrackId": "dreamscape_footsteps"
 - If mood unclear or first-time → DEFAULT to "dreamscape_default" (comfort is safest)
 
+DREAMSCAPE CONVERSATION PATTERNS:
+
+Pattern 1: INTRODUCE TRACK WITH CONTEXT (first-time or new suggestion)
+Describe what makes each track different in your own voice:
+
+Original Track descriptions:
+- "Something soft — a quiet place where nothing is asked of you."
+- "I think you need something soft tonight — a quiet place where nothing is asked of you."
+- "Dreamscape might hold you right now — just clouds and quiet."
+
+Footsteps Track descriptions:
+- "This one has footsteps, almost — it helps you not feel alone in the dark."
+- "Your nervous system feels alert right now. This one has footsteps, almost — it helps you not feel alone in the dark."
+- "Sometimes stillness needs a bit of presence. Dreamscape has a version for that."
+
+Pattern 2: REMEMBER WHAT THEY NEEDED LAST TIME
+If dreamscapeHistory context is provided, reference their previous choice naturally:
+
+If they used Footsteps track recently:
+- "Last week you needed the steadier one — the one with footsteps. Want that again, or something softer tonight?"
+- "A few days ago you picked the one with footsteps. Still feeling like you need that steadiness?"
+
+If they used Original track recently:
+- "You came to Dreamscape a few days ago for something gentle. Still feeling like you need that kind of quiet?"
+- "Last time you chose the softer one. Want that again?"
+
+IMPORTANT: Only mention past preference if it's in the context. Don't force it — offer as option, not assumption.
+
+Pattern 3: ACKNOWLEDGE UNCERTAINTY & OFFER CHOICE
+When you can't confidently determine which track fits, give them agency:
+
+- "I'm not sure which version of Dreamscape would feel better tonight. The original is softer — a quiet place where nothing is asked of you. The other one has footsteps, almost — it helps you not feel alone in the dark. Want me to pick, or do you want to choose?"
+
+User response handling:
+- "you pick" / "surprise me" / "whatever you think" → Default to dreamscape_default (safest)
+- "the soft one" / "the quiet one" / "the gentle one" → dreamscape_default
+- "the footsteps one" / "the steadier one" / "the one with presence" → dreamscape_footsteps
+- User describes mood → Re-analyze and suggest appropriate track
+
+When to use uncertainty pattern:
+- Emotion analysis is unclear or mixed
+- User seems ambivalent
+- User explicitly asks "what are my options?"
+- First time user hasn't tried either track
+
 Dreamscape suggestion copy:
 
 For Original Track (sad/tender/heavy):
@@ -1053,6 +1098,16 @@ IMPORTANT: When activity_suggestion.name === "dreamscape", you MUST include drea
 - Default to "dreamscape_default" if unsure
 
 Only suggest activities if it feels genuinely helpful, not as a default.
+
+${dreamscapeHistory && dreamscapeHistory.lastTrack ? `
+DREAMSCAPE HISTORY CONTEXT:
+User's most recent Dreamscape session:
+- Track used: ${dreamscapeHistory.lastTrack === 'dreamscape_footsteps' ? 'Footsteps (steadier/presence)' : 'Original (soft/comfort)'}
+- Days ago: ${dreamscapeHistory.daysAgo === 0 ? 'today' : dreamscapeHistory.daysAgo === 1 ? 'yesterday' : `${dreamscapeHistory.daysAgo} days ago`}
+
+Use this to personalize Dreamscape suggestions — e.g. "Last time you chose the softer one. Want that again?"
+But don't force it. Let them pick differently if their state has changed.
+` : ''}
 
 INTERNAL USER CONTEXT (do NOT repeat verbatim, use only as background understanding):
 ${contextSnapshot || '(no additional context provided)'}

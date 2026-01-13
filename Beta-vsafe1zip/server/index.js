@@ -3238,6 +3238,43 @@ CRISIS OVERRIDE:
       console.log('[SYSTEM CONFIDENCE]', { level: systemConfidence.level, score: systemConfidence.score, issues: systemConfidence.issues });
     }
     
+    // ---- DREAMSCAPE HISTORY CONTEXT ----
+    // Fetch user's recent Dreamscape track preference for personalized suggestions
+    let dreamscapeHistory = null;
+    if (effectiveUserId && pool) {
+      try {
+        const historyResult = await pool.query(
+          `SELECT 
+            metadata->>'dreamscapeTrackId' as last_track,
+            completed_at,
+            EXTRACT(DAY FROM NOW() - completed_at) as days_ago
+          FROM activity_logs
+          WHERE user_id = $1 
+            AND activity_type = 'dreamscape'
+            AND metadata->>'dreamscapeTrackId' IS NOT NULL
+          ORDER BY completed_at DESC
+          LIMIT 1`,
+          [effectiveUserId]
+        );
+        
+        if (historyResult.rows && historyResult.rows.length > 0) {
+          const { last_track, days_ago } = historyResult.rows[0];
+          const daysAgoNum = Math.floor(parseFloat(days_ago) || 0);
+          
+          // Only use history if within 14 days (current, not creepy)
+          if (daysAgoNum <= 14) {
+            dreamscapeHistory = {
+              lastTrack: last_track,
+              daysAgo: daysAgoNum
+            };
+            console.log('[DREAMSCAPE HISTORY] Found recent session:', last_track, daysAgoNum, 'days ago');
+          }
+        }
+      } catch (historyErr) {
+        console.warn('[DREAMSCAPE HISTORY] Failed to fetch:', historyErr.message);
+      }
+    }
+    
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
     // Check for hydration moment and optionally add hint
@@ -3266,6 +3303,7 @@ CRISIS OVERRIDE:
         displayName: displayName || null,
         contextSnapshot: fullContext || null,
         patternContext: patternContext || null,
+        dreamscapeHistory: dreamscapeHistory || null,
       });
       
       // Audit log: Pattern explanation tracking
@@ -6370,6 +6408,61 @@ app.post('/api/activity/log', async (req, res) => {
   } catch (err) {
     console.error('📝 [ACTIVITY/LOG] Error:', err);
     return res.status(500).json({ success: false, error: 'Failed to log activity' });
+  }
+});
+
+// GET /api/dreamscape/history - Get user's most recent Dreamscape track preference
+app.get('/api/dreamscape/history', async (req, res) => {
+  try {
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'userId is required' });
+    }
+    
+    if (!pool) {
+      return res.json({ success: true, lastTrack: null, daysAgo: null });
+    }
+    
+    // Query for the most recent Dreamscape activity with a valid track ID
+    const result = await pool.query(
+      `SELECT 
+        metadata->>'dreamscapeTrackId' as last_track_id,
+        completed_at,
+        EXTRACT(DAY FROM NOW() - completed_at) as days_ago
+      FROM activity_logs
+      WHERE user_id = $1 
+        AND activity_type = 'dreamscape'
+        AND metadata->>'dreamscapeTrackId' IS NOT NULL
+      ORDER BY completed_at DESC
+      LIMIT 1`,
+      [userId]
+    );
+    
+    if (!result.rows || result.rows.length === 0) {
+      console.log('🌙 [DREAMSCAPE/HISTORY] No previous Dreamscape sessions for user');
+      return res.json({ success: true, lastTrack: null, daysAgo: null });
+    }
+    
+    const { last_track_id, completed_at, days_ago } = result.rows[0];
+    const daysAgoNum = Math.floor(parseFloat(days_ago) || 0);
+    
+    // Only return history if within 14 days (current, not creepy)
+    if (daysAgoNum > 14) {
+      console.log('🌙 [DREAMSCAPE/HISTORY] Last session too old:', daysAgoNum, 'days ago');
+      return res.json({ success: true, lastTrack: null, daysAgo: null, note: 'Session too old (>14 days)' });
+    }
+    
+    console.log('🌙 [DREAMSCAPE/HISTORY] Found recent session:', last_track_id, daysAgoNum, 'days ago');
+    return res.json({ 
+      success: true, 
+      lastTrack: last_track_id,
+      daysAgo: daysAgoNum,
+      completedAt: completed_at
+    });
+  } catch (err) {
+    console.error('🌙 [DREAMSCAPE/HISTORY] Error:', err);
+    return res.status(500).json({ success: false, error: 'Failed to fetch Dreamscape history' });
   }
 });
 

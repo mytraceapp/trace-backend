@@ -1,0 +1,322 @@
+TRACE Conversation Intelligence
+
+### Overview
+TRACE should describe tracks, remember preferences, and offer choice - all through natural conversation. No UI changes needed.
+
+### Three Conversation Patterns
+
+#### Pattern 1: Introduce Track with Context
+When TRACE suggests a specific Dreamscape track, it should describe what makes it different.
+
+**For Original Track:**
+```
+"I think you need something soft tonight — a quiet place where nothing is asked of you. Want Dreamscape?"
+```
+
+**For Footsteps Track:**
+```
+"Your nervous system feels alert right now. This one has footsteps, almost — it helps you not feel alone in the dark. Want to try it?"
+```
+
+**Implementation:** TRACE uses track descriptions from backend response or hardcoded copy.
+
+---
+
+#### Pattern 2: Remember What User Needed Last Time
+Query recent activity logs to check which track the user used previously and offer it again.
+
+**Backend Query:**
+```sql
+SELECT meta->>'dreamscapeTrackId' as last_track_id, created_at
+FROM activities
+WHERE user_id = $1 
+  AND activity_type = 'dreamscape'
+  AND meta->>'dreamscapeTrackId' IS NOT NULL
+ORDER BY created_at DESC
+LIMIT 1;
+```
+
+**TRACE Conversation:**
+```
+"Last week you needed the steadier one — the one with footsteps. Want that again, or something softer tonight?"
+```
+
+**Or if user chose Original last time:**
+```
+"You came to Dreamscape a few days ago for something gentle. Still feeling like you need that kind of quiet?"
+```
+
+**Implementation Notes:**
+- Only mention past track if it was within last 14 days (feels current, not surveillance)
+- Don't force it - offer as option, not assumption
+- Let user pick differently if their state changed
+
+---
+
+#### Pattern 3: Acknowledge Uncertainty & Offer Choice
+When TRACE can't confidently determine which track fits, give the user agency to choose.
+
+**TRACE Conversation:**
+```
+"I'm not sure which version of Dreamscape would feel better tonight. 
+
+The original is softer — a quiet place where nothing is asked of you.
+
+The other one has footsteps, almost — it helps you not feel alone in the dark.
+
+Want me to pick, or do you want to choose?"
+```
+
+**User Response Options:**
+- "You pick" → TRACE defaults to Original (safest)
+- "The soft one" → Original track
+- "The footsteps one" → Footsteps track
+- User describes mood → TRACE re-analyzes and suggests
+
+**When to Use This Pattern:**
+- Emotion analysis confidence is low
+- User seems ambivalent or mixed emotions
+- User explicitly asks "what are my options?"
+- First time user hasn't tried either track
+
+---
+
+### Update TRACE's Activity Suggestion Logic
+
+When TRACE suggests Dreamscape in conversation, it should use emotion analysis + activity history to create intelligent suggestions.
+
+#### Example Flow
+
+**User message:**
+```
+"My chest feels so tight, I can't calm down"
+```
+
+**Backend emotion analysis:**
+```json
+{
+  "suggestedActivity": "dreamscape",
+  "dreamscapeTrackId": "dreamscape_footsteps",
+  "reason": "user anxious/restless",
+  "trackRationale": "Your nervous system feels alert right now. I can offer Dreamscape in a steadier tone — something that helps you stop keeping watch."
+}
+```
+
+**TRACE response:**
+```
+I hear that tightness. Your nervous system feels alert right now. 
+
+I can offer Dreamscape in a steadier tone — something that helps you stop keeping watch. Want to try it?
+
+[Launch Dreamscape]
+```
+
+#### Mobile Handling
+The mobile app already handles this:
+- File: `mobile/app/(tabs)/chat.tsx`
+- When user taps "Launch Dreamscape", mobile navigates with:
+  ```typescript
+  router.push({
+    pathname: "/activities/dreamscape",
+    params: {
+      mode: "fixed",
+      trackId: response.dreamscapeTrackId, // From backend
+      from: "chat_offered",
+    },
+  });
+  ```
+
+---
+
+## 6. Analytics Queries (Future Use)
+
+### Track Preference by Mood
+```sql
+SELECT 
+  meta->>'dreamscapeTrackId' as track_id,
+  meta->>'moodDetected' as mood,
+  COUNT(*) as sessions,
+  AVG(duration_minutes) as avg_duration
+FROM activities
+WHERE activity_type = 'dreamscape'
+  AND meta->>'dreamscapeTrackId' IS NOT NULL
+GROUP BY track_id, mood
+ORDER BY sessions DESC;
+```
+
+### Track Selection Effectiveness
+```sql
+-- Sessions where users stayed >5 mins = engaged
+SELECT 
+  meta->>'dreamscapeTrackId' as track_id,
+  meta->>'selectionSource' as source,
+  COUNT(*) as total_sessions,
+  COUNT(*) FILTER (WHERE duration_minutes >= 5) as engaged_sessions,
+  ROUND(100.0 * COUNT(*) FILTER (WHERE duration_minutes >= 5) / COUNT(*), 1) as engagement_rate
+FROM activities
+WHERE activity_type = 'dreamscape'
+GROUP BY track_id, source;
+```
+
+### Most Common Mood → Track Pairings
+```sql
+SELECT 
+  meta->>'moodDetected' as mood,
+  meta->>'dreamscapeTrackId' as track_id,
+  COUNT(*) as occurrences
+FROM activities
+WHERE activity_type = 'dreamscape'
+  AND meta->>'moodDetected' IS NOT NULL
+GROUP BY mood, track_id
+ORDER BY occurrences DESC
+LIMIT 20;
+```
+
+---
+
+## 7. Testing Checklist
+
+### Emotion Analysis Endpoint
+- [ ] Test with sad/grief messages → returns `dreamscape_default`
+- [ ] Test with anxious/panic messages → returns `dreamscape_footsteps`
+- [ ] Test with unclear mood → defaults to `dreamscape_default`
+- [ ] Verify `trackRationale` matches TRACE's voice
+- [ ] Verify response schema includes all new fields
+
+### Activity Logging
+- [ ] Log Dreamscape session with all metadata fields
+- [ ] Verify `meta.dreamscapeTrackId` stored correctly
+- [ ] Verify `meta.selectionMode` and `meta.selectionSource` stored
+- [ ] Query database to confirm JSON structure
+
+### TRACE Chat
+- [ ] TRACE suggests Dreamscape with appropriate track based on conversation
+- [ ] Mobile receives correct `dreamscapeTrackId` in navigation params
+- [ ] User experiences correct audio track variant
+- [ ] Activity logged with correct metadata
+
+### Edge Cases
+- [ ] AI returns invalid `dreamscapeTrackId` → fallback to default
+- [ ] AI forgets to include `dreamscapeTrackId` → fallback to default
+- [ ] User from Activities menu (no mood context) → random selection works
+- [ ] Mobile handles missing `dreamscapeTrackId` gracefully
+
+---
+
+## 8. Deployment Steps
+
+1. **Update Backend**
+   - [ ] Update `/api/analyze-emotion` AI system prompt
+   - [ ] Add response schema validation
+   - [ ] Update `/api/activities/log` validation (optional, already supports JSON meta)
+
+2. **Test in Development**
+   - [ ] Send test emotion analysis requests
+   - [ ] Verify responses match schema
+   - [ ] Test TRACE suggestions in chat
+   - [ ] Verify mobile receives correct track IDs
+
+3. **Deploy Backend**
+   - [ ] Deploy to Replit production
+   - [ ] Monitor logs for AI response format errors
+   - [ ] Check activity logs for proper metadata storage
+
+4. **Mobile Already Deployed**
+   - Mobile already implements track selection and navigation
+   - No mobile changes needed for this integration
+
+---
+
+## 9. Example AI Responses
+
+### Example 1: Anxious User → Footsteps Track
+
+**User Message:**
+```
+"I can't stop thinking about everything. My mind won't shut off and I feel like I'm going to lose it."
+```
+
+**API Response:**
+```json
+{
+  "suggestedActivity": "dreamscape",
+  "dreamscapeTrackId": "dreamscape_footsteps",
+  "reason": "user overwhelmed, racing thoughts, needs grounding",
+  "trackRationale": "Your nervous system feels alert right now. I can offer Dreamscape in a steadier tone — something that helps you stop keeping watch."
+}
+```
+
+### Example 2: Sad User → Original Track
+
+**User Message:**
+```
+"I just feel so heavy today. Everything feels hard and I'm exhausted."
+```
+
+**API Response:**
+```json
+{
+  "suggestedActivity": "dreamscape",
+  "dreamscapeTrackId": "dreamscape_default",
+  "reason": "user emotionally exhausted, needs comfort",
+  "trackRationale": "I think you need something soft tonight — a quiet place where nothing is asked of you."
+}
+```
+
+### Example 3: Unclear Mood → Default Track
+
+**User Message:**
+```
+"I don't know. Just been thinking a lot I guess."
+```
+
+**API Response:**
+```json
+{
+  "suggestedActivity": "dreamscape",
+  "dreamscapeTrackId": "dreamscape_default",
+  "reason": "user reflective, unclear emotional state, defaulting to comfort",
+  "trackRationale": "Want to step into something quiet for a bit?"
+}
+```
+
+---
+
+## 10. Success Metrics
+
+### Week 1
+- [ ] >80% of Dreamscape suggestions include valid `dreamscapeTrackId`
+- [ ] No crashes or validation errors in activity logging
+- [ ] Track selection distribution roughly matches emotional state patterns
+
+### Month 1
+- [ ] Analyze which track has higher engagement (completion rate)
+- [ ] Identify mood patterns that predict track preference
+- [ ] User feedback mentions track appropriateness
+
+### Future
+- [ ] Consider personalization (learn individual preferences)
+- [ ] Identify need for third track archetype
+- [ ] Time-of-day patterns per track
+
+---
+
+## Summary
+
+This integration adds intelligent track selection to Dreamscape based on emotional archetypes:
+- **Original Track**: Comfort-first for sad/tender states
+- **Footsteps Track**: Safety-first for anxious/restless states
+
+**Backend changes needed:**
+1. Update `/api/analyze-emotion` AI prompt with track selection rules
+2. Add response validation for `dreamscapeTrackId`
+3. (Optional) Add validation to `/api/activities/log` for metadata
+
+**Mobile already handles:**
+- Track registry with archetypes
+- Mood-based selection logic
+- Navigation with track IDs
+- Activity logging with metadata
+
+**Result:**
+TRACE can now offer personalized Dreamscape experiences that match the user's current nervous system state and emotional needs.
