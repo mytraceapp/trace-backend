@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Pressable,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -22,6 +23,7 @@ import { playAmbient, stopAmbient } from '../../lib/ambientAudio';
 import { sendChatMessage, fetchWelcomeGreeting, PatternContext } from '../../lib/chat';
 import { getStableId } from '../../lib/stableId';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Audio } from 'expo-av';
 
 // Helper to detect pattern-related questions
 function isPatternQuestion(text: string): boolean {
@@ -170,6 +172,14 @@ export default function ChatScreen() {
     duration?: number;
   } | null>(null);
 
+  // Night Swim player state
+  const [showNightSwimPlayer, setShowNightSwimPlayer] = useState(false);
+  const [nightSwimTracks, setNightSwimTracks] = useState<any[]>([]);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [isNightSwimPlaying, setIsNightSwimPlaying] = useState(false);
+  const [isNightSwimLoading, setIsNightSwimLoading] = useState(false);
+  const nightSwimSoundRef = useRef<Audio.Sound | null>(null);
+
   const [fontsLoaded] = useFonts({
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
   });
@@ -179,13 +189,123 @@ export default function ChatScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
+      if (!showNightSwimPlayer) {
+        playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
+      }
       
       return () => {
         stopAmbient().catch(() => {});
+        // Cleanup Night Swim audio on unfocus
+        if (nightSwimSoundRef.current) {
+          nightSwimSoundRef.current.unloadAsync().catch(() => {});
+        }
       };
-    }, [])
+    }, [showNightSwimPlayer])
   );
+
+  // Night Swim player functions
+  const openNightSwimPlayer = async (autoplay: boolean = true, trackIndex: number = 0) => {
+    console.log('🎵 Opening Night Swim player, autoplay:', autoplay, 'track:', trackIndex);
+    stopAmbient();
+    setShowNightSwimPlayer(true);
+    setIsNightSwimLoading(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('trace_originals_tracks')
+        .select('*')
+        .eq('album', 'night_swim')
+        .order('track_number', { ascending: true });
+
+      if (error) {
+        console.error('Error loading Night Swim tracks:', error);
+        setIsNightSwimLoading(false);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        setNightSwimTracks(data);
+        setCurrentTrackIndex(trackIndex);
+        console.log('🎵 Loaded Night Swim tracks:', data.length);
+        
+        if (autoplay) {
+          await playNightSwimTrack(data[trackIndex] || data[0]);
+        }
+      } else {
+        console.warn('🎵 No Night Swim tracks found in database');
+      }
+    } catch (err) {
+      console.error('Failed to load Night Swim tracks:', err);
+    } finally {
+      setIsNightSwimLoading(false);
+    }
+  };
+
+  const playNightSwimTrack = async (track: any) => {
+    try {
+      if (nightSwimSoundRef.current) {
+        await nightSwimSoundRef.current.unloadAsync();
+        nightSwimSoundRef.current = null;
+      }
+
+      setIsNightSwimLoading(true);
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: track.audio_url },
+        { shouldPlay: true, volume: 0.8 }
+      );
+      
+      nightSwimSoundRef.current = sound;
+      setIsNightSwimPlaying(true);
+      setCurrentTrackIndex(track.track_number - 1);
+      
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          // Auto-play next track
+          const nextIndex = (track.track_number) % nightSwimTracks.length;
+          const nextTrack = nightSwimTracks[nextIndex];
+          if (nextTrack) {
+            playNightSwimTrack(nextTrack);
+          } else {
+            setIsNightSwimPlaying(false);
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Error playing Night Swim track:', err);
+    } finally {
+      setIsNightSwimLoading(false);
+    }
+  };
+
+  const toggleNightSwimPlayPause = async () => {
+    if (!nightSwimSoundRef.current) {
+      if (nightSwimTracks.length > 0) {
+        await playNightSwimTrack(nightSwimTracks[currentTrackIndex]);
+      }
+      return;
+    }
+
+    const status = await nightSwimSoundRef.current.getStatusAsync();
+    if (status.isLoaded) {
+      if (status.isPlaying) {
+        await nightSwimSoundRef.current.pauseAsync();
+        setIsNightSwimPlaying(false);
+      } else {
+        await nightSwimSoundRef.current.playAsync();
+        setIsNightSwimPlaying(true);
+      }
+    }
+  };
+
+  const closeNightSwimPlayer = async () => {
+    if (nightSwimSoundRef.current) {
+      await nightSwimSoundRef.current.unloadAsync();
+      nightSwimSoundRef.current = null;
+    }
+    setShowNightSwimPlayer(false);
+    setIsNightSwimPlaying(false);
+    playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
+  };
 
   useEffect(() => {
     const initIds = async () => {
@@ -498,17 +618,13 @@ export default function ChatScreen() {
       const audioAction = result?.audio_action;
       if (audioAction?.type === 'open') {
         console.log('🎵 TRACE Originals audio_action: open', audioAction);
-        // Navigate to journal with param to trigger Night Swim player
+        // Spawn Night Swim player on chat page at orb position
         setTimeout(() => {
-          router.push({
-            pathname: '/(tabs)/journal' as any,
-            params: { 
-              openNightSwim: 'true',
-              autoplay: audioAction.autoplay ? 'true' : 'false',
-              track: String(audioAction.track || 0)
-            }
-          });
-        }, 800);
+          openNightSwimPlayer(
+            audioAction.autoplay !== false,
+            audioAction.track || 0
+          );
+        }, 600);
       } else if (audioAction?.type === 'recommend') {
         // TRACE is offering Night Swim - just log for now, player opens on user agreement
         console.log('🎵 TRACE Originals audio_action: recommend (waiting for user agreement)');
@@ -537,6 +653,42 @@ export default function ChatScreen() {
             TRACE
           </Text>
         </View>
+
+        {/* Night Swim Player - spawns at orb position (60px below wordmark) */}
+        {showNightSwimPlayer && (
+          <View style={[styles.nightSwimPlayer, { top: insets.top + 60 }]}>
+            <View style={styles.nightSwimContent}>
+              <Pressable onPress={closeNightSwimPlayer} style={styles.nightSwimClose}>
+                <Text style={styles.nightSwimCloseText}>✕</Text>
+              </Pressable>
+              
+              <Text style={[styles.nightSwimTitle, { fontFamily: canelaFont }]}>
+                Night Swim
+              </Text>
+              <Text style={[styles.nightSwimArtist, { fontFamily: canelaFont }]}>
+                TRACE Originals
+              </Text>
+              
+              {nightSwimTracks.length > 0 && (
+                <Text style={[styles.nightSwimTrack, { fontFamily: canelaFont }]}>
+                  {nightSwimTracks[currentTrackIndex]?.title || 'Loading...'}
+                </Text>
+              )}
+              
+              <View style={styles.nightSwimControls}>
+                {isNightSwimLoading ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Pressable onPress={toggleNightSwimPlayPause} style={styles.nightSwimPlayBtn}>
+                    <Text style={styles.nightSwimPlayIcon}>
+                      {isNightSwimPlaying ? '⏸' : '▶️'}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={{ flex: 1 }}>
           {messages.length === 0 ? (
@@ -701,5 +853,70 @@ const styles = StyleSheet.create({
   sendButtonText: {
     fontSize: 20,
     fontWeight: '600',
+  },
+  // Night Swim Player styles
+  nightSwimPlayer: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    zIndex: 100,
+    borderRadius: 16,
+    backgroundColor: 'rgba(15, 15, 35, 0.95)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  nightSwimContent: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  nightSwimClose: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nightSwimCloseText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+  },
+  nightSwimTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 2,
+  },
+  nightSwimArtist: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    marginBottom: 8,
+  },
+  nightSwimTrack: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 12,
+  },
+  nightSwimControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nightSwimPlayBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nightSwimPlayIcon: {
+    fontSize: 20,
   },
 });
