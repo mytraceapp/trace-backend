@@ -206,6 +206,22 @@ export default function ChatScreen() {
   // Night Swim player functions
   const openNightSwimPlayer = async (autoplay: boolean = true, trackIndex: number = 0) => {
     console.log('🎵 Opening Night Swim player, autoplay:', autoplay, 'track:', trackIndex);
+    
+    // Force reset if player is already showing (handles back-to-back requests)
+    if (showNightSwimPlayer) {
+      console.log('🎵 Player already open, forcing reset for respawn');
+      // Stop current playback
+      if (nightSwimSoundRef.current) {
+        await nightSwimSoundRef.current.stopAsync().catch(() => {});
+        await nightSwimSoundRef.current.unloadAsync().catch(() => {});
+        nightSwimSoundRef.current = null;
+      }
+      setIsNightSwimPlaying(false);
+      // Brief state toggle to force React re-render
+      setShowNightSwimPlayer(false);
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    
     stopAmbient();
     setShowNightSwimPlayer(true);
     setIsNightSwimLoading(true);
