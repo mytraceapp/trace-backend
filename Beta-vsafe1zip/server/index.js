@@ -3803,6 +3803,12 @@ Your response:`;
       userMsgLower.includes('open')
     );
     
+    // DEBUG LOGGING for audio_action detection
+    console.log('[TRACE AUDIO DEBUG] lastUserMsgForAudio:', lastUserMsgForAudio?.substring(0, 100));
+    console.log('[TRACE AUDIO DEBUG] userRequestsNightSwim:', userRequestsNightSwim);
+    console.log('[TRACE AUDIO DEBUG] isNightSwimOffer:', isNightSwimOffer);
+    console.log('[TRACE AUDIO DEBUG] immediateNightSwimOffer:', immediateNightSwimOffer);
+    
     if (userRequestsNightSwim) {
       // User directly requested Night Swim - open the player immediately
       audioAction = buildAudioAction('open', {
@@ -3867,7 +3873,13 @@ Your response:`;
     // Add audio_action if present
     if (audioAction) {
       response.audio_action = audioAction;
+      console.log('[TRACE AUDIO DEBUG] Adding audio_action to response:', JSON.stringify(audioAction));
+    } else {
+      console.log('[TRACE AUDIO DEBUG] No audio_action to add to response');
     }
+    
+    // Final response debug
+    console.log('[TRACE AUDIO DEBUG] Final response keys:', Object.keys(response));
     
     // Add messages array for crisis multi-message display
     if (messagesArray && messagesArray.length > 1) {
