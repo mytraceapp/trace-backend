@@ -28,7 +28,18 @@ An Express server acts as a proxy to the OpenAI API, defining the TRACE AI perso
 
 **Spotify Music Integration**: TRACE can suggest Spotify playlists during conversation to be with users through sound. Three playlists available: Ground (anxiety/overwhelm), Drift (tiredness/numbness), Rising (low energy/hopelessness). Uses a two-step flow: TRACE offers first, then launches after user consents. Music is framed relationally ("I can be with you through sound") rather than prescriptively.
 
-**TRACE Originals - Night Swim (January 2026)**: TRACE can offer its own original music - a 7-track ambient album called Night Swim - for late-night emotional support, sleep trouble, and distress. The backend detects emotional state from conversation (`musicRecommendation.js`) and injects a recommendation cue into the system prompt BEFORE the OpenAI call, guiding the LLM to naturally offer Night Swim. Uses a 2-turn flow: TRACE offers Night Swim (type: 'recommend'), then after user agrees, opens the player (type: 'open'). Users can also directly request Night Swim (e.g., "play night swim", "can you play night swim?") and the player opens immediately with `audio_action: {type: 'open', autoplay: true}`. Tracks stream from Supabase (`trace_originals_tracks` table). TRACE frames it personally: "I made something called Night Swim for moments like this." The default audio player is embedded in the journal modal. Test endpoint: `POST /api/test-audio-action`.
+**TRACE Originals - Night Swim (January 2026)**: TRACE can offer its own original music - a 7-track ambient album called Night Swim - for late-night emotional support, sleep trouble, and distress. The backend detects emotional state from conversation (`musicRecommendation.js`) and injects a recommendation cue into the system prompt BEFORE the OpenAI call, guiding the LLM to naturally offer Night Swim. Uses a 2-turn flow: TRACE offers Night Swim (type: 'recommend'), then after user agrees, opens the player (type: 'open'). Users can also directly request Night Swim (e.g., "play night swim", "can you play night swim?") and the player opens immediately with `audio_action: {type: 'open', autoplay: true}`. Tracks stream from Supabase (`trace_originals_tracks` table). TRACE frames it personally: "I made something called Night Swim for moments like this." The Night Swim player spawns inline on the chat page at orb position (60px below wordmark). Test endpoint: `POST /api/test-audio-action`.
+
+**Night Swim Album Knowledge**: TRACE has full knowledge of all 7 tracks with their emotional purposes:
+- Track 1: Tidal Memory Glow (104 BPM) - nostalgic, warm, for processing memories with hope
+- Track 2: Calm Euphoria (102 BPM) - uplifting, for feeling hope after struggle
+- Track 3: Ocean Breathing (104 BPM) - ambient, for anxiety → release journey
+- Track 4: Neon Promise (104 BPM) - HAS VOCALS, for longing and relationship vulnerability
+- Track 5: Slow Tides (80 BPM) - ultra-minimal, for stillness and contemplation
+- Track 6: Midnight Underwater (76 BPM) - DEEPEST/SLOWEST, for deep insomnia and overwhelm
+- Track 7: Midnight Undertow (100 BPM) - hypnotic groove, for pensive late-night processing
+
+TRACE matches emotional states to specific tracks and speaks about the album with ownership as her creative work, not as a feature.
 
 **Contextual Feature Introduction**: Features are introduced through relationship, not explanation. Rather than UI tours or tooltips, TRACE offers features contextually when users need them (e.g., mentioning patterns after 3-4 journal entries, suggesting Dreamscape when user mentions sleep trouble). This creates discovery through care, not instruction.
 
