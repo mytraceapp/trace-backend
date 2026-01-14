@@ -174,6 +174,7 @@ export default function ChatScreen() {
 
   // Night Swim player state
   const [showNightSwimPlayer, setShowNightSwimPlayer] = useState(false);
+  const [nightSwimSession, setNightSwimSession] = useState(0); // Session counter for forcing remount
   const [nightSwimTracks, setNightSwimTracks] = useState<any[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isNightSwimPlaying, setIsNightSwimPlaying] = useState(false);
@@ -205,24 +206,20 @@ export default function ChatScreen() {
 
   // Night Swim player functions
   const openNightSwimPlayer = async (autoplay: boolean = true, trackIndex: number = 0) => {
-    console.log('🎵 Opening Night Swim player, autoplay:', autoplay, 'track:', trackIndex);
+    console.log('🎵 Opening Night Swim player, autoplay:', autoplay, 'track:', trackIndex, 'session:', nightSwimSession + 1);
     
-    // Force reset if player is already showing (handles back-to-back requests)
-    if (showNightSwimPlayer) {
-      console.log('🎵 Player already open, forcing reset for respawn');
-      // Stop current playback
-      if (nightSwimSoundRef.current) {
-        await nightSwimSoundRef.current.stopAsync().catch(() => {});
-        await nightSwimSoundRef.current.unloadAsync().catch(() => {});
-        nightSwimSoundRef.current = null;
-      }
-      setIsNightSwimPlaying(false);
-      // Brief state toggle to force React re-render
-      setShowNightSwimPlayer(false);
-      await new Promise(resolve => setTimeout(resolve, 50));
+    // Stop any existing playback first
+    if (nightSwimSoundRef.current) {
+      await nightSwimSoundRef.current.stopAsync().catch(() => {});
+      await nightSwimSoundRef.current.unloadAsync().catch(() => {});
+      nightSwimSoundRef.current = null;
     }
+    setIsNightSwimPlaying(false);
     
     stopAmbient();
+    
+    // Increment session counter to force React remount (handles back-to-back requests)
+    setNightSwimSession(prev => prev + 1);
     setShowNightSwimPlayer(true);
     setIsNightSwimLoading(true);
     
@@ -630,20 +627,40 @@ export default function ChatScreen() {
         }
       }
       
-      // Handle TRACE Originals audio_action (Night Swim)
+      // Handle TRACE audio_action (Night Swim originals or Spotify fallback)
       const audioAction = result?.audio_action;
       if (audioAction?.type === 'open') {
-        console.log('🎵 TRACE Originals audio_action: open', audioAction);
-        // Spawn Night Swim player on chat page at orb position
-        setTimeout(() => {
-          openNightSwimPlayer(
-            audioAction.autoplay !== false,
-            audioAction.track || 0
-          );
-        }, 600);
+        console.log('🎵 TRACE audio_action: open', audioAction);
+        
+        if (audioAction.source === 'originals') {
+          // TRACE Originals (Night Swim) - spawn inline player on chat page
+          console.log('🎵 Opening TRACE Originals (Night Swim) player');
+          setTimeout(() => {
+            openNightSwimPlayer(
+              audioAction.autoplay !== false,
+              audioAction.track || 0
+            );
+          }, 600);
+        } else if (audioAction.source === 'spotify') {
+          // Spotify fallback - open Spotify app/web
+          console.log('🎵 Opening Spotify playlist:', audioAction.album);
+          setTimeout(async () => {
+            const mood = audioAction.album as MoodSpace;
+            await openSpotifyPlaylist(mood);
+          }, 600);
+        } else {
+          // Default to originals if source not specified
+          console.log('🎵 No source specified, defaulting to Originals');
+          setTimeout(() => {
+            openNightSwimPlayer(
+              audioAction.autoplay !== false,
+              audioAction.track || 0
+            );
+          }, 600);
+        }
       } else if (audioAction?.type === 'recommend') {
         // TRACE is offering Night Swim - just log for now, player opens on user agreement
-        console.log('🎵 TRACE Originals audio_action: recommend (waiting for user agreement)');
+        console.log('🎵 TRACE audio_action: recommend (waiting for user agreement)');
       }
     } catch (err: any) {
       console.error('❌ TRACE handleSend error:', err.message || String(err));
@@ -671,8 +688,9 @@ export default function ChatScreen() {
         </View>
 
         {/* Night Swim Player - spawns at orb position (60px below wordmark) */}
+        {/* key={nightSwimSession} forces React to remount on back-to-back requests */}
         {showNightSwimPlayer && (
-          <View style={[styles.nightSwimPlayer, { top: insets.top + 60 }]}>
+          <View key={`nightswim-${nightSwimSession}`} style={[styles.nightSwimPlayer, { top: insets.top + 60 }]}>
             <View style={styles.nightSwimContent}>
               <Pressable onPress={closeNightSwimPlayer} style={styles.nightSwimClose}>
                 <Text style={styles.nightSwimCloseText}>✕</Text>
