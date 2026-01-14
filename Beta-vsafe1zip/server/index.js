@@ -63,6 +63,14 @@ const {
 } = require('./patternConsent');
 const { buildEmotionalIntelligenceContext } = require('./emotionalIntelligence');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
+const {
+  detectEmotionalState,
+  isUserAgreeing,
+  isUserDeclining,
+  shouldRecommendMusic,
+  buildAudioAction,
+  parseTimeHour
+} = require('./musicRecommendation');
 
 /**
  * Feature Flags - Panic switches for smart features
@@ -3397,6 +3405,35 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
 - Do NOT start responses with generic greetings like "Hi", "Hey there", "Hello", "How are you today?"
 - Respond as if you've already said hello and are in the middle of a conversation.
 - Focus on answering or gently reflecting on the user's latest message.`;
+      
+      // Check if Night Swim should be offered based on emotional state
+      // This injects a context cue BEFORE the OpenAI call to guide the LLM
+      const lastUserMsgForMusic = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+      const alreadyOfferedNightSwim = messages.some(m => 
+        m.role === 'assistant' && 
+        m.content?.toLowerCase().includes('night swim')
+      );
+      
+      if (!alreadyOfferedNightSwim) {
+        const musicRecommendation = shouldRecommendMusic({
+          userMessage: lastUserMsgForMusic,
+          conversationHistory: messages,
+          localTime: localTime || null,
+          hasOfferedMusicThisSession: alreadyOfferedNightSwim
+        });
+        
+        if (musicRecommendation.shouldRecommend) {
+          // Inject context cue to guide LLM to offer Night Swim
+          systemPrompt += `
+
+NIGHT SWIM RECOMMENDATION CUE:
+Based on the user's current state (${musicRecommendation.reason}), this is a good moment to offer Night Swim.
+In your response, naturally offer Night Swim using relational language like:
+"I made something called Night Swim for moments like this. Want me to play it?"
+Only offer once in this conversation. Frame it personally, not prescriptively.`;
+          console.log('[TRACE ORIGINALS] Night Swim recommendation cue injected:', musicRecommendation.reason);
+        }
+      }
     }
     
     // ============================================================
@@ -3716,11 +3753,100 @@ Your response:`;
       }
     }
     
+    // ==================== TRACE ORIGINALS AUDIO_ACTION LOGIC ====================
+    // Detect Night Swim offers and user agreements for 2-turn music flow
+    let audioAction = null;
+    
+    const lastUserMsgForAudio = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+    const responseText = messagesArray ? messagesArray[0] : assistantText;
+    
+    // Check if TRACE is offering Night Swim in this response
+    // Requires both "night swim" AND offer-intent keywords to avoid false positives
+    const responseLower = responseText.toLowerCase();
+    const nightSwimMentioned = responseLower.includes('night swim');
+    const hasOfferIntent = responseLower.includes('want') || 
+                           responseLower.includes('play') ||
+                           responseLower.includes('share') ||
+                           responseLower.includes('made') ||
+                           responseLower.includes('put it on') ||
+                           responseLower.includes('listen');
+    const isNightSwimOffer = nightSwimMentioned && hasOfferIntent;
+    
+    // Check if the IMMEDIATE previous assistant message offered Night Swim
+    // This prevents spurious triggers from old mentions
+    const lastTwoMessages = messages.slice(-2);
+    const previousAssistantMsg = lastTwoMessages.find(m => m.role === 'assistant');
+    const prevMsgLower = (previousAssistantMsg?.content || '').toLowerCase();
+    const immediateNightSwimOffer = previousAssistantMsg && 
+      prevMsgLower.includes('night swim') &&
+      (prevMsgLower.includes('want') || 
+       prevMsgLower.includes('play') ||
+       prevMsgLower.includes('share') ||
+       prevMsgLower.includes('made') ||
+       prevMsgLower.includes('listen'));
+    
+    // Check if music was already offered this session (prevent multiple offers)
+    const alreadyOfferedThisSession = messages.some(m => 
+      m.role === 'assistant' && 
+      m.content?.toLowerCase().includes('night swim')
+    );
+    
+    if (isNightSwimOffer) {
+      // TRACE is offering Night Swim - add recommend action with full metadata
+      audioAction = buildAudioAction('recommend', {
+        source: 'originals',
+        album: 'night_swim',
+        track: 0,
+        autoplay: false
+      });
+      console.log('[TRACE ORIGINALS] Night Swim offered in response');
+    } else if (immediateNightSwimOffer) {
+      // Check user's response to the immediate offer
+      if (isUserAgreeing(lastUserMsgForAudio)) {
+        // User agreed - open the player
+        audioAction = buildAudioAction('open', {
+          source: 'originals',
+          album: 'night_swim',
+          track: 0,
+          autoplay: true
+        });
+        console.log('[TRACE ORIGINALS] User agreed to Night Swim, opening player');
+      } else if (isUserDeclining(lastUserMsgForAudio)) {
+        // User declined - clear the pending offer (no audio_action)
+        console.log('[TRACE ORIGINALS] User declined Night Swim offer');
+      }
+      // If neither agreeing nor declining, no audio_action - conversation continues naturally
+    }
+    
+    // Proactive recommendation logging: Track when conditions are met for analytics
+    // Note: The actual offer comes from the LLM via system prompt guidance
+    // We only log here - audio_action is ONLY emitted when response contains actual offer
+    if (!audioAction && !alreadyOfferedThisSession && !isNightSwimOffer) {
+      const recommendation = shouldRecommendMusic({
+        userMessage: lastUserMsgForAudio,
+        conversationHistory: messages,
+        localTime: localTime || null,
+        hasOfferedMusicThisSession: alreadyOfferedThisSession
+      });
+      
+      if (recommendation.shouldRecommend) {
+        // Log for analytics - system prompt guides LLM to naturally offer Night Swim
+        // audio_action is NOT emitted here to avoid frontend confusion
+        // If LLM offers Night Swim in response, isNightSwimOffer will catch it above
+        console.log('[TRACE ORIGINALS] Proactive conditions met (LLM should offer):', recommendation.reason);
+      }
+    }
+    
     // Build response - include messages array if crisis mode
     const response = {
       message: messagesArray ? messagesArray[0] : assistantText, // First message or single message
       activity_suggestion: activitySuggestion
     };
+    
+    // Add audio_action if present
+    if (audioAction) {
+      response.audio_action = audioAction;
+    }
     
     // Add messages array for crisis multi-message display
     if (messagesArray && messagesArray.length > 1) {
@@ -3737,6 +3863,31 @@ Your response:`;
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// ==================== TRACE ORIGINALS TEST ENDPOINT ====================
+// Development endpoint to test audio_action responses
+app.post('/api/test-audio-action', (req, res) => {
+  const { type = 'open', track = 0 } = req.body || {};
+  
+  const audioAction = buildAudioAction(type, {
+    source: 'originals',
+    album: 'night_swim',
+    track,
+    autoplay: type === 'open'
+  });
+  
+  const message = type === 'open' 
+    ? 'Here—' 
+    : "I want to share Night Swim with you — it's something I made for moments like this.";
+  
+  console.log('[TEST AUDIO ACTION]', { type, track, audioAction });
+  
+  res.json({
+    message,
+    activity_suggestion: { name: null, reason: null, should_navigate: false },
+    audio_action: audioAction
+  });
 });
 
 // ==================== DATA INTEGRITY HEALTH CHECK ====================

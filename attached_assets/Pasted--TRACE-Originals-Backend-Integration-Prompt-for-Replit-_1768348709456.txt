@@ -1,0 +1,267 @@
+# TRACE Originals Backend Integration Prompt (for Replit)
+
+**Goal**: Enable TRACE to offer music recommendations in chat, with backend deciding when to suggest TRACE Originals (Night Swim).
+
+---
+
+## OVERVIEW
+
+When the user chats with TRACE and TRACE decides to recommend music:
+
+1. User and TRACE have a conversation naturally
+2. TRACE's response includes a suggestion to listen to music
+3. **On user agreement/request**, backend sends an `audio_action` flag
+4. Frontend detects this and opens the audio player at the orb position
+5. Player streams tracks from Supabase (already live)
+
+---
+
+## WHAT'S READY (Frontend/Data)
+
+✅ **Supabase table**: `public.trace_originals_tracks` (RLS public read)
+```sql
+Columns:
+- id (uuid)
+- album (text) 
+- track_number (int)
+- title (text)
+- url (text) [pointing to trace-originals/night-swim/*.m4a in Supabase Storage]
+```
+
+✅ **Album "Night Swim"** has 7 tracks already live with URLs.
+
+✅ **Frontend**: Chat screen listens for `audio_action` in backend response.
+
+---
+
+## WHAT BACKEND NEEDS TO DO
+
+### 1. **Track User Emotional State in Conversation**
+
+As TRACE chats with the user, collect signals:
+- Sentiment of user's last message (sad, stressed, calm, happy, etc.)
+- Activity context (if user mentions an activity they just did)
+- Time of day (available in payload: `localTime`, `localDay`)
+- User's journal mood (if pattern context was sent)
+
+**Example signals**:
+- "I'm feeling overwhelmed" → heavy emotional state
+- "I just got back from a walk" → activity completion
+- "Can't sleep" → night/sleep need
+- "I'm anxious" → stress state
+
+---
+
+### 2. **Decide When to Recommend TRACE Originals**
+
+Add logic to your response generation:
+
+**Trigger recommendations when**:
+- User is in emotional distress (overwhelmed, stressed, sad)
+- User mentions sleep trouble or nighttime
+- User asks for help/comfort
+- Natural pause in conversation
+- Time is late evening/night (1am-4am especially)
+
+**Example decision tree**:
+```
+if (userSentiment === 'overwhelmed' || userSentiment === 'sad') {
+  // Suggest music as a calming gesture
+  shouldRecommendMusic = true;
+  album = 'night_swim';
+}
+
+if (timeOfDay.hour >= 22 || timeOfDay.hour <= 5) {
+  // Night hours - music for sleep/reflection
+  shouldRecommendMusic = true;
+}
+```
+
+---
+
+### 3. **Response Format**
+
+Your chat response endpoint already returns:
+```json
+{
+  "message": "...",
+  "activity_suggestion": { ... },
+  ...
+}
+```
+
+**Add a new field**:
+```json
+{
+  "message": "I want to share something with you right now.",
+  "activity_suggestion": { ... },
+  "audio_action": {
+    "type": "recommend",
+    "source": "originals",
+    "album": "night_swim",
+    "autoplay": false
+  }
+}
+```
+
+**Only include `audio_action` if TRACE is recommending music.**
+
+---
+
+### 4. **Conversational Flow (Important)**
+
+The player should NOT auto-open on the recommendation message. Instead:
+
+**Message 1 (TRACE)**: 
+```
+"I want to share Night Swim with you — it's something I made for moments like this."
+```
+(No `audio_action` yet, just the offer)
+
+**Message 2 (User responds)**:
+```
+"ok, play it" / "yes please" / "sure"
+```
+
+**Message 3 (TRACE)**:
+```
+"Here—" or just empty/skip message
+```
+**Include `audio_action` NOW:**
+```json
+{
+  "audio_action": {
+    "type": "open",
+    "source": "originals", 
+    "album": "night_swim",
+    "track": 0,
+    "autoplay": true
+  }
+}
+```
+
+This way the music is activated *after* user explicitly agrees, not before.
+
+---
+
+### 5. **Audio Action Spec**
+
+```typescript
+interface AudioAction {
+  type: 'recommend' | 'open'; // 'recommend' = just suggest, 'open' = trigger player
+  source: 'originals' | 'spotify'; // TRACE Originals or Spotify (if connected)
+  album: string; // e.g., "night_swim"
+  track?: number; // 0-indexed track to start at (default: 0)
+  autoplay?: boolean; // Auto-start playing (default: true)
+  message?: string; // Optional contextual text for the action
+}
+```
+
+**Usage**:
+- User asks for music → `type: 'recommend'`, don't open yet
+- User agrees → `type: 'open'`, open the player
+- User is very distressed → Skip to `type: 'open'` immediately (auto-offer)
+
+---
+
+## FRONTEND IMPLEMENTATION (Already Handles)
+
+Once backend sends `audio_action`, frontend:
+
+1. Detects the `audio_action` field in chat response
+2. Calls `openOriginalsAlbum(album, trackIndex, 'orb')`
+3. Player appears at orb position (40px below TRACE wordmark)
+4. Fetches tracks from Supabase `trace_originals_tracks` table
+5. Streams audio from URLs in that table
+
+---
+
+## OPTIONAL: Spotify Integration
+
+If user has Spotify connected and TRACE wants to suggest Spotify instead:
+
+```json
+{
+  "audio_action": {
+    "type": "open",
+    "source": "spotify",
+    "album": "night_swim",
+    "playlist_uri": "spotify:playlist/..." // Spotify URI
+  }
+}
+```
+
+Frontend will detect `source: 'spotify'` and route to Spotify player instead.
+
+**For v1**: Default to `source: 'originals'` (TRACE Originals). Spotify is optional fallback.
+
+---
+
+## IMPLEMENTATION CHECKLIST
+
+- [ ] Add `audio_action` field to chat response schema
+- [ ] Detect user emotional state from chat messages
+- [ ] Add decision logic for when to recommend music
+- [ ] Implement 2-turn flow (recommend → user agrees → open)
+- [ ] Return `audio_action` with `type: 'open'` after user consent
+- [ ] Test with sample conversation that triggers recommendation
+
+---
+
+## TESTING PROMPT (Dev Only)
+
+For quick testing without going through full conversation:
+
+Add a dev endpoint to backend that returns:
+```
+POST /api/test-audio-action
+```
+
+Response:
+```json
+{
+  "message": "Test message with audio action",
+  "audio_action": {
+    "type": "open",
+    "source": "originals",
+    "album": "night_swim",
+    "track": 0,
+    "autoplay": true
+  }
+}
+```
+
+---
+
+## QUESTIONS FOR CLARIFICATION
+
+1. **Should music be offered to ALL users or only certain tiers?**
+   - v1: Offer to all users (foundational experience)
+
+2. **How often should TRACE recommend music?**
+   - Suggest: Once per session, not every conversation
+
+3. **Should we track which tracks user listens to?**
+   - Future: Yes, for personalization. v1: Just make it available.
+
+4. **Any specific phrases TRACE should use when recommending?**
+   - Suggestion: "I want to share [track] with you" or "Here's something for this moment"
+
+---
+
+## ACCEPTANCE CRITERIA
+
+When integrated:
+
+- [ ] User chats with TRACE about emotional state
+- [ ] TRACE recognizes the need and suggests music (no button, purely conversational)
+- [ ] User agrees (types "yes", "play it", etc.)
+- [ ] Backend sends `audio_action: { type: 'open', ... }`
+- [ ] Frontend detects and opens player at orb position
+- [ ] Player streams first track (Midnight Underwater) from Supabase
+- [ ] User can play/pause/skip through all 7 Night Swim tracks
+- [ ] Spotify remains available as fallback (optional for v1)
+
+---
+
+**Ready to code? Reach out with questions about emotional state detection or recommendation heuristics.**

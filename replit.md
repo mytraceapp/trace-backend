@@ -28,6 +28,8 @@ An Express server acts as a proxy to the OpenAI API, defining the TRACE AI perso
 
 **Spotify Music Integration**: TRACE can suggest Spotify playlists during conversation to be with users through sound. Three playlists available: Ground (anxiety/overwhelm), Drift (tiredness/numbness), Rising (low energy/hopelessness). Uses a two-step flow: TRACE offers first, then launches after user consents. Music is framed relationally ("I can be with you through sound") rather than prescriptively.
 
+**TRACE Originals - Night Swim (January 2026)**: TRACE can offer its own original music - a 7-track ambient album called Night Swim - for late-night emotional support, sleep trouble, and distress. The backend detects emotional state from conversation (`musicRecommendation.js`) and adds `audio_action` to chat responses when appropriate. Uses a 2-turn flow: TRACE offers Night Swim (type: 'recommend'), then after user agrees, opens the player (type: 'open'). Tracks stream from Supabase (`trace_originals_tracks` table). TRACE frames it personally: "I made something called Night Swim for moments like this." Test endpoint: `POST /api/test-audio-action`.
+
 **Contextual Feature Introduction**: Features are introduced through relationship, not explanation. Rather than UI tours or tooltips, TRACE offers features contextually when users need them (e.g., mentioning patterns after 3-4 journal entries, suggesting Dreamscape when user mentions sleep trouble). This creates discovery through care, not instruction.
 
 ### Reliability & Graceful Degradation (January 2026)
