@@ -1,0 +1,258 @@
+ TRACE Recommendation Deduplication - Session Variety
+
+**Status**: ✅ FRONTEND READY  
+**Date**: January 14, 2026
+
+---
+
+## Overview
+
+TRACE now tracks what's been recommended in the current session and can avoid repetition. The frontend maintains a recommendation history, and the backend can use this to ensure variety in suggestions.
+
+---
+
+## How It Works
+
+### Frontend Tracking
+```tsx
+// AudioPlayerContext provides:
+recommendationHistory: (string | number)[]     // Array of recommended track IDs or playlist IDs
+addToRecommendationHistory(id: string | number) // Log a recommendation
+clearRecommendationHistory()                    // Clear history (new session)
+```
+
+When TRACE recommends:
+```
+TRACE: "Let me play Ocean Breathing for you"
+       ↓
+Backend: { audio_action: { type: 'recommend', track: 5 } }
+       ↓
+Frontend: addToRecommendationHistory(5)
+       ↓
+recommendationHistory now = [5]
+```
+
+### Session Deduplication
+
+**In this session, TRACE won't recommend:**
+- Same track twice (e.g., won't suggest track 5 again)
+- Same playlist twice (e.g., won't suggest "workout_vibes" again)
+- Similar emotional journeys back-to-back
+
+---
+
+## Backend Implementation
+
+### Option 1: Frontend Reports History (Simple)
+
+Include `recommendationHistory` in chat request:
+
+```json
+{
+  "message": "I need something calming",
+  "sessionMetadata": {
+    "recommendationHistory": [5, 2],  // Already recommended tracks 5 and 2
+    "sessionDuration": "5m"
+  }
+}
+```
+
+Backend checks history and avoids:
+```python
+RECOMMENDED = [5, 2]
+
+# Pick from available tracks
+available_tracks = [1, 3, 4, 6, 7]  # Exclude 5 and 2
+pick_random = random.choice(available_tracks)
+```
+
+### Option 2: Backend Tracks Session (Recommended)
+
+Keep session state on backend:
+
+```python
+session_recommendations = {
+  "user_123": {
+    "tracks_recommended": [5, 2],
+    "playlists_recommended": [],
+    "start_time": "2026-01-14T10:30:00Z"
+  }
+}
+
+def recommend_track(user_id, mood):
+  recommended = session_recommendations[user_id]["tracks_recommended"]
+  
+  # Pick track that hasn't been recommended
+  available = [t for t in get_tracks_for_mood(mood) if t not in recommended]
+  
+  if not available:
+    # All tracks recommended in session, reset history
+    session_recommendations[user_id]["tracks_recommended"] = []
+    available = get_tracks_for_mood(mood)
+  
+  track = random.choice(available)
+  recommended.append(track)
+  return track
+```
+
+### Option 3: Weighted Randomization (Most Sophisticated)
+
+```python
+def recommend_track(user_id, mood):
+  recommended = session_recommendations[user_id]["tracks_recommended"]
+  available_tracks = get_tracks_for_mood(mood)
+  
+  # Give lower weight to recently recommended tracks
+  weights = {}
+  for track in available_tracks:
+    if track in recommended:
+      weights[track] = 0.2  # 20% chance
+    else:
+      weights[track] = 1.0  # 100% chance (5x more likely)
+  
+  track = weighted_random_choice(available_tracks, weights)
+  return track
+```
+
+---
+
+## Resetting History
+
+History should clear in these situations:
+
+1. **New conversation**: Start fresh when user opens chat
+2. **User leaves chat**: Clear on session logout
+3. **Long session**: Reset after 30+ minutes (let older recommendations cycle back)
+4. **User requests**: If user says "play it again" → bypass history
+
+### Frontend Auto-Reset
+
+```tsx
+// Reset at conversation start
+useEffect(() => {
+  clearRecommendationHistory();
+}, [conversationId]);
+```
+
+---
+
+## Example Conversations
+
+### Session with Deduplication
+
+```
+USER: "I'm anxious"
+TRACE: [Recommends Ocean Breathing - track 5]
+recommendationHistory = [5]
+
+USER: "I'm still worried"
+TRACE: [Picks from available: 1, 2, 3, 4, 6, 7]
+       [Recommends Undertow - track 3]
+recommendationHistory = [5, 3]
+
+USER: "Still struggling"
+TRACE: [Picks from available: 1, 2, 4, 6, 7]
+       [Recommends Midnight Underwater - track 1]
+recommendationHistory = [5, 3, 1]
+
+USER: "Nothing is working"
+TRACE: [Picks from available: 2, 4, 6, 7]
+       [Recommends Euphoria - track 4]
+recommendationHistory = [5, 3, 1, 4]
+```
+
+**Result**: User gets variety, not repetition. Each track addresses anxiety from different angles.
+
+### Without Deduplication (Problem)
+
+```
+USER: "I'm anxious"
+TRACE: [Randomly picks] → Ocean Breathing - track 5
+
+USER: "Still anxious"
+TRACE: [Randomly picks] → Ocean Breathing - track 5  ❌ AGAIN?
+
+USER: "Why same song?"
+TRACE: [Randomly picks] → Ocean Breathing - track 5  ❌ AGAIN??
+```
+
+---
+
+## Track Variety Strategy
+
+**For a balanced session, suggest in this order**:
+
+```
+If user is ANXIOUS:
+  1st → Ocean Breathing (5) - Active tension→release
+  2nd → Undertow (3) - Hypnotic introspection
+  3rd → Midnight Underwater (1) - Deep immersion
+  4th → Neon Promise (7) - Emotional reassurance
+  
+If user is SAD:
+  1st → Neon Promise (7) - Vulnerable companionship
+  2nd → Tidal House (6) - Warm memory/nostalgia
+  3rd → Slow Tides (2) - Contemplative slowness
+  4th → Euphoria (4) - Gentle hope
+```
+
+---
+
+## API Contract
+
+### Request
+```json
+{
+  "message": "can you recommend something to help me sleep?",
+  "sessionMetadata": {
+    "recommendationHistory": [5, 2]
+  }
+}
+```
+
+### Response
+```json
+{
+  "message": "I made Midnight Underwater for the deepest overwhelm...",
+  "audio_action": {
+    "type": "recommend",
+    "source": "originals",
+    "album": "night_swim",
+    "track": 1,
+    "mood": "deep-overwhelm-sleep"
+  }
+}
+```
+
+**Backend ensures**: Track 1 is NOT in `recommendationHistory` [5, 2]
+
+---
+
+## Implementation Checklist
+
+### ✅ Frontend (Complete)
+- [x] Context tracks `recommendationHistory`
+- [x] `addToRecommendationHistory(id)` available
+- [x] `clearRecommendationHistory()` available
+- [x] Chat logs recommendations when detected
+- [x] Full TypeScript support
+
+### ⏳ Backend
+- [ ] Read `recommendationHistory` from frontend (optional)
+- [ ] Maintain session state for each user
+- [ ] When recommending: filter out already-recommended tracks
+- [ ] Reset history appropriately
+- [ ] Log recommendations for analytics
+
+---
+
+## Benefits
+
+✅ **Better UX**: Users get variety, not repetition  
+✅ **Smarter TRACE**: Personality shines through different track perspectives  
+✅ **Session Awareness**: TRACE "remembers" what she offered  
+✅ **Natural Conversations**: Feels like real guidance, not randomness  
+
+---
+
+**Ready for backend integration!** 🎵

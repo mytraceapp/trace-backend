@@ -10,14 +10,31 @@
  */
 
 const NIGHT_SWIM_TRACKS = [
-  'Midnight Underwater',
-  'Slow Tide',
-  'Still Water',
-  'Deep Current',
-  'Moon Pull',
-  'Drift Below',
-  'Surface Light'
+  { number: 1, name: 'Midnight Underwater', bpm: 76, moods: ['overwhelm', 'surrender', 'deep', 'insomnia', 'exhaustion', 'sleep'] },
+  { number: 2, name: 'Slow Tides Over Glass', bpm: 80, moods: ['contemplation', 'stillness', 'slowing', 'pause', 'calm'] },
+  { number: 3, name: 'Undertow', bpm: 100, moods: ['pensive', 'introspection', 'late-night', 'hypnotic', 'processing'] },
+  { number: 4, name: 'Euphoria', bpm: 102, moods: ['hope', 'uplifting', 'transition', 'relief', 'better'] },
+  { number: 5, name: 'Ocean Breathing', bpm: 104, moods: ['anxiety', 'tension', 'release', 'processing', 'nervous', 'panic'] },
+  { number: 6, name: 'Tidal House', bpm: 104, moods: ['nostalgia', 'warmth', 'healing', 'memory', 'comfort', 'childhood'] },
+  { number: 7, name: 'Neon Promise', bpm: 104, moods: ['longing', 'vulnerability', 'reassurance', 'relationship', 'miss', 'love'] }
 ];
+
+const TRACK_NAME_ALIASES = {
+  'midnight underwater': 1,
+  'slow tides over glass': 2,
+  'slow tides': 2,
+  'undertow': 3,
+  'midnight undertow': 3,
+  'euphoria': 4,
+  'calm euphoria': 4,
+  'ocean breathing': 5,
+  'tidal house': 6,
+  'tidal memory glow': 6,
+  'tidal memory': 6,
+  'neon promise': 7
+};
+
+const sessionRecommendationHistory = new Map();
 
 const EMOTIONAL_KEYWORDS = {
   distress: [
@@ -274,6 +291,162 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+/**
+ * Detect if user is requesting a specific track by name
+ * @param {string} message - User's message
+ * @returns {Object|null} Track info or null
+ */
+function detectSpecificTrackRequest(message) {
+  if (!message) return null;
+  
+  const lowerMsg = message.toLowerCase();
+  
+  // Check for direct track name mentions
+  for (const [alias, trackNumber] of Object.entries(TRACK_NAME_ALIASES)) {
+    if (lowerMsg.includes(alias)) {
+      const track = NIGHT_SWIM_TRACKS.find(t => t.number === trackNumber);
+      console.log(`[TRACK DETECT] Found specific track request: "${alias}" → Track ${trackNumber} (${track?.name})`);
+      return {
+        trackNumber,
+        trackName: track?.name || alias,
+        matchedAlias: alias
+      };
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Get recommended track based on emotional state, avoiding already-recommended tracks
+ * @param {string} mood - Detected mood/emotion
+ * @param {string} userId - User ID for session tracking
+ * @param {number[]} excludeTracks - Tracks to exclude from recommendations
+ * @returns {number} Track number (1-7)
+ */
+function getTrackForMood(mood, userId = null, excludeTracks = []) {
+  const moodLower = (mood || '').toLowerCase();
+  
+  // Get session history if userId provided
+  let sessionExcludes = [...excludeTracks];
+  if (userId && sessionRecommendationHistory.has(userId)) {
+    const history = sessionRecommendationHistory.get(userId);
+    sessionExcludes = [...new Set([...sessionExcludes, ...history.tracks])];
+  }
+  
+  // Score tracks by mood match
+  const matches = [];
+  for (const track of NIGHT_SWIM_TRACKS) {
+    if (sessionExcludes.includes(track.number)) continue;
+    
+    let score = 0;
+    for (const trackMood of track.moods) {
+      if (moodLower.includes(trackMood) || trackMood.includes(moodLower)) {
+        score += 2;
+      }
+    }
+    
+    if (score > 0) {
+      matches.push({ track: track.number, score, name: track.name });
+    }
+  }
+  
+  if (matches.length > 0) {
+    matches.sort((a, b) => b.score - a.score);
+    console.log(`[TRACK SELECT] Mood "${mood}" matched: ${matches.map(m => `${m.name}(${m.score})`).join(', ')}`);
+    return matches[0].track;
+  }
+  
+  // Fallback: pick random from available
+  const available = NIGHT_SWIM_TRACKS
+    .map(t => t.number)
+    .filter(n => !sessionExcludes.includes(n));
+  
+  if (available.length === 0) {
+    // All tracks used, reset history
+    console.log('[TRACK SELECT] All tracks recommended, resetting session history');
+    if (userId) clearSessionHistory(userId);
+    return Math.floor(Math.random() * 7) + 1;
+  }
+  
+  const picked = available[Math.floor(Math.random() * available.length)];
+  console.log(`[TRACK SELECT] No mood match, random pick: Track ${picked}`);
+  return picked;
+}
+
+/**
+ * Add a track to session recommendation history
+ * @param {string} userId - User ID
+ * @param {number} trackNumber - Track number that was recommended
+ */
+function addToSessionHistory(userId, trackNumber) {
+  if (!userId) return;
+  
+  const now = Date.now();
+  const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+  
+  if (!sessionRecommendationHistory.has(userId)) {
+    sessionRecommendationHistory.set(userId, {
+      tracks: [],
+      startTime: now
+    });
+  }
+  
+  const history = sessionRecommendationHistory.get(userId);
+  
+  // Check if session expired
+  if (now - history.startTime > SESSION_TIMEOUT_MS) {
+    console.log(`[SESSION] Session expired for ${userId.substring(0, 8)}..., resetting history`);
+    history.tracks = [];
+    history.startTime = now;
+  }
+  
+  if (!history.tracks.includes(trackNumber)) {
+    history.tracks.push(trackNumber);
+    console.log(`[SESSION] Added track ${trackNumber} to history for ${userId.substring(0, 8)}...: [${history.tracks.join(', ')}]`);
+  }
+}
+
+/**
+ * Get session recommendation history for a user
+ * @param {string} userId - User ID
+ * @returns {number[]} Array of recommended track numbers
+ */
+function getSessionHistory(userId) {
+  if (!userId || !sessionRecommendationHistory.has(userId)) return [];
+  
+  const history = sessionRecommendationHistory.get(userId);
+  const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+  
+  // Check if session expired
+  if (Date.now() - history.startTime > SESSION_TIMEOUT_MS) {
+    clearSessionHistory(userId);
+    return [];
+  }
+  
+  return history.tracks || [];
+}
+
+/**
+ * Clear session recommendation history for a user
+ * @param {string} userId - User ID
+ */
+function clearSessionHistory(userId) {
+  if (userId) {
+    sessionRecommendationHistory.delete(userId);
+    console.log(`[SESSION] Cleared history for ${userId.substring(0, 8)}...`);
+  }
+}
+
+/**
+ * Get track info by number
+ * @param {number} trackNumber - Track number (1-7)
+ * @returns {Object|null} Track info
+ */
+function getTrackInfo(trackNumber) {
+  return NIGHT_SWIM_TRACKS.find(t => t.number === trackNumber) || null;
+}
+
 module.exports = {
   detectEmotionalState,
   isUserAgreeing,
@@ -284,5 +457,12 @@ module.exports = {
   getNightSwimPlayPhrases,
   pickRandom,
   NIGHT_SWIM_TRACKS,
-  parseTimeHour
+  TRACK_NAME_ALIASES,
+  parseTimeHour,
+  detectSpecificTrackRequest,
+  getTrackForMood,
+  addToSessionHistory,
+  getSessionHistory,
+  clearSessionHistory,
+  getTrackInfo
 };

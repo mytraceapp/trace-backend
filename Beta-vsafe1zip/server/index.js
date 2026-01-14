@@ -69,7 +69,12 @@ const {
   isUserDeclining,
   shouldRecommendMusic,
   buildAudioAction,
-  parseTimeHour
+  parseTimeHour,
+  detectSpecificTrackRequest,
+  getTrackForMood,
+  addToSessionHistory,
+  getSessionHistory,
+  getTrackInfo
 } = require('./musicRecommendation');
 
 /**
@@ -3803,41 +3808,83 @@ Your response:`;
       userMsgLower.includes('open')
     );
     
+    // Check for specific track requests (e.g., "play Neon Promise", "play Ocean Breathing")
+    const specificTrackRequest = detectSpecificTrackRequest(lastUserMsgForAudio);
+    
+    // Get session history for deduplication
+    const sessionHistory = getSessionHistory(effectiveUserId);
+    
     // DEBUG LOGGING for audio_action detection
     console.log('[TRACE AUDIO DEBUG] lastUserMsgForAudio:', lastUserMsgForAudio?.substring(0, 100));
     console.log('[TRACE AUDIO DEBUG] userRequestsNightSwim:', userRequestsNightSwim);
+    console.log('[TRACE AUDIO DEBUG] specificTrackRequest:', specificTrackRequest);
+    console.log('[TRACE AUDIO DEBUG] sessionHistory:', sessionHistory);
     console.log('[TRACE AUDIO DEBUG] isNightSwimOffer:', isNightSwimOffer);
     console.log('[TRACE AUDIO DEBUG] immediateNightSwimOffer:', immediateNightSwimOffer);
     
-    if (userRequestsNightSwim) {
-      // User directly requested Night Swim - open the player immediately
+    if (specificTrackRequest) {
+      // User requested a specific track by name (e.g., "play Neon Promise")
+      const trackNum = specificTrackRequest.trackNumber;
+      // Convert to 0-based index for frontend (track 1 → index 0)
       audioAction = buildAudioAction('open', {
         source: 'originals',
         album: 'night_swim',
-        track: 0,
+        track: trackNum - 1,
         autoplay: true
       });
-      console.log('[TRACE ORIGINALS] User directly requested Night Swim, opening player');
+      addToSessionHistory(effectiveUserId, trackNum);
+      console.log(`[TRACE ORIGINALS] Specific track requested: ${specificTrackRequest.trackName} (Track ${trackNum}, index ${trackNum - 1})`);
+    } else if (userRequestsNightSwim) {
+      // User requested Night Swim album - pick track based on mood or session variety
+      const emotionalState = detectEmotionalState(lastUserMsgForAudio);
+      const mood = emotionalState.categories[0] || 'calm';
+      const trackNum = getTrackForMood(mood, effectiveUserId, sessionHistory);
+      
+      // Convert to 0-based index for frontend (track 1 → index 0)
+      audioAction = buildAudioAction('open', {
+        source: 'originals',
+        album: 'night_swim',
+        track: trackNum - 1,
+        autoplay: true
+      });
+      addToSessionHistory(effectiveUserId, trackNum);
+      const trackInfo = getTrackInfo(trackNum);
+      console.log(`[TRACE ORIGINALS] Night Swim requested, playing Track ${trackNum}: ${trackInfo?.name || 'Unknown'} (index ${trackNum - 1})`);
     } else if (isNightSwimOffer) {
-      // TRACE is offering Night Swim - add recommend action with full metadata
+      // TRACE is offering Night Swim - pick track based on emotional context
+      const emotionalState = detectEmotionalState(lastUserMsgForAudio);
+      const mood = emotionalState.categories[0] || 'calm';
+      const trackNum = getTrackForMood(mood, effectiveUserId, sessionHistory);
+      
+      // Convert to 0-based index for frontend (track 1 → index 0)
       audioAction = buildAudioAction('recommend', {
         source: 'originals',
         album: 'night_swim',
-        track: 0,
+        track: trackNum - 1,
         autoplay: false
       });
-      console.log('[TRACE ORIGINALS] Night Swim offered in response');
+      // Record recommendation in session history to avoid repeating same track
+      addToSessionHistory(effectiveUserId, trackNum);
+      const trackInfo = getTrackInfo(trackNum);
+      console.log(`[TRACE ORIGINALS] Night Swim offered, recommending Track ${trackNum}: ${trackInfo?.name || 'Unknown'} (index ${trackNum - 1})`);
     } else if (immediateNightSwimOffer) {
       // Check user's response to the immediate offer
       if (isUserAgreeing(lastUserMsgForAudio)) {
-        // User agreed - open the player
+        // User agreed - pick track based on mood and session history
+        const emotionalState = detectEmotionalState(lastUserMsgForAudio);
+        const mood = emotionalState.categories[0] || 'calm';
+        const trackNum = getTrackForMood(mood, effectiveUserId, sessionHistory);
+        
+        // Convert to 0-based index for frontend (track 1 → index 0)
         audioAction = buildAudioAction('open', {
           source: 'originals',
           album: 'night_swim',
-          track: 0,
+          track: trackNum - 1,
           autoplay: true
         });
-        console.log('[TRACE ORIGINALS] User agreed to Night Swim, opening player');
+        addToSessionHistory(effectiveUserId, trackNum);
+        const trackInfo = getTrackInfo(trackNum);
+        console.log(`[TRACE ORIGINALS] User agreed, playing Track ${trackNum}: ${trackInfo?.name || 'Unknown'} (index ${trackNum - 1})`);
       } else if (isUserDeclining(lastUserMsgForAudio)) {
         // User declined - clear the pending offer (no audio_action)
         console.log('[TRACE ORIGINALS] User declined Night Swim offer');
