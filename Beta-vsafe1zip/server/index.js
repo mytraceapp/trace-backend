@@ -3791,7 +3791,28 @@ Your response:`;
       m.content?.toLowerCase().includes('night swim')
     );
     
-    if (isNightSwimOffer) {
+    // Check if user is directly requesting Night Swim (e.g., "play night swim", "can you play night swim?")
+    const userMsgLower = lastUserMsgForAudio.toLowerCase();
+    const userRequestsNightSwim = userMsgLower.includes('night swim') && (
+      userMsgLower.includes('play') ||
+      userMsgLower.includes('put on') ||
+      userMsgLower.includes('want to hear') ||
+      userMsgLower.includes('want to listen') ||
+      userMsgLower.includes('can you play') ||
+      userMsgLower.includes('start') ||
+      userMsgLower.includes('open')
+    );
+    
+    if (userRequestsNightSwim) {
+      // User directly requested Night Swim - open the player immediately
+      audioAction = buildAudioAction('open', {
+        source: 'originals',
+        album: 'night_swim',
+        track: 0,
+        autoplay: true
+      });
+      console.log('[TRACE ORIGINALS] User directly requested Night Swim, opening player');
+    } else if (isNightSwimOffer) {
       // TRACE is offering Night Swim - add recommend action with full metadata
       audioAction = buildAudioAction('recommend', {
         source: 'originals',
