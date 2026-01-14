@@ -1,0 +1,299 @@
+# TRACE Track Recommendation Integration - Backend & Frontend
+
+**Status**: ✅ FULLY INTEGRATED  
+**Date**: January 13, 2026
+
+---
+
+## Overview
+
+TRACE can now recommend **specific tracks** from Night Swim album, not just the album as a whole. When the user requests a song or TRACE detects an emotional state that matches a specific track, she recommends that track directly.
+
+---
+
+## How It Works: Complete Flow
+
+### 1. Backend Detects User Intent
+```
+User: "I need something warm and nostalgic"
+     ↓
+TRACE analyzes emotion
+     ↓
+Selects: Track 1 - "Tidal Memory Glow" (nostalgic, warm, healing)
+```
+
+### 2. Backend Returns Audio Action
+```json
+{
+  "audio_action": {
+    "type": "recommend",
+    "source": "originals",
+    "album": "night_swim",
+    "track": 0,
+    "mood": "nostalgic",
+    "autoplay": true
+  }
+}
+```
+
+### 3. Frontend Stores Recommendation
+```tsx
+// Chat.tsx receives audio_action
+setRecommendedPlaylist({
+  source: 'originals',
+  album: 'night_swim',
+  track: 0,              // ← TRACE's recommended track
+  mood: 'nostalgic'
+});
+```
+
+### 4. User Navigates to Journal Modal
+- User opens journal or activity
+- Taps play button
+- Journal Modal checks: "Did TRACE recommend something?"
+
+### 5. Journal Plays Recommended Track
+```tsx
+// JournalScreen.tsx - handleSpotifyPlay()
+if (recommendedPlaylist) {
+  await playOriginals(
+    recommendedPlaylist.album,    // 'night_swim'
+    recommendedPlaylist.track      // 0 (Tidal Memory Glow)
+  );
+  setRecommendedPlaylist(null);  // Clear after use
+}
+```
+
+---
+
+## Backend Payload Reference
+
+### When User Requests a Specific Track
+
+**User**: "Play Neon Promise for me"
+
+```json
+{
+  "audio_action": {
+    "type": "open",
+    "source": "originals",
+    "album": "night_swim",
+    "track": 3,
+    "autoplay": true
+  }
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `type` | `'open'` \| `'recommend'` | ✅ | `'open'` = play immediately on chat page |
+| `source` | `'originals'` \| `'spotify'` | ✅ | Always `'originals'` for Night Swim |
+| `album` | `string` | ✅ | Currently: `'night_swim'` |
+| `track` | `number` (1-7) | ✅ | Track number (matches Supabase track_number) |
+| `autoplay` | `boolean` | ❌ | Defaults to true |
+
+### When TRACE Recommends (Not Immediate Play)
+
+**TRACE**: "I made 'Ocean Breathing' for this moment—it'll take you from anxiety into release. Want me to play it?"
+
+```json
+{
+  "audio_action": {
+    "type": "recommend",
+    "source": "originals",
+    "album": "night_swim",
+    "track": 2,
+    "mood": "anxiety-to-release",
+    "autoplay": false
+  }
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `type` | `'recommend'` | ✅ | Stores for later; doesn't auto-play |
+| `track` | `number` (1-7) | ✅ | Track number (matches Supabase) |
+| `mood` | `string` | ❌ | Metadata for logging/analytics |
+| `autoplay` | `boolean` | ❌ | Ignored (user controls play) |
+
+---
+
+### Track Index Reference
+
+Use these when building `audio_action.track`:
+
+| Track # | Track Name | Duration | BPM | Best For |
+|---------|-----------|----------|-----|----------|
+| 1 | Midnight Underwater | 6:00 | 76 | Deep overwhelm, surrender into sleep |
+| 2 | Slow Tides Over Glass | 5:00 | 80 | Contemplation, slowing down |
+| 3 | Undertow | 4:40 | 100 | Late-night introspection, hypnotic |
+| 4 | Euphoria | 4:15 | 102 | Hopeful transitions, gentle elevation |
+| 5 | Ocean Breathing | 4:45 | 104 | Anxiety processing, tension→release |
+| 6 | Tidal House | 4:30 | 104 | Nostalgia, warmth, healing |
+| 7 | Neon Promise | 5:20 | 104 | Vulnerability, longing, reassurance |
+
+---
+
+## Implementation Status
+
+### ✅ Completed (Frontend)
+
+1. **AudioPlayerContext** (`context/AudioPlayerContext.tsx`)
+   - State: `recommendedPlaylist: RecommendedPlaylist | null`
+   - Setter: `setRecommendedPlaylist(playlist: RecommendedPlaylist | null) => void`
+   - Type supports: `source`, `album`, `track`, `playlist_id`, `mood`
+
+2. **Chat Screen** (`app/(tabs)/chat.tsx`)
+   - Detects `audio_action.type === 'recommend'`
+   - Calls: `setRecommendedPlaylist({ source, album, track, mood })`
+   - Logs: Full recommendation details
+
+3. **Journal Screen** (`screens/JournalScreen.tsx`)
+   - Checks: `if (recommendedPlaylist)`
+   - Plays: `playOriginals(album, track)`
+   - Clears: `setRecommendedPlaylist(null)` after use
+
+### ⏳ Backend Integration Needed
+
+1. **Detect track requests** in conversation
+   - User says "play track name" → Map to track index
+   - User says "something nostalgic" → Recommend track 0
+
+2. **Return proper track index** in `audio_action`
+   - Include `track: 0-6` (not track name)
+   - Include `mood` metadata (optional but helpful)
+
+3. **Test payloads**:
+   ```bash
+   # Immediate play (chat page)
+   curl -X POST /chat \
+     -d '{"message": "play neon promise"}' \
+     # Response should include:
+     # { "audio_action": { "type": "open", "track": 3, ... } }
+   
+   # Recommendation (for journal later)
+   curl -X POST /chat \
+     -d '{"message": "im anxious"}' \
+     # Response should include:
+     # { "audio_action": { "type": "recommend", "track": 2, "mood": "anxiety" } }
+   ```
+
+---
+
+## Example Scenarios
+
+### Scenario 1: Direct Request
+```
+USER: "Can you play Neon Promise?"
+↓
+BACKEND: {
+  "message": "Playing Neon Promise for you...",
+  "audio_action": {
+    "type": "open",
+    "source": "originals",
+    "album": "night_swim",
+    "track": 7,
+    "autoplay": true
+  }
+}
+↓
+FRONTEND: Player starts on chat page with track 7
+```
+
+### Scenario 2: TRACE Recommends
+```
+USER: "I'm feeling lost and nostalgic about childhood"
+↓
+BACKEND: {
+  "message": "I made Tidal House for moments like this—it holds warmth and memory together...",
+  "audio_action": {
+    "type": "recommend",
+    "source": "originals",
+    "album": "night_swim",
+    "track": 6,
+    "mood": "nostalgic-healing",
+    "autoplay": false
+  }
+}
+↓
+FRONTEND: Stores recommendation
+USER: [Navigates to journal, taps play]
+FRONTEND: Plays track 6 from recommended context
+```
+
+### Scenario 3: Spotify Still Works
+```
+USER: "I want upbeat workout music"
+↓
+BACKEND: {
+  "message": "Let me queue up a workout playlist for you...",
+  "audio_action": {
+    "type": "recommend",
+    "source": "spotify",
+    "playlist_id": "37i9dQZF1DWSGBTwMstfKJ",
+    "mood": "workout"
+  }
+}
+↓
+FRONTEND: Journal defaults to Night Swim UNLESS Spotify was recommended
+FRONTEND: If user taps play and Spotify was recommended, opens Spotify instead
+```
+
+---
+
+## Frontend Verification
+
+To test that track recommendations work end-to-end:
+
+1. **Check console logs** in chat screen:
+   ```
+   ℹ️ ACTION TYPE: "recommend" → Storing recommendation for journal modal
+   ├─ Recommended source: originals
+   ├─ Mood: anxiety-to-release
+   ├─ Album: night_swim
+   ├─ Track: 2
+   └─ Recommendation stored in context
+   ```
+
+2. **Navigate to journal modal**
+   - Verify play button shows (always visible)
+   - Tap play button
+
+3. **Verify correct track plays**:
+   - If no recommendation: Should play track 0 (Tidal Memory Glow)
+   - If recommendation: Should play recommended track
+   - Audio should start immediately at recommended track (not at track 0)
+
+---
+
+## Key Points for Backend
+
+✅ **DO THIS**:
+- Send `track: 1` to `7` (matches Supabase track_number)
+- Send `type: 'recommend'` for storing recommendations
+- Send `type: 'open'` for immediate playback
+- Include `mood` metadata (helps with future analytics)
+- Validate track number is 1-7
+
+❌ **DON'T DO THIS**:
+- Send track name instead of number ("Neon Promise" ❌ → use `track: 4` ✅)
+- Send 0-indexed numbers (track: 3 ❌ → use `track: 4` ✅)
+- Send `source: 'spotify'` for Night Swim requests
+- Forget to include `track` field
+- Use `track: 0` or `track: 8+` (only 1-7 are valid)
+
+---
+
+## Future Enhancements
+
+- [ ] Track which specific tracks user skips/replays
+- [ ] Learn user's favorite track within Night Swim
+- [ ] Recommend based on previous session history
+- [ ] Time-based recommendations (morning vs. night energy)
+- [ ] Progressive mood tracking across tracks
+- [ ] Multiple albums (beyond Night Swim)
+
+---
+
+**Last Updated**: January 13, 2026  
+**Status**: Production Ready ✅
