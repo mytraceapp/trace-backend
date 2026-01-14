@@ -1,0 +1,142 @@
+# TRACE Backend Update: Correct Track Names & Behavior
+
+## URGENT: Track Name Mismatch
+
+The frontend is receiving tracks with incorrect names. Update your music database immediately.
+
+---
+
+## CORRECT TRACK LIST (Night Swim Album)
+
+Replace your existing track data with this:
+
+| Track # | Correct Name | Duration | BPM | Current Name (WRONG) |
+|---------|------------|----------|-----|-----|
+| 1 | Midnight Underwater | 6:00 | 76 | Tidal Memory Glow ❌ |
+| 2 | Slow Tides Over Glass | 5:00 | 80 | Calm Euphoria ❌ |
+| 3 | Undertow | 4:40 | 100 | Ocean Breathing ❌ |
+| 4 | Euphoria | 4:15 | 102 | Neon Promise ❌ |
+| 5 | Ocean Breathing | 4:45 | 104 | Slow Tides ❌ |
+| 6 | Tidal House | 4:30 | 104 | Midnight Underwater ❌ |
+| 7 | Neon Promise | 5:20 | 104 | Midnight Undertow ❌ |
+
+---
+
+## Backend Update Instructions
+
+### 1. Update Your Music Data/Database
+
+Find where you store track metadata and update ALL track titles to match the "Correct Name" column above.
+
+Example if using JSON:
+```json
+{
+  "album": "night_swim",
+  "tracks": [
+    {
+      "track": 1,
+      "title": "Midnight Underwater",
+      "duration": "6:00",
+      "bpm": 76
+    },
+    {
+      "track": 2,
+      "title": "Slow Tides Over Glass",
+      "duration": "5:00",
+      "bpm": 80
+    },
+    {
+      "track": 3,
+      "title": "Undertow",
+      "duration": "4:40",
+      "bpm": 100
+    },
+    {
+      "track": 4,
+      "title": "Euphoria",
+      "duration": "4:15",
+      "bpm": 102
+    },
+    {
+      "track": 5,
+      "title": "Ocean Breathing",
+      "duration": "4:45",
+      "bpm": 104
+    },
+    {
+      "track": 6,
+      "title": "Tidal House",
+      "duration": "4:30",
+      "bpm": 104
+    },
+    {
+      "track": 7,
+      "title": "Neon Promise",
+      "duration": "5:20",
+      "bpm": 104
+    }
+  ]
+}
+```
+
+### 2. Fix TRACE's Behavior (System Prompt Update)
+
+**Current behavior**: TRACE describes the track mood/tone every time
+**Desired behavior**: TRACE plays it naturally. Only describe when user asks.
+
+**Update your system prompt**:
+
+```
+When user asks to play a song:
+- JUST PLAY IT
+- Don't describe the mood/tone unless explicitly asked
+- Keep response natural and brief
+
+Example:
+
+USER: "Play Neon Promise"
+TRACE: "Playing it now." 
+❌ WRONG: "Neon Promise is about showing up completely, even when things feel uncertain..."
+
+USER: "What's Neon Promise about?"
+TRACE: "It's about showing up completely, even when things are uncertain..."
+✅ RIGHT: Now you can describe it because they asked
+
+---
+
+When recommending (TRACE initiates):
+- Brief introduction
+- Play it
+- Let the music speak for itself
+
+Example:
+TRACE: "I made something for this moment. Let me play it."
+[Starts track]
+```
+
+---
+
+## Summary of Changes
+
+✅ Fix 7 track titles (all currently wrong)  
+✅ Update system prompt to be more natural  
+✅ Only describe tracks when user asks  
+✅ Keep recommendations brief and trust the music
+
+---
+
+## Testing
+
+After updating:
+
+1. User: "Play Euphoria"
+   - Frontend should display: "Euphoria" (not wrong name)
+   - TRACE should just play it (not describe unless asked)
+
+2. User: "Tell me about Neon Promise"
+   - TRACE can describe the mood and meaning
+
+3. TRACE recommends: "Let me play Ocean Breathing for you"
+   - No extra description
+   - Just natural companionship
+
