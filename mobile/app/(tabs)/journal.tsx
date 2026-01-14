@@ -1,17 +1,28 @@
-import { useCallback } from 'react';
-import { View, Text, StyleSheet, useColorScheme, Platform, Pressable } from 'react-native';
+import { useCallback, useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, useColorScheme, Platform, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/colors';
 import { Spacing } from '../../constants/spacing';
 import { ScreenTitle, BodyText, FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { useFonts } from 'expo-font';
-import { playAmbient } from '../../lib/ambientAudio';
+import { playAmbient, stopAmbient } from '../../lib/ambientAudio';
+import { Audio } from 'expo-av';
+import { supabase } from '../../lib/supabaseClient';
+
+interface NightSwimTrack {
+  id: string;
+  title: string;
+  track_number: number;
+  duration_seconds: number;
+  audio_url: string;
+}
 
 export default function JournalScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const theme = colorScheme === 'dark' ? Colors.night : Colors.day;
@@ -21,15 +32,204 @@ export default function JournalScreen() {
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
   });
 
+  const [showNightSwim, setShowNightSwim] = useState(false);
+  const [tracks, setTracks] = useState<NightSwimTrack[]>([]);
+  const [currentTrack, setCurrentTrack] = useState<number>(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const soundRef = useRef<Audio.Sound | null>(null);
+
   useFocusEffect(
     useCallback(() => {
-      playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
-    }, [])
+      if (!showNightSwim) {
+        playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
+      }
+      
+      return () => {
+        if (soundRef.current) {
+          soundRef.current.unloadAsync();
+          soundRef.current = null;
+        }
+      };
+    }, [showNightSwim])
   );
+
+  useEffect(() => {
+    if (params.openNightSwim === 'true') {
+      console.log('🎵 Night Swim triggered from chat');
+      setShowNightSwim(true);
+      stopAmbient();
+      loadNightSwimTracks();
+      
+      if (params.autoplay === 'true') {
+        const trackNum = parseInt(params.track as string) || 0;
+        setCurrentTrack(trackNum);
+      }
+    }
+  }, [params.openNightSwim, params.autoplay, params.track]);
+
+  const loadNightSwimTracks = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('trace_originals_tracks')
+        .select('*')
+        .eq('album', 'night_swim')
+        .order('track_number', { ascending: true });
+
+      if (error) {
+        console.error('Error loading Night Swim tracks:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        setTracks(data);
+        console.log('🎵 Loaded Night Swim tracks:', data.length);
+        
+        if (params.autoplay === 'true') {
+          const trackNum = parseInt(params.track as string) || 0;
+          playTrack(data[trackNum] || data[0]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load Night Swim tracks:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const playTrack = async (track: NightSwimTrack) => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+
+      setIsLoading(true);
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: track.audio_url },
+        { shouldPlay: true, volume: 0.8 }
+      );
+      
+      soundRef.current = sound;
+      setIsPlaying(true);
+      setCurrentTrack(track.track_number - 1);
+      
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setIsPlaying(false);
+          const nextTrack = tracks[(track.track_number) % tracks.length];
+          if (nextTrack) {
+            playTrack(nextTrack);
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Error playing track:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const togglePlayPause = async () => {
+    if (!soundRef.current) {
+      if (tracks.length > 0) {
+        playTrack(tracks[currentTrack]);
+      }
+      return;
+    }
+
+    const status = await soundRef.current.getStatusAsync();
+    if (status.isLoaded) {
+      if (status.isPlaying) {
+        await soundRef.current.pauseAsync();
+        setIsPlaying(false);
+      } else {
+        await soundRef.current.playAsync();
+        setIsPlaying(true);
+      }
+    }
+  };
+
+  const closeNightSwim = async () => {
+    if (soundRef.current) {
+      await soundRef.current.unloadAsync();
+      soundRef.current = null;
+    }
+    setShowNightSwim(false);
+    setIsPlaying(false);
+    playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
+  };
 
   const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
+
+  if (showNightSwim) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#1a1a2e', '#16213e', '#0f0f23']}
+          locations={[0, 0.5, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+
+        <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
+          <Pressable onPress={closeNightSwim}>
+            <Text style={[styles.closeButton, { fontFamily: canelaFont }]}>Close</Text>
+          </Pressable>
+        </View>
+
+        <View style={[styles.playerContent, { paddingTop: insets.top + 80 }]}>
+          <View style={styles.albumArt}>
+            <Text style={styles.albumEmoji}>🌊</Text>
+          </View>
+          
+          <Text style={[styles.albumTitle, { fontFamily: canelaFont }]}>Night Swim</Text>
+          <Text style={[styles.artistName, { fontFamily: canelaFont }]}>TRACE Originals</Text>
+          
+          {tracks.length > 0 && (
+            <Text style={[styles.trackName, { fontFamily: canelaFont }]}>
+              {tracks[currentTrack]?.title || 'Loading...'}
+            </Text>
+          )}
+
+          <View style={styles.controls}>
+            {isLoading ? (
+              <ActivityIndicator size="large" color="#ffffff" />
+            ) : (
+              <Pressable onPress={togglePlayPause} style={styles.playButton}>
+                <Text style={styles.playIcon}>{isPlaying ? '⏸' : '▶️'}</Text>
+              </Pressable>
+            )}
+          </View>
+
+          <View style={styles.trackList}>
+            {tracks.map((track, index) => (
+              <Pressable 
+                key={track.id} 
+                onPress={() => playTrack(track)}
+                style={[
+                  styles.trackItem,
+                  currentTrack === index && styles.trackItemActive
+                ]}
+              >
+                <Text style={[
+                  styles.trackItemText, 
+                  { fontFamily: canelaFont },
+                  currentTrack === index && styles.trackItemTextActive
+                ]}>
+                  {track.track_number}. {track.title}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -84,6 +284,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     ...Shadows.traceWordmark,
   },
+  closeButton: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.7)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
   content: {
     flex: 1,
     alignItems: 'center',
@@ -103,11 +309,76 @@ const styles = StyleSheet.create({
     letterSpacing: ScreenTitle.letterSpacing,
   },
   subtitle: {
-    fontSize: 14,
-    fontWeight: BodyText.fontWeight,
-    color: Colors.day.textSecondary,
-    letterSpacing: BodyText.letterSpacing,
-    textAlign: 'center',
-    marginTop: 4.3,
+    fontSize: BodyText.fontSize,
+    color: BodyText.color,
+    opacity: 0.7,
+    lineHeight: 22,
+  },
+  playerContent: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.screenPadding,
+  },
+  albumArt: {
+    width: 200,
+    height: 200,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  albumEmoji: {
+    fontSize: 80,
+  },
+  albumTitle: {
+    fontSize: 28,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  artistName: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: 8,
+  },
+  trackName: {
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 24,
+  },
+  controls: {
+    marginBottom: 32,
+  },
+  playButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playIcon: {
+    fontSize: 32,
+  },
+  trackList: {
+    width: '100%',
+    paddingHorizontal: 16,
+  },
+  trackItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  trackItemActive: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  trackItemText: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  trackItemTextActive: {
+    color: '#ffffff',
   },
 });

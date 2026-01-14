@@ -493,6 +493,26 @@ export default function ChatScreen() {
           console.warn('🧭 TRACE unknown activity route:', suggestion.name);
         }
       }
+      
+      // Handle TRACE Originals audio_action (Night Swim)
+      const audioAction = result?.audio_action;
+      if (audioAction?.type === 'open') {
+        console.log('🎵 TRACE Originals audio_action: open', audioAction);
+        // Navigate to journal with param to trigger Night Swim player
+        setTimeout(() => {
+          router.push({
+            pathname: '/(tabs)/journal' as any,
+            params: { 
+              openNightSwim: 'true',
+              autoplay: audioAction.autoplay ? 'true' : 'false',
+              track: String(audioAction.track || 0)
+            }
+          });
+        }, 800);
+      } else if (audioAction?.type === 'recommend') {
+        // TRACE is offering Night Swim - just log for now, player opens on user agreement
+        console.log('🎵 TRACE Originals audio_action: recommend (waiting for user agreement)');
+      }
     } catch (err: any) {
       console.error('❌ TRACE handleSend error:', err.message || String(err));
     } finally {
