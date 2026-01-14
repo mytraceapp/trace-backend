@@ -1,0 +1,322 @@
+# Replit Backend: Audio Action Integration Prompt
+
+**From**: Mobile Frontend Team  
+**To**: Replit Backend Team  
+**Date**: January 13, 2026  
+**Priority**: HIGH - Required for music player to work correctly  
+
+---
+
+## Summary
+
+Currently, when users request Night Swim or TRACE recommends Night Swim, the backend returns `source: 'spotify'` which routes the user to Spotify. **This is incorrect.** Night Swim should return `source: 'originals'` so the player spawns directly on the chat page using our custom Originals audio player.
+
+This prompt fixes that and implements the complete audio_action response format.
+
+---
+
+## What Needs to Change
+
+### 1. Response Format
+
+Update your chat endpoint (`/api/chat` or equivalent) to include an `audio_action` field:
+
+**Current** (WRONG):
+```json
+{
+  "message": "I made Night Swim for you.",
+  "activity_suggestion": { ... }
+}
+```
+
+**New** (CORRECT):
+```json
+{
+  "message": "I made Night Swim for you.",
+  "audio_action": {
+    "type": "open",
+    "source": "originals",
+    "album": "night_swim",
+    "track": 0,
+    "autoplay": true
+  },
+  "activity_suggestion": { ... }
+}
+```
+
+---
+
+## Three Trigger Paths
+
+Implement these three scenarios:
+
+### Path 1: Direct Request
+**User**: "play night swim"  
+**TRACE**: Immediately offers music
+
+**Response**:
+```json
+{
+  "message": "Here—",
+  "audio_action": {
+    "type": "open",
+    "source": "originals",
+    "album": "night_swim",
+    "track": 0,
+    "autoplay": true
+  }
+}
+```
+
+**Frontend action**: Player opens at orb position on chat screen, starts playing  
+**User experience**: Music starts right away ✅
+
+---
+
+### Path 2: Emotional State Offer (2-Turn)
+**Scenario**: TRACE detects emotional distress or late-night activity
+
+**Turn 1 - TRACE Offers**:
+```json
+{
+  "message": "I made something called Night Swim for moments like this. Want me to play it?",
+  "audio_action": {
+    "type": "recommend"
+  }
+}
+```
+
+**Frontend action**: Show message, wait for user response (no player yet)  
+**User response**: "yes" / "ok" / "play it"
+
+**Turn 2 - TRACE Confirms**:
+```json
+{
+  "message": "Here—",
+  "audio_action": {
+    "type": "open",
+    "source": "originals",
+    "album": "night_swim",
+    "track": 0,
+    "autoplay": true
+  }
+}
+```
+
+**Frontend action**: Player opens, starts playing  
+**User experience**: Music activates after they agree ✅
+
+---
+
+### Path 3: Spotify Fallback (Optional)
+**Scenario**: User doesn't have audio working or wants Spotify instead
+
+**Response**:
+```json
+{
+  "message": "Here—",
+  "audio_action": {
+    "type": "open",
+    "source": "spotify",
+    "album": "ground",
+    "autoplay": true
+  }
+}
+```
+
+**Frontend action**: Routes to journal modal, user presses play → opens Spotify  
+**User experience**: Opens Spotify instead of TRACE Originals
+
+---
+
+## Audio Action Interface
+
+```typescript
+interface AudioAction {
+  type: 'recommend' | 'open';        // 'recommend' = suggest, 'open' = trigger
+  source: 'originals' | 'spotify';   // TRACE Originals or Spotify
+  album: string;                      // "night_swim", "ground", etc.
+  track?: number;                     // Optional: 0-indexed track (default: 0)
+  autoplay?: boolean;                 // Optional: auto-start (default: true)
+}
+```
+
+---
+
+## Key Rules
+
+### ✅ ALWAYS include audio_action when:
+- User directly requests music ("play night swim")
+- TRACE offers music and user agrees
+- TRACE proactively suggests music and user accepts
+
+### ❌ DON'T include audio_action when:
+- User declines music offer ("no thanks" / "later")
+- Just chatting, no music context
+- User says they're not in the mood
+
+### When to use `source: 'originals'` vs `source: 'spotify'`
+
+| Scenario | Use | Reason |
+|----------|-----|--------|
+| Night Swim request | `originals` | Custom audio with premium quality |
+| Emotional distress + music offer | `originals` | TRACE's curated response |
+| User wants mood-based playlist | `spotify` | Spotify's vast catalog (optional) |
+| Spotify fallback (if originals fail) | `spotify` | Graceful degradation |
+
+**For v1**: Prioritize `source: 'originals'` for all Night Swim requests.
+
+---
+
+## Response Examples by Trigger
+
+### Example 1: User says "play night swim"
+```json
+{
+  "message": "Here—",
+  "audio_action": {
+    "type": "open",
+    "source": "originals",
+    "album": "night_swim",
+    "track": 0,
+    "autoplay": true
+  }
+}
+```
+
+### Example 2: TRACE detects late-night distress
+**Turn 1**:
+```json
+{
+  "message": "It's late. I made something for nights like this. Want to hear it?",
+  "audio_action": {
+    "type": "recommend"
+  }
+}
+```
+
+**Turn 2** (after user agrees):
+```json
+{
+  "message": "Here—",
+  "audio_action": {
+    "type": "open",
+    "source": "originals",
+    "album": "night_swim",
+    "track": 0,
+    "autoplay": true
+  }
+}
+```
+
+### Example 3: User declines
+```json
+{
+  "message": "No problem. What else is on your mind?"
+}
+```
+(No audio_action field)
+
+### Example 4: Spotify alternative
+```json
+{
+  "message": "Here's something that might help:",
+  "audio_action": {
+    "type": "open",
+    "source": "spotify",
+    "album": "peaceful_focus",
+    "autoplay": true
+  }
+}
+```
+
+---
+
+## Implementation Steps
+
+1. **Add `audio_action` to response schema**
+   - Update response type definition
+   - Make it optional (not all responses have audio_action)
+
+2. **Update Night Swim logic**
+   - Find code that returns Night Swim responses
+   - Change `source: 'spotify'` → `source: 'originals'`
+   - Verify `album: 'night_swim'` is set
+
+3. **Implement emotional state detection**
+   - When distress/late-night detected → send `type: 'recommend'` first
+   - Wait for user agreement → send `type: 'open'` with `source: 'originals'`
+
+4. **Test with frontend**
+   - User: "play night swim" → Player spawns on chat ✅
+   - User: [Emotional trigger] → TRACE offers → User agrees → Player spawns ✅
+   - User: "no thanks" → No audio_action → No player ✅
+
+---
+
+## Testing Checklist
+
+- [ ] Direct request: "play night swim" → audio_action with `source: 'originals'`
+- [ ] Offer + agreement: Emotional trigger → recommend → user agrees → `source: 'originals'`
+- [ ] User decline: "no thanks" → No audio_action field
+- [ ] Spotify fallback: Can still send `source: 'spotify'` if needed
+- [ ] Track selection: Can specify different track indices
+- [ ] Autoplay: Works with `autoplay: true`
+- [ ] Frontend receives response correctly
+- [ ] Mobile app parses audio_action field
+- [ ] Player spawns at correct position (orb on chat, bottom on other screens)
+
+---
+
+## Backend Files to Modify
+
+Look for these common patterns in your code:
+
+**Search for**:
+```python
+# Python example
+if "night swim" in user_message.lower():
+    return {"message": "..."}
+```
+
+**Update to**:
+```python
+if "night swim" in user_message.lower():
+    return {
+        "message": "Here—",
+        "audio_action": {
+            "type": "open",
+            "source": "originals",
+            "album": "night_swim",
+            "track": 0,
+            "autoplay": True
+        }
+    }
+```
+
+---
+
+## Frontend is Ready
+
+✅ The mobile frontend already has:
+- `openOriginalsAlbum()` function to handle originals
+- `setRecommendedSource()` for Spotify fallback
+- Player positioning logic (orb vs. bottom)
+- Audio playback integration
+
+**All we're waiting for**: Backend to send correct `audio_action` responses.
+
+---
+
+## Questions?
+
+If unsure about:
+- Album names: Check `trace_originals_tracks` table
+- Track IDs: Use 0-indexed numbers
+- Response timing: Send on Turn 1 for direct requests, Turn 2 for offers
+- Format: See examples above
+
+---
+
+**Once complete**: User requests → Player spawns instantly on chat screen. 🎵
+
