@@ -1,0 +1,760 @@
+    // Clean the response to prevent duplications and formatting issues
+      assistantText = assistantText
+        .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+        .replace(/\\n/g, '\n') // Ensure line breaks work
+        .replace(/(\b\w+\b[\s.,!?;:]*){2,}\1+/g, '$1') // Remove duplicated phrases
+        .replace(/(.{5,}?)\1+/g, '$1') // Remove duplicated text patterns
+        .trim();
+
+      if (assistantText.trim()) {
+        const assistantMsg = { role: 'assistant', content: assistantText, timestamp: new Date().toISOString() };
+        historyRef.current = [...historyRef.current, assistantMsg].slice(-12);
+        await persistHistory(historyRef.current);
+        setMessages((m) => {
+          const updated = [...m, assistantMsg].slice(-MAX_MESSAGES);
+          console.log("MESSAGES_LEN_AFTER:", updated.length);
+          return updated;
+        });
+        
+        // Check for audio action (TRACE opening Originals or Spotify)
+        const audioAction = res?.audio_action;
+        if (audioAction) {
+          console.log('[TRACE CHAT] 🎵 Audio action detected:', audioAction);
+          
+          if (audioAction.type === 'open' && audioAction.source === 'originals') {
+            // Get last played track for this album
+            const trackIndex = audioAction.track ?? 0;
+            const album = audioAction.album ?? 'night_swim';
+            
+            // Set recommended source
+            setRecommendedSource('originals');
+            
+            // Slight delay to let message render first
+            setTimeout(() => {
+              openOriginalsAlbum(album, trackIndex, 'orb');
+              console.log(`[TRACE CHAT] Opened Originals album "${album}" at track ${trackIndex}`);
+            }, 150);
+          } else if (audioAction.type === 'open' && audioAction.source === 'spotify') {
+            // Set recommended source for Spotify
+            setRecommendedSource('spotify');
+            console.log('[TRACE CHAT] Spotify playlist recommended, user will navigate to journal');
+          }
+        }
+        
+        // Check for auto-navigation after displaying message
+        const suggestion = res?.activity_suggestion;
+        if (suggestion?.should_navigate && suggestion.name) {
+          console.log('[TRACE CHAT] ✈️ Auto-navigation triggered:', suggestion.name, 'target:', suggestion.target);
+          console.log('[TRACE CHAT] should_navigate:', suggestion.should_navigate);
+          
+          // Special case: journal music mode (faster transition)
+          if (suggestion.target === 'journal_music') {
+            console.log('[TRACE CHAT] Navigating to journal music mode');
+            setTimeout(() => {
+              router.push({
+                pathname: '/(tabs)/journal',
+                params: {
+                  mode: 'music',
+                  from: 'chat',
+                  space: suggestion.name ?? 'Rising',
+                },
+              } as any);
+            }, 150);
+          } else {
+            // Standard activity navigation - 800ms delay to let message display
+            setTimeout(() => {
+              navigateToActivity(suggestion.name!, suggestion.target || null);
+            }, 800);
+          }
+        } else if (suggestion?.name && !suggestion?.should_navigate) {
+          console.log('[TRACE CHAT] 🚫 Activity suggested but should_navigate=false:', suggestion.name);
+          console.log('[TRACE CHAT] Waiting for user confirmation before navigating');
+        }
+      } else {
+        // Fallback if no content
+        const assistantMsg = { role: 'assistant', content: "mm, I'm here." };
+        console.log("FALLBACK_USED");
+        setMessages((m) => [...m, assistantMsg].slice(-MAX_MESSAGES));
+      }
+    } catch (e) {
+      console.error("API_ERROR:", e);
+      // API call failed: show exact fallback, don't save
+      const assistantMsg = { role: 'assistant', content: "mm, I'm here." };
+      setMessages((m) => [...m, assistantMsg].slice(-MAX_MESSAGES));
+    }
+  }
+
+  // keep UI unchanged; stable id handled in mobile/lib/userId.ts
+
+  // Typing behavior: slow, human-paced reveal with optional soft key sounds
+  // Local toggle for typing sounds (replace with user preference later)
+  const [typingSoundsEnabled] = useState(true);
+  const isSoundPlayingRef = React.useRef(false);
+
+  // Preload a short soft-press sound once per component lifetime (best-effort)
+  useEffect(() => {
+    let mounted = true;
+    if (!typingSoundsEnabled) return;
+
+    (async () => {
+      try {
+        // Always use the project's typing sound asset.
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const soundAsset = require('../../assets/sounds/typing-sound.mp3');
+
+        const { sound } = await Audio.Sound.createAsync(soundAsset, { volume: 0.12 });
+        if (!mounted) {
+          try {
+            await sound.unloadAsync();
+          } catch {}
+          return;
+        }
+        typingSoundRef.current = sound;
+      } catch (e) {
+        typingSoundRef.current = null;
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      (async () => {
+        try {
+          if (typingSoundRef.current) {
+            await typingSoundRef.current.unloadAsync().catch(() => {});
+            typingSoundRef.current = null;
+          }
+        } catch {}
+      })();
+    };
+  }, [typingSoundsEnabled]);
+
+  // Stop typing sound and ambient audio when user navigates away from chat page
+  useFocusEffect(
+    useCallback(() => {
+      // Screen gained focus
+      screenFocusedRef.current = true;
+      
+      // Cleanup when screen loses focus
+      return () => {
+        screenFocusedRef.current = false;
+        
+        // HARD STOP: Stop typing sound and ambient audio immediately
+        (async () => {
+          try {
+            if (typingSoundRef.current) {
+              await typingSoundRef.current.stopAsync().catch(() => {});
+            }
+            // Stop ambient to prevent audio accumulation
+            await stop().catch(() => {});
+          } catch {}
+        })();
+        
+        // Finalize welcome message silently (complete the text without sound)
+        finalizeWelcome();
+      };
+    }, [finalizeWelcome])
+  );
+
+  // Greeting typewriter: start 500ms after greeting is loaded (fresh greeting only)
+  useEffect(() => {
+    let cancelled = false;
+    let delayTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // If chat becomes active, do not start or continue typing
+    // Also prevent typewriter if welcome overlay is showing
+    if (hasResponded || messages.length > 0 || showWelcomeOverlay) {
+      return () => {
+        cancelled = true;
+        if (delayTimer) clearTimeout(delayTimer);
+      };
+    }
+
+    // If greeting changed, reset typedOnce and displayed text
+    if (greeting !== prevGreetingRef.current) {
+      prevGreetingRef.current = greeting;
+      typedOnceRef.current = false;
+      setDisplayed('');
+      currentIndexRef.current = 0;
+      setShowTypewriter(false);
+    }
+
+    async function doTypedReveal(text: string) {
+      if (!text) return;
+      if (isTypingRef.current) return;
+      isTypingRef.current = true;
+      setShowTypewriter(true);
+
+      // Store full text for potential finalization
+      fullWelcomeTextRef.current = text;
+
+      setDisplayed('');
+
+      const base = 220; // Thoughtful pace matching ~45 WPM (words per minute)
+
+      for (let i = 0; i < text.length; i++) {
+        if (cancelled) break;
+        // stop if user has responded mid-typing or if overlay appears
+        if (hasResponded || messages.length > 0 || showWelcomeOverlay) break;
+        const ch = text[i];
+
+        // append character
+        setDisplayed((s) => s + ch);
+        currentIndexRef.current = i;
+
+        // Play click for visible characters only (only when screen is focused)
+        if (screenFocusedRef.current) {
+          try {
+            const isVisibleChar = /\S/.test(ch);
+            const sRef = typingSoundRef.current;
+
+            if (typingSoundsEnabled && isVisibleChar && sRef) {
+              try {
+                await sRef.stopAsync().catch(() => {});
+              } catch {}
+              try {
+                await sRef.setPositionAsync(0);
+                await sRef.playAsync().catch(() => {});
+              } catch {}
+            }
+          } catch {}
+        }
+
+        // Add extra pause for punctuation
+        let pause = 0;
+        if (/[.,!?]/.test(ch)) pause = 450; // Gentle pause for reflection
+        if (ch === ' ') pause = 0;
+
+        const jitter = Math.floor(Math.random() * 11) - 5; // Very subtle: -5..+5
+        const delay = Math.max(50, base + jitter + pause);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+
+      // ensure playback stopped
+      try {
+        if (typingSoundRef.current) {
+          await typingSoundRef.current.stopAsync().catch(() => {});
+        }
+      } catch {}
+
+      isTypingRef.current = false;
+      typedOnceRef.current = true;
+      setShowTypewriter(false);
+    }
+
+    // Only start typewriter for fresh greeting when user hasn't responded yet and overlay is not showing
+    if (!hasResponded && greetingText && !typedOnceRef.current && !showWelcomeOverlay) {
+      delayTimer = setTimeout(() => {
+        if (!cancelled) doTypedReveal(greetingText);
+      }, 500);
+    }
+
+    return () => {
+      cancelled = true;
+      if (delayTimer) clearTimeout(delayTimer);
+    };
+  }, [greetingText, typingSoundsEnabled, hasResponded, messages.length, showWelcomeOverlay]);
+
+  // Keep the list scrolled to bottom when messages change
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollToEnd({ animated: true });
+    }
+  }, [messages.length]);
+
+  // On mount, ensure we scroll to end after first layout to avoid too-early scroll
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated: false });
+    });
+  }, []);
+
+  const baseComposerBottom = 82; // reduced by 10% (moved up slightly for tighter spacing)
+  const composerBottom = keyboardVisible
+    ? Math.max(insets.bottom + 8, keyboardHeight)
+    : baseComposerBottom;
+
+  // When keyboard lifts the composer up, pull bubbles up by the same amount to maintain gap
+  const keyboardBottomPadding = keyboardVisible 
+    ? composerBottom - baseComposerBottom
+    : 0;
+
+  return (
+    <View style={[styles.container, isLuna && styles.containerLuna]}>
+      {fontsLoaded && (
+        <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
+          <Text
+            style={[
+              TraceWordmark,
+              Shadows.traceWordmark,
+              { textAlign: 'center', paddingLeft: TraceWordmark.paddingLeft, color: isLuna ? '#D7CCB5' : stylesVars.text, opacity: 0.97 },
+            ]}
+          >
+            TRACE
+          </Text>
+        </View>
+      )}
+
+      {/* ✅ ORB positioned ~20px below wordmark */}
+      <View style={{ marginTop: -19, transform: [{ translateY: orbShift }], zIndex: 60, elevation: 60 }} pointerEvents="none">
+        {isLuna ? (
+          <OrbLuna />
+        ) : (
+          <Orb />
+        )}
+      </View>
+
+      {isWelcomeMode && (
+        <Text style={[styles.greeting, { transform: [{ translateY: greetingShift }] }, isLuna && styles.greetingLuna]}>{displayed.length > 0 ? displayed : ''}</Text>
+      )}
+
+      {!isWelcomeMode && (
+        <View style={{ flex: 1, width: '100%', position: 'relative', zIndex: 10 }}>
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(_, idx) => String(idx)}
+            style={{ width: '100%', backgroundColor: 'transparent' }}
+            contentContainerStyle={{ 
+              flexGrow: 1, 
+              justifyContent: 'flex-end', 
+              paddingTop: keyboardVisible ? (insets.top + orbShift - 112) : (insets.top + orbShift - 112 + 150), 
+              paddingBottom: keyboardBottomPadding, 
+              paddingHorizontal: 18 
+            }}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+            scrollIndicatorInsets={{ bottom: (keyboardVisible ? keyboardBottomPadding : 0) + baseBottomReserve - 20 }}
+            onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
+            ListFooterComponent={<View style={{ height: footerHeight }} />}
+            onContentSizeChange={(_, h) => {
+              setContentHeight(h);
+
+              // Push the scroll target down by the composer reserve,
+              // without changing the resting layout height.
+              const extra = (keyboardVisible ? keyboardBottomPadding : 0) + baseBottomReserve - 20;
+              const target = Math.max(0, h - listHeight + extra);
+
+              requestAnimationFrame(() => {
+                listRef.current?.scrollToOffset({ offset: target, animated: true });
+              });
+            }}
+            renderItem={({ item }) => (
+              <View style={{ paddingVertical: 4, flexDirection: 'row', justifyContent: item.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                <View style={item.role === 'user' ? [styles.bubbleUser, isLuna && styles.bubbleUserLuna] : [styles.bubbleAssistant, isLuna && styles.bubbleAssistantLuna]}>
+                  <Text style={item.role === 'user' ? [styles.bubbleTextUser, isLuna && styles.bubbleTextUserLuna] : [styles.bubbleTextAssistant, isLuna && styles.bubbleTextAssistantLuna]}>{item.content}</Text>
+                </View>
+              </View>
+            )}
+          />
+
+          {/* Top fade overlay above list, below orb */}
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 240,
+              zIndex: 50,
+              elevation: 50,
+            }}
+          >
+            <LinearGradient
+              pointerEvents="none"
+              colors={
+                keyboardVisible
+                  ? [
+                      toRgba(isLuna ? '#0A1220' : stylesVars.bg, 1.0),
+                      toRgba(isLuna ? '#0A1220' : stylesVars.bg, 0.40),
+                      toRgba(isLuna ? '#0A1220' : stylesVars.bg, 0.4),
+                      toRgba(isLuna ? '#0A1220' : stylesVars.bg, 0.14),
+                      toRgba(isLuna ? '#0A1220' : stylesVars.bg, 0.05),
+                      toRgba(isLuna ? '#0A1220' : stylesVars.bg, 0.025),
+                    ]
+                  : [
+                      toRgba(isLuna ? '#0A1220' : stylesVars.bg, 1),
+                      toRgba(isLuna ? '#0A1220' : stylesVars.bg, 1.0),
+                      toRgba(isLuna ? '#0A1220' : stylesVars.bg, 0.8),
+                      toRgba(isLuna ? '#0A1220' : stylesVars.bg, 0.5),
+                      toRgba(isLuna ? '#0A1220' : stylesVars.bg, 0.12),
+                      toRgba(isLuna ? '#0A1220' : stylesVars.bg, 0.038),
+                    ]
+              }
+              locations={keyboardVisible ? [0, 0.18, 0.38, 0.58, 0.78, 0.85] : [0, 0.28, 0.48, 0.68, 0.85, 0.85]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Gradient backdrop behind composer - Luna only */}
+      {isLuna && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: composerBottom + (keyboardVisible ? 193 : 128),
+            zIndex: 45,
+          }}
+        >
+          <LinearGradient
+            pointerEvents="none"
+            colors={[
+              'rgba(15,17,21,0)',
+              'rgba(15,17,21,0.75)',
+              'rgba(15,17,21,1)',
+            ]}
+            locations={[0, 0.45, 0.7]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={{ flex: 1 }}
+          />
+        </View>
+      )}
+
+      <Pressable
+        style={[
+          styles.inputWrap, 
+          isLuna && styles.inputWrapLuna, 
+          { bottom: composerBottom, zIndex: 50, elevation: 50 },
+          showWelcomeOverlay && { opacity: 0.35 }
+        ]}
+        onLayout={(e) => setComposerHeight(e.nativeEvent.layout.height)}
+        onPressIn={() => console.log("PILL_PRESS_IN")}
+        onPress={() => {
+          console.log("PILL_PRESS");
+          requestAnimationFrame(() => inputRef.current?.focus());
+          setTimeout(() => inputRef.current?.focus(), 50);
+          setTimeout(() => inputRef.current?.focus(), 120);
+        }}
+      >
+        <TextInput
+          ref={inputRef}
+          placeholder="Type anything... or tap the mic"
+          placeholderTextColor={isLuna ? 'rgba(215, 204, 181, 0.7)' : 'rgb(158, 174, 149)'}
+          style={[styles.input, isLuna && styles.inputLuna]}
+          returnKeyType="send"
+          value={inputText}
+          onChangeText={setInputText}
+          onSubmitEditing={() => { handleSend(); }}
+          blurOnSubmit={false}
+          autoCorrect={false}
+          autoCapitalize="sentences"
+          showSoftInputOnFocus={!showWelcomeOverlay}
+          editable={!showWelcomeOverlay}
+          onFocus={() => console.log("INPUT_FOCUS")}
+          pointerEvents={showWelcomeOverlay ? "none" : "auto"}
+        />
+
+        <Pressable 
+          style={styles.iconBtn} 
+          hitSlop={10} 
+          disabled={showWelcomeOverlay}
+          onPress={handleVoicePress}
+        >
+          <Feather 
+            name="mic" 
+            size={16} 
+            color={isLuna ? 'rgba(215, 204, 181, 0.7)' : 'rgb(158, 174, 149)'} 
+          />
+        </Pressable>
+
+        <Pressable style={styles.iconBtn} hitSlop={10} onPress={() => { handleSend(); }} disabled={showWelcomeOverlay}>
+          <Feather name="send" size={16} color={isLuna ? 'rgba(215, 204, 181, 0.7)' : 'rgb(158, 174, 149)'} />
+        </Pressable>
+      </Pressable>
+
+      {/* Thin visual bridge to hide any remaining seam above the tab bar - Luna only */}
+      {!showWelcomeOverlay && isLuna && (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.tabBarBridge,
+            styles.tabBarBridgeLuna,
+          ]}
+        />
+      )}
+
+      {/* Welcome Overlay - shown after successful checkout */}
+      {showWelcomeOverlay && (
+        <Animated.View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999, opacity: overlayOpacity }]} pointerEvents="auto">
+          {/* Full-screen blocker to prevent all interactions including tab bar */}
+          <TouchableWithoutFeedback onPress={() => {}}>
+            <View style={StyleSheet.absoluteFill}>
+              <LinearGradient
+                pointerEvents="none"
+                style={StyleSheet.absoluteFill}
+                colors={
+                  isLuna
+                    ? [
+                        'rgba(2, 8, 23, 0.18)',    // top – orb is faint
+                        'rgba(2, 8, 23, 0.35)',
+                        'rgba(2, 8, 23, 0.62)',    // bottom – very hazy
+                      ]
+                    : [
+                        'rgba(233, 225, 211, 0.18)', // top – orb is faint
+                        'rgba(233, 225, 211, 0.35)',
+                        'rgba(233, 225, 211, 0.65)', // bottom – very hazy, nav barely visible
+                      ]
+                }
+                locations={[0, 0.45, 1]}
+              />
+            </View>
+          </TouchableWithoutFeedback>
+
+          <View style={styles.paymentOverlayCenter} pointerEvents="box-none">
+            <Animated.View style={[styles.overlayCard, {
+              transform: [
+                { translateY: overlayCardTranslateY },
+                { scale: overlayCardScale },
+              ],
+            }]}>
+              <View style={styles.overlayCheck}>
+                <Text style={styles.overlayCheckIcon}>✓</Text>
+              </View>
+
+              <Text style={styles.overlayTitle}>You're all set, {profile?.display_name || 'there'}.</Text>
+              <Text style={styles.overlaySubtitle}>
+                <Text style={styles.overlaySubtitleTrace}>T R A C E</Text> is here when you need it.
+              </Text>
+
+              <Pressable
+                style={styles.overlayButton}
+                onPress={() => setShowWelcomeOverlay(false)}
+              >
+                <Text style={styles.overlayButtonLabel}>Start chatting</Text>
+              </Pressable>
+            </Animated.View>
+          </View>
+        </Animated.View>
+      )}
+    </View>
+  );
+}
+
+const CREAM = '#F5F1EB';
+// Cream background used for surfaces on Chat screen with slightly reduced contrast
+const CREAM_BG = 'rgba(245,241,235,0.96)';
+
+const stylesVars = {
+  bg: 'rgb(158, 174, 149)',
+  cream: CREAM_BG,
+  icon: "rgba(110,143,123,0.85)",
+  text: `rgba(245,241,235,0.82)`,
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: stylesVars.bg,
+    paddingTop: Platform.select({ ios: 44, android: 24, default: 24 }),
+    paddingBottom: 110,
+    alignItems: "center",
+  },
+  trace: {
+    // Exact TraceWordmark values from Activities
+    letterSpacing: 14,
+    fontSize: 11,
+    color: stylesVars.text,
+    opacity: 1.0,
+    textAlign: 'center',
+    fontFamily: FontFamily.alore,
+    fontWeight: FontWeight.light,
+    textShadowColor: 'rgba(90, 74, 58, 0.45)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 15,
+  },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 40,
+    alignItems: 'center',
+    paddingBottom: 16,
+    backgroundColor: 'transparent',
+  },
+  orbContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingBottom: 16,
+    zIndex: 100,
+  },
+  greeting: {
+    marginTop: 24,
+    fontSize: 15.64,
+    lineHeight: 22,
+    color: '#EDE8DB',
+    textAlign: 'center',
+    maxWidth: '78%',
+    alignSelf: 'center',
+    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia' }),
+    fontWeight: '400',
+  },
+  inputWrap: {
+    position: "absolute",
+    bottom: 77,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(245, 241, 235, 0.55)',
+    paddingLeft: 16,
+    paddingRight: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    zIndex: 80,
+    width: '90%',
+    alignSelf: 'center',
+  },
+  input: {
+    flex: 1,
+    height: 42,
+    fontSize: 15,
+    color: '#6B7A6E', // Grey pencil color for readability while typing
+  },
+  iconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bubbleUser: {
+    maxWidth: '78%',
+    backgroundColor: 'rgba(245, 241, 235, 0.85)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 16,
+    alignSelf: 'flex-end',
+  },
+  bubbleAssistant: {
+    maxWidth: '78%',
+    backgroundColor: 'rgba(122, 139, 125, 0.25)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  bubbleTextUser: {
+    color: '#7A8B7D'
+  },
+  bubbleTextAssistant: {
+    color: '#EDE8DB',
+    fontWeight: '600',
+  },
+  tabBarBridge: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 124.5,
+    backgroundColor: 'rgba(110,143,123,0.55)',
+    zIndex: 20,
+  },
+
+  // Luna theme styles
+  containerLuna: {
+    backgroundColor: '#0A1220',
+  },
+  greetingLuna: {
+    color: 'rgba(180, 150, 105, 0.85)',
+  },
+  inputWrapLuna: {
+    backgroundColor: 'rgba(245, 241, 235, 0.07)', // Very soft, subtle transparency
+  },
+  inputLuna: {
+    color: 'rgba(230, 215, 180, 0.95)',
+  },
+  bubbleUserLuna: {
+    backgroundColor: 'rgba(245, 241, 235, 0.25)',
+  },
+  bubbleAssistantLuna: {
+    backgroundColor: 'rgba(35, 40, 35, 0.25)',
+  },
+  bubbleTextUserLuna: {
+    color: 'rgba(230, 215, 180, 1.0)',
+  },
+  bubbleTextAssistantLuna: {
+    color: 'rgba(230, 215, 180, 1.0)',
+    fontWeight: '600',
+  },
+  tabBarBridgeLuna: {
+    backgroundColor: 'rgba(10, 18, 32, 0.8)',
+    height: 124.5,
+  },
+  // Welcome overlay styles
+  paymentOverlayCenter: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  overlayCard: {
+    width: '98%',
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    backgroundColor: 'rgba(252, 249, 244, 0.8)',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 18 },
+    alignItems: 'center',
+  },
+  overlayCheck: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginBottom: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(247, 241, 230, 0.9)',
+  },
+  overlayCheckIcon: {
+    fontSize: 24,
+    color: '#8B6B4A',
+  },
+  overlayTitle: {
+    fontFamily: FontFamily.canela,
+    fontSize: 20,
+    letterSpacing: 0.2,
+    color: '#4A3B32',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  overlaySubtitle: {
+    fontFamily: FontFamily.canela,
+    fontSize: 12,
+    lineHeight: 17,
+    color: 'rgba(74, 59, 50, 0.72)',
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  overlaySubtitleTrace: {
+    fontFamily: FontFamily.alore,
+    letterSpacing: 8,
+    fontSize: 12,
+  },
+  overlayButton: {
+    marginTop: 0,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 999,
+    backgroundColor: 'rgba(231, 212, 191, 0.62)',
+    borderWidth: 1.25,
+    borderColor: '#C4A572',
+  },
+  overlayButtonLabel: {
+    fontFamily: FontFamily.canela,
+    fontSize: 14,
+    color: '#4A3B32',
+  },
+});
