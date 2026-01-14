@@ -3814,11 +3814,23 @@ Your response:`;
     // Get session history for deduplication
     const sessionHistory = getSessionHistory(effectiveUserId);
     
+    // Check for "play again" / "play please" when Night Swim was recently played
+    const isPlayAgainRequest = sessionHistory.length > 0 && (
+      userMsgLower.includes('play again') ||
+      userMsgLower.includes('play please') ||
+      userMsgLower.includes('again please') ||
+      userMsgLower.includes('play it again') ||
+      userMsgLower.includes('one more time') ||
+      userMsgLower.includes('replay') ||
+      (userMsgLower.match(/^(play|yes|sure|ok|okay)[\s,.!]*$/) !== null)
+    );
+    
     // DEBUG LOGGING for audio_action detection
     console.log('[TRACE AUDIO DEBUG] lastUserMsgForAudio:', lastUserMsgForAudio?.substring(0, 100));
     console.log('[TRACE AUDIO DEBUG] userRequestsNightSwim:', userRequestsNightSwim);
     console.log('[TRACE AUDIO DEBUG] specificTrackRequest:', specificTrackRequest);
     console.log('[TRACE AUDIO DEBUG] sessionHistory:', sessionHistory);
+    console.log('[TRACE AUDIO DEBUG] isPlayAgainRequest:', isPlayAgainRequest);
     console.log('[TRACE AUDIO DEBUG] isNightSwimOffer:', isNightSwimOffer);
     console.log('[TRACE AUDIO DEBUG] immediateNightSwimOffer:', immediateNightSwimOffer);
     
@@ -3834,6 +3846,19 @@ Your response:`;
       });
       addToSessionHistory(effectiveUserId, trackNum);
       console.log(`[TRACE ORIGINALS] Specific track requested: ${specificTrackRequest.trackName} (Track ${trackNum}, index ${trackNum - 1})`);
+    } else if (isPlayAgainRequest) {
+      // User said "play again" or similar when Night Swim was recently played
+      // Play the last track again (or pick a new one for variety)
+      const lastTrack = sessionHistory[sessionHistory.length - 1];
+      // Convert to 0-based index for frontend (track 1 → index 0)
+      audioAction = buildAudioAction('open', {
+        source: 'originals',
+        album: 'night_swim',
+        track: lastTrack - 1,
+        autoplay: true
+      });
+      const trackInfo = getTrackInfo(lastTrack);
+      console.log(`[TRACE ORIGINALS] Play again requested, replaying Track ${lastTrack}: ${trackInfo?.name || 'Unknown'} (index ${lastTrack - 1})`);
     } else if (userRequestsNightSwim) {
       // User requested Night Swim album - pick track based on mood or session variety
       const emotionalState = detectEmotionalState(lastUserMsgForAudio);
