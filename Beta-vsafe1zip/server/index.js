@@ -76,6 +76,12 @@ const {
   getSessionHistory,
   getTrackInfo
 } = require('./musicRecommendation');
+const {
+  summarizeContent,
+  storePrivacyEntry,
+  exportUserData,
+  deleteUserData
+} = require('./privacy');
 
 /**
  * Feature Flags - Panic switches for smart features
@@ -9178,6 +9184,127 @@ app.get('/api/debug-chat-messages', async (req, res) => {
   } catch (err) {
     console.error('[TRACE DEBUG CHATS ERROR]', err.message || err);
     res.status(500).json({ error: err.message || 'Unknown error' });
+  }
+});
+
+// ==================== PRIVACY BY DESIGN ENDPOINTS ====================
+
+// Export all user data (GDPR compliant)
+app.post('/api/export-my-data', async (req, res) => {
+  try {
+    const { deviceId, userId } = req.body;
+    
+    if (!deviceId && !userId) {
+      return res.status(400).json({ ok: false, error: 'deviceId or userId required' });
+    }
+    
+    if (!supabaseServer) {
+      return res.status(500).json({ ok: false, error: 'Database not configured' });
+    }
+    
+    console.log('[PRIVACY EXPORT] Exporting data for:', deviceId || userId);
+    
+    const exportData = await exportUserData(supabaseServer, deviceId, userId);
+    
+    res.json({
+      ok: true,
+      data: exportData
+    });
+  } catch (err) {
+    console.error('[PRIVACY EXPORT] Error:', err.message);
+    res.status(500).json({ ok: false, error: 'Export failed' });
+  }
+});
+
+// Delete all user data (GDPR compliant)
+app.post('/api/delete-my-data', async (req, res) => {
+  try {
+    const { deviceId, userId } = req.body;
+    
+    if (!deviceId && !userId) {
+      return res.status(400).json({ ok: false, error: 'deviceId or userId required' });
+    }
+    
+    if (!supabaseServer) {
+      return res.status(500).json({ ok: false, error: 'Database not configured' });
+    }
+    
+    console.log('[PRIVACY DELETE] Deleting data for:', deviceId || userId);
+    
+    const result = await deleteUserData(supabaseServer, deviceId, userId);
+    
+    res.json({
+      ok: true,
+      ...result
+    });
+  } catch (err) {
+    console.error('[PRIVACY DELETE] Error:', err.message);
+    res.status(500).json({ ok: false, error: 'Deletion failed' });
+  }
+});
+
+// Get user's privacy setting
+app.get('/api/privacy-settings', async (req, res) => {
+  try {
+    const { userId, deviceId } = req.query;
+    const effectiveId = userId || deviceId;
+    
+    if (!effectiveId) {
+      return res.status(400).json({ ok: false, error: 'userId or deviceId required' });
+    }
+    
+    if (!supabaseServer) {
+      return res.json({ ok: true, storeRaw: false });
+    }
+    
+    const { data } = await supabaseServer
+      .from('user_settings')
+      .select('store_raw_content')
+      .eq('user_id', effectiveId)
+      .single();
+    
+    res.json({
+      ok: true,
+      storeRaw: data?.store_raw_content || false
+    });
+  } catch (err) {
+    console.error('[PRIVACY SETTINGS] Error:', err.message);
+    res.json({ ok: true, storeRaw: false });
+  }
+});
+
+// Update user's privacy setting
+app.post('/api/privacy-settings', async (req, res) => {
+  try {
+    const { userId, deviceId, storeRaw } = req.body;
+    const effectiveId = userId || deviceId;
+    
+    if (!effectiveId) {
+      return res.status(400).json({ ok: false, error: 'userId or deviceId required' });
+    }
+    
+    if (!supabaseServer) {
+      return res.status(500).json({ ok: false, error: 'Database not configured' });
+    }
+    
+    const { error } = await supabaseServer
+      .from('user_settings')
+      .upsert({
+        user_id: effectiveId,
+        store_raw_content: storeRaw === true,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+    
+    if (error) {
+      console.error('[PRIVACY SETTINGS] Update error:', error.message);
+      return res.status(500).json({ ok: false, error: 'Update failed' });
+    }
+    
+    console.log('[PRIVACY SETTINGS] Updated storeRaw to', storeRaw, 'for', effectiveId);
+    res.json({ ok: true, storeRaw: storeRaw === true });
+  } catch (err) {
+    console.error('[PRIVACY SETTINGS] Error:', err.message);
+    res.status(500).json({ ok: false, error: 'Update failed' });
   }
 });
 
