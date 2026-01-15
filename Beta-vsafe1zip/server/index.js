@@ -2408,7 +2408,14 @@ app.post('/api/chat', async (req, res) => {
       timezone,
       weatherContext: clientWeatherContext,
       patternContext,
+      disclaimerAccepted,
     } = req.body;
+
+    // Defensive check: if disclaimer explicitly rejected, block the request
+    if (disclaimerAccepted === false) {
+      console.log('❌ Chat rejected: Disclaimer not accepted');
+      return res.status(400).json({ error: 'DISCLAIMER_REQUIRED' });
+    }
     
     // Filter out invalid placeholder names like "friend", "buddy", "pal"
     const invalidNames = ['friend', 'buddy', 'pal', 'user', 'guest', 'anonymous'];

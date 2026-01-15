@@ -43,6 +43,8 @@ TRACE matches emotional states to specific tracks and speaks about the album wit
 
 **Contextual Feature Introduction**: Features are introduced through relationship, not explanation. Rather than UI tours or tooltips, TRACE offers features contextually when users need them (e.g., mentioning patterns after 3-4 journal entries, suggesting Dreamscape when user mentions sleep trouble). This creates discovery through care, not instruction.
 
+**Disclaimer Acceptance Gate (January 2026)**: First-time users see a native Alert when they send their first chat message. The alert explains that TRACE is reflective intelligence, not therapy, and not for emergencies. Two options: "Not Now" (cancels message) or "I Understand" (saves acceptance and proceeds). Acceptance is stored in AsyncStorage (`trace_disclaimer_accepted`, `trace_disclaimer_accepted_at`) and persists across app restarts. Backend defensively rejects chat requests if `disclaimerAccepted === false`. Implementation: `mobile/lib/disclaimer.ts` (utility), `chat.tsx` (gate in handleSend), `chat.ts` (payload includes flag), `server/index.js` (validation).
+
 ### Reliability & Graceful Degradation (January 2026)
 
 **Backend Failure Handling**: When all OpenAI retry layers fail, the backend returns relational TRACE-style fallback messages rather than generic errors. Fallbacks rotate between three responses offering Dreamscape, Breathwork, or Basin activities, maintaining the therapeutic experience even during outages.

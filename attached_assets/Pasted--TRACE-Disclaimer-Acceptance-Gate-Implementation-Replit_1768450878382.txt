@@ -1,0 +1,276 @@
+# TRACE Disclaimer Acceptance Gate - Implementation Replit Prompt
+
+## Summary
+Implement a one-time disclaimer acceptance gate for first-time users on mobile chat. When a user tries to send their first chat message, show a native Alert asking them to accept a legal disclaimer. If they decline, cancel the send. If they accept, save the acceptance and proceed.
+
+**Key:** No UI changes, no new components, pure logic + AsyncStorage only.
+
+---
+
+## Implementation Steps
+
+### STEP 1: Create Disclaimer Utility File
+**File:** `mobile/lib/disclaimer.ts`
+
+Create a new file with three pure utility functions for managing disclaimer acceptance in AsyncStorage:
+
+**Functions needed:**
+1. `getDisclaimerAcceptance(): Promise<boolean>`
+   - Read `trace_disclaimer_accepted` from AsyncStorage
+   - Return `true` if value is `'true'`, else `false`
+   - Return `false` on error
+   - Log: `[Disclaimer] Failed to read acceptance: {error}`
+
+2. `getDisclaimerTimestamp(): Promise<string | null>`
+   - Read `trace_disclaimer_accepted_at` from AsyncStorage
+   - Return the ISO timestamp string or null
+   - Log: `[Disclaimer] Failed to read timestamp: {error}`
+
+3. `acceptDisclaimer(): Promise<void>`
+   - Get current time as ISO string: `new Date().toISOString()`
+   - Set `trace_disclaimer_accepted` to `'true'`
+   - Set `trace_disclaimer_accepted_at` to ISO string
+   - Log: `[Disclaimer] Accepted at: {timestamp}`
+   - Throw on error
+
+**Export:** All three functions
+
+---
+
+### STEP 2: Update Chat Screen
+**File:** `mobile/app/(tabs)/chat.tsx`
+
+#### 2a. Add Imports
+At the top of the file, add:
+```typescript
+import { getDisclaimerAcceptance, acceptDisclaimer } from '../../lib/disclaimer';
+```
+
+Note: `Alert` is already imported from `react-native`
+
+#### 2b. Add Disclaimer Check in handleSend()
+
+**Location:** In `handleSend()` function, RIGHT BEFORE the line `const res = await sendChatMessage(payload as any);`
+
+**Logic to add:**
+```typescript
+// Check disclaimer acceptance on first message attempt
+if (messages.length === 0) {  // First message ever in this session
+  const disclaimerAccepted = await getDisclaimerAcceptance();
+  
+  if (!disclaimerAccepted) {
+    // Show native Alert with disclaimer
+    const accepted = await new Promise<boolean>((resolve) => {
+      Alert.alert(
+        'TRACE Scope',
+        'TRACE is reflective intelligence for everyday life. It isn\'t therapy and doesn\'t provide medical or psychological diagnosis or treatment.\n\nNot for emergencies or crisis. Not a substitute for licensed professionals.',
+        [
+          {
+            text: 'Not Now',
+            onPress: () => resolve(false),
+            style: 'cancel',
+          },
+          {
+            text: 'I Understand',
+            onPress: () => resolve(true),
+            style: 'default',
+          },
+        ],
+        { cancelable: false }
+      );
+    });
+    
+    if (!accepted) {
+      // User clicked "Not Now" — remove message and stop
+      setMessages((m) => m.slice(0, -1));
+      return;
+    }
+    
+    // User clicked "I Understand" — save acceptance
+    await acceptDisclaimer();
+  }
+}
+```
+
+**Key points:**
+- Check only when `messages.length === 0` (first message)
+- Use Promise wrapper around Alert to get user's choice
+- If "Not Now": remove message from state and return early (don't call backend)
+- If "I Understand": call `acceptDisclaimer()` then continue
+- No try/catch needed here (errors in disclaimer read default to false = show alert)
+
+---
+
+### STEP 3: Update Chat Service
+**File:** `mobile/lib/chat.ts`
+
+#### 3a. Add Import
+At the top of the file, add:
+```typescript
+import { getDisclaimerAcceptance } from './disclaimer';
+```
+
+#### 3b. Update sendChatMessage() Function
+
+**Location:** In `sendChatMessage()` function, at the START of the function body (after the console.log)
+
+**Add before the fetch call:**
+```typescript
+// Get disclaimer acceptance status
+const disclaimerAccepted = await getDisclaimerAcceptance();
+```
+
+**Modify the fetch body:**
+Replace:
+```typescript
+body: JSON.stringify(params),
+```
+
+With:
+```typescript
+body: JSON.stringify({
+  ...params,
+  disclaimerAccepted,
+}),
+```
+
+**Result:** Each chat request now includes the `disclaimerAccepted` flag in the payload
+
+---
+
+### STEP 4: Update Backend
+**File:** `server/index.js`
+
+#### 4a. Modify /api/chat Endpoint
+
+**Location:** Find `app.post('/api/chat', async (req, res) => {`
+
+**Current code (around line 159):**
+```javascript
+const { messages } = req.body;
+
+if (!messages || !Array.isArray(messages)) {
+  console.log('❌ Invalid request - no messages array');
+  return res.status(400).json({ error: 'Messages array required' });
+}
+```
+
+**Replace with:**
+```javascript
+const { messages, disclaimerAccepted } = req.body;
+
+// Defensive check: if disclaimer not accepted, reject
+if (disclaimerAccepted === false) {
+  console.log('❌ Chat rejected: Disclaimer not accepted');
+  return res.status(400).json({ error: 'DISCLAIMER_REQUIRED' });
+}
+
+if (!messages || !Array.isArray(messages)) {
+  console.log('❌ Invalid request - no messages array');
+  return res.status(400).json({ error: 'Messages array required' });
+}
+```
+
+**Why this logic:**
+- Only reject if explicitly `false` (user declined)
+- If `undefined` or `true`, allow through (backward compatible)
+- Defensive: handles mobile not sending flag in edge cases
+
+---
+
+## Testing the Implementation
+
+### Quick Test Sequence
+1. Clear app cache/AsyncStorage (simulate fresh install)
+2. Open chat screen
+3. See TRACE greeting
+4. Type: `"hello"`
+5. Tap Send
+6. ✅ **Alert appears** with title "TRACE Scope"
+7. Tap "I Understand"
+8. ✅ **Message sends**, TRACE responds
+9. Type: `"thanks"`
+10. Tap Send
+11. ✅ **No alert** (only shows once)
+
+### Verify Logs
+- Mobile: `[TRACE Chat] Sending message to backend...` appears after accepting
+- Mobile: `[Disclaimer] Accepted at: ...` appears after clicking "I Understand"
+- Backend: Request contains `disclaimerAccepted: true`
+- Backend: Response includes message (no 400 error)
+
+---
+
+## Files Modified Summary
+
+| File | Change | Lines |
+|------|--------|-------|
+| `mobile/lib/disclaimer.ts` | **CREATE** | ~50 |
+| `mobile/app/(tabs)/chat.tsx` | Add import + add 35-line disclaimer check | ~40 |
+| `mobile/lib/chat.ts` | Add import + add `disclaimerAccepted` to payload | ~10 |
+| `server/index.js` | Add validation check before message processing | ~8 |
+
+**Total additions:** ~108 lines (mostly in handleSend)
+**Total deletions:** 0 lines
+**Net change:** +108 lines
+
+---
+
+## Edge Cases Handled
+
+✅ **Fresh install:** No acceptance yet → Show alert
+✅ **Already accepted:** Persisted in AsyncStorage → Skip alert
+✅ **Activity (breathing) first:** Only gates chat messages, not activities
+✅ **Network error:** AsyncStorage persists acceptance even if backend fails
+✅ **Multiple devices:** Each has own AsyncStorage, independent acceptance
+✅ **App restart:** AsyncStorage survives app close/open
+✅ **Rapid taps:** Message stored before disclaimer check; if declined, removed
+
+---
+
+## No UI Changes Confirmation
+
+✅ No new screens added
+✅ No new components created
+✅ No layout modifications
+✅ No styling added
+✅ Alert.alert() is native system dialog
+✅ Chat input/output UI unchanged
+✅ Navigation unchanged
+✅ Tab bar unchanged
+
+---
+
+## Rollback Instructions (If Needed)
+
+If issues occur, rollback is minimal:
+
+1. **Remove mobile changes:**
+   - Delete `mobile/lib/disclaimer.ts`
+   - Remove imports from `chat.tsx` and `chat.ts`
+   - Remove disclaimer check from `handleSend()`
+   - Remove `disclaimerAccepted` from payload
+
+2. **Remove backend changes:**
+   - Remove disclaimer validation check from `/api/chat`
+
+3. **Clean AsyncStorage:** (Optional)
+   - `trace_disclaimer_accepted` and `trace_disclaimer_accepted_at` can be left (harmless)
+
+**Time to rollback:** ~2-3 minutes
+
+---
+
+## Success Criteria
+
+- [ ] Disclaimer alert appears on first message attempt
+- [ ] "Not Now" removes message, stays on chat screen
+- [ ] "I Understand" saves acceptance and sends message
+- [ ] Second message does NOT show alert
+- [ ] App restart does NOT show alert again
+- [ ] Breathing activity works without triggering alert
+- [ ] Backend correctly receives `disclaimerAccepted` flag
+- [ ] Backend rejects if `disclaimerAccepted: false`
+- [ ] No console errors or crashes
+- [ ] No UI layout changes visible to user
+

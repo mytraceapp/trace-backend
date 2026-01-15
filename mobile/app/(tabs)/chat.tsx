@@ -12,6 +12,7 @@ import {
   Pressable,
   Keyboard,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -22,6 +23,7 @@ import { useFonts } from 'expo-font';
 import { playAmbient, stopAmbient } from '../../lib/ambientAudio';
 import { sendChatMessage, fetchWelcomeGreeting, PatternContext } from '../../lib/chat';
 import { getStableId } from '../../lib/stableId';
+import { getDisclaimerAcceptance, acceptDisclaimer } from '../../lib/disclaimer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 
@@ -519,6 +521,41 @@ export default function ChatScreen() {
     console.log('📤 TRACE sending message:', trimmed);
 
     try {
+      // Check disclaimer acceptance on first message attempt
+      if (previousMessages.length === 0) {
+        const disclaimerAccepted = await getDisclaimerAcceptance();
+        
+        if (!disclaimerAccepted) {
+          const accepted = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+              'TRACE Scope',
+              'TRACE is reflective intelligence for everyday life. It isn\'t therapy and doesn\'t provide medical or psychological diagnosis or treatment.\n\nNot for emergencies or crisis. Not a substitute for licensed professionals.',
+              [
+                {
+                  text: 'Not Now',
+                  onPress: () => resolve(false),
+                  style: 'cancel',
+                },
+                {
+                  text: 'I Understand',
+                  onPress: () => resolve(true),
+                  style: 'default',
+                },
+              ],
+              { cancelable: false }
+            );
+          });
+          
+          if (!accepted) {
+            setMessages((m) => m.slice(0, -1));
+            setIsSending(false);
+            return;
+          }
+          
+          await acceptDisclaimer();
+        }
+      }
+
       const now = new Date();
 
       const payloadMessages = [...previousMessages, userMessage].map((m) => ({

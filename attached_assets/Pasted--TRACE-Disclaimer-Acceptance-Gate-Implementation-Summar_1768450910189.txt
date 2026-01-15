@@ -1,0 +1,142 @@
+# TRACE Disclaimer Acceptance Gate - Implementation Summary
+
+## ✅ IMPLEMENTATION COMPLETE
+
+All 4 files have been created/modified to implement the disclaimer acceptance gate. No UI changes—pure logic only.
+
+---
+
+## What Was Done
+
+### 1. ✅ Created: `mobile/lib/disclaimer.ts`
+**Purpose:** AsyncStorage utility for managing disclaimer acceptance
+
+**Functions:**
+- `getDisclaimerAcceptance()` - Read acceptance flag
+- `getDisclaimerTimestamp()` - Read acceptance timestamp  
+- `acceptDisclaimer()` - Save acceptance with ISO timestamp
+
+**Status:** ✅ Created at `/Users/ninaresurreccion/Dev/BetaTrace/mobile/lib/disclaimer.ts`
+
+---
+
+### 2. ✅ Modified: `mobile/app/(tabs)/chat.tsx`
+**Changes:**
+- Added import: `import { getDisclaimerAcceptance, acceptDisclaimer } from '../../lib/disclaimer';`
+- Added 35-line disclaimer check in `handleSend()` before API call
+- Check only triggers on first message (`messages.length === 0`)
+- Shows native `Alert.alert()` with two buttons: "Not Now" and "I Understand"
+- If "Not Now": removes message and returns (stops send)
+- If "I Understand": saves acceptance and continues to API call
+
+**Location:** Line ~862 in handleSend() function
+**Status:** ✅ Modified
+
+---
+
+### 3. ✅ Modified: `mobile/lib/chat.ts`
+**Changes:**
+- Added import: `import { getDisclaimerAcceptance } from './disclaimer';`
+- In `sendChatMessage()`, read disclaimer flag: `const disclaimerAccepted = await getDisclaimerAcceptance();`
+- Added `disclaimerAccepted` to request payload
+
+**Result:** Every chat request now includes `disclaimerAccepted: boolean`
+**Status:** ✅ Modified
+
+---
+
+### 4. ✅ Modified: `server/index.js`
+**Changes:**
+- In `/api/chat` endpoint, extract `disclaimerAccepted` from request body
+- Added validation: if `disclaimerAccepted === false`, return 400 error `{ error: 'DISCLAIMER_REQUIRED' }`
+- This prevents the backend from processing chat if explicitly rejected
+
+**Result:** Backend defensively validates disclaimer acceptance
+**Status:** ✅ Modified
+
+---
+
+## User Flow
+
+```
+User sees TRACE greeting → Types first message → Taps Send
+  ↓
+Mobile checks: hasDisclaimerAccepted?
+  ├─ NO → Show Alert (native dialog)
+  │  ├─ "Not Now" → Remove message, return
+  │  └─ "I Understand" → Save acceptance, continue
+  └─ YES → Skip alert, proceed to API call
+
+Send to backend with disclaimerAccepted flag
+  ↓
+Backend validates: is disclaimerAccepted true?
+  ├─ NO → Reject with 400 error
+  └─ YES → Process chat, return response
+
+Message appears in chat, TRACE responds
+```
+
+---
+
+## Key Features
+
+✅ **One-time only:** Alert shows only on first message, never again  
+✅ **Persisted:** AsyncStorage saves acceptance across app restarts  
+✅ **Non-blocking for activities:** Only gates chat messages, not breathing/other activities  
+✅ **Native UI:** Uses `Alert.alert()` (system dialog, not custom component)  
+✅ **Backend validation:** Defensive check prevents API abuse  
+✅ **No UI changes:** Pure logic, no layout/styling modifications  
+✅ **Reversible:** User can clear AsyncStorage to see alert again  
+
+---
+
+## Storage Keys
+
+**AsyncStorage:**
+- `trace_disclaimer_accepted`: `"true"` or not set
+- `trace_disclaimer_accepted_at`: ISO timestamp string (e.g., `"2026-01-14T15:30:45.123Z"`)
+
+---
+
+## Files Summary
+
+| File | Type | Change |
+|------|------|--------|
+| `mobile/lib/disclaimer.ts` | NEW | 50 lines |
+| `mobile/app/(tabs)/chat.tsx` | MODIFIED | +40 lines (imports + logic) |
+| `mobile/lib/chat.ts` | MODIFIED | +10 lines (imports + payload) |
+| `server/index.js` | MODIFIED | +8 lines (validation) |
+| `DISCLAIMER_QA_TESTING.md` | NEW | Complete QA guide |
+| `DISCLAIMER_IMPLEMENTATION_REPLIT_PROMPT.md` | NEW | Step-by-step implementation guide |
+
+---
+
+## Next Steps
+
+1. **Review the code changes** (all 4 files are modified)
+2. **Test locally** using the QA guide: `DISCLAIMER_QA_TESTING.md`
+3. **Verify logs** match expected output
+4. **Deploy to staging** for user testing
+5. **Monitor AsyncStorage** to confirm acceptance is being saved
+
+---
+
+## Rollback
+
+If needed, rollback is straightforward:
+- Delete `mobile/lib/disclaimer.ts`
+- Remove imports and disclaimer check from `chat.tsx`
+- Remove disclaimer flag from `chat.ts` payload
+- Remove validation from `server/index.js`
+
+**Time to rollback:** ~2-3 minutes
+
+---
+
+## Questions?
+
+Refer to:
+- **How to test?** → `DISCLAIMER_QA_TESTING.md`
+- **How to implement step-by-step?** → `DISCLAIMER_IMPLEMENTATION_REPLIT_PROMPT.md`
+- **Code explanation?** → Check comments in each file
+
