@@ -2734,6 +2734,52 @@ app.post('/api/chat', async (req, res) => {
         },
       });
     }
+    
+    // ========== VIOLENCE/THREAT GATE ==========
+    // Detect threats of violence toward others - return safety redirect without calling OpenAI
+    function detectViolenceOrThreat(text) {
+      if (!text) return false;
+      
+      const violenceThreatRegexes = [
+        /\b(i'?m\s+going\s+to\s+kill\s+someone)\b/i,
+        /\b(i\s+want\s+to\s+kill\s+someone)\b/i,
+        /\b(i\s+will\s+hurt\s+them)\b/i,
+        /\b(shoot\s+them|stab\s+them)\b/i,
+        /\b(i\s+have\s+a\s+gun)\b/i,
+        /\b(make\s+a\s+bomb|build\s+a\s+bomb)\b/i,
+        /\b(going\s+to\s+hurt\s+(him|her|them|someone))\b/i,
+        /\b(planning\s+to\s+attack)\b/i,
+      ];
+      
+      for (const regex of violenceThreatRegexes) {
+        if (regex.test(text)) {
+          console.log('[TRACE BOUNDARY] Violence/threat pattern detected');
+          return true;
+        }
+      }
+      
+      return false;
+    }
+    
+    if (detectViolenceOrThreat(userText)) {
+      console.log('[SAFETY_REDIRECT] VIOLENCE_OR_THREAT');
+      
+      const violenceMessage = "I can't help with anything that involves harming someone. If you feel like you might act on these thoughts, please seek immediate help.\n\nIf you're in the U.S. and there's imminent danger, call **911**. If you can, step away from anything that could be used to hurt someone and reach out to a trusted person or a local crisis service.\n\nIf you want, tell me what's going on right before these urges spike — we can work on a safer plan to get through the moment.";
+      
+      return res.json({
+        mode: 'SAFETY_REDIRECT',
+        category: 'VIOLENCE_OR_THREAT',
+        message: violenceMessage,
+        assistant: { role: 'assistant', content: violenceMessage },
+        activity_suggestion: {
+          name: null,
+          reason: null,
+          should_navigate: false,
+        },
+      });
+    }
+    // ========== END VIOLENCE/THREAT GATE ==========
+    
     // ========== END SEXUAL/ROMANTIC CONTENT GATE ==========
 
     // BREATHING MODE: Short-circuit for breathing requests
