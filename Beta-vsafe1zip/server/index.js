@@ -2547,6 +2547,62 @@ app.post('/api/mood-checkin', async (req, res) => {
   }
 });
 
+// ==================== RETURN-TO-LIFE HELPER FUNCTIONS ====================
+// Anti-spiral closing: gentle grounding cue for emotional/reflective content
+
+function shouldAddReturnToLife(userText = "", assistantText = "") {
+  const t = (userText + " " + assistantText).toLowerCase();
+
+  // Don't add to safety redirects (crisis, violence, sexual content)
+  const safetyTriggers = [
+    "suicid", "kill myself", "want to die", "self harm", "hurt myself",
+    "hurt someone", "kill them", "shoot", "stab",
+    "abuse", "assault", "rape",
+    "sexual", "nude", "porn", "sex", "hook up",
+    "crisis line", "emergency", "call 911", "988"
+  ];
+  if (safetyTriggers.some(k => t.includes(k))) return false;
+
+  // Don't add for technical/debugging questions
+  const technicalHints = [
+    "error", "stack", "npm", "expo", "xcode", "git", "tsconfig", "build", 
+    "pod install", "replit", "api", "endpoint", "bug", "code", "debug",
+    "database", "server", "deploy", "config", "json"
+  ];
+  if (technicalHints.some(k => t.includes(k))) return false;
+  
+  // Don't add for casual greetings or short messages
+  const casualPhrases = [
+    "good morning", "good night", "hey", "hi", "hello", "thanks", "thank you",
+    "okay", "ok", "got it", "cool", "nice", "heading to work"
+  ];
+  if (casualPhrases.some(k => userText.toLowerCase().trim().startsWith(k))) return false;
+
+  // Add for reflective/emotional content
+  const reflectiveHints = [
+    "i feel", "anxious", "panic", "lonely", "sad", "shame", "overwhelmed",
+    "grief", "hurt", "trigger", "stress", "relationship", "cry", "depressed",
+    "scared", "angry", "tired", "exhausted", "confused", "struggling",
+    "hard day", "rough day", "bad day", "difficult", "can't stop thinking",
+    "ruminating", "spiraling", "heavy", "weighed down"
+  ];
+  
+  // Trigger on reflective hints OR longer messages (likely emotional content)
+  return reflectiveHints.some(k => t.includes(k)) || userText.length > 200;
+}
+
+function addReturnToLifeCue(assistantText) {
+  const cues = [
+    "What's one gentle thing you can do after this?",
+    "Do you want to write this down or share it with someone you trust?",
+    "Would water, a few breaths, or a short walk support you right now?",
+    "What would help your body feel 5% safer in this moment?",
+    "What's one small next step you can take outside this chat?"
+  ];
+  const cue = cues[Math.floor(Math.random() * cues.length)];
+  return `${assistantText.trim()}\n\n${cue}`;
+}
+
 app.post('/api/chat', async (req, res) => {
   try {
     const {
@@ -4303,6 +4359,13 @@ Your response:`;
     response.message = enforceAutonomyGuard(response.message);
     if (response.messages && Array.isArray(response.messages)) {
       response.messages = response.messages.map(msg => enforceAutonomyGuard(msg));
+    }
+    
+    // ===== RETURN-TO-LIFE CLOSING (Anti-Spiral) =====
+    // Add gentle grounding cue for emotional/reflective content (not crisis/safety redirects)
+    if (shouldAddReturnToLife(userText, response.message)) {
+      response.message = addReturnToLifeCue(response.message);
+      console.log('[TRACE RETURN-TO-LIFE] Added grounding cue to response');
     }
     
     return res.json(response);

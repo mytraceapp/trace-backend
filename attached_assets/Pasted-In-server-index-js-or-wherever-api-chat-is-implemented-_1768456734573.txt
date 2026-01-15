@@ -1,0 +1,56 @@
+In server/index.js (or wherever /api/chat is implemented), locate the SYSTEM prompt (the main instruction text you send to OpenAI before user messages).
+
+Add a new section called "RETURN-TO-LIFE CLOSING" near the end of the system prompt with these exact rules:
+
+RETURN-TO-LIFE CLOSING (anti-spiral)
+- When the user shares emotions, stress, shame, confusion, relationship tension, loneliness, anxiety, grief, or any reflective/journaling content, end your response with ONE gentle "return-to-life" cue: a short grounding question or suggestion that moves them back to real-world regulation.
+- Keep it 1–2 lines max. No lecturing.
+- Do NOT use return-to-life cues for: crisis redirects, violence/threat redirects, explicit sexual/romance boundary redirects, or when the user asks a purely factual/technical question (e.g., code, pricing math, debugging).
+- Examples to rotate (don’t repeat the exact same one every time):
+  • "What’s one gentle thing you can do after this?"
+  • "Do you want to write this down or share it with someone you trust?"
+  • "Would water, a few breaths, or a short walk support you right now?"
+  • "What would help your body feel 5% safer in this moment?"
+  • "What’s one small next step you can take outside this chat?"
+
+Implementation requirement:
+- Include the cue as the final line of the response, separated by a blank line from the main content.
+
+Do not change any UI or frontend files. Only update the server prompt text.
+
+function shouldAddReturnToLife({ userText = "", assistantText = "" }) {
+  const t = (userText + " " + assistantText).toLowerCase();
+
+  // Don’t add to safety redirects
+  const safetyTriggers = [
+    "suicid", "kill myself", "want to die", "self harm", "hurt myself",
+    "hurt someone", "kill them", "shoot", "stab",
+    "abuse", "assault", "rape",
+    "sexual", "nude", "porn", "sex", "hook up"
+  ];
+  if (safetyTriggers.some(k => t.includes(k))) return false;
+
+  // Don’t add for technical/debugging questions
+  const technicalHints = ["error", "stack", "npm", "expo", "xcode", "git", "tsconfig", "build", "pod install", "replit", "api", "endpoint"];
+  if (technicalHints.some(k => t.includes(k))) return false;
+
+  // Add for reflective/emotional content
+  const reflectiveHints = [
+    "i feel", "anxious", "panic", "lonely", "sad", "shame", "overwhelmed",
+    "grief", "hurt", "trigger", "stress", "relationship", "cry", "depressed",
+    "scared", "angry", "tired", "exhausted", "confused"
+  ];
+  return reflectiveHints.some(k => t.includes(k)) || userText.length > 200;
+}
+
+function addReturnToLifeCue(assistantText) {
+  const cues = [
+    "What’s one gentle thing you can do after this?",
+    "Do you want to write this down or share it with someone you trust?",
+    "Would water, a few breaths, or a short walk support you right now?",
+    "What would help your body feel 5% safer in this moment?",
+    "What’s one small next step you can take outside this chat?"
+  ];
+  const cue = cues[Math.floor(Math.random() * cues.length)];
+  return `${assistantText.trim()}\n\n${cue}`;
+}
