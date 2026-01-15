@@ -136,12 +136,16 @@ async function exportUserData(supabase, deviceId, userId = null) {
     return { error: 'Database not configured' };
   }
 
+  const effectiveId = userId || deviceId;
+  
   const exportData = {
     exported_at: new Date().toISOString(),
     device_id: deviceId,
     user_id: userId,
     summaries: [],
     raw_entries: [],
+    chat_messages: [],
+    journal_entries: [],
     patterns: [],
     mood_checkins: [],
     activity_logs: [],
@@ -162,34 +166,46 @@ async function exportUserData(supabase, deviceId, userId = null) {
       .or(`device_id.eq.${deviceId}${userId ? `,user_id.eq.${userId}` : ''}`);
     exportData.raw_entries = rawEntries || [];
 
+    const { data: chatMessages } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('user_id', effectiveId);
+    exportData.chat_messages = chatMessages || [];
+
+    const { data: journalEntries } = await supabase
+      .from('journal_entries')
+      .select('*')
+      .eq('user_id', effectiveId);
+    exportData.journal_entries = journalEntries || [];
+
     const { data: patterns } = await supabase
       .from('user_patterns_cache')
       .select('*')
-      .eq('user_id', userId || deviceId);
+      .eq('user_id', effectiveId);
     exportData.patterns = patterns || [];
 
     const { data: moods } = await supabase
       .from('mood_checkins')
       .select('*')
-      .eq('user_id', userId || deviceId);
+      .eq('user_id', effectiveId);
     exportData.mood_checkins = moods || [];
 
     const { data: activities } = await supabase
       .from('activity_logs')
       .select('*')
-      .eq('user_id', userId || deviceId);
+      .eq('user_id', effectiveId);
     exportData.activity_logs = activities || [];
 
     const { data: memories } = await supabase
       .from('journal_memories')
       .select('*')
-      .eq('user_id', userId || deviceId);
+      .eq('user_id', effectiveId);
     exportData.journal_memories = memories || [];
 
     const { data: settings } = await supabase
       .from('user_settings')
       .select('*')
-      .eq('user_id', userId || deviceId)
+      .eq('user_id', effectiveId)
       .single();
     exportData.settings = settings || null;
 
@@ -220,6 +236,8 @@ async function deleteUserData(supabase, deviceId, userId = null) {
   const tablesToDelete = [
     { name: 'trace_entries_raw', idField: 'device_id' },
     { name: 'trace_entries_summary', idField: 'device_id' },
+    { name: 'chat_messages', idField: 'user_id' },
+    { name: 'journal_entries', idField: 'user_id' },
     { name: 'user_patterns_cache', idField: 'user_id' },
     { name: 'mood_checkins', idField: 'user_id' },
     { name: 'activity_logs', idField: 'user_id' },

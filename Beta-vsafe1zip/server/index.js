@@ -9190,6 +9190,7 @@ app.get('/api/debug-chat-messages', async (req, res) => {
 // ==================== PRIVACY BY DESIGN ENDPOINTS ====================
 
 // Export all user data (GDPR compliant)
+// Requires valid deviceId/userId - ownership validated via profile lookup
 app.post('/api/export-my-data', async (req, res) => {
   try {
     const { deviceId, userId } = req.body;
@@ -9202,7 +9203,26 @@ app.post('/api/export-my-data', async (req, res) => {
       return res.status(500).json({ ok: false, error: 'Database not configured' });
     }
     
-    console.log('[PRIVACY EXPORT] Exporting data for:', deviceId || userId);
+    const effectiveId = userId || deviceId;
+    
+    // Validate ID format (UUID)
+    if (!isValidUuid(effectiveId)) {
+      return res.status(400).json({ ok: false, error: 'Invalid ID format' });
+    }
+    
+    // Verify user exists (ownership validation)
+    const { data: profile, error: profileError } = await supabaseServer
+      .from('profiles')
+      .select('user_id')
+      .eq('user_id', effectiveId)
+      .single();
+    
+    if (profileError || !profile) {
+      console.log('[PRIVACY EXPORT] No profile found for:', effectiveId);
+      return res.status(404).json({ ok: false, error: 'User not found' });
+    }
+    
+    console.log('[PRIVACY EXPORT] Exporting data for verified user:', effectiveId);
     
     const exportData = await exportUserData(supabaseServer, deviceId, userId);
     
@@ -9217,19 +9237,44 @@ app.post('/api/export-my-data', async (req, res) => {
 });
 
 // Delete all user data (GDPR compliant)
+// Requires valid deviceId/userId - ownership validated via profile lookup
 app.post('/api/delete-my-data', async (req, res) => {
   try {
-    const { deviceId, userId } = req.body;
+    const { deviceId, userId, confirmDelete } = req.body;
     
     if (!deviceId && !userId) {
       return res.status(400).json({ ok: false, error: 'deviceId or userId required' });
+    }
+    
+    // Require explicit confirmation for destructive action
+    if (confirmDelete !== true) {
+      return res.status(400).json({ ok: false, error: 'confirmDelete: true required' });
     }
     
     if (!supabaseServer) {
       return res.status(500).json({ ok: false, error: 'Database not configured' });
     }
     
-    console.log('[PRIVACY DELETE] Deleting data for:', deviceId || userId);
+    const effectiveId = userId || deviceId;
+    
+    // Validate ID format (UUID)
+    if (!isValidUuid(effectiveId)) {
+      return res.status(400).json({ ok: false, error: 'Invalid ID format' });
+    }
+    
+    // Verify user exists (ownership validation)
+    const { data: profile, error: profileError } = await supabaseServer
+      .from('profiles')
+      .select('user_id')
+      .eq('user_id', effectiveId)
+      .single();
+    
+    if (profileError || !profile) {
+      console.log('[PRIVACY DELETE] No profile found for:', effectiveId);
+      return res.status(404).json({ ok: false, error: 'User not found' });
+    }
+    
+    console.log('[PRIVACY DELETE] Deleting data for verified user:', effectiveId);
     
     const result = await deleteUserData(supabaseServer, deviceId, userId);
     
