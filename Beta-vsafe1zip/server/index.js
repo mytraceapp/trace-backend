@@ -79,8 +79,15 @@ const {
 const {
   summarizeContent,
   storePrivacyEntry,
+  generateSummaryOnDemand,
+  batchGenerateSummaries,
+  runPrivacyCleanup,
   exportUserData,
-  deleteUserData
+  deleteUserData,
+  softDeleteEntry,
+  restoreEntry,
+  getSummaryStats,
+  resetSummaryStats
 } = require('./privacy');
 
 /**
@@ -9466,51 +9473,115 @@ app.post('/api/summary/:entryId', async (req, res) => {
   }
 });
 
-// ==================== DAILY CLEANUP JOB ====================
+// ==================== ADDITIONAL PRIVACY ENDPOINTS ====================
 
-async function cleanupOldEntries() {
+// POST /api/entry/:entryId/soft-delete - Soft delete an entry (recoverable for 30 days)
+app.post('/api/entry/:entryId/soft-delete', async (req, res) => {
+  const { entryId } = req.params;
+  const { userId } = req.body;
+
+  if (!entryId || !userId) {
+    return res.status(400).json({ ok: false, error: 'Missing entryId or userId' });
+  }
+
+  if (!isValidUuid(userId)) {
+    return res.status(400).json({ ok: false, error: 'Invalid userId format' });
+  }
+
+  const result = await softDeleteEntry(supabaseServer, entryId, userId);
+  
+  if (!result.success) {
+    return res.status(400).json({ ok: false, error: result.error });
+  }
+
+  res.json({ ok: true, message: 'Entry soft-deleted (recoverable for 30 days)' });
+});
+
+// POST /api/entry/:entryId/restore - Restore a soft-deleted entry
+app.post('/api/entry/:entryId/restore', async (req, res) => {
+  const { entryId } = req.params;
+  const { userId } = req.body;
+
+  if (!entryId || !userId) {
+    return res.status(400).json({ ok: false, error: 'Missing entryId or userId' });
+  }
+
+  if (!isValidUuid(userId)) {
+    return res.status(400).json({ ok: false, error: 'Invalid userId format' });
+  }
+
+  const result = await restoreEntry(supabaseServer, entryId, userId);
+  
+  if (!result.success) {
+    return res.status(400).json({ ok: false, error: result.error });
+  }
+
+  res.json({ ok: true, message: 'Entry restored' });
+});
+
+// GET /api/privacy/stats - Get summary generation stats (internal/admin)
+app.get('/api/privacy/stats', async (req, res) => {
+  const stats = getSummaryStats();
+  res.json({ ok: true, stats });
+});
+
+// POST /api/user/delete - Immediate hard-delete all user data (GDPR right to erasure)
+app.post('/api/user/delete', async (req, res) => {
+  const { userId, deviceId } = req.body;
+
+  if (!userId && !deviceId) {
+    return res.status(400).json({ ok: false, error: 'Missing userId or deviceId' });
+  }
+
+  const effectiveId = userId || deviceId;
+  if (!isValidUuid(effectiveId)) {
+    return res.status(400).json({ ok: false, error: 'Invalid UUID format' });
+  }
+
+  console.log('[GDPR DELETE] Deleting all data for user:', effectiveId);
+  
+  const result = await deleteUserData(supabaseServer, deviceId, userId);
+  
+  console.log('[GDPR DELETE] Deletion complete:', result);
+  
+  res.json({ 
+    ok: true, 
+    message: 'All user data permanently deleted',
+    deleted: result.deleted
+  });
+});
+
+// ==================== DAILY CLEANUP & BATCH SUMMARY JOB ====================
+
+async function runDailyMaintenance() {
   if (!supabaseServer) return;
   
   try {
-    console.log('[CLEANUP] Starting daily cleanup of old entries...');
+    console.log('[MAINTENANCE] Starting daily maintenance...');
 
-    // 1. Hard-delete soft-deleted entries older than 30 days
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    
-    const { error: deleteError } = await supabaseServer
-      .from('trace_entries_summary')
-      .delete()
-      .not('deleted_at', 'is', null)
-      .lt('deleted_at', thirtyDaysAgo);
+    // 1. Run privacy cleanup (hard-delete, expiration, orphan cleanup)
+    const cleanupResults = await runPrivacyCleanup(supabaseServer);
+    console.log('[MAINTENANCE] Cleanup results:', cleanupResults);
 
-    if (deleteError) {
-      console.error('[CLEANUP] Delete error:', deleteError.message);
-    } else {
-      console.log('[CLEANUP] Hard-deleted old soft-deleted entries');
+    // 2. Batch generate summaries for entries older than 24 hours
+    if (openai) {
+      const batchResults = await batchGenerateSummaries(supabaseServer, openai, 100);
+      console.log('[MAINTENANCE] Batch summary results:', batchResults);
     }
 
-    // 2. Auto-expire entries past retention date
-    const { error: expireError } = await supabaseServer
-      .from('trace_entries_summary')
-      .delete()
-      .lt('retention_until', new Date().toISOString());
+    // 3. Reset daily stats
+    resetSummaryStats();
 
-    if (expireError) {
-      console.error('[CLEANUP] Expiration error:', expireError.message);
-    } else {
-      console.log('[CLEANUP] Auto-expired entries past retention date');
-    }
-
-    console.log('[CLEANUP] Daily cleanup completed');
+    console.log('[MAINTENANCE] Daily maintenance completed');
   } catch (error) {
-    console.error('[CLEANUP] Unexpected error:', error);
+    console.error('[MAINTENANCE] Unexpected error:', error);
   }
 }
 
-// Run cleanup daily (every 24 hours)
+// Run maintenance daily (every 24 hours)
 if (supabaseServer) {
   setInterval(() => {
-    cleanupOldEntries();
+    runDailyMaintenance();
   }, 24 * 60 * 60 * 1000);
   console.log('🗑️ TRACE privacy cleanup scheduled (runs every 24 hours)');
 }

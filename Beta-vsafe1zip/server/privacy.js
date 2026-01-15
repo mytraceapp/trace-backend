@@ -1,7 +1,23 @@
 /**
  * Privacy by Design Module for TRACE
- * Handles data summarization, export, and deletion
+ * Handles data summarization, export, deletion, and cleanup
+ * 
+ * Edge cases handled:
+ * - First summary request delay (loading state + cache)
+ * - OpenAI API down (graceful fallback)
+ * - User account deletion (immediate hard-delete)
+ * - Orphaned device entries (7-day cleanup)
+ * - Concurrent summary requests (lock via summary_status)
+ * - Batch summary generation (night job)
  */
+
+// Summary stats for monitoring
+let summaryStats = {
+  cached: 0,
+  generated: 0,
+  failed: 0,
+  lastReset: new Date().toISOString()
+};
 
 /**
  * Generate a short summary of user content using OpenAI
@@ -61,9 +77,9 @@ Rules:
 }
 
 /**
- * Store entry with privacy-first defaults
+ * Store entry with raw text first (on-demand summarization pattern)
+ * Summary is generated later when user requests it
  * @param {object} supabase - Supabase client
- * @param {object} openai - OpenAI client (for summarization)
  * @param {object} params - Entry parameters
  */
 async function storePrivacyEntry(supabase, openai, {
@@ -71,7 +87,7 @@ async function storePrivacyEntry(supabase, openai, {
   userId = null,
   text,
   source = 'chat',
-  storeRaw = false
+  storeRaw = true
 }) {
   if (!supabase || !text) {
     console.warn('[PRIVACY] Missing supabase or text');
@@ -79,45 +95,27 @@ async function storePrivacyEntry(supabase, openai, {
   }
 
   try {
-    const { summary, tags, sentiment } = await summarizeContent(openai, text, source);
-
-    const { data: summaryEntry, error: summaryError } = await supabase
+    const { data: entry, error } = await supabase
       .from('trace_entries_summary')
       .insert({
         device_id: deviceId,
         user_id: userId,
-        summary_text: summary,
+        raw_text: storeRaw ? text : null,
         source,
-        tags,
-        sentiment,
-        word_count: text.split(/\s+/).length
+        summary_status: 'pending',
+        word_count: text.split(/\s+/).length,
+        retention_until: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
       })
       .select()
       .single();
 
-    if (summaryError) {
-      console.error('[PRIVACY] Summary insert failed:', summaryError.message);
+    if (error) {
+      console.error('[PRIVACY] Entry insert failed:', error.message);
       return null;
     }
 
-    if (storeRaw && summaryEntry) {
-      const { error: rawError } = await supabase
-        .from('trace_entries_raw')
-        .insert({
-          device_id: deviceId,
-          user_id: userId,
-          raw_text: text,
-          source,
-          summary_id: summaryEntry.id
-        });
-
-      if (rawError) {
-        console.error('[PRIVACY] Raw insert failed:', rawError.message);
-      }
-    }
-
-    console.log(`[PRIVACY] Stored ${source} entry (storeRaw=${storeRaw}):`, summaryEntry?.id);
-    return summaryEntry;
+    console.log(`[PRIVACY] Stored ${source} entry (pending summary):`, entry?.id);
+    return entry;
   } catch (err) {
     console.error('[PRIVACY] storePrivacyEntry error:', err.message);
     return null;
@@ -125,7 +123,261 @@ async function storePrivacyEntry(supabase, openai, {
 }
 
 /**
- * Export all data for a device/user
+ * Generate summary on-demand with race condition protection
+ * @param {object} supabase - Supabase client
+ * @param {object} openai - OpenAI client
+ * @param {string} entryId - Entry UUID
+ * @returns {Promise<{summary: string, fromCache: boolean}>}
+ */
+async function generateSummaryOnDemand(supabase, openai, entryId) {
+  if (!supabase || !entryId) {
+    return { summary: null, fromCache: false, error: 'Missing parameters' };
+  }
+
+  try {
+    // Fetch entry
+    const { data: entry, error: fetchError } = await supabase
+      .from('trace_entries_summary')
+      .select('*')
+      .eq('id', entryId)
+      .single();
+
+    if (fetchError || !entry) {
+      return { summary: null, fromCache: false, error: 'Entry not found' };
+    }
+
+    // Already has summary - return cached
+    if (entry.summary_text && entry.summary_status === 'completed') {
+      summaryStats.cached++;
+      return { 
+        summary: entry.summary_text, 
+        tags: entry.tags,
+        sentiment: entry.sentiment,
+        fromCache: true 
+      };
+    }
+
+    // Another request is generating - wait or return fallback
+    if (entry.summary_status === 'generating') {
+      return { 
+        summary: 'Summary generating...', 
+        fromCache: false,
+        pending: true
+      };
+    }
+
+    // Mark as generating (lock)
+    const { error: lockError } = await supabase
+      .from('trace_entries_summary')
+      .update({ summary_status: 'generating' })
+      .eq('id', entryId)
+      .eq('summary_status', 'pending'); // Only if still pending
+
+    if (lockError) {
+      console.warn('[PRIVACY] Lock failed, might be concurrent request');
+    }
+
+    // No raw text to summarize
+    if (!entry.raw_text) {
+      return { 
+        summary: '[content logged]', 
+        fromCache: false,
+        error: 'No raw text available'
+      };
+    }
+
+    // Generate summary
+    const { summary, tags, sentiment } = await summarizeContent(openai, entry.raw_text, entry.source);
+
+    // Fallback if OpenAI failed
+    const finalSummary = summary || entry.raw_text.split(/\s+/).slice(0, 15).join(' ') + '...';
+
+    // Update entry with summary
+    const { error: updateError } = await supabase
+      .from('trace_entries_summary')
+      .update({
+        summary_text: finalSummary,
+        tags,
+        sentiment,
+        summary_status: summary ? 'completed' : 'failed',
+        summary_generated_at: new Date().toISOString(),
+        user_requested_at: new Date().toISOString()
+      })
+      .eq('id', entryId);
+
+    if (updateError) {
+      console.error('[PRIVACY] Summary update failed:', updateError.message);
+      summaryStats.failed++;
+      return { summary: finalSummary, fromCache: false, error: updateError.message };
+    }
+
+    summaryStats.generated++;
+    console.log('[PRIVACY] Generated summary for entry:', entryId);
+    
+    return { 
+      summary: finalSummary, 
+      tags,
+      sentiment,
+      fromCache: false 
+    };
+
+  } catch (err) {
+    console.error('[PRIVACY] generateSummaryOnDemand error:', err.message);
+    summaryStats.failed++;
+
+    // Mark as failed
+    try {
+      await supabase
+        .from('trace_entries_summary')
+        .update({ summary_status: 'failed' })
+        .eq('id', entryId);
+    } catch (e) {}
+
+    return { summary: null, fromCache: false, error: err.message };
+  }
+}
+
+/**
+ * Batch generate summaries for old entries (night job)
+ * @param {object} supabase - Supabase client
+ * @param {object} openai - OpenAI client
+ * @param {number} limit - Max entries to process
+ */
+async function batchGenerateSummaries(supabase, openai, limit = 100) {
+  if (!supabase || !openai) {
+    console.warn('[PRIVACY BATCH] Missing supabase or openai');
+    return { processed: 0, success: 0, failed: 0 };
+  }
+
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  try {
+    // Get pending entries older than 24 hours
+    const { data: entries, error } = await supabase
+      .from('trace_entries_summary')
+      .select('id, raw_text, source')
+      .eq('summary_status', 'pending')
+      .not('raw_text', 'is', null)
+      .lt('created_at', yesterday)
+      .limit(limit);
+
+    if (error) {
+      console.error('[PRIVACY BATCH] Fetch failed:', error.message);
+      return { processed: 0, success: 0, failed: 0, error: error.message };
+    }
+
+    if (!entries?.length) {
+      console.log('[PRIVACY BATCH] No pending entries to process');
+      return { processed: 0, success: 0, failed: 0 };
+    }
+
+    let success = 0;
+    let failed = 0;
+
+    for (const entry of entries) {
+      try {
+        const result = await generateSummaryOnDemand(supabase, openai, entry.id);
+        if (result.error) {
+          failed++;
+        } else {
+          success++;
+        }
+      } catch (e) {
+        failed++;
+      }
+      
+      // Rate limit: 100ms between requests
+      await new Promise(r => setTimeout(r, 100));
+    }
+
+    console.log(`[PRIVACY BATCH] Processed ${entries.length}: ${success} success, ${failed} failed`);
+    return { processed: entries.length, success, failed };
+
+  } catch (err) {
+    console.error('[PRIVACY BATCH] Error:', err.message);
+    return { processed: 0, success: 0, failed: 0, error: err.message };
+  }
+}
+
+/**
+ * Daily cleanup job: hard-delete expired entries, clean orphaned device entries
+ * @param {object} supabase - Supabase client
+ */
+async function runPrivacyCleanup(supabase) {
+  if (!supabase) {
+    console.warn('[PRIVACY CLEANUP] Missing supabase');
+    return { deleted: 0, orphaned: 0, expired: 0 };
+  }
+
+  const results = { deleted: 0, orphaned: 0, expired: 0, errors: [] };
+
+  try {
+    // 1. Hard-delete soft-deleted entries after 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    
+    const { data: softDeleted, error: softDeleteError } = await supabase
+      .from('trace_entries_summary')
+      .delete()
+      .not('deleted_at', 'is', null)
+      .lt('deleted_at', thirtyDaysAgo)
+      .select('id');
+
+    if (softDeleteError) {
+      results.errors.push({ step: 'soft_delete', error: softDeleteError.message });
+    } else {
+      results.deleted = softDeleted?.length || 0;
+    }
+
+    // 2. Auto-expire entries past retention_until (90 days default)
+    const now = new Date().toISOString();
+    
+    const { data: expired, error: expireError } = await supabase
+      .from('trace_entries_summary')
+      .delete()
+      .lt('retention_until', now)
+      .is('deleted_at', null)
+      .select('id');
+
+    if (expireError) {
+      results.errors.push({ step: 'retention_expire', error: expireError.message });
+    } else {
+      results.expired = expired?.length || 0;
+    }
+
+    // 3. Clean orphaned device entries (no user_id, older than 7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    
+    const { data: orphaned, error: orphanError } = await supabase
+      .from('trace_entries_summary')
+      .delete()
+      .is('user_id', null)
+      .lt('created_at', sevenDaysAgo)
+      .select('id');
+
+    if (orphanError) {
+      results.errors.push({ step: 'orphan_cleanup', error: orphanError.message });
+    } else {
+      results.orphaned = orphaned?.length || 0;
+    }
+
+    console.log('[PRIVACY CLEANUP] Results:', {
+      hardDeleted: results.deleted,
+      expired: results.expired,
+      orphaned: results.orphaned,
+      errors: results.errors.length
+    });
+
+    return results;
+
+  } catch (err) {
+    console.error('[PRIVACY CLEANUP] Error:', err.message);
+    results.errors.push({ step: 'general', error: err.message });
+    return results;
+  }
+}
+
+/**
+ * Export all data for a device/user (GDPR Article 20)
  * @param {object} supabase - Supabase client
  * @param {string} deviceId - Device UUID
  * @param {string} userId - Optional user UUID
@@ -142,8 +394,7 @@ async function exportUserData(supabase, deviceId, userId = null) {
     exported_at: new Date().toISOString(),
     device_id: deviceId,
     user_id: userId,
-    summaries: [],
-    raw_entries: [],
+    entries: [],
     chat_messages: [],
     journal_entries: [],
     patterns: [],
@@ -154,17 +405,13 @@ async function exportUserData(supabase, deviceId, userId = null) {
   };
 
   try {
-    const { data: summaries } = await supabase
+    // Entries (summary + raw if opted in)
+    const { data: entries } = await supabase
       .from('trace_entries_summary')
       .select('*')
+      .is('deleted_at', null)
       .or(`device_id.eq.${deviceId}${userId ? `,user_id.eq.${userId}` : ''}`);
-    exportData.summaries = summaries || [];
-
-    const { data: rawEntries } = await supabase
-      .from('trace_entries_raw')
-      .select('*')
-      .or(`device_id.eq.${deviceId}${userId ? `,user_id.eq.${userId}` : ''}`);
-    exportData.raw_entries = rawEntries || [];
+    exportData.entries = entries || [];
 
     const { data: chatMessages } = await supabase
       .from('chat_messages')
@@ -217,7 +464,8 @@ async function exportUserData(supabase, deviceId, userId = null) {
 }
 
 /**
- * Delete all data for a device/user
+ * Delete all data for a device/user (GDPR Article 17 - Right to Erasure)
+ * Immediate hard-delete, not soft-delete
  * @param {object} supabase - Supabase client
  * @param {string} deviceId - Device UUID
  * @param {string} userId - Optional user UUID
@@ -234,7 +482,6 @@ async function deleteUserData(supabase, deviceId, userId = null) {
   };
 
   const tablesToDelete = [
-    { name: 'trace_entries_raw', idField: 'device_id' },
     { name: 'trace_entries_summary', idField: 'device_id' },
     { name: 'chat_messages', idField: 'user_id' },
     { name: 'journal_entries', idField: 'user_id' },
@@ -244,13 +491,16 @@ async function deleteUserData(supabase, deviceId, userId = null) {
     { name: 'journal_memories', idField: 'user_id' },
     { name: 'activity_reflection_state', idField: 'user_id' },
     { name: 'user_settings', idField: 'user_id' },
-    { name: 'welcome_history', idField: 'user_id' }
+    { name: 'welcome_history', idField: 'user_id' },
+    { name: 'dreamscape_sessions', idField: 'user_id' },
+    { name: 'pattern_audit_log', idField: 'user_id' }
   ];
 
   for (const table of tablesToDelete) {
     try {
       const idValue = table.idField === 'device_id' ? deviceId : (userId || deviceId);
       
+      // Hard delete - immediate, not soft delete
       const { data, error } = await supabase
         .from(table.name)
         .delete()
@@ -270,12 +520,112 @@ async function deleteUserData(supabase, deviceId, userId = null) {
     }
   }
 
+  // Also delete from user_id field for device-based entries
+  if (userId) {
+    try {
+      const { data } = await supabase
+        .from('trace_entries_summary')
+        .delete()
+        .eq('user_id', userId)
+        .select('id');
+      
+      results.deleted['trace_entries_summary_by_user'] = { count: data?.length || 0 };
+    } catch (err) {
+      console.warn('[PRIVACY DELETE] trace_entries_summary by user_id:', err.message);
+    }
+  }
+
   return results;
+}
+
+/**
+ * Soft-delete a single entry (user can undo within 30 days)
+ * @param {object} supabase - Supabase client
+ * @param {string} entryId - Entry UUID
+ * @param {string} userId - User UUID for ownership verification
+ */
+async function softDeleteEntry(supabase, entryId, userId) {
+  if (!supabase || !entryId) {
+    return { success: false, error: 'Missing parameters' };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('trace_entries_summary')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', entryId)
+      .eq('user_id', userId)
+      .select();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, entry: data?.[0] };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Restore a soft-deleted entry (within 30 days)
+ * @param {object} supabase - Supabase client
+ * @param {string} entryId - Entry UUID
+ * @param {string} userId - User UUID for ownership verification
+ */
+async function restoreEntry(supabase, entryId, userId) {
+  if (!supabase || !entryId) {
+    return { success: false, error: 'Missing parameters' };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('trace_entries_summary')
+      .update({ deleted_at: null })
+      .eq('id', entryId)
+      .eq('user_id', userId)
+      .not('deleted_at', 'is', null)
+      .select();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, entry: data?.[0] };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Get summary stats for monitoring
+ */
+function getSummaryStats() {
+  return { ...summaryStats };
+}
+
+/**
+ * Reset summary stats (call at start of day)
+ */
+function resetSummaryStats() {
+  summaryStats = {
+    cached: 0,
+    generated: 0,
+    failed: 0,
+    lastReset: new Date().toISOString()
+  };
 }
 
 module.exports = {
   summarizeContent,
   storePrivacyEntry,
+  generateSummaryOnDemand,
+  batchGenerateSummaries,
+  runPrivacyCleanup,
   exportUserData,
-  deleteUserData
+  deleteUserData,
+  softDeleteEntry,
+  restoreEntry,
+  getSummaryStats,
+  resetSummaryStats
 };
