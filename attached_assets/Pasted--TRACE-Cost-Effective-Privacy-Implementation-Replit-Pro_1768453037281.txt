@@ -1,0 +1,382 @@
+ TRACE Cost-Effective Privacy Implementation - Replit Prompt
+
+## Goal
+Implement on-demand summaries instead of real-time summaries to reduce OpenAI costs by 90%+. Store raw entries with null summaries, generate summaries only when user requests them.
+
+---
+
+## STEP 1: Update Database Schema
+
+**File:** Run in Supabase Dashboard > SQL Editor
+
+```sql
+-- 1. Drop the old trace_entries_raw table (we don't need it)
+DROP TABLE IF EXISTS trace_entries_raw CASCADE;
+
+-- 2. Update trace_entries_summary table
+ALTER TABLE trace_entries_summary
+  ADD COLUMN IF NOT EXISTS summary_text TEXT,  -- NULL until requested
+  ADD COLUMN IF NOT EXISTS summary_generated_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ,  -- Soft-delete
+  ADD COLUMN IF NOT EXISTS retention_until TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '90 days');
+
+-- 3. Rename raw_text column if it doesn't exist
+ALTER TABLE trace_entries_summary
+  ADD COLUMN IF NOT EXISTS raw_text TEXT;  -- The actual message content
+
+-- 4. Create index for cleanup queries
+CREATE INDEX IF NOT EXISTS idx_trace_deleted_at ON trace_entries_summary(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_trace_retention ON trace_entries_summary(retention_until);
+
+-- 5. Verify the schema:
+-- SELECT column_name, data_type FROM information_schema.columns WHERE table_name='trace_entries_summary';
+```
+
+---
+
+## STEP 2: Update /api/chat Endpoint
+
+**File:** `server/index.js` (the /api/chat endpoint)
+
+**Change:** Remove real-time OpenAI summary call. Just store raw_text with null summary.
+
+**Current code to replace:**
+```javascript
+// OLD: Calls OpenAI to generate summary in real-time
+const summary = await generateSummary(userMessage);
+
+await storePrivacyEntry(userId, {
+  summary: summary,  // Generated now
+  rawText: userMessage
+});
+```
+
+**New code:**
+```javascript
+// NEW: Store raw text WITHOUT generating summary yet
+const storeSettings = await supabase
+  .from('user_settings')
+  .select('store_raw_content')
+  .eq('user_id', userId)
+  .single();
+
+const shouldStoreRaw = storeSettings?.data?.store_raw_content || false;
+
+// Store to trace_entries_summary
+// summary_text is NULL (not generated yet)
+await supabase
+  .from('trace_entries_summary')
+  .insert({
+    user_id: userId,
+    device_id: deviceId,
+    raw_text: userMessage,
+    summary_text: null,  // Don't generate yet!
+    summary_generated_at: null,
+    source: 'chat',
+    retention_until: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),  // 90 days
+    tags: ['first-chat'],  // Or whatever tags
+    word_count: userMessage.split(' ').length
+  });
+
+console.log('[TRACE] Stored entry without summary (on-demand)');
+```
+
+**Result:** Message stored instantly, no extra API call. Summary = null.
+
+---
+
+## STEP 3: Create /api/summary/:entryId Endpoint
+
+**File:** `server/index.js` (add new endpoint)
+
+**Add this new endpoint after /api/chat:**
+
+```javascript
+// POST /api/summary/:entryId
+// Generate or retrieve cached summary for a specific entry
+app.post('/api/summary/:entryId', async (req, res) => {
+  const { entryId } = req.params;
+  const { userId } = req.body;
+
+  console.log('[TRACE SUMMARY] Requested summary for entry:', entryId);
+
+  try {
+    // 1. Fetch the entry
+    const { data: entry, error: fetchError } = await supabase
+      .from('trace_entries_summary')
+      .select('raw_text, summary_text, summary_generated_at')
+      .eq('id', entryId)
+      .eq('user_id', userId)  // Security: only user can request their own
+      .single();
+
+    if (fetchError || !entry) {
+      console.log('[TRACE SUMMARY] Entry not found:', entryId);
+      return res.status(404).json({ error: 'Entry not found' });
+    }
+
+    // 2. If summary already cached, return it
+    if (entry.summary_text) {
+      console.log('[TRACE SUMMARY] Returning cached summary');
+      return res.json({ 
+        summary: entry.summary_text,
+        cached: true 
+      });
+    }
+
+    // 3. Generate summary on-demand (first time)
+    console.log('[TRACE SUMMARY] Generating summary for entry...');
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',  // Cheaper than gpt-4o-mini
+      messages: [
+        { 
+          role: 'system', 
+          content: 'Summarize the user message in 15 words or less. Be concise and capture the emotional tone.'
+        },
+        { 
+          role: 'user', 
+          content: entry.raw_text 
+        }
+      ],
+      temperature: 0.5,
+      max_tokens: 50
+    });
+
+    const summary = completion.choices[0].message.content.trim();
+
+    // 4. Cache the summary
+    await supabase
+      .from('trace_entries_summary')
+      .update({
+        summary_text: summary,
+        summary_generated_at: new Date().toISOString()
+      })
+      .eq('id', entryId);
+
+    console.log('[TRACE SUMMARY] Generated and cached:', summary);
+    
+    res.json({ 
+      summary: summary,
+      cached: false,
+      model: 'gpt-3.5-turbo'
+    });
+
+  } catch (error) {
+    console.error('[TRACE SUMMARY] Error:', error.message);
+    res.status(500).json({ error: 'Failed to generate summary' });
+  }
+});
+```
+
+**How it's used:**
+```javascript
+// Frontend calls when user views history
+const response = await fetch('/api/summary/entry-id-123', {
+  method: 'POST',
+  body: JSON.stringify({ userId })
+});
+const { summary } = await response.json();
+```
+
+---
+
+## STEP 4: Create Daily Cleanup Job
+
+**File:** `server/index.js` (add at bottom, before PORT listen)
+
+**Add this cron job:**
+
+```javascript
+// ============================================
+// DAILY CLEANUP JOB - Run every 24 hours
+// ============================================
+
+async function cleanupOldEntries() {
+  try {
+    console.log('[CLEANUP] Starting daily cleanup of old entries...');
+
+    // 1. Hard-delete soft-deleted entries older than 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    
+    const { data: deleted, error: deleteError } = await supabase
+      .from('trace_entries_summary')
+      .delete()
+      .not('deleted_at', 'is', null)
+      .lt('deleted_at', thirtyDaysAgo.toISOString());
+
+    if (deleteError) {
+      console.error('[CLEANUP] Delete error:', deleteError.message);
+    } else {
+      console.log('[CLEANUP] Hard-deleted old entries');
+    }
+
+    // 2. Auto-expire entries past retention date
+    const { data: expired, error: expireError } = await supabase
+      .from('trace_entries_summary')
+      .delete()
+      .lt('retention_until', new Date().toISOString());
+
+    if (expireError) {
+      console.error('[CLEANUP] Expiration error:', expireError.message);
+    } else {
+      console.log('[CLEANUP] Auto-expired entries past retention date');
+    }
+
+    console.log('[CLEANUP] Daily cleanup completed');
+  } catch (error) {
+    console.error('[CLEANUP] Unexpected error:', error);
+  }
+}
+
+// Run cleanup daily at 2 AM server time
+schedule.scheduleJob('0 2 * * *', () => {
+  cleanupOldEntries();
+});
+
+// Alternative: Run cleanup on server startup + every 24 hours
+setInterval(() => {
+  cleanupOldEntries();
+}, 24 * 60 * 60 * 1000);
+```
+
+**Note:** Add at top of file if not already imported:
+```javascript
+const schedule = require('node-schedule');  // npm install node-schedule
+```
+
+---
+
+## STEP 5: Update /api/chat to Include First-Chat Disclaimer
+
+**File:** `server/index.js` (modify existing /api/chat endpoint)
+
+Add this to your existing /api/chat (you already have first_chat_completed logic):
+
+```javascript
+// Check if first chat, prepend disclaimer
+if (isFirstChat) {
+  const disclaimer = `I should be clear: I'm reflective intelligence for everyday life. I'm not therapy and don't provide medical or psychological diagnosis or treatment. Not for emergencies or crisis. Not a substitute for licensed professionals.\n\n${cleanedMessage}`;
+  finalMessage = disclaimer;
+  
+  // Mark first chat completed
+  await supabase
+    .from('profiles')
+    .update({ first_chat_completed: true })
+    .eq('id', userId);
+}
+```
+
+---
+
+## STEP 6: Migration Plan (Gradual)
+
+**Month 1: Both systems**
+- New entries → trace_entries_summary (with null summary)
+- Still write to legacy chat_messages for backup
+
+**Month 2-3: Migration script**
+```javascript
+// Run once to migrate old data
+async function migrateOldData() {
+  const { data: oldMessages } = await supabase
+    .from('chat_messages')
+    .select('*')
+    .is('migrated', null);
+  
+  for (const msg of oldMessages) {
+    await supabase
+      .from('trace_entries_summary')
+      .insert({
+        user_id: msg.user_id,
+        device_id: msg.device_id,
+        raw_text: msg.content,
+        summary_text: null,  // Will generate on-demand
+        source: 'chat',
+        created_at: msg.created_at
+      });
+    
+    // Mark as migrated
+    await supabase
+      .from('chat_messages')
+      .update({ migrated: true })
+      .eq('id', msg.id);
+  }
+  
+  console.log('Migration complete');
+}
+```
+
+**Month 4: Deprecate old table**
+- Stop writing to chat_messages
+- Keep for backup, but stop queries
+- Plan full deletion after 6 months
+
+---
+
+## STEP 7: Frontend - Call Summary On-Demand
+
+**File:** `mobile/lib/chat.ts` or similar (when user views history)
+
+```typescript
+// When user taps "View Summary" on a message:
+async function getSummaryForEntry(entryId: string, userId: string) {
+  const response = await fetch(`${TRACE_BACKEND_URL}/api/summary/${entryId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId })
+  });
+  
+  const { summary, cached } = await response.json();
+  console.log('Summary:', summary, 'Cached:', cached);
+  return summary;
+}
+```
+
+---
+
+## Testing Checklist
+
+- [ ] Send a chat message → Entry stored with `summary_text = null`
+- [ ] Call `/api/summary/:entryId` → Summary generated and cached
+- [ ] Call again → Returns cached (no new API call)
+- [ ] Soft-delete via UI → `deleted_at` is set
+- [ ] Wait 30 days (or trigger cleanup) → Hard-deleted
+- [ ] Entries past 90 days → Auto-deleted by retention_until
+- [ ] First chat → Disclaimer prepended
+- [ ] Monitor: OpenAI API calls should drop 90%
+
+---
+
+## Cost Savings Summary
+
+**Before:** 100 messages/day × 30 days = 3,000 summaries @ $0.001 = **$3/user/month**
+**After:** 5 summaries/user/month @ $0.001 = **$0.005/user/month**
+
+**1,000 users:** $3,000/month → $5/month ✅
+
+---
+
+## Dependencies
+
+Add to `package.json`:
+```json
+{
+  "dependencies": {
+    "node-schedule": "^2.1.1"
+  }
+}
+```
+
+Run: `npm install node-schedule`
+
+---
+
+## That's It!
+
+You now have:
+- ✅ Real-time storage (fast)
+- ✅ On-demand summaries (cheap)
+- ✅ Retention policy (GDPR)
+- ✅ Auto-cleanup (hands-free)
+- ✅ First-chat disclaimer (legal)
+- ✅ 90%+ cost reduction

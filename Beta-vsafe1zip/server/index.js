@@ -1749,20 +1749,30 @@ if (hasOpenAIKey) {
 
 async function saveUserMessage(userId, content, storeRaw = false) {
   if (!supabaseServer) throw new Error('Supabase not configured');
-  console.log('[TRACE SAVE USER] about to insert for user:', userId, 'storeRaw:', storeRaw);
+  console.log('[TRACE SAVE USER] about to insert for user:', userId);
 
-  // Privacy-first: always store summary to new privacy tables
+  // On-demand summary: store raw_text now, summary_text = null (generated later on request)
   try {
-    await storePrivacyEntry(supabaseServer, openai, {
-      deviceId: userId,
-      userId: userId,
-      content: content,
-      source: 'chat',
-      storeRaw: storeRaw
-    });
+    const { error: privacyError } = await supabaseServer
+      .from('trace_entries_summary')
+      .insert({
+        user_id: userId,
+        device_id: userId,
+        raw_text: content,
+        summary_text: null,
+        summary_generated_at: null,
+        source: 'chat',
+        retention_until: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        word_count: content.split(/\s+/).length
+      });
+    
+    if (privacyError) {
+      console.error('[TRACE PRIVACY STORE ERROR]', privacyError.message);
+    } else {
+      console.log('[TRACE PRIVACY] Stored entry without summary (on-demand)');
+    }
   } catch (privacyErr) {
     console.error('[TRACE PRIVACY STORE ERROR]', privacyErr.message);
-    // Continue to legacy storage as fallback
   }
 
   // Legacy storage (for backward compatibility with existing features)
@@ -2663,17 +2673,7 @@ app.post('/api/chat', async (req, res) => {
       if (effectiveUserId && Array.isArray(messages)) {
         const lastUserMsg = messages.filter(m => m.role === 'user').pop();
         if (lastUserMsg?.content) {
-          // Look up user's privacy preference
-          let storeRaw = false;
-          if (supabaseServer) {
-            const { data: settings } = await supabaseServer
-              .from('user_settings')
-              .select('store_raw_content')
-              .eq('user_id', effectiveUserId)
-              .single();
-            storeRaw = settings?.store_raw_content === true;
-          }
-          await saveUserMessage(effectiveUserId, lastUserMsg.content, storeRaw);
+          await saveUserMessage(effectiveUserId, lastUserMsg.content);
         }
       }
     } catch (err) {
@@ -9377,6 +9377,141 @@ app.post('/api/privacy-settings', async (req, res) => {
     res.status(500).json({ ok: false, error: 'Update failed' });
   }
 });
+
+// ==================== ON-DEMAND SUMMARY ENDPOINT ====================
+
+// POST /api/summary/:entryId - Generate or retrieve cached summary
+app.post('/api/summary/:entryId', async (req, res) => {
+  const { entryId } = req.params;
+  const { userId } = req.body;
+
+  console.log('[TRACE SUMMARY] Requested summary for entry:', entryId);
+
+  if (!supabaseServer) {
+    return res.status(500).json({ ok: false, error: 'Database not configured' });
+  }
+
+  if (!isValidUuid(entryId) || !isValidUuid(userId)) {
+    return res.status(400).json({ ok: false, error: 'Invalid ID format' });
+  }
+
+  try {
+    // 1. Fetch the entry (security: only user can request their own)
+    const { data: entry, error: fetchError } = await supabaseServer
+      .from('trace_entries_summary')
+      .select('raw_text, summary_text, summary_generated_at')
+      .eq('id', entryId)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !entry) {
+      console.log('[TRACE SUMMARY] Entry not found:', entryId);
+      return res.status(404).json({ ok: false, error: 'Entry not found' });
+    }
+
+    // 2. If summary already cached, return it
+    if (entry.summary_text) {
+      console.log('[TRACE SUMMARY] Returning cached summary');
+      return res.json({ 
+        ok: true,
+        summary: entry.summary_text,
+        cached: true 
+      });
+    }
+
+    // 3. Generate summary on-demand (first time)
+    if (!openai) {
+      return res.json({ ok: true, summary: 'Summary unavailable', cached: false });
+    }
+
+    console.log('[TRACE SUMMARY] Generating summary for entry...');
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        { 
+          role: 'system', 
+          content: 'Summarize the user message in 15 words or less. Be concise and capture the emotional tone. No identifying details.'
+        },
+        { role: 'user', content: entry.raw_text }
+      ],
+      temperature: 0.5,
+      max_tokens: 50
+    });
+
+    const summary = completion.choices[0]?.message?.content?.trim() || 'Unable to summarize';
+
+    // 4. Cache the summary
+    await supabaseServer
+      .from('trace_entries_summary')
+      .update({
+        summary_text: summary,
+        summary_generated_at: new Date().toISOString()
+      })
+      .eq('id', entryId);
+
+    console.log('[TRACE SUMMARY] Generated and cached:', summary);
+    
+    res.json({ 
+      ok: true,
+      summary: summary,
+      cached: false
+    });
+
+  } catch (error) {
+    console.error('[TRACE SUMMARY] Error:', error.message);
+    res.status(500).json({ ok: false, error: 'Failed to generate summary' });
+  }
+});
+
+// ==================== DAILY CLEANUP JOB ====================
+
+async function cleanupOldEntries() {
+  if (!supabaseServer) return;
+  
+  try {
+    console.log('[CLEANUP] Starting daily cleanup of old entries...');
+
+    // 1. Hard-delete soft-deleted entries older than 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    
+    const { error: deleteError } = await supabaseServer
+      .from('trace_entries_summary')
+      .delete()
+      .not('deleted_at', 'is', null)
+      .lt('deleted_at', thirtyDaysAgo);
+
+    if (deleteError) {
+      console.error('[CLEANUP] Delete error:', deleteError.message);
+    } else {
+      console.log('[CLEANUP] Hard-deleted old soft-deleted entries');
+    }
+
+    // 2. Auto-expire entries past retention date
+    const { error: expireError } = await supabaseServer
+      .from('trace_entries_summary')
+      .delete()
+      .lt('retention_until', new Date().toISOString());
+
+    if (expireError) {
+      console.error('[CLEANUP] Expiration error:', expireError.message);
+    } else {
+      console.log('[CLEANUP] Auto-expired entries past retention date');
+    }
+
+    console.log('[CLEANUP] Daily cleanup completed');
+  } catch (error) {
+    console.error('[CLEANUP] Unexpected error:', error);
+  }
+}
+
+// Run cleanup daily (every 24 hours)
+if (supabaseServer) {
+  setInterval(() => {
+    cleanupOldEntries();
+  }, 24 * 60 * 60 * 1000);
+  console.log('🗑️ TRACE privacy cleanup scheduled (runs every 24 hours)');
+}
 
 // Global error handler for consistent JSON responses (must be last middleware)
 app.use((err, req, res, next) => {
