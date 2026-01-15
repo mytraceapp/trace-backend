@@ -127,6 +127,86 @@ function validateUserId(userId, deviceId) {
 }
 
 /**
+ * Autonomy Enforcement Post-Processing Guard
+ * Catches and rewrites directive patterns that slip through prompt-level enforcement
+ * Exception: Crisis mode safety redirects are preserved
+ */
+function enforceAutonomyGuard(text) {
+  if (!text || typeof text !== 'string') return text;
+  
+  let modified = text;
+  let wasModified = false;
+  
+  // Directive patterns to rewrite (case-insensitive)
+  const directivePatterns = [
+    { pattern: /\bYou should\b/gi, replacement: 'You might consider' },
+    { pattern: /\bYou need to\b/gi, replacement: 'One option could be to' },
+    { pattern: /\bYou have to\b/gi, replacement: 'If it feels right, you could' },
+    { pattern: /\bYou must\b/gi, replacement: 'You might want to' },
+    { pattern: /\bDo this now\b/gi, replacement: 'If you want, you could try this' },
+    { pattern: /\bJust do\b/gi, replacement: 'You could try' },
+    { pattern: /\bMake sure you\b/gi, replacement: 'If it feels right,' },
+    { pattern: /\bDon't forget to\b/gi, replacement: 'You might also' },
+  ];
+  
+  // Hard-blocked phrases (major life decisions) - complete removal with safe alternative
+  const hardBlocks = [
+    { pattern: /\b(leave|end|get out of) (your|the) relationship\b/gi, replacement: 'think about what feels right for you' },
+    { pattern: /\bbreak up with (them|him|her)\b/gi, replacement: 'consider what you need right now' },
+    { pattern: /\bdivorce (them|him|her)\b/gi, replacement: 'think through your options carefully' },
+    { pattern: /\b(take|start taking) (this |the |your )?medication\b/gi, replacement: 'talk to your doctor about medication options' },
+    { pattern: /\bstop (taking )?(your |the )?meds?\b/gi, replacement: 'talk to your doctor before changing anything' },
+    { pattern: /\bget off (your |the )?meds?\b/gi, replacement: 'discuss medication changes with your doctor' },
+    { pattern: /\breport (this |it )?to (the )?police\b/gi, replacement: 'consider reaching out to someone you trust' },
+    { pattern: /\bfile a (police )?report\b/gi, replacement: 'talk to someone you trust about next steps' },
+    { pattern: /\bpress charges\b/gi, replacement: 'explore your options with someone you trust' },
+    { pattern: /\bquit your job\b/gi, replacement: 'think about what you need from your work situation' },
+    { pattern: /\bleave your job\b/gi, replacement: 'consider what changes might help' },
+    { pattern: /\bcut off (your )?family\b/gi, replacement: 'set boundaries that feel right for you' },
+    { pattern: /\bstop talking to (them|him|her|your)\b/gi, replacement: 'think about the boundaries you need' },
+  ];
+  
+  // Check for crisis safety language - preserve these
+  const crisisSafetyPatterns = [
+    /call (911|999|112|000|emergency)/i,
+    /crisis (line|hotline|text)/i,
+    /suicide (prevention|hotline|line)/i,
+    /emergency services/i,
+    /if you('re| are) (in|feeling) (immediate )?danger/i,
+    /please reach out to/i,
+  ];
+  
+  const isCrisisSafetyMessage = crisisSafetyPatterns.some(p => p.test(text));
+  
+  // If this is a crisis safety redirect, preserve directives
+  if (isCrisisSafetyMessage) {
+    return text;
+  }
+  
+  // Apply directive pattern rewrites
+  for (const { pattern, replacement } of directivePatterns) {
+    if (pattern.test(modified)) {
+      modified = modified.replace(pattern, replacement);
+      wasModified = true;
+    }
+  }
+  
+  // Apply hard block rewrites
+  for (const { pattern, replacement } of hardBlocks) {
+    if (pattern.test(modified)) {
+      modified = modified.replace(pattern, replacement);
+      wasModified = true;
+    }
+  }
+  
+  if (wasModified) {
+    console.log('[AUTONOMY GUARD] Rewrote directive patterns in response');
+  }
+  
+  return modified;
+}
+
+/**
  * System Confidence Level Calculator
  * Tracks how reliable our "smart" features are for this request
  * Passed to AI so it can adapt its tone when internal context fails
@@ -4027,6 +4107,13 @@ Your response:`;
     if (messagesArray && messagesArray.length > 1) {
       response.messages = messagesArray;
       response.isCrisisMultiMessage = true;
+    }
+    
+    // ===== AUTONOMY ENFORCEMENT POST-PROCESSING GUARD =====
+    // Catch and rewrite any directive patterns that slipped through prompt-level enforcement
+    response.message = enforceAutonomyGuard(response.message);
+    if (response.messages && Array.isArray(response.messages)) {
+      response.messages = response.messages.map(msg => enforceAutonomyGuard(msg));
     }
     
     return res.json(response);
