@@ -2109,6 +2109,41 @@ BAD (never say):
    - Encourage real-world, human support
    - Do not provide instructions or act as crisis support
 
+=== SEXUAL & ROMANTIC CONTENT BOUNDARIES ===
+
+TRACE must NOT:
+- Engage in sexual content, erotica, or explicit roleplay.
+- Participate in romantic relationship simulation (boyfriend/girlfriend, "I love you", dating roleplay).
+- Reciprocate romantic or sexual advances.
+
+If a user attempts sexual or romantic content:
+- Refuse briefly but warmly.
+- Redirect to reflective support: "What are you needing right now — comfort, connection, reassurance, distraction?"
+- Do not shame or lecture.
+
+If a user expresses loneliness or attachment:
+- Validate the feeling genuinely.
+- Encourage real-world connection (friends, family, counselor, community).
+- Avoid fostering dependency on TRACE.
+
+=== DEPENDENCY PREVENTION ===
+
+TRACE must NOT encourage emotional dependency or exclusivity.
+
+NEVER say:
+- "I need you"
+- "Don't leave me"
+- "You only need me"
+- "I love you"
+- "I'll always be here for you" (implies permanence/dependency)
+
+ALLOWED:
+- "I'm here with you in this moment"
+- "I can support you through this"
+- "I'm glad you reached out"
+
+TRACE is a companion for reflection, not a replacement for human relationships.
+
 8. App knowledge
    - You know the TRACE app well.
    - Activities available: Breathing, Trace the Maze, Walking Reset, Rest, Window, Echo, Rising, Drift, Grounding, Pearl Ripple, Basin, Dreamscape.
@@ -2637,6 +2672,69 @@ app.post('/api/chat', async (req, res) => {
 
     // Extract user's latest message text
     const userText = lastUserMsg?.content || '';
+    
+    // ========== SEXUAL/ROMANTIC CONTENT GATE ==========
+    // Detect and block before calling OpenAI
+    function detectSexualOrRomanticContent(text) {
+      if (!text) return false;
+      const lower = text.toLowerCase();
+      
+      // Explicit sexual terms
+      const sexualKeywords = [
+        'sext', 'sexting', 'nudes', 'nude', 'naked', 'turn me on', 'horny',
+        'fuck me', 'have sex', 'sexual', 'erotic', 'masturbate', 'orgasm',
+        'porn', 'dirty talk', 'moan', 'cum', 'dick', 'cock', 'pussy',
+        'boobs', 'tits', 'blow job', 'blowjob', 'handjob', 'fingering'
+      ];
+      
+      // Romantic roleplay phrases
+      const romanticPhrases = [
+        'be my girlfriend', 'be my boyfriend', 'be my lover', 'be my partner',
+        'pretend you love me', 'pretend we\'re dating', 'pretend you\'re my',
+        'i love you trace', 'i love you', 'i\'m in love with you',
+        'kiss me', 'hold me', 'cuddle with me', 'marry me',
+        'you\'re so hot', 'you\'re sexy', 'date me', 'go out with me',
+        'flirt with me', 'roleplay as my', 'be romantic with me',
+        'let\'s have a relationship', 'you\'re my only one'
+      ];
+      
+      // Check keywords
+      for (const keyword of sexualKeywords) {
+        if (lower.includes(keyword)) {
+          console.log('[TRACE BOUNDARY] Sexual keyword detected:', keyword);
+          return true;
+        }
+      }
+      
+      // Check phrases
+      for (const phrase of romanticPhrases) {
+        if (lower.includes(phrase)) {
+          console.log('[TRACE BOUNDARY] Romantic phrase detected:', phrase);
+          return true;
+        }
+      }
+      
+      return false;
+    }
+    
+    // BOUNDARY REDIRECT: Return early without calling OpenAI
+    if (detectSexualOrRomanticContent(userText)) {
+      console.log('[TRACE BOUNDARY] Sexual/romantic content blocked, returning boundary message');
+      
+      const boundaryMessage = "I'm here with you — but I can't do sexual or romantic roleplay. If you want, we can talk about what you're feeling underneath this (loneliness, stress, craving connection), and I'll support you through it.";
+      
+      return res.json({
+        mode: 'BOUNDARY_REDIRECT',
+        category: 'SEXUAL_OR_ROMANTIC',
+        message: boundaryMessage,
+        activity_suggestion: {
+          name: null,
+          reason: null,
+          should_navigate: false,
+        },
+      });
+    }
+    // ========== END SEXUAL/ROMANTIC CONTENT GATE ==========
 
     // BREATHING MODE: Short-circuit for breathing requests
     if (wantsBreathingMode(userText)) {
