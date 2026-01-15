@@ -1747,10 +1747,25 @@ if (hasOpenAIKey) {
   console.log('No OpenAI API key found - chat will use fallback responses');
 }
 
-async function saveUserMessage(userId, content) {
+async function saveUserMessage(userId, content, storeRaw = false) {
   if (!supabaseServer) throw new Error('Supabase not configured');
-  console.log('[TRACE SAVE USER] about to insert for user:', userId);
+  console.log('[TRACE SAVE USER] about to insert for user:', userId, 'storeRaw:', storeRaw);
 
+  // Privacy-first: always store summary to new privacy tables
+  try {
+    await storePrivacyEntry(supabaseServer, openai, {
+      deviceId: userId,
+      userId: userId,
+      content: content,
+      source: 'chat',
+      storeRaw: storeRaw
+    });
+  } catch (privacyErr) {
+    console.error('[TRACE PRIVACY STORE ERROR]', privacyErr.message);
+    // Continue to legacy storage as fallback
+  }
+
+  // Legacy storage (for backward compatibility with existing features)
   const { data, error } = await supabaseServer
     .from('chat_messages')
     .insert({
@@ -2648,7 +2663,17 @@ app.post('/api/chat', async (req, res) => {
       if (effectiveUserId && Array.isArray(messages)) {
         const lastUserMsg = messages.filter(m => m.role === 'user').pop();
         if (lastUserMsg?.content) {
-          await saveUserMessage(effectiveUserId, lastUserMsg.content);
+          // Look up user's privacy preference
+          let storeRaw = false;
+          if (supabaseServer) {
+            const { data: settings } = await supabaseServer
+              .from('user_settings')
+              .select('store_raw_content')
+              .eq('user_id', effectiveUserId)
+              .single();
+            storeRaw = settings?.store_raw_content === true;
+          }
+          await saveUserMessage(effectiveUserId, lastUserMsg.content, storeRaw);
         }
       }
     } catch (err) {
