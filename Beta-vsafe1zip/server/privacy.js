@@ -237,65 +237,122 @@ async function generateSummaryOnDemand(supabase, openai, entryId) {
   }
 }
 
+// Production batch configuration
+const BATCH_CONFIG = {
+  BATCH_SIZE: 50,              // Max summaries per batch
+  MAX_BATCHES_PER_NIGHT: 10,   // Max 500 summaries per night (10 * 50)
+  RETRY_LIMIT: 3,              // Give up after 3 failed attempts
+  TIMEOUT_MS: 8000,            // 8 second timeout per summary
+  DELAY_BETWEEN_BATCHES: 5000, // 5 second delay between batches
+  DELAY_BETWEEN_REQUESTS: 100, // 100ms between individual requests
+};
+
 /**
  * Batch generate summaries for old entries (night job)
+ * Production features: BATCH_SIZE/MAX_BATCHES limits, retry tracking, timeout, stats
  * @param {object} supabase - Supabase client
  * @param {object} openai - OpenAI client
- * @param {number} limit - Max entries to process
+ * @param {number} limit - Max entries to process (capped by MAX_BATCHES * BATCH_SIZE)
  */
 async function batchGenerateSummaries(supabase, openai, limit = 100) {
   if (!supabase || !openai) {
     console.warn('[PRIVACY BATCH] Missing supabase or openai');
-    return { processed: 0, success: 0, failed: 0 };
+    return { processed: 0, success: 0, failed: 0, skipped: 0 };
   }
 
+  const startTime = Date.now();
   const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  
+  // Cap limit by production config
+  const maxEntries = Math.min(limit, BATCH_CONFIG.BATCH_SIZE * BATCH_CONFIG.MAX_BATCHES_PER_NIGHT);
 
   try {
-    // Get pending entries older than 24 hours
+    // Get pending entries older than 24 hours, prioritize by creation date
     const { data: entries, error } = await supabase
       .from('trace_entries_summary')
-      .select('id, raw_text, source')
+      .select('id, raw_text, source, retry_count')
       .eq('summary_status', 'pending')
       .not('raw_text', 'is', null)
       .lt('created_at', yesterday)
-      .limit(limit);
+      .order('created_at', { ascending: false })  // Newest first
+      .limit(maxEntries);
 
     if (error) {
       console.error('[PRIVACY BATCH] Fetch failed:', error.message);
-      return { processed: 0, success: 0, failed: 0, error: error.message };
+      return { processed: 0, success: 0, failed: 0, skipped: 0, error: error.message };
     }
 
     if (!entries?.length) {
       console.log('[PRIVACY BATCH] No pending entries to process');
-      return { processed: 0, success: 0, failed: 0 };
+      return { processed: 0, success: 0, failed: 0, skipped: 0 };
     }
+
+    console.log(`[PRIVACY BATCH] Found ${entries.length} pending summaries to process`);
 
     let success = 0;
     let failed = 0;
+    let skipped = 0;
+    let batchNum = 0;
 
-    for (const entry of entries) {
-      try {
-        const result = await generateSummaryOnDemand(supabase, openai, entry.id);
-        if (result.error) {
-          failed++;
-        } else {
-          success++;
-        }
-      } catch (e) {
-        failed++;
+    // Process in batches with delays
+    for (let i = 0; i < entries.length; i += BATCH_CONFIG.BATCH_SIZE) {
+      if (batchNum >= BATCH_CONFIG.MAX_BATCHES_PER_NIGHT) {
+        console.log(`[PRIVACY BATCH] Reached max batches limit (${BATCH_CONFIG.MAX_BATCHES_PER_NIGHT})`);
+        break;
       }
       
-      // Rate limit: 100ms between requests
-      await new Promise(r => setTimeout(r, 100));
+      const batch = entries.slice(i, i + BATCH_CONFIG.BATCH_SIZE);
+      batchNum++;
+      
+      console.log(`[PRIVACY BATCH] Processing batch ${batchNum}/${Math.ceil(Math.min(entries.length, maxEntries) / BATCH_CONFIG.BATCH_SIZE)}`);
+
+      for (const entry of batch) {
+        // Skip if already at retry limit
+        if ((entry.retry_count || 0) >= BATCH_CONFIG.RETRY_LIMIT) {
+          console.log(`[PRIVACY BATCH] Skipping ${entry.id} (retry limit reached)`);
+          skipped++;
+          continue;
+        }
+
+        try {
+          const result = await generateSummaryOnDemand(supabase, openai, entry.id);
+          if (result.error) {
+            failed++;
+          } else {
+            success++;
+          }
+        } catch (e) {
+          failed++;
+        }
+        
+        // Rate limit between requests
+        await new Promise(r => setTimeout(r, BATCH_CONFIG.DELAY_BETWEEN_REQUESTS));
+      }
+      
+      // Delay between batches (rate limiting)
+      if (i + BATCH_CONFIG.BATCH_SIZE < entries.length) {
+        console.log(`[PRIVACY BATCH] Waiting ${BATCH_CONFIG.DELAY_BETWEEN_BATCHES}ms before next batch...`);
+        await new Promise(r => setTimeout(r, BATCH_CONFIG.DELAY_BETWEEN_BATCHES));
+      }
     }
 
-    console.log(`[PRIVACY BATCH] Processed ${entries.length}: ${success} success, ${failed} failed`);
-    return { processed: entries.length, success, failed };
+    const duration = Math.round((Date.now() - startTime) / 1000);
+    const successRate = entries.length > 0 ? Math.round((success / entries.length) * 100) : 0;
+    
+    console.log(`[PRIVACY BATCH] Completed in ${duration}s: ${success} success, ${failed} failed, ${skipped} skipped (${successRate}% success rate)`);
+    
+    return { 
+      processed: success + failed, 
+      success, 
+      failed, 
+      skipped,
+      duration,
+      successRate
+    };
 
   } catch (err) {
     console.error('[PRIVACY BATCH] Error:', err.message);
-    return { processed: 0, success: 0, failed: 0, error: err.message };
+    return { processed: 0, success: 0, failed: 0, skipped: 0, error: err.message };
   }
 }
 
@@ -544,7 +601,7 @@ async function deleteUserData(supabase, deviceId, userId = null) {
  * @param {string} entryId - Entry UUID
  * @param {string} userId - User UUID for ownership verification
  */
-async function softDeleteEntry(supabase, entryId, userId) {
+async function softDeleteEntry(supabase, entryId, userId, deletionReason = 'user_requested') {
   if (!supabase || !entryId) {
     return { success: false, error: 'Missing parameters' };
   }
@@ -552,7 +609,11 @@ async function softDeleteEntry(supabase, entryId, userId) {
   try {
     const { data, error } = await supabase
       .from('trace_entries_summary')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({ 
+        deleted_at: new Date().toISOString(),
+        deletion_reason: deletionReason,
+        needs_cleanup: true
+      })
       .eq('id', entryId)
       .eq('user_id', userId)
       .select();
@@ -561,7 +622,8 @@ async function softDeleteEntry(supabase, entryId, userId) {
       return { success: false, error: error.message };
     }
 
-    return { success: true, entry: data?.[0] };
+    console.log(`[PRIVACY] Soft-deleted entry ${entryId} - reason: ${deletionReason}`);
+    return { success: true, entry: data?.[0], recoveryDeadline: new Date(Date.now() + 30*24*60*60*1000) };
   } catch (err) {
     return { success: false, error: err.message };
   }

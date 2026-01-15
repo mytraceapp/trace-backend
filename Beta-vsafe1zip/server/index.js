@@ -9810,6 +9810,7 @@ app.post('/api/privacy-settings', async (req, res) => {
 // ==================== ON-DEMAND SUMMARY ENDPOINT ====================
 
 // POST /api/summary/:entryId - Generate or retrieve cached summary
+// Production features: timeout protection, retry backoff, last_accessed_at tracking
 app.post('/api/summary/:entryId', async (req, res) => {
   const { entryId } = req.params;
   const { userId } = req.body;
@@ -9828,7 +9829,7 @@ app.post('/api/summary/:entryId', async (req, res) => {
     // 1. Fetch the entry (security: only user can request their own)
     const { data: entry, error: fetchError } = await supabaseServer
       .from('trace_entries_summary')
-      .select('raw_text, summary_text, summary_generated_at')
+      .select('raw_text, summary_text, summary_generated_at, summary_status, retry_count, last_summary_attempt_at')
       .eq('id', entryId)
       .eq('user_id', userId)
       .single();
@@ -9838,44 +9839,123 @@ app.post('/api/summary/:entryId', async (req, res) => {
       return res.status(404).json({ ok: false, error: 'Entry not found' });
     }
 
-    // 2. If summary already cached, return it
-    if (entry.summary_text) {
+    // 2. If summary already cached, return it + update last_accessed_at
+    if (entry.summary_text && entry.summary_status === 'completed') {
+      // Update last_accessed_at for analytics
+      await supabaseServer
+        .from('trace_entries_summary')
+        .update({ last_accessed_at: new Date().toISOString() })
+        .eq('id', entryId);
+      
       console.log('[TRACE SUMMARY] Returning cached summary');
       return res.json({ 
         ok: true,
         summary: entry.summary_text,
-        cached: true 
+        cached: true,
+        generatedAt: entry.summary_generated_at
       });
     }
 
-    // 3. Generate summary on-demand (first time)
+    // 3. Check if already generating (prevent race condition)
+    if (entry.summary_status === 'generating') {
+      console.log('[TRACE SUMMARY] Summary already being generated, wait...');
+      return res.json({
+        ok: true,
+        summary: null,
+        status: 'generating',
+        message: 'Summary is being generated, please try again in a few seconds'
+      });
+    }
+
+    // 4. Check if previous attempt failed recently (backoff strategy)
+    const retryCount = entry.retry_count || 0;
+    if (entry.summary_status === 'failed' && retryCount >= 3) {
+      const lastAttempt = new Date(entry.last_summary_attempt_at || 0);
+      const hoursSinceAttempt = (Date.now() - lastAttempt.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSinceAttempt < 24) {
+        console.log('[TRACE SUMMARY] Entry failed 3+ times, using fallback (backoff)');
+        const fallbackSummary = entry.raw_text ? entry.raw_text.substring(0, 100) + '...' : '[content unavailable]';
+        return res.json({
+          ok: true,
+          summary: fallbackSummary,
+          status: 'fallback',
+          message: 'Summary temporarily unavailable, showing preview instead'
+        });
+      }
+    }
+
+    // 5. Generate summary on-demand (first time)
     if (!openai) {
       return res.json({ ok: true, summary: 'Summary unavailable', cached: false });
     }
 
+    // 6. Mark status as 'generating' to prevent race conditions
+    await supabaseServer
+      .from('trace_entries_summary')
+      .update({ summary_status: 'generating' })
+      .eq('id', entryId);
+
     console.log('[TRACE SUMMARY] Generating summary for entry...');
     
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        { 
-          role: 'system', 
-          content: 'Summarize the user message in 15 words or less. Be concise and capture the emotional tone. No identifying details.'
-        },
-        { role: 'user', content: entry.raw_text }
-      ],
-      temperature: 0.5,
-      max_tokens: 50
-    });
+    // 7. Generate with 8-second timeout protection
+    let summary;
+    try {
+      const completion = await Promise.race([
+        openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            { 
+              role: 'system', 
+              content: 'Summarize the user message in 15 words or less. Be concise and capture the emotional tone. No identifying details.'
+            },
+            { role: 'user', content: entry.raw_text }
+          ],
+          temperature: 0.5,
+          max_tokens: 50
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('OpenAI timeout')), 8000)
+        )
+      ]);
 
-    const summary = completion.choices[0]?.message?.content?.trim() || 'Unable to summarize';
+      summary = completion.choices[0]?.message?.content?.trim() || 'Unable to summarize';
+    } catch (openaiError) {
+      console.error('[TRACE SUMMARY] OpenAI error:', openaiError.message);
+      
+      // Handle OpenAI failure gracefully
+      const newRetryCount = retryCount + 1;
+      
+      await supabaseServer
+        .from('trace_entries_summary')
+        .update({
+          summary_status: 'failed',
+          retry_count: newRetryCount,
+          last_summary_attempt_at: new Date().toISOString()
+        })
+        .eq('id', entryId);
 
-    // 4. Cache the summary
+      console.log(`[TRACE SUMMARY] Marked as failed (attempt ${newRetryCount})`);
+
+      const fallbackSummary = entry.raw_text ? entry.raw_text.substring(0, 100) + '...' : '[content unavailable]';
+      return res.status(200).json({
+        ok: true,
+        summary: fallbackSummary,
+        status: 'fallback',
+        error: 'Could not generate summary, showing preview',
+        retryCount: newRetryCount
+      });
+    }
+
+    // 8. Success: Cache the summary
     await supabaseServer
       .from('trace_entries_summary')
       .update({
         summary_text: summary,
-        summary_generated_at: new Date().toISOString()
+        summary_generated_at: new Date().toISOString(),
+        summary_status: 'completed',
+        last_accessed_at: new Date().toISOString(),
+        retry_count: 0  // Reset on success
       })
       .eq('id', entryId);
 
@@ -9884,7 +9964,9 @@ app.post('/api/summary/:entryId', async (req, res) => {
     res.json({ 
       ok: true,
       summary: summary,
-      cached: false
+      cached: false,
+      model: 'gpt-3.5-turbo',
+      generatedAt: new Date().toISOString()
     });
 
   } catch (error) {
@@ -9896,9 +9978,10 @@ app.post('/api/summary/:entryId', async (req, res) => {
 // ==================== ADDITIONAL PRIVACY ENDPOINTS ====================
 
 // POST /api/entry/:entryId/soft-delete - Soft delete an entry (recoverable for 30 days)
+// Production feature: deletion_reason tracking for GDPR compliance
 app.post('/api/entry/:entryId/soft-delete', async (req, res) => {
   const { entryId } = req.params;
-  const { userId } = req.body;
+  const { userId, reason = 'user_requested' } = req.body;
 
   if (!entryId || !userId) {
     return res.status(400).json({ ok: false, error: 'Missing entryId or userId' });
@@ -9908,13 +9991,26 @@ app.post('/api/entry/:entryId/soft-delete', async (req, res) => {
     return res.status(400).json({ ok: false, error: 'Invalid userId format' });
   }
 
-  const result = await softDeleteEntry(supabaseServer, entryId, userId);
+  // Validate deletion_reason
+  const validReasons = ['user_requested', 'retention_expired', 'account_deleted', 'admin_purge'];
+  const safeReason = validReasons.includes(reason) ? reason : 'user_requested';
+
+  console.log(`[TRACE DELETE] Soft deleting entry ${entryId} - reason: ${safeReason}`);
+
+  const result = await softDeleteEntry(supabaseServer, entryId, userId, safeReason);
   
   if (!result.success) {
     return res.status(400).json({ ok: false, error: result.error });
   }
 
-  res.json({ ok: true, message: 'Entry soft-deleted (recoverable for 30 days)' });
+  const recoveryDeadline = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  
+  res.json({ 
+    ok: true, 
+    message: 'Entry soft-deleted (recoverable for 30 days)',
+    recoveryDeadline,
+    reason: safeReason
+  });
 });
 
 // POST /api/entry/:entryId/restore - Restore a soft-deleted entry
