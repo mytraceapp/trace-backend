@@ -10,7 +10,7 @@ export interface PatternContext {
   lastCalculatedAt?: string | null;
 }
 
-export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone, patternContext }: {
+export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone, patternContext, tonePreference }: {
   messages: Array<{ role: string; content: string }>;
   userName?: string | null;
   chatStyle?: string;
@@ -21,6 +21,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
   deviceId?: string | null;
   timezone?: string | null;
   patternContext?: PatternContext | null;
+  tonePreference?: 'neutral' | 'faith' | null;
 }) {
   console.log(
     '🆔 TRACE sendChatMessage ids:',
@@ -50,6 +51,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
           deviceId: deviceId || null,
           timezone: timezone || null,
           patternContext: patternContext || null,
+          tonePreference: tonePreference || 'neutral',
         }),
         signal: controller.signal,
       }

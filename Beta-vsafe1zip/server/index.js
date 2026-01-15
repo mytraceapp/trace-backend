@@ -2439,6 +2439,7 @@ app.post('/api/chat', async (req, res) => {
       timezone,
       weatherContext: clientWeatherContext,
       patternContext,
+      tonePreference = 'neutral',
     } = req.body;
 
     // Filter out invalid placeholder names like "friend", "buddy", "pal"
@@ -3389,6 +3390,7 @@ CRISIS OVERRIDE:
         contextSnapshot: fullContext || null,
         patternContext: patternContext || null,
         dreamscapeHistory: dreamscapeHistory || null,
+        tonePreference: tonePreference || 'neutral',
       });
       
       // Audit log: Pattern explanation tracking
