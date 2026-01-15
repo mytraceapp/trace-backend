@@ -1,0 +1,106 @@
+# Disclaimer - First Chat Message (Backend-Driven)
+
+## Implementation: ✅ COMPLETE
+
+**Status:** Reverted Alert-based approach. Now using backend-driven disclaimer in first TRACE response.
+
+---
+
+## How It Works
+
+1. **User opens app** → Sees TRACE greeting
+2. **User chooses:**
+   - "Breathe" → Goes to breathing (no disclaimer shown)
+   - "Chat" → Sends first message
+3. **Backend receives first message:**
+   - Checks: `profiles.first_chat_completed` = false?
+   - If YES → Prepends disclaimer to TRACE's response
+   - Marks `first_chat_completed = true` in database
+4. **User sees in chat:**
+   ```
+   TRACE: "I should be clear: I'm reflective intelligence for everyday life. 
+   I'm not therapy and don't provide medical or psychological diagnosis or treatment. 
+   Not for emergencies or crisis. Not a substitute for licensed professionals.
+   
+   [Normal TRACE response here]"
+   ```
+5. **User responds normally** → Conversation continues
+
+---
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `mobile/app/(tabs)/chat.tsx` | ✅ Reverted (removed Alert imports + logic) |
+| `mobile/lib/chat.ts` | ✅ Reverted (removed disclaimerAccepted flag) |
+| `mobile/lib/disclaimer.ts` | ✅ Deleted (not needed) |
+| `server/index.js` | ✅ Updated (`/api/chat` endpoint) |
+
+---
+
+## Backend Logic
+
+**Location:** `server/index.js` `/api/chat` endpoint
+
+**What it does:**
+1. Extract `userId` from request
+2. Query Supabase: `profiles.first_chat_completed`
+3. If `false` (first chat):
+   - Prepend disclaimer text to AI response
+   - Update `profiles.first_chat_completed = true`
+4. Send response with disclaimer included
+
+**Disclaimer text:**
+```
+I should be clear: I'm reflective intelligence for everyday life. 
+I'm not therapy and don't provide medical or psychological diagnosis or treatment. 
+Not for emergencies or crisis. Not a substitute for licensed professionals.
+```
+
+---
+
+## Database Requirements
+
+**Column needed in `profiles` table:**
+```sql
+ALTER TABLE profiles ADD COLUMN first_chat_completed BOOLEAN DEFAULT false;
+```
+
+**Note:** If column doesn't exist, backend will ignore and treat as "not first chat"
+
+---
+
+## User Experience
+
+✅ **No popups or alerts**
+✅ **Disclaimer appears naturally in conversation**
+✅ **User just reads it and continues chatting**
+✅ **Only shows once per user (tracked in database)**
+✅ **Simple and clean**
+
+---
+
+## Testing
+
+1. **Fresh user** (new Supabase profile):
+   - Open app → See greeting
+   - Send first message
+   - ✅ Response includes disclaimer prepended
+
+2. **Returning user** (first_chat_completed = true):
+   - Send message
+   - ✅ NO disclaimer (skipped)
+
+3. **Breathing path**:
+   - Open app → Select "breathe"
+   - ✅ No disclaimer shown
+   - Return to chat, send message
+   - ✅ Disclaimer shown (first chat)
+
+---
+
+## That's It!
+
+No UI changes. No buttons. Just backend logic that adds text to first response.
+

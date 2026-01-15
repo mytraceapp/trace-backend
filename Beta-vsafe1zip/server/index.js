@@ -1807,7 +1807,7 @@ async function loadProfileBasic(userId) {
   
   const { data, error } = await supabaseServer
     .from('profiles')
-    .select('user_id, display_name, first_run_completed, first_run_completed_at, lat, lon')
+    .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, lat, lon')
     .eq('user_id', userId)
     .single();
 
@@ -2408,15 +2408,8 @@ app.post('/api/chat', async (req, res) => {
       timezone,
       weatherContext: clientWeatherContext,
       patternContext,
-      disclaimerAccepted,
     } = req.body;
 
-    // Defensive check: if disclaimer explicitly rejected, block the request
-    if (disclaimerAccepted === false) {
-      console.log('❌ Chat rejected: Disclaimer not accepted');
-      return res.status(400).json({ error: 'DISCLAIMER_REQUIRED' });
-    }
-    
     // Filter out invalid placeholder names like "friend", "buddy", "pal"
     const invalidNames = ['friend', 'buddy', 'pal', 'user', 'guest', 'anonymous'];
     const userName = rawUserName && !invalidNames.includes(rawUserName.toLowerCase().trim()) 
@@ -3943,9 +3936,39 @@ Your response:`;
       }
     }
     
+    // ===== FIRST CHAT DISCLAIMER (Backend-Driven) =====
+    // Check if this is user's first chat and prepend disclaimer if so
+    let finalAssistantText = messagesArray ? messagesArray[0] : assistantText;
+    let isFirstChat = false;
+    
+    try {
+      if (supabaseServer && effectiveUserId && userProfile && userProfile.first_chat_completed === false) {
+        isFirstChat = true;
+        const disclaimerText = "I should be clear: I'm reflective intelligence for everyday life. I'm not therapy and don't provide medical or psychological diagnosis or treatment. Not for emergencies or crisis. Not a substitute for licensed professionals.\n\n";
+        finalAssistantText = disclaimerText + finalAssistantText;
+        
+        // Mark first chat as completed (non-blocking)
+        supabaseServer
+          .from('profiles')
+          .update({ first_chat_completed: true })
+          .eq('user_id', effectiveUserId)
+          .then(() => console.log('[TRACE DISCLAIMER] Marked first_chat_completed = true for user:', effectiveUserId))
+          .catch(err => console.error('[TRACE DISCLAIMER] Failed to update first_chat_completed:', err.message));
+        
+        console.log('[TRACE DISCLAIMER] Prepended disclaimer to first chat response');
+      }
+    } catch (err) {
+      console.error('[TRACE DISCLAIMER] Error checking first_chat_completed:', err.message);
+    }
+    
+    // Update messagesArray[0] if crisis mode with disclaimer
+    if (isFirstChat && messagesArray && messagesArray.length > 0) {
+      messagesArray[0] = finalAssistantText;
+    }
+    
     // Build response - include messages array if crisis mode
     const response = {
-      message: messagesArray ? messagesArray[0] : assistantText, // First message or single message
+      message: finalAssistantText, // First message with optional disclaimer
       activity_suggestion: activitySuggestion
     };
     

@@ -1,5 +1,3 @@
-import { getDisclaimerAcceptance } from './disclaimer';
-
 export interface PatternContext {
   peakWindow?: string | null;
   peakWindowConfidence?: 'high' | 'medium' | 'low' | 'insufficient' | null;
@@ -32,8 +30,6 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
     deviceId || 'null'
   );
 
-  const disclaimerAccepted = await getDisclaimerAcceptance();
-
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45000); // 45s timeout for retry system
 
@@ -54,7 +50,6 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
           deviceId: deviceId || null,
           timezone: timezone || null,
           patternContext: patternContext || null,
-          disclaimerAccepted,
         }),
         signal: controller.signal,
       }
