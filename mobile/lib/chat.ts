@@ -81,11 +81,15 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
       activitySuggestion.dreamscapeTrackId = null;
     }
     
+    // Handle pattern_metadata for explainability
+    const patternMetadata = data.pattern_metadata || null;
+    
     return {
       message: data.message || "mm, I'm here.",
       messages: data.messages || null, // Multi-message array for crisis mode
       isCrisisMultiMessage: data.isCrisisMultiMessage || false,
       activity_suggestion: activitySuggestion,
+      pattern_metadata: patternMetadata,
     };
   } catch (err: any) {
     clearTimeout(timeout);

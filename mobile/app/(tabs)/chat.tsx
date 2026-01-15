@@ -575,9 +575,17 @@ export default function ChatScreen() {
         }
       } else {
         // Normal single message response
-        const assistantText: string =
+        let assistantText: string =
           result?.message ||
           "I'm here with you. Something went wrong on my end, but you can still tell me what's on your mind.";
+
+        // Append pattern explainability line if pattern_metadata is present
+        if (result?.pattern_metadata?.type === 'PATTERN' && result.pattern_metadata.signals_used?.length > 0) {
+          const signals = result.pattern_metadata.signals_used.join(', ');
+          const confidence = result.pattern_metadata.confidence || 'moderate';
+          assistantText += `\n\nSignals: ${signals} • Confidence: ${confidence}`;
+          console.log('📊 TRACE appended pattern explainability line');
+        }
 
         const assistantMessage: ChatMessage = {
           id: `local-assistant-${Date.now()}`,

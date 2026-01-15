@@ -4092,6 +4092,51 @@ Your response:`;
       activity_suggestion: activitySuggestion
     };
     
+    // Add pattern_metadata if we used pattern context in this response
+    // This enables inline explainability in the mobile chat
+    if (patternContext && Object.keys(patternContext).length > 0) {
+      const patternMetadata = {
+        type: 'PATTERN',
+        signals_used: [],
+        confidence: 'moderate',
+      };
+      
+      // Build signals list from pattern context that was used
+      if (patternContext.peakWindow) {
+        patternMetadata.signals_used.push('activity logs');
+      }
+      if (patternContext.stressEchoes) {
+        patternMetadata.signals_used.push('journal entries');
+      }
+      if (patternContext.mostHelpfulActivity) {
+        patternMetadata.signals_used.push('activity completions');
+      }
+      if (patternContext.weeklyRhythmPeak) {
+        patternMetadata.signals_used.push('mood check-ins');
+      }
+      
+      // Determine overall confidence from individual pattern confidences
+      const confidences = [
+        patternContext.peakWindowConfidence,
+        patternContext.stressEchoesConfidence,
+        patternContext.mostHelpfulConfidence
+      ].filter(Boolean);
+      
+      if (confidences.includes('high')) {
+        patternMetadata.confidence = 'high';
+      } else if (confidences.includes('medium')) {
+        patternMetadata.confidence = 'moderate';
+      } else {
+        patternMetadata.confidence = 'low';
+      }
+      
+      // Only include if we have signals
+      if (patternMetadata.signals_used.length > 0) {
+        response.pattern_metadata = patternMetadata;
+        console.log('[TRACE PATTERN] Including pattern_metadata:', patternMetadata);
+      }
+    }
+    
     // Add audio_action if present
     if (audioAction) {
       response.audio_action = audioAction;
@@ -6909,6 +6954,121 @@ function getPeakWindowConfidence(percentage) {
   return "emerging";
 }
 
+/**
+ * Build explainability metadata for pattern insights
+ * Returns structured JSON with signals_used, confidence, verify_next
+ */
+function buildPatternExplainability(patternType, data) {
+  const explainability = {
+    type: 'PATTERN',
+    title: '',
+    insight: '',
+    signals_used: [],
+    confidence: 'low',
+    verify_next: [],
+  };
+  
+  switch (patternType) {
+    case 'peakWindow':
+      explainability.title = 'Peak Window';
+      explainability.insight = data.label || 'Your most active time window';
+      explainability.signals_used = [`activity_logs:${data.activityCount || 0}`];
+      explainability.confidence = data.confidence === 'high' ? 'high' : 
+                                   data.confidence === 'medium' ? 'moderate' : 'low';
+      explainability.verify_next = [
+        'Does this time feel accurate to you?',
+        'Are there times you use TRACE that we might be missing?'
+      ];
+      break;
+      
+    case 'stressEchoes':
+      explainability.title = 'Stress Echoes';
+      explainability.insight = data.label || 'When heavy moments tend to surface';
+      explainability.signals_used = [
+        `journal_entries:${data.journalCount || 0}`,
+        `mood_tags:${data.stressCount || 0}`
+      ];
+      explainability.confidence = data.confidence === 'strong' ? 'high' :
+                                   data.confidence === 'clear' ? 'moderate' : 'low';
+      explainability.verify_next = [
+        'Does this day pattern feel right?',
+        'Are there other heavy days we should know about?'
+      ];
+      break;
+      
+    case 'mostHelpfulActivity':
+      explainability.title = 'Most Helpful Activity';
+      explainability.insight = data.label || 'What you return to most';
+      explainability.signals_used = [`activity_completions:${data.count || 0}`];
+      explainability.confidence = data.count >= 5 ? 'high' : 
+                                   data.count >= 3 ? 'moderate' : 'low';
+      explainability.verify_next = [
+        'Does this activity feel supportive to you?',
+        'Are there other tools that help that we haven\'t noticed?'
+      ];
+      break;
+      
+    case 'energyFlow':
+      explainability.title = 'Energy Tides';
+      explainability.insight = data.label || 'When you reach for TRACE most';
+      explainability.signals_used = [`activity_logs:${data.totalActivities || 0}`];
+      explainability.confidence = data.totalActivities >= 10 ? 'high' :
+                                   data.totalActivities >= 5 ? 'moderate' : 'low';
+      explainability.verify_next = [
+        'Does this rhythm match how your week usually feels?'
+      ];
+      break;
+      
+    case 'softening':
+      explainability.title = 'Softening Days';
+      explainability.insight = data.label || 'When calm tends to appear';
+      explainability.signals_used = [
+        `journal_entries:${data.journalCount || 0}`,
+        `calm_moods:${data.totalSoftEntries || 0}`
+      ];
+      explainability.confidence = data.totalSoftEntries >= 5 ? 'high' :
+                                   data.totalSoftEntries >= 3 ? 'moderate' : 'low';
+      explainability.verify_next = [
+        'Does this day feel lighter to you?'
+      ];
+      break;
+      
+    case 'weeklyMoodTrend':
+      explainability.title = 'Weekly Mood Trend';
+      explainability.insight = 'How this week compares to last';
+      explainability.signals_used = [
+        `mood_checkins:${(data.calm?.thisWeek || 0) + (data.stress?.thisWeek || 0)}`,
+        `journal_entries:${data.journalCount || 0}`
+      ];
+      explainability.confidence = 'moderate';
+      explainability.verify_next = [
+        'Does this feel accurate to how your week has been?'
+      ];
+      break;
+      
+    default:
+      explainability.title = 'Pattern';
+      explainability.confidence = 'low';
+  }
+  
+  return explainability;
+}
+
+/**
+ * Format signals for inline display
+ * e.g., "activity_logs:6, journal_entries:3" → "activity logs, journal entries"
+ */
+function formatSignalsForDisplay(signalsUsed) {
+  if (!signalsUsed || signalsUsed.length === 0) return '';
+  
+  const signalNames = signalsUsed.map(s => {
+    const [name] = s.split(':');
+    return name.replace(/_/g, ' ').replace(/entries|logs|completions|tags/gi, '').trim();
+  }).filter(Boolean);
+  
+  return [...new Set(signalNames)].join(', ');
+}
+
 // Confidence tier helper for Stress Echoes (2-3 = soft, 4-5 = clear, 6+ = strong)
 // Note: With time-decay weighting, these thresholds effectively require:
 // - "soft": 2+ recent entries (or more older entries to compensate for lower weights)
@@ -8921,35 +9081,64 @@ app.post('/api/patterns/insights', async (req, res) => {
     // Generate lastCalculatedAt timestamp (ISO 8601) for all patterns
     const lastCalculatedAt = new Date().toISOString();
     
+    // Build explainability metadata for each pattern
+    const peakWindowExplain = buildPatternExplainability('peakWindow', {
+      ...validatedPeakWindow,
+      activityCount: activityLogs.length
+    });
+    const stressEchoesExplain = buildPatternExplainability('stressEchoes', {
+      ...stressEchoes,
+      journalCount: journals.length
+    });
+    const mostHelpfulExplain = buildPatternExplainability('mostHelpfulActivity', mostHelpfulActivity);
+    const energyFlowExplain = buildPatternExplainability('energyFlow', energyFlow);
+    const softeningExplain = buildPatternExplainability('softening', {
+      ...softening,
+      journalCount: journals.length
+    });
+    const weeklyMoodExplain = buildPatternExplainability('weeklyMoodTrend', {
+      ...finalWeeklyMoodTrend,
+      journalCount: journals.length
+    });
+    
     // Build response object with calculated values, preferring AI labels when available
     const calculatedResponse = {
       // Core pattern objects (nested) - kept for backward compatibility
       // Each pattern includes lastCalculatedAt per BACKEND_API.md lines 762-790
+      // Now includes explainability metadata
       peakWindow: {
         ...validatedPeakWindow,
         lastCalculatedAt,
         sampleSize: sampleSize,
+        explainability: peakWindowExplain,
       },
       mostHelpfulActivity: {
         ...mostHelpfulActivity,
         lastCalculatedAt,
+        explainability: mostHelpfulExplain,
       },
       stressEchoes: {
         ...stressEchoes,
         lastCalculatedAt,
         sampleSize: journals.length,
+        explainability: stressEchoesExplain,
       },
       energyFlow: {
         ...energyFlow,
         lastCalculatedAt,
         sampleSize: activityLogs.length,
+        explainability: energyFlowExplain,
       },
       softening: {
         ...softening,
         lastCalculatedAt,
         sampleSize: journals.length,
+        explainability: softeningExplain,
       },
-      weeklyMoodTrend: finalWeeklyMoodTrend,
+      weeklyMoodTrend: {
+        ...finalWeeklyMoodTrend,
+        explainability: weeklyMoodExplain,
+      },
       crossPatternHint: aiCrossPatternHint || crossPatternHint,
       predictiveHint: aiPredictiveHint || predictiveHint,
       
