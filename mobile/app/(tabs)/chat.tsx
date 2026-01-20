@@ -100,7 +100,7 @@ async function getCachedPatterns(): Promise<PatternContext | null> {
 }
 // These imports were moved here for organization but work fine
 import { supabase } from '../../lib/supabaseClient';
-import { fetchActivityAcknowledgment, logActivityCompletion } from '../../lib/activityAcknowledgment';
+import { logActivityCompletion } from '../../lib/activityAcknowledgment';
 import { openSpotifyPlaylist } from '../../lib/spotify';
 import { MoodSpace } from '../../lib/musicConfig';
 
@@ -167,15 +167,9 @@ export default function ChatScreen() {
   const [stableId, setStableId] = useState<string | null>(null);
   const [welcomeText, setWelcomeText] = useState<string | null>(null);
   const [welcomeLoading, setWelcomeLoading] = useState(false);
-  const [pendingAcknowledgment, setPendingAcknowledgment] = useState<{
-    activity: string;
-    duration?: number;
-  } | null>(null);
-
   // Onboarding reflection flow state
   const [awaitingOnboardingReflection, setAwaitingOnboardingReflection] = useState(false);
-  const [lastCompletedActivity, setLastCompletedActivity] = useState<string | null>(null);
-  const [isOnboardingUser, setIsOnboardingUser] = useState(false);
+  const [lastCompletedActivityName, setLastCompletedActivityName] = useState<string | null>(null);
 
   // Night Swim player state
   const [showNightSwimPlayer, setShowNightSwimPlayer] = useState(false);
@@ -335,23 +329,6 @@ export default function ChatScreen() {
       const userId = data?.user?.id ?? null;
       setAuthUserId(userId);
       console.log('🆔 TRACE chat screen authUserId:', userId);
-
-      // Check if user is in onboarding mode
-      if (userId) {
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('onboarding_completed')
-            .eq('id', userId)
-            .single();
-          
-          const isOnboarding = profile?.onboarding_completed === false || profile?.onboarding_completed === null;
-          setIsOnboardingUser(isOnboarding);
-          console.log('🎓 TRACE onboarding status:', isOnboarding);
-        } catch (err) {
-          console.log('🎓 TRACE could not check onboarding status:', err);
-        }
-      }
     };
     initIds();
   }, []);
@@ -444,6 +421,7 @@ export default function ChatScreen() {
       
       console.log('🎯 Activity completion detected:', activity, duration);
       
+      // Log activity completion
       logActivityCompletion({
         userId: authUserId,
         deviceId: stableId,
@@ -451,54 +429,24 @@ export default function ChatScreen() {
         durationSeconds: duration || 0,
       });
       
-      setPendingAcknowledgment({ activity, duration });
+      // Immediately append reflection prompt (onboarding flow)
+      const reflectionPrompt: ChatMessage = {
+        id: `onboard-ack-${Date.now()}`,
+        role: 'assistant',
+        content: 'Welcome back. Did that help at all?',
+      };
+      addMessage(reflectionPrompt);
+      
+      // Set state for reflection capture
+      setAwaitingOnboardingReflection(true);
+      setLastCompletedActivityName(activity);
+      
+      console.log('🎓 TRACE: awaiting onboarding reflection for', activity);
       
       router.setParams({ completedActivity: undefined, activityDuration: undefined });
     }
   }, [params.completedActivity, stableId, authUserId]);
 
-  useEffect(() => {
-    if (pendingAcknowledgment && stableId !== null) {
-      const handleAcknowledgment = async () => {
-        // Onboarding flow: show simple reflection prompt instead of regular acknowledgment
-        if (isOnboardingUser) {
-          console.log('🎓 TRACE onboarding: activity completed, awaiting reflection');
-          setLastCompletedActivity(pendingAcknowledgment.activity);
-          setAwaitingOnboardingReflection(true);
-          
-          const reflectionPrompt: ChatMessage = {
-            id: `onboard-ack-${Date.now()}`,
-            role: 'assistant',
-            content: 'Welcome back. Did that help at all?',
-          };
-          addMessage(reflectionPrompt);
-          setPendingAcknowledgment(null);
-          return;
-        }
-
-        // Regular flow: fetch AI acknowledgment
-        const ackMessage = await fetchActivityAcknowledgment({
-          userId: authUserId,
-          deviceId: stableId,
-          activityType: pendingAcknowledgment.activity,
-          durationSeconds: pendingAcknowledgment.duration,
-        });
-        
-        if (ackMessage) {
-          const assistantMessage: ChatMessage = {
-            id: `ack-${Date.now()}`,
-            role: 'assistant',
-            content: ackMessage,
-          };
-          addMessage(assistantMessage);
-        }
-        
-        setPendingAcknowledgment(null);
-      };
-      
-      handleAcknowledgment();
-    }
-  }, [pendingAcknowledgment, stableId, authUserId, isOnboardingUser]);
 
   // Check for pending journal conversation invite
   useEffect(() => {
@@ -558,8 +506,8 @@ export default function ChatScreen() {
     console.log('📤 TRACE sending message:', trimmed);
 
     // Onboarding reflection flow: intercept user's reflection response
-    if (awaitingOnboardingReflection && lastCompletedActivity) {
-      console.log('🎓 TRACE onboarding: capturing reflection for', lastCompletedActivity);
+    if (awaitingOnboardingReflection && lastCompletedActivityName) {
+      console.log('🎓 TRACE onboarding: capturing reflection for', lastCompletedActivityName);
       
       try {
         // POST to /api/onboarding/reflection
@@ -568,7 +516,7 @@ export default function ChatScreen() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId: authUserId,
-            activity_id: lastCompletedActivity,
+            activity_id: lastCompletedActivityName,
             felt_shift: trimmed,
           }),
         });
@@ -579,7 +527,7 @@ export default function ChatScreen() {
 
       // Clear onboarding reflection state
       setAwaitingOnboardingReflection(false);
-      setLastCompletedActivity(null);
+      setLastCompletedActivityName(null);
 
       // Add the two response messages with delay
       setTimeout(() => {
