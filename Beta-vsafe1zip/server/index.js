@@ -2664,9 +2664,16 @@ app.post('/api/chat', async (req, res) => {
       ? rawUserName 
       : null;
 
-    // Use real userId if provided, otherwise use a known valid UUID bucket
-    const effectiveUserId =
-      userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
+    // Require real userId - don't use hardcoded fallback that corrupts user identity
+    const effectiveUserId = userId || null;
+    
+    if (!effectiveUserId) {
+      console.warn('[TRACE CHAT] No userId provided, returning 401');
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        message: "mm, I lost you for a second. Try again?" 
+      });
+    }
 
     console.log(
       '[TRACE CHAT] effectiveUserId:',

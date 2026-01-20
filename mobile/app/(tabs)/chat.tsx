@@ -339,8 +339,12 @@ export default function ChatScreen() {
       try {
         console.log('🕰 TRACE loading chat history...');
 
-        const effectiveUserId = userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
-        const url = `${CHAT_API_BASE}/api/chat-history?userId=${encodeURIComponent(effectiveUserId)}`;
+        // Don't use hardcoded fallback - require real userId or skip
+        if (!userId) {
+          console.log('⚠️ TRACE chat history: no userId, skipping fetch');
+          return;
+        }
+        const url = `${CHAT_API_BASE}/api/chat-history?userId=${encodeURIComponent(userId)}`;
 
         console.log('🛰 TRACE chat history URL:', url);
 
@@ -587,6 +591,22 @@ export default function ChatScreen() {
   const handleSend = async () => {
     const trimmed = inputText.trim();
     if (!trimmed || isSending) return;
+    
+    // Guard: Ensure authUserId is available before sending
+    // Re-fetch from Supabase if null (handles edge cases like session refresh)
+    let currentUserId = authUserId;
+    if (!currentUserId) {
+      console.log('⚠️ TRACE handleSend: authUserId is null, re-fetching from auth...');
+      const { data } = await supabase.auth.getUser();
+      currentUserId = data?.user?.id ?? null;
+      if (currentUserId) {
+        setAuthUserId(currentUserId);
+        console.log('✅ TRACE handleSend: re-fetched authUserId:', currentUserId.slice(0, 8));
+      } else {
+        console.error('❌ TRACE handleSend: No auth session, cannot send message');
+        return; // Block send if no auth
+      }
+    }
 
     const userMessage: ChatMessage = {
       id: `local-user-${Date.now()}`,
@@ -612,7 +632,7 @@ export default function ChatScreen() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: authUserId,
+            userId: currentUserId,
             activity_id: lastCompletedActivityName,
             felt_shift: trimmed,
           }),
@@ -677,7 +697,7 @@ export default function ChatScreen() {
         localTime: now.toLocaleTimeString(),
         localDay: now.toLocaleDateString('en-US', { weekday: 'long' }),
         localDate: now.toLocaleDateString(),
-        userId: authUserId,
+        userId: currentUserId,
         deviceId: stableId,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         patternContext,
