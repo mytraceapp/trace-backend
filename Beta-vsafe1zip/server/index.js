@@ -3110,15 +3110,39 @@ app.post('/api/chat', async (req, res) => {
         return okPhrases.includes(t) || okPhrases.some(p => t.startsWith(p + ' '));
       };
       
-      // STEP: intro_sent -> After first user reply, ask what's on their mind (build rapport)
+      // STEP: intro_sent -> After first user reply, acknowledge and transition based on what they shared
       if (onboardingStep === 'intro_sent') {
-        // Natural follow-up questions that build rapport before suggesting activities
+        const userLower = (userText || '').toLowerCase();
+        
+        // Check if user shared something negative/difficult (stress, anxiety, struggle)
+        const isNegative = /stress|anxious|anxiety|overwhelm|tired|exhaust|sad|depress|panic|scared|worry|difficult|hard|rough|bad|not good|terrible|awful|struggling|hurt/i.test(userLower);
+        
+        // Check if user already shared what's on their mind (more than just a greeting acknowledgment)
+        const isSubstantive = userLower.length > 20 || isNegative;
+        
+        if (isSubstantive) {
+          // User already shared something meaningful - skip rapport step, go straight to activity offer
+          const activityOfferMessage = "I hear you. Before we go deeper — let's bring your system down first. I'd recommend Breathing (1 minute). Just say okay when you're ready.";
+          
+          await updateOnboardingStep('waiting_ok');
+          
+          console.log('[ONBOARDING] User shared something substantial, offering activity');
+          return res.json({
+            message: activityOfferMessage,
+            activity_suggestion: {
+              name: 'Breathing',
+              reason: 'To help settle your nervous system before we continue',
+              should_navigate: false,
+            },
+          });
+        }
+        
+        // Short greeting acknowledgment - ask what's on their mind
         const followUpResponses = [
-          "Good to hear. What's on your mind today?",
-          "That's good. So what's going on with you?",
-          "Glad to hear it. What brings you here today?",
-          "Nice. What's been on your mind lately?",
-          "That's good. So — what's on your mind?",
+          "So — what's on your mind?",
+          "What's going on with you?",
+          "What brings you here today?",
+          "What's been on your mind lately?",
         ];
         const followUp = followUpResponses[Math.floor(Math.random() * followUpResponses.length)];
         
@@ -3133,7 +3157,13 @@ app.post('/api/chat', async (req, res) => {
       
       // STEP: rapport_building -> After user shares what's on their mind, offer breathing activity
       if (onboardingStep === 'rapport_building') {
-        const activityOfferMessage = "Okay. Before we go into the whole story — let's bring your system down first. I'd recommend Breathing (1 minute). Just say okay.";
+        const userLower = (userText || '').toLowerCase();
+        const isNegative = /stress|anxious|anxiety|overwhelm|tired|exhaust|sad|depress|panic|scared|worry|difficult|hard|rough|bad|not good|terrible|awful|struggling|hurt/i.test(userLower);
+        
+        // Context-aware response based on what user shared
+        const activityOfferMessage = isNegative
+          ? "I hear you. Before we go deeper — let's bring your system down first. I'd recommend Breathing (1 minute). Just say okay when you're ready."
+          : "Okay. Before we go into the whole story — let's bring your system down first. I'd recommend Breathing (1 minute). Just say okay.";
         
         await updateOnboardingStep('waiting_ok');
         
