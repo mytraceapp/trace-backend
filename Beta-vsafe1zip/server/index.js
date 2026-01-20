@@ -3110,13 +3110,34 @@ app.post('/api/chat', async (req, res) => {
         return okPhrases.includes(t) || okPhrases.some(p => t.startsWith(p + ' '));
       };
       
-      // STEP: intro_sent -> After first user reply, offer breathing activity
+      // STEP: intro_sent -> After first user reply, ask what's on their mind (build rapport)
       if (onboardingStep === 'intro_sent') {
+        // Natural follow-up questions that build rapport before suggesting activities
+        const followUpResponses = [
+          "Good to hear. What's on your mind today?",
+          "That's good. So what's going on with you?",
+          "Glad to hear it. What brings you here today?",
+          "Nice. What's been on your mind lately?",
+          "That's good. So — what's on your mind?",
+        ];
+        const followUp = followUpResponses[Math.floor(Math.random() * followUpResponses.length)];
+        
+        await updateOnboardingStep('rapport_building');
+        
+        console.log('[ONBOARDING] Building rapport - asking what is on their mind');
+        return res.json({
+          message: followUp,
+          activity_suggestion: { name: null, reason: null, should_navigate: false },
+        });
+      }
+      
+      // STEP: rapport_building -> After user shares what's on their mind, offer breathing activity
+      if (onboardingStep === 'rapport_building') {
         const activityOfferMessage = "Okay. Before we go into the whole story — let's bring your system down first. I'd recommend Breathing (1 minute). Just say okay.";
         
         await updateOnboardingStep('waiting_ok');
         
-        console.log('[ONBOARDING] Offering breathing activity after first message');
+        console.log('[ONBOARDING] User shared - now offering breathing activity');
         return res.json({
           message: activityOfferMessage,
           activity_suggestion: {
