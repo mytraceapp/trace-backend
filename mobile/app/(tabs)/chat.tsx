@@ -407,12 +407,70 @@ export default function ChatScreen() {
     }
   }, [authUserId, stableId]);
 
+  // Bootstrap: fetch onboarding intro variant for new users
+  const fetchBootstrap = useCallback(async () => {
+    console.log('[BOOTSTRAP] called');
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      
+      if (!token) {
+        console.log('[BOOTSTRAP] no auth token, skipping');
+        return;
+      }
+      
+      const res = await fetch(`${CHAT_API_BASE}/api/chat/bootstrap`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!res.ok) {
+        console.log('[BOOTSTRAP] error status:', res.status);
+        return;
+      }
+      
+      const data = await res.json();
+      console.log('[BOOTSTRAP] response', data);
+      
+      // If onboarding and messages returned, seed the chat
+      if (data.onboarding && Array.isArray(data.messages) && data.messages.length > 0) {
+        const bootstrapMessages: ChatMessage[] = data.messages.map(
+          (m: { role: string; content: string }, idx: number) => ({
+            id: `bootstrap-${idx}-${Date.now()}`,
+            role: (m.role === 'assistant' ? 'assistant' : 'user') as ChatRole,
+            content: m.content,
+          })
+        );
+        
+        // Only set if messages array is currently empty
+        setMessages((current) => {
+          if (current.length === 0) {
+            console.log('[BOOTSTRAP] seeding messages with', bootstrapMessages.length, 'intro messages');
+            return bootstrapMessages;
+          }
+          return current;
+        });
+        
+        // Also set welcome text from first message
+        if (bootstrapMessages[0]) {
+          setWelcomeText(bootstrapMessages[0].content);
+        }
+      }
+    } catch (err: any) {
+      console.error('[BOOTSTRAP] error:', err?.message || err);
+    }
+  }, []);
+
   useEffect(() => {
     if (stableId !== null) {
       fetchChatHistory(authUserId, stableId);
+      fetchBootstrap();
       fetchGreeting();
     }
-  }, [authUserId, stableId, fetchChatHistory, fetchGreeting]);
+  }, [authUserId, stableId, fetchChatHistory, fetchBootstrap, fetchGreeting]);
 
   useEffect(() => {
     if (params.completedActivity && stableId !== null) {
