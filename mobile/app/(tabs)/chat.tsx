@@ -371,6 +371,26 @@ export default function ChatScreen() {
 
   useEffect(() => {
     const initIds = async () => {
+      // FIRST: Check for pending activity completion BEFORE anything else
+      // This is the highest priority - returning from activity should just append reflection
+      let hasPendingActivity = false;
+      try {
+        const pendingCompletion = await AsyncStorage.getItem('trace:pendingActivityCompletion');
+        if (pendingCompletion) {
+          const { activity, duration, timestamp } = JSON.parse(pendingCompletion);
+          const ageMinutes = (Date.now() - timestamp) / (1000 * 60);
+          
+          if (ageMinutes < 5) {
+            hasPendingActivity = true;
+            console.log('🎯 INIT: Found pending activity, will handle after loading:', activity);
+          } else {
+            await AsyncStorage.removeItem('trace:pendingActivityCompletion');
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to check pending activity early:', e);
+      }
+      
       const deviceId = await getStableId();
       setStableId(deviceId);
       console.log('🆔 TRACE chat screen deviceId:', deviceId);
@@ -394,16 +414,72 @@ export default function ChatScreen() {
       }
 
       setAuthUserId(userId);
+      authUserIdRef.current = userId; // Update ref immediately
       console.log('🆔 TRACE chat screen final authUserId:', userId);
       
-      // THEN: Load conversation from AsyncStorage (keyed by userId)
+      // Load conversation from AsyncStorage (keyed by userId)
       const storedMessages = await loadConversationFromStorage(userId);
       if (storedMessages.length > 0) {
         setMessages(storedMessages);
         console.log('📱 Restored', storedMessages.length, 'messages from storage for user:', userId);
       }
       
-      // Mark history as loaded after storage check (enables greeting logic)
+      // If we have pending activity, handle it NOW before any greeting logic
+      if (hasPendingActivity) {
+        try {
+          const pendingCompletion = await AsyncStorage.getItem('trace:pendingActivityCompletion');
+          if (pendingCompletion) {
+            const { activity, duration } = JSON.parse(pendingCompletion);
+            await AsyncStorage.removeItem('trace:pendingActivityCompletion');
+            
+            console.log('🎯 INIT: Handling pending activity completion:', activity);
+            
+            // Append reflection to whatever messages we have
+            const reflectionPrompt: ChatMessage = {
+              id: `activity-reflection-${Date.now()}`,
+              role: 'assistant',
+              content: 'How was that?',
+            };
+            
+            // Add to current messages (which may have been loaded from storage)
+            setMessages(prev => {
+              const updated = [...prev, reflectionPrompt];
+              saveConversationToStorage(updated, userId);
+              return updated;
+            });
+            
+            setAwaitingOnboardingReflection(true);
+            setLastCompletedActivityName(activity);
+            setWelcomeLoading(false);
+            setChatInitialized(true); // Mark as initialized - NO greeting needed
+            setHistoryLoaded(true);
+            
+            // Log the activity
+            logActivityCompletion({
+              userId: userId,
+              deviceId: deviceId,
+              activityType: activity,
+              durationSeconds: duration || 0,
+            });
+            
+            // Notify backend
+            if (userId) {
+              fetch(`${CHAT_API_BASE}/api/onboarding/activity-complete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: userId, activityName: activity }),
+              }).catch(err => console.error('Failed to notify activity complete:', err));
+            }
+            
+            console.log('🎓 INIT: Activity reflection appended, skipping all greeting logic');
+            return; // EXIT EARLY - no greeting logic needed
+          }
+        } catch (e) {
+          console.warn('Failed to handle pending activity:', e);
+        }
+      }
+      
+      // Mark history as loaded (enables greeting logic for non-activity cases)
       setHistoryLoaded(true);
     };
     initIds();
