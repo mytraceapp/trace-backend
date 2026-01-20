@@ -625,16 +625,17 @@ export default function ChatScreen() {
         return; // Done - don't show greeting
       }
       
-      // PRIORITY 3: If we have existing messages from history, don't show a new greeting
-      // Just let the conversation continue naturally
-      if (messages.length > 0) {
-        console.log('🎯 Chat has existing history, skipping greeting');
+      // PRIORITY 3: Check AsyncStorage for existing conversation (most reliable)
+      // This avoids stale closure issues with messages.length
+      const storedConversation = await loadConversationFromStorage();
+      if (storedConversation.length > 0) {
+        console.log('🎯 Chat has existing conversation in storage, skipping greeting:', storedConversation.length, 'messages');
         setWelcomeLoading(false);
         return; // Done - user sees their existing conversation
       }
       
       // PRIORITY 4: No history, no activity - show greeting for new/returning user
-      console.log('🎯 No history found, showing greeting/bootstrap');
+      console.log('🎯 No conversation found, showing greeting/bootstrap');
       fetchBootstrap(authUserId).then((isOnboarding) => {
         if (!isOnboarding) {
           fetchGreeting();
@@ -647,7 +648,7 @@ export default function ChatScreen() {
     };
     
     initializeChat();
-  }, [historyLoaded, authUserId, stableId, params.completedActivity, params.activityDuration, messages.length, fetchBootstrap, fetchGreeting, handlePendingActivityCompletion, router]);
+  }, [historyLoaded, authUserId, stableId, params.completedActivity, params.activityDuration, fetchBootstrap, fetchGreeting, handlePendingActivityCompletion, router]);
 
 
   // Check for pending journal conversation invite
