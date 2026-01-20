@@ -10,6 +10,7 @@ import Svg, { Path, Circle, Defs, RadialGradient, Stop, Line } from 'react-nativ
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { stopAmbient } from '../../lib/ambientAudio';
+import { storePendingActivityCompletion } from '../../lib/activityCompletion';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -148,8 +149,9 @@ export default function EchoScreen() {
             }
             if (status.didJustFinish) {
               setIsVoicePlaying(false);
-              setTimeout(() => {
+              setTimeout(async () => {
                 const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+                await storePendingActivityCompletion('Echo', durationSeconds);
                 router.replace({
                   pathname: '/(tabs)/chat',
                   params: {
@@ -178,6 +180,7 @@ export default function EchoScreen() {
       await audioRef.current.stopAsync();
     }
     const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    await storePendingActivityCompletion('Echo', durationSeconds);
     router.replace({
       pathname: '/(tabs)/chat',
       params: {

@@ -23,6 +23,7 @@ import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
 import { Shadows } from '../../constants/shadows';
 import { stopAmbient } from '../../lib/ambientAudio';
+import { storePendingActivityCompletion } from '../../lib/activityCompletion';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -153,8 +154,9 @@ export default function RippleActivityScreen() {
         localSound = sound;
         soundRef.current = sound;
 
-        sound.setOnPlaybackStatusUpdate((status) => {
+        sound.setOnPlaybackStatusUpdate(async (status) => {
           if (status.isLoaded && status.didJustFinish && isMounted) {
+            await storePendingActivityCompletion('Ripple', TOTAL_DURATION);
             router.replace({
               pathname: '/(tabs)/chat',
               params: {
@@ -297,8 +299,9 @@ export default function RippleActivityScreen() {
       }
     }
     
-    setTimeout(() => {
+    setTimeout(async () => {
       const durationSeconds = TOTAL_DURATION - timeRemaining;
+      await storePendingActivityCompletion('Ripple', durationSeconds);
       router.replace({
         pathname: '/(tabs)/chat',
         params: {

@@ -18,6 +18,7 @@ import Animated, {
 import { FontFamily } from '../../constants/typography';
 import Orb from '../../components/Orb';
 import { stopAmbient } from '../../lib/ambientAudio';
+import { storePendingActivityCompletion } from '../../lib/activityCompletion';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -93,10 +94,11 @@ export default function RisingScreen() {
     opacity: glowAnim.value,
   }));
 
-  const handleEndSession = () => {
+  const handleEndSession = async () => {
     if (sessionRef.current) {
       clearInterval(sessionRef.current);
     }
+    await storePendingActivityCompletion('Rising', sessionSeconds);
     router.replace({
       pathname: '/(tabs)/chat',
       params: {

@@ -10,6 +10,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
+import { storePendingActivityCompletion } from '../../lib/activityCompletion';
 
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Spacing } from '../../constants/spacing';
@@ -82,10 +83,13 @@ export default function BreathingActivityScreen() {
   const progressPercentage = (progress / TOTAL_DURATION) * 100;
   const remainingTime = Math.max(0, Math.ceil(TOTAL_DURATION - progress));
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (progressInterval.current) clearInterval(progressInterval.current);
     if (phaseInterval.current) clearInterval(phaseInterval.current);
     const durationSeconds = Math.round(progress);
+    
+    await storePendingActivityCompletion('Breathing', durationSeconds);
+    
     router.replace({
       pathname: '/(tabs)/chat',
       params: {

@@ -12,6 +12,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { storePendingActivityCompletion } from '../../lib/activityCompletion';
 
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
@@ -237,8 +238,9 @@ export default function DriftScreen() {
   
   const sessionStartRef = useRef<number>(Date.now());
 
-  const handleTracePress = () => {
+  const handleTracePress = async () => {
     const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    await storePendingActivityCompletion('Drift', durationSeconds);
     router.replace({
       pathname: '/(tabs)/chat',
       params: {
@@ -248,8 +250,9 @@ export default function DriftScreen() {
     });
   };
 
-  const handleEndSession = () => {
+  const handleEndSession = async () => {
     const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    await storePendingActivityCompletion('Drift', durationSeconds);
     router.replace({
       pathname: '/(tabs)/chat',
       params: {

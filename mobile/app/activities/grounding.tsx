@@ -16,6 +16,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { storePendingActivityCompletion } from '../../lib/activityCompletion';
 
 import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
@@ -312,8 +313,9 @@ export default function GroundingScreen() {
 
   const sessionStartRef = useRef<number>(Date.now());
 
-  const handleClose = () => {
+  const handleClose = async () => {
     const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    await storePendingActivityCompletion('Grounding', durationSeconds);
     router.replace({
       pathname: '/(tabs)/chat',
       params: {
@@ -323,8 +325,9 @@ export default function GroundingScreen() {
     });
   };
 
-  const handleTracePress = () => {
+  const handleTracePress = async () => {
     const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    await storePendingActivityCompletion('Grounding', durationSeconds);
     router.replace({
       pathname: '/(tabs)/chat',
       params: {

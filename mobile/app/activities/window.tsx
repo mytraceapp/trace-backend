@@ -20,6 +20,7 @@ import { FontFamily, TraceWordmark } from '../../constants/typography';
 import { Shadows } from '../../constants/shadows';
 import { Spacing } from '../../constants/spacing';
 import { stopAmbient } from '../../lib/ambientAudio';
+import { storePendingActivityCompletion } from '../../lib/activityCompletion';
 
 function RaindropIcon({ size = 24, color = 'rgba(255, 255, 255, 0.65)' }: { size?: number; color?: string }) {
   return (
@@ -204,11 +205,12 @@ export default function WindowScreen() {
     });
   }, []);
 
-  const handleTracePress = () => {
+  const handleTracePress = async () => {
     if (audioRef.current) {
       audioRef.current.stopAsync();
     }
     const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    await storePendingActivityCompletion('Window', durationSeconds);
     router.replace({
       pathname: '/(tabs)/chat',
       params: {
