@@ -136,10 +136,35 @@ interface ChatMessage {
 }
 
 const MAX_MESSAGES = 150;
+const CONVERSATION_STORAGE_KEY = 'trace:conversation_history';
 
 const limitMessages = (msgs: ChatMessage[]): ChatMessage[] => {
   if (msgs.length <= MAX_MESSAGES) return msgs;
   return msgs.slice(-MAX_MESSAGES);
+};
+
+// Save conversation to AsyncStorage (like web version uses localStorage)
+const saveConversationToStorage = async (msgs: ChatMessage[]): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(CONVERSATION_STORAGE_KEY, JSON.stringify(msgs));
+  } catch (e) {
+    console.warn('Failed to save conversation to storage:', e);
+  }
+};
+
+// Load conversation from AsyncStorage (instant, before API fetch)
+const loadConversationFromStorage = async (): Promise<ChatMessage[]> => {
+  try {
+    const saved = await AsyncStorage.getItem(CONVERSATION_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      console.log('📱 Loaded conversation from storage:', parsed.length, 'messages');
+      return parsed;
+    }
+  } catch (e) {
+    console.warn('Failed to load conversation from storage:', e);
+  }
+  return [];
 };
 
 export default function ChatScreen() {
@@ -155,12 +180,21 @@ export default function ChatScreen() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   
+  // Save to AsyncStorage whenever messages change
   const addMessage = useCallback((msg: ChatMessage) => {
-    setMessages(prev => limitMessages([...prev, msg]));
+    setMessages(prev => {
+      const updated = limitMessages([...prev, msg]);
+      saveConversationToStorage(updated); // Persist immediately
+      return updated;
+    });
   }, []);
   
   const addMessages = useCallback((msgs: ChatMessage[]) => {
-    setMessages(prev => limitMessages([...prev, ...msgs]));
+    setMessages(prev => {
+      const updated = limitMessages([...prev, ...msgs]);
+      saveConversationToStorage(updated); // Persist immediately
+      return updated;
+    });
   }, []);
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -324,6 +358,13 @@ export default function ChatScreen() {
 
   useEffect(() => {
     const initIds = async () => {
+      // FIRST: Load conversation from AsyncStorage (instant, never wipes)
+      const storedMessages = await loadConversationFromStorage();
+      if (storedMessages.length > 0) {
+        setMessages(storedMessages);
+        console.log('📱 Restored', storedMessages.length, 'messages from storage');
+      }
+      
       const deviceId = await getStableId();
       setStableId(deviceId);
       console.log('🆔 TRACE chat screen deviceId:', deviceId);
@@ -348,6 +389,9 @@ export default function ChatScreen() {
 
       setAuthUserId(userId);
       console.log('🆔 TRACE chat screen final authUserId:', userId);
+      
+      // Mark history as loaded after storage check (enables greeting logic)
+      setHistoryLoaded(true);
     };
     initIds();
   }, []);
@@ -355,28 +399,25 @@ export default function ChatScreen() {
   const fetchChatHistory = useCallback(
     async (userId: string | null, deviceId: string | null) => {
       try {
-        console.log('🕰 TRACE loading chat history...');
+        console.log('🕰 TRACE syncing chat history from server...');
 
         // Don't use hardcoded fallback - require real userId or skip
         if (!userId) {
           console.log('⚠️ TRACE chat history: no userId, skipping fetch');
-          return;
+          return 0;
         }
         const url = `${CHAT_API_BASE}/api/chat-history?userId=${encodeURIComponent(userId)}`;
-
-        console.log('🛰 TRACE chat history URL:', url);
 
         const response = await fetch(url);
 
         if (!response.ok) {
           console.log('⚠️ TRACE chat history failed with status:', response.status);
-          return;
+          return 0;
         }
 
         const json = await response.json();
-        console.log('📥 TRACE raw chat history payload:', JSON.stringify(json));
 
-        if (json?.ok && Array.isArray(json.messages)) {
+        if (json?.ok && Array.isArray(json.messages) && json.messages.length > 0) {
           const historyMessages: ChatMessage[] = json.messages.map(
             (m: { role: string; content: string }, index: number) => ({
               id: `history-${index}`,
@@ -385,22 +426,22 @@ export default function ChatScreen() {
             })
           );
 
-          console.log('💬 TRACE mapped history messages sample:', historyMessages[0] || null);
-          console.log('✅ TRACE chat history loaded, hydrating messages:', historyMessages.length);
+          console.log('✅ TRACE server history:', historyMessages.length, 'messages');
 
-          setMessages((current) =>
-            current.length === 0 ? limitMessages(historyMessages) : current
-          );
-          setHistoryLoaded(true);
+          // Only update if server has MORE messages than local (sync from server)
+          setMessages((current) => {
+            if (historyMessages.length > current.length) {
+              saveConversationToStorage(historyMessages); // Sync to storage
+              return limitMessages(historyMessages);
+            }
+            return current; // Keep local if equal or more
+          });
+          
           return historyMessages.length;
-        } else {
-          console.warn('⚠️ TRACE chat history: invalid payload', json);
-          setHistoryLoaded(true);
-          return 0;
         }
+        return 0;
       } catch (err: any) {
         console.log('⚠️ TRACE chat history error:', err.message || String(err));
-        setHistoryLoaded(true);
         return 0;
       }
     },
