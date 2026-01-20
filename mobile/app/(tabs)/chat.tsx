@@ -168,9 +168,13 @@ export default function ChatScreen() {
   const [stableId, setStableId] = useState<string | null>(null);
   const [welcomeText, setWelcomeText] = useState<string | null>(null);
   const [welcomeLoading, setWelcomeLoading] = useState(false);
+  // Track whether chat history has been loaded (to prevent greeting before history)
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   // Onboarding reflection flow state
   const [awaitingOnboardingReflection, setAwaitingOnboardingReflection] = useState(false);
   const [lastCompletedActivityName, setLastCompletedActivityName] = useState<string | null>(null);
+  // Track if we're returning from an activity (to skip greeting)
+  const returningFromActivityRef = useRef(!!params.completedActivity);
 
   // Night Swim player state
   const [showNightSwimPlayer, setShowNightSwimPlayer] = useState(false);
@@ -389,11 +393,17 @@ export default function ChatScreen() {
           setMessages((current) =>
             current.length === 0 ? limitMessages(historyMessages) : current
           );
+          setHistoryLoaded(true);
+          return historyMessages.length;
         } else {
           console.warn('⚠️ TRACE chat history: invalid payload', json);
+          setHistoryLoaded(true);
+          return 0;
         }
       } catch (err: any) {
         console.log('⚠️ TRACE chat history error:', err.message || String(err));
+        setHistoryLoaded(true);
+        return 0;
       }
     },
     []
@@ -501,7 +511,7 @@ export default function ChatScreen() {
     }
   }, [stableId, authUserId, fetchChatHistory]);
 
-  // Helper to handle activity completion flow (reflection prompt)
+  // Helper to handle activity completion flow (appends reflection to existing conversation)
   const handlePendingActivityCompletion = useCallback(async (activity: string, duration: number) => {
     console.log('🎯 Activity completion detected:', activity, duration);
     
@@ -522,11 +532,11 @@ export default function ChatScreen() {
       }).catch(err => console.error('Failed to notify activity complete:', err));
     }
     
-    // Immediately append reflection prompt (onboarding flow)
+    // Append subtle reflection prompt to existing conversation (not a greeting)
     const reflectionPrompt: ChatMessage = {
-      id: `onboard-ack-${Date.now()}`,
+      id: `activity-reflection-${Date.now()}`,
       role: 'assistant',
-      content: 'Welcome back. Did that help at all?',
+      content: 'How was that?',
     };
     addMessage(reflectionPrompt);
     
@@ -535,42 +545,39 @@ export default function ChatScreen() {
     setLastCompletedActivityName(activity);
     setWelcomeLoading(false);
     
-    console.log('🎓 TRACE: awaiting onboarding reflection for', activity);
+    console.log('🎓 TRACE: awaiting activity reflection for', activity);
   }, [authUserId, stableId, addMessage]);
 
   // Separate effect for bootstrap/greeting - only runs when authUserId is available
-  // CRITICAL: Check for activity completion BEFORE greeting to avoid showing both
+  // CRITICAL: Skip greeting entirely if returning from an activity
   useEffect(() => {
     if (stableId === null) return;
     if (greetingInitializedRef.current) return;
     if (!authUserId) return; // Wait for auth
     
-    // SYNCHRONOUS CHECK: If params.completedActivity exists, skip greeting entirely
-    // The params effect will handle showing the reflection prompt
-    if (params.completedActivity) {
-      console.log('🎯 Skipping greeting - completedActivity param present:', params.completedActivity);
+    // SKIP GREETING if returning from activity (check both sync and async signals)
+    if (returningFromActivityRef.current || params.completedActivity) {
+      console.log('🎯 Skipping greeting - returning from activity');
       greetingInitializedRef.current = true;
-      return; // Let the params effect handle it
+      return; // Activity effect will handle appending reflection to conversation
     }
     
-    greetingInitializedRef.current = true;
-    
-    // Check for pending activity completion from AsyncStorage (reliable signal)
+    // Check for pending activity completion from AsyncStorage (backup signal)
     const checkAndInit = async () => {
       try {
         const pendingCompletion = await AsyncStorage.getItem('trace:pendingActivityCompletion');
         if (pendingCompletion) {
           const { activity, duration, timestamp } = JSON.parse(pendingCompletion);
-          
-          // Only process if less than 5 minutes old (fresh completion)
           const ageMinutes = (Date.now() - timestamp) / (1000 * 60);
+          
           if (ageMinutes < 5) {
             console.log('🎯 Found pending activity completion in AsyncStorage:', activity);
+            greetingInitializedRef.current = true;
+            returningFromActivityRef.current = true;
             await AsyncStorage.removeItem('trace:pendingActivityCompletion');
             await handlePendingActivityCompletion(activity, duration);
-            return; // Skip greeting - we're in reflection flow
+            return; // Skip greeting
           } else {
-            // Stale completion, clear it
             await AsyncStorage.removeItem('trace:pendingActivityCompletion');
           }
         }
@@ -578,7 +585,8 @@ export default function ChatScreen() {
         console.warn('Failed to check pending activity completion:', e);
       }
       
-      // No pending activity - proceed with normal bootstrap/greeting
+      // No pending activity - proceed with normal bootstrap/greeting for new session
+      greetingInitializedRef.current = true;
       fetchBootstrap(authUserId).then((isOnboarding) => {
         if (!isOnboarding) {
           fetchGreeting(); // Returning user - use AI greeting
@@ -593,21 +601,53 @@ export default function ChatScreen() {
     checkAndInit();
   }, [authUserId, stableId, params.completedActivity, fetchBootstrap, fetchGreeting, handlePendingActivityCompletion]);
 
-  // Handle completedActivity from route params (if not dropped by tab navigation)
+  // Handle activity completion - wait for history to load, then append reflection
   useEffect(() => {
-    if (params.completedActivity && stableId !== null && authUserId) {
-      const activity = params.completedActivity;
-      const duration = params.activityDuration ? parseInt(params.activityDuration, 10) : 0;
+    if (!returningFromActivityRef.current && !params.completedActivity) return;
+    if (stableId === null || !authUserId) return;
+    if (!historyLoaded) return; // Wait for chat history to load first
+    
+    const activity = params.completedActivity;
+    const storedActivity = returningFromActivityRef.current;
+    
+    // Process only once
+    if (!activity && !storedActivity) return;
+    
+    const processActivityCompletion = async () => {
+      let activityName = activity;
+      let duration = params.activityDuration ? parseInt(params.activityDuration, 10) : 0;
       
-      console.log('🎯 Processing activity completion from params:', activity);
+      // If no params, check AsyncStorage
+      if (!activityName) {
+        try {
+          const pendingCompletion = await AsyncStorage.getItem('trace:pendingActivityCompletion');
+          if (pendingCompletion) {
+            const parsed = JSON.parse(pendingCompletion);
+            activityName = parsed.activity;
+            duration = parsed.duration || 0;
+            await AsyncStorage.removeItem('trace:pendingActivityCompletion');
+          }
+        } catch (e) {
+          console.warn('Failed to read pending activity:', e);
+        }
+      }
       
-      // Clear the AsyncStorage flag if it exists (we got params successfully)
-      AsyncStorage.removeItem('trace:pendingActivityCompletion').catch(() => {});
+      if (activityName) {
+        console.log('🎯 Processing activity completion after history loaded:', activityName);
+        
+        // Clear the AsyncStorage flag
+        AsyncStorage.removeItem('trace:pendingActivityCompletion').catch(() => {});
+        
+        handlePendingActivityCompletion(activityName, duration);
+        router.setParams({ completedActivity: undefined, activityDuration: undefined });
+      }
       
-      handlePendingActivityCompletion(activity, duration);
-      router.setParams({ completedActivity: undefined, activityDuration: undefined });
-    }
-  }, [params.completedActivity, stableId, authUserId, handlePendingActivityCompletion]);
+      // Reset the ref so it doesn't trigger again
+      returningFromActivityRef.current = false;
+    };
+    
+    processActivityCompletion();
+  }, [params.completedActivity, stableId, authUserId, historyLoaded, handlePendingActivityCompletion, router]);
 
 
   // Check for pending journal conversation invite
