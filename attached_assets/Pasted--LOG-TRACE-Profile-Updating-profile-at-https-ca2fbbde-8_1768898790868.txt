@@ -1,0 +1,424 @@
+ LOG  [TRACE Profile] Updating profile at: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/profile/update
+ LOG  [TRACE Profile] Payload: {
+  "userId": "a7dafca1-29e2-48e4-a6f3-77d3541ce60c",
+  "displayName": "Nyla",
+  "email": "nylalove10@gmail.com"
+}
+ LOG  [TRACE Profile] Update response status: 200
+ LOG  [TRACE Profile] Profile updated successfully: {"displayName": "Nyla", "email": "nylalove10@gmail.com", "userId": "a7dafca1-29e2-48e4-a6f3-77d3541ce60c"}
+ LOG  [Account Setup] Profile saved successfully via backend: {"displayName": "Nyla", "email": "nylalove10@gmail.com"}
+ LOG  [Account Setup] Profile context set manually
+ LOG  [Account Setup] Profile cached in AsyncStorage
+ LOG  [Account Setup] Stored userId in AsyncStorage: a7dafca1-29e2-48e4-a6f3-77d3541ce60c
+ LOG  [Account Setup] Requesting location for weather...
+ LOG  [Weather] Using fallback location (NYC) for testing
+ LOG  [TRACE Profile] Updating profile at: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/profile/update
+ LOG  [TRACE Profile] Payload: {
+  "userId": "a7dafca1-29e2-48e4-a6f3-77d3541ce60c",
+  "lat": 40.7128,
+  "lon": -74.006
+}
+ LOG  [TRACE Profile] Update response status: 200
+ LOG  [TRACE Profile] Profile updated successfully: {"displayName": "Nyla", "email": "nylalove10@gmail.com", "userId": "a7dafca1-29e2-48e4-a6f3-77d3541ce60c"}
+ LOG  [Weather] Location saved to profile: {"latitude": 40.7128, "longitude": -74.006}
+ LOG  [Account Setup] Account created, redirecting to plan selection with userId: a7dafca1-29e2-48e4-a6f3-77d3541ce60c
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [GlobalAudioCoordinator] 🔌 Component UNMOUNTING - NOT resuming ambient (letting isPlaying state manage it)
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [GlobalAudioCoordinator] Will resume? false
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "plans", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": false, "pathname": "/plans", "segments": "(onboarding)/plans", "shouldHidePlayer": false, "shouldShow": false}
+ LOG  [ProfileProvider] no userId, skipping refresh
+ LOG  [Account Setup] Profile refreshed after delay
+ LOG  [Plans] Light plan selected, going to success
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [GlobalAudioCoordinator] 🔌 Component UNMOUNTING - NOT resuming ambient (letting isPlaying state manage it)
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [GlobalAudioCoordinator] Will resume? false
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "success", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": false, "pathname": "/success", "segments": "(onboarding)/success", "shouldHidePlayer": false, "shouldShow": false}
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE SESSION] useFocusEffect triggered, profile: null
+ LOG  [TRACE SESSION] ===== checkAndLogSession STARTED =====
+ LOG  [ChatScreen] User IS AUTHENTICATED - Starting audio
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [GlobalAudioCoordinator] 🔌 Component UNMOUNTING - NOT resuming ambient (letting isPlaying state manage it)
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [GlobalAudioCoordinator] Will resume? false
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "chat", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": false, "pathname": "/chat", "segments": "(tabs)/chat", "shouldHidePlayer": false, "shouldShow": false}
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE SESSION] lastVisitRaw: null
+ LOG  [TRACE SESSION] First visit ever - logging first session
+ LOG  [AudioContext.play] 📊 Sound status before play: {"isLoaded": true, "isPlaying": true, "volume": 0.10000000149011612}
+ LOG  [AudioContext.play] ℹ️ Already playing, skipping
+ LOG  [TRACE SESSIONS] Adding new session log: {"createdAt": "2026-01-20T08:44:57.790Z", "id": "session-daily-2026-01-20T08:44:57.790Z-9ebjti", "kind": "daily"}
+ LOG  [TRACE CHAT] Auth setup - supabaseUserId: a7dafca1-29e2-48e4-a6f3-77d3541ce60c deviceId: anon-0euemmnemkmcm2im
+ LOG  [TRACE SESSIONS] Saved. Total sessions: 1
+ LOG  [TRACE SESSION] First session logged successfully
+ LOG  [TRACE CHAT] Fetching greeting from backend...
+ LOG  [TRACE CHAT] Got display name: null
+ LOG  [TRACE CHAT] About to send greeting request:
+ LOG    - supabaseUserId: a7dafca1-29e2-48e4-a6f3-77d3541ce60c
+ LOG    - deviceId: anon-0euemmnemkmcm2im
+ LOG    - displayName: null
+ LOG  [TRACE CHAT] Request body: {"userId":"a7dafca1-29e2-48e4-a6f3-77d3541ce60c","deviceId":"anon-0euemmnemkmcm2im","userName":"friend"}
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] Greeting request sent - userId: a7dafca1-29e2-48e4-a6f3-77d3541ce60c displayName: null
+ LOG  [TRACE CHAT] Raw greeting response: {"greeting":"Nyla, hey. I'm TRACE. I'm not here to fix anything — just to be with you. What's happening?","firstRun":true}
+ LOG  [TRACE CHAT] Cleaned greeting: Nyla, hey. I'm TRACE. I'm not here to fix anything — just to be with you. What's happening?
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  INPUT_FOCUS
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] Persisted history, count: 1
+ LOG  [TRACE Chat] Profile check: {"hasLat": false, "hasLon": false, "hasProfile": false, "lat": undefined, "lon": undefined, "weatherEnabled": undefined}
+ LOG  [TRACE Chat] Weather context disabled or no location saved
+ LOG  [TRACE Chat] Sending message to backend...
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  Responses to add: 1
+ LOG  [TRACE CHAT] Persisted history, count: 2
+ LOG  MESSAGES_LEN_AFTER: 2
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ ERROR  [TRACE Chat] Network error: [Error: Chat API error: ] 
+
+Code: chat.ts
+  64 |
+  65 |     if (!response.ok) {
+> 66 |       throw new Error(`Chat API error: ${response.statusText}`);
+     |                      ^
+  67 |     }
+  68 |
+  69 |     const data = await response.json();
+Call Stack
+  sendChatMessage (lib/chat.ts:66:22)
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+ LOG  [TRACE CHAT] ===== ChatScreen component rendering =====
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE SESSION] Component rendering, about to set up useFocusEffect
+
