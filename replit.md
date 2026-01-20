@@ -24,6 +24,22 @@ An Express server acts as a proxy to the OpenAI API, defining the TRACE AI perso
 
 TRACE employs relational language for activity acknowledgments and journal conversation invitations. It integrates Spotify for playlist suggestions and offers original ambient music ("Night Swim") for emotional support. Features are introduced contextually rather than through explicit tutorials.
 
+### Scripted Onboarding Flow
+
+New users go through a friend-like onboarding sequence managed by a state machine:
+
+**Step Sequence:**
+1. `intro_sent` - Bootstrap intro shown (10 deterministic variants)
+2. `waiting_ok` - After first reply, TRACE offers breathing activity
+3. `activity_in_progress` - User said "okay", auto-navigated to activity
+4. `reflection_pending` - Activity completed, awaiting reflection
+5. `completed` - Reflection captured, onboarding done
+
+**Client/Server Responsibilities:**
+- Server handles: intro_sent → waiting_ok scripted responses, activity auto-navigate trigger
+- Client handles: "Welcome back" message, reflection capture via `/api/onboarding/reflection`, handoff message
+- Anonymous auth on app start with `ensureAuthSession()` and `upsertUserProfile()`
+
 ### Privacy by Design
 
 By default, TRACE stores only AI-generated summaries (max 15 words, non-identifying) of user content, discarding raw text unless the user opts in. Dedicated Supabase tables (`trace_entries_summary`, `trace_entries_raw`) with RLS policies manage data storage. GDPR-compliant endpoints for data export and deletion, along with privacy settings management, are included.
