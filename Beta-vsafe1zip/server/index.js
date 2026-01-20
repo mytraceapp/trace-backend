@@ -4792,6 +4792,114 @@ app.get('/api/chat/bootstrap', async (req, res) => {
   }
 });
 
+// POST /api/chat/history/sync - Sync chat history from mobile app
+// Called every 30 seconds from mobile to persist locally-saved messages
+app.post('/api/chat/history/sync', async (req, res) => {
+  try {
+    const { userId, messages, syncedAt } = req.body || {};
+    
+    console.log('[CHAT SYNC] Request:', { 
+      userId: userId?.slice?.(0, 8), 
+      messageCount: messages?.length || 0,
+      syncedAt 
+    });
+    
+    // Validate required fields
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'userId is required' });
+    }
+    
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ success: false, error: 'messages array is required' });
+    }
+    
+    // Validate UUID format
+    const validation = validateUserId(userId, null);
+    if (!validation.valid) {
+      return res.status(400).json({ success: false, error: 'Invalid userId format' });
+    }
+    
+    if (!supabaseServer) {
+      return res.status(500).json({ success: false, error: 'Database not configured' });
+    }
+    
+    // Filter out empty messages and validate structure
+    const validMessages = messages.filter(m => 
+      m && 
+      typeof m.role === 'string' && 
+      typeof m.content === 'string' && 
+      m.content.trim().length > 0 &&
+      ['user', 'assistant'].includes(m.role)
+    );
+    
+    if (validMessages.length === 0) {
+      console.log('[CHAT SYNC] No valid messages to sync');
+      return res.json({ success: true, message: 'No messages to sync', messagesSynced: 0 });
+    }
+    
+    // Insert messages in batch (upsert to avoid duplicates based on content+timestamp)
+    let syncedCount = 0;
+    const errors = [];
+    
+    for (const msg of validMessages) {
+      try {
+        // Check if message already exists (avoid duplicates)
+        const { data: existing } = await supabaseServer
+          .from('chat_messages')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('role', msg.role)
+          .eq('content', msg.content)
+          .limit(1);
+        
+        if (existing && existing.length > 0) {
+          console.log('[CHAT SYNC] Skipping duplicate message');
+          continue;
+        }
+        
+        // Insert new message
+        const insertData = {
+          user_id: userId,
+          role: msg.role,
+          content: msg.content,
+        };
+        
+        // Add timestamp if provided
+        if (msg.timestamp) {
+          insertData.created_at = msg.timestamp;
+        }
+        
+        const { error: insertError } = await supabaseServer
+          .from('chat_messages')
+          .insert(insertData);
+        
+        if (insertError) {
+          console.warn('[CHAT SYNC] Insert error:', insertError.message);
+          errors.push(insertError.message);
+        } else {
+          syncedCount++;
+        }
+      } catch (msgErr) {
+        console.warn('[CHAT SYNC] Message error:', msgErr.message);
+        errors.push(msgErr.message);
+      }
+    }
+    
+    console.log('[CHAT SYNC] Synced', syncedCount, 'messages for user:', userId.slice(0, 8));
+    
+    return res.json({
+      success: true,
+      message: 'Chat history synced',
+      messagesSynced: syncedCount,
+      ...(errors.length > 0 && { warnings: errors.slice(0, 3) })
+    });
+    
+  } catch (err) {
+    console.error('[CHAT SYNC] Error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==================== TRACE ORIGINALS TEST ENDPOINT ====================
 // Development endpoint to test audio_action responses
 app.post('/api/test-audio-action', (req, res) => {
