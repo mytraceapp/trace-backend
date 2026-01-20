@@ -5383,24 +5383,31 @@ app.post('/api/onboarding/activity-complete', async (req, res) => {
 
 // POST /api/onboarding/reflection - Capture activity reflection and mark onboarding complete
 // Called after: activity completed + reflection captured
+// Accepts: { userId, activityName|activity_name|activity_id, reflection|felt_shift }
 app.post('/api/onboarding/reflection', async (req, res) => {
   try {
-    const { userId, activity_id, activity_name, felt_shift } = req.body || {};
+    const { userId, activity_id, activity_name, activityName, felt_shift, reflection } = req.body || {};
     
-    console.log('[ONBOARDING REFLECTION] Request:', { userId: userId?.slice?.(0, 8), activity_id, activity_name, felt_shift: felt_shift?.slice?.(0, 30) });
+    // Accept multiple field name conventions for flexibility
+    const activityIdentifier = activityName || activity_name || activity_id;
+    const reflectionText = reflection || felt_shift;
+    
+    console.log('[ONBOARDING REFLECTION] Request:', { 
+      userId: userId?.slice?.(0, 8), 
+      activity: activityIdentifier, 
+      reflection: reflectionText?.slice?.(0, 30) 
+    });
     
     if (!userId) {
-      return res.status(400).json({ error: 'userId is required' });
+      return res.status(400).json({ success: false, error: 'userId is required' });
     }
     
-    // Accept either activity_id (number) or activity_name (string) - activity_name is what mobile sends
-    const activityIdOrName = activity_id || activity_name;
-    if (!activityIdOrName) {
-      return res.status(400).json({ error: 'activity_id or activity_name is required' });
+    if (!activityIdentifier) {
+      return res.status(400).json({ success: false, error: 'activityName is required' });
     }
     
-    if (!felt_shift) {
-      return res.status(400).json({ error: 'felt_shift is required' });
+    if (!reflectionText) {
+      return res.status(400).json({ success: false, error: 'reflection is required' });
     }
     
     // Validate UUID format
@@ -5413,45 +5420,65 @@ app.post('/api/onboarding/reflection', async (req, res) => {
       return res.status(500).json({ error: 'Database not configured' });
     }
     
-    // Normalize felt_shift to mood_score (1-5)
+    // Normalize reflection text to mood_score (1-5)
     const normalizeMoodScore = (text) => {
       const t = (text || '').toLowerCase();
-      if (t.includes('much better') || t.includes('calmer') || t.includes('relieved')) return 5;
-      if (t.includes('better') || t.includes('yes') || t.includes('yeah') || t.includes('helped')) return 4;
+      if (t.includes('much better') || t.includes('calmer') || t.includes('relieved') || t.includes('calm')) return 5;
+      if (t.includes('better') || t.includes('yes') || t.includes('yeah') || t.includes('helped') || t.includes('good')) return 4;
       if (t.includes('same') || t.includes('idk') || t.includes("don't know") || t.includes('ok') || t.includes('fine')) return 3;
       if (t.includes('worse') || t.includes('still anxious') || t.includes('no')) return 2;
       if (t.includes('panic') || t.includes('much worse')) return 1;
       return 3; // default
     };
     
-    const mood_score = normalizeMoodScore(felt_shift);
+    const mood_score = normalizeMoodScore(reflectionText);
     
-    // Try to insert into activity_reflections (may fail if activity_id is just a name string)
-    // This is best-effort - the main goal is to mark onboarding complete
+    // Generate a unique reflection ID
+    const reflectionId = `ref_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    
+    // Try to insert into onboarding_reflections table (or activity_reflections as fallback)
+    let savedToDb = false;
     try {
-      // Check if activity_id is a number (real DB ID) vs string (activity name)
-      const numericActivityId = parseInt(activityIdOrName, 10);
-      if (!isNaN(numericActivityId)) {
-        const { error: insertError } = await supabaseServer
-          .from('activity_reflections')
-          .insert({
-            user_id: userId,
-            activity_id: numericActivityId,
-            felt_shift,
-            mood_score,
-            created_at: new Date().toISOString()
-          });
+      // First try onboarding_reflections table (simpler schema for onboarding)
+      const { error: insertError } = await supabaseServer
+        .from('onboarding_reflections')
+        .insert({
+          id: reflectionId,
+          user_id: userId,
+          activity_name: activityIdentifier,
+          reflection: reflectionText,
+          mood_score,
+          created_at: new Date().toISOString()
+        });
+      
+      if (insertError) {
+        // Table might not exist, try activity_reflections as fallback
+        console.log('[ONBOARDING REFLECTION] onboarding_reflections insert failed, trying fallback:', insertError.message);
         
-        if (insertError) {
-          console.log('[ONBOARDING REFLECTION] Insert skipped (non-critical):', insertError.message);
-        } else {
-          console.log('[ONBOARDING REFLECTION] Recorded reflection:', { userId: userId.slice(0, 8), activity_id: numericActivityId, mood_score });
+        // Check if activity_id is a number (real DB ID) vs string (activity name)
+        const numericActivityId = parseInt(activityIdentifier, 10);
+        if (!isNaN(numericActivityId)) {
+          const { error: fallbackError } = await supabaseServer
+            .from('activity_reflections')
+            .insert({
+              user_id: userId,
+              activity_id: numericActivityId,
+              felt_shift: reflectionText,
+              mood_score,
+              created_at: new Date().toISOString()
+            });
+          
+          if (!fallbackError) {
+            savedToDb = true;
+            console.log('[ONBOARDING REFLECTION] Saved to activity_reflections:', { userId: userId.slice(0, 8), activity_id: numericActivityId, mood_score });
+          }
         }
       } else {
-        console.log('[ONBOARDING REFLECTION] Activity is name string, skipping reflection insert:', activityIdOrName);
+        savedToDb = true;
+        console.log('[ONBOARDING REFLECTION] Saved to onboarding_reflections:', { userId: userId.slice(0, 8), activity: activityIdentifier, mood_score, reflectionId });
       }
     } catch (e) {
-      console.log('[ONBOARDING REFLECTION] Insert skipped:', e.message);
+      console.log('[ONBOARDING REFLECTION] Insert error (non-critical):', e.message);
     }
     
     // Update profiles set onboarding_completed=true and onboarding_step=completed
@@ -5466,15 +5493,21 @@ app.post('/api/onboarding/reflection', async (req, res) => {
     
     if (updateError) {
       console.error('[ONBOARDING REFLECTION] Profile update error:', updateError.message);
-      return res.status(500).json({ error: updateError.message });
+      return res.status(500).json({ success: false, error: updateError.message });
     }
     
     console.log('[ONBOARDING REFLECTION] Marked onboarding_completed=true and step=completed for userId:', userId.slice(0, 8));
-    return res.json({ ok: true });
+    return res.json({ 
+      success: true, 
+      message: 'Reflection saved',
+      reflectionId,
+      savedToDb,
+      ok: true // backward compatibility
+    });
     
   } catch (err) {
     console.error('[ONBOARDING REFLECTION] Error:', err.message);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

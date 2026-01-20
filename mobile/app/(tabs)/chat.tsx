@@ -902,16 +902,21 @@ export default function ChatScreen() {
       
       try {
         // POST to /api/onboarding/reflection
-        await fetch(`${CHAT_API_BASE}/api/onboarding/reflection`, {
+        const reflectionRes = await fetch(`${CHAT_API_BASE}/api/onboarding/reflection`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId: currentUserId,
-            activity_id: lastCompletedActivityName,
-            felt_shift: trimmed,
+            activityName: lastCompletedActivityName,
+            reflection: trimmed,
           }),
         });
-        console.log('🎓 TRACE onboarding: reflection saved');
+        if (reflectionRes.ok) {
+          const data = await reflectionRes.json();
+          console.log('🎓 TRACE onboarding: reflection saved', data.reflectionId);
+        } else {
+          console.warn('🎓 TRACE onboarding: reflection API returned', reflectionRes.status);
+        }
       } catch (err) {
         console.error('🎓 TRACE onboarding: reflection save error:', err);
       }
