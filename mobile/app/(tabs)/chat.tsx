@@ -369,11 +369,37 @@ export default function ChatScreen() {
     playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
   };
 
+  // SINGLE UNIFIED INIT - handles everything in one sequential flow
   useEffect(() => {
-    const initIds = async () => {
-      // FIRST: Check for pending activity completion BEFORE anything else
-      // This is the highest priority - returning from activity should just append reflection
-      let hasPendingActivity = false;
+    const initChat = async () => {
+      console.log('🚀 UNIFIED INIT: Starting...');
+      
+      // Step 1: Get device ID
+      const deviceId = await getStableId();
+      setStableId(deviceId);
+      console.log('🆔 deviceId:', deviceId);
+
+      // Step 2: Get user ID
+      const { data } = await supabase.auth.getUser();
+      let userId = data?.user?.id ?? null;
+      if (!userId) {
+        try {
+          const storedUserId = await AsyncStorage.getItem('user_id');
+          if (storedUserId) userId = storedUserId;
+        } catch (e) {}
+      }
+      setAuthUserId(userId);
+      authUserIdRef.current = userId;
+      console.log('🆔 userId:', userId);
+
+      // Step 3: Load existing conversation from storage FIRST
+      const storedMessages = await loadConversationFromStorage(userId);
+      if (storedMessages.length > 0) {
+        setMessages(storedMessages);
+        console.log('📱 Loaded', storedMessages.length, 'messages from storage');
+      }
+      
+      // Step 4: CHECK PENDING ACTIVITY - highest priority
       try {
         const pendingCompletion = await AsyncStorage.getItem('trace:pendingActivityCompletion');
         if (pendingCompletion) {
@@ -381,108 +407,142 @@ export default function ChatScreen() {
           const ageMinutes = (Date.now() - timestamp) / (1000 * 60);
           
           if (ageMinutes < 5) {
-            hasPendingActivity = true;
-            console.log('🎯 INIT: Found pending activity, will handle after loading:', activity);
-          } else {
-            await AsyncStorage.removeItem('trace:pendingActivityCompletion');
-          }
-        }
-      } catch (e) {
-        console.warn('Failed to check pending activity early:', e);
-      }
-      
-      const deviceId = await getStableId();
-      setStableId(deviceId);
-      console.log('🆔 TRACE chat screen deviceId:', deviceId);
-
-      // Try supabase.auth.getUser() first (preferred)
-      const { data } = await supabase.auth.getUser();
-      let userId = data?.user?.id ?? null;
-      console.log('🆔 TRACE chat screen supabase authUserId:', userId);
-
-      // Fallback: If auth session not ready, check AsyncStorage (set by onboarding)
-      if (!userId) {
-        try {
-          const storedUserId = await AsyncStorage.getItem('user_id');
-          if (storedUserId) {
-            userId = storedUserId;
-            console.log('🆔 TRACE chat screen using AsyncStorage userId:', userId);
-          }
-        } catch (e) {
-          console.warn('🆔 TRACE failed to read userId from AsyncStorage:', e);
-        }
-      }
-
-      setAuthUserId(userId);
-      authUserIdRef.current = userId; // Update ref immediately
-      console.log('🆔 TRACE chat screen final authUserId:', userId);
-      
-      // Load conversation from AsyncStorage (keyed by userId)
-      const storedMessages = await loadConversationFromStorage(userId);
-      if (storedMessages.length > 0) {
-        setMessages(storedMessages);
-        console.log('📱 Restored', storedMessages.length, 'messages from storage for user:', userId);
-      }
-      
-      // If we have pending activity, handle it NOW before any greeting logic
-      if (hasPendingActivity) {
-        try {
-          const pendingCompletion = await AsyncStorage.getItem('trace:pendingActivityCompletion');
-          if (pendingCompletion) {
-            const { activity, duration } = JSON.parse(pendingCompletion);
+            console.log('🎯 PENDING ACTIVITY FOUND:', activity);
             await AsyncStorage.removeItem('trace:pendingActivityCompletion');
             
-            console.log('🎯 INIT: Handling pending activity completion:', activity);
-            
-            // Append reflection to whatever messages we have
+            // Append "How was that?" to existing messages
             const reflectionPrompt: ChatMessage = {
               id: `activity-reflection-${Date.now()}`,
               role: 'assistant',
               content: 'How was that?',
             };
             
-            // Add to current messages (which may have been loaded from storage)
             setMessages(prev => {
               const updated = [...prev, reflectionPrompt];
               saveConversationToStorage(updated, userId);
+              console.log('📱 Appended reflection, total:', updated.length, 'messages');
               return updated;
             });
             
             setAwaitingOnboardingReflection(true);
             setLastCompletedActivityName(activity);
             setWelcomeLoading(false);
-            setChatInitialized(true); // Mark as initialized - NO greeting needed
             setHistoryLoaded(true);
+            setChatInitialized(true);
             
-            // Log the activity
-            logActivityCompletion({
-              userId: userId,
-              deviceId: deviceId,
-              activityType: activity,
-              durationSeconds: duration || 0,
-            });
-            
-            // Notify backend
+            // Log and notify backend
+            logActivityCompletion({ userId, deviceId, activityType: activity, durationSeconds: duration || 0 });
             if (userId) {
               fetch(`${CHAT_API_BASE}/api/onboarding/activity-complete`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: userId, activityName: activity }),
-              }).catch(err => console.error('Failed to notify activity complete:', err));
+                body: JSON.stringify({ userId, activityName: activity }),
+              }).catch(err => console.error('Activity complete notify failed:', err));
             }
             
-            console.log('🎓 INIT: Activity reflection appended, skipping all greeting logic');
-            return; // EXIT EARLY - no greeting logic needed
+            console.log('✅ UNIFIED INIT: Completed with pending activity');
+            return; // DONE - no greeting needed
+          } else {
+            await AsyncStorage.removeItem('trace:pendingActivityCompletion');
           }
-        } catch (e) {
-          console.warn('Failed to handle pending activity:', e);
+        }
+      } catch (e) {
+        console.warn('Pending activity check failed:', e);
+      }
+      
+      // Step 5: If we have existing messages, we're done - no greeting needed
+      if (storedMessages.length > 0) {
+        console.log('✅ UNIFIED INIT: Completed with existing messages');
+        setWelcomeLoading(false);
+        setHistoryLoaded(true);
+        setChatInitialized(true);
+        return; // DONE
+      }
+      
+      // Step 6: Check if bootstrap was already shown (durable flag)
+      if (userId) {
+        const bootstrapShownKey = `trace:bootstrapShown:${userId}`;
+        const bootstrapAlreadyShown = await AsyncStorage.getItem(bootstrapShownKey);
+        if (bootstrapAlreadyShown) {
+          console.log('✅ UNIFIED INIT: Bootstrap already shown, skipping');
+          setWelcomeLoading(false);
+          setHistoryLoaded(true);
+          setChatInitialized(true);
+          return; // DONE
         }
       }
       
-      // Mark history as loaded (enables greeting logic for non-activity cases)
+      // Step 7: No messages, no bootstrap shown - fetch bootstrap/greeting
+      console.log('🎯 UNIFIED INIT: Fetching bootstrap...');
+      if (userId) {
+        try {
+          const userName = await getDisplayName(userId);
+          const res = await fetch(`${CHAT_API_BASE}/api/chat/bootstrap`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, userName: userName || null }),
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            if (data.onboarding && Array.isArray(data.messages) && data.messages.length > 0) {
+              // Mark bootstrap as shown
+              await AsyncStorage.setItem(`trace:bootstrapShown:${userId}`, 'true');
+              
+              const bootstrapMessages: ChatMessage[] = data.messages.map(
+                (m: { role: string; content: string }, idx: number) => ({
+                  id: `bootstrap-${idx}-${Date.now()}`,
+                  role: (m.role === 'assistant' ? 'assistant' : 'user') as ChatRole,
+                  content: m.content,
+                })
+              );
+              
+              setMessages(bootstrapMessages);
+              saveConversationToStorage(bootstrapMessages, userId);
+              if (bootstrapMessages[0]) setWelcomeText(bootstrapMessages[0].content);
+              
+              console.log('✅ UNIFIED INIT: Bootstrap shown');
+              setWelcomeLoading(false);
+              setHistoryLoaded(true);
+              setChatInitialized(true);
+              return; // DONE
+            }
+          }
+        } catch (e) {
+          console.warn('Bootstrap fetch failed:', e);
+        }
+      }
+      
+      // Step 8: Fetch regular greeting for returning user
+      try {
+        setWelcomeLoading(true);
+        const now = new Date();
+        const result = await fetchWelcomeGreeting({
+          userName: null,
+          chatStyle: 'conversation',
+          localTime: now.toLocaleTimeString(),
+          localDay: now.toLocaleDateString('en-US', { weekday: 'long' }),
+          localDate: now.toLocaleDateString(),
+          userId: userId,
+          deviceId: deviceId,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        });
+        
+        if (!result.skipGreeting && result.text) {
+          setWelcomeText(result.text);
+        }
+      } catch (err: any) {
+        setWelcomeText("I'm really glad you're here. We can take this one breath, one thought at a time.");
+      } finally {
+        setWelcomeLoading(false);
+      }
+      
       setHistoryLoaded(true);
+      setChatInitialized(true);
+      console.log('✅ UNIFIED INIT: Completed');
     };
-    initIds();
+    
+    initChat();
   }, []);
 
   const fetchChatHistory = useCallback(
@@ -641,11 +701,7 @@ export default function ChatScreen() {
   // Track if we've already initialized the chat greeting - use state for reliable tracking
   const [chatInitialized, setChatInitialized] = useState(false);
 
-  useEffect(() => {
-    if (stableId !== null) {
-      fetchChatHistory(authUserId, stableId);
-    }
-  }, [stableId, authUserId, fetchChatHistory]);
+  // REMOVED: Separate fetchChatHistory effect - now handled in unified init
 
   // Helper to handle activity completion flow (appends reflection to existing conversation)
   const handlePendingActivityCompletion = useCallback(async (activity: string, duration: number, userId: string | null, deviceId: string | null) => {
@@ -684,131 +740,7 @@ export default function ChatScreen() {
     console.log('🎓 TRACE: awaiting activity reflection for', activity);
   }, [addMessage]);
 
-  // UNIFIED INITIALIZATION: Wait for history to load, then decide what to show
-  // Uses state-based lock PLUS durable AsyncStorage flag for bootstrap
-  useEffect(() => {
-    if (!historyLoaded) return; // Wait for history to load first
-    if (chatInitialized) return; // Already initialized this mount
-    if (!authUserId || stableId === null) return;
-    
-    // Lock immediately to prevent duplicate calls this session
-    setChatInitialized(true);
-    console.log('🔒 Chat initialization starting - locked');
-    
-    const initializeChat = async () => {
-      // PRIORITY 1: Check for pending activity completion (AsyncStorage backup)
-      try {
-        const pendingCompletion = await AsyncStorage.getItem('trace:pendingActivityCompletion');
-        if (pendingCompletion) {
-          const { activity, duration, timestamp } = JSON.parse(pendingCompletion);
-          const ageMinutes = (Date.now() - timestamp) / (1000 * 60);
-          
-          if (ageMinutes < 5) {
-            console.log('🎯 Found pending activity completion, appending reflection:', activity);
-            await AsyncStorage.removeItem('trace:pendingActivityCompletion');
-            handlePendingActivityCompletion(activity, duration, authUserId, stableId);
-            return; // Done - don't show greeting
-          }
-          await AsyncStorage.removeItem('trace:pendingActivityCompletion');
-        }
-      } catch (e) {
-        console.warn('Failed to check pending activity:', e);
-      }
-      
-      // PRIORITY 2: Check route params for activity completion
-      if (params.completedActivity) {
-        console.log('🎯 Found activity completion in params:', params.completedActivity);
-        const duration = params.activityDuration ? parseInt(params.activityDuration, 10) : 0;
-        handlePendingActivityCompletion(params.completedActivity, duration, authUserId, stableId);
-        router.setParams({ completedActivity: undefined, activityDuration: undefined });
-        return; // Done - don't show greeting
-      }
-      
-      // PRIORITY 3: Check AsyncStorage for existing conversation (most reliable)
-      const storedConversation = await loadConversationFromStorage(authUserId);
-      if (storedConversation.length > 0) {
-        console.log('🎯 Chat has existing conversation in storage, skipping greeting:', storedConversation.length, 'messages');
-        setWelcomeLoading(false);
-        return; // Done - user sees their existing conversation
-      }
-      
-      // PRIORITY 4: Check if bootstrap was already shown for this user (durable flag)
-      const bootstrapShownKey = `trace:bootstrapShown:${authUserId}`;
-      const bootstrapAlreadyShown = await AsyncStorage.getItem(bootstrapShownKey);
-      if (bootstrapAlreadyShown) {
-        console.log('🎯 Bootstrap already shown for this user, skipping');
-        setWelcomeLoading(false);
-        return; // Done - bootstrap was already shown once, don't repeat
-      }
-      
-      // PRIORITY 5: No history, no prior bootstrap - check if user is in onboarding state
-      console.log('🎯 Checking bootstrap eligibility...');
-      
-      try {
-        const userName = await getDisplayName(authUserId);
-        const res = await fetch(`${CHAT_API_BASE}/api/chat/bootstrap`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: authUserId, userName: userName || null }),
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          if (data.onboarding && Array.isArray(data.messages) && data.messages.length > 0) {
-            // Mark bootstrap as shown for this user BEFORE setting messages
-            await AsyncStorage.setItem(bootstrapShownKey, 'true');
-            console.log('📝 Marked bootstrap as shown for user:', authUserId);
-            
-            const bootstrapMessages: ChatMessage[] = data.messages.map(
-              (m: { role: string; content: string }, idx: number) => ({
-                id: `bootstrap-${idx}-${Date.now()}`,
-                role: (m.role === 'assistant' ? 'assistant' : 'user') as ChatRole,
-                content: m.content,
-              })
-            );
-            
-            // Only set if truly empty - never overwrite existing conversation
-            setMessages((current) => {
-              if (current.length === 0) {
-                saveConversationToStorage(bootstrapMessages, authUserId); // Persist immediately
-                return bootstrapMessages;
-              }
-              return current;
-            });
-            if (bootstrapMessages[0]) setWelcomeText(bootstrapMessages[0].content);
-            setWelcomeLoading(false);
-            return; // Done - onboarding bootstrap shown (once and only once)
-          }
-        }
-      } catch (e) {
-        console.warn('Bootstrap failed:', e);
-      }
-      
-      // PRIORITY 6: Not onboarding, show regular greeting for returning user
-      try {
-        setWelcomeLoading(true);
-        const now = new Date();
-        const result = await fetchWelcomeGreeting({
-          userName: null,
-          chatStyle: 'conversation',
-          localTime: now.toLocaleTimeString(),
-          localDay: now.toLocaleDateString('en-US', { weekday: 'long' }),
-          localDate: now.toLocaleDateString(),
-          userId: authUserId,
-          deviceId: stableId,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        });
-        setWelcomeText(result.text);
-      } catch (err: any) {
-        setWelcomeText("I'm really glad you're here. We can take this one breath, one thought at a time.");
-      } finally {
-        setWelcomeLoading(false);
-      }
-    };
-    
-    initializeChat();
-  }, [historyLoaded, authUserId, stableId, chatInitialized, params.completedActivity, params.activityDuration, handlePendingActivityCompletion, router]);
-
+  // REMOVED: Second init effect - now handled in unified init above
 
   // Check for pending journal conversation invite
   useEffect(() => {
