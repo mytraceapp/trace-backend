@@ -326,10 +326,26 @@ export default function ChatScreen() {
       setStableId(deviceId);
       console.log('🆔 TRACE chat screen deviceId:', deviceId);
 
+      // Try supabase.auth.getUser() first (preferred)
       const { data } = await supabase.auth.getUser();
-      const userId = data?.user?.id ?? null;
+      let userId = data?.user?.id ?? null;
+      console.log('🆔 TRACE chat screen supabase authUserId:', userId);
+
+      // Fallback: If auth session not ready, check AsyncStorage (set by onboarding)
+      if (!userId) {
+        try {
+          const storedUserId = await AsyncStorage.getItem('user_id');
+          if (storedUserId) {
+            userId = storedUserId;
+            console.log('🆔 TRACE chat screen using AsyncStorage userId:', userId);
+          }
+        } catch (e) {
+          console.warn('🆔 TRACE failed to read userId from AsyncStorage:', e);
+        }
+      }
+
       setAuthUserId(userId);
-      console.log('🆔 TRACE chat screen authUserId:', userId);
+      console.log('🆔 TRACE chat screen final authUserId:', userId);
     };
     initIds();
   }, []);
@@ -593,17 +609,34 @@ export default function ChatScreen() {
     if (!trimmed || isSending) return;
     
     // Guard: Ensure authUserId is available before sending
-    // Re-fetch from Supabase if null (handles edge cases like session refresh)
+    // Try multiple sources: state → supabase.auth → AsyncStorage
     let currentUserId = authUserId;
     if (!currentUserId) {
-      console.log('⚠️ TRACE handleSend: authUserId is null, re-fetching from auth...');
+      console.log('⚠️ TRACE handleSend: authUserId is null, trying fallbacks...');
+      
+      // Try 1: Re-fetch from Supabase auth
       const { data } = await supabase.auth.getUser();
       currentUserId = data?.user?.id ?? null;
+      
+      // Try 2: Check AsyncStorage (set by onboarding)
+      if (!currentUserId) {
+        try {
+          const storedUserId = await AsyncStorage.getItem('user_id');
+          if (storedUserId) {
+            currentUserId = storedUserId;
+            console.log('✅ TRACE handleSend: using AsyncStorage userId:', currentUserId.slice(0, 8));
+          }
+        } catch (e) {
+          console.warn('⚠️ TRACE handleSend: AsyncStorage read failed:', e);
+        }
+      } else {
+        console.log('✅ TRACE handleSend: re-fetched supabase authUserId:', currentUserId.slice(0, 8));
+      }
+      
       if (currentUserId) {
         setAuthUserId(currentUserId);
-        console.log('✅ TRACE handleSend: re-fetched authUserId:', currentUserId.slice(0, 8));
       } else {
-        console.error('❌ TRACE handleSend: No auth session, cannot send message');
+        console.error('❌ TRACE handleSend: No auth from any source, cannot send message');
         return; // Block send if no auth
       }
     }

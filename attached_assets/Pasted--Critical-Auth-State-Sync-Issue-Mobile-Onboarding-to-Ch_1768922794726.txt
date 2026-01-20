@@ -1,0 +1,217 @@
+ Critical Auth State Sync Issue - Mobile Onboarding to Chat Flow
+
+## Problem Summary
+
+There is a **critical mismatch** in how authentication state is managed between the onboarding flow and the chat screen. The onboarding code stores the Supabase `userId` in multiple locations, but the chat screen is not retrieving it consistently.
+
+### Current Behavior (Broken)
+1. **Onboarding** (`mobile/app/(onboarding)/account-setup.tsx`):
+   - User signs up via `supabase.auth.signUp()`
+   - Gets `newUser.id` (Supabase UUID)
+   - Stores in **AsyncStorage** with key `'user_id'` (line 159)
+   - Navigates to plans screen
+
+2. **Chat Screen** (`mobile/app/(tabs)/chat.tsx`):
+   - Uses `useAuth()` hook to get `user` object
+   - Tries to use `user?.id` for greeting request
+   - BUT: Auth session sometimes hasn't fully loaded when effect runs
+   - Falls back to undefined, breaking personalization
+
+### Root Causes
+
+1. **Two Different Auth Sources**:
+   - Onboarding stores Supabase user ID in **AsyncStorage**
+   - Chat tries to read from **useAuth() hook** (which relies on Supabase session)
+   - These can get out of sync, especially on cold app starts
+
+2. **Session Loading Race Condition**:
+   - `useAuth()` loads session from SecureStore asynchronously
+   - Chat effect might run before session is loaded
+   - Results in `user?.id` being undefined even though user IS authenticated
+
+3. **No Fallback to AsyncStorage**:
+   - Chat never tries to read the `user_id` stored by onboarding
+   - Misses the reliable source of truth for authenticated users
+
+## Solution Architecture
+
+### The Issue with Current Approach
+
+```typescript
+// Current (chat.tsx line 464):
+const supabaseUserId = user?.id;  // ← Undefined if auth hasn't loaded yet!
+```
+
+### The Fix: Multi-Source Auth with Fallback
+
+Chat screen should:
+1. **Try `useAuth()` hook first** (preferred - fresh from Supabase)
+2. **Fall back to AsyncStorage** if auth hasn't loaded (reliable for returning users)
+3. **Only proceed with greeting** when userId is confirmed
+
+## Implementation Details
+
+### File: `mobile/app/(tabs)/chat.tsx`
+
+**Location**: Lines 455-585 (useEffect with history loading)
+
+**Current Problem Code**:
+```typescript
+const supabaseUserId = user?.id;  // Can be undefined!
+```
+
+**Required Fix**:
+```typescript
+// Get userId from auth context, or fall back to AsyncStorage
+const supabaseUserId = user?.id;
+let finalUserId = supabaseUserId;
+
+// If auth hasn't loaded yet, try AsyncStorage (stored by onboarding)
+if (!finalUserId) {
+  try {
+    const stored = await AsyncStorage.getItem('user_id');
+    if (stored) {
+      finalUserId = stored;
+      console.log('[TRACE CHAT] Using userId from AsyncStorage:', finalUserId);
+    }
+  } catch (e) {
+    console.warn('[TRACE CHAT] Failed to read userId from AsyncStorage:', e);
+  }
+}
+
+console.log('[TRACE CHAT] Final userId:', finalUserId);
+
+// Only load greeting if we have a valid userId
+if (finalUserId) {
+  // ...proceed with greeting request
+} else {
+  console.warn('[TRACE CHAT] No userId available - skipping greeting');
+}
+```
+
+### File: `mobile/contexts/AuthContext.tsx`
+
+**Current Status**: Already properly manages session loading via `getSession()`
+
+**Verification Needed**:
+- Confirm `user` is set after `getSession()` completes
+- Add logging to track when session loading completes:
+
+```typescript
+useEffect(() => {
+  const initSession = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (session?.user) {
+        console.log('[AuthContext] Session loaded - userId:', session.user.id);
+        setUser(session.user);
+      } else {
+        console.log('[AuthContext] No session found after init');
+        setUser(null);
+      }
+    } catch (e) {
+      console.error('[AuthContext] Session init failed:', e);
+    }
+  };
+  
+  initSession();
+}, []);
+```
+
+### File: `mobile/app/(onboarding)/account-setup.tsx`
+
+**Current Status**: ✅ Already correctly stores userId in AsyncStorage (line 159)
+
+**What It Does** (working correctly):
+```typescript
+// Line 159
+console.log('[Account Setup] Stored userId in AsyncStorage:', newUser.id);
+await AsyncStorage.setItem('user_id', newUser.id);  // ← Correct!
+```
+
+**No changes needed here** - this part works.
+
+## Data Flow Diagram
+
+```
+USER SIGNS UP
+    ↓
+[onboarding/account-setup.tsx]
+    ├─ newUser = await signUp()
+    ├─ store newUser.id in AsyncStorage ✅
+    └─ navigate to plans
+    
+USER SEES PLANS → SELECTS PLAN → SUCCESS → GOES TO CHAT
+    ↓
+[app/(tabs)/chat.tsx]
+    ├─ useAuth() hook initializes
+    ├─ RACE CONDITION: greeting effect might run before session loads!
+    │
+    ├─ Try Option 1: user?.id from useAuth()
+    │  └─ If undefined → Try Option 2
+    │
+    ├─ Try Option 2: AsyncStorage 'user_id'
+    │  └─ If found → Use it!
+    │
+    ├─ With valid userId, fetch /api/greeting
+    │  └─ Backend finds profile → personalizes greeting ✅
+    │
+    └─ User sees: "Hey Ben. I hope today treats you gently."
+```
+
+## Testing Checklist
+
+- [ ] Cold app start (first time after install)
+  - Onboarding completes, userId saved to AsyncStorage
+  - Close app completely, reopen
+  - Chat screen loads, greeting should be personalized
+  
+- [ ] Quick return (within 1 hour)
+  - History restored from AsyncStorage
+  - Greeting skipped (existing logic works)
+  
+- [ ] Slow auth loading (simulate delay)
+  - Comment out AuthContext session loading
+  - Chat effect runs before auth ready
+  - Fallback to AsyncStorage should work
+  
+- [ ] Missing AsyncStorage (shouldn't happen, but)
+  - Both auth sources fail
+  - Should gracefully show default greeting
+
+## Timeline
+
+1. **Onboarding**: Stores userId → AsyncStorage ✅
+2. **Auth Context**: Loads session asynchronously (may take 100-500ms)
+3. **Chat Effect**: Runs immediately when component mounts
+   - **PROBLEM**: Auth might not be ready
+   - **SOLUTION**: Check AsyncStorage as fallback
+
+## Why This Matters
+
+**Current State**: 
+- Personalization fails on cold starts
+- Backend logs show `userId: undefined`
+- Users see generic greeting instead of "Hey Ben"
+
+**After Fix**:
+- Chat retrieves userId from auth context OR AsyncStorage
+- Backend always receives valid userId
+- Backend finds profile and personalizes greeting
+- User sees warm, personalized message
+
+## Summary for Backend Team (Replit)
+
+The `/api/greeting` endpoint is working correctly. The issue is that the mobile client sometimes sends `userId: undefined` because:
+
+1. Onboarding stores userId in AsyncStorage
+2. Chat screen tries to use userId from auth context
+3. Race condition: auth context might not be loaded yet
+4. Chat needs fallback: if auth context doesn't have userId, check AsyncStorage
+
+Once mobile sends valid userId, the backend correctly:
+- Looks up user profile
+- Finds display_name
+- Returns personalized greeting with user's name
+
+No backend changes needed - this is a mobile client-side auth sequencing issue.
