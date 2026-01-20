@@ -2537,7 +2537,8 @@ app.post('/api/mood-checkin', async (req, res) => {
 // ==================== ONBOARDING INTRO VARIANTS ====================
 // One-time personalized intro for users still in onboarding
 
-const ONBOARDING_INTRO_VARIANTS = [
+// Variants when we have the user's name
+const ONBOARDING_INTRO_WITH_NAME = [
   "Hey {name}... I'm TRACE. I'm here with you. What's going on?",
   "{name}, hey. I'm TRACE. I'm not here to fix anything — just to be with you. What's happening?",
   "Hey {name}. Consider me a quiet corner. What brings you here today?",
@@ -2550,6 +2551,20 @@ const ONBOARDING_INTRO_VARIANTS = [
   "{name} — I'm here. No rush, no expectations. What's up?"
 ];
 
+// Variants when we don't have the user's name yet (reads naturally without a name)
+const ONBOARDING_INTRO_NO_NAME = [
+  "Hey... I'm TRACE. I'm here with you. What's going on?",
+  "Hey. I'm TRACE. I'm not here to fix anything — just to be with you. What's happening?",
+  "Hey. Consider me a quiet corner. What brings you here today?",
+  "I'm TRACE. No pressure, no judgment. Just presence. What's up?",
+  "Hey. Whatever you're carrying, you don't have to carry it alone. What's on your mind?",
+  "I'm TRACE. I'm here to listen and sit with you. What's happening right now?",
+  "Hey. I'm here with no agenda — just space for you. What's going on?",
+  "Hey... I'm TRACE. Take your time. What's on your mind?",
+  "Hey. I'm TRACE. I'm glad you're here. What's happening?",
+  "I'm here. No rush, no expectations. What's up?"
+];
+
 function pickOnboardingIntroVariant(userId, name) {
   // Deterministic selection based on userId hash (consistent per user)
   let hash = 0;
@@ -2559,9 +2574,15 @@ function pickOnboardingIntroVariant(userId, name) {
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
-  const index = Math.abs(hash) % ONBOARDING_INTRO_VARIANTS.length;
-  const displayName = name || 'there';
-  return ONBOARDING_INTRO_VARIANTS[index].replace('{name}', displayName);
+  
+  // Use named variants if we have a name, otherwise use no-name variants
+  if (name && name.trim()) {
+    const index = Math.abs(hash) % ONBOARDING_INTRO_WITH_NAME.length;
+    return ONBOARDING_INTRO_WITH_NAME[index].replace('{name}', name.trim());
+  } else {
+    const index = Math.abs(hash) % ONBOARDING_INTRO_NO_NAME.length;
+    return ONBOARDING_INTRO_NO_NAME[index];
+  }
 }
 
 // ==================== RETURN-TO-LIFE HELPER FUNCTIONS ====================
