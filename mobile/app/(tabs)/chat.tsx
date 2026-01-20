@@ -541,8 +541,8 @@ export default function ChatScreen() {
     }
   }, []);
 
-  // Track if we've already initialized the chat greeting
-  const greetingInitializedRef = React.useRef(false);
+  // Track if we've already initialized the chat greeting - use state for reliable tracking
+  const [chatInitialized, setChatInitialized] = useState(false);
 
   useEffect(() => {
     if (stableId !== null) {
@@ -551,23 +551,23 @@ export default function ChatScreen() {
   }, [stableId, authUserId, fetchChatHistory]);
 
   // Helper to handle activity completion flow (appends reflection to existing conversation)
-  const handlePendingActivityCompletion = useCallback(async (activity: string, duration: number) => {
+  const handlePendingActivityCompletion = useCallback(async (activity: string, duration: number, userId: string | null, deviceId: string | null) => {
     console.log('🎯 Activity completion detected:', activity, duration);
     
     // Log activity completion
     logActivityCompletion({
-      userId: authUserId,
-      deviceId: stableId,
+      userId: userId,
+      deviceId: deviceId,
       activityType: activity,
       durationSeconds: duration || 0,
     });
     
     // Notify backend that activity is done (update onboarding_step)
-    if (authUserId) {
+    if (userId) {
       fetch(`${CHAT_API_BASE}/api/onboarding/activity-complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: authUserId, activityName: activity }),
+        body: JSON.stringify({ userId: userId, activityName: activity }),
       }).catch(err => console.error('Failed to notify activity complete:', err));
     }
     
@@ -585,16 +585,18 @@ export default function ChatScreen() {
     setWelcomeLoading(false);
     
     console.log('🎓 TRACE: awaiting activity reflection for', activity);
-  }, [authUserId, stableId, addMessage]);
+  }, [addMessage]);
 
   // UNIFIED INITIALIZATION: Wait for history to load, then decide what to show
-  // This runs AFTER historyLoaded becomes true
+  // Uses state-based lock to prevent multiple greeting calls
   useEffect(() => {
     if (!historyLoaded) return; // Wait for history to load first
-    if (greetingInitializedRef.current) return;
+    if (chatInitialized) return; // Already initialized
     if (!authUserId || stableId === null) return;
     
-    greetingInitializedRef.current = true;
+    // Lock immediately to prevent duplicate calls
+    setChatInitialized(true);
+    console.log('🔒 Chat initialization starting - locked');
     
     const initializeChat = async () => {
       // PRIORITY 1: Check for pending activity completion (AsyncStorage backup)
@@ -607,7 +609,7 @@ export default function ChatScreen() {
           if (ageMinutes < 5) {
             console.log('🎯 Found pending activity completion, appending reflection:', activity);
             await AsyncStorage.removeItem('trace:pendingActivityCompletion');
-            handlePendingActivityCompletion(activity, duration);
+            handlePendingActivityCompletion(activity, duration, authUserId, stableId);
             return; // Done - don't show greeting
           }
           await AsyncStorage.removeItem('trace:pendingActivityCompletion');
@@ -620,7 +622,7 @@ export default function ChatScreen() {
       if (params.completedActivity) {
         console.log('🎯 Found activity completion in params:', params.completedActivity);
         const duration = params.activityDuration ? parseInt(params.activityDuration, 10) : 0;
-        handlePendingActivityCompletion(params.completedActivity, duration);
+        handlePendingActivityCompletion(params.completedActivity, duration, authUserId, stableId);
         router.setParams({ completedActivity: undefined, activityDuration: undefined });
         return; // Done - don't show greeting
       }
@@ -636,19 +638,60 @@ export default function ChatScreen() {
       
       // PRIORITY 4: No history, no activity - show greeting for new/returning user
       console.log('🎯 No conversation found, showing greeting/bootstrap');
-      fetchBootstrap(authUserId).then((isOnboarding) => {
-        if (!isOnboarding) {
-          fetchGreeting();
-        } else {
-          setWelcomeLoading(false);
+      
+      // Inline bootstrap and greeting calls to avoid closure issues
+      try {
+        const userName = await getDisplayName(authUserId);
+        const res = await fetch(`${CHAT_API_BASE}/api/chat/bootstrap`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: authUserId, userName: userName || null }),
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          if (data.onboarding && Array.isArray(data.messages) && data.messages.length > 0) {
+            const bootstrapMessages: ChatMessage[] = data.messages.map(
+              (m: { role: string; content: string }, idx: number) => ({
+                id: `bootstrap-${idx}-${Date.now()}`,
+                role: (m.role === 'assistant' ? 'assistant' : 'user') as ChatRole,
+                content: m.content,
+              })
+            );
+            setMessages((current) => current.length === 0 ? bootstrapMessages : current);
+            if (bootstrapMessages[0]) setWelcomeText(bootstrapMessages[0].content);
+            setWelcomeLoading(false);
+            return; // Done - onboarding bootstrap shown
+          }
         }
-      }).catch(() => {
-        fetchGreeting();
-      });
+      } catch (e) {
+        console.warn('Bootstrap failed:', e);
+      }
+      
+      // Fall through to regular greeting
+      try {
+        setWelcomeLoading(true);
+        const now = new Date();
+        const result = await fetchWelcomeGreeting({
+          userName: null,
+          chatStyle: 'conversation',
+          localTime: now.toLocaleTimeString(),
+          localDay: now.toLocaleDateString('en-US', { weekday: 'long' }),
+          localDate: now.toLocaleDateString(),
+          userId: authUserId,
+          deviceId: stableId,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        });
+        setWelcomeText(result.text);
+      } catch (err: any) {
+        setWelcomeText("I'm really glad you're here. We can take this one breath, one thought at a time.");
+      } finally {
+        setWelcomeLoading(false);
+      }
     };
     
     initializeChat();
-  }, [historyLoaded, authUserId, stableId, params.completedActivity, params.activityDuration, fetchBootstrap, fetchGreeting, handlePendingActivityCompletion, router]);
+  }, [historyLoaded, authUserId, stableId, chatInitialized, params.completedActivity, params.activityDuration, handlePendingActivityCompletion, router]);
 
 
   // Check for pending journal conversation invite
