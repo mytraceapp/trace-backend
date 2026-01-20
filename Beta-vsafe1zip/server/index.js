@@ -4286,27 +4286,10 @@ Your response:`;
       }
     }
     
-    // ===== ONBOARDING INTRO (One-Time Personalized Greeting) =====
-    // During onboarding (onboarding_completed=false), prepend personalized intro to FIRST message only
+    // ===== ONBOARDING INTRO REMOVED =====
+    // Onboarding intro is now handled by GET /api/chat/bootstrap
+    // This prevents duplicate intros when client calls bootstrap first
     let finalAssistantText = messagesArray ? messagesArray[0] : assistantText;
-    let addedOnboardingIntro = false;
-    
-    try {
-      const isOnboarding = userProfile?.onboarding_completed === false;
-      const isFirstMessage = messages.filter(m => m.role === 'assistant').length === 0;
-      
-      if (isOnboarding && isFirstMessage && effectiveUserId) {
-        const introVariant = pickOnboardingIntroVariant(
-          effectiveUserId, 
-          userProfile?.display_name || userProfile?.preferred_name
-        );
-        finalAssistantText = introVariant + "\n\n" + finalAssistantText;
-        addedOnboardingIntro = true;
-        console.log('[TRACE ONBOARDING] Prepended intro variant for user:', effectiveUserId.slice(0, 8));
-      }
-    } catch (err) {
-      console.error('[TRACE ONBOARDING] Error adding intro:', err.message);
-    }
     
     // ===== FIRST CHAT DISCLAIMER (Backend-Driven) =====
     // Check if this is user's first chat AFTER onboarding and prepend disclaimer if so
@@ -4355,8 +4338,8 @@ Your response:`;
       console.error('[TRACE DISCLAIMER] Error checking first_chat_completed:', err.message);
     }
     
-    // Update messagesArray[0] if crisis mode with disclaimer or onboarding intro
-    if ((isFirstChat || addedOnboardingIntro) && messagesArray && messagesArray.length > 0) {
+    // Update messagesArray[0] if crisis mode with disclaimer
+    if (isFirstChat && messagesArray && messagesArray.length > 0) {
       messagesArray[0] = finalAssistantText;
     }
     
@@ -4451,6 +4434,65 @@ Your response:`;
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// ==================== CHAT BOOTSTRAP (Instant Onboarding Intro) ====================
+// Returns the onboarding intro message immediately without OpenAI call
+app.get('/api/chat/bootstrap', async (req, res) => {
+  try {
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+    
+    // Validate UUID format
+    const validation = validateUserId(userId, null);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error });
+    }
+    
+    if (!supabaseServer) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+    
+    // Load user profile
+    const userProfile = await loadProfileBasic(userId);
+    
+    if (!userProfile) {
+      // New user without profile yet - treat as onboarding
+      const introMessage = pickOnboardingIntroVariant(userId, null);
+      return res.json({
+        messages: [{ role: 'assistant', content: introMessage }],
+        onboarding: true
+      });
+    }
+    
+    const isOnboarding = userProfile.onboarding_completed === false || userProfile.onboarding_completed === null;
+    
+    if (isOnboarding) {
+      const introMessage = pickOnboardingIntroVariant(
+        userId, 
+        userProfile.display_name || userProfile.preferred_name
+      );
+      console.log('[CHAT BOOTSTRAP] Returning onboarding intro for user:', userId.slice(0, 8));
+      return res.json({
+        messages: [{ role: 'assistant', content: introMessage }],
+        onboarding: true
+      });
+    }
+    
+    // Onboarding complete - no bootstrap message needed
+    console.log('[CHAT BOOTSTRAP] Onboarding complete, no intro for user:', userId.slice(0, 8));
+    return res.json({
+      messages: [],
+      onboarding: false
+    });
+    
+  } catch (err) {
+    console.error('[CHAT BOOTSTRAP] Error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 // ==================== TRACE ORIGINALS TEST ENDPOINT ====================
