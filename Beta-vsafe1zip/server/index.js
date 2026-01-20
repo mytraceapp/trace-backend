@@ -1925,7 +1925,7 @@ async function loadProfileBasic(userId) {
   
   const { data, error } = await supabaseServer
     .from('profiles')
-    .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, lat, lon')
+    .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, lat, lon')
     .eq('user_id', userId)
     .single();
 
@@ -4257,12 +4257,31 @@ Your response:`;
     }
     
     // ===== FIRST CHAT DISCLAIMER (Backend-Driven) =====
-    // Check if this is user's first chat and prepend disclaimer if so
+    // Check if this is user's first chat AFTER onboarding and prepend disclaimer if so
+    // Skip if user message is just an affirmation (ok/yes/sure/etc)
     let finalAssistantText = messagesArray ? messagesArray[0] : assistantText;
     let isFirstChat = false;
     
+    // Helper: check if message is affirmation-only
+    const isAffirmationOnly = (msg) => {
+      if (!msg) return false;
+      const normalized = msg.toLowerCase().trim().replace(/[.!?,]/g, '');
+      const affirmations = [
+        'ok', 'okay', 'k', 'yes', 'yeah', 'yep', 'yup', 'sure', 
+        'lets do it', "let's do it", 'do it', 'go ahead', 'sounds good',
+        'alright', 'got it', 'cool', 'great', 'perfect', 'fine'
+      ];
+      return affirmations.includes(normalized);
+    };
+    
     try {
-      if (supabaseServer && effectiveUserId && userProfile && userProfile.first_chat_completed === false) {
+      const onboardingComplete = userProfile?.onboarding_completed === true;
+      const firstChatPending = userProfile?.first_chat_completed === false;
+      const userMsgIsAffirmation = isAffirmationOnly(userText);
+      
+      // Only show disclaimer if: onboarding done + first chat pending + not just affirming
+      if (supabaseServer && effectiveUserId && userProfile && 
+          onboardingComplete && firstChatPending && !userMsgIsAffirmation) {
         isFirstChat = true;
         const disclaimerText = "I should be clear: I'm reflective intelligence for everyday life. I'm not therapy and don't provide medical or psychological diagnosis or treatment. Not for emergencies or crisis. Not a substitute for licensed professionals.\n\n";
         finalAssistantText = disclaimerText + finalAssistantText;
@@ -4275,7 +4294,11 @@ Your response:`;
           .then(() => console.log('[TRACE DISCLAIMER] Marked first_chat_completed = true for user:', effectiveUserId))
           .catch(err => console.error('[TRACE DISCLAIMER] Failed to update first_chat_completed:', err.message));
         
-        console.log('[TRACE DISCLAIMER] Prepended disclaimer to first chat response');
+        console.log('[TRACE DISCLAIMER] Prepended disclaimer to first chat response (onboarding:', onboardingComplete, ')');
+      } else if (firstChatPending && !onboardingComplete) {
+        console.log('[TRACE DISCLAIMER] Skipped - onboarding not yet complete');
+      } else if (userMsgIsAffirmation) {
+        console.log('[TRACE DISCLAIMER] Skipped - user message is affirmation:', userText);
       }
     } catch (err) {
       console.error('[TRACE DISCLAIMER] Error checking first_chat_completed:', err.message);
@@ -4928,6 +4951,45 @@ app.post('/api/profile/update', async (req, res) => {
     
   } catch (err) {
     console.error('[PROFILE] Error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/onboarding/complete - Mark onboarding as completed
+app.post('/api/onboarding/complete', async (req, res) => {
+  try {
+    // Get userId from body (same pattern as /api/profile/update and other mobile endpoints)
+    const { userId } = req.body || {};
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+    
+    // Validate UUID format
+    const validation = validateUserId(userId, null);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error });
+    }
+    
+    if (!supabaseServer) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+    
+    const { error: updateError } = await supabaseServer
+      .from('profiles')
+      .update({ onboarding_completed: true, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+    
+    if (updateError) {
+      console.error('[ONBOARDING] Complete error:', updateError.message);
+      return res.status(500).json({ error: updateError.message });
+    }
+    
+    console.log('[ONBOARDING] Marked onboarding_completed=true for userId:', userId);
+    return res.json({ ok: true });
+    
+  } catch (err) {
+    console.error('[ONBOARDING] Error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
