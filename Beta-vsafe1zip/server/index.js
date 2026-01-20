@@ -4955,7 +4955,7 @@ app.post('/api/profile/update', async (req, res) => {
   }
 });
 
-// POST /api/onboarding/complete - Mark onboarding as completed
+// POST /api/onboarding/complete - Mark onboarding as completed (legacy, use /api/onboarding/reflection instead)
 app.post('/api/onboarding/complete', async (req, res) => {
   try {
     // Get userId from body (same pattern as /api/profile/update and other mobile endpoints)
@@ -4990,6 +4990,85 @@ app.post('/api/onboarding/complete', async (req, res) => {
     
   } catch (err) {
     console.error('[ONBOARDING] Error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/onboarding/reflection - Capture activity reflection and mark onboarding complete
+// Called after: activity completed + reflection captured
+app.post('/api/onboarding/reflection', async (req, res) => {
+  try {
+    const { userId, activity_id, felt_shift } = req.body || {};
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+    
+    if (!activity_id) {
+      return res.status(400).json({ error: 'activity_id is required' });
+    }
+    
+    if (!felt_shift) {
+      return res.status(400).json({ error: 'felt_shift is required' });
+    }
+    
+    // Validate UUID format
+    const validation = validateUserId(userId, null);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error });
+    }
+    
+    if (!supabaseServer) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+    
+    // Normalize felt_shift to mood_score (1-5)
+    const normalizeMoodScore = (text) => {
+      const t = (text || '').toLowerCase();
+      if (t.includes('much better') || t.includes('calmer') || t.includes('relieved')) return 5;
+      if (t.includes('better')) return 4;
+      if (t.includes('same') || t.includes('idk') || t.includes("don't know")) return 3;
+      if (t.includes('worse') || t.includes('still anxious')) return 2;
+      if (t.includes('panic') || t.includes('much worse')) return 1;
+      return 3; // default
+    };
+    
+    const mood_score = normalizeMoodScore(felt_shift);
+    
+    // Insert into activity_reflections
+    const { error: insertError } = await supabaseServer
+      .from('activity_reflections')
+      .insert({
+        user_id: userId,
+        activity_id,
+        felt_shift,
+        mood_score,
+        created_at: new Date().toISOString()
+      });
+    
+    if (insertError) {
+      console.error('[ONBOARDING REFLECTION] Insert error:', insertError.message);
+      // Continue even if insert fails - still mark onboarding complete
+    } else {
+      console.log('[ONBOARDING REFLECTION] Recorded reflection:', { userId: userId.slice(0, 8), activity_id, mood_score });
+    }
+    
+    // Update profiles set onboarding_completed=true
+    const { error: updateError } = await supabaseServer
+      .from('profiles')
+      .update({ onboarding_completed: true, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+    
+    if (updateError) {
+      console.error('[ONBOARDING REFLECTION] Profile update error:', updateError.message);
+      return res.status(500).json({ error: updateError.message });
+    }
+    
+    console.log('[ONBOARDING REFLECTION] Marked onboarding_completed=true for userId:', userId.slice(0, 8));
+    return res.json({ ok: true });
+    
+  } catch (err) {
+    console.error('[ONBOARDING REFLECTION] Error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
