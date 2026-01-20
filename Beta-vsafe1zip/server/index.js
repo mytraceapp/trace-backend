@@ -1925,7 +1925,7 @@ async function loadProfileBasic(userId) {
   
   const { data, error } = await supabaseServer
     .from('profiles')
-    .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, lat, lon')
+    .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon')
     .eq('user_id', userId)
     .single();
 
@@ -3038,6 +3038,109 @@ app.post('/api/chat', async (req, res) => {
     } catch (err) {
       console.error('[TRACE NAME] Failed to load profile name:', err.message);
     }
+
+    // ===== SCRIPTED ONBOARDING STATE MACHINE =====
+    // If user is in onboarding flow (not yet completed), return scripted responses
+    // This bypasses OpenAI to ensure exact cadence and deterministic flow
+    const isInOnboarding = userProfile && (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null);
+    const onboardingStep = userProfile?.onboarding_step || 'intro_sent';
+    
+    if (isInOnboarding && supabaseServer && effectiveUserId) {
+      console.log('[ONBOARDING STATE MACHINE] Active - step:', onboardingStep, 'userText:', userText?.slice(0, 40));
+      
+      // Helper to update onboarding_step
+      const updateOnboardingStep = async (newStep) => {
+        try {
+          await supabaseServer
+            .from('profiles')
+            .update({ onboarding_step: newStep, updated_at: new Date().toISOString() })
+            .eq('user_id', effectiveUserId);
+          console.log('[ONBOARDING] Step updated to:', newStep);
+        } catch (err) {
+          console.error('[ONBOARDING] Failed to update step:', err.message);
+        }
+      };
+      
+      // Helper to check if user message is an affirmation/okay
+      const isUserAffirmation = (msg) => {
+        if (!msg) return false;
+        const t = msg.toLowerCase().trim().replace(/[.!?,]/g, '');
+        const okPhrases = [
+          'ok', 'okay', 'k', 'yes', 'yeah', 'yep', 'yup', 'sure', 
+          "let's do it", 'lets do it', 'do it', 'go ahead', 'sounds good',
+          'alright', 'got it', 'cool', 'great', 'perfect', 'fine', 'im down', "i'm down"
+        ];
+        return okPhrases.includes(t) || okPhrases.some(p => t.startsWith(p + ' '));
+      };
+      
+      // STEP: intro_sent -> After first user reply, offer breathing activity
+      if (onboardingStep === 'intro_sent') {
+        const activityOfferMessage = "Okay. Before we go into the whole story — let's bring your system down first. I'd recommend Breathing (1 minute). Just say okay.";
+        
+        await updateOnboardingStep('waiting_ok');
+        
+        console.log('[ONBOARDING] Offering breathing activity after first message');
+        return res.json({
+          message: activityOfferMessage,
+          activity_suggestion: {
+            name: 'Breathing',
+            reason: 'To help settle your nervous system before we continue',
+            should_navigate: false,
+          },
+        });
+      }
+      
+      // STEP: waiting_ok -> User says okay, trigger auto-navigate to activity
+      if (onboardingStep === 'waiting_ok') {
+        if (isUserAffirmation(userText)) {
+          await updateOnboardingStep('activity_in_progress');
+          
+          console.log('[ONBOARDING] User affirmed, triggering activity auto-navigate');
+          return res.json({
+            message: "Good. I'll be here when you get back.",
+            activity_suggestion: {
+              name: 'Breathing',
+              reason: 'Taking a moment to breathe',
+              should_navigate: true,
+              route: '/activities/breathing',
+            },
+          });
+        } else {
+          // User didn't say okay - gently re-prompt or accept their choice
+          console.log('[ONBOARDING] User did not affirm, re-prompting');
+          return res.json({
+            message: "No pressure. When you're ready, just say okay and we'll do a quick breathing reset together.",
+            activity_suggestion: {
+              name: 'Breathing',
+              reason: 'Ready when you are',
+              should_navigate: false,
+            },
+          });
+        }
+      }
+      
+      // STEP: activity_in_progress -> Client handles via /api/onboarding/activity-complete
+      // If user somehow sends a chat message while activity is in progress, just hold
+      if (onboardingStep === 'activity_in_progress') {
+        console.log('[ONBOARDING] Activity still in progress, holding');
+        return res.json({
+          message: "Take your time. I'm here.",
+          activity_suggestion: { name: null, reason: null, should_navigate: false },
+        });
+      }
+      
+      // STEP: reflection_pending -> Client handles this via /api/onboarding/reflection
+      // Fall through to regular chat - reflection endpoint will complete onboarding
+      if (onboardingStep === 'reflection_pending') {
+        console.log('[ONBOARDING] In reflection_pending step, falling through to AI chat');
+        // Don't intercept - let regular AI handle this message
+        // Onboarding will be completed via /api/onboarding/reflection endpoint
+      }
+      
+      // Fallback for any unexpected or completed step - continue to regular chat
+      console.log('[ONBOARDING] Step:', onboardingStep, '- falling through to regular chat');
+    }
+    // ===== END SCRIPTED ONBOARDING STATE MACHINE =====
 
     // Load return warmth line (for users returning after time away)
     let returnWarmthLine = null;
@@ -5061,19 +5164,65 @@ app.post('/api/onboarding/complete', async (req, res) => {
     
     const { error: updateError } = await supabaseServer
       .from('profiles')
-      .update({ onboarding_completed: true, updated_at: new Date().toISOString() })
-      .eq('id', userId);
+      .update({ 
+        onboarding_completed: true, 
+        onboarding_step: 'completed',
+        updated_at: new Date().toISOString() 
+      })
+      .eq('user_id', userId);
     
     if (updateError) {
       console.error('[ONBOARDING] Complete error:', updateError.message);
       return res.status(500).json({ error: updateError.message });
     }
     
-    console.log('[ONBOARDING] Marked onboarding_completed=true for userId:', userId);
+    console.log('[ONBOARDING] Marked onboarding_completed=true for userId:', userId.slice(0, 8));
     return res.json({ ok: true });
     
   } catch (err) {
     console.error('[ONBOARDING] Error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/onboarding/activity-complete - Update onboarding step when activity finishes
+// Called by mobile when user returns from activity
+app.post('/api/onboarding/activity-complete', async (req, res) => {
+  try {
+    const { userId, activityName } = req.body || {};
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+    
+    const validation = validateUserId(userId, null);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error });
+    }
+    
+    if (!supabaseServer) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+    
+    // Update onboarding_step to reflection_pending
+    const { error } = await supabaseServer
+      .from('profiles')
+      .update({ 
+        onboarding_step: 'reflection_pending',
+        updated_at: new Date().toISOString() 
+      })
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.error('[ONBOARDING ACTIVITY COMPLETE] Error:', error.message);
+      return res.status(500).json({ error: error.message });
+    }
+    
+    console.log('[ONBOARDING] Activity complete, step=reflection_pending for:', userId.slice(0, 8), activityName);
+    return res.json({ ok: true });
+    
+  } catch (err) {
+    console.error('[ONBOARDING ACTIVITY COMPLETE] Error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -5137,18 +5286,22 @@ app.post('/api/onboarding/reflection', async (req, res) => {
       console.log('[ONBOARDING REFLECTION] Recorded reflection:', { userId: userId.slice(0, 8), activity_id, mood_score });
     }
     
-    // Update profiles set onboarding_completed=true
+    // Update profiles set onboarding_completed=true and onboarding_step=completed
     const { error: updateError } = await supabaseServer
       .from('profiles')
-      .update({ onboarding_completed: true, updated_at: new Date().toISOString() })
-      .eq('id', userId);
+      .update({ 
+        onboarding_completed: true, 
+        onboarding_step: 'completed',
+        updated_at: new Date().toISOString() 
+      })
+      .eq('user_id', userId);
     
     if (updateError) {
       console.error('[ONBOARDING REFLECTION] Profile update error:', updateError.message);
       return res.status(500).json({ error: updateError.message });
     }
     
-    console.log('[ONBOARDING REFLECTION] Marked onboarding_completed=true for userId:', userId.slice(0, 8));
+    console.log('[ONBOARDING REFLECTION] Marked onboarding_completed=true and step=completed for userId:', userId.slice(0, 8));
     return res.json({ ok: true });
     
   } catch (err) {

@@ -507,6 +507,15 @@ export default function ChatScreen() {
         durationSeconds: duration || 0,
       });
       
+      // Notify backend that activity is done (update onboarding_step)
+      if (authUserId) {
+        fetch(`${CHAT_API_BASE}/api/onboarding/activity-complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: authUserId, activityName: activity }),
+        }).catch(err => console.error('Failed to notify activity complete:', err));
+      }
+      
       // Immediately append reflection prompt (onboarding flow)
       const reflectionPrompt: ChatMessage = {
         id: `onboard-ack-${Date.now()}`,

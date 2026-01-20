@@ -6,6 +6,7 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { StyleSheet, useColorScheme } from 'react-native';
 import { Colors } from '../constants/theme';
 import { initAudioMode } from '../lib/ambientAudio';
+import { ensureAuthSession, upsertUserProfile } from '../lib/supabase';
 
 export default function RootLayout() {
   const systemColorScheme = useColorScheme();
@@ -17,6 +18,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     initAudioMode();
+  }, []);
+
+  useEffect(() => {
+    const initAuth = async () => {
+      const userId = await ensureAuthSession();
+      if (userId) {
+        await upsertUserProfile(userId);
+      }
+    };
+    initAuth();
   }, []);
 
   const colors = Colors[theme];

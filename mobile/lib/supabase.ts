@@ -55,3 +55,105 @@ export async function getTraceUserId(): Promise<string> {
   }
   return userId;
 }
+
+export async function ensureAuthSession(): Promise<string | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session?.user?.id) {
+      console.log('[AUTH] Existing session found:', session.user.id.slice(0, 8));
+      return session.user.id;
+    }
+    
+    console.log('[AUTH] No session, creating anonymous user...');
+    const { data, error } = await supabase.auth.signInAnonymously();
+    
+    if (error) {
+      console.error('[AUTH] Anonymous sign-in error:', error.message);
+      return null;
+    }
+    
+    console.log('[AUTH] Anonymous user created:', data.user?.id?.slice(0, 8));
+    return data.user?.id ?? null;
+  } catch (err: any) {
+    console.error('[AUTH] Session error:', err.message);
+    return null;
+  }
+}
+
+export async function upsertUserProfile(userId: string, displayName?: string): Promise<boolean> {
+  try {
+    // First check if profile exists
+    const { data: existing, error: selectError } = await supabase
+      .from('profiles')
+      .select('user_id, onboarding_completed')
+      .eq('user_id', userId)
+      .single();
+    
+    // PGRST116 is "row not found" - expected for new users
+    const isNotFound = selectError?.code === 'PGRST116';
+    
+    if (existing) {
+      // Profile exists - only update display_name if provided, don't reset flags
+      if (displayName) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ display_name: displayName, updated_at: new Date().toISOString() })
+          .eq('user_id', userId);
+        if (error) console.error('[PROFILE] Update error:', error.message);
+      }
+      console.log('[PROFILE] Existing profile found for:', userId.slice(0, 8));
+      return true;
+    }
+    
+    // Row not found - create new profile
+    if (isNotFound) {
+      const { error } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: userId,
+          display_name: displayName || null,
+          onboarding_completed: false,
+          onboarding_step: 'intro_sent',
+          first_chat_completed: false,
+          first_run_completed: false,
+          updated_at: new Date().toISOString(),
+        });
+      
+      if (error) {
+        console.error('[PROFILE] Insert error:', error.message);
+        return false;
+      }
+      
+      console.log('[PROFILE] New profile created for:', userId.slice(0, 8));
+      return true;
+    }
+    
+    // Some other error occurred
+    console.error('[PROFILE] Select error:', selectError?.message);
+    return false;
+  } catch (err: any) {
+    console.error('[PROFILE] Error:', err.message);
+    return false;
+  }
+}
+
+export async function updateDisplayName(userId: string, displayName: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ display_name: displayName, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.error('[PROFILE] Update display_name error:', error.message);
+      return false;
+    }
+    
+    console.log('[PROFILE] Updated display_name for:', userId.slice(0, 8));
+    return true;
+  } catch (err: any) {
+    console.error('[PROFILE] Error:', err.message);
+    return false;
+  }
+}
