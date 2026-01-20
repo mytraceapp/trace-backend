@@ -2536,21 +2536,18 @@ app.post('/api/mood-checkin', async (req, res) => {
 
 // ==================== ONBOARDING INTRO VARIANTS ====================
 // One-time personalized intro for users still in onboarding
-// Includes disclaimer as part of the greeting for new users
-
-const ONBOARDING_DISCLAIMER = "I should be clear: I'm reflective intelligence for everyday life. I'm not therapy and don't provide medical or psychological diagnosis or treatment. Not for emergencies or crisis. Not a substitute for licensed professionals.";
 
 const ONBOARDING_INTRO_VARIANTS = [
-  `Hey, {name}… I'm TRACE. I'm here with you.\n\n${ONBOARDING_DISCLAIMER}\n\nWhat's going on?`,
-  `Hi {name}. I'm TRACE — a space for you to think, feel, and breathe.\n\n${ONBOARDING_DISCLAIMER}\n\nWhat's on your mind?`,
-  `{name}, hey. I'm TRACE. I'm not here to fix anything — just to be with you.\n\n${ONBOARDING_DISCLAIMER}\n\nWhat's happening?`,
-  `Hey {name}. I'm TRACE. Consider me a quiet corner.\n\n${ONBOARDING_DISCLAIMER}\n\nWhat brings you here?`,
-  `{name} — I'm TRACE. No pressure, no judgment. Just presence.\n\n${ONBOARDING_DISCLAIMER}\n\nWhat's up?`,
-  `Hi {name}. I'm TRACE — here when you need a moment.\n\n${ONBOARDING_DISCLAIMER}\n\nWhat's going on today?`,
-  `Hey, {name}. I'm TRACE. Whatever you're carrying, you don't have to carry it alone.\n\n${ONBOARDING_DISCLAIMER}\n\nWhat's on your mind?`,
-  `{name}, I'm TRACE. I'm here to listen and sit with you.\n\n${ONBOARDING_DISCLAIMER}\n\nWhat's happening right now?`,
-  `Hi {name}. I'm TRACE — think of me as a grounding presence.\n\n${ONBOARDING_DISCLAIMER}\n\nWhat brought you here today?`,
-  `Hey {name}. I'm TRACE. I'm here with no agenda — just space for you.\n\n${ONBOARDING_DISCLAIMER}\n\nWhat's going on?`
+  "Hey, {name}… I'm TRACE. I'm here with you. What's going on?",
+  "Hi {name}. I'm TRACE — a space for you to think, feel, and breathe. What's on your mind?",
+  "{name}, hey. I'm TRACE. I'm not here to fix anything — just to be with you. What's happening?",
+  "Hey {name}. I'm TRACE. Consider me a quiet corner. What brings you here?",
+  "{name} — I'm TRACE. No pressure, no judgment. Just presence. What's up?",
+  "Hi {name}. I'm TRACE — here when you need a moment. What's going on today?",
+  "Hey, {name}. I'm TRACE. Whatever you're carrying, you don't have to carry it alone. What's on your mind?",
+  "{name}, I'm TRACE. I'm here to listen and sit with you. What's happening right now?",
+  "Hi {name}. I'm TRACE — think of me as a grounding presence. What brought you here today?",
+  "Hey {name}. I'm TRACE. I'm here with no agenda — just space for you. What's going on?"
 ];
 
 function pickOnboardingIntroVariant(userId, name) {
