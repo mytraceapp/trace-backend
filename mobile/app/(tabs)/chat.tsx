@@ -539,14 +539,23 @@ export default function ChatScreen() {
   }, [authUserId, stableId, addMessage]);
 
   // Separate effect for bootstrap/greeting - only runs when authUserId is available
+  // CRITICAL: Check for activity completion BEFORE greeting to avoid showing both
   useEffect(() => {
     if (stableId === null) return;
     if (greetingInitializedRef.current) return;
     if (!authUserId) return; // Wait for auth
     
+    // SYNCHRONOUS CHECK: If params.completedActivity exists, skip greeting entirely
+    // The params effect will handle showing the reflection prompt
+    if (params.completedActivity) {
+      console.log('🎯 Skipping greeting - completedActivity param present:', params.completedActivity);
+      greetingInitializedRef.current = true;
+      return; // Let the params effect handle it
+    }
+    
     greetingInitializedRef.current = true;
     
-    // First check for pending activity completion from AsyncStorage (reliable signal)
+    // Check for pending activity completion from AsyncStorage (reliable signal)
     const checkAndInit = async () => {
       try {
         const pendingCompletion = await AsyncStorage.getItem('trace:pendingActivityCompletion');
@@ -582,13 +591,15 @@ export default function ChatScreen() {
     };
     
     checkAndInit();
-  }, [authUserId, stableId, fetchBootstrap, fetchGreeting, handlePendingActivityCompletion]);
+  }, [authUserId, stableId, params.completedActivity, fetchBootstrap, fetchGreeting, handlePendingActivityCompletion]);
 
-  // Also handle completedActivity from route params (if not dropped)
+  // Handle completedActivity from route params (if not dropped by tab navigation)
   useEffect(() => {
     if (params.completedActivity && stableId !== null && authUserId) {
       const activity = params.completedActivity;
       const duration = params.activityDuration ? parseInt(params.activityDuration, 10) : 0;
+      
+      console.log('🎯 Processing activity completion from params:', activity);
       
       // Clear the AsyncStorage flag if it exists (we got params successfully)
       AsyncStorage.removeItem('trace:pendingActivityCompletion').catch(() => {});
