@@ -489,34 +489,21 @@ export default function ChatScreen() {
   // Separate effect for bootstrap/greeting - only runs when authUserId is available
   useEffect(() => {
     if (stableId === null) return;
+    if (greetingInitializedRef.current) return;
+    if (!authUserId) return; // Wait for auth
     
-    // Only initialize once
-    if (greetingInitializedRef.current) {
-      console.log('[CHAT INIT] already initialized, skipping');
-      return;
-    }
-    
-    // Wait for authUserId before deciding bootstrap vs greeting
-    if (!authUserId) {
-      console.log('[CHAT INIT] waiting for authUserId...');
-      return;
-    }
-    
-    console.log('[CHAT INIT] authUserId available, calling bootstrap...');
     greetingInitializedRef.current = true;
     
+    // Call bootstrap - it handles onboarding users with instant intro
+    // If not onboarding, fall back to greeting for returning users
     fetchBootstrap(authUserId).then((isOnboarding) => {
-      console.log('[CHAT INIT] bootstrap returned isOnboarding:', isOnboarding);
       if (!isOnboarding) {
-        console.log('[CHAT INIT] not onboarding, calling greeting API');
-        fetchGreeting();
+        fetchGreeting(); // Returning user - use AI greeting
       } else {
-        console.log('[CHAT INIT] is onboarding, skipping greeting API');
-        setWelcomeLoading(false);
+        setWelcomeLoading(false); // Onboarding - bootstrap already set the message
       }
-    }).catch((err) => {
-      console.error('[CHAT INIT] bootstrap error:', err);
-      fetchGreeting();
+    }).catch(() => {
+      fetchGreeting(); // Fallback on error
     });
   }, [authUserId, stableId, fetchBootstrap, fetchGreeting]);
 
