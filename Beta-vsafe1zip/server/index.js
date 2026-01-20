@@ -2333,20 +2333,22 @@ app.post('/api/greeting', async (req, res) => {
 
     console.log('[TRACE GREETING] Resolved - firstRun:', firstRun, 'displayName:', displayName, 'profileExists:', !!profile, 'hasChatHistory:', hasChatHistory);
 
-    // Choose prompt based on first-run status
-    const systemPrompt = firstRun
-      ? buildFirstRunGreetingPrompt({ displayName })
-      : buildReturningGreetingPrompt({ displayName });
+    // For first-run users, use the deterministic bootstrap intro (no AI call)
+    if (firstRun) {
+      const effectiveId = userId || deviceId || 'default';
+      const introMessage = pickOnboardingIntroVariant(effectiveId, displayName);
+      console.log('[TRACE GREETING] Using bootstrap intro for first-run user');
+      return res.json({ greeting: introMessage, firstRun: true });
+    }
+
+    // For returning users, use AI-generated greeting
+    const systemPrompt = buildReturningGreetingPrompt({ displayName });
 
     if (!openai) {
-      const fallback = firstRun
-        ? (displayName
-            ? `Welcome, ${displayName}. There's no agenda here—just a quiet space. You can breathe with me for a moment, or tell me what's on your mind.`
-            : `Welcome. There's no agenda here—just a quiet space. You can breathe with me for a moment, or tell me what's on your mind.`)
-        : (displayName
-            ? `It's good to see you, ${displayName}. Take your time—we can breathe together or talk whenever you're ready.`
-            : `It's good to see you. Take your time—we can breathe together or talk whenever you're ready.`);
-      return res.json({ greeting: fallback, firstRun });
+      const fallback = displayName
+        ? `It's good to see you, ${displayName}. Take your time—we can breathe together or talk whenever you're ready.`
+        : `It's good to see you. Take your time—we can breathe together or talk whenever you're ready.`;
+      return res.json({ greeting: fallback, firstRun: false });
     }
 
     const completion = await openai.chat.completions.create({
@@ -2360,24 +2362,9 @@ app.post('/api/greeting', async (req, res) => {
     });
 
     const greeting = completion.choices?.[0]?.message?.content?.trim() || 
-      "Welcome. This is a quiet place—no goals, no pressure. You can breathe with me for a moment, or share what's on your mind.";
+      "It's good to see you. Take your time—we can breathe together or talk whenever you're ready.";
 
-    // If first run, mark it complete
-    if (firstRun && supabaseServer) {
-      const { error } = await supabaseServer
-        .from('profiles')
-        .update({
-          first_run_completed: true,
-          first_run_completed_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId);
-
-      if (error) {
-        console.error('/api/greeting mark first_run_completed error', error);
-      }
-    }
-
-    res.json({ greeting, firstRun });
+    res.json({ greeting, firstRun: false });
   } catch (err) {
     console.error('/api/greeting error', err);
     res.status(500).json({ error: 'Greeting failed' });
