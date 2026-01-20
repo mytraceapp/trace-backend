@@ -4440,14 +4440,21 @@ app.get('/api/health', (req, res) => {
 // Returns the onboarding intro message immediately without OpenAI call
 app.get('/api/chat/bootstrap', async (req, res) => {
   try {
-    // Extract userId from Authorization header (same pattern as other auth endpoints)
-    const { user, error: authError } = await getUserFromAuthHeader(req);
+    // Try Authorization header first, fall back to query param
+    let effectiveUserId = null;
     
-    if (authError || !user) {
-      return res.status(401).json({ error: authError || 'Authentication required' });
+    const { user } = await getUserFromAuthHeader(req);
+    if (user?.id) {
+      effectiveUserId = user.id;
+    } else if (req.query.userId) {
+      effectiveUserId = req.query.userId;
     }
     
-    const effectiveUserId = user.id;
+    console.log('[CHAT BOOTSTRAP] Request - effectiveUserId:', effectiveUserId?.slice(0, 8) || 'none');
+    
+    if (!effectiveUserId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
     
     if (!supabaseServer) {
       return res.status(500).json({ error: 'Database not configured' });

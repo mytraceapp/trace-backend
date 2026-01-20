@@ -412,25 +412,10 @@ export default function ChatScreen() {
   const fetchBootstrap = useCallback(async (userId: string): Promise<boolean> => {
     console.log('[BOOTSTRAP] called for userId:', userId);
     try {
-      // Retry a few times to wait for session to be ready
-      let token: string | undefined;
-      for (let i = 0; i < 3; i++) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        token = sessionData?.session?.access_token;
-        if (token) break;
-        console.log('[BOOTSTRAP] waiting for session, attempt', i + 1);
-        await new Promise(r => setTimeout(r, 500));
-      }
-      
-      if (!token) {
-        console.log('[BOOTSTRAP] no auth token after retries, skipping');
-        return false;
-      }
-      
-      const res = await fetch(`${CHAT_API_BASE}/api/chat/bootstrap`, {
+      // Simple approach: pass userId as query param
+      const res = await fetch(`${CHAT_API_BASE}/api/chat/bootstrap?userId=${encodeURIComponent(userId)}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
