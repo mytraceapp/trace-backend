@@ -2322,10 +2322,16 @@ app.post('/api/greeting', async (req, res) => {
     if (isReturningUser === true) {
       firstRun = false;
     } else if (onboardingStarted) {
-      // User has already started onboarding (intro_sent, waiting_ok, etc.) - NOT first run
-      // This is the most reliable check - onboarding_step is updated after first interaction
+      // User has already started onboarding (intro_sent, waiting_ok, etc.)
+      // CRITICAL: Return NO greeting at all during onboarding - conversation should continue naturally
+      const onboardingComplete = profile?.onboarding_completed === true;
+      if (!onboardingComplete) {
+        console.log('[TRACE GREETING] Onboarding in progress (step:', onboardingStep, ') - returning NO greeting');
+        return res.json({ greeting: null, skipGreeting: true, onboardingInProgress: true });
+      }
+      // If onboarding is complete, fall through to returning-user greeting
       firstRun = false;
-      console.log('[TRACE GREETING] Onboarding already started (step:', onboardingStep, ') - skipping bootstrap');
+      console.log('[TRACE GREETING] Onboarding completed, treating as returning user');
     } else if (isNewUser === true) {
       firstRun = true;
     } else if (hasChatHistory) {

@@ -555,6 +555,14 @@ export default function ChatScreen() {
       });
 
       console.log('✨ TRACE greeting result:', result);
+      
+      // If server says to skip greeting (onboarding in progress), don't set welcome text
+      if (result.skipGreeting) {
+        console.log('✨ TRACE greeting: skipping (onboarding in progress)');
+        setWelcomeLoading(false);
+        return;
+      }
+      
       setWelcomeText(result.text);
     } catch (err: any) {
       console.error('❌ TRACE greeting error:', err?.message || err);

@@ -167,11 +167,17 @@ export async function fetchWelcomeGreeting(params: {
     const json = await res.json();
     console.log('✨ TRACE greeting payload:', json);
 
+    // If server says to skip greeting (during onboarding), return null
+    if (json && json.skipGreeting === true) {
+      console.log('✨ TRACE greeting: server says skip (onboarding in progress)');
+      return { text: null, skipGreeting: true };
+    }
+
     const text: string =
       (json && (json.message || json.greeting)) ||
       "I'm really glad you're here with me.";
 
-    return { text };
+    return { text, skipGreeting: false };
   } catch (err: any) {
     clearTimeout(timeout);
     console.error('✨ TRACE greeting error:', err?.message || err);
