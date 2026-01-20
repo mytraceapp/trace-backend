@@ -2547,6 +2547,36 @@ app.post('/api/mood-checkin', async (req, res) => {
   }
 });
 
+// ==================== ONBOARDING INTRO VARIANTS ====================
+// One-time personalized intro for users still in onboarding
+
+const ONBOARDING_INTRO_VARIANTS = [
+  "Hey, {name}… I'm TRACE. I'm here with you. What's going on?",
+  "Hi {name}. I'm TRACE — a space for you to think, feel, and breathe. What's on your mind?",
+  "{name}, hey. I'm TRACE. I'm not here to fix anything — just to be with you. What's happening?",
+  "Hey {name}. I'm TRACE. Consider me a quiet corner. What brings you here?",
+  "{name} — I'm TRACE. No pressure, no judgment. Just presence. What's up?",
+  "Hi {name}. I'm TRACE — here when you need a moment. What's going on today?",
+  "Hey, {name}. I'm TRACE. Whatever you're carrying, you don't have to carry it alone. What's on your mind?",
+  "{name}, I'm TRACE. I'm here to listen and sit with you. What's happening right now?",
+  "Hi {name}. I'm TRACE — think of me as a grounding presence. What brought you here today?",
+  "Hey {name}. I'm TRACE. I'm here with no agenda — just space for you. What's going on?"
+];
+
+function pickOnboardingIntroVariant(userId, name) {
+  // Deterministic selection based on userId hash (consistent per user)
+  let hash = 0;
+  const str = userId || 'default';
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  const index = Math.abs(hash) % ONBOARDING_INTRO_VARIANTS.length;
+  const displayName = name || 'there';
+  return ONBOARDING_INTRO_VARIANTS[index].replace('{name}', displayName);
+}
+
 // ==================== RETURN-TO-LIFE HELPER FUNCTIONS ====================
 // Anti-spiral closing: gentle grounding cue for emotional/reflective content
 
@@ -4256,10 +4286,31 @@ Your response:`;
       }
     }
     
+    // ===== ONBOARDING INTRO (One-Time Personalized Greeting) =====
+    // During onboarding (onboarding_completed=false), prepend personalized intro to FIRST message only
+    let finalAssistantText = messagesArray ? messagesArray[0] : assistantText;
+    let addedOnboardingIntro = false;
+    
+    try {
+      const isOnboarding = userProfile?.onboarding_completed === false;
+      const isFirstMessage = messages.filter(m => m.role === 'assistant').length === 0;
+      
+      if (isOnboarding && isFirstMessage && effectiveUserId) {
+        const introVariant = pickOnboardingIntroVariant(
+          effectiveUserId, 
+          userProfile?.display_name || userProfile?.preferred_name
+        );
+        finalAssistantText = introVariant + "\n\n" + finalAssistantText;
+        addedOnboardingIntro = true;
+        console.log('[TRACE ONBOARDING] Prepended intro variant for user:', effectiveUserId.slice(0, 8));
+      }
+    } catch (err) {
+      console.error('[TRACE ONBOARDING] Error adding intro:', err.message);
+    }
+    
     // ===== FIRST CHAT DISCLAIMER (Backend-Driven) =====
     // Check if this is user's first chat AFTER onboarding and prepend disclaimer if so
     // Skip if user message is just an affirmation (ok/yes/sure/etc)
-    let finalAssistantText = messagesArray ? messagesArray[0] : assistantText;
     let isFirstChat = false;
     
     // Helper: check if message is affirmation-only
@@ -4304,8 +4355,8 @@ Your response:`;
       console.error('[TRACE DISCLAIMER] Error checking first_chat_completed:', err.message);
     }
     
-    // Update messagesArray[0] if crisis mode with disclaimer
-    if (isFirstChat && messagesArray && messagesArray.length > 0) {
+    // Update messagesArray[0] if crisis mode with disclaimer or onboarding intro
+    if ((isFirstChat || addedOnboardingIntro) && messagesArray && messagesArray.length > 0) {
       messagesArray[0] = finalAssistantText;
     }
     
