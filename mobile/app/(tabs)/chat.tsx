@@ -588,13 +588,13 @@ export default function ChatScreen() {
   }, [addMessage]);
 
   // UNIFIED INITIALIZATION: Wait for history to load, then decide what to show
-  // Uses state-based lock to prevent multiple greeting calls
+  // Uses state-based lock PLUS durable AsyncStorage flag for bootstrap
   useEffect(() => {
     if (!historyLoaded) return; // Wait for history to load first
-    if (chatInitialized) return; // Already initialized
+    if (chatInitialized) return; // Already initialized this mount
     if (!authUserId || stableId === null) return;
     
-    // Lock immediately to prevent duplicate calls
+    // Lock immediately to prevent duplicate calls this session
     setChatInitialized(true);
     console.log('🔒 Chat initialization starting - locked');
     
@@ -628,7 +628,6 @@ export default function ChatScreen() {
       }
       
       // PRIORITY 3: Check AsyncStorage for existing conversation (most reliable)
-      // This avoids stale closure issues with messages.length
       const storedConversation = await loadConversationFromStorage();
       if (storedConversation.length > 0) {
         console.log('🎯 Chat has existing conversation in storage, skipping greeting:', storedConversation.length, 'messages');
@@ -636,10 +635,18 @@ export default function ChatScreen() {
         return; // Done - user sees their existing conversation
       }
       
-      // PRIORITY 4: No history, no activity - show greeting for new/returning user
-      console.log('🎯 No conversation found, showing greeting/bootstrap');
+      // PRIORITY 4: Check if bootstrap was already shown for this user (durable flag)
+      const bootstrapShownKey = `trace:bootstrapShown:${authUserId}`;
+      const bootstrapAlreadyShown = await AsyncStorage.getItem(bootstrapShownKey);
+      if (bootstrapAlreadyShown) {
+        console.log('🎯 Bootstrap already shown for this user, skipping');
+        setWelcomeLoading(false);
+        return; // Done - bootstrap was already shown once, don't repeat
+      }
       
-      // Inline bootstrap and greeting calls to avoid closure issues
+      // PRIORITY 5: No history, no prior bootstrap - check if user is in onboarding state
+      console.log('🎯 Checking bootstrap eligibility...');
+      
       try {
         const userName = await getDisplayName(authUserId);
         const res = await fetch(`${CHAT_API_BASE}/api/chat/bootstrap`, {
@@ -651,6 +658,10 @@ export default function ChatScreen() {
         if (res.ok) {
           const data = await res.json();
           if (data.onboarding && Array.isArray(data.messages) && data.messages.length > 0) {
+            // Mark bootstrap as shown for this user BEFORE setting messages
+            await AsyncStorage.setItem(bootstrapShownKey, 'true');
+            console.log('📝 Marked bootstrap as shown for user:', authUserId);
+            
             const bootstrapMessages: ChatMessage[] = data.messages.map(
               (m: { role: string; content: string }, idx: number) => ({
                 id: `bootstrap-${idx}-${Date.now()}`,
@@ -658,17 +669,25 @@ export default function ChatScreen() {
                 content: m.content,
               })
             );
-            setMessages((current) => current.length === 0 ? bootstrapMessages : current);
+            
+            // Only set if truly empty - never overwrite existing conversation
+            setMessages((current) => {
+              if (current.length === 0) {
+                saveConversationToStorage(bootstrapMessages); // Persist immediately
+                return bootstrapMessages;
+              }
+              return current;
+            });
             if (bootstrapMessages[0]) setWelcomeText(bootstrapMessages[0].content);
             setWelcomeLoading(false);
-            return; // Done - onboarding bootstrap shown
+            return; // Done - onboarding bootstrap shown (once and only once)
           }
         }
       } catch (e) {
         console.warn('Bootstrap failed:', e);
       }
       
-      // Fall through to regular greeting
+      // PRIORITY 6: Not onboarding, show regular greeting for returning user
       try {
         setWelcomeLoading(true);
         const now = new Date();
