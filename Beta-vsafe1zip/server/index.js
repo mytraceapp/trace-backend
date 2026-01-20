@@ -5068,7 +5068,7 @@ app.post('/api/onboarding/complete', async (req, res) => {
     const { error: updateError } = await supabaseServer
       .from('profiles')
       .update({ onboarding_completed: true, updated_at: new Date().toISOString() })
-      .eq('user_id', userId);
+      .eq('id', userId);
     
     if (updateError) {
       console.error('[ONBOARDING] Complete error:', updateError.message);
@@ -5147,7 +5147,7 @@ app.post('/api/onboarding/reflection', async (req, res) => {
     const { error: updateError } = await supabaseServer
       .from('profiles')
       .update({ onboarding_completed: true, updated_at: new Date().toISOString() })
-      .eq('user_id', userId);
+      .eq('id', userId);
     
     if (updateError) {
       console.error('[ONBOARDING REFLECTION] Profile update error:', updateError.message);

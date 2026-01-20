@@ -172,6 +172,11 @@ export default function ChatScreen() {
     duration?: number;
   } | null>(null);
 
+  // Onboarding reflection flow state
+  const [awaitingOnboardingReflection, setAwaitingOnboardingReflection] = useState(false);
+  const [lastCompletedActivity, setLastCompletedActivity] = useState<string | null>(null);
+  const [isOnboardingUser, setIsOnboardingUser] = useState(false);
+
   // Night Swim player state
   const [showNightSwimPlayer, setShowNightSwimPlayer] = useState(false);
   const [nightSwimSession, setNightSwimSession] = useState(0); // Session counter for forcing remount
@@ -330,6 +335,23 @@ export default function ChatScreen() {
       const userId = data?.user?.id ?? null;
       setAuthUserId(userId);
       console.log('🆔 TRACE chat screen authUserId:', userId);
+
+      // Check if user is in onboarding mode
+      if (userId) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('onboarding_completed')
+            .eq('id', userId)
+            .single();
+          
+          const isOnboarding = profile?.onboarding_completed === false || profile?.onboarding_completed === null;
+          setIsOnboardingUser(isOnboarding);
+          console.log('🎓 TRACE onboarding status:', isOnboarding);
+        } catch (err) {
+          console.log('🎓 TRACE could not check onboarding status:', err);
+        }
+      }
     };
     initIds();
   }, []);
@@ -438,6 +460,23 @@ export default function ChatScreen() {
   useEffect(() => {
     if (pendingAcknowledgment && stableId !== null) {
       const handleAcknowledgment = async () => {
+        // Onboarding flow: show simple reflection prompt instead of regular acknowledgment
+        if (isOnboardingUser) {
+          console.log('🎓 TRACE onboarding: activity completed, awaiting reflection');
+          setLastCompletedActivity(pendingAcknowledgment.activity);
+          setAwaitingOnboardingReflection(true);
+          
+          const reflectionPrompt: ChatMessage = {
+            id: `onboard-ack-${Date.now()}`,
+            role: 'assistant',
+            content: 'Welcome back. Did that help at all?',
+          };
+          addMessage(reflectionPrompt);
+          setPendingAcknowledgment(null);
+          return;
+        }
+
+        // Regular flow: fetch AI acknowledgment
         const ackMessage = await fetchActivityAcknowledgment({
           userId: authUserId,
           deviceId: stableId,
@@ -459,7 +498,7 @@ export default function ChatScreen() {
       
       handleAcknowledgment();
     }
-  }, [pendingAcknowledgment, stableId, authUserId]);
+  }, [pendingAcknowledgment, stableId, authUserId, isOnboardingUser]);
 
   // Check for pending journal conversation invite
   useEffect(() => {
@@ -517,6 +556,54 @@ export default function ChatScreen() {
     setIsSending(true);
 
     console.log('📤 TRACE sending message:', trimmed);
+
+    // Onboarding reflection flow: intercept user's reflection response
+    if (awaitingOnboardingReflection && lastCompletedActivity) {
+      console.log('🎓 TRACE onboarding: capturing reflection for', lastCompletedActivity);
+      
+      try {
+        // POST to /api/onboarding/reflection
+        await fetch(`${CHAT_API_BASE}/api/onboarding/reflection`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: authUserId,
+            activity_id: lastCompletedActivity,
+            felt_shift: trimmed,
+          }),
+        });
+        console.log('🎓 TRACE onboarding: reflection saved');
+      } catch (err) {
+        console.error('🎓 TRACE onboarding: reflection save error:', err);
+      }
+
+      // Clear onboarding reflection state
+      setAwaitingOnboardingReflection(false);
+      setLastCompletedActivity(null);
+
+      // Add the two response messages with delay
+      setTimeout(() => {
+        const msg1: ChatMessage = {
+          id: `onboard-noted-${Date.now()}`,
+          role: 'assistant',
+          content: "Noted. I'll remember.",
+        };
+        addMessage(msg1);
+
+        setTimeout(() => {
+          const msg2: ChatMessage = {
+            id: `onboard-followup-${Date.now()}`,
+            role: 'assistant',
+            content: "Do you want to talk about what's driving it — or do you want quiet for a bit?",
+          };
+          addMessage(msg2);
+          setIsSending(false);
+        }, 800);
+      }, 400);
+
+      // Return early - do not call /api/chat for reflection message
+      return;
+    }
 
     try {
       const now = new Date();
