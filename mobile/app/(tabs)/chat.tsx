@@ -392,11 +392,52 @@ export default function ChatScreen() {
       authUserIdRef.current = userId;
       console.log('🆔 userId:', userId);
 
-      // Step 3: Load existing conversation from storage FIRST
-      const storedMessages = await loadConversationFromStorage(userId);
-      if (storedMessages.length > 0) {
-        setMessages(storedMessages);
-        console.log('📱 Loaded', storedMessages.length, 'messages from storage');
+      // Step 3: Load existing conversation from SERVER (Supabase) with one-hour session logic
+      let serverMessages: ChatMessage[] = [];
+      let sessionActive = false; // Is there an active session (messages within last hour)?
+      
+      if (userId) {
+        try {
+          const res = await fetch(`${CHAT_API_BASE}/api/chat-history?userId=${encodeURIComponent(userId)}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json?.ok && Array.isArray(json.messages) && json.messages.length > 0) {
+              serverMessages = json.messages.map((m: { role: string; content: string; created_at?: string }, idx: number) => ({
+                id: `server-${idx}`,
+                role: (m.role === 'assistant' ? 'assistant' : 'user') as ChatRole,
+                content: m.content,
+                timestamp: m.created_at,
+              }));
+              
+              // Check if last message is within one hour (session still active)
+              const lastMsg = json.messages[json.messages.length - 1];
+              if (lastMsg?.created_at) {
+                const lastMsgTime = new Date(lastMsg.created_at).getTime();
+                const ageMinutes = (Date.now() - lastMsgTime) / (1000 * 60);
+                sessionActive = ageMinutes < 60;
+                console.log('⏰ Last message age:', Math.round(ageMinutes), 'minutes, session active:', sessionActive);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to load server history:', e);
+        }
+      }
+      
+      // Use server messages if session is active, otherwise check local storage
+      if (sessionActive && serverMessages.length > 0) {
+        setMessages(serverMessages);
+        saveConversationToStorage(serverMessages, userId); // Sync to local
+        console.log('📱 Loaded', serverMessages.length, 'messages from server (session active)');
+      } else {
+        // Session expired or no server history - check local storage as fallback
+        const storedMessages = await loadConversationFromStorage(userId);
+        if (storedMessages.length > 0) {
+          // Check if local messages are within one hour
+          // For now, trust local storage for pending activity flow
+          setMessages(storedMessages);
+          console.log('📱 Loaded', storedMessages.length, 'messages from local storage');
+        }
       }
       
       // Step 4: CHECK PENDING ACTIVITY - highest priority
@@ -450,13 +491,13 @@ export default function ChatScreen() {
         console.warn('Pending activity check failed:', e);
       }
       
-      // Step 5: If we have existing messages, we're done - no greeting needed
-      if (storedMessages.length > 0) {
-        console.log('✅ UNIFIED INIT: Completed with existing messages');
+      // Step 5: If we have active session with messages, we're done - no greeting needed
+      if (sessionActive && serverMessages.length > 0) {
+        console.log('✅ UNIFIED INIT: Completed with active session');
         setWelcomeLoading(false);
         setHistoryLoaded(true);
         setChatInitialized(true);
-        return; // DONE
+        return; // DONE - session continues
       }
       
       // Step 6: Check if bootstrap was already shown (durable flag)

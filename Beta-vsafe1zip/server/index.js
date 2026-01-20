@@ -1985,6 +1985,7 @@ async function getChatHistory(userId) {
     .map((row) => ({
       role: row.role === 'assistant' ? 'assistant' : 'user',
       content: row.content,
+      created_at: row.created_at, // Include timestamp for session logic
     }));
 }
 
