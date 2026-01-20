@@ -409,14 +409,21 @@ export default function ChatScreen() {
 
   // Bootstrap: fetch onboarding intro variant for new users
   // Returns true if onboarding, false otherwise
-  const fetchBootstrap = useCallback(async (): Promise<boolean> => {
-    console.log('[BOOTSTRAP] called');
+  const fetchBootstrap = useCallback(async (userId: string): Promise<boolean> => {
+    console.log('[BOOTSTRAP] called for userId:', userId);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
+      // Retry a few times to wait for session to be ready
+      let token: string | undefined;
+      for (let i = 0; i < 3; i++) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        token = sessionData?.session?.access_token;
+        if (token) break;
+        console.log('[BOOTSTRAP] waiting for session, attempt', i + 1);
+        await new Promise(r => setTimeout(r, 500));
+      }
       
       if (!token) {
-        console.log('[BOOTSTRAP] no auth token, skipping');
+        console.log('[BOOTSTRAP] no auth token after retries, skipping');
         return false;
       }
       
@@ -498,7 +505,7 @@ export default function ChatScreen() {
     console.log('[CHAT INIT] authUserId available, calling bootstrap...');
     greetingInitializedRef.current = true;
     
-    fetchBootstrap().then((isOnboarding) => {
+    fetchBootstrap(authUserId).then((isOnboarding) => {
       console.log('[CHAT INIT] bootstrap returned isOnboarding:', isOnboarding);
       if (!isOnboarding) {
         console.log('[CHAT INIT] not onboarding, calling greeting API');
