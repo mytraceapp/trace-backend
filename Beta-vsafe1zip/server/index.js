@@ -2311,10 +2311,21 @@ app.post('/api/greeting', async (req, res) => {
     // Determine if this is a first run:
     // - If client explicitly says isReturningUser=true, it's NOT first run
     // - If client explicitly says isNewUser=true, it IS first run
-    // - Otherwise, check: has chat history? has completed first run? has profile?
+    // - Otherwise, check onboarding_step, chat history, first_run_completed, profile
     let firstRun = false;
+    
+    // CRITICAL: Check onboarding_step FIRST - if user has progressed past initial state,
+    // they should NEVER see bootstrap again (it only shows once at the very start)
+    const onboardingStep = profile?.onboarding_step;
+    const onboardingStarted = onboardingStep && onboardingStep !== 'new';
+    
     if (isReturningUser === true) {
       firstRun = false;
+    } else if (onboardingStarted) {
+      // User has already started onboarding (intro_sent, waiting_ok, etc.) - NOT first run
+      // This is the most reliable check - onboarding_step is updated after first interaction
+      firstRun = false;
+      console.log('[TRACE GREETING] Onboarding already started (step:', onboardingStep, ') - skipping bootstrap');
     } else if (isNewUser === true) {
       firstRun = true;
     } else if (hasChatHistory) {

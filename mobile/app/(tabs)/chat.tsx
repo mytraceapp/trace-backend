@@ -136,29 +136,36 @@ interface ChatMessage {
 }
 
 const MAX_MESSAGES = 150;
-const CONVERSATION_STORAGE_KEY = 'trace:conversation_history';
 
 const limitMessages = (msgs: ChatMessage[]): ChatMessage[] => {
   if (msgs.length <= MAX_MESSAGES) return msgs;
   return msgs.slice(-MAX_MESSAGES);
 };
 
-// Save conversation to AsyncStorage (like web version uses localStorage)
-const saveConversationToStorage = async (msgs: ChatMessage[]): Promise<void> => {
+// Get conversation storage key - keyed by userId for multi-user support
+const getConversationStorageKey = (userId: string | null): string => {
+  return userId ? `trace:conversation_history:${userId}` : 'trace:conversation_history:anonymous';
+};
+
+// Save conversation to AsyncStorage (keyed by userId)
+const saveConversationToStorage = async (msgs: ChatMessage[], userId: string | null): Promise<void> => {
   try {
-    await AsyncStorage.setItem(CONVERSATION_STORAGE_KEY, JSON.stringify(msgs));
+    const key = getConversationStorageKey(userId);
+    await AsyncStorage.setItem(key, JSON.stringify(msgs));
+    console.log('📱 Saved', msgs.length, 'messages to storage for user:', userId);
   } catch (e) {
     console.warn('Failed to save conversation to storage:', e);
   }
 };
 
-// Load conversation from AsyncStorage (instant, before API fetch)
-const loadConversationFromStorage = async (): Promise<ChatMessage[]> => {
+// Load conversation from AsyncStorage (keyed by userId)
+const loadConversationFromStorage = async (userId: string | null): Promise<ChatMessage[]> => {
   try {
-    const saved = await AsyncStorage.getItem(CONVERSATION_STORAGE_KEY);
+    const key = getConversationStorageKey(userId);
+    const saved = await AsyncStorage.getItem(key);
     if (saved) {
       const parsed = JSON.parse(saved);
-      console.log('📱 Loaded conversation from storage:', parsed.length, 'messages');
+      console.log('📱 Loaded conversation from storage:', parsed.length, 'messages for user:', userId);
       return parsed;
     }
   } catch (e) {
@@ -179,12 +186,21 @@ export default function ChatScreen() {
   }>();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
   
-  // Save to AsyncStorage whenever messages change
+  // Keep a ref to authUserId so callbacks can access current value
+  const authUserIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    authUserIdRef.current = authUserId;
+  }, [authUserId]);
+  
+  // Save to AsyncStorage whenever messages change (keyed by userId)
   const addMessage = useCallback((msg: ChatMessage) => {
     setMessages(prev => {
       const updated = limitMessages([...prev, msg]);
-      saveConversationToStorage(updated); // Persist immediately
+      saveConversationToStorage(updated, authUserIdRef.current); // Persist immediately
       return updated;
     });
   }, []);
@@ -192,13 +208,10 @@ export default function ChatScreen() {
   const addMessages = useCallback((msgs: ChatMessage[]) => {
     setMessages(prev => {
       const updated = limitMessages([...prev, ...msgs]);
-      saveConversationToStorage(updated); // Persist immediately
+      saveConversationToStorage(updated, authUserIdRef.current); // Persist immediately
       return updated;
     });
   }, []);
-  const [inputText, setInputText] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [stableId, setStableId] = useState<string | null>(null);
   const [welcomeText, setWelcomeText] = useState<string | null>(null);
   const [welcomeLoading, setWelcomeLoading] = useState(false);
@@ -358,13 +371,6 @@ export default function ChatScreen() {
 
   useEffect(() => {
     const initIds = async () => {
-      // FIRST: Load conversation from AsyncStorage (instant, never wipes)
-      const storedMessages = await loadConversationFromStorage();
-      if (storedMessages.length > 0) {
-        setMessages(storedMessages);
-        console.log('📱 Restored', storedMessages.length, 'messages from storage');
-      }
-      
       const deviceId = await getStableId();
       setStableId(deviceId);
       console.log('🆔 TRACE chat screen deviceId:', deviceId);
@@ -389,6 +395,13 @@ export default function ChatScreen() {
 
       setAuthUserId(userId);
       console.log('🆔 TRACE chat screen final authUserId:', userId);
+      
+      // THEN: Load conversation from AsyncStorage (keyed by userId)
+      const storedMessages = await loadConversationFromStorage(userId);
+      if (storedMessages.length > 0) {
+        setMessages(storedMessages);
+        console.log('📱 Restored', storedMessages.length, 'messages from storage for user:', userId);
+      }
       
       // Mark history as loaded after storage check (enables greeting logic)
       setHistoryLoaded(true);
@@ -431,7 +444,7 @@ export default function ChatScreen() {
           // Only update if server has MORE messages than local (sync from server)
           setMessages((current) => {
             if (historyMessages.length > current.length) {
-              saveConversationToStorage(historyMessages); // Sync to storage
+              saveConversationToStorage(historyMessages, userId); // Sync to storage
               return limitMessages(historyMessages);
             }
             return current; // Keep local if equal or more
@@ -628,7 +641,7 @@ export default function ChatScreen() {
       }
       
       // PRIORITY 3: Check AsyncStorage for existing conversation (most reliable)
-      const storedConversation = await loadConversationFromStorage();
+      const storedConversation = await loadConversationFromStorage(authUserId);
       if (storedConversation.length > 0) {
         console.log('🎯 Chat has existing conversation in storage, skipping greeting:', storedConversation.length, 'messages');
         setWelcomeLoading(false);
@@ -673,7 +686,7 @@ export default function ChatScreen() {
             // Only set if truly empty - never overwrite existing conversation
             setMessages((current) => {
               if (current.length === 0) {
-                saveConversationToStorage(bootstrapMessages); // Persist immediately
+                saveConversationToStorage(bootstrapMessages, authUserId); // Persist immediately
                 return bootstrapMessages;
               }
               return current;
