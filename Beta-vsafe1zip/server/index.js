@@ -4604,6 +4604,23 @@ app.post('/api/chat/bootstrap', async (req, res) => {
       // New user without profile yet - treat as onboarding
       // Use userName from mobile request (no Supabase sync lag)
       const introMessage = pickOnboardingIntroVariant(effectiveUserId, userName || null);
+      console.log('[CHAT BOOTSTRAP] New user without profile, showing intro');
+      
+      // Try to create a minimal profile with onboarding_step set
+      try {
+        await supabaseServer
+          .from('profiles')
+          .upsert({ 
+            user_id: effectiveUserId, 
+            onboarding_step: 'intro_sent',
+            onboarding_completed: false,
+            updated_at: new Date().toISOString() 
+          }, { onConflict: 'user_id' });
+        console.log('[CHAT BOOTSTRAP] Created profile with intro_sent step');
+      } catch (err) {
+        console.warn('[CHAT BOOTSTRAP] Failed to create profile:', err.message);
+      }
+      
       return res.json({
         messages: [{ role: 'assistant', content: introMessage }],
         onboarding: true
@@ -4613,11 +4630,33 @@ app.post('/api/chat/bootstrap', async (req, res) => {
     const isOnboarding = userProfile.onboarding_completed === false || userProfile.onboarding_completed === null;
     
     if (isOnboarding) {
+      // Check if bootstrap was already shown (onboarding_step is set)
+      if (userProfile.onboarding_step && userProfile.onboarding_step !== 'new') {
+        // Already showed bootstrap - don't repeat
+        console.log('[CHAT BOOTSTRAP] Bootstrap already shown (step:', userProfile.onboarding_step, ')');
+        return res.json({
+          messages: [],
+          onboarding: true // Still in onboarding, but no new intro
+        });
+      }
+      
       // Prefer userName from mobile request (cached, no lag)
       // Fall back to profile data if mobile didn't send it
       const effectiveUserName = userName || userProfile.display_name || userProfile.preferred_name || null;
       const introMessage = pickOnboardingIntroVariant(effectiveUserId, effectiveUserName);
       console.log('[CHAT BOOTSTRAP] Returning onboarding intro for user:', effectiveUserId.slice(0, 8), 'name:', effectiveUserName || 'none');
+      
+      // Mark bootstrap as shown by setting onboarding_step to intro_sent
+      try {
+        await supabaseServer
+          .from('profiles')
+          .update({ onboarding_step: 'intro_sent', updated_at: new Date().toISOString() })
+          .eq('user_id', effectiveUserId);
+        console.log('[CHAT BOOTSTRAP] Set onboarding_step to intro_sent');
+      } catch (err) {
+        console.warn('[CHAT BOOTSTRAP] Failed to update onboarding_step:', err.message);
+      }
+      
       return res.json({
         messages: [{ role: 'assistant', content: introMessage }],
         onboarding: true
@@ -5112,6 +5151,8 @@ app.get('/api/profile', async (req, res) => {
       lon: null,
       timezone: null,
       country: null,
+      onboarding_step: null, // Explicitly null - bootstrap not yet shown
+      onboarding_completed: false,
     };
     
     const { data: created, error: insertError } = await supabaseServer
