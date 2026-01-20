@@ -4554,19 +4554,22 @@ app.get('/api/health', (req, res) => {
 
 // ==================== CHAT BOOTSTRAP (Instant Onboarding Intro) ====================
 // Returns the onboarding intro message immediately without OpenAI call
-app.get('/api/chat/bootstrap', async (req, res) => {
+// Now accepts POST with userName from mobile (avoids Supabase sync lag)
+app.post('/api/chat/bootstrap', async (req, res) => {
   try {
-    // Try Authorization header first, fall back to query param
-    let effectiveUserId = null;
+    // Get userId and userName from POST body
+    const { userId, userName } = req.body || {};
     
-    const { user } = await getUserFromAuthHeader(req);
-    if (user?.id) {
-      effectiveUserId = user.id;
-    } else if (req.query.userId) {
-      effectiveUserId = req.query.userId;
+    // Fall back to auth header if no userId in body
+    let effectiveUserId = userId || null;
+    if (!effectiveUserId) {
+      const { user } = await getUserFromAuthHeader(req);
+      if (user?.id) {
+        effectiveUserId = user.id;
+      }
     }
     
-    console.log('[CHAT BOOTSTRAP] Request - effectiveUserId:', effectiveUserId?.slice(0, 8) || 'none');
+    console.log('[CHAT BOOTSTRAP] Request - effectiveUserId:', effectiveUserId?.slice(0, 8) || 'none', 'userName:', userName || 'none');
     
     if (!effectiveUserId) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -4576,12 +4579,13 @@ app.get('/api/chat/bootstrap', async (req, res) => {
       return res.status(500).json({ error: 'Database not configured' });
     }
     
-    // Load user profile
+    // Load user profile (still needed to check onboarding_completed status)
     const userProfile = await loadProfileBasic(effectiveUserId);
     
     if (!userProfile) {
       // New user without profile yet - treat as onboarding
-      const introMessage = pickOnboardingIntroVariant(effectiveUserId, null);
+      // Use userName from mobile request (no Supabase sync lag)
+      const introMessage = pickOnboardingIntroVariant(effectiveUserId, userName || null);
       return res.json({
         messages: [{ role: 'assistant', content: introMessage }],
         onboarding: true
@@ -4591,11 +4595,11 @@ app.get('/api/chat/bootstrap', async (req, res) => {
     const isOnboarding = userProfile.onboarding_completed === false || userProfile.onboarding_completed === null;
     
     if (isOnboarding) {
-      const introMessage = pickOnboardingIntroVariant(
-        effectiveUserId, 
-        userProfile.display_name || userProfile.preferred_name
-      );
-      console.log('[CHAT BOOTSTRAP] Returning onboarding intro for user:', effectiveUserId.slice(0, 8));
+      // Prefer userName from mobile request (cached, no lag)
+      // Fall back to profile data if mobile didn't send it
+      const effectiveUserName = userName || userProfile.display_name || userProfile.preferred_name || null;
+      const introMessage = pickOnboardingIntroVariant(effectiveUserId, effectiveUserName);
+      console.log('[CHAT BOOTSTRAP] Returning onboarding intro for user:', effectiveUserId.slice(0, 8), 'name:', effectiveUserName || 'none');
       return res.json({
         messages: [{ role: 'assistant', content: introMessage }],
         onboarding: true
@@ -4611,6 +4615,64 @@ app.get('/api/chat/bootstrap', async (req, res) => {
     
   } catch (err) {
     console.error('[CHAT BOOTSTRAP] Error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Legacy GET endpoint for backward compatibility
+app.get('/api/chat/bootstrap', async (req, res) => {
+  try {
+    // Try Authorization header first, fall back to query param
+    let effectiveUserId = null;
+    
+    const { user } = await getUserFromAuthHeader(req);
+    if (user?.id) {
+      effectiveUserId = user.id;
+    } else if (req.query.userId) {
+      effectiveUserId = req.query.userId;
+    }
+    
+    console.log('[CHAT BOOTSTRAP GET] Request - effectiveUserId:', effectiveUserId?.slice(0, 8) || 'none');
+    
+    if (!effectiveUserId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    if (!supabaseServer) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+    
+    // Load user profile
+    const userProfile = await loadProfileBasic(effectiveUserId);
+    
+    if (!userProfile) {
+      const introMessage = pickOnboardingIntroVariant(effectiveUserId, null);
+      return res.json({
+        messages: [{ role: 'assistant', content: introMessage }],
+        onboarding: true
+      });
+    }
+    
+    const isOnboarding = userProfile.onboarding_completed === false || userProfile.onboarding_completed === null;
+    
+    if (isOnboarding) {
+      const introMessage = pickOnboardingIntroVariant(
+        effectiveUserId, 
+        userProfile.display_name || userProfile.preferred_name
+      );
+      return res.json({
+        messages: [{ role: 'assistant', content: introMessage }],
+        onboarding: true
+      });
+    }
+    
+    return res.json({
+      messages: [],
+      onboarding: false
+    });
+    
+  } catch (err) {
+    console.error('[CHAT BOOTSTRAP GET] Error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });

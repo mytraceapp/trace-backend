@@ -157,3 +157,25 @@ export async function updateDisplayName(userId: string, displayName: string): Pr
     return false;
   }
 }
+
+export async function getDisplayName(userId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error) {
+      if (error.code !== 'PGRST116') {
+        console.error('[PROFILE] Get display_name error:', error.message);
+      }
+      return null;
+    }
+    
+    return data?.display_name?.trim() || null;
+  } catch (err: any) {
+    console.error('[PROFILE] Error:', err.message);
+    return null;
+  }
+}

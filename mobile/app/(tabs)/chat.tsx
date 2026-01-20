@@ -22,6 +22,7 @@ import { useFonts } from 'expo-font';
 import { playAmbient, stopAmbient } from '../../lib/ambientAudio';
 import { sendChatMessage, fetchWelcomeGreeting, PatternContext } from '../../lib/chat';
 import { getStableId } from '../../lib/stableId';
+import { getDisplayName } from '../../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 
@@ -409,15 +410,24 @@ export default function ChatScreen() {
 
   // Bootstrap: fetch onboarding intro variant for new users
   // Returns true if onboarding, false otherwise
+  // Now uses POST to send userName from mobile (avoids Supabase sync lag)
   const fetchBootstrap = useCallback(async (userId: string): Promise<boolean> => {
     console.log('[BOOTSTRAP] called for userId:', userId);
     try {
-      // Simple approach: pass userId as query param
-      const res = await fetch(`${CHAT_API_BASE}/api/chat/bootstrap?userId=${encodeURIComponent(userId)}`, {
-        method: 'GET',
+      // Get display name from mobile's Supabase cache (no lag since mobile just wrote it)
+      const userName = await getDisplayName(userId);
+      console.log('[BOOTSTRAP] userName from mobile cache:', userName);
+      
+      // POST with userName to avoid backend needing to query Supabase
+      const res = await fetch(`${CHAT_API_BASE}/api/chat/bootstrap`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          userId,
+          userName: userName || null,
+        }),
       });
       
       if (!res.ok) {
