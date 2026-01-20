@@ -470,22 +470,34 @@ export default function ChatScreen() {
     }
   }, []);
 
+  // Track if we've already tried bootstrap for this session
+  const [bootstrapAttempted, setBootstrapAttempted] = useState(false);
+
   useEffect(() => {
     if (stableId !== null) {
       fetchChatHistory(authUserId, stableId);
       
       // Run bootstrap first - only call greeting if NOT onboarding
-      fetchBootstrap().then((isOnboarding) => {
-        if (!isOnboarding) {
-          console.log('[BOOTSTRAP] not onboarding, calling greeting API');
-          fetchGreeting();
-        } else {
-          console.log('[BOOTSTRAP] is onboarding, skipping greeting API');
-          setWelcomeLoading(false);
-        }
-      });
+      // Bootstrap requires auth, so wait for authUserId before deciding
+      if (authUserId && !bootstrapAttempted) {
+        console.log('[BOOTSTRAP] authUserId available, calling bootstrap');
+        setBootstrapAttempted(true);
+        fetchBootstrap().then((isOnboarding) => {
+          if (!isOnboarding) {
+            console.log('[BOOTSTRAP] not onboarding, calling greeting API');
+            fetchGreeting();
+          } else {
+            console.log('[BOOTSTRAP] is onboarding, skipping greeting API');
+            setWelcomeLoading(false);
+          }
+        });
+      } else if (!authUserId && !bootstrapAttempted) {
+        // No auth yet - wait a moment for auth to become available
+        // before falling back to greeting
+        console.log('[BOOTSTRAP] waiting for authUserId...');
+      }
     }
-  }, [authUserId, stableId, fetchChatHistory, fetchBootstrap, fetchGreeting]);
+  }, [authUserId, stableId, fetchChatHistory, fetchBootstrap, fetchGreeting, bootstrapAttempted]);
 
   useEffect(() => {
     if (params.completedActivity && stableId !== null) {
