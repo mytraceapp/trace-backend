@@ -2731,17 +2731,8 @@ app.post('/api/chat', async (req, res) => {
     }
     
     const lastUserMsg = messages.filter(m => m.role === 'user').pop();
-    if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content)) {
-      console.log('[TRACE CHAT] Light closure detected, sending short ack:', lastUserMsg.content);
-      return res.json({
-        message: pickRandom(LIGHT_ACKS),
-        activity_suggestion: {
-          name: null,
-          reason: null,
-          should_navigate: false,
-        },
-      });
-    }
+    // NOTE: Light closure detection is now handled AFTER onboarding check
+    // to allow onboarding flow to handle "ok/okay" messages for activity navigation
 
     // Extract user's latest message text
     const userText = lastUserMsg?.content || '';
@@ -3141,6 +3132,20 @@ app.post('/api/chat', async (req, res) => {
       console.log('[ONBOARDING] Step:', onboardingStep, '- falling through to regular chat');
     }
     // ===== END SCRIPTED ONBOARDING STATE MACHINE =====
+
+    // ===== LIGHT CLOSURE DETECTION =====
+    // Handle short acknowledgment messages with quick responses (only for non-onboarding users)
+    if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content)) {
+      console.log('[TRACE CHAT] Light closure detected, sending short ack:', lastUserMsg.content);
+      return res.json({
+        message: pickRandom(LIGHT_ACKS),
+        activity_suggestion: {
+          name: null,
+          reason: null,
+          should_navigate: false,
+        },
+      });
+    }
 
     // Load return warmth line (for users returning after time away)
     let returnWarmthLine = null;
