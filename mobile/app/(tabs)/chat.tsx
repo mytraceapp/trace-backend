@@ -465,21 +465,34 @@ export default function ChatScreen() {
               return updated;
             });
             
+            // CRITICAL: Update onboarding step to reflection_pending FIRST (blocking)
+            // This must complete BEFORE user can respond to ensure proper flow
+            if (userId) {
+              try {
+                console.log('🔄 Updating onboarding step to reflection_pending...');
+                const stepRes = await fetch(`${CHAT_API_BASE}/api/onboarding/activity-complete`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ userId, activityName: activity }),
+                });
+                if (stepRes.ok) {
+                  console.log('✅ Onboarding step updated to reflection_pending');
+                } else {
+                  console.warn('⚠️ Failed to update onboarding step:', await stepRes.text());
+                }
+              } catch (err) {
+                console.error('Activity complete notify failed:', err);
+              }
+            }
+            
+            // Log activity completion (non-blocking)
+            logActivityCompletion({ userId, deviceId, activityType: activity, durationSeconds: duration || 0 });
+            
             setAwaitingOnboardingReflection(true);
             setLastCompletedActivityName(activity);
             setWelcomeLoading(false);
             setHistoryLoaded(true);
             setChatInitialized(true);
-            
-            // Log and notify backend
-            logActivityCompletion({ userId, deviceId, activityType: activity, durationSeconds: duration || 0 });
-            if (userId) {
-              fetch(`${CHAT_API_BASE}/api/onboarding/activity-complete`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, activityName: activity }),
-              }).catch(err => console.error('Activity complete notify failed:', err));
-            }
             
             console.log('✅ UNIFIED INIT: Completed with pending activity');
             return; // DONE - no greeting needed
@@ -748,22 +761,32 @@ export default function ChatScreen() {
   const handlePendingActivityCompletion = useCallback(async (activity: string, duration: number, userId: string | null, deviceId: string | null) => {
     console.log('🎯 Activity completion detected:', activity, duration);
     
-    // Log activity completion
+    // CRITICAL: Update onboarding step to reflection_pending FIRST (blocking)
+    if (userId) {
+      try {
+        console.log('🔄 Updating onboarding step to reflection_pending...');
+        const stepRes = await fetch(`${CHAT_API_BASE}/api/onboarding/activity-complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: userId, activityName: activity }),
+        });
+        if (stepRes.ok) {
+          console.log('✅ Onboarding step updated to reflection_pending');
+        } else {
+          console.warn('⚠️ Failed to update onboarding step');
+        }
+      } catch (err) {
+        console.error('Failed to notify activity complete:', err);
+      }
+    }
+    
+    // Log activity completion (non-blocking)
     logActivityCompletion({
       userId: userId,
       deviceId: deviceId,
       activityType: activity,
       durationSeconds: duration || 0,
     });
-    
-    // Notify backend that activity is done (update onboarding_step)
-    if (userId) {
-      fetch(`${CHAT_API_BASE}/api/onboarding/activity-complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userId, activityName: activity }),
-      }).catch(err => console.error('Failed to notify activity complete:', err));
-    }
     
     // Append subtle reflection prompt to existing conversation (not a greeting)
     const reflectionPrompt: ChatMessage = {

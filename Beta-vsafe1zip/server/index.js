@@ -5385,14 +5385,18 @@ app.post('/api/onboarding/activity-complete', async (req, res) => {
 // Called after: activity completed + reflection captured
 app.post('/api/onboarding/reflection', async (req, res) => {
   try {
-    const { userId, activity_id, felt_shift } = req.body || {};
+    const { userId, activity_id, activity_name, felt_shift } = req.body || {};
+    
+    console.log('[ONBOARDING REFLECTION] Request:', { userId: userId?.slice?.(0, 8), activity_id, activity_name, felt_shift: felt_shift?.slice?.(0, 30) });
     
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
     }
     
-    if (!activity_id) {
-      return res.status(400).json({ error: 'activity_id is required' });
+    // Accept either activity_id (number) or activity_name (string) - activity_name is what mobile sends
+    const activityIdOrName = activity_id || activity_name;
+    if (!activityIdOrName) {
+      return res.status(400).json({ error: 'activity_id or activity_name is required' });
     }
     
     if (!felt_shift) {
@@ -5413,31 +5417,41 @@ app.post('/api/onboarding/reflection', async (req, res) => {
     const normalizeMoodScore = (text) => {
       const t = (text || '').toLowerCase();
       if (t.includes('much better') || t.includes('calmer') || t.includes('relieved')) return 5;
-      if (t.includes('better')) return 4;
-      if (t.includes('same') || t.includes('idk') || t.includes("don't know")) return 3;
-      if (t.includes('worse') || t.includes('still anxious')) return 2;
+      if (t.includes('better') || t.includes('yes') || t.includes('yeah') || t.includes('helped')) return 4;
+      if (t.includes('same') || t.includes('idk') || t.includes("don't know") || t.includes('ok') || t.includes('fine')) return 3;
+      if (t.includes('worse') || t.includes('still anxious') || t.includes('no')) return 2;
       if (t.includes('panic') || t.includes('much worse')) return 1;
       return 3; // default
     };
     
     const mood_score = normalizeMoodScore(felt_shift);
     
-    // Insert into activity_reflections
-    const { error: insertError } = await supabaseServer
-      .from('activity_reflections')
-      .insert({
-        user_id: userId,
-        activity_id,
-        felt_shift,
-        mood_score,
-        created_at: new Date().toISOString()
-      });
-    
-    if (insertError) {
-      console.error('[ONBOARDING REFLECTION] Insert error:', insertError.message);
-      // Continue even if insert fails - still mark onboarding complete
-    } else {
-      console.log('[ONBOARDING REFLECTION] Recorded reflection:', { userId: userId.slice(0, 8), activity_id, mood_score });
+    // Try to insert into activity_reflections (may fail if activity_id is just a name string)
+    // This is best-effort - the main goal is to mark onboarding complete
+    try {
+      // Check if activity_id is a number (real DB ID) vs string (activity name)
+      const numericActivityId = parseInt(activityIdOrName, 10);
+      if (!isNaN(numericActivityId)) {
+        const { error: insertError } = await supabaseServer
+          .from('activity_reflections')
+          .insert({
+            user_id: userId,
+            activity_id: numericActivityId,
+            felt_shift,
+            mood_score,
+            created_at: new Date().toISOString()
+          });
+        
+        if (insertError) {
+          console.log('[ONBOARDING REFLECTION] Insert skipped (non-critical):', insertError.message);
+        } else {
+          console.log('[ONBOARDING REFLECTION] Recorded reflection:', { userId: userId.slice(0, 8), activity_id: numericActivityId, mood_score });
+        }
+      } else {
+        console.log('[ONBOARDING REFLECTION] Activity is name string, skipping reflection insert:', activityIdOrName);
+      }
+    } catch (e) {
+      console.log('[ONBOARDING REFLECTION] Insert skipped:', e.message);
     }
     
     // Update profiles set onboarding_completed=true and onboarding_step=completed
