@@ -4440,28 +4440,25 @@ app.get('/api/health', (req, res) => {
 // Returns the onboarding intro message immediately without OpenAI call
 app.get('/api/chat/bootstrap', async (req, res) => {
   try {
-    const { userId } = req.query;
+    // Extract userId from Authorization header (same pattern as other auth endpoints)
+    const { user, error: authError } = await getUserFromAuthHeader(req);
     
-    if (!userId) {
-      return res.status(400).json({ error: 'userId is required' });
+    if (authError || !user) {
+      return res.status(401).json({ error: authError || 'Authentication required' });
     }
     
-    // Validate UUID format
-    const validation = validateUserId(userId, null);
-    if (!validation.valid) {
-      return res.status(400).json({ error: validation.error });
-    }
+    const effectiveUserId = user.id;
     
     if (!supabaseServer) {
       return res.status(500).json({ error: 'Database not configured' });
     }
     
     // Load user profile
-    const userProfile = await loadProfileBasic(userId);
+    const userProfile = await loadProfileBasic(effectiveUserId);
     
     if (!userProfile) {
       // New user without profile yet - treat as onboarding
-      const introMessage = pickOnboardingIntroVariant(userId, null);
+      const introMessage = pickOnboardingIntroVariant(effectiveUserId, null);
       return res.json({
         messages: [{ role: 'assistant', content: introMessage }],
         onboarding: true
@@ -4472,10 +4469,10 @@ app.get('/api/chat/bootstrap', async (req, res) => {
     
     if (isOnboarding) {
       const introMessage = pickOnboardingIntroVariant(
-        userId, 
+        effectiveUserId, 
         userProfile.display_name || userProfile.preferred_name
       );
-      console.log('[CHAT BOOTSTRAP] Returning onboarding intro for user:', userId.slice(0, 8));
+      console.log('[CHAT BOOTSTRAP] Returning onboarding intro for user:', effectiveUserId.slice(0, 8));
       return res.json({
         messages: [{ role: 'assistant', content: introMessage }],
         onboarding: true
@@ -4483,7 +4480,7 @@ app.get('/api/chat/bootstrap', async (req, res) => {
     }
     
     // Onboarding complete - no bootstrap message needed
-    console.log('[CHAT BOOTSTRAP] Onboarding complete, no intro for user:', userId.slice(0, 8));
+    console.log('[CHAT BOOTSTRAP] Onboarding complete, no intro for user:', effectiveUserId.slice(0, 8));
     return res.json({
       messages: [],
       onboarding: false
