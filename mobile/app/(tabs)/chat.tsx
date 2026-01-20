@@ -408,7 +408,8 @@ export default function ChatScreen() {
   }, [authUserId, stableId]);
 
   // Bootstrap: fetch onboarding intro variant for new users
-  const fetchBootstrap = useCallback(async () => {
+  // Returns true if onboarding, false otherwise
+  const fetchBootstrap = useCallback(async (): Promise<boolean> => {
     console.log('[BOOTSTRAP] called');
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -416,7 +417,7 @@ export default function ChatScreen() {
       
       if (!token) {
         console.log('[BOOTSTRAP] no auth token, skipping');
-        return;
+        return false;
       }
       
       const res = await fetch(`${CHAT_API_BASE}/api/chat/bootstrap`, {
@@ -429,7 +430,7 @@ export default function ChatScreen() {
       
       if (!res.ok) {
         console.log('[BOOTSTRAP] error status:', res.status);
-        return;
+        return false;
       }
       
       const data = await res.json();
@@ -454,21 +455,35 @@ export default function ChatScreen() {
           return current;
         });
         
-        // Also set welcome text from first message
+        // Also set welcome text from first message (for empty state display)
         if (bootstrapMessages[0]) {
           setWelcomeText(bootstrapMessages[0].content);
         }
+        
+        return true; // Is onboarding
       }
+      
+      return data.onboarding === true;
     } catch (err: any) {
       console.error('[BOOTSTRAP] error:', err?.message || err);
+      return false;
     }
   }, []);
 
   useEffect(() => {
     if (stableId !== null) {
       fetchChatHistory(authUserId, stableId);
-      fetchBootstrap();
-      fetchGreeting();
+      
+      // Run bootstrap first - only call greeting if NOT onboarding
+      fetchBootstrap().then((isOnboarding) => {
+        if (!isOnboarding) {
+          console.log('[BOOTSTRAP] not onboarding, calling greeting API');
+          fetchGreeting();
+        } else {
+          console.log('[BOOTSTRAP] is onboarding, skipping greeting API');
+          setWelcomeLoading(false);
+        }
+      });
     }
   }, [authUserId, stableId, fetchChatHistory, fetchBootstrap, fetchGreeting]);
 
