@@ -1116,6 +1116,13 @@ function isHighDistressText(text) {
   if (!text) return false;
   const t = text.toLowerCase();
 
+  // FALSE POSITIVE FILTER - jokes, sarcasm, hyperbole
+  const jokeIndicators = ['laughing', 'lmao', 'lol', 'jk', 'joking', 'haha', 'lmfao', 'rofl', 'dying laughing', 'so funny'];
+  if (jokeIndicators.some(j => t.includes(j))) {
+    console.log('[CRISIS SCAN] False positive filtered - joke context:', t.slice(0, 50));
+    return false;
+  }
+
   // Direct suicidality / self-harm / existential despair
   if (
     t.includes('i want to die') ||
