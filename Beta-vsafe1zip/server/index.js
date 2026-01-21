@@ -3339,14 +3339,14 @@ app.post('/api/chat', async (req, res) => {
         
         let chatMessage;
         if (!disclaimerShown) {
-          // First time - include disclaimer
-          chatMessage = `Cool — I'm here to help whenever you need me.\n\n**Please note:** I'm an AI companion, not a replacement for professional mental health care. If you're in crisis, please reach out to a counselor, therapist, or crisis line.\n\nWhat brought you here today? Looking to manage stress, build better habits, or just curious?`;
+          // First time - welcome message with features and disclaimer
+          chatMessage = `Welcome! I'm here whenever you need a quiet moment.\n\nYou can explore breathing exercises, grounding activities, or just chat with me about what's on your mind. I'll adapt to whatever feels right.\n\n**Please note:** I'm an AI companion, not a replacement for professional mental health care. If you're in crisis, please reach out to a counselor, therapist, or crisis line.\n\nFeel free to look around — I'll be here.`;
           
           // Mark disclaimer as shown
           await markDisclaimerShown();
         } else {
-          // Already shown - skip it
-          chatMessage = "What brought you here today? Looking to manage stress, build better habits, or just curious?";
+          // Already shown - skip disclaimer, just encourage exploration
+          chatMessage = "Feel free to explore — I'm here whenever you need me.";
         }
         
         console.log('[ONBOARDING] Conversation started - disclaimerShown:', disclaimerShown);
@@ -3391,10 +3391,10 @@ app.post('/api/chat', async (req, res) => {
         
         let chatMessage;
         if (!disclaimerShown) {
-          chatMessage = `Cool — I'm here for whatever you need.\n\n**Please note:** I'm an AI companion, not a replacement for professional mental health care. If you're in crisis, please reach out to a counselor, therapist, or crisis line.\n\nSo what's on your mind?`;
+          chatMessage = `Welcome! I'm here whenever you need a quiet moment.\n\nYou can explore breathing exercises, grounding activities, or just chat with me about what's on your mind. I'll adapt to whatever feels right.\n\n**Please note:** I'm an AI companion, not a replacement for professional mental health care. If you're in crisis, please reach out to a counselor, therapist, or crisis line.\n\nFeel free to look around — I'll be here.`;
           await markDisclaimerShown();
         } else {
-          chatMessage = "Cool — I'm here for whatever you need. What's on your mind?";
+          chatMessage = "Feel free to explore — I'm here whenever you need me.";
         }
         
         console.log('[ONBOARDING] Conversation started from rapport_building - disclaimerShown:', disclaimerShown);
