@@ -1925,7 +1925,7 @@ async function loadProfileBasic(userId) {
   
   const { data, error } = await supabaseServer
     .from('profiles')
-    .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon')
+    .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon, pending_activity, pending_activity_route')
     .eq('user_id', userId)
     .single();
 
@@ -3110,29 +3110,129 @@ app.post('/api/chat', async (req, res) => {
         return okPhrases.includes(t) || okPhrases.some(p => t.startsWith(p + ' '));
       };
       
-      // STEP: intro_sent -> After first user reply, acknowledge and transition based on what they shared
+      // Helper to detect emotional state and suggest personalized activity
+      // Priority order: Spiraling > Stressed > Tired
+      const detectEmotionalState = (msg) => {
+        if (!msg) return null;
+        const t = msg.toLowerCase();
+        
+        // SPIRALING: racing thoughts, looping, intrusive thoughts
+        const spiralingKeywords = [
+          'spiral', 'spiraling', 'racing', 'racing thoughts', 'looping', 'loop',
+          'intrusive', 'intrusive thoughts', "mind won't stop", "can't stop thinking",
+          'spinning', "thoughts won't stop", 'mind is racing', 'head is spinning'
+        ];
+        if (spiralingKeywords.some(k => t.includes(k))) {
+          return {
+            state: 'spiraling',
+            activity: 'maze',
+            activityLabel: 'Maze',
+            message: "I hear you. Before we go deeper — let's interrupt the spiral and slow everything down.\nI'd recommend Maze. There's no timer. Just say okay when you're ready.",
+            reason: 'User reported racing/spiraling thoughts - needs mental interrupt',
+            route: '/activities/maze'
+          };
+        }
+        
+        // STRESSED: anxiety, panic, overwhelm, tension
+        const stressedKeywords = [
+          'stress', 'stressed', 'anxious', 'anxiety', 'overwhelm', 'overwhelmed',
+          'panic', 'panicking', 'on edge', 'edge', 'tense', 'tension', 'freaking out'
+        ];
+        if (stressedKeywords.some(k => t.includes(k))) {
+          return {
+            state: 'stressed',
+            activity: 'breathing',
+            activityLabel: 'Breathing',
+            message: "I hear you. Before we go deeper — let's bring your system down first.\nI'd recommend Breathing (30 seconds). Just say okay when you're ready.",
+            reason: 'User reported stress/anxiety - needs nervous system regulation',
+            route: '/activities/breathing'
+          };
+        }
+        
+        // TIRED: exhaustion, burnout, drained
+        const tiredKeywords = [
+          'tired', 'exhausted', 'drained', 'burnt out', 'burnout', 'worn out',
+          "can't keep my eyes open", 'burning out', 'wiped', 'no energy', 'so tired'
+        ];
+        if (tiredKeywords.some(k => t.includes(k))) {
+          return {
+            state: 'tired',
+            activity: 'rest',
+            activityLabel: 'Rest',
+            message: "I hear you. Before we talk it through — let's help your body soften.\nI'd recommend Rest (5 minutes). Just say okay when you're ready.",
+            reason: 'User reported exhaustion - needs physical restoration',
+            route: '/activities/rest'
+          };
+        }
+        
+        // No specific state detected - check for general negativity
+        const generalNegative = /sad|depress|hurt|difficult|hard|rough|bad|not good|terrible|awful|struggling|worry|scared/i.test(t);
+        if (generalNegative || t.length > 30) {
+          return {
+            state: 'general',
+            activity: 'breathing',
+            activityLabel: 'Breathing',
+            message: "I hear you. Before we go deeper — let's bring your system down first.\nI'd recommend Breathing (1 minute). Just say okay when you're ready.",
+            reason: 'User shared something difficult - offering grounding activity',
+            route: '/activities/breathing'
+          };
+        }
+        
+        return null;
+      };
+      
+      // Helper to track suggestion (non-blocking)
+      const trackSuggestion = async (state, activity, userMsg) => {
+        try {
+          // Internal tracking - insert directly instead of HTTP call
+          const suggestionId = `sug_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          await supabaseServer
+            .from('onboarding_suggestions')
+            .insert({
+              id: suggestionId,
+              user_id: effectiveUserId,
+              user_reported_state: state,
+              user_message: userMsg,
+              suggested_activity: activity,
+              created_at: new Date().toISOString()
+            });
+          console.log('[ONBOARDING] Tracked suggestion:', suggestionId);
+        } catch (err) {
+          console.warn('[ONBOARDING] Failed to track suggestion:', err.message);
+        }
+      };
+      
+      // STEP: intro_sent -> After first user reply, detect state and either suggest activity or ask what's on their mind
       if (onboardingStep === 'intro_sent') {
-        const userLower = (userText || '').toLowerCase();
+        const detected = detectEmotionalState(userText);
         
-        // Check if user shared something negative/difficult (stress, anxiety, struggle)
-        const isNegative = /stress|anxious|anxiety|overwhelm|tired|exhaust|sad|depress|panic|scared|worry|difficult|hard|rough|bad|not good|terrible|awful|struggling|hurt/i.test(userLower);
-        
-        // Check if user already shared what's on their mind (more than just a greeting acknowledgment)
-        const isSubstantive = userLower.length > 20 || isNegative;
-        
-        if (isSubstantive) {
-          // User already shared something meaningful - skip rapport step, go straight to activity offer
-          const activityOfferMessage = "I hear you. Before we go deeper — let's bring your system down first. I'd recommend Breathing (1 minute). Just say okay when you're ready.";
+        if (detected) {
+          // User shared something substantive - detect state and suggest personalized activity
+          // Track the suggestion (non-blocking)
+          trackSuggestion(detected.state, detected.activity, userText);
+          
+          // Store suggested activity in profile for waiting_ok step
+          supabaseServer
+            .from('profiles')
+            .update({ 
+              pending_activity: detected.activity, 
+              pending_activity_route: detected.route,
+              updated_at: new Date().toISOString() 
+            })
+            .eq('user_id', effectiveUserId)
+            .then(() => console.log('[ONBOARDING] Stored pending activity:', detected.activity))
+            .catch(err => console.warn('[ONBOARDING] Failed to store pending activity:', err.message));
           
           await updateOnboardingStep('waiting_ok');
           
-          console.log('[ONBOARDING] User shared something substantial, offering activity');
+          console.log('[ONBOARDING] Detected state:', detected.state, '- suggesting:', detected.activity);
           return res.json({
-            message: activityOfferMessage,
+            message: detected.message,
             activity_suggestion: {
-              name: 'Breathing',
-              reason: 'To help settle your nervous system before we continue',
+              name: detected.activity,
+              userReportedState: detected.state,
               should_navigate: false,
+              reason: detected.reason
             },
           });
         }
@@ -3151,55 +3251,87 @@ app.post('/api/chat', async (req, res) => {
         console.log('[ONBOARDING] Building rapport - asking what is on their mind');
         return res.json({
           message: followUp,
-          activity_suggestion: { name: null, reason: null, should_navigate: false },
+          activity_suggestion: { name: null, userReportedState: null, reason: null, should_navigate: false },
         });
       }
       
-      // STEP: rapport_building -> After user shares what's on their mind, offer breathing activity
+      // STEP: rapport_building -> After user shares what's on their mind, detect state and offer personalized activity
       if (onboardingStep === 'rapport_building') {
-        const userLower = (userText || '').toLowerCase();
-        const isNegative = /stress|anxious|anxiety|overwhelm|tired|exhaust|sad|depress|panic|scared|worry|difficult|hard|rough|bad|not good|terrible|awful|struggling|hurt/i.test(userLower);
+        const detected = detectEmotionalState(userText);
         
-        // Context-aware response based on what user shared
-        const activityOfferMessage = isNegative
-          ? "I hear you. Before we go deeper — let's bring your system down first. I'd recommend Breathing (1 minute). Just say okay when you're ready."
-          : "Okay. Before we go into the whole story — let's bring your system down first. I'd recommend Breathing (1 minute). Just say okay.";
+        // Use detected activity or default to breathing
+        const suggestion = detected || {
+          state: 'general',
+          activity: 'breathing',
+          activityLabel: 'Breathing',
+          message: "Okay. Before we go into the whole story — let's bring your system down first.\nI'd recommend Breathing (1 minute). Just say okay when you're ready.",
+          reason: 'Offering grounding activity before deeper conversation',
+          route: '/activities/breathing'
+        };
+        
+        // Track the suggestion (non-blocking)
+        trackSuggestion(suggestion.state, suggestion.activity, userText);
+        
+        // Store suggested activity in profile for waiting_ok step
+        supabaseServer
+          .from('profiles')
+          .update({ 
+            pending_activity: suggestion.activity, 
+            pending_activity_route: suggestion.route,
+            updated_at: new Date().toISOString() 
+          })
+          .eq('user_id', effectiveUserId)
+          .then(() => console.log('[ONBOARDING] Stored pending activity:', suggestion.activity))
+          .catch(err => console.warn('[ONBOARDING] Failed to store pending activity:', err.message));
         
         await updateOnboardingStep('waiting_ok');
         
-        console.log('[ONBOARDING] User shared - now offering breathing activity');
+        console.log('[ONBOARDING] Detected state:', suggestion.state, '- suggesting:', suggestion.activity);
         return res.json({
-          message: activityOfferMessage,
+          message: suggestion.message,
           activity_suggestion: {
-            name: 'Breathing',
-            reason: 'To help settle your nervous system before we continue',
+            name: suggestion.activity,
+            userReportedState: suggestion.state,
             should_navigate: false,
+            reason: suggestion.reason
           },
         });
       }
       
-      // STEP: waiting_ok -> User says okay, trigger auto-navigate to activity
+      // STEP: waiting_ok -> User says okay, trigger auto-navigate to the suggested activity
       if (onboardingStep === 'waiting_ok') {
+        // Get the pending activity from profile (set during suggestion step)
+        const pendingActivity = userProfile?.pending_activity || 'breathing';
+        const pendingRoute = userProfile?.pending_activity_route || '/activities/breathing';
+        
+        // Map activity to label for messages
+        const activityLabels = {
+          'maze': 'Maze',
+          'breathing': 'Breathing',
+          'rest': 'Rest'
+        };
+        const activityLabel = activityLabels[pendingActivity] || 'Breathing';
+        
         if (isUserAffirmation(userText)) {
           await updateOnboardingStep('activity_in_progress');
           
-          console.log('[ONBOARDING] User affirmed, triggering activity auto-navigate');
+          console.log('[ONBOARDING] User affirmed, triggering auto-navigate to:', pendingActivity);
           return res.json({
             message: "Good. I'll be here when you get back.",
             activity_suggestion: {
-              name: 'Breathing',
-              reason: 'Taking a moment to breathe',
+              name: pendingActivity,
+              reason: `Starting ${activityLabel}`,
               should_navigate: true,
-              route: '/activities/breathing',
+              route: pendingRoute,
             },
           });
         } else {
-          // User didn't say okay - gently re-prompt or accept their choice
-          console.log('[ONBOARDING] User did not affirm, re-prompting');
+          // User didn't say okay - gently re-prompt
+          console.log('[ONBOARDING] User did not affirm, re-prompting for:', pendingActivity);
           return res.json({
-            message: "No pressure. When you're ready, just say okay and we'll do a quick breathing reset together.",
+            message: `No pressure. When you're ready, just say okay and we'll start ${activityLabel} together.`,
             activity_suggestion: {
-              name: 'Breathing',
+              name: pendingActivity,
               reason: 'Ready when you are',
               should_navigate: false,
             },

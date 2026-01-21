@@ -1,0 +1,129 @@
+REPLIT PROMPT: Backend-Led Onboarding Activity Suggestions
+Goal: Modify /api/chat endpoint to detect user emotional state during new user onboarding and return personalized activity suggestions.
+
+Context:
+
+New users go through onboarding cadence: greeting → detect state → suggest activity → user confirms → activity launches
+Mobile client sends each user message to /api/chat
+Backend should detect state and return activity suggestion in response
+Mobile client will display suggestion and wait for user confirmation
+Detection Rules (Implement in /api/chat)
+1. SPIRALING State:
+
+Keywords: "spiral", "spiraling", "racing", "racing thoughts", "looping", "loop", "intrusive", "intrusive thoughts", "mind won't stop", "can't stop thinking", "spinning", "thoughts won't stop"
+Suggested Activity: Maze
+Message: "I hear you. Before we go deeper — let's interrupt the spiral and slow everything down.\nI'd recommend Maze. There's no timer. Just say okay when you're ready."
+2. STRESSED State:
+
+Keywords: "stress", "stressed", "anxious", "anxiety", "overwhelm", "overwhelmed", "panic", "panicking", "on edge", "edge", "tense", "tension"
+Suggested Activity: Breathing
+Message: "I hear you. Before we go deeper — let's bring your system down first.\nI'd recommend Breathing (30 seconds). Just say okay when you're ready."
+3. TIRED State:
+
+Keywords: "tired", "exhausted", "drained", "burnt out", "burnout", "worn out", "can't keep my eyes open", "burning out"
+Suggested Activity: Rest
+Message: "I hear you. Before we talk it through — let's help your body soften.\nI'd recommend Rest (5 minutes). Just say okay when you're ready."
+Implementation Details
+When to Suggest (Only During Onboarding):
+
+Only return activity_suggestion if:
+userId is provided
+This is the FIRST user message (second message in conversation after greeting)
+None of these keywords are empty/null in request
+User has NOT yet confirmed an activity (no previous suggestion in conversation history)
+Response Format:
+{
+  "message": "Assistant message text",
+  "activity_suggestion": {
+    "name": "maze" | "breathing" | "rest" | null,
+    "userReportedState": "spiraling" | "stressed" | "tired" | null,
+    "should_navigate": false,  // Mobile handles navigation on "Okay" confirmation
+    "reason": "Brief explanation of why this activity"
+  }
+}
+Example Response (Spiraling Detected):
+
+
+{  "message": "I hear you. Before we go deeper — let's interrupt the spiral and slow everything down.\nI'd recommend Maze. There's no timer. Just say okay when you're ready.",  "activity_suggestion": {    "name": "maze",    "userReportedState": "spiraling",    "should_navigate": false,    "reason": "User reported racing/spiraling thoughts - needs mental interrupt"  }}
+{
+  "message": "I hear you. Before we go deeper — let's interrupt the spiral and slow everything down.\nI'd recommend Maze. There's no timer. Just say okay when you're ready.",
+  "activity_suggestion": {
+    "name": "maze",
+    "userReportedState": "spiraling",
+    "should_navigate": false,
+    "reason": "User reported racing/spiraling thoughts - needs mental interrupt"
+  }
+}
+Example Response (No Match):
+{
+  "message": "Thanks for sharing. I'm listening.",
+  "activity_suggestion": {
+    "name": null,
+    "userReportedState": null,
+    "should_navigate": false,
+    "reason": null
+  }
+}
+
+Tracking Integration
+After detecting and suggesting an activity, call the existing /api/onboarding/suggestion endpoint:
+await fetch('/api/onboarding/suggestion', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId: userId,
+    userReportedState: "spiraling" | "stressed" | "tired",
+    userMessage: userMessage,  // The full message they sent
+    suggestedActivity: "maze" | "breathing" | "rest",
+    timestamp: new Date().toISOString()
+  })
+}).catch(err => console.warn('Failed to track suggestion:', err));
+
+Mobile Client Behavior (For Reference)
+Mobile will:
+
+Send user message to /api/chat
+Receive activity_suggestion in response
+Display the suggestion message to user
+Set pendingActivityName = suggestion.name
+Wait for user to type confirmation ("okay", "ok", "yes", "sure", etc.)
+On confirmation, navigate to activity page
+Testing Checklist
+Test 1: Spiraling Detection
+- New user in onboarding
+- Greeting appears
+- User types: "My mind is racing"
+- Backend returns Maze suggestion
+- Mobile shows: "I hear you. Before we go deeper..."
+- User types: "Okay"
+- App navigates to /activities/maze ✅
+
+Test 2: Stressed Detection
+- User types: "I'm anxious and overwhelmed"
+- Backend returns Breathing suggestion
+- User types: "yes"
+- App navigates to /activities/breathing ✅
+
+Test 3: Tired Detection
+- User types: "I'm exhausted"
+- Backend returns Rest suggestion
+- User types: "sure"
+- App navigates to /activities/rest ✅
+
+Test 4: No Match
+- User types: "hey how are you"
+- Backend returns no suggestion
+- Normal chat continues ✅
+
+Test 5: Second Message Ignored
+- First message suggestion triggered
+- User confirms and completes activity
+- User returns from activity
+- New messages do NOT trigger suggestion again ✅
+
+Notes
+Case-insensitive matching for keywords
+Only suggest activities ONCE per new user session
+Track all suggestions for analytics (who reported what, what was suggested)
+Keywords should use includes() matching (not exact match)
+Prioritize detection order: Spiraling > Stressed > Tired (if message matches multiple, pick first match)
