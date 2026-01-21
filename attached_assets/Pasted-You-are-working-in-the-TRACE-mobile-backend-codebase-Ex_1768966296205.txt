@@ -1,0 +1,198 @@
+You are working in the TRACE mobile + backend codebase (Expo / React Native + Node/Express backend). Implement the 5th onboarding state: CRISIS SUPPORT (chat-only), with “can I call someone for you?” cadence and explicit crisis trigger alerts.
+
+HARD CONSTRAINTS:
+- NO new UI screens
+- NO buttons
+- Everything happens ONLY on the main chat page
+- Do NOT refactor
+- Make the smallest possible changes
+- Keep existing onboarding reflection flow intact:
+  - awaitingOnboardingReflection
+  - lastCompletedActivityName
+  - “Welcome back. Did that help at all?”
+  - /api/onboarding/reflection post
+- Do NOT break chat history persistence (“keep chat history on display for an hour” logic)
+- Do NOT request Contacts permission at startup or onboarding setup
+- Only request Contacts permission when user explicitly confirms calling a trusted contact
+- Never open dialer without explicit user confirmation typed in chat
+
+TARGET FILES (likely):
+- mobile/app/(tabs)/chat.tsx
+- mobile/lib/chat.ts (or chat handler logic)
+- server/index.js (or /api/chat handler)
+
+===========================================================
+FEATURE: CRISIS SUPPORT STATE (NEW)
+===========================================================
+
+1) CRISIS TRIGGER DETECTION (backend primary gate; mobile may have fallback)
+Add/expand crisis detection with these CRISIS ALERTS.
+
+CRISIS ALERTS (high severity — trigger immediately):
+- direct self-harm intent:
+  "kill myself", "killing myself", "end my life", "want to die", "dont want to live",
+  "suicide", "suicidal", "take my life"
+- self-harm plan / method keywords:
+  "overdose", "od", "pills", "jump", "bridge", "hang myself", "hanging",
+  "cut myself", "slit my wrists", "gun", "shoot myself", "knife"
+- immediate danger:
+  "im going to do it", "tonight", "right now", "cant do this anymore",
+  "goodbye", "this is my last message", "i wrote a note", "i have a plan"
+
+MODERATE ALERTS (trigger a softer check-in if present, still enter crisis state):
+- "i want to disappear", "i cant go on", "im done", "im hopeless",
+  "no reason to live", "everyone would be better without me",
+  "i hate being alive", "i dont feel safe"
+
+IMPORTANT: Avoid obvious false positives:
+- "kill myself laughing"
+- jokes / sarcasm
+You may include a basic heuristic to ignore phrases containing “laughing” nearby.
+
+2) BACKEND RESPONSE SHAPE
+When crisis is detected, backend /api/chat response must include:
+{
+  crisis_resources: {
+    triggered: true,
+    severity: "high" | "moderate"
+  }
+}
+
+Do not auto-dial. Do not return "auto_dial".
+
+3) MOBILE: CRISIS CHAT STATE MACHINE (chat-only)
+Add state variables in chat logic (chat.tsx or mobile/lib/chat.ts):
+- awaitingCrisisSafetyCheck: boolean
+- awaitingTrustedContactName: boolean
+- awaitingCallConfirmation: string | null
+  where value can be:
+  - "988"
+  - "CONTACT:mom" / "CONTACT:john"
+
+4) CRISIS CADENCE COPY (Version 2, less clinical)
+When crisis_resources.triggered is true (and user is not in reflection mode), TRACE should respond EXACTLY:
+
+A) First message (start crisis state):
+“Thank you for telling me. I’m here.
+Are you safe right now?”
+
+Set awaitingCrisisSafetyCheck = true.
+
+B) User replies SAFE = YES variants:
+Examples: “yes”, “i’m safe”, “i think so”, “kind of”, “for now”
+TRACE responds:
+
+“Okay. Thank you.
+I still don’t want you holding this alone.
+
+If you’re in the U.S., I can pull up 988…
+but if you’d rather not, I can help you call someone you trust.
+
+Who can I pull up for you?”
+
+Set awaitingTrustedContactName = true.
+Also allow option for 988: if user says “988” then proceed to CALL 988 confirmation (see below).
+
+C) User replies SAFE = NO variants:
+Examples: “no”, “not safe”, “i’m not”, “i can’t”, “not really”
+TRACE responds:
+
+“Okay. I’m staying with you.
+If you can, please call 911 right now (or your local emergency number).
+
+If you’re in the U.S., I can pull up 988.
+Or… if that doesn’t feel right, I can help you call someone you trust.
+
+Who would feel safest to call?”
+
+Set awaitingTrustedContactName = true.
+
+D) User replies “i don’t know” / ambiguous:
+TRACE responds:
+
+“That’s okay.
+We’ll treat it like you need support.
+
+If you’re in the U.S., I can pull up 988 right now — type CALL 988.
+Or tell me who you trust, and I can help you call them.”
+
+Set awaitingTrustedContactName = true.
+
+5) TRUSTED CONTACT HANDLING (chat-only)
+When awaitingTrustedContactName = true:
+- If user answers with a trusted contact:
+  Examples: "my mom", "mom", "my dad", "dad", "my sister", "my therapist", "john"
+- TRACE should respond:
+
+“Okay. I can do that.
+If you want me to pull up a call to {NAME}, type CALL {NAME_UPPER}.”
+
+Examples:
+- CALL MOM
+- CALL DAD
+- CALL SISTER
+- CALL THERAPIST
+- CALL JOHN
+
+Set awaitingCallConfirmation = "CONTACT:{normalizedname}"
+
+6) 988 FLOW (chat-only)
+At any time, if user says they want 988:
+TRACE should respond:
+“Okay. Type CALL 988 and I’ll pull it up.”
+
+If user types exactly “CALL 988”:
+- TRACE message:
+“Okay. I’m pulling it up now.”
+- then run Linking.openURL('tel:988')
+
+No buttons. No extra UI. Just chat.
+
+7) CONTACTS PERMISSION (critical)
+- Only request Contacts permission AFTER user types confirmation: CALL MOM / CALL JOHN / etc.
+- Use expo-contacts
+- Find best match via name search
+- If found and phone exists:
+  - TRACE: “Okay. I’m pulling it up now.”
+  - Linking.openURL(`tel:${phone}`)
+- If permission denied OR contact not found:
+  - TRACE:
+    “I can’t access contacts on this device.
+     If you’re in the U.S., type CALL 988 and I’ll pull that up.”
+
+IMPORTANT: Do NOT automatically dial 988 when permission denied. Require CALL 988.
+
+8) EXIT / RESET RULES
+After dialing attempt (988 or contact), when the user returns to chat:
+TRACE should ask:
+“I’m here. Are you still with me?”
+
+Then if user responds:
+- If still crisis messaging continues, remain gentle.
+- If stabilized, allow normal chat flow.
+
+Always reset:
+- awaitingCrisisSafetyCheck false
+- awaitingTrustedContactName false
+- awaitingCallConfirmation null
+once resolved.
+
+9) TEST PLAN (must provide)
+Include steps to test:
+- “I want to die” triggers safety check
+- “yes” leads to trusted contact offer
+- “my mom” leads to CALL MOM confirmation
+- CALL MOM prompts contacts permission and dials
+- deny contacts permission -> offers CALL 988
+- CALL 988 dials 988
+- ensure reflection flow and 1-hour chat history behavior still works
+
+Stop after implementation. Do not add extra features.
+
+CLARIFIED RULES:
+- Crisis overrides reflection: if awaitingOnboardingReflection is true and crisis detected, clear reflection state and enter crisis safety check immediately.
+- Do not re-ask safety check repeatedly: if awaitingCrisisSafetyCheck is true, do not restart the flow; just re-prompt “Are you safe right now?”
+- Trusted contact matching: if user uses role labels (“my therapist”, “my best friend”, “my pastor”), TRACE must ask: “What name should I look for in your contacts?” Then use that as the contact search term.
+- Post-dial check timing: after any dial attempt, set awaitingPostDialCheck and ask “I’m here. Are you still with me?” on the next user message (no timers).
+- Transition back to normal: after user confirms they’re okay, clear crisis state and resume normal chat with a gentle bridge prompt.
+- Priority order: Crisis > Reflection > Activity Suggestion > Normal Chat.
