@@ -4509,7 +4509,7 @@ Your response:`;
       if (supabaseServer && effectiveUserId && userProfile && 
           onboardingComplete && firstChatPending && !userMsgIsAffirmation) {
         isFirstChat = true;
-        const disclaimerText = "I should be clear: I'm reflective intelligence for everyday life. I'm not therapy and don't provide medical or psychological diagnosis or treatment. Not for emergencies or crisis. Not a substitute for licensed professionals.\n\n";
+        const disclaimerText = "Quick note: I'm not a therapist and I can't diagnose or treat anything — but I can support you through what you're feeling.\n\n";
         finalAssistantText = disclaimerText + finalAssistantText;
         
         // Mark first chat as completed (non-blocking)
