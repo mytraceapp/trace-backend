@@ -1923,11 +1923,29 @@ function filterMessagesToLastHour(messages) {
 async function loadProfileBasic(userId) {
   if (!supabaseServer) return null;
   
-  const { data, error } = await supabaseServer
+  // Try with pending_activity columns first, fall back without them if columns don't exist
+  let data, error;
+  
+  const resultWithPending = await supabaseServer
     .from('profiles')
     .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon, pending_activity, pending_activity_route')
     .eq('user_id', userId)
     .single();
+  
+  if (resultWithPending.error && resultWithPending.error.message.includes('pending_activity')) {
+    // Columns don't exist yet, try without them
+    console.log('[loadProfileBasic] pending_activity column not found, loading without it');
+    const resultWithoutPending = await supabaseServer
+      .from('profiles')
+      .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon')
+      .eq('user_id', userId)
+      .single();
+    data = resultWithoutPending.data;
+    error = resultWithoutPending.error;
+  } else {
+    data = resultWithPending.data;
+    error = resultWithPending.error;
+  }
 
   if (error) {
     console.error('[loadProfileBasic error]', error.message);
@@ -3211,19 +3229,8 @@ app.post('/api/chat', async (req, res) => {
           // Track the suggestion (non-blocking)
           trackSuggestion(detected.state, detected.activity, userText);
           
-          // Store suggested activity in profile for waiting_ok step
-          supabaseServer
-            .from('profiles')
-            .update({ 
-              pending_activity: detected.activity, 
-              pending_activity_route: detected.route,
-              updated_at: new Date().toISOString() 
-            })
-            .eq('user_id', effectiveUserId)
-            .then(() => console.log('[ONBOARDING] Stored pending activity:', detected.activity))
-            .catch(err => console.warn('[ONBOARDING] Failed to store pending activity:', err.message));
-          
-          await updateOnboardingStep('waiting_ok');
+          // Encode the activity in the step name (e.g., waiting_ok:maze)
+          await updateOnboardingStep(`waiting_ok:${detected.activity}`);
           
           console.log('[ONBOARDING] Detected state:', detected.state, '- suggesting:', detected.activity);
           return res.json({
@@ -3272,19 +3279,8 @@ app.post('/api/chat', async (req, res) => {
         // Track the suggestion (non-blocking)
         trackSuggestion(suggestion.state, suggestion.activity, userText);
         
-        // Store suggested activity in profile for waiting_ok step
-        supabaseServer
-          .from('profiles')
-          .update({ 
-            pending_activity: suggestion.activity, 
-            pending_activity_route: suggestion.route,
-            updated_at: new Date().toISOString() 
-          })
-          .eq('user_id', effectiveUserId)
-          .then(() => console.log('[ONBOARDING] Stored pending activity:', suggestion.activity))
-          .catch(err => console.warn('[ONBOARDING] Failed to store pending activity:', err.message));
-        
-        await updateOnboardingStep('waiting_ok');
+        // Encode the activity in the step name (e.g., waiting_ok:breathing)
+        await updateOnboardingStep(`waiting_ok:${suggestion.activity}`);
         
         console.log('[ONBOARDING] Detected state:', suggestion.state, '- suggesting:', suggestion.activity);
         return res.json({
@@ -3298,22 +3294,30 @@ app.post('/api/chat', async (req, res) => {
         });
       }
       
-      // STEP: waiting_ok -> User says okay, trigger auto-navigate to the suggested activity
-      if (onboardingStep === 'waiting_ok') {
-        // Get the pending activity from profile (set during suggestion step)
-        const pendingActivity = userProfile?.pending_activity || 'breathing';
-        const pendingRoute = userProfile?.pending_activity_route || '/activities/breathing';
+      // STEP: waiting_ok:activity -> User says okay, trigger auto-navigate to the suggested activity
+      // Step format: waiting_ok:maze, waiting_ok:breathing, waiting_ok:rest
+      if (onboardingStep.startsWith('waiting_ok')) {
+        // Parse the activity from the step name (e.g., waiting_ok:maze -> maze)
+        const pendingActivity = onboardingStep.includes(':') 
+          ? onboardingStep.split(':')[1] 
+          : 'breathing';
         
-        // Map activity to label for messages
+        // Map activity to route and label
+        const activityRoutes = {
+          'maze': '/activities/maze',
+          'breathing': '/activities/breathing',
+          'rest': '/activities/rest'
+        };
         const activityLabels = {
           'maze': 'Maze',
           'breathing': 'Breathing',
           'rest': 'Rest'
         };
+        const pendingRoute = activityRoutes[pendingActivity] || '/activities/breathing';
         const activityLabel = activityLabels[pendingActivity] || 'Breathing';
         
         if (isUserAffirmation(userText)) {
-          await updateOnboardingStep('activity_in_progress');
+          await updateOnboardingStep(`activity_in_progress:${pendingActivity}`);
           
           console.log('[ONBOARDING] User affirmed, triggering auto-navigate to:', pendingActivity);
           return res.json({
@@ -3339,9 +3343,9 @@ app.post('/api/chat', async (req, res) => {
         }
       }
       
-      // STEP: activity_in_progress -> Client handles via /api/onboarding/activity-complete
+      // STEP: activity_in_progress:activity -> Client handles via /api/onboarding/activity-complete
       // If user somehow sends a chat message while activity is in progress, just hold
-      if (onboardingStep === 'activity_in_progress') {
+      if (onboardingStep.startsWith('activity_in_progress')) {
         console.log('[ONBOARDING] Activity still in progress, holding');
         return res.json({
           message: "Take your time. I'm here.",
