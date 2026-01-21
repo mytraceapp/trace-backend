@@ -3201,9 +3201,10 @@ app.post('/api/chat', async (req, res) => {
           };
         }
         
-        // No specific state detected - check for general negativity
+        // No specific state detected - check ONLY for general negativity keywords
+        // Do NOT use message length as a trigger (catches neutral exploration messages)
         const generalNegative = /sad|depress|hurt|difficult|hard|rough|bad|not good|terrible|awful|struggling|worry|scared/i.test(t);
-        if (generalNegative || t.length > 30) {
+        if (generalNegative) {
           return {
             state: 'general',
             activity: 'breathing',
@@ -3214,6 +3215,7 @@ app.post('/api/chat', async (req, res) => {
           };
         }
         
+        // No distress detected - return null to trigger conversation_started flow
         return null;
       };
       
