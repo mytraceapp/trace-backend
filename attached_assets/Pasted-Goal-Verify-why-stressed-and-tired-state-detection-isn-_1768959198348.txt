@@ -1,0 +1,93 @@
+Goal: Verify why stressed and tired state detection isn't returning activity suggestions (only spiraling works).
+
+Current Status:
+
+✅ Spiraling detection works: Returns Maze suggestion correctly
+❌ Stressed detection fails: Returns generic chat response, no activity_suggestion
+❌ Tired detection fails: Returns generic chat response, no activity_suggestion
+Testing Evidence:
+
+
+Test 1 (WORKS):Input: "I am spiraling"Output: activity_suggestion.name = "maze" ✅Test 2 (FAILS):Input: "I am really stressed and anxious"Output: activity_suggestion.name = null ❌Test 3 (FAILS):Input: "I am exhausted and burnt out"Output: activity_suggestion.name = null ❌
+
+Test 1 (WORKS):
+Input: "I am spiraling"
+Output: activity_suggestion.name = "maze" ✅
+
+Test 2 (FAILS):
+Input: "I am really stressed and anxious"
+Output: activity_suggestion.name = null ❌
+
+Test 3 (FAILS):
+Input: "I am exhausted and burnt out"
+Output: activity_suggestion.name = null ❌
+
+Debug Checklist
+In your /api/chat endpoint, add logging to answer these questions:
+
+1. Are the keyword detection functions being called?
+
+
+Add logs like:console.log('[CHAT] Checking for spiraling keywords...');console.log('[CHAT] Checking for stressed keywords...');console.log('[CHAT] Checking for tired keywords...');
+Add logs like:
+console.log('[CHAT] Checking for spiraling keywords...');
+console.log('[CHAT] Checking for stressed keywords...');
+console.log('[CHAT] Checking for tired keywords...');
+
+2. Is the userMessage being passed correctly?
+
+
+Log the userMessage at the start:console.log('[CHAT] User message received:', userMessage);
+Log the userMessage at the start:
+console.log('[CHAT] User message received:', userMessage);
+3. Are the conditions being matched?
+After checking each keyword group, log:
+if (spiralingKeywords.some(kw => userMessage.toLowerCase().includes(kw))) {
+  console.log('[CHAT] ✅ SPIRALING detected with keyword');
+}
+if (stressedKeywords.some(kw => userMessage.toLowerCase().includes(kw))) {
+  console.log('[CHAT] ✅ STRESSED detected with keyword');
+}
+if (tiredKeywords.some(kw => userMessage.toLowerCase().includes(kw))) {
+  console.log('[CHAT] ✅ TIRED detected with keyword');
+}
+4. Is the activity_suggestion object being created?
+
+
+Before returning, log:console.log('[CHAT] Final activity_suggestion:', activity_suggestion);
+5. Check keyword arrays
+
+Make sure these keywords exist and are spelled correctly
+const stressedKeywords = ['stress', 'stressed', 'anxious', 'anxiety', 'overwhelm', 'overwhelmed', 'panic', 'panicking', 'on edge', 'edge', 'tense', 'tension'];
+
+const tiredKeywords = ['tired', 'exhausted', 'drained', 'burnt out', 'burnout', 'worn out', 'can\'t keep my eyes open', 'burning out'];
+
+Possible Issues
+Issue 1: Early return blocking detection
+
+Does the code return early before checking stressed/tired?
+Example: If spiraling check returns early, it never reaches stressed/tired checks
+Issue 2: State machine blocking detection
+
+Is there an if (onboardingStep === 'waiting_ok:maze') that prevents new detection?
+The state should only block if the user is ALREADY waiting for confirmation on maze
+But with a fresh userId, there should be no state
+Issue 3: Wrong condition logic
+
+Check if the condition is if (spiraling) { ... } else if (stressed) { ... }
+If it's else if, and spiraling fails, it won't check stressed/tired
+Should be independent checks, not else-if chains
+Issue 4: Keyword not in array
+
+"stressed" vs "stress" - make sure both are in the array
+"exhausted" must be spelled exactly right
+Case-insensitive matching: always use .toLowerCase()
+What I Need From You
+Run the tests again with logging added:
+curl -X POST https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "assistant", "content": "Hi"}, {"role": "user", "content": "I am really stressed"}],
+    "userName": "Debug",
+    "userId": "debug-001"
+  }' | jq .

@@ -2374,6 +2374,24 @@ app.post('/api/greeting', async (req, res) => {
       const effectiveId = userId || deviceId || 'default';
       const introMessage = pickOnboardingIntroVariant(effectiveId, displayName);
       console.log('[TRACE GREETING] Using bootstrap intro for first-run user');
+      
+      // CRITICAL: Create/update profile with onboarding_step so the state machine activates
+      if (userId && supabaseServer) {
+        try {
+          await supabaseServer
+            .from('profiles')
+            .upsert({ 
+              user_id: userId, 
+              onboarding_step: 'intro_sent',
+              onboarding_completed: false,
+              updated_at: new Date().toISOString() 
+            }, { onConflict: 'user_id' });
+          console.log('[TRACE GREETING] Created profile with intro_sent step for user:', userId.slice(0, 8));
+        } catch (err) {
+          console.warn('[TRACE GREETING] Failed to create profile:', err.message);
+        }
+      }
+      
       return res.json({ greeting: introMessage, firstRun: true });
     }
 
