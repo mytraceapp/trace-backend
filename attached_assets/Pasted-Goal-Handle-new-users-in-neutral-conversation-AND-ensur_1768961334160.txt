@@ -1,0 +1,127 @@
+Goal: Handle new users in neutral conversation AND ensure disclaimer is shown.
+
+Updated: Generate Neutral Onboarding Responses WITH Disclaimer
+When user enters conversation_started state, include the disclaimer:
+if (!spiralingDetected && !stressedDetected && !tiredDetected) {
+  console.log('[ONBOARDING] No distress keywords - conversation_started');
+  
+  await updateProfileStep(userId, 'conversation_started');
+  
+  // Check if disclaimer has been shown
+  const disclaimerShown = await checkDisclaimerShown(userId);
+  
+  // Generate response
+  let chatMessage;
+  if (!disclaimerShown) {
+    // First time - include disclaimer
+    chatMessage = `Cool — I'm here to help whenever you need me. 
+    
+**Please note:** I'm an AI companion, not a replacement for professional mental health care. 
+If you're in crisis, please reach out to a counselor, therapist, or crisis line.
+
+What brought you here today? Looking to manage stress, build better habits, or just curious?`;
+    
+    // Mark disclaimer as shown
+    await markDisclaimerShown(userId);
+  } else {
+    // Already shown - skip it
+    chatMessage = "What brought you here today? Looking to manage stress, 
+                   build better habits, or just curious?";
+  }
+  
+  activity_suggestion = {
+    name: null,
+    userReportedState: null,
+    should_navigate: false,
+    reason: 'User exploring naturally'
+  };
+}
+
+Alternative: Separate Disclaimer as First Message
+If you prefer to show disclaimer as a separate message bubble:
+
+
+if (!spiralingDetected && !stressedDetected && !tiredDetected) {  console.log('[ONBOARDING] No distress keywords - conversation_started');    await updateProfileStep(userId, 'conversation_started');    const disclaimerShown = await checkDisclaimerShown(userId);    const messages = [];    // Add disclaimer as first bubble if not shown  if (!disclaimerShown) {    messages.push({      role: 'assistant',      content: `**Please note:** I'm an AI companion, not a replacement for professional mental health care. If you're in crisis, please reach out to a counselor, therapist, or crisis line.`    });    await markDisclaimerShown(userId);  }    // Add conversational response  messages.push({    role: 'assistant',    content: "What brought you here today? Looking to manage stress, build better habits, or just curious?"  });    return {    messages: messages,    activity_suggestion: {      name: null,      userReportedState: null,      should_navigate: false    }  };}
+
+if (!spiralingDetected && !stressedDetected && !tiredDetected) {
+  console.log('[ONBOARDING] No distress keywords - conversation_started');
+  
+  await updateProfileStep(userId, 'conversation_started');
+  
+  const disclaimerShown = await checkDisclaimerShown(userId);
+  
+  const messages = [];
+  
+  // Add disclaimer as first bubble if not shown
+  if (!disclaimerShown) {
+    messages.push({
+      role: 'assistant',
+      content: `**Please note:** I'm an AI companion, not a replacement for professional mental health care. 
+If you're in crisis, please reach out to a counselor, therapist, or crisis line.`
+    });
+    await markDisclaimerShown(userId);
+  }
+  
+  // Add conversational response
+  messages.push({
+    role: 'assistant',
+    content: "What brought you here today? Looking to manage stress, build better habits, or just curious?"
+  });
+  
+  return {
+    messages: messages,
+    activity_suggestion: {
+      name: null,
+      userReportedState: null,
+      should_navigate: false
+    }
+  };
+}
+
+Database: Track Disclaimer Status
+Add a column to profiles table if not exists:
+
+
+ALTER TABLE profiles ADD COLUMN disclaimer_shown BOOLEAN DEFAULT false;ALTER TABLE profiles ADD COLUMN disclaimer_shown_at TIMESTAMP;
+Then implement helpers:
+async function checkDisclaimerShown(userId) {
+  const { data } = await supabase
+    .from('profiles')
+    .select('disclaimer_shown')
+    .eq('user_id', userId)
+    .single();
+  
+  return data?.disclaimer_shown || false;
+}
+
+async function markDisclaimerShown(userId) {
+  await supabase
+    .from('profiles')
+    .update({
+      disclaimer_shown: true,
+      disclaimer_shown_at: new Date().toISOString()
+    })
+    .eq('user_id', userId);
+}
+Testing
+# Test neutral message - should include disclaimer
+curl -X POST /api/chat \
+  -d '{"messages": [{"role": "user", "content": "just exploring"}], 
+       "userId": "new-user-123"}'
+# Expected: Response includes disclaimer + conversational message
+
+# Second message from same user - disclaimer should NOT repeat
+curl -X POST /api/chat \
+  -d '{"messages": [
+        {"role": "user", "content": "just exploring"},
+        {"role": "assistant", "content": "...disclaimer..."},
+        {"role": "user", "content": "tell me more"}
+       ], "userId": "new-user-123"}'
+# Expected: No disclaimer, just conversation
+
+This ensures:
+
+✅ New users see disclaimer on first message if exploring
+✅ Disclaimer only shown once per user
+✅ Doesn't block the conversation
+✅ Still works with distress detection (if they later say "I'm stressed", that takes priority)

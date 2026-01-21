@@ -3115,7 +3115,7 @@ app.post('/api/chat', async (req, res) => {
     // ===== SCRIPTED ONBOARDING STATE MACHINE =====
     // If user is in onboarding flow (not yet completed), return scripted responses
     // This bypasses OpenAI to ensure exact cadence and deterministic flow
-    const isInOnboarding = userProfile && (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null);
+    let isInOnboarding = userProfile && (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null);
     const onboardingStep = userProfile?.onboarding_step || 'intro_sent';
     
     if (isInOnboarding && supabaseServer && effectiveUserId) {
@@ -3272,7 +3272,37 @@ app.post('/api/chat', async (req, res) => {
         });
       }
       
-      // STEP: intro_sent -> After first user reply, detect state and either suggest activity or ask what's on their mind
+      // Helper to check/update disclaimer shown status
+      const checkDisclaimerShown = async () => {
+        try {
+          const { data } = await supabaseServer
+            .from('profiles')
+            .select('disclaimer_shown')
+            .eq('user_id', effectiveUserId)
+            .single();
+          return data?.disclaimer_shown || false;
+        } catch (err) {
+          return false;
+        }
+      };
+      
+      const markDisclaimerShown = async () => {
+        try {
+          await supabaseServer
+            .from('profiles')
+            .update({ 
+              disclaimer_shown: true, 
+              disclaimer_shown_at: new Date().toISOString(),
+              updated_at: new Date().toISOString() 
+            })
+            .eq('user_id', effectiveUserId);
+          console.log('[ONBOARDING] Disclaimer marked as shown');
+        } catch (err) {
+          console.warn('[ONBOARDING] Failed to mark disclaimer shown:', err.message);
+        }
+      };
+      
+      // STEP: intro_sent -> After first user reply, detect state and either suggest activity or move to conversation
       if (onboardingStep === 'intro_sent') {
         const detected = detectEmotionalState(userText);
         
@@ -3296,54 +3326,122 @@ app.post('/api/chat', async (req, res) => {
           });
         }
         
-        // Short greeting acknowledgment - ask what's on their mind
-        const followUpResponses = [
-          "So — what's on your mind?",
-          "What's going on with you?",
-          "What brings you here today?",
-          "What's been on your mind lately?",
-        ];
-        const followUp = followUpResponses[Math.floor(Math.random() * followUpResponses.length)];
+        // No distress detected - user is exploring naturally
+        // Move to conversation_started state and show disclaimer
+        console.log('[ONBOARDING] No distress keywords - conversation_started');
         
-        await updateOnboardingStep('rapport_building');
+        await updateOnboardingStep('conversation_started');
         
-        console.log('[ONBOARDING] Building rapport - asking what is on their mind');
+        // Check if disclaimer has been shown
+        const disclaimerShown = await checkDisclaimerShown();
+        
+        let chatMessage;
+        if (!disclaimerShown) {
+          // First time - include disclaimer
+          chatMessage = `Cool — I'm here to help whenever you need me.\n\n**Please note:** I'm an AI companion, not a replacement for professional mental health care. If you're in crisis, please reach out to a counselor, therapist, or crisis line.\n\nWhat brought you here today? Looking to manage stress, build better habits, or just curious?`;
+          
+          // Mark disclaimer as shown
+          await markDisclaimerShown();
+        } else {
+          // Already shown - skip it
+          chatMessage = "What brought you here today? Looking to manage stress, build better habits, or just curious?";
+        }
+        
+        console.log('[ONBOARDING] Conversation started - disclaimerShown:', disclaimerShown);
         return res.json({
-          message: followUp,
-          activity_suggestion: { name: null, userReportedState: null, reason: null, should_navigate: false },
+          message: chatMessage,
+          activity_suggestion: { 
+            name: null, 
+            userReportedState: null, 
+            should_navigate: false, 
+            reason: 'User exploring naturally' 
+          },
         });
       }
       
-      // STEP: rapport_building -> After user shares what's on their mind, detect state and offer personalized activity
+      // STEP: rapport_building -> After user shares what's on their mind, detect state and offer activity OR continue conversation
       if (onboardingStep === 'rapport_building') {
         const detected = detectEmotionalState(userText);
         
-        // Use detected activity or default to breathing
-        const suggestion = detected || {
-          state: 'general',
-          activity: 'breathing',
-          activityLabel: 'Breathing',
-          message: "Okay. Before we go into the whole story — let's bring your system down first.\nI'd recommend Breathing (1 minute). Just say okay when you're ready.",
-          reason: 'Offering grounding activity before deeper conversation',
-          route: '/activities/breathing'
-        };
+        if (detected) {
+          // User shared distress - suggest personalized activity
+          trackSuggestion(detected.state, detected.activity, userText);
+          await updateOnboardingStep(`waiting_ok:${detected.activity}`);
+          
+          console.log('[ONBOARDING] Detected state:', detected.state, '- suggesting:', detected.activity);
+          return res.json({
+            message: detected.message,
+            activity_suggestion: {
+              name: detected.activity,
+              userReportedState: detected.state,
+              should_navigate: false,
+              reason: detected.reason
+            },
+          });
+        }
         
-        // Track the suggestion (non-blocking)
-        trackSuggestion(suggestion.state, suggestion.activity, userText);
+        // No distress detected - move to conversation_started with disclaimer
+        console.log('[ONBOARDING] No distress in rapport_building - moving to conversation_started');
         
-        // Encode the activity in the step name (e.g., waiting_ok:breathing)
-        await updateOnboardingStep(`waiting_ok:${suggestion.activity}`);
+        await updateOnboardingStep('conversation_started');
         
-        console.log('[ONBOARDING] Detected state:', suggestion.state, '- suggesting:', suggestion.activity);
+        const disclaimerShown = await checkDisclaimerShown();
+        
+        let chatMessage;
+        if (!disclaimerShown) {
+          chatMessage = `Cool — I'm here for whatever you need.\n\n**Please note:** I'm an AI companion, not a replacement for professional mental health care. If you're in crisis, please reach out to a counselor, therapist, or crisis line.\n\nSo what's on your mind?`;
+          await markDisclaimerShown();
+        } else {
+          chatMessage = "Cool — I'm here for whatever you need. What's on your mind?";
+        }
+        
+        console.log('[ONBOARDING] Conversation started from rapport_building - disclaimerShown:', disclaimerShown);
         return res.json({
-          message: suggestion.message,
-          activity_suggestion: {
-            name: suggestion.activity,
-            userReportedState: suggestion.state,
-            should_navigate: false,
-            reason: suggestion.reason
+          message: chatMessage,
+          activity_suggestion: { 
+            name: null, 
+            userReportedState: null, 
+            should_navigate: false, 
+            reason: 'User exploring naturally' 
           },
         });
+      }
+      
+      // STEP: conversation_started -> User is in natural conversation, check for distress or continue chatting
+      if (onboardingStep === 'conversation_started') {
+        const detected = detectEmotionalState(userText);
+        
+        if (detected) {
+          // User later mentioned distress - suggest personalized activity
+          trackSuggestion(detected.state, detected.activity, userText);
+          await updateOnboardingStep(`waiting_ok:${detected.activity}`);
+          
+          console.log('[ONBOARDING] Distress detected in conversation - suggesting:', detected.activity);
+          return res.json({
+            message: detected.message,
+            activity_suggestion: {
+              name: detected.activity,
+              userReportedState: detected.state,
+              should_navigate: false,
+              reason: detected.reason
+            },
+          });
+        }
+        
+        // Still no distress - mark onboarding complete and fall through to normal chat
+        console.log('[ONBOARDING] Completing onboarding - transitioning to normal chat');
+        
+        await supabaseServer
+          .from('profiles')
+          .update({ 
+            onboarding_completed: true, 
+            onboarding_step: 'completed',
+            updated_at: new Date().toISOString() 
+          })
+          .eq('user_id', effectiveUserId);
+        
+        // Fall through to normal chat processing (don't return here)
+        isInOnboarding = false;
       }
       
       // STEP: waiting_ok:activity -> User says okay, trigger auto-navigate to the suggested activity
