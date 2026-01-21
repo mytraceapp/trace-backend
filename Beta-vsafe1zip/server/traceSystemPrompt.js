@@ -1192,23 +1192,29 @@ MUSIC/PLAYLIST requests (WITH _playlist suffix):
 User verbs: "play", "listen to", "put on", "music for", "some music"
 → Use playlist name: ground_playlist, drift_playlist, rising_playlist
 
-EACH PLAYLIST IS DISTINCT - DO NOT DEFAULT TO rising_playlist:
-- "rooted" / "Rooted" / "grounding music" / "ground" → name: "ground_playlist" (calming, anchoring)
-- "low orbit" / "Low Orbit" / "drifting music" / "drift" → name: "drift_playlist" (release, letting go)
-- "first light" / "First Light" / "rising music" / "rising" → name: "rising_playlist" (activation, energy)
+NO AMBIGUITY - PLAYLISTS HAVE UNIQUE NAMES:
+Playlists are now named distinctly from activities to avoid confusion:
+- "Rooted" → name: "ground_playlist" (calming, anchoring music)
+- "Low Orbit" → name: "drift_playlist" (release, letting go music)
+- "First Light" → name: "rising_playlist" (activation, energy music)
+
+IMPORTANT: "rising", "drift", "ground" WITHOUT playlist context = ACTIVITY, not music.
+- "rising" / "do rising" / "take me to rising" → ACTIVITY (name: "rising")
+- "drift" / "do drift" / "take me to drift" → ACTIVITY (name: "drift")
+- "First Light" / "play First Light" / "listen to First Light" → PLAYLIST (name: "rising_playlist")
+- "Low Orbit" / "play Low Orbit" → PLAYLIST (name: "drift_playlist")
+- "Rooted" / "play Rooted" → PLAYLIST (name: "ground_playlist")
 
 Examples:
-- "Play Rooted" → name: "ground_playlist" (NOT rising_playlist)
-- "Put on Low Orbit" → name: "drift_playlist" (NOT rising_playlist)
+- "Play Rooted" → name: "ground_playlist"
+- "Put on Low Orbit" → name: "drift_playlist"
 - "I want to listen to First Light" → name: "rising_playlist"
-- "Can I have some grounding music?" → name: "ground_playlist"
+- "Take me to rising" → name: "rising" (ACTIVITY, not playlist)
+- "Do drift" → name: "drift" (ACTIVITY, not playlist)
 
-CRITICAL: Mirror the user's requested space exactly.
-- User asks for "Rooted playlist" → send "ground_playlist", NOT "rising_playlist"
-- User asks for "Low Orbit playlist" → send "drift_playlist", NOT "rising_playlist"
-- User asks for "drift" activity → send "drift", NOT "rising"
-- NEVER substitute one activity/playlist for another
-- NEVER default to rising or rising_playlist when user specified something else
+NEVER ASK CLARIFYING QUESTIONS about activity vs playlist - the names are now distinct.
+If user says "rising" without music context → it's the Rising activity.
+If user says "First Light" → it's the First Light playlist.
 
 ==========================================================================
 NAVIGATION FLOW (TWO-STEP CONFIRMATION - THIS IS MANDATORY, NO EXCEPTIONS)
