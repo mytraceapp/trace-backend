@@ -312,6 +312,76 @@ async function computeWeek1Insights(chatMessages: ChatMessage[]): Promise<{ patt
   return { pattern, trigger, support, caveat };
 }
 
+// Check if Week 1 payoff should trigger (returns true if should trigger)
+async function shouldTriggerWeek1Payoff(): Promise<{ shouldTrigger: boolean; reason: 'activity' | '72h' | null }> {
+  try {
+    // Check permanent gate - if already shown or dismissed, never trigger again
+    const payoffShown = await AsyncStorage.getItem(WEEK1_KEYS.PAYOFF_SHOWN);
+    const payoffDismissed = await AsyncStorage.getItem(WEEK1_KEYS.PAYOFF_DISMISSED);
+    
+    if (payoffShown === 'true' || payoffDismissed === 'true') {
+      return { shouldTrigger: false, reason: null };
+    }
+    
+    // Check activity count trigger (>= 3)
+    const activityCountStr = await AsyncStorage.getItem(WEEK1_KEYS.ACTIVITY_COUNT);
+    const activityCount = activityCountStr ? parseInt(activityCountStr, 10) : 0;
+    
+    if (activityCount >= 3) {
+      return { shouldTrigger: true, reason: 'activity' };
+    }
+    
+    // Check 72h trigger
+    const firstSeenStr = await AsyncStorage.getItem(WEEK1_KEYS.FIRST_SEEN_AT);
+    if (firstSeenStr) {
+      const firstSeenAt = parseInt(firstSeenStr, 10);
+      const elapsed = Date.now() - firstSeenAt;
+      
+      if (elapsed >= SEVENTY_TWO_HOURS_MS) {
+        return { shouldTrigger: true, reason: '72h' };
+      }
+    }
+    
+    return { shouldTrigger: false, reason: null };
+  } catch (e) {
+    console.warn('📊 WEEK1: Error checking trigger:', e);
+    return { shouldTrigger: false, reason: null };
+  }
+}
+
+// Insert Week 1 hook message and set consent state
+async function insertWeek1Hook(
+  addMessage: (msg: ChatMessage) => void,
+  chatMessages: ChatMessage[],
+  setAwaitingConsent: (v: boolean) => void
+): Promise<void> {
+  try {
+    // Mark as shown immediately (permanent gate)
+    await AsyncStorage.setItem(WEEK1_KEYS.PAYOFF_SHOWN, 'true');
+    
+    // Compute pattern for hook
+    const insights = await computeWeek1Insights(chatMessages);
+    
+    // Select fresh hook template
+    const hookTemplate = await selectFreshTemplate(WEEK1_HOOK_TEMPLATES, WEEK1_KEYS.HOOK_HISTORY, 10, 3);
+    const hookText = hookTemplate.text(insights.pattern);
+    
+    // Insert hook message
+    addMessage({
+      id: `week1-hook-${Date.now()}`,
+      role: 'assistant',
+      content: hookText,
+    });
+    
+    // Set consent state
+    setAwaitingConsent(true);
+    
+    console.log('📊 WEEK1: Hook inserted, awaiting consent');
+  } catch (e) {
+    console.warn('📊 WEEK1: Error inserting hook:', e);
+  }
+}
+
 // Crisis support: dial 988 or contact
 const handleCrisisDial = async (
   dial?: string, 
@@ -489,6 +559,22 @@ export default function ChatScreen() {
       };
     }, [showNightSwimPlayer])
   );
+
+  // Week 1 Payoff: Check 72h trigger on mount
+  useEffect(() => {
+    const check72hTrigger = async () => {
+      // Only trigger if we have history loaded and not already awaiting consent
+      if (!historyLoaded || awaitingWeek1PayoffConsent) return;
+      
+      const { shouldTrigger, reason } = await shouldTriggerWeek1Payoff();
+      if (shouldTrigger && reason === '72h') {
+        console.log('📊 WEEK1: Triggering on mount (72h passed)');
+        await insertWeek1Hook(addMessage, messages, setAwaitingWeek1PayoffConsent);
+      }
+    };
+    
+    check72hTrigger();
+  }, [historyLoaded]); // Only run when history is loaded
 
   // Night Swim player functions
   const openNightSwimPlayer = async (autoplay: boolean = true, trackIndex: number = 0) => {
@@ -724,6 +810,17 @@ export default function ChatScreen() {
             
             // Log activity completion (non-blocking)
             logActivityCompletion({ userId, deviceId, activityType: activity, durationSeconds: duration || 0 });
+            
+            // Week 1 Payoff: Increment activity count
+            try {
+              const countStr = await AsyncStorage.getItem(WEEK1_KEYS.ACTIVITY_COUNT);
+              const currentCount = countStr ? parseInt(countStr, 10) : 0;
+              await AsyncStorage.setItem(WEEK1_KEYS.ACTIVITY_COUNT, (currentCount + 1).toString());
+              await AsyncStorage.setItem('lastCompletedActivityName', activity);
+              console.log('📊 WEEK1: Activity count incremented to', currentCount + 1);
+            } catch (e) {
+              console.warn('📊 WEEK1: Failed to increment activity count:', e);
+            }
             
             setAwaitingOnboardingReflection(true);
             setLastCompletedActivityName(activity);
@@ -1025,6 +1122,19 @@ export default function ChatScreen() {
       durationSeconds: duration || 0,
     });
     
+    // Week 1 Payoff: Increment activity count
+    (async () => {
+      try {
+        const countStr = await AsyncStorage.getItem(WEEK1_KEYS.ACTIVITY_COUNT);
+        const currentCount = countStr ? parseInt(countStr, 10) : 0;
+        await AsyncStorage.setItem(WEEK1_KEYS.ACTIVITY_COUNT, (currentCount + 1).toString());
+        await AsyncStorage.setItem('lastCompletedActivityName', activity);
+        console.log('📊 WEEK1: Activity count incremented to', currentCount + 1);
+      } catch (e) {
+        console.warn('📊 WEEK1: Failed to increment activity count:', e);
+      }
+    })();
+    
     // Append subtle reflection prompt to existing conversation (not a greeting)
     const reflectionPrompt: ChatMessage = {
       id: `activity-reflection-${Date.now()}`,
@@ -1119,6 +1229,17 @@ export default function ChatScreen() {
       }
     }
 
+    // Week 1 Payoff: Initialize first_seen_at if missing (before first user message ever)
+    try {
+      const existingFirstSeen = await AsyncStorage.getItem(WEEK1_KEYS.FIRST_SEEN_AT);
+      if (!existingFirstSeen) {
+        await AsyncStorage.setItem(WEEK1_KEYS.FIRST_SEEN_AT, Date.now().toString());
+        console.log('📅 WEEK1: Initialized first_seen_at');
+      }
+    } catch (e) {
+      console.warn('📅 WEEK1: Failed to init first_seen_at:', e);
+    }
+
     const userMessage: ChatMessage = {
       id: `local-user-${Date.now()}`,
       role: 'user',
@@ -1171,7 +1292,7 @@ export default function ChatScreen() {
         };
         addMessage(msg1);
 
-        setTimeout(() => {
+        setTimeout(async () => {
           const msg2: ChatMessage = {
             id: `onboard-followup-${Date.now()}`,
             role: 'assistant',
@@ -1179,11 +1300,83 @@ export default function ChatScreen() {
           };
           addMessage(msg2);
           setIsSending(false);
+          
+          // Week 1 Payoff: Check if we should trigger after reflection ack (activity >= 3)
+          const { shouldTrigger, reason } = await shouldTriggerWeek1Payoff();
+          if (shouldTrigger && reason === 'activity') {
+            console.log('📊 WEEK1: Triggering after reflection ack (activity count >= 3)');
+            setTimeout(() => {
+              insertWeek1Hook(addMessage, messages, setAwaitingWeek1PayoffConsent);
+            }, 1200);
+          }
         }, 800);
       }, 400);
 
       // Return early - do not call /api/chat for reflection message
       return;
+    }
+
+    // ==================== WEEK 1 PAYOFF CONSENT HANDLING ====================
+    if (awaitingWeek1PayoffConsent) {
+      console.log('📊 WEEK1: Checking consent response:', trimmed);
+      
+      // Check for yes/no response
+      if (isWeek1ConsentYes(trimmed)) {
+        console.log('📊 WEEK1: User consented, delivering bullets');
+        setAwaitingWeek1PayoffConsent(false);
+        week1ConsentPendingCountRef.current = 0;
+        
+        // Compute insights and deliver bullets
+        const insights = await computeWeek1Insights(messages);
+        const leadIn = await selectFreshTemplate(WEEK1_LEADIN_TEMPLATES, WEEK1_KEYS.LEADIN_HISTORY, 10, 3);
+        const closing = await selectFreshTemplate(WEEK1_CLOSING_TEMPLATES, WEEK1_KEYS.CLOSING_HISTORY, 10, 3);
+        
+        // Build bullet message
+        const caveatLine = insights.caveat ? "Still learning your patterns — but early on I'm noticing:\n\n" : "";
+        const bulletContent = `${caveatLine}What I'm noticing so far:\n• Pattern: ${insights.pattern}\n• Trigger: ${insights.trigger}\n• Support: ${insights.support}\n\n${closing.text}`;
+        
+        // Add lead-in then bullets with delay
+        setTimeout(() => {
+          addMessage({
+            id: `week1-leadin-${Date.now()}`,
+            role: 'assistant',
+            content: leadIn.text,
+          });
+          
+          setTimeout(() => {
+            addMessage({
+              id: `week1-bullets-${Date.now()}`,
+              role: 'assistant',
+              content: bulletContent,
+            });
+            setIsSending(false);
+            
+            // Mark completed (optional analytics)
+            AsyncStorage.setItem(WEEK1_KEYS.PAYOFF_COMPLETED, 'true').catch(() => {});
+            console.log('📊 WEEK1: Payoff completed');
+          }, 600);
+        }, 400);
+        
+        return; // Don't call API
+      } else if (isWeek1ConsentNo(trimmed)) {
+        console.log('📊 WEEK1: User declined, dismissing permanently');
+        setAwaitingWeek1PayoffConsent(false);
+        week1ConsentPendingCountRef.current = 0;
+        AsyncStorage.setItem(WEEK1_KEYS.PAYOFF_DISMISSED, 'true').catch(() => {});
+        // Continue to normal API call - don't return
+      } else {
+        // Neither yes nor no - increment ignore counter
+        week1ConsentPendingCountRef.current++;
+        console.log('📊 WEEK1: Consent pending, count:', week1ConsentPendingCountRef.current);
+        
+        if (week1ConsentPendingCountRef.current >= 5) {
+          console.log('📊 WEEK1: 5 messages ignored, dismissing permanently');
+          setAwaitingWeek1PayoffConsent(false);
+          week1ConsentPendingCountRef.current = 0;
+          AsyncStorage.setItem(WEEK1_KEYS.PAYOFF_DISMISSED, 'true').catch(() => {});
+        }
+        // Continue to normal API call
+      }
     }
 
     try {
@@ -1224,6 +1417,13 @@ export default function ChatScreen() {
       // Handle multi-message crisis responses (2-3 messages displayed sequentially)
       if (result?.isCrisisMultiMessage && result?.messages && result.messages.length > 1) {
         console.log('📥 TRACE crisis multi-message mode:', result.messages.length, 'messages');
+        
+        // Week 1 Payoff: Crisis override - clear consent state
+        if (awaitingWeek1PayoffConsent) {
+          console.log('📊 WEEK1: Crisis detected, clearing consent state');
+          setAwaitingWeek1PayoffConsent(false);
+          week1ConsentPendingCountRef.current = 0;
+        }
         
         // Add each message with a delay to feel more genuine
         for (let i = 0; i < result.messages.length; i++) {
@@ -1266,11 +1466,20 @@ export default function ChatScreen() {
 
       // Handle crisis resources (dial 988 or contact)
       const crisisRes = result?.crisis_resources;
-      if (crisisRes?.dial || crisisRes?.dial_contact) {
-        console.log('[CRISIS] Handling dial action:', crisisRes);
-        setTimeout(() => {
-          handleCrisisDial(crisisRes.dial, crisisRes.dial_contact, addMessage);
-        }, 600);
+      if (crisisRes?.triggered || crisisRes?.dial || crisisRes?.dial_contact) {
+        // Week 1 Payoff: Crisis override - clear consent state
+        if (awaitingWeek1PayoffConsent) {
+          console.log('📊 WEEK1: Crisis resources detected, clearing consent state');
+          setAwaitingWeek1PayoffConsent(false);
+          week1ConsentPendingCountRef.current = 0;
+        }
+        
+        if (crisisRes?.dial || crisisRes?.dial_contact) {
+          console.log('[CRISIS] Handling dial action:', crisisRes);
+          setTimeout(() => {
+            handleCrisisDial(crisisRes.dial, crisisRes.dial_contact, addMessage);
+          }, 600);
+        }
       }
 
       const suggestion = result?.activity_suggestion;
