@@ -12,7 +12,10 @@ import {
   Pressable,
   Keyboard,
   ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
+import * as Contacts from 'expo-contacts';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '../../constants/colors';
@@ -144,6 +147,69 @@ const MAX_MESSAGES = 150;
 const limitMessages = (msgs: ChatMessage[]): ChatMessage[] => {
   if (msgs.length <= MAX_MESSAGES) return msgs;
   return msgs.slice(-MAX_MESSAGES);
+};
+
+// Crisis support: dial 988 or contact
+const handleCrisisDial = async (
+  dial?: string, 
+  dialContact?: string, 
+  addCrisisMessage?: (msg: ChatMessage) => void
+): Promise<void> => {
+  if (dial === '988') {
+    console.log('[CRISIS] Dialing 988 crisis line');
+    await Linking.openURL('tel:988');
+    return;
+  }
+  
+  if (dialContact) {
+    console.log('[CRISIS] Looking up contact:', dialContact);
+    
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      
+      if (status !== 'granted') {
+        console.log('[CRISIS] Contacts permission denied');
+        if (addCrisisMessage) {
+          addCrisisMessage({
+            id: `crisis-permission-${Date.now()}`,
+            role: 'assistant',
+            content: "I can't access contacts on this device.\n\nIf you're in the U.S., type CALL 988 and I'll pull that up.",
+          });
+        }
+        return;
+      }
+      
+      // Search for contact by name
+      const { data } = await Contacts.getContactsAsync({
+        fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
+        name: dialContact,
+      });
+      
+      if (data.length > 0 && data[0].phoneNumbers && data[0].phoneNumbers.length > 0) {
+        const phone = data[0].phoneNumbers[0].number;
+        console.log('[CRISIS] Found contact, dialing:', phone);
+        await Linking.openURL(`tel:${phone}`);
+      } else {
+        console.log('[CRISIS] Contact not found:', dialContact);
+        if (addCrisisMessage) {
+          addCrisisMessage({
+            id: `crisis-notfound-${Date.now()}`,
+            role: 'assistant',
+            content: `I couldn't find ${dialContact} in your contacts.\n\nIf you're in the U.S., type CALL 988 and I'll pull that up.`,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[CRISIS] Contact lookup error:', err);
+      if (addCrisisMessage) {
+        addCrisisMessage({
+          id: `crisis-error-${Date.now()}`,
+          role: 'assistant',
+          content: "Something went wrong looking up that contact.\n\nIf you're in the U.S., type CALL 988 and I'll pull that up.",
+        });
+      }
+    }
+  }
 };
 
 // Get conversation storage key - keyed by userId for multi-user support
@@ -1029,6 +1095,15 @@ export default function ChatScreen() {
         };
 
         addMessage(assistantMessage);
+      }
+
+      // Handle crisis resources (dial 988 or contact)
+      const crisisRes = result?.crisis_resources;
+      if (crisisRes?.dial || crisisRes?.dial_contact) {
+        console.log('[CRISIS] Handling dial action:', crisisRes);
+        setTimeout(() => {
+          handleCrisisDial(crisisRes.dial, crisisRes.dial_contact, addMessage);
+        }, 600);
       }
 
       const suggestion = result?.activity_suggestion;

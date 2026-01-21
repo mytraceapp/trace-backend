@@ -3146,6 +3146,48 @@ app.post('/api/chat', async (req, res) => {
         return okPhrases.includes(t) || okPhrases.some(p => t.startsWith(p + ' '));
       };
       
+      // ===== CRISIS DETECTION (Priority: Crisis > Emotional State) =====
+      const detectCrisis = (msg) => {
+        if (!msg) return null;
+        const t = msg.toLowerCase();
+        
+        // Ignore obvious false positives
+        if (t.includes('laughing') || t.includes('lmao') || t.includes('lol') || t.includes('jk') || t.includes('joking')) {
+          return null;
+        }
+        
+        // HIGH SEVERITY - direct self-harm intent or plan
+        const highSeverity = [
+          'kill myself', 'killing myself', 'end my life', 'want to die', 'dont want to live',
+          "don't want to live", 'suicide', 'suicidal', 'take my life',
+          'overdose', 'od on', 'pills', 'jump off', 'bridge', 'hang myself', 'hanging',
+          'cut myself', 'slit my wrists', 'gun', 'shoot myself', 'knife',
+          'im going to do it', "i'm going to do it", 'tonight', 'right now',
+          'cant do this anymore', "can't do this anymore", 'goodbye', 'this is my last',
+          'i wrote a note', 'i have a plan', 'no point in living'
+        ];
+        
+        if (highSeverity.some(k => t.includes(k))) {
+          console.log('[CRISIS] HIGH severity detected:', t.slice(0, 50));
+          return { triggered: true, severity: 'high' };
+        }
+        
+        // MODERATE SEVERITY - suicidal ideation, hopelessness
+        const moderateSeverity = [
+          'i want to disappear', 'want to disappear', 'i cant go on', "i can't go on",
+          'im done', "i'm done with everything", 'im hopeless', "i'm hopeless",
+          'no reason to live', 'everyone would be better without me', 'better off without me',
+          'i hate being alive', 'i dont feel safe', "i don't feel safe", 'not safe'
+        ];
+        
+        if (moderateSeverity.some(k => t.includes(k))) {
+          console.log('[CRISIS] MODERATE severity detected:', t.slice(0, 50));
+          return { triggered: true, severity: 'moderate' };
+        }
+        
+        return null;
+      };
+      
       // Helper to detect emotional state and suggest personalized activity
       // Priority order: Spiraling > Stressed > Tired
       const detectEmotionalState = (msg) => {
@@ -3303,6 +3345,208 @@ app.post('/api/chat', async (req, res) => {
           console.warn('[ONBOARDING] Failed to mark disclaimer shown:', err.message);
         }
       };
+      
+      // ===== CRISIS CHECK (Priority #1 - overrides all other flows) =====
+      const crisisDetected = detectCrisis(userText);
+      if (crisisDetected) {
+        console.log('[CRISIS] Detected in onboarding - triggering safety check');
+        
+        // Update step to crisis_safety_check
+        await updateOnboardingStep('crisis_safety_check');
+        
+        return res.json({
+          message: "Thank you for telling me. I'm here.\n\nAre you safe right now?",
+          crisis_resources: {
+            triggered: true,
+            severity: crisisDetected.severity
+          },
+          activity_suggestion: { name: null, should_navigate: false }
+        });
+      }
+      
+      // ===== CRISIS STATE MACHINE HANDLERS =====
+      
+      // STEP: crisis_safety_check -> User replied to "Are you safe?"
+      if (onboardingStep === 'crisis_safety_check') {
+        const t = userText.toLowerCase().trim();
+        
+        // YES variants - user says they're safe
+        const safeYes = ['yes', 'yeah', 'yea', 'yep', 'yup', "i'm safe", 'im safe', 'i think so', 'kind of', 'for now', 'mostly', 'safe'];
+        // NO variants - user is not safe
+        const safeNo = ['no', 'nope', 'not safe', "i'm not", 'im not', "i can't", 'i cant', 'not really'];
+        
+        let responseMsg;
+        if (safeYes.some(k => t === k || t.startsWith(k + ' '))) {
+          // User is safe - offer trusted contact or 988
+          responseMsg = `Okay. Thank you.\n\nI still don't want you holding this alone.\n\nIf you're in the U.S., I can pull up 988…\nbut if you'd rather not, I can help you call someone you trust.\n\nWho can I pull up for you?`;
+        } else if (safeNo.some(k => t === k || t.startsWith(k + ' '))) {
+          // User is NOT safe - urgent response
+          responseMsg = `Okay. I'm staying with you.\n\nIf you can, please call 911 right now (or your local emergency number).\n\nIf you're in the U.S., I can pull up 988.\nOr… if that doesn't feel right, I can help you call someone you trust.\n\nWho would feel safest to call?`;
+        } else {
+          // Ambiguous - treat as needing support
+          responseMsg = `That's okay.\nWe'll treat it like you need support.\n\nIf you're in the U.S., I can pull up 988 right now — type CALL 988.\nOr tell me who you trust, and I can help you call them.`;
+        }
+        
+        await updateOnboardingStep('crisis_trusted_contact');
+        
+        return res.json({
+          message: responseMsg,
+          crisis_resources: { triggered: true, awaiting_contact: true },
+          activity_suggestion: { name: null, should_navigate: false }
+        });
+      }
+      
+      // STEP: crisis_trusted_contact -> User provides a contact name or asks for 988
+      if (onboardingStep === 'crisis_trusted_contact') {
+        const t = userText.toLowerCase().trim();
+        const tUpper = userText.trim().toUpperCase();
+        
+        // Check for CALL 988 command
+        if (tUpper === 'CALL 988' || t === 'call 988') {
+          await updateOnboardingStep('crisis_post_dial');
+          return res.json({
+            message: "Okay. I'm pulling it up now.",
+            crisis_resources: { triggered: true, dial: '988' },
+            activity_suggestion: { name: null, should_navigate: false }
+          });
+        }
+        
+        // Check for CALL [NAME] command pattern
+        const callMatch = tUpper.match(/^CALL\s+(.+)$/);
+        if (callMatch) {
+          const contactName = callMatch[1];
+          await updateOnboardingStep('crisis_post_dial');
+          return res.json({
+            message: "Okay. I'm pulling it up now.",
+            crisis_resources: { triggered: true, dial_contact: contactName },
+            activity_suggestion: { name: null, should_navigate: false }
+          });
+        }
+        
+        // User mentions 988 without CALL
+        if (t === '988' || t.includes('988')) {
+          return res.json({
+            message: "Okay. Type CALL 988 and I'll pull it up.",
+            crisis_resources: { triggered: true, awaiting_contact: true },
+            activity_suggestion: { name: null, should_navigate: false }
+          });
+        }
+        
+        // Role labels that need clarification
+        const roleLabels = ['therapist', 'counselor', 'pastor', 'priest', 'rabbi', 'best friend', 'partner', 'doctor'];
+        const hasRoleLabel = roleLabels.some(role => t.includes(role) || t.includes('my ' + role));
+        
+        if (hasRoleLabel) {
+          await updateOnboardingStep('crisis_contact_name_needed');
+          return res.json({
+            message: "What name should I look for in your contacts?",
+            crisis_resources: { triggered: true, awaiting_contact_name: true },
+            activity_suggestion: { name: null, should_navigate: false }
+          });
+        }
+        
+        // User provided a name (mom, dad, sister, john, etc.)
+        const nameMatch = t.match(/(?:my\s+)?(mom|dad|mum|mother|father|sister|brother|friend|[a-z]+)/i);
+        if (nameMatch) {
+          const contactName = nameMatch[1].toUpperCase();
+          await updateOnboardingStep('crisis_call_confirmation');
+          return res.json({
+            message: `Okay. I can do that.\n\nIf you want me to pull up a call to ${nameMatch[1]}, type CALL ${contactName}.`,
+            crisis_resources: { triggered: true, pending_contact: contactName },
+            activity_suggestion: { name: null, should_navigate: false }
+          });
+        }
+        
+        // Fallback - re-prompt
+        return res.json({
+          message: "Tell me who you'd like to call, or type CALL 988 for the crisis line.",
+          crisis_resources: { triggered: true, awaiting_contact: true },
+          activity_suggestion: { name: null, should_navigate: false }
+        });
+      }
+      
+      // STEP: crisis_contact_name_needed -> User provides actual contact name for role
+      if (onboardingStep === 'crisis_contact_name_needed') {
+        const t = userText.trim();
+        const contactName = t.toUpperCase();
+        
+        await updateOnboardingStep('crisis_call_confirmation');
+        return res.json({
+          message: `Okay. Type CALL ${contactName} and I'll look them up.`,
+          crisis_resources: { triggered: true, pending_contact: contactName },
+          activity_suggestion: { name: null, should_navigate: false }
+        });
+      }
+      
+      // STEP: crisis_call_confirmation -> Awaiting CALL command
+      if (onboardingStep === 'crisis_call_confirmation') {
+        const tUpper = userText.trim().toUpperCase();
+        
+        // Check for CALL 988
+        if (tUpper === 'CALL 988') {
+          await updateOnboardingStep('crisis_post_dial');
+          return res.json({
+            message: "Okay. I'm pulling it up now.",
+            crisis_resources: { triggered: true, dial: '988' },
+            activity_suggestion: { name: null, should_navigate: false }
+          });
+        }
+        
+        // Check for CALL [NAME]
+        const callMatch = tUpper.match(/^CALL\s+(.+)$/);
+        if (callMatch) {
+          const contactName = callMatch[1];
+          await updateOnboardingStep('crisis_post_dial');
+          return res.json({
+            message: "Okay. I'm pulling it up now.",
+            crisis_resources: { triggered: true, dial_contact: contactName },
+            activity_suggestion: { name: null, should_navigate: false }
+          });
+        }
+        
+        // Not a CALL command - re-prompt
+        return res.json({
+          message: "When you're ready, type CALL followed by the name or CALL 988.",
+          crisis_resources: { triggered: true, awaiting_call_command: true },
+          activity_suggestion: { name: null, should_navigate: false }
+        });
+      }
+      
+      // STEP: crisis_post_dial -> User returns after dial attempt
+      if (onboardingStep === 'crisis_post_dial') {
+        const t = userText.toLowerCase().trim();
+        
+        // Check if user seems stabilized
+        const stabilized = ['i called', 'i talked', 'feeling better', 'better now', 'okay now', "i'm okay", 'im okay', 'helped', 'thank you'];
+        const stillCrisis = ['still', 'worse', 'didnt help', "didn't help", "couldn't call", 'couldnt call', 'no answer'];
+        
+        if (stabilized.some(k => t.includes(k))) {
+          // Transition back to normal - complete crisis flow
+          await updateOnboardingStep('conversation_started');
+          return res.json({
+            message: "I'm glad. I'm still here if you need me.\n\nTake it easy. No rush.",
+            crisis_resources: { triggered: false, resolved: true },
+            activity_suggestion: { name: null, should_navigate: false }
+          });
+        }
+        
+        if (stillCrisis.some(k => t.includes(k))) {
+          // Still in crisis - offer alternatives
+          await updateOnboardingStep('crisis_trusted_contact');
+          return res.json({
+            message: "I'm still here.\n\nWould you like to try someone else, or type CALL 988?",
+            crisis_resources: { triggered: true, awaiting_contact: true },
+            activity_suggestion: { name: null, should_navigate: false }
+          });
+        }
+        
+        // Default check-in
+        return res.json({
+          message: "I'm here. Are you still with me?",
+          crisis_resources: { triggered: true, post_dial_check: true },
+          activity_suggestion: { name: null, should_navigate: false }
+        });
+      }
       
       // STEP: intro_sent -> After first user reply, detect state and either suggest activity or move to conversation
       if (onboardingStep === 'intro_sent') {

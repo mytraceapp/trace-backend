@@ -24,6 +24,7 @@
     "drizzle-kit": "^0.31.8",
     "drizzle-orm": "^0.45.0",
     "expo-av": "^16.0.8",
+    "expo-contacts": "^15.0.11",
     "express-session": "^1.18.2",
     "luxon": "^3.7.2",
     "memoizee": "^0.4.17",
