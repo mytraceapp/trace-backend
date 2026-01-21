@@ -1,0 +1,44 @@
+RACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE Chat] Profile check: {"hasLat": false, "hasLon": false, "hasProfile": false, "lat": undefined, "lon": undefined, "weatherEnabled": undefined}
+ LOG  [TRACE Chat] Weather context disabled or no location saved
+ LOG  [TRACE Chat] Sending message to backend...
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  Responses to add: 1
+ LOG  MESSAGES_LEN_AFTER: 2
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ ERROR  [TRACE Chat] Network error: [Error: Chat API error: ] 
+
+Code: chat.ts
+  64 |
+  65 |     if (!response.ok) {
+> 66 |       throw new Error(`Chat API error: ${response.statusText}`);
+     |                      ^
+  67 |     }
+  68 |
+  69 |     const data = await response.json();
+Call Stack
+  sendChatMessage (lib/chat.ts:66:22)
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}

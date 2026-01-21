@@ -3222,7 +3222,8 @@ app.post('/api/chat', async (req, res) => {
       
       // WORKAROUND: If mobile client already showed a suggestion (activity message in history),
       // and user is now responding with affirmation, skip to waiting_ok logic
-      const historyHasSuggestion = messagesArray.some(m => 
+      const rawMessages = messages || [];
+      const historyHasSuggestion = rawMessages.some(m => 
         m.role === 'assistant' && 
         (m.content?.includes("I'd recommend Maze") || 
          m.content?.includes("I'd recommend Breathing") || 
@@ -3231,8 +3232,8 @@ app.post('/api/chat', async (req, res) => {
       
       if (onboardingStep === 'intro_sent' && historyHasSuggestion && isUserAffirmation(userText)) {
         // Mobile already showed suggestion, user is confirming - detect which activity from history
-        const mazeInHistory = messagesArray.some(m => m.role === 'assistant' && m.content?.includes("I'd recommend Maze"));
-        const restInHistory = messagesArray.some(m => m.role === 'assistant' && m.content?.includes("I'd recommend Rest"));
+        const mazeInHistory = rawMessages.some(m => m.role === 'assistant' && m.content?.includes("I'd recommend Maze"));
+        const restInHistory = rawMessages.some(m => m.role === 'assistant' && m.content?.includes("I'd recommend Rest"));
         
         let activity = 'breathing';
         let route = '/activities/breathing';
