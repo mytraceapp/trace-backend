@@ -298,19 +298,19 @@ const MIN_DATA_THRESHOLD = 7; // Minimum activities + journals for patterns
 const MUSIC_TEMPLATES = {
   ground: `I'm right here with you.
 
-Inside the journal there's a space called **Ground**. The music there is slow and steady — the kind that helps the body remember it's safe.
+Inside the journal there's a space called **Rooted**. The music there is slow and steady — the kind that helps the body remember it's safe.
 
 If you want to go there, we can take our time. There's no rush.`,
 
   drift: `This feels really heavy — thank you for trusting me with it.
 
-There's a quiet space inside the journal called **Drift**. It doesn't rush feelings. It just holds them gently.
+There's a quiet space inside the journal called **Low Orbit**. It doesn't rush feelings. It just holds them gently.
 
 If you want to sit there for a while, I'll be right here with you.`,
 
   rising: `I can feel you opening a little — even if it's small.
 
-Inside the journal there's a space called **Rising**. The music there warms slowly. It doesn't push you — it just lets the light return at your pace.
+Inside the journal there's a space called **First Light**. The music there warms slowly. It doesn't push you — it just lets the light return at your pace.
 
 If that sounds right, we can visit whenever you're ready.`,
 };
