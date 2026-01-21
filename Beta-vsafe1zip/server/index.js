@@ -5455,6 +5455,80 @@ app.post('/api/profile/update', async (req, res) => {
   }
 });
 
+// POST /api/onboarding/suggestion - Track personalization decisions during onboarding
+// Logs what state users report and what activities are suggested
+app.post('/api/onboarding/suggestion', async (req, res) => {
+  try {
+    const { userId, userReportedState, userMessage, suggestedActivity, timestamp } = req.body || {};
+    
+    console.log('[ONBOARDING SUGGESTION] Request:', { 
+      userId: userId?.slice?.(0, 8), 
+      userReportedState, 
+      suggestedActivity 
+    });
+    
+    // Validate required fields
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'userId is required' });
+    }
+    
+    if (!userReportedState) {
+      return res.status(400).json({ success: false, error: 'userReportedState is required' });
+    }
+    
+    if (!suggestedActivity) {
+      return res.status(400).json({ success: false, error: 'suggestedActivity is required' });
+    }
+    
+    // Validate UUID format
+    const validation = validateUserId(userId, null);
+    if (!validation.valid) {
+      return res.status(400).json({ success: false, error: 'Invalid userId format' });
+    }
+    
+    if (!supabaseServer) {
+      return res.status(500).json({ success: false, error: 'Database not configured' });
+    }
+    
+    // Generate unique suggestion ID
+    const suggestionId = `sug_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    
+    // Insert suggestion record
+    const { error: insertError } = await supabaseServer
+      .from('onboarding_suggestions')
+      .insert({
+        id: suggestionId,
+        user_id: userId,
+        user_reported_state: userReportedState,
+        user_message: userMessage || null,
+        suggested_activity: suggestedActivity,
+        created_at: timestamp || new Date().toISOString()
+      });
+    
+    if (insertError) {
+      console.error('[ONBOARDING SUGGESTION] Insert error:', insertError.message);
+      return res.status(500).json({ success: false, error: insertError.message });
+    }
+    
+    console.log('[ONBOARDING SUGGESTION] Tracked:', { 
+      suggestionId, 
+      userId: userId.slice(0, 8), 
+      state: userReportedState, 
+      activity: suggestedActivity 
+    });
+    
+    return res.json({
+      success: true,
+      suggestionId,
+      tracked: true
+    });
+    
+  } catch (err) {
+    console.error('[ONBOARDING SUGGESTION] Error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // POST /api/onboarding/complete - Mark onboarding as completed (legacy, use /api/onboarding/reflection instead)
 app.post('/api/onboarding/complete', async (req, res) => {
   try {
