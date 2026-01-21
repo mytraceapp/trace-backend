@@ -3151,8 +3151,14 @@ app.post('/api/chat', async (req, res) => {
         if (!msg) return null;
         const t = msg.toLowerCase();
         
-        // Ignore obvious false positives
-        if (t.includes('laughing') || t.includes('lmao') || t.includes('lol') || t.includes('jk') || t.includes('joking')) {
+        // FALSE POSITIVE patterns - jokes, sarcasm, hyperbole
+        // Check if crisis phrase appears near joke indicators
+        const jokeIndicators = ['laughing', 'lmao', 'lol', 'jk', 'joking', 'haha', 'lmfao', 'rofl', 'dying laughing', 'so funny'];
+        const hasJokeContext = jokeIndicators.some(j => t.includes(j));
+        
+        // If joke context AND crisis phrase together, it's likely hyperbole
+        if (hasJokeContext) {
+          console.log('[CRISIS] False positive filtered - joke context detected:', t.slice(0, 50));
           return null;
         }
         
@@ -3160,10 +3166,10 @@ app.post('/api/chat', async (req, res) => {
         const highSeverity = [
           'kill myself', 'killing myself', 'end my life', 'want to die', 'dont want to live',
           "don't want to live", 'suicide', 'suicidal', 'take my life',
-          'overdose', 'od on', 'pills', 'jump off', 'bridge', 'hang myself', 'hanging',
-          'cut myself', 'slit my wrists', 'gun', 'shoot myself', 'knife',
-          'im going to do it', "i'm going to do it", 'tonight', 'right now',
-          'cant do this anymore', "can't do this anymore", 'goodbye', 'this is my last',
+          'overdose', 'od on pills', 'jump off', 'bridge', 'hang myself', 'hanging myself',
+          'cut myself', 'slit my wrists', 'shoot myself',
+          'im going to do it', "i'm going to do it", 
+          'cant do this anymore', "can't do this anymore", 'this is my last',
           'i wrote a note', 'i have a plan', 'no point in living'
         ];
         
@@ -3175,9 +3181,9 @@ app.post('/api/chat', async (req, res) => {
         // MODERATE SEVERITY - suicidal ideation, hopelessness
         const moderateSeverity = [
           'i want to disappear', 'want to disappear', 'i cant go on', "i can't go on",
-          'im done', "i'm done with everything", 'im hopeless', "i'm hopeless",
+          "i'm done with everything", 'im hopeless', "i'm hopeless",
           'no reason to live', 'everyone would be better without me', 'better off without me',
-          'i hate being alive', 'i dont feel safe', "i don't feel safe", 'not safe'
+          'i hate being alive', 'i dont feel safe', "i don't feel safe"
         ];
         
         if (moderateSeverity.some(k => t.includes(k))) {
@@ -3346,6 +3352,29 @@ app.post('/api/chat', async (req, res) => {
         }
       };
       
+      // ===== GLOBAL CALL COMMAND HANDLER (works from any crisis step) =====
+      const tUpperGlobal = userText.trim().toUpperCase();
+      const isCrisisStep = onboardingStep.startsWith('crisis_');
+      
+      if (isCrisisStep && tUpperGlobal === 'CALL 988') {
+        await updateOnboardingStep('crisis_post_dial');
+        console.log('[CRISIS] CALL 988 command from step:', onboardingStep);
+        return res.json({
+          message: "Okay. I'm pulling it up now.",
+          crisis_resources: { triggered: true, dial: '988' }
+        });
+      }
+      
+      if (isCrisisStep && tUpperGlobal.startsWith('CALL ') && tUpperGlobal !== 'CALL 988') {
+        const contactName = tUpperGlobal.replace('CALL ', '');
+        await updateOnboardingStep('crisis_post_dial');
+        console.log('[CRISIS] CALL contact command from step:', onboardingStep, 'contact:', contactName);
+        return res.json({
+          message: "Okay. I'm pulling it up now.",
+          crisis_resources: { triggered: true, dial_contact: contactName }
+        });
+      }
+      
       // ===== CRISIS CHECK (Priority #1 - overrides all other flows) =====
       const crisisDetected = detectCrisis(userText);
       if (crisisDetected) {
@@ -3359,8 +3388,7 @@ app.post('/api/chat', async (req, res) => {
           crisis_resources: {
             triggered: true,
             severity: crisisDetected.severity
-          },
-          activity_suggestion: { name: null, should_navigate: false }
+          }
         });
       }
       
@@ -3391,44 +3419,19 @@ app.post('/api/chat', async (req, res) => {
         
         return res.json({
           message: responseMsg,
-          crisis_resources: { triggered: true, awaiting_contact: true },
-          activity_suggestion: { name: null, should_navigate: false }
+          crisis_resources: { triggered: true, awaiting_contact: true }
         });
       }
       
       // STEP: crisis_trusted_contact -> User provides a contact name or asks for 988
       if (onboardingStep === 'crisis_trusted_contact') {
         const t = userText.toLowerCase().trim();
-        const tUpper = userText.trim().toUpperCase();
-        
-        // Check for CALL 988 command
-        if (tUpper === 'CALL 988' || t === 'call 988') {
-          await updateOnboardingStep('crisis_post_dial');
-          return res.json({
-            message: "Okay. I'm pulling it up now.",
-            crisis_resources: { triggered: true, dial: '988' },
-            activity_suggestion: { name: null, should_navigate: false }
-          });
-        }
-        
-        // Check for CALL [NAME] command pattern
-        const callMatch = tUpper.match(/^CALL\s+(.+)$/);
-        if (callMatch) {
-          const contactName = callMatch[1];
-          await updateOnboardingStep('crisis_post_dial');
-          return res.json({
-            message: "Okay. I'm pulling it up now.",
-            crisis_resources: { triggered: true, dial_contact: contactName },
-            activity_suggestion: { name: null, should_navigate: false }
-          });
-        }
         
         // User mentions 988 without CALL
         if (t === '988' || t.includes('988')) {
           return res.json({
             message: "Okay. Type CALL 988 and I'll pull it up.",
-            crisis_resources: { triggered: true, awaiting_contact: true },
-            activity_suggestion: { name: null, should_navigate: false }
+            crisis_resources: { triggered: true, awaiting_contact: true }
           });
         }
         
@@ -3440,8 +3443,7 @@ app.post('/api/chat', async (req, res) => {
           await updateOnboardingStep('crisis_contact_name_needed');
           return res.json({
             message: "What name should I look for in your contacts?",
-            crisis_resources: { triggered: true, awaiting_contact_name: true },
-            activity_suggestion: { name: null, should_navigate: false }
+            crisis_resources: { triggered: true, awaiting_contact_name: true }
           });
         }
         
@@ -3452,16 +3454,14 @@ app.post('/api/chat', async (req, res) => {
           await updateOnboardingStep('crisis_call_confirmation');
           return res.json({
             message: `Okay. I can do that.\n\nIf you want me to pull up a call to ${nameMatch[1]}, type CALL ${contactName}.`,
-            crisis_resources: { triggered: true, pending_contact: contactName },
-            activity_suggestion: { name: null, should_navigate: false }
+            crisis_resources: { triggered: true, pending_contact: contactName }
           });
         }
         
         // Fallback - re-prompt
         return res.json({
           message: "Tell me who you'd like to call, or type CALL 988 for the crisis line.",
-          crisis_resources: { triggered: true, awaiting_contact: true },
-          activity_suggestion: { name: null, should_navigate: false }
+          crisis_resources: { triggered: true, awaiting_contact: true }
         });
       }
       
@@ -3473,42 +3473,16 @@ app.post('/api/chat', async (req, res) => {
         await updateOnboardingStep('crisis_call_confirmation');
         return res.json({
           message: `Okay. Type CALL ${contactName} and I'll look them up.`,
-          crisis_resources: { triggered: true, pending_contact: contactName },
-          activity_suggestion: { name: null, should_navigate: false }
+          crisis_resources: { triggered: true, pending_contact: contactName }
         });
       }
       
       // STEP: crisis_call_confirmation -> Awaiting CALL command
       if (onboardingStep === 'crisis_call_confirmation') {
-        const tUpper = userText.trim().toUpperCase();
-        
-        // Check for CALL 988
-        if (tUpper === 'CALL 988') {
-          await updateOnboardingStep('crisis_post_dial');
-          return res.json({
-            message: "Okay. I'm pulling it up now.",
-            crisis_resources: { triggered: true, dial: '988' },
-            activity_suggestion: { name: null, should_navigate: false }
-          });
-        }
-        
-        // Check for CALL [NAME]
-        const callMatch = tUpper.match(/^CALL\s+(.+)$/);
-        if (callMatch) {
-          const contactName = callMatch[1];
-          await updateOnboardingStep('crisis_post_dial');
-          return res.json({
-            message: "Okay. I'm pulling it up now.",
-            crisis_resources: { triggered: true, dial_contact: contactName },
-            activity_suggestion: { name: null, should_navigate: false }
-          });
-        }
-        
-        // Not a CALL command - re-prompt
+        // Not a CALL command - re-prompt (CALL commands handled by global handler above)
         return res.json({
           message: "When you're ready, type CALL followed by the name or CALL 988.",
-          crisis_resources: { triggered: true, awaiting_call_command: true },
-          activity_suggestion: { name: null, should_navigate: false }
+          crisis_resources: { triggered: true, awaiting_call_command: true }
         });
       }
       
@@ -3525,8 +3499,7 @@ app.post('/api/chat', async (req, res) => {
           await updateOnboardingStep('conversation_started');
           return res.json({
             message: "I'm glad. I'm still here if you need me.\n\nTake it easy. No rush.",
-            crisis_resources: { triggered: false, resolved: true },
-            activity_suggestion: { name: null, should_navigate: false }
+            crisis_resources: { triggered: false, resolved: true }
           });
         }
         
@@ -3535,16 +3508,14 @@ app.post('/api/chat', async (req, res) => {
           await updateOnboardingStep('crisis_trusted_contact');
           return res.json({
             message: "I'm still here.\n\nWould you like to try someone else, or type CALL 988?",
-            crisis_resources: { triggered: true, awaiting_contact: true },
-            activity_suggestion: { name: null, should_navigate: false }
+            crisis_resources: { triggered: true, awaiting_contact: true }
           });
         }
         
         // Default check-in
         return res.json({
           message: "I'm here. Are you still with me?",
-          crisis_resources: { triggered: true, post_dial_check: true },
-          activity_suggestion: { name: null, should_navigate: false }
+          crisis_resources: { triggered: true, post_dial_check: true }
         });
       }
       
