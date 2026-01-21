@@ -149,6 +149,169 @@ const limitMessages = (msgs: ChatMessage[]): ChatMessage[] => {
   return msgs.slice(-MAX_MESSAGES);
 };
 
+// ==================== WEEK 1 PAYOFF (Retention Feature) ====================
+// AsyncStorage keys
+const WEEK1_KEYS = {
+  FIRST_SEEN_AT: 'week1_first_seen_at',
+  ACTIVITY_COUNT: 'week1_activity_complete_count',
+  PAYOFF_SHOWN: 'week1_payoff_shown',
+  PAYOFF_DISMISSED: 'week1_payoff_dismissed',
+  PAYOFF_COMPLETED: 'week1_payoff_completed',
+  HOOK_HISTORY: 'week1_hook_history_v1',
+  LEADIN_HISTORY: 'week1_leadin_history_v1',
+  CLOSING_HISTORY: 'week1_closing_history_v1',
+};
+
+// 72 hours in milliseconds
+const SEVENTY_TWO_HOURS_MS = 72 * 60 * 60 * 1000;
+
+// Hook templates (8 variants)
+const WEEK1_HOOK_TEMPLATES = [
+  { id: 'h1', text: (pattern: string) => `Quick thing I'm noticing: ${pattern}.\n\nWant a 30-second summary?` },
+  { id: 'h2', text: (pattern: string) => `Something interesting: ${pattern}.\n\nCan I share what I'm seeing?` },
+  { id: 'h3', text: (pattern: string) => `I've been paying attention. ${pattern}.\n\nWant to hear what else I've noticed?` },
+  { id: 'h4', text: (pattern: string) => `Small pattern emerging: ${pattern}.\n\nWant the quick version?` },
+  { id: 'h5', text: (pattern: string) => `Noticing something about you: ${pattern}.\n\nShould I break it down?` },
+  { id: 'h6', text: (pattern: string) => `I'm starting to see a rhythm: ${pattern}.\n\nWant the highlights?` },
+  { id: 'h7', text: (pattern: string) => `Early read on your patterns: ${pattern}.\n\nInterested in hearing more?` },
+  { id: 'h8', text: (pattern: string) => `Something's clicking: ${pattern}.\n\nWant me to walk you through it?` },
+];
+
+// Lead-in templates (4 variants)
+const WEEK1_LEADIN_TEMPLATES = [
+  { id: 'l1', text: "Okay. Here's what I'm seeing so far:" },
+  { id: 'l2', text: "Sure. Here's what I've picked up:" },
+  { id: 'l3', text: "Alright, here's the short version:" },
+  { id: 'l4', text: "Got it. Here's what stands out:" },
+];
+
+// Closing templates (4 variants)
+const WEEK1_CLOSING_TEMPLATES = [
+  { id: 'c1', text: "Want me to keep tracking this?" },
+  { id: 'c2', text: "I'll keep an eye on this — just checking in." },
+  { id: 'c3', text: "Let me know if you want updates on this." },
+  { id: 'c4', text: "I'm here if you want to dig deeper sometime." },
+];
+
+// LRU template selection (picks fresh template, tracks history)
+async function selectFreshTemplate<T extends { id: string }>(
+  templates: T[],
+  historyKey: string,
+  maxHistory: number = 10,
+  maxRerolls: number = 3
+): Promise<T> {
+  let history: string[] = [];
+  try {
+    const stored = await AsyncStorage.getItem(historyKey);
+    if (stored) history = JSON.parse(stored);
+  } catch (e) {}
+
+  let selected: T | null = null;
+  let attempts = 0;
+
+  while (attempts < maxRerolls) {
+    const randomIndex = Math.floor(Math.random() * templates.length);
+    const candidate = templates[randomIndex];
+    if (!history.includes(candidate.id)) {
+      selected = candidate;
+      break;
+    }
+    attempts++;
+  }
+
+  // If still colliding after rerolls, pick LRU (oldest in history or first not in history)
+  if (!selected) {
+    if (history.length > 0) {
+      const lruId = history[0];
+      selected = templates.find(t => t.id === lruId) || templates[0];
+    } else {
+      selected = templates[0];
+    }
+  }
+
+  // Update history (append new, trim to max)
+  history = history.filter(id => id !== selected!.id);
+  history.push(selected.id);
+  if (history.length > maxHistory) history = history.slice(-maxHistory);
+
+  try {
+    await AsyncStorage.setItem(historyKey, JSON.stringify(history));
+  } catch (e) {}
+
+  return selected;
+}
+
+// Consent detection
+function isWeek1ConsentYes(text: string): boolean {
+  const lower = text.toLowerCase().trim();
+  const yesPatterns = ['yes', 'yeah', 'ok', 'okay', 'show me', 'sure', 'yep', 'please', 'do it', 'go ahead', 'tell me', 'hit me'];
+  return yesPatterns.some(p => lower.includes(p));
+}
+
+function isWeek1ConsentNo(text: string): boolean {
+  const lower = text.toLowerCase().trim();
+  const noPatterns = ['no', 'nope', 'skip', 'not now', 'later', 'pass', 'nah'];
+  return noPatterns.some(p => lower === p || lower.startsWith(p + ' ') || lower.endsWith(' ' + p));
+}
+
+// Compute insight content from local data
+async function computeWeek1Insights(chatMessages: ChatMessage[]): Promise<{ pattern: string; trigger: string; support: string; caveat: boolean }> {
+  let activityCount = 0;
+  let lastActivity = 'Breathing';
+  let reflectionCount = 0;
+
+  try {
+    const countStr = await AsyncStorage.getItem(WEEK1_KEYS.ACTIVITY_COUNT);
+    activityCount = countStr ? parseInt(countStr, 10) : 0;
+    
+    const lastActivityStr = await AsyncStorage.getItem('lastCompletedActivityName');
+    if (lastActivityStr) lastActivity = lastActivityStr;
+  } catch (e) {}
+
+  // Extract reflection themes from last 3 user messages after assistant "Noted" responses
+  const userMessages = chatMessages.filter(m => m.role === 'user').slice(-6);
+  let stressedMentions = 0;
+  let tiredMentions = 0;
+  let overwhelmedMentions = 0;
+
+  for (const m of userMessages) {
+    const lower = m.content.toLowerCase();
+    if (lower.includes('stressed') || lower.includes('stress')) stressedMentions++;
+    if (lower.includes('tired') || lower.includes('exhausted')) tiredMentions++;
+    if (lower.includes('overwhelmed') || lower.includes('too much')) overwhelmedMentions++;
+    if (lower.includes('reflect') || lower.includes('felt') || lower.includes('feel')) reflectionCount++;
+  }
+
+  // Infer pattern
+  let pattern = "your stress shows up most often later in the day";
+  if (stressedMentions > tiredMentions && stressedMentions > overwhelmedMentions) {
+    pattern = "stress seems to be a recurring theme for you";
+  } else if (tiredMentions > stressedMentions) {
+    pattern = "fatigue or low energy comes up a lot";
+  } else if (overwhelmedMentions > 0) {
+    pattern = "you often feel like there's too much going on";
+  }
+
+  // Infer trigger
+  let trigger = "it tends to rise after mentally heavy days";
+  if (tiredMentions > 0) {
+    trigger = "it often follows periods of not enough rest";
+  } else if (overwhelmedMentions > 0) {
+    trigger = "it spikes when responsibilities pile up";
+  }
+
+  // Infer support
+  let support = `${lastActivity} helps fastest for you right now`;
+  if (activityCount >= 2) {
+    support = `${lastActivity} seems to work well for you`;
+  }
+
+  // Caveat if insufficient data
+  const caveat = activityCount < 2 || reflectionCount < 2;
+
+  return { pattern, trigger, support, caveat };
+}
+
 // Crisis support: dial 988 or contact
 const handleCrisisDial = async (
   dial?: string, 
@@ -290,6 +453,10 @@ export default function ChatScreen() {
   // Onboarding reflection flow state
   const [awaitingOnboardingReflection, setAwaitingOnboardingReflection] = useState(false);
   const [lastCompletedActivityName, setLastCompletedActivityName] = useState<string | null>(null);
+
+  // Week 1 Payoff state (in-memory only for consent tracking)
+  const [awaitingWeek1PayoffConsent, setAwaitingWeek1PayoffConsent] = useState(false);
+  const week1ConsentPendingCountRef = useRef(0); // In-memory counter, not persisted
 
   // Night Swim player state
   const [showNightSwimPlayer, setShowNightSwimPlayer] = useState(false);

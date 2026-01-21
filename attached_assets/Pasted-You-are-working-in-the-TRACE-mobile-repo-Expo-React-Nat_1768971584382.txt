@@ -1,0 +1,147 @@
+You are working in the TRACE mobile repo (Expo / React Native). Implement Pillar 4 “Week 1 Payoff” as a chat-only retention feature.
+
+TRACE must proactively share a micro-insight in chat after a trigger, ask for consent, then deliver a 3-bullet payoff (Pattern / Trigger / Support). NO charts. NO dashboards. NO new screens. NO buttons. Everything happens ONLY in the main chat page.
+
+HARD CONSTRAINTS:
+- Do NOT refactor. Minimal changes only.
+- Keep onboarding + state-based activity suggestions intact.
+- Keep reflection flow intact (awaitingOnboardingReflection, reflection POST, “Noted. I’ll remember.”, follow-up question).
+- Keep crisis flow intact and always higher priority than Week 1 Payoff.
+- Do NOT break chat history persistence (keep visible for an hour logic).
+- No new network calls. No Supabase fetches.
+- All logic must be local: AsyncStorage + current chat history in memory.
+
+===========================================================
+LOCKED IMPLEMENTATION DECISIONS (DO NOT ASK QUESTIONS)
+===========================================================
+
+A) Trigger Timing (WHICHEVER COMES FIRST)
+Trigger Week 1 hook when:
+- activityCount >= 3
+OR
+- Date.now() - first_seen_at >= 72 hours (exact milliseconds)
+
+Rules:
+- If activity #3 completes → trigger immediately AFTER reflection acknowledgment appears.
+- If 72h passes first (<3 activities) → trigger on next ChatScreen mount OR next user message (whichever first).
+
+B) Permanent Gate
+- week1_payoff_shown=true is the OFFICIAL gate.
+- Set week1_payoff_shown=true immediately when hook is inserted.
+- Never reset week1_payoff_shown (permanent).
+- week1_payoff_completed is optional analytics only; set only after bullets delivered or omit.
+
+C) Consent capture
+- After hook is inserted set awaitingWeek1PayoffConsent=true.
+- If user says yes-ish (“yes/yeah/ok/okay/show me/sure/yep/please/do it”) → deliver bullets.
+- If user says no-ish (“no/nope/skip/not now”) OR ignores the hook for the next 5 user messages:
+  - silently clear awaitingWeek1PayoffConsent
+  - set week1_payoff_dismissed=true
+  - never re-ask and never re-trigger
+- No repeated prompts allowed.
+
+Consent message counting:
+- week1ConsentPendingCount is IN-MEMORY ONLY.
+- Do NOT persist consent pending count in AsyncStorage.
+- If app restarts mid-consent, consent state should clear (no nagging).
+
+D) Data sourcing (LOCAL-FIRST)
+Compute insight content on the fly from:
+- AsyncStorage: lastCompletedActivityName history + activityCount
+- In-memory chat: last 3 reflection responses (if accessible)
+No network calls.
+
+Insight computation:
+- Pattern: infer from activity history; else default:
+  “your stress shows up most often later in the day”
+- Trigger: infer from last 3 reflection responses mentions (stressed/tired/overwhelmed); else default:
+  “it tends to rise after mentally heavy days”
+- Support: infer from lastCompletedActivityName; else default:
+  “Breathing helps fastest for you right now”
+
+E) Data insufficiency caveat
+If (activityCount < 2) OR (reflectionCount < 2):
+- Prepend the 3-bullet payoff message with:
+  “Still learning your patterns — but early on I’m noticing:”
+
+F) Crisis override
+If crisis is detected while awaitingWeek1PayoffConsent=true:
+- clear awaitingWeek1PayoffConsent immediately
+- prioritize crisis flow
+Priority order: Crisis > Reflection > Week1Payoff > Normal
+
+===========================================================
+COPY / UX (CHAT ONLY)
+===========================================================
+
+1) Micro-insight Hook must be inserted as assistant message.
+Lux freshness MUST be implemented:
+- 8 hook templates (random)
+- Store last 10 used hook IDs in AsyncStorage (week1_hook_history_v1)
+- Reroll up to 3 times if duplicate; if still colliding choose LRU
+Same for:
+- 4 lead-in templates (week1_leadin_history_v1)
+- 4 closing templates (week1_closing_history_v1)
+
+Example hook style:
+“Quick thing I’m noticing: your stress seems to spike later in the day.
+Want a 30-second summary?”
+
+2) Consent yes flow:
+- Insert lead-in line template (“Okay. Here’s what I’m seeing so far:” etc.)
+- Then insert the 3-bullet payoff message:
+  What I’m noticing so far:
+  • Pattern: <...>
+  • Trigger: <...>
+  • Support: <...>
+
+  <closing template such as “Want me to keep tracking this?”>
+
+===========================================================
+ASYNCSTORAGE KEYS (FINAL)
+===========================================================
+
+Persist:
+- week1_first_seen_at (string timestamp ms)
+- week1_activity_complete_count (string int)
+- week1_payoff_shown ("true"/"false") PERMANENT gate; set when hook inserted
+- week1_payoff_dismissed ("true"/"false") set when declined/ignored
+Optional:
+- week1_payoff_completed ("true"/"false") set after bullets delivered
+
+DO NOT persist:
+- consent pending message count
+- awaitingWeek1PayoffConsent
+
+===========================================================
+first_seen_at initialization (LOCKED)
+===========================================================
+Set week1_first_seen_at in handleSend() BEFORE appending the first ever user message:
+if missing -> set to Date.now()
+
+===========================================================
+FILES TO MODIFY
+===========================================================
+
+- mobile/app/(tabs)/chat.tsx (required)
+- mobile/lib/chat.ts (optional helper functions)
+
+DO NOT TOUCH:
+- navigation
+- activity pages
+- reflection mechanics beyond adding post-ack check
+
+===========================================================
+DELIVERABLES
+===========================================================
+
+- List files changed
+- Summarize logic added
+- Test plan:
+  1) Complete 3 activities -> reflection ack -> hook appears once
+  2) Reply “yes” -> bullets appear with fresh copy
+  3) Reply “no” -> clears, never asks again
+  4) Ignore for 5 messages -> clears, never asks again
+  5) Simulate 72h passed -> hook appears on mount/next message (only once)
+  6) Crisis while awaiting consent -> consent cleared and crisis takes over
+Stop after implementation. No additional improvements.
