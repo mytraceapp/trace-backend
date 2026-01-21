@@ -6730,6 +6730,7 @@ app.post('/api/journal/memory-consent', async (req, res) => {
 });
 
 // GET /api/music-config - Spotify playlist configuration for TRACE mood spaces
+// Display names updated: Ground→Rooted, Drift→Low Orbit, Rising→First Light
 app.get('/api/music-config', (req, res) => {
   res.json({
     spotifyClientId: process.env.SPOTIFY_CLIENT_ID || '',
@@ -6737,6 +6738,11 @@ app.get('/api/music-config', (req, res) => {
       ground: process.env.TRACE_GROUND_URL || process.env.TRACE_GROUND_URI || '',
       drift: process.env.TRACE_DRIFT_URL || process.env.TRACE_DRIFT_URI || '',
       rising: process.env.TRACE_RISING_URL || process.env.TRACE_RISING_URI || '',
+    },
+    displayNames: {
+      ground: 'Rooted',
+      drift: 'Low Orbit',
+      rising: 'First Light',
     },
   });
 });
