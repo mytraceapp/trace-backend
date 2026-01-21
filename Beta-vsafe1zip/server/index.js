@@ -3220,6 +3220,39 @@ app.post('/api/chat', async (req, res) => {
         }
       };
       
+      // WORKAROUND: If mobile client already showed a suggestion (activity message in history),
+      // and user is now responding with affirmation, skip to waiting_ok logic
+      const historyHasSuggestion = messagesArray.some(m => 
+        m.role === 'assistant' && 
+        (m.content?.includes("I'd recommend Maze") || 
+         m.content?.includes("I'd recommend Breathing") || 
+         m.content?.includes("I'd recommend Rest"))
+      );
+      
+      if (onboardingStep === 'intro_sent' && historyHasSuggestion && isUserAffirmation(userText)) {
+        // Mobile already showed suggestion, user is confirming - detect which activity from history
+        const mazeInHistory = messagesArray.some(m => m.role === 'assistant' && m.content?.includes("I'd recommend Maze"));
+        const restInHistory = messagesArray.some(m => m.role === 'assistant' && m.content?.includes("I'd recommend Rest"));
+        
+        let activity = 'breathing';
+        let route = '/activities/breathing';
+        if (mazeInHistory) { activity = 'maze'; route = '/activities/maze'; }
+        else if (restInHistory) { activity = 'rest'; route = '/activities/rest'; }
+        
+        await updateOnboardingStep(`activity_in_progress:${activity}`);
+        
+        console.log('[ONBOARDING] Mobile suggestion detected in history, user confirmed - navigating to:', activity);
+        return res.json({
+          message: "Good. I'll be here when you get back.",
+          activity_suggestion: {
+            name: activity,
+            reason: `Starting activity`,
+            should_navigate: true,
+            route: route,
+          },
+        });
+      }
+      
       // STEP: intro_sent -> After first user reply, detect state and either suggest activity or ask what's on their mind
       if (onboardingStep === 'intro_sent') {
         const detected = detectEmotionalState(userText);

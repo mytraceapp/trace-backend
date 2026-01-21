@@ -109,9 +109,13 @@ const CHAT_API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77h
 
 const ACTIVITY_ROUTES: Record<string, string> = {
   'Breathing': '/activities/breathing',
+  'breathing': '/activities/breathing',
   'Trace the Maze': '/activities/maze',
+  'Maze': '/activities/maze',
+  'maze': '/activities/maze',
   'Walking Reset': '/activities/walking',
   'Rest': '/activities/rest',
+  'rest': '/activities/rest',
   'Window': '/activities/window',
   'Echo': '/activities/echo',
   'Rising': '/activities/rising',
