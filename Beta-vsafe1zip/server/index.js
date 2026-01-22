@@ -8593,11 +8593,21 @@ app.post('/api/patterns/full-reflection', async (req, res) => {
       .gte('created_at', oneWeekAgo.toISOString())
       .order('created_at', { ascending: true });
 
+    // Try userId first, then deviceId
     if (userId) {
       query = query.eq('user_id', userId);
+    } else if (deviceId) {
+      query = query.eq('device_id', deviceId);
     }
 
     const { data: weekMessages, error } = await query;
+    
+    console.log('🧠 /api/patterns/full-reflection query result:', {
+      messageCount: weekMessages?.length || 0,
+      userId: userId?.slice?.(0, 8) || 'none',
+      deviceId: deviceId?.slice?.(0, 8) || 'none',
+      error: error?.message || null,
+    });
 
     if (error) {
       console.error('❌ /api/patterns/full-reflection query error:', error);
@@ -8613,6 +8623,12 @@ app.post('/api/patterns/full-reflection', async (req, res) => {
     const userMessages = weekMessages.filter(m => m.role === 'user');
     const todayMessages = userMessages.filter(m => new Date(m.created_at) >= startOfToday);
     const lastHourMessages = userMessages.filter(m => new Date(m.created_at) >= oneHourAgo);
+    
+    console.log('🧠 /api/patterns/full-reflection filtered:', {
+      totalUserMessages: userMessages.length,
+      todayCount: todayMessages.length,
+      lastHourCount: lastHourMessages.length,
+    });
 
     // Build context summaries
     const todaySummary = todayMessages.length > 0
