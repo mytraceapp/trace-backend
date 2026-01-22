@@ -89,6 +89,9 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
     // Extract traceStudios context for tracking music reveal conversations
     const traceStudios = data.traceStudios || null;
     
+    // Extract audio_action for Night Swim / Spotify playback
+    const audio_action = data.audio_action || null;
+    
     return {
       message: data.message || "mm, I'm here.",
       messages: data.messages || null, // Multi-message array for crisis mode
@@ -96,6 +99,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
       activity_suggestion: activitySuggestion,
       pattern_metadata: patternMetadata,
       traceStudios, // Pass back for context tracking
+      audio_action, // Pass back for Night Swim / Spotify playback
     };
   } catch (err: any) {
     clearTimeout(timeout);
