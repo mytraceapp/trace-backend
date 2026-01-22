@@ -2781,11 +2781,25 @@ app.post('/api/chat', async (req, res) => {
       
       if (studiosResponse) {
         console.log('[TRACE STUDIOS] Intercepted:', studiosResponse.traceStudios?.kind);
-        return res.json({
+        
+        // Build response with audio_action at top level (mobile expects this format)
+        const response = {
           message: studiosResponse.assistant_message,
           mode: studiosResponse.mode,
           traceStudios: studiosResponse.traceStudios,
-        });
+        };
+        
+        // If traceStudios has audio_action, promote it to top level with correct format
+        if (studiosResponse.traceStudios?.audio_action) {
+          response.audio_action = {
+            type: 'open', // Mobile expects 'open' to spawn player
+            source: 'originals', // Mobile expects 'originals' for Night Swim
+            trackId: studiosResponse.traceStudios.audio_action.trackId || 'night_swim',
+          };
+          console.log('[TRACE STUDIOS] Added audio_action to response:', response.audio_action);
+        }
+        
+        return res.json(response);
       }
     }
     
