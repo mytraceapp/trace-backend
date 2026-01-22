@@ -3003,11 +3003,22 @@ function shouldAddReturnToLife(userText = "", assistantText = "") {
   ];
   if (casualPhrases.some(k => userText.toLowerCase().trim().startsWith(k))) return false;
 
-  // Add for reflective/emotional content
+  // Skip for music-related or casual contexts
+  const musicPhrases = ["music", "song", "play", "night swim", "album", "track", "kind of music"];
+  if (musicPhrases.some(k => t.includes(k))) return false;
+  
+  // Skip for casual "I feel mid/meh/okay" statements - these don't need grounding cues
+  const casualFeelings = ["i feel mid", "i feel meh", "i feel okay", "i feel alright", "i feel fine", "i feel good", "so so", "so-so"];
+  if (casualFeelings.some(k => t.includes(k))) return false;
+
+  // Add for reflective/emotional content (NOT casual "i feel mid" type statements)
   const reflectiveHints = [
-    "i feel", "anxious", "panic", "lonely", "sad", "shame", "overwhelmed",
+    "i feel anxious", "i feel panic", "i feel lonely", "i feel sad", "i feel shame", 
+    "i feel overwhelmed", "i feel grief", "i feel hurt", "i feel scared", "i feel angry",
+    "i feel tired", "i feel exhausted", "i feel confused", "i feel lost",
+    "anxious", "panic", "lonely", "sad", "shame", "overwhelmed",
     "grief", "hurt", "trigger", "stress", "relationship", "cry", "depressed",
-    "scared", "angry", "tired", "exhausted", "confused", "struggling",
+    "scared", "angry", "exhausted", "struggling",
     "hard day", "rough day", "bad day", "difficult", "can't stop thinking",
     "ruminating", "spiraling", "heavy", "weighed down"
   ];

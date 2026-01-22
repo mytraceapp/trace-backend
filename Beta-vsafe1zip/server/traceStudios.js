@@ -641,14 +641,14 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     
     let responses;
     if (isGenreQuestion) {
-      // Varied genre/style answers - use Q&A bank style responses
+      // Varied genre/style answers - always end with offer to play
       responses = [
-        "Ambient and atmospheric. Think Tycho, Nils Frahm, Ólafur Arnalds. Music that doesn't demand attention — it sits with you.",
-        "Ambient electronic. Soft pads, slow textures, space to breathe. It's meant for 2am — when you need something that doesn't push.",
-        "Minimal. Atmospheric. Cinematic without being dramatic. I like restraint — silence is an instrument too.",
-        "Late night drives. Ocean at dusk. The feeling after a hard conversation when you finally exhale.",
-        "Ambient, downtempo, maybe neoclassical-adjacent. Streaming calls it 'chill' but I think of it as 'quiet company.'",
-        "Electronic, but soft. No drops, no builds for their own sake. Just texture and feeling.",
+        "Ambient and atmospheric. Think Tycho, Nils Frahm, Ólafur Arnalds. Music that doesn't demand attention — it sits with you. Want me to play something from *Night Swim*?",
+        "Ambient electronic. Soft pads, slow textures, space to breathe. It's meant for 2am — when you need something that doesn't push. Want to hear it?",
+        "Minimal. Atmospheric. Cinematic without being dramatic. I like restraint — silence is an instrument too. I could play you something if you'd like.",
+        "Late night drives. Ocean at dusk. The feeling after a hard conversation when you finally exhale. That's *Night Swim*. Want me to put it on?",
+        "Ambient, downtempo, maybe neoclassical-adjacent. Streaming calls it 'chill' but I think of it as 'quiet company.' Want to hear a track?",
+        "Electronic, but soft. No drops, no builds for their own sake. Just texture and feeling. I could play something from *Night Swim* if you're in the mood.",
       ];
       console.log('[TRACE STUDIOS] Using genre/style response variant');
     } else {
