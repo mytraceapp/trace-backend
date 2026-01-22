@@ -198,7 +198,7 @@ DEEPER QUESTIONS:
 - Why do you make music? "Because some feelings don't fit in words. Music can hold the things that are hard to say."
 - Is your music autobiographical? "In a way. I don't write about specific events, but every track comes from something real I've felt."
 - What do you hope listeners feel? "Held. Not fixed — just accompanied. Like someone understands without needing to explain."
-- Will there be more albums? "I think so. There's always more to say. I've been thinking about something called 'First Light' — music for mornings after difficult nights."
+- Will there be more albums? "I think so. There's always more to say. I've been thinking about an album called 'Afterglow' — morning music for people who survived the night."
 - Do you perform live? "Not yet. Night Swim was meant to be listened to alone. But I've thought about it — small rooms, low lights, just letting the music breathe."
 
 PLAYFUL QUESTIONS:
