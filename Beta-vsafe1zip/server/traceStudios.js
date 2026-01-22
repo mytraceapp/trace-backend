@@ -378,6 +378,34 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     "yes", "yeah", "sure", "okay", "ok", "yep", "yup", "please", "do it", "go ahead"
   ]);
   
+  // PRIORITY 0: Direct album play request - "play night swim", "can you play night swim"
+  const directAlbumPlay = includesAny(t, ["play night swim", "put on night swim", "start night swim"]) || 
+    (includesAny(t, ["play", "put on", "start"]) && t.includes("night swim") && !requestedTrack);
+  
+  if (directAlbumPlay) {
+    console.log('[TRACE STUDIOS] Direct album play request for Night Swim');
+    const responses = [
+      "Playing Night Swim.",
+      "Here's Night Swim.",
+      "Putting on Night Swim.",
+      "Night Swim. Here you go.",
+    ];
+    const msg = pickRotating(responses, seed);
+    return {
+      assistant_message: msg,
+      mode: "trace_studios",
+      traceStudios: {
+        kind: "play_night_swim",
+        traceStudiosContext: "night_swim",
+        audio_action: {
+          action: "play",
+          trackId: "night_swim",
+          source: "trace_originals",
+        },
+      },
+    };
+  }
+  
   // PRIORITY 1: Direct play request with track name - just play immediately
   if (directPlayRequest) {
     console.log('[TRACE STUDIOS] Direct play request for:', requestedTrack.title);
