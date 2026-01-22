@@ -8161,10 +8161,14 @@ app.post('/api/patterns/last-hour', async (req, res) => {
       
       console.log('🧠 Querying Supabase chat_messages for user:', effectiveUserId);
       
+      // Query only messages from the last 2 hours, ordered descending to get most recent first
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      
       const { data, error } = await supabaseServer
         .from('chat_messages')
         .select('role, content, created_at')
         .eq('user_id', effectiveUserId)
+        .gte('created_at', twoHoursAgo)
         .order('created_at', { ascending: true });
 
       if (error) {
