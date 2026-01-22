@@ -3002,7 +3002,11 @@ app.post('/api/chat', async (req, res) => {
 
     // MUSIC MODE: Intercept music requests with hard guardrail
     // Only invites once per session, only if user explicitly asks
-    if (effectiveUserId && detectUserRequestedMusic(userText)) {
+    // Skip if we're in traceStudios music context (avoid clashing with music reveal)
+    const traceStudiosContext = req.body.traceStudiosContext;
+    const skipMusicInvite = traceStudiosContext === 'music_general' || traceStudiosContext === 'neon_promise';
+    
+    if (effectiveUserId && !skipMusicInvite && detectUserRequestedMusic(userText)) {
       const musicState = getMusicState(effectiveUserId);
       musicState.userRequestedMusic = true;
       

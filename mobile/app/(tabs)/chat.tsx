@@ -531,6 +531,9 @@ export default function ChatScreen() {
   // Night Swim player state
   const [showNightSwimPlayer, setShowNightSwimPlayer] = useState(false);
   const [nightSwimSession, setNightSwimSession] = useState(0); // Session counter for forcing remount
+  
+  // Track TRACE Studios music reveal context to avoid playlist clash
+  const [traceStudiosContext, setTraceStudiosContext] = useState<string | null>(null);
   const [nightSwimTracks, setNightSwimTracks] = useState<any[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isNightSwimPlaying, setIsNightSwimPlaying] = useState(false);
@@ -1410,9 +1413,18 @@ export default function ChatScreen() {
         deviceId: stableId,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         patternContext,
+        traceStudiosContext, // Pass current context to avoid playlist clash
       });
 
       console.log('📥 TRACE received reply:', result);
+      
+      // Update TRACE Studios context from response (clears after 2 turns if not renewed)
+      if (result?.traceStudios?.traceStudiosContext) {
+        setTraceStudiosContext(result.traceStudios.traceStudiosContext);
+      } else if (traceStudiosContext) {
+        // Clear context after one turn without renewal
+        setTraceStudiosContext(null);
+      }
 
       // Handle multi-message crisis responses (2-3 messages displayed sequentially)
       if (result?.isCrisisMultiMessage && result?.messages && result.messages.length > 1) {

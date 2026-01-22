@@ -10,7 +10,7 @@ export interface PatternContext {
   lastCalculatedAt?: string | null;
 }
 
-export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone, patternContext, tonePreference }: {
+export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone, patternContext, tonePreference, traceStudiosContext }: {
   messages: Array<{ role: string; content: string }>;
   userName?: string | null;
   chatStyle?: string;
@@ -22,6 +22,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
   timezone?: string | null;
   patternContext?: PatternContext | null;
   tonePreference?: 'neutral' | 'faith' | null;
+  traceStudiosContext?: string | null;
 }) {
   console.log(
     '🆔 TRACE sendChatMessage ids:',
@@ -52,6 +53,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
           timezone: timezone || null,
           patternContext: patternContext || null,
           tonePreference: tonePreference || 'neutral',
+          traceStudiosContext: traceStudiosContext || null,
         }),
         signal: controller.signal,
       }
@@ -84,12 +86,16 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
     // Handle pattern_metadata for explainability
     const patternMetadata = data.pattern_metadata || null;
     
+    // Extract traceStudios context for tracking music reveal conversations
+    const traceStudios = data.traceStudios || null;
+    
     return {
       message: data.message || "mm, I'm here.",
       messages: data.messages || null, // Multi-message array for crisis mode
       isCrisisMultiMessage: data.isCrisisMultiMessage || false,
       activity_suggestion: activitySuggestion,
       pattern_metadata: patternMetadata,
+      traceStudios, // Pass back for context tracking
     };
   } catch (err: any) {
     clearTimeout(timeout);
