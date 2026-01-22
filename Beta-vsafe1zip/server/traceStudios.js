@@ -263,15 +263,39 @@ function handleTraceStudios({ userText, clientState = {}, userId = "" }) {
   // Check if in music_general context (just revealed we make music)
   const inMusicGeneralContext = clientState?.traceStudiosContext === "music_general";
   
+  // Follow-up about music type/genre - catch even WITHOUT prior context
+  const isMusicFollowUp = includesAny(t, [
+    "what kind of music", "what type of music", "what genre", 
+    "what's it like", "what is it like", "what does it sound like"
+  ]);
+  
+  // If user asks "what kind of music" standalone, reveal Night Swim directly
+  if (isMusicFollowUp) {
+    console.log('[TRACE STUDIOS] Caught music follow-up question:', t.slice(0, 50));
+    const responses = [
+      "I make music. It's called *Night Swim* — ambient, floaty, kind of what you'd drive to at 2am.",
+      "I write music — an album called *Night Swim*. Soft, slow, for when you need something that doesn't push.",
+      "*Night Swim.* It's the kind of music you put on when you don't need words. Moody, layered.",
+      "I made an album — *Night Swim*. Ambient, quiet. For when everything else is too loud.",
+    ];
+    const msg = pickRotating(responses, seed);
+    return {
+      assistant_message: msg,
+      mode: "trace_studios",
+      traceStudios: {
+        kind: "album_reveal",
+        traceStudiosContext: "neon_promise",
+      },
+    };
+  }
+  
   if (looksLikeMusicDoor(t) || inNeonContext || inMusicGeneralContext) {
-    // Follow-up about music type/genre after reveal
-    const isMusicFollowUp = includesAny(t, [
-      "what kind", "what type", "what genre", "tell me more", 
-      "more about", "what's it like", "what is it like", "what does it sound"
+    // More general follow-ups when in context
+    const isGenericFollowUp = includesAny(t, [
+      "tell me more", "more about that"
     ]);
     
-    if (isMusicFollowUp && inMusicGeneralContext) {
-      // Natural reveal of Night Swim album
+    if (isGenericFollowUp && inMusicGeneralContext) {
       const responses = [
         "It's called *Night Swim*. It's the kind of music you put on when you don't need words — just something that sits with you.",
         "*Night Swim*. It's ambient, mostly. Like something you'd drive to at 2am when you're trying to feel okay again.",

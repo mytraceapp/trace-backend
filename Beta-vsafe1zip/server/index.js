@@ -6890,6 +6890,26 @@ function detectUserRequestedMusic(messageText = '') {
     return false;
   }
   
+  // Skip if user is asking about TRACE's music (not requesting a playlist)
+  // These should be handled by traceStudios flow instead
+  const isAskingAboutTraceMusic = (
+    txt.includes('what kind of music') ||
+    txt.includes('what type of music') ||
+    txt.includes('your music') ||
+    txt.includes('you make music') ||
+    txt.includes('you write music') ||
+    txt.includes('your song') ||
+    txt.includes('your album') ||
+    txt.includes('night swim') ||
+    txt.includes('neon promise') ||
+    txt.includes('trace studios')
+  );
+  
+  if (isAskingAboutTraceMusic) {
+    console.log('[MUSIC DETECT] Skipping - user asking about TRACE music, not playlist');
+    return false;
+  }
+  
   return (
     txt.includes('music') ||
     txt.includes('playlist') ||
