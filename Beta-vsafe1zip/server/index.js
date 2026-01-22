@@ -61,6 +61,7 @@ if (process.env.NEON_PROMISE_LYRICS) {
   TRACKS.neon_promise.lyrics = process.env.NEON_PROMISE_LYRICS;
 }
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
+const { getSignals: getBrainSignals, buildClientStateContext, decideSuggestion, tightenResponse } = require('./traceBrain');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
 const { 
@@ -2737,7 +2738,12 @@ app.post('/api/chat', async (req, res) => {
       weatherContext: clientWeatherContext,
       patternContext,
       tonePreference = 'neutral',
+      client_state: clientState,
     } = req.body;
+    
+    // Extract client_state for context-aware responses
+    const safeClientState = clientState || {};
+    console.log('[TRACE BRAIN] client_state:', JSON.stringify(safeClientState));
 
     // Filter out invalid placeholder names like "friend", "buddy", "pal"
     const invalidNames = ['friend', 'buddy', 'pal', 'user', 'guest', 'anonymous'];
@@ -4591,6 +4597,21 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     }
     
     // ============================================================
+    // CLIENT STATE CONTEXT (from traceBrain.js)
+    // Add context-aware guidance based on frontend state
+    // ============================================================
+    const clientStateContext = buildClientStateContext(safeClientState);
+    if (clientStateContext) {
+      systemPrompt += `\n\n${clientStateContext}`;
+      console.log('[TRACE BRAIN] Appended client state context');
+    }
+    
+    // Get emotional signals from user message for suggestion logic
+    const userMsgForBrain = messages.filter(m => m.role === 'user').pop()?.content || '';
+    const brainSignals = getBrainSignals(userMsgForBrain);
+    console.log('[TRACE BRAIN] signals:', JSON.stringify(brainSignals));
+    
+    // ============================================================
     // TRACE ATTUNEMENT ENGINE v1
     // Detect care posture based on user emotional state
     // Inject Voice Lock + posture rules to prevent drift
@@ -5191,14 +5212,41 @@ Your response:`;
       }
     }
     
+    // ===== TRACE BRAIN SUGGESTION LOGIC =====
+    // Decide if we should include a suggestion (with cooldown)
+    const brainSuggestion = decideSuggestion(safeClientState, brainSignals);
+    if (brainSuggestion) {
+      console.log('[TRACE BRAIN] Suggestion:', JSON.stringify(brainSuggestion));
+    }
+    
+    // ===== RESPONSE TIGHTENING =====
+    // Ensure concise TRACE voice (2-6 sentences, no bullet lists unless asked)
+    const tightenedText = tightenResponse(processedAssistantText);
+    if (tightenedText !== processedAssistantText) {
+      console.log('[TRACE BRAIN] Response tightened');
+    }
+    
     // Build response - include messages array if crisis mode
     const response = {
-      message: processedAssistantText, // First message with optional disclaimer
+      message: tightenedText, // Tightened message with optional disclaimer
       activity_suggestion: activitySuggestion,
       posture: posture,
       detected_state: detected_state,
       posture_confidence: postureConfidence,
     };
+    
+    // Add brain suggestion if present (separate from activity_suggestion for clarity)
+    if (brainSuggestion) {
+      response.suggestion = brainSuggestion;
+      response.client_state_patch = {
+        lastSuggestion: {
+          type: brainSuggestion.type,
+          id: brainSuggestion.id,
+          ts: Date.now(),
+          accepted: null, // Frontend will update this
+        }
+      };
+    }
     
     // Add pattern_metadata if we used pattern context in this response
     // This enables inline explainability in the mobile chat

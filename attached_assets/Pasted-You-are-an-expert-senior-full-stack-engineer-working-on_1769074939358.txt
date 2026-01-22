@@ -1,0 +1,83 @@
+You are an expert senior full-stack engineer working on TRACE (React Native + Expo frontend, Node/Express backend on Replit).
+
+Goal: Make TRACE feel smarter + more natural by:
+	1.	Frontend sending a compact client_state context capsule with each /api/chat request
+	2.	Backend using that context to enforce TRACE voice (concise, grounded, one perspective)
+	3.	Backend adding a “Suggestion Policy” that returns at most ONE suggestion (activity OR track), with cadence controls (cooldown), so TRACE suggestions feel timed and intelligent.
+
+Requirements:
+	•	Do NOT add lots of scripts.
+	•	Do NOT output 5 options.
+	•	TRACE voice should be conversational: short, human, grounded.
+	•	Suggestion behavior should feel restrained: most messages have no suggestion.
+	•	If mode === "audio_player", TRACE must talk about the music experience and NOT suggest app features.
+
+Implementations required:
+
+A) Frontend: include client_state in POST /api/chat payload
+
+In mobile/app/(tabs)/chat.tsx (or wherever chat request is made), add:
+client_state: {
+  mode: "chat" | "audio_player" | "activity_reflection",
+  timeOfDay: "morning" | "afternoon" | "evening" | "late_night",
+  recentSentiment: "calm" | "anxious" | "sad" | "angry" | "numb" | "overwhelmed" | null,
+  nowPlaying: null | { trackId: string; title: string; album?: string },
+  lastSuggestion: null | { type: "activity" | "track"; id: string; ts: number; accepted?: boolean },
+  lastActivity: null | { id: string; ts: number }
+}
+Keep it compact and safe if nulls.
+
+B) Backend: add a small brain module
+
+Create server/traceBrain.js with:
+	1.	buildTraceSystemPrompt(client_state) — concise TRACE system rules:
+	•	one perspective (“Here’s what I think.”)
+	•	minimal, grounded, conversational
+	•	default 2–6 sentences
+	•	no bullet lists unless user asks
+	•	one question max
+	•	no product talk (“feature/mode/onboarding”)
+	•	if audio_player mode: respond about music only; no suggestions
+	2.	decideSuggestion(client_state, signals) — returns null or one suggestion:
+	•	Uses cooldown rules (cadence):
+	•	do not suggest again if lastSuggestion < 10 minutes ago
+	•	if user ignored last suggestion, extend cooldown to 20 minutes
+	•	if user explicitly asks for help (“what should I do”), suggestion allowed even inside cooldown
+	•	Never suggest while mode === "audio_player" unless user explicitly asks.
+	•	Return at most one suggestion:
+{ type: "activity" | "track", id: string, reason: string }
+	3.	getSignals(userText) — minimal regex detector:
+	•	asksForHelp
+	•	highArousal (panic/anxiety)
+	•	lowMood (sad/down/hopeless)
+	•	restNeed (tired/exhausted/insomnia)
+	•	rumination (overthinking/can’t stop thinking)
+
+C) Backend: modify POST /api/chat
+
+In server/index.js within /api/chat:
+	•	Read client_state from req.body
+	•	Build system prompt via buildTraceSystemPrompt(client_state)
+	•	Before calling OpenAI, decide suggestion via decideSuggestion(client_state, signals)
+	•	Call OpenAI once for assistant response
+	•	Return JSON with:
+{
+  assistant_message: string,
+  suggestion: null | { type, id, reason },
+  client_state_patch: optional object (e.g. suggestion timestamp)
+}
+D) Ensure output is TRACE voice
+
+If the model returns long/structured content:
+	•	apply a lightweight “tightener” post-process function:
+	•	trim to max ~6 sentences unless user asked for detail
+	•	strip multi-option bullet lists
+	•	keep one question max
+
+Deliverables:
+	•	Patch frontend chat request to include client_state
+	•	New backend module server/traceBrain.js
+	•	Update backend /api/chat to use context + suggestion policy
+	•	Keep changes minimal and production-safe
+
+Output the exact code changes and file paths.
