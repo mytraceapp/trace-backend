@@ -42,6 +42,13 @@ const {
 const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
 const { handleTraceStudios, TRACKS } = require('./traceStudios');
+const {
+  storeSignal,
+  getOrAnalyzeLearnings,
+  getLearnings,
+  buildAdaptedPromptSection,
+  getSignalsForUser,
+} = require('./traceFeedback');
 
 // Load Neon Promise lyrics from env (or Supabase later)
 if (process.env.NEON_PROMISE_LYRICS) {
@@ -4489,6 +4496,20 @@ CRITICAL - NO GREETINGS IN ONGOING CHAT:
 - Do NOT start responses with generic greetings like "Hi", "Hey there", "Hello", "How are you today?"
 - Respond as if you've already said hello and are in the middle of a conversation.
 - Focus on answering or gently reflecting on the user's latest message.`;
+
+      // Feedback loop adaptation - adjust prompt based on user's learned preferences
+      if (pool && effectiveUserId) {
+        try {
+          const learnings = await getOrAnalyzeLearnings(pool, effectiveUserId);
+          const promptAdaptation = buildAdaptedPromptSection(learnings);
+          if (promptAdaptation) {
+            systemPrompt += promptAdaptation;
+            console.log('[FEEDBACK] Applied prompt adaptation for user:', effectiveUserId, 'confidence:', learnings?.confidence || 0);
+          }
+        } catch (feedbackError) {
+          console.warn('[FEEDBACK] Could not fetch learnings (continuing without):', feedbackError.message);
+        }
+      }
       
       // Check if Night Swim should be offered based on emotional state
       // This injects a context cue BEFORE the OpenAI call to guide the LLM
@@ -11457,6 +11478,118 @@ app.post('/api/entry/:entryId/restore', async (req, res) => {
 app.get('/api/privacy/stats', async (req, res) => {
   const stats = getSummaryStats();
   res.json({ ok: true, stats });
+});
+
+// ==================== FEEDBACK LOOP SYSTEM ====================
+
+// POST /api/users/:userId/signals - Ingest conversation signals
+app.post('/api/users/:userId/signals', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const signal = req.body;
+    
+    if (!userId || !signal.conversationId || !signal.timestamp) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+    
+    if (!pool) {
+      return res.status(503).json({ success: false, error: 'Database unavailable' });
+    }
+    
+    const signalId = await storeSignal(pool, { ...signal, userId });
+    console.log('[FEEDBACK] Signal stored for user:', userId, 'id:', signalId);
+    
+    res.json({ success: true, signalId });
+  } catch (error) {
+    console.error('[FEEDBACK] Signal ingestion error:', error);
+    res.status(500).json({ success: false, error: 'Failed to store signal' });
+  }
+});
+
+// GET /api/users/:userId/learnings - Get user learnings with adapted prompt section
+app.get('/api/users/:userId/learnings', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'Missing userId' });
+    }
+    
+    if (!pool) {
+      return res.status(503).json({ success: false, error: 'Database unavailable' });
+    }
+    
+    const learnings = await getOrAnalyzeLearnings(pool, userId);
+    const promptAdaptation = buildAdaptedPromptSection(learnings);
+    
+    res.json({
+      success: true,
+      learnings,
+      promptAdaptation,
+      confidence: learnings?.confidence || 0,
+    });
+  } catch (error) {
+    console.error('[FEEDBACK] Learnings fetch error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch learnings' });
+  }
+});
+
+// GET /api/users/:userId/analytics - Get user analytics dashboard data
+app.get('/api/users/:userId/analytics', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'Missing userId' });
+    }
+    
+    if (!pool) {
+      return res.status(503).json({ success: false, error: 'Database unavailable' });
+    }
+    
+    const learnings = await getLearnings(pool, userId);
+    
+    if (!learnings) {
+      return res.json({
+        success: true,
+        topActivities: [],
+        responsePreference: { length: 'mixed', tone: 'mixed', confidence: 0 },
+        engagementPatterns: { bestTime: 'varied', avgConvLength: 0, escalationFrequency: 0 },
+        signalCount: 0,
+        lastAnalyzed: null,
+      });
+    }
+    
+    const topActivities = Object.entries(learnings.activityScores || {})
+      .filter(([_, score]) => score.suggestedCount > 0)
+      .sort((a, b) => b[1].completionRate - a[1].completionRate)
+      .slice(0, 5)
+      .map(([name, score]) => ({
+        name,
+        completionRate: score.completionRate,
+        returnRate: score.returnRate24h,
+      }));
+    
+    res.json({
+      success: true,
+      topActivities,
+      responsePreference: {
+        length: learnings.preferredResponseLength,
+        tone: learnings.preferredResponseTone,
+        confidence: learnings.confidence,
+      },
+      engagementPatterns: {
+        bestTime: learnings.bestEngagementTime,
+        avgConvLength: learnings.avgConversationLength,
+        escalationFrequency: learnings.escalatingFrequency,
+      },
+      signalCount: learnings.dataPoints,
+      lastAnalyzed: learnings.lastAnalyzedAt,
+    });
+  } catch (error) {
+    console.error('[FEEDBACK] Analytics fetch error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch analytics' });
+  }
 });
 
 // POST /api/user/delete - Immediate hard-delete all user data (GDPR right to erasure)

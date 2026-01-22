@@ -1,0 +1,290 @@
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [AmbientMiniPlayer] On blacklisted activity - returning null immediately
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [GlobalAudioCoordinator] 🔌 Component UNMOUNTING - NOT resuming ambient (letting isPlaying state manage it)
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: true (was: true )
+ LOG  [GlobalAudioCoordinator] Will resume? false
+ LOG  [AudioProvider] 🔐 Auth state changed {"isAuthLoading": false, "user": "80624861-1955-40f4-b302-2af2c9dc67c1"}
+ LOG  🔥🔥🔥 [ACTIVITY LOG] Logging new activity: {"createdAt": "2026-01-22T07:45:03.528Z", "durationMinutes": 19.5, "energyShift": null, "id": "activity-2026-01-22T07:45:03.528Z-rzo20i", "kind": "reflection", "label": "Window", "sourceScreen": "window"}
+ LOG  🔥🔥🔥 [ACTIVITY LOG] Saved. Total activities: 17
+ LOG  ✅ Window activity logged: 19.5 min
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] 🎯 Activity completion detected: window Duration: 19.5
+ LOG  [TRACE SESSION] useFocusEffect triggered, profile: {"country": "US", "created_at": "2026-01-02T02:01:03.418772+00:00", "display_name": "Nina Tested", "email": "nr.zink1617@gmail.com", "email_enabled": false, "first_chat_completed": true, "first_run_completed": true, "first_run_completed_at": "2026-01-03T23:56:15.887+00:00", "has_completed_onboarding": true, "last_seen_at": "2026-01-22T05:47:28.92+00:00", "lat": 40.7128, "lon": -74.006, "onboarding_completed": true, "onboarding_step": "completed", "pending_activity": null, "pending_activity_route": null, "plan_expires_at": "2026-02-06T22:21:29.893+00:00", "plan_status": "premium", "preferred_name": null, "push_enabled": false, "theme": "luna", "timezone": "America/Los_Angeles", "updated_at": "2026-01-22T05:55:09.664515+00:00", "user_id": "80624861-1955-40f4-b302-2af2c9dc67c1", "weather_context_enabled": true}
+ LOG  [TRACE SESSION] ===== checkAndLogSession STARTED =====
+ LOG  [ChatScreen] User IS AUTHENTICATED - Starting audio
+ LOG  [TRACE CHAT] 🔄 Initializing chat for first time (initializedUserId: null )
+ LOG  [TRACE CHAT] Initializing chat for user: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] useEffect start - user?.id: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] Using auth user?.id: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1.5", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "2.3", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [AmbientMiniPlayer] Rendering player - shouldShow: true fadeAnim._value: 1
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [GlobalAudioCoordinator] 🔌 Component UNMOUNTING - NOT resuming ambient (letting isPlaying state manage it)
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: true (was: true )
+ LOG  [GlobalAudioCoordinator] Will resume? false
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "chat", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": true, "pathname": "/chat", "segments": "(tabs)/chat", "shouldHidePlayer": false, "shouldShow": true}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE SESSION] lastVisitRaw: 1769065751101
+ LOG  [TRACE SESSION] Last visit date: Wed Jan 21 2026
+ LOG  [TRACE SESSION] Today date: Wed Jan 21 2026
+ LOG  [TRACE SESSION] Time since last visit (minutes): 36
+ LOG  [TRACE SESSION] Same day, within 1 hour - continuing session (no new log)
+ LOG  [AudioContext.play] 📊 Sound status before play: {"isLoaded": true, "isPlaying": false, "volume": 0}
+ LOG  [AudioContext.play] ✅ STARTING PLAYBACK - setting volume and calling playAsync
+ LOG  [CTA] Loaded history on mount: ["S_N_08", "S_N_10", "S_N_01", "S_N_05", "S_N_06", "S_N_04", "S_N_02", "S_N_03", "S_N_01", "S_H_01"]
+ LOG  [TRACE SESSION] Updated last visit time
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [AudioContext.play] ✅ Volume set to: 0
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1.5", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "2.3", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [AmbientMiniPlayer] Rendering player - shouldShow: true fadeAnim._value: 1
+ LOG  [AudioContext.play] ✅ playAsync completed
+ LOG  [AudioContext] 🎵 Audio started playing successfully
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [GlobalAudioCoordinator] 🔌 Component UNMOUNTING - NOT resuming ambient (letting isPlaying state manage it)
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: true (was: true )
+ LOG  [GlobalAudioCoordinator] Will resume? false
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1.5", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "2.3", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1.5", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "2.3", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [AmbientMiniPlayer] Exiting blacklisted activity - resuming audio after route settlement
+ LOG  [AudioPlayer] Play intent registered for originals
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1.5", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "2.3", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [AmbientMiniPlayer] Rendering player - shouldShow: true fadeAnim._value: 1
+ LOG  [AudioPlayer] Resuming paused audio
+ LOG  INPUT_FOCUS
+ LOG  [AudioPlayer] Audio engine ready for originals
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1.5", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "2.3", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1.5", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "2.3", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1.5", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "2.3", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Logging activity to tracker...
+ LOG  [TRACE CHAT] Auth setup - authUserId: 80624861-1955-40f4-b302-2af2c9dc67c1 deviceId: undefined
+ LOG  📤 [ACTIVITY SYNC] Sending to backend: {"activityType": "Window", "deviceId": null, "durationSeconds": 1170, "userId": "80624861-1955-40f4-b302-2af2c9dc67c1"}
+ LOG  [ACTIVITY VARIETY] ✅ Logged activity completion: 19.5 state: undefined
+ LOG  [TRACE CHAT] Showing onboarding reflection prompt for: window
+ LOG  [TRACE CHAT] 🎯 RESTORING HISTORY - setting hasResponded=true, messages.length= 12
+ LOG  [TRACE CHAT] ℹ️ NOT fetching greeting for old user with active conversation
+ LOG  [TRACE CHAT] ✅ Restored history (within 1 hour), count: 12
+ LOG  [TRACE CHAT] 🔧 Setting initializedUserId= 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Awaiting onboarding reflection from user
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  ✅ [ACTIVITY SYNC] Successfully synced to backend
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [MEMORY_V3] Updated open loop: that situation (strength: 2)
+ LOG  [MEMORY_V3] Open loops stored: 1 total
+ LOG  [TRACE CHAT] 📝 Onboarding reflection response received: What do you do for fun
+ LOG  [TRACE CHAT] Activity: window
+ LOG  [TRACE CHAT] Saving reflection with userId: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Reflection response status: 200
+ LOG  [TRACE CHAT] ✅ Reflection response: {"message": "Reflection saved", "ok": true, "reflectionId": "ref_1769067925542_fnvpoz", "savedToDb": true, "success": true}
+ LOG  [TRACE CHAT] ✅ Reflection saved to backend
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] 🎉 Onboarding reflection complete
+ LOG  [CTA] Ambiguous case, using NEUTRAL_HELPED
+ LOG  [CTA] Classified state: neutral outcome: helped
+ LOG  [CTA] Selected CTA: N_H_05 → Noted. What's on your mind — even if it feels small?
+ LOG  [CTA] History updated: ["S_N_10", "S_N_01", "S_N_05", "S_N_06", "S_N_04", "S_N_02", "S_N_03", "S_N_01", "S_H_01", "N_H_05"]
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [AudioPlayer] Track finished, auto-playing next track...
+ LOG  [AudioPlayer] playOriginals called with: {"album": "night_swim", "trackIndex": 3}
+ LOG  [AudioPlayer] Setting isPlaying=true, currentSource=originals
+ LOG  [AudioPlayer] Play originals: night_swim, track 3
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1.5", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "2.3", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [AmbientMiniPlayer] Rendering player - shouldShow: true fadeAnim._value: 1
+ LOG  [ORIGINALS] Using cached album "night_swim" (age: 3073s)
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1.5", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "1", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "2.3", "completedActivity": "breathing"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [AmbientMiniPlayer] Rendering player - shouldShow: true fadeAnim._value: 1
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [AudioPlayer] Now playing: Euphoria
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [MEMORY_V3] Updated open loop: that situation (strength: 3)
+ LOG  [MEMORY_V3] Open loops stored: 1 total
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE Chat] Profile check: {"hasLat": true, "hasLon": true, "hasProfile": true, "lat": 40.7128, "lon": -74.006, "weatherEnabled": true}
+ LOG  [TRACE Chat] Fetching weather context for location: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] Weather API response: {"current": {"cloudCover": 100, "feelsLike": 28, "humidity": 46, "isDayTime": false, "temperature": 39, "uvIndex": 0, "weatherText": "Cloudy", "wind": 14}, "summary": "Pretty cold — currently 39°F (feels like 28°F), nighttime. Cloudy. Wind around 14 mph"}
+ LOG  [TRACE Chat] Weather context prepared: {"summary": "Pretty cold — currently 39°F (feels like 28°F), nighttime. Cloudy. Wind around 14 mph", "temperature": 39, "windSpeed": 14}
+ LOG  [TRACE Chat] Sending message to backend...
+ LOG  [TRACE Chat] Raw API response: {"message":"Music. Always. I like building moods — like a night drive you don't want to end.\n\nWhat's been giving you real relief lately — even small?","mode":"trace_studios","traceStudios":{"kind":"identity_reveal","traceStudiosContext":"music_general"}}
+ LOG  [TRACE Chat] Cleaned message: Music. Always. I like building moods — like a night drive you don't want to end.
+
+What's been giving you real relief lately — even small?
+ LOG  Responses to add: 1
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 5 msgs, 1 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  MESSAGES_LEN_AFTER: 17
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [MEMORY_V3] Updated open loop: that situation (strength: 4)
+ LOG  [MEMORY_V3] Open loops stored: 1 total
+ LOG  [TRACE CHAT] Params: {"activityDuration": "19.5", "completedActivity": "window"}
+ LOG  [TRACE Chat] Profile check: {"hasLat": true, "hasLon": true, "hasProfile": true, "lat": 40.7128, "lon": -74.006, "weatherEnabled": true}
+ LOG  [TRACE Chat] Fetching weather context for location: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] Weather API response: {"current": {"cloudCover": 100, "feelsLike": 28, "humidity": 46, "isDayTime": false, "temperature": 39, "uvIndex": 0, "weatherText": "Cloudy", "wind": 14}, "summary": "Pretty cold — currently 39°F (feels like 28°F), nighttime. Cloudy. Wind around 14 mph"}
+ LOG  [TRACE Chat] Weather context prepared: {"summary": "Pretty cold — currently 39°F (feels like 28°F), nighttime. Cloudy. Wind around 14 mph", "temperature": 39, "windSpeed": 14}
+ LOG  [TRACE Chat] Sending message to backend...
+ LOG  [TRACE Chat] Raw API response: {"type":"music_invite","moodSpace":"rising","message":"I can feel you opening a little — even if it's small.\n\nInside the journal there's a space called **First Light**. The music there warms slowly. It doesn't push you — it just lets the light return at your pace.\n\nIf that sounds right, we can visit whenever you're ready.","activity_suggestion":{"name":null,"reason":null,"should_navigate":false}}
+ LOG  [TRACE Chat] Cleaned message: I can feel you opening a little — even if it's small.
+
+Inside the journal there's a space called **First Light**. The music there warms slowly. It doesn't push you — it just lets the light return at your pace.
+
+If that sounds right, we can

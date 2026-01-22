@@ -1,0 +1,350 @@
+ TRACE Feedback Loop System - Backend Implementation Prompt
+
+## Overview
+Implement a feedback loop that captures user signals from frontend, analyzes patterns, and dynamically adjusts TRACE's system prompt based on what's working for each user.
+
+---
+
+## Frontend Signal Types (Sent from Mobile App)
+
+The mobile app will send these signals after each conversation:
+
+```typescript
+interface ConversationSignal {
+  userId: string;
+  conversationId: string;
+  timestamp: number;
+  
+  // Response content signals
+  responseLength: 'short' | 'medium' | 'long';      // char count: <100, 100-500, >500
+  responseTone: 'warm' | 'practical' | 'reflective'; // detected from TRACE response
+  
+  // Activity suggestion signals
+  activitySuggested?: string;                        // e.g., "breathing", "basin", "walk"
+  activityCompleted?: boolean;                       // did user do the activity?
+  activityCompletionTime?: number;                   // minutes spent
+  
+  // Engagement signals
+  userReturned24h: boolean;                          // did user come back within 24h?
+  conversationLength: number;                        // total messages in this conversation
+  userSentiment: 'escalating' | 'calm' | 'processing'; // inferred from messages
+  
+  // Outcome signals
+  userFollowedAdvice: boolean;                       // did they follow suggestions?
+  userContinuedConversation: boolean;                // did they keep chatting after first response?
+  userAskedForActivity: boolean;                     // did user explicitly ask for activity?
+}
+```
+
+---
+
+## Backend Tasks
+
+### 1. Signal Ingestion Endpoint
+**POST `/api/users/{userId}/signals`**
+
+```
+Request Body:
+{
+  conversationId: string,
+  timestamp: number,
+  responseLength: 'short' | 'medium' | 'long',
+  responseTone: 'warm' | 'practical' | 'reflective',
+  activitySuggested?: string,
+  activityCompleted?: boolean,
+  activityCompletionTime?: number,
+  userReturned24h: boolean,
+  conversationLength: number,
+  userSentiment: 'escalating' | 'calm' | 'processing',
+  userFollowedAdvice: boolean,
+  userContinuedConversation: boolean,
+  userAskedForActivity: boolean
+}
+
+Response:
+{ success: true, signalId: string }
+```
+
+### 2. Signal Storage
+Store signals in database with structure:
+
+```sql
+CREATE TABLE user_signals (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL,
+  conversation_id UUID NOT NULL,
+  signal_timestamp BIGINT NOT NULL,
+  
+  -- Response metrics
+  response_length VARCHAR(20),
+  response_tone VARCHAR(20),
+  
+  -- Activity metrics
+  activity_suggested VARCHAR(100),
+  activity_completed BOOLEAN,
+  activity_completion_time INT,
+  
+  -- Engagement metrics
+  user_returned_24h BOOLEAN,
+  conversation_length INT,
+  user_sentiment VARCHAR(20),
+  user_followed_advice BOOLEAN,
+  user_continued_conversation BOOLEAN,
+  user_asked_for_activity BOOLEAN,
+  
+  created_at TIMESTAMP DEFAULT NOW(),
+  
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Indexes for quick analysis
+CREATE INDEX idx_user_signals ON user_signals(user_id, signal_timestamp DESC);
+CREATE INDEX idx_activity_tracking ON user_signals(user_id, activity_suggested);
+```
+
+### 3. Pattern Detection & Analysis
+
+Analyze signals every 24 hours or when reaching 10+ new signals. Calculate:
+
+```typescript
+interface UserLearnings {
+  userId: string;
+  lastAnalyzedAt: number;
+  
+  // Activity effectiveness
+  activityScores: {
+    [activityName: string]: {
+      suggestedCount: number;
+      completedCount: number;
+      completionRate: number;        // 0-1
+      avgCompletionTime: number;     // minutes
+      returnRate24h: number;         // 0-1 (did they return after?)
+    }
+  },
+  
+  // Response preference
+  preferredResponseLength: 'short' | 'medium' | 'long' | 'mixed';
+  preferredResponseTone: 'warm' | 'practical' | 'reflective' | 'mixed';
+  
+  // Engagement patterns
+  bestEngagementTime: string;        // "morning" | "afternoon" | "evening" | "varied"
+  avgConversationLength: number;
+  
+  // Sentiment patterns
+  userTendency: 'escalating' | 'calm' | 'processing' | 'mixed';
+  escalatingFrequency: number;       // % of conversations that escalate
+  
+  // Decision patterns
+  userPrefers: 'activity_suggestions' | 'listening' | 'mixed';
+  askForActivityRate: number;        // 0-1 (does user ask vs we suggest?)
+  
+  // Reliability
+  dataPoints: number;                // how many signals analyzed
+  confidence: number;                // 0-1 (how confident are these learnings?)
+}
+```
+
+### 4. Learning Calculation Logic
+
+**Activity Effectiveness:**
+```
+For each activity:
+- completionRate = activityCompleted_count / activitySuggested_count
+- Return24hRate = userReturned24h_count / activityCompleted_count
+- Effectiveness = (completionRate * 0.6) + (return24hRate * 0.4)
+```
+
+**Response Preference:**
+```
+If >70% of responses preferred short: "short"
+Else if >70% of responses were long: "long"
+Else if >70% of responses were medium: "medium"
+Else: "mixed"
+```
+
+**Engagement Pattern:**
+```
+Track signal timestamps, group by hour-of-day
+If >70% of engagement in 6-12 window: "morning"
+Else if >70% in 12-18: "afternoon"
+Else if >70% in 18-24: "evening"
+Else: "varied"
+```
+
+**User Tendency:**
+```
+Count sentiment_escalating / total_signals
+If >50%: "escalating"
+Else if <30%: "calm"
+Else: "processing"
+```
+
+**Activity Preference:**
+```
+If userAskedForActivity_count / total_conversations > 40%: "activity_suggestions"
+Else if <20%: "listening"
+Else: "mixed"
+```
+
+### 5. System Prompt Adjustment
+
+**Endpoint:** `GET /api/users/{userId}/learnings`
+
+Returns learnings + generates adjusted system prompt:
+
+```typescript
+// Base system prompt (existing TRACE prompt)
+let systemPrompt = TRACE_BASE_SYSTEM_PROMPT;
+
+// Adjust based on learnings
+if (learnings.dataPoints >= 5) { // Only after 5+ signals
+  
+  // 1. Response length preference
+  if (learnings.preferredResponseLength === 'short') {
+    systemPrompt += "\n[ADAPTATION] User prefers brief, concise responses (2-3 sentences).";
+  } else if (learnings.preferredResponseLength === 'long') {
+    systemPrompt += "\n[ADAPTATION] User appreciates detailed, thoughtful responses.";
+  }
+  
+  // 2. Response tone preference
+  if (learnings.preferredResponseTone === 'warm') {
+    systemPrompt += "\n[ADAPTATION] Lean into warmth, emotional resonance, comfort.";
+  } else if (learnings.preferredResponseTone === 'practical') {
+    systemPrompt += "\n[ADAPTATION] Focus on practical advice, actionable steps.";
+  } else if (learnings.preferredResponseTone === 'reflective') {
+    systemPrompt += "\n[ADAPTATION] Encourage introspection, deeper thinking.";
+  }
+  
+  // 3. Activity suggestion tendency
+  if (learnings.userPrefers === 'activity_suggestions') {
+    systemPrompt += "\n[ADAPTATION] This user responds well to activity suggestions. Include them naturally.";
+  } else if (learnings.userPrefers === 'listening') {
+    systemPrompt += "\n[ADAPTATION] This user prefers listening/reflection over activity suggestions. Only suggest when user asks.";
+  }
+  
+  // 4. Escalation pattern
+  if (learnings.escalatingFrequency > 0.5) {
+    systemPrompt += "\n[ADAPTATION] This user tends to escalate emotionally. Provide extra grounding, validation, safety checks.";
+  } else if (learnings.escalatingFrequency < 0.2) {
+    systemPrompt += "\n[ADAPTATION] This user maintains calm. Can engage more intellectually/philosophically.";
+  }
+  
+  // 5. Best activity recommendations
+  const topActivities = Object.entries(learnings.activityScores)
+    .sort((a, b) => b[1].completionRate - a[1].completionRate)
+    .slice(0, 3)
+    .map(([name, score]) => `${name} (${Math.round(score.completionRate * 100)}%)`)
+    .join(', ');
+  
+  if (topActivities) {
+    systemPrompt += `\n[ADAPTATION] Most effective activities for this user: ${topActivities}. Suggest these first.`;
+  }
+  
+  // 6. Confidence note
+  if (learnings.confidence < 0.5) {
+    systemPrompt += "\n[NOTE] Learnings confidence is low. Continue collecting signals before heavy adaptation.";
+  }
+}
+
+return {
+  learnings,
+  systemPrompt,
+  confidence: learnings.confidence
+};
+```
+
+### 6. Integration with Chat Endpoint
+
+When `/api/chat` is called:
+
+```typescript
+async function getChatResponse(userId, messages) {
+  // 1. Get user learnings
+  const learnings = await getUserLearnings(userId);
+  
+  // 2. Combine base prompt + adapted prompt
+  const systemPrompt = buildSystemPrompt(learnings);
+  
+  // 3. Call TRACE with adapted system prompt
+  const response = await callTraceLLM(systemPrompt, messages);
+  
+  // 4. Return response (frontend will send signals later)
+  return response;
+}
+```
+
+---
+
+## Signal Capture Triggers (Frontend)
+
+Frontend sends signals:
+1. **After first assistant message** (basic signal)
+2. **After user completes activity** (activity completion signal)
+3. **After user returns next day** (retention signal)
+4. **End of conversation** (complete summary signal)
+
+---
+
+## Data Points Needed Before Adaptation
+
+Wait until **≥5 signals** before making system prompt adjustments (avoid over-fitting to noise).
+
+---
+
+## Analytics Dashboard (Optional)
+
+Expose learnings for admin/user viewing:
+
+```
+GET /api/users/{userId}/analytics
+
+Returns:
+{
+  topActivities: [
+    { name: "breathing", completionRate: 0.75, returnRate: 0.68 },
+    { name: "basin", completionRate: 0.60, returnRate: 0.55 },
+    ...
+  ],
+  responsePreference: {
+    length: "medium",
+    tone: "warm",
+    confidence: 0.72
+  },
+  engagementPatterns: {
+    bestTime: "evening",
+    avgConvLength: 6.2,
+    escalationFrequency: 0.35
+  },
+  signalCount: 23,
+  lastAnalyzed: 1705852800000
+}
+```
+
+---
+
+## Error Handling
+
+- **Malformed signals:** Log and ignore, don't break chat
+- **Missing signals:** Chat continues normally, no adaptation until signals arrive
+- **Insufficient data:** Don't adapt until ≥5 signals
+- **Conflicting data:** Average signals, don't over-interpret outliers
+
+---
+
+## Rollout Plan
+
+**Phase 1:** Signal ingestion + storage (1-2 days)
+**Phase 2:** Pattern detection + learnings calculation (2-3 days)
+**Phase 3:** System prompt adaptation (1-2 days)
+**Phase 4:** Analytics dashboard (optional, 1-2 days)
+
+---
+
+## Success Metrics
+
+- ✅ Signals captured for 100% of conversations
+- ✅ Learnings generated after 5+ signals per user
+- ✅ System prompts adapting based on learnings
+- ✅ User engagement metrics improve (repeat conversations, activity completion)
+- ✅ No regression in conversation quality
+
