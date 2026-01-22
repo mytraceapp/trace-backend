@@ -229,13 +229,98 @@ Like a neon promise—
 Wanting more.`;
 
 const TRACKS = {
+  midnight_underwater: {
+    id: "midnight_underwater",
+    title: "Midnight Underwater",
+    album: "Night Swim",
+    index: 0,
+    description: "The one that feels like sinking in a good way. When you need to let go of the surface.",
+    mood: "surrender, depth, release",
+  },
+  slow_tides: {
+    id: "slow_tides",
+    title: "Slow Tides Over Glass",
+    album: "Night Swim",
+    index: 1,
+    description: "For when everything is moving too fast. It slows the room down.",
+    mood: "calm, patience, stillness",
+  },
+  undertow: {
+    id: "undertow",
+    title: "Undertow",
+    album: "Night Swim",
+    index: 2,
+    description: "The pull you feel when something is ending but you're not ready. It doesn't fight it — it moves with it.",
+    mood: "transition, letting go, acceptance",
+  },
+  euphoria: {
+    id: "euphoria",
+    title: "Euphoria",
+    album: "Night Swim",
+    index: 3,
+    description: "Not the loud kind. The kind that catches you off guard — like realizing you're okay.",
+    mood: "quiet joy, surprise, lightness",
+  },
+  ocean_breathing: {
+    id: "ocean_breathing",
+    title: "Ocean Breathing",
+    album: "Night Swim",
+    index: 4,
+    description: "Literally made this for when you can't sleep. It matches the rhythm of deep breaths.",
+    mood: "rest, breath, grounding",
+  },
+  tidal_house: {
+    id: "tidal_house",
+    title: "Tidal Memory Glow",
+    album: "Night Swim",
+    index: 5,
+    description: "Memories that shimmer instead of hurt. The ones you hold gently.",
+    mood: "nostalgia, warmth, reflection",
+  },
   neon_promise: {
     id: "neon_promise",
     title: "Neon Promise",
     album: "Night Swim",
+    index: 6,
     lyrics: NEON_PROMISE_LYRICS,
+    description: "The one people tend to find when they need it. It carries this quiet kind of hope.",
+    mood: "hope, longing, promise",
   },
 };
+
+// Track name aliases for detection
+const TRACK_ALIASES = {
+  'midnight underwater': 'midnight_underwater',
+  'slow tides': 'slow_tides',
+  'slow tides over glass': 'slow_tides',
+  'undertow': 'undertow',
+  'midnight undertow': 'undertow',
+  'euphoria': 'euphoria',
+  'calm euphoria': 'euphoria',
+  'ocean breathing': 'ocean_breathing',
+  'tidal house': 'tidal_house',
+  'tidal memory': 'tidal_house',
+  'tidal memory glow': 'tidal_house',
+  'neon promise': 'neon_promise',
+};
+
+function detectRequestedTrack(text) {
+  const t = norm(text);
+  for (const [alias, trackId] of Object.entries(TRACK_ALIASES)) {
+    if (t.includes(alias)) {
+      return TRACKS[trackId];
+    }
+  }
+  return null;
+}
+
+function getTrackPlayResponses(track) {
+  return [
+    `Putting on ${track.title} for you.`,
+    `Here's ${track.title}.`,
+    `Playing ${track.title}.`,
+  ];
+}
 
 function formatLyricsBlock(track) {
   return `**${track.title}** — *${track.album}*\n\n${track.lyrics}`;
@@ -270,35 +355,48 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     "play please", "yes play", "yeah play", "sure play", "play the"
   ]);
   
-  if (wantsToPlay && (justMentionedNightSwim || justMentionedNeonPromise || inNeonContext)) {
-    console.log('[TRACE STUDIOS] Play request after Night Swim/Neon Promise mention');
+  // Check if user is requesting a specific track by name
+  const requestedTrack = detectRequestedTrack(t);
+  
+  // Also check what track was just mentioned by TRACE
+  const mentionedTrack = detectRequestedTrack(lastMsg);
+  
+  // Check if there's a track in the context (from previous description)
+  const contextTrackId = clientState?.traceStudiosContext;
+  const contextTrack = contextTrackId && TRACKS[contextTrackId] ? TRACKS[contextTrackId] : null;
+  
+  // Simple affirmative responses (yes, sure, okay, etc.)
+  const isAffirmative = includesAny(t, [
+    "yes", "yeah", "sure", "okay", "ok", "yep", "yup", "please", "do it", "go ahead"
+  ]);
+  
+  if ((wantsToPlay || (isAffirmative && contextTrack)) && (justMentionedNightSwim || justMentionedNeonPromise || inNeonContext || requestedTrack || mentionedTrack || contextTrack)) {
+    console.log('[TRACE STUDIOS] Play request detected');
     
-    // Determine if user specifically wants Neon Promise
-    const wantsNeonPromise = justMentionedNeonPromise || inNeonContext;
+    // Priority: user's explicit request > TRACE's last mention > context track > neon promise context
+    const trackToPlay = requestedTrack || mentionedTrack || contextTrack || (inNeonContext ? TRACKS.neon_promise : null);
     
-    if (wantsNeonPromise) {
-      // Play Neon Promise specifically
-      const responses = [
-        "Putting on Neon Promise for you.",
-        "Here's Neon Promise.",
-        "Playing Neon Promise.",
-      ];
+    if (trackToPlay) {
+      // Play specific track
+      console.log('[TRACE STUDIOS] Playing specific track:', trackToPlay.title);
+      const responses = getTrackPlayResponses(trackToPlay);
       const msg = pickRotating(responses, seed);
       return {
         assistant_message: msg,
         mode: "trace_studios",
         traceStudios: {
-          kind: "play_neon_promise",
-          traceStudiosContext: "neon_promise",
+          kind: `play_${trackToPlay.id}`,
+          traceStudiosContext: trackToPlay.id,
           audio_action: {
             action: "play",
-            trackId: "neon_promise",
+            trackId: trackToPlay.id,
             source: "trace_originals",
           },
         },
       };
     } else {
       // Play Night Swim album from the beginning
+      console.log('[TRACE STUDIOS] Playing Night Swim album');
       const responses = [
         "Putting on Night Swim for you.",
         "Here's Night Swim.",
@@ -310,7 +408,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
         mode: "trace_studios",
         traceStudios: {
           kind: "play_night_swim",
-          traceStudiosContext: "neon_promise",
+          traceStudiosContext: "night_swim",
           audio_action: {
             action: "play",
             trackId: "night_swim",
@@ -319,6 +417,36 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
         },
       };
     }
+  }
+
+  // Handle when user asks about a specific track (not playing, just asking)
+  const asksAboutTrack = includesAny(t, [
+    "what is", "what's", "tell me about", "describe", "what about",
+    "that one", "the one called", "the track called"
+  ]);
+  
+  if (asksAboutTrack && requestedTrack) {
+    console.log('[TRACE STUDIOS] User asking about track:', requestedTrack.title);
+    const track = requestedTrack;
+    
+    // Describe the track with its mood
+    const descriptions = [
+      `**${track.title}**… ${track.description}`,
+      `${track.title}. ${track.description}`,
+      `That one. ${track.description}`,
+    ];
+    const msg = pickRotating(descriptions, seed);
+    const followUp = "\n\nWant me to play it?";
+    
+    return {
+      assistant_message: msg + followUp,
+      mode: "trace_studios",
+      traceStudios: {
+        kind: "track_description",
+        traceStudiosContext: track.id,
+        mentionedTrack: track.id,
+      },
+    };
   }
 
   if (looksLikeFunQuestion(t)) {
