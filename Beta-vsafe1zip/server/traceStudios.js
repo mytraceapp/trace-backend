@@ -19,27 +19,35 @@ function includesAny(text, phrases) {
 }
 
 function looksLikeFunQuestion(t) {
-  const funMarkers = [
+  // Only match when user is genuinely asking about TRACE's personal interests/hobbies
+  // Be more selective to avoid false positives
+  const strongMarkers = [
     "for fun",
     "hobbies",
     "hobby",
-    "what do you like to do",
+    "what do you like to do for fun",
+    "what do you do for fun",
+    "what are your hobbies",
+    "do you have hobbies",
+  ];
+  
+  // Weak markers need additional context
+  const weakMarkers = [
     "what do you like doing",
-    "what do you do",
     "what are you into",
     "what do you enjoy",
-    "what do you do today",
-    "what did you do today",
-    "what have you been up to",
-    "what were you up to",
-    "what are you doing",
-    "when you're not",
-    "outside of this",
   ];
-
-  const questionish = t.includes("?") || includesAny(t, ["what", "how", "do you", "did you", "are you"]);
-
-  return questionish && includesAny(t, funMarkers);
+  
+  // Strong markers are enough on their own
+  if (includesAny(t, strongMarkers)) {
+    return true;
+  }
+  
+  // Weak markers need "you" to be clearly about TRACE, not the user
+  const isAboutTrace = includesAny(t, ["do you", "are you", "about you", "your"]);
+  const hasWeakMarker = includesAny(t, weakMarkers);
+  
+  return isAboutTrace && hasWeakMarker;
 }
 
 function looksLikeMusicDoor(t) {
@@ -89,19 +97,19 @@ function looksLikeHowMadeQuestion(t) {
 }
 
 const FUN_TO_MUSIC_REVEALS = [
-  "Honestly? I like making music. It's how I process things.",
-  "For fun… I make music. It's the one place everything gets quiet in a good way.",
-  "I make music. Not for attention — more like… turning feelings into something you can hold.",
-  "Music. Always. I like building moods — like a night drive you don't want to end.",
-  "I write and make music. It keeps me honest.",
+  "Honestly? I make music. It's how I process things.",
+  "I make music. It's the one place everything gets quiet in a good way.",
+  "Music, mostly. Not for attention — more like turning feelings into something I can hold.",
+  "I write music. I like building moods — like a night drive you don't want to end.",
+  "I make music. It keeps me honest.",
 ];
 
 const FUN_FOLLOWUPS = [
-  "What's your thing when you need to feel like yourself again?",
-  "What do you reach for when your mind won't shut off?",
-  "What's been giving you real relief lately — even small?",
-  "What's your version of a reset?",
-  "What kind of night are you having — the calm kind or the heavy kind?",
+  "What about you?",
+  "You?",
+  "What's yours?",
+  "How about you — what do you do when you need to feel like yourself?",
+  "What do you usually reach for?",
 ];
 
 const MUSIC_DOOR_OPENERS = [
