@@ -147,7 +147,25 @@ function passCadence(doorway, clientState = {}) {
   const lastId = clientState?.doorwayState?.lastDoorwayId;
   const mins = minutesSince(last);
 
+  // CRITICAL: If we're already in a doorway conversation (recent doorway triggered),
+  // don't trigger another doorway. User is responding, not starting a new topic.
+  // Use 5-minute window to detect "in conversation" state
+  const IN_CONVERSATION_WINDOW = 5;
+  if (lastId && mins < IN_CONVERSATION_WINDOW) {
+    console.log('[DOORWAYS] Blocked - already in doorway conversation:', lastId, 'mins ago:', mins.toFixed(1));
+    return false;
+  }
+
   const required = doorway.cadenceMinutes ?? 0;
+  
+  // Even if cadence is 0, don't trigger the SAME doorway within 10 minutes
+  // (prevents accidental re-trigger from natural dream language in replies)
+  const MIN_SAME_DOORWAY_GAP = 10;
+  if (lastId === doorway.id && mins < MIN_SAME_DOORWAY_GAP) {
+    console.log('[DOORWAYS] Blocked - same doorway too recently:', lastId);
+    return false;
+  }
+
   if (!required) return true;
 
   if (lastId === doorway.id && mins < required) return false;
