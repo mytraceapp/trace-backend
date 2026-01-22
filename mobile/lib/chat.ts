@@ -18,6 +18,10 @@ export interface ClientState {
   lastSuggestion?: { suggestion_id?: string; type: string; id: string; ts: number; accepted?: boolean | null } | null;
   lastActivity?: { id: string; ts: number } | null;
   doorwayState?: { lastDoorwayId: string; ts: number } | null;
+  sessionTurnCount?: number;
+  lastHookAt?: number | null;
+  lastHookGlobalAt?: number | null;
+  localNow?: number;
 }
 
 export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone, patternContext, tonePreference, traceStudiosContext, client_state }: {
@@ -113,6 +117,9 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
     // Extract brain suggestion if present
     const suggestion = data.suggestion || null;
     
+    // Extract curiosity hook if present
+    const curiosity_hook = data.curiosity_hook || null;
+    
     return {
       message: data.message || "mm, I'm here.",
       messages: data.messages || null, // Multi-message array for crisis mode
@@ -124,6 +131,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
       client_state_patch, // Pass back for state updates
       doorway, // Pass back for doorway mode
       suggestion, // Pass back for brain suggestions
+      curiosity_hook, // Pass back for curiosity hooks (Pillar 8)
     };
   } catch (err: any) {
     clearTimeout(timeout);

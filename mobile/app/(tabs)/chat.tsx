@@ -568,6 +568,10 @@ export default function ChatScreen() {
     lastSuggestion: { suggestion_id?: string; type: string; id: string; ts: number; accepted?: boolean | null } | null;
     lastActivity: { id: string; ts: number } | null;
     doorwayState: { lastDoorwayId: string; ts: number } | null;
+    sessionTurnCount: number;
+    lastHookAt: number | null;
+    lastHookGlobalAt: number | null;
+    localNow: number;
   }>({
     mode: 'chat',
     timeOfDay: getTimeOfDay(),
@@ -576,6 +580,10 @@ export default function ChatScreen() {
     lastSuggestion: null,
     lastActivity: null,
     doorwayState: null,
+    sessionTurnCount: 0,
+    lastHookAt: null,
+    lastHookGlobalAt: null,
+    localNow: Date.now(),
   });
 
   const [fontsLoaded] = useFonts({
@@ -1453,6 +1461,8 @@ export default function ChatScreen() {
 
       // Update timeOfDay before each request
       clientStateRef.current.timeOfDay = getTimeOfDay();
+      clientStateRef.current.localNow = Date.now();
+      clientStateRef.current.sessionTurnCount = (clientStateRef.current.sessionTurnCount || 0) + 1;
       
       const result = await sendChatMessage({
         messages: payloadMessages,
@@ -1479,7 +1489,7 @@ export default function ChatScreen() {
         setTraceStudiosContext(null);
       }
       
-      // ===== APPLY CLIENT STATE PATCH from backend (doorways, suggestions) =====
+      // ===== APPLY CLIENT STATE PATCH from backend (doorways, suggestions, hooks) =====
       if (result?.client_state_patch) {
         const patch = result.client_state_patch;
         if (patch.doorwayState) {
@@ -1490,6 +1500,19 @@ export default function ChatScreen() {
           clientStateRef.current.lastSuggestion = patch.lastSuggestion;
           console.log('📊 TRACE client_state_patch applied: lastSuggestion', patch.lastSuggestion.id);
         }
+        if (patch.lastHookAt !== undefined) {
+          clientStateRef.current.lastHookAt = patch.lastHookAt;
+          console.log('📊 TRACE client_state_patch applied: lastHookAt', patch.lastHookAt);
+        }
+        if (patch.lastHookGlobalAt !== undefined) {
+          clientStateRef.current.lastHookGlobalAt = patch.lastHookGlobalAt;
+          console.log('📊 TRACE client_state_patch applied: lastHookGlobalAt', patch.lastHookGlobalAt);
+        }
+      }
+      
+      // Log curiosity hook if present (for debugging)
+      if (result?.curiosity_hook) {
+        console.log('🪝 TRACE curiosity hook:', result.curiosity_hook);
       }
       
       // Log doorway mode if triggered

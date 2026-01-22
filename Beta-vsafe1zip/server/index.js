@@ -61,7 +61,7 @@ if (process.env.NEON_PROMISE_LYRICS) {
   TRACKS.neon_promise.lyrics = process.env.NEON_PROMISE_LYRICS;
 }
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
-const { getSignals: getBrainSignals, buildClientStateContext, decideSuggestion, tightenResponse } = require('./traceBrain');
+const { getSignals: getBrainSignals, buildClientStateContext, decideSuggestion, tightenResponse, applyTimeOfDayRules, maybeAddCuriosityHook } = require('./traceBrain');
 const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
@@ -4709,6 +4709,10 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     const brainSignals = getBrainSignals(userMsgForBrain);
     console.log('[TRACE BRAIN] signals:', JSON.stringify(brainSignals));
     
+    // Apply time-of-day rules for tone, brevity, and musicBias
+    const todRules = applyTimeOfDayRules(safeClientState, brainSignals);
+    console.log('[TIME-OF-DAY] tone:', todRules.tone, 'maxSentences:', todRules.maxSentences, 'musicBias:', todRules.musicBias);
+    
     // ============================================================
     // TRACE ATTUNEMENT ENGINE v1
     // Detect care posture based on user emotional state
@@ -5340,8 +5344,8 @@ Your response:`;
     }
     
     // ===== TRACE BRAIN SUGGESTION LOGIC =====
-    // Decide if we should include a suggestion (with cooldown)
-    const brainResult = decideSuggestion(safeClientState, brainSignals);
+    // Decide if we should include a suggestion (with cooldown, respecting musicBias)
+    const brainResult = decideSuggestion(safeClientState, brainSignals, todRules);
     const brainSuggestion = brainResult?.suggestion || null;
     const brainSuppressed = brainResult?.suppressed || null;
     
@@ -5383,11 +5387,22 @@ Your response:`;
     }
     
     // ===== RESPONSE TIGHTENING =====
-    // Ensure concise TRACE voice (2-6 sentences, no bullet lists unless asked)
-    const tightenedText = tightenResponse(processedAssistantText);
+    // Ensure concise TRACE voice with time-of-day aware sentence limits
+    const tightenedText = tightenResponse(processedAssistantText, { maxSentences: todRules.maxSentences });
     if (tightenedText !== processedAssistantText) {
-      console.log('[TRACE BRAIN] Response tightened');
+      console.log('[TRACE BRAIN] Response tightened (maxSentences:', todRules.maxSentences, ')');
     }
+    
+    // ===== CURIOSITY HOOKS (Pillar 8) =====
+    // Non-manipulative, deterministic hooks for meaning-seeking users
+    const hookResult = maybeAddCuriosityHook({
+      userId: effectiveUserId,
+      clientState: safeClientState,
+      signals: brainSignals,
+      rules: todRules
+    });
+    const curiosityHook = hookResult?.curiosity_hook || null;
+    const hookStatePatch = hookResult?.client_state_patch || null;
     
     // Build response - include messages array if crisis mode
     const response = {
@@ -5398,18 +5413,34 @@ Your response:`;
       posture_confidence: postureConfidence,
     };
     
+    // Add curiosity hook if triggered (returned separately, not appended to message)
+    if (curiosityHook) {
+      response.curiosity_hook = curiosityHook;
+    }
+    
+    // Build client_state_patch (merge suggestion patch + hook patch)
+    let clientStatePatch = {};
+    
     // Add brain suggestion if present (separate from activity_suggestion for clarity)
     if (brainSuggestion) {
       response.suggestion = brainSuggestion;
-      response.client_state_patch = {
-        lastSuggestion: {
-          suggestion_id: brainSuggestion.suggestion_id,
-          type: brainSuggestion.type,
-          id: brainSuggestion.id,
-          ts: Date.now(),
-          accepted: null, // Frontend will update this
-        }
+      clientStatePatch.lastSuggestion = {
+        suggestion_id: brainSuggestion.suggestion_id,
+        type: brainSuggestion.type,
+        id: brainSuggestion.id,
+        ts: Date.now(),
+        accepted: null, // Frontend will update this
       };
+    }
+    
+    // Merge hook state patch
+    if (hookStatePatch) {
+      clientStatePatch = { ...clientStatePatch, ...hookStatePatch };
+    }
+    
+    // Only add client_state_patch if we have something to patch
+    if (Object.keys(clientStatePatch).length > 0) {
+      response.client_state_patch = clientStatePatch;
     }
     
     // Add pattern_metadata if we used pattern context in this response

@@ -1,0 +1,274 @@
+You are a senior Node/Express engineer working on TRACE backend (Replit). Implement ONLY:
+	•	Pillar 10: Time-of-Day Context
+	•	Pillar 8: Curiosity Hooks
+
+Do NOT implement winback or progress insights.
+Do NOT add new routes.
+Do NOT introduce new scripts.
+Keep architecture clean and non-breaking.
+
+⸻
+
+0) PRE-FLIGHT (MANDATORY BEFORE CODING)
+
+Before editing any code, locate existing prompt builder + suggestion routing to avoid breaking changes.
+
+A) Find the System Prompt Builder
+
+Run:
+grep -n "buildSystemPrompt\|getSystemPrompt\|systemPrompt\|function.*[Pp]rompt" server/traceBrain.js
+Identify the actual function/section currently building TRACE’s system prompt string.
+
+✅ Do NOT create a second prompt builder.
+Modify the existing one only.
+
+B) Locate decideSuggestion (if it exists)
+
+Run:
+grep -n "decideSuggestion" server/traceBrain.js server/index.js
+If decideSuggestion exists, inspect its current signature and call sites.
+
+✅ Do NOT change decideSuggestion signature unless all callsites are updated in the same patch.
+Prefer internal integration (compute musicBias inside decideSuggestion or via a wrapper) to avoid silent bugs.
+
+C) Confirm timeOfDay fields exist in payload
+
+Check what the frontend is actually sending:
+grep -n "client_state\|clientState\|ClientState" mobile/lib/chat.ts | head -80
+If client_state.timeOfDay exists, use it.
+If not, compute it safely (see section 2).
+
+⸻
+
+1) PILLAR 10 — Time-of-Day Context (rules object)
+
+Create / update a function:
+applyTimeOfDayRules(client_state, signals)
+It must return:
+{
+  tone: "morning"|"day"|"evening"|"late_night",
+  maxSentences: number,   // morning/day=5, evening=4, late_night=3
+  musicBias: boolean,
+  allowCuriosityHook: boolean,
+  toneHint: string        // 1 short line used in system prompt
+}
+tone calculation (source of truth + fallback)
+
+Use this order:
+	1.	If client_state.timeOfDay exists → map it to tone directly
+	2.	Else if client_state.localNow (epoch ms) exists → compute hour from it
+	3.	Else use server time as fallback
+
+Tone buckets:
+	•	late_night: hour >= 22 OR hour < 6
+	•	morning: 6–11
+	•	day: 12–17
+	•	evening: 18–21
+
+musicBias definition (explicit)
+
+Make musicBias true only when:
+(tone === "late_night" || tone === "evening")
+&& (sad || lonely || reflective)
+&& !signals.highArousal
+&& !(client_state.mode === "audio_player" || client_state.nowPlaying != null)
+Where sad/lonely/reflective comes from:
+	•	client_state.recentSentiment in ["sad","lonely","reflective","calm"]
+OR
+	•	signals.reflectiveTone === true
+
+allowCuriosityHook definition
+allowCuriosityHook = !(tone === "late_night" && signals.highArousal === true)
+toneHint (used in prompt)
+
+toneHint must be 1 line max:
+	•	late_night: "softer, fewer words, slower"
+	•	evening: "calm, reflective"
+	•	morning/day: "clear, steady"
+
+⸻
+
+2) SIGNALS — ensure required fields exist (minimal proxies)
+
+Update getSignals(userText) inside server/traceBrain.js and ensure it outputs:
+	•	signals.isCrisis
+	•	signals.highArousal
+	•	signals.meaningSeeking
+	•	signals.patternLanguage
+	•	signals.reflectiveTone
+
+highArousal fallback proxy
+
+If not already implemented, add:
+	•	keyword list: panic, panicking, anxious, anxiety, overwhelmed, spiraling, freaking out, can't breathe, can’t breathe, heart racing
+	•	highArousal = hitCount >= 2 OR strong phrase match
+
+meaningSeeking proxy
+
+Trigger phrases:
+	•	“what does this mean”
+	•	“why is this happening”
+	•	“what am i supposed to learn”
+	•	“what is the point”
+	•	“what is God doing”
+
+patternLanguage proxy
+
+Trigger phrases:
+	•	“this keeps happening”
+	•	“every time”
+	•	“same thing again”
+	•	“why do i always”
+	•	“pattern”
+
+reflectiveTone proxy
+	•	“I’m realizing”, “I noticed”, “it feels like”, “I wonder if”, “lately”, “on my mind”
+OR client_state.recentSentiment in [“calm”,“reflective”]
+
+⸻
+
+3) SYSTEM PROMPT BUILDER — EXACTLY WHERE + HOW TO MODIFY
+
+Wherever TRACE currently builds its system prompt string in server/traceBrain.js, modify it to inject tone safely.
+
+Example pattern:
+const systemPrompt = `You are TRACE...
+TONE: ${rules.toneHint}
+...`
+Must include:
+	•	one perspective (“here’s what I think”, not “here are 5 options”)
+	•	no lists unless asked
+	•	do not mention product features
+	•	audio awareness rule:
+	•	if audio_player / nowPlaying present: allow answering user question normally BUT avoid feature suggestions and don’t pivot away from music; can acknowledge track softly.
+
+IMPORTANT:
+	•	Do NOT force sentence count in system prompt.
+	•	Sentence count enforcement happens only in post-processing.
+
+⸻
+
+4) tightenTraceReply() — single source of brevity enforcement
+
+Implement or update:
+tightenTraceReply(text, { maxSentences })
+Must do:
+
+A) list-busting
+
+remove or neutralize:
+	•	“Here are X…”
+	•	numbered lists 1. 2. 3.
+	•	bullets • -
+
+B) question limit enforcement
+
+If > 1 “?” appears, keep content only through the first “?” and trim rest.
+
+C) sentence boundary truncation
+
+Split sentences using a pragmatic regex:
+	•	split on /[.!?]+\s+(?=[A-Z])/
+
+Add abbreviation safeguards:
+const ABBREVIATIONS = ["Dr","Mr","Ms","Prof","St","Jr","Sr","e.g","i.e","U.S","Inc","Ltd"];
+Engineer should test quickly on real model output.
+
+⸻
+
+5) PILLAR 8 — Curiosity Hooks (non-manipulative, deterministic rotation)
+
+Add:
+maybeAddCuriosityHook({ user_id, client_state, signals, rules })
+hard skip
+
+If client_state.mode === "audio_player" OR client_state.nowPlaying != null:
+	•	return null (no hooks during music playback)
+
+gating rules
+
+Hook allowed only if ALL true:
+	1.	rules.allowCuriosityHook === true
+	2.	signals.isCrisis === false
+	3.	signals.highArousal === false
+	4.	client_state.sessionTurnCount >= 3 (source of truth; if missing treat as 0)
+	5.	relevance:
+	•	meaningSeeking OR patternLanguage OR reflectiveTone
+	6.	session throttle:
+	•	lastHookAt null OR now-lastHookAt > 60 minutes
+	7.	global cooldown:
+	•	lastHookGlobalAt null OR now-lastHookGlobalAt > 24 hours
+
+deterministic rotation (prevents repeats)
+
+Implement stable selection:
+	•	index = hash(user_id + YYYY-MM-DD) % hooks.length
+
+Hooks list (final set = 5):
+	•	“There’s a pattern forming here — if you want, we can keep watching it together.”
+	•	“Something in this feels like it’s pointing to a deeper thread — we can stay with it.”
+	•	“This has a quiet repeat to it — I can help you name what it’s asking for.”
+	•	“This feels like it’s unfolding in layers — we don’t have to rush it.”
+	•	“There’s more underneath this than it looks like — and you’re close to it.”
+
+Return:
+{
+  curiosity_hook: string|null,
+  client_state_patch: { lastHookAt?: number, lastHookGlobalAt?: number }
+}
+Do NOT append hook into assistant_message by default. Return separately.
+
+⸻
+
+6) DECISION INTEGRATION (avoid collisions)
+
+Do NOT break decideSuggestion.
+
+Preferred approach:
+	•	compute rules = applyTimeOfDayRules(client_state, signals)
+	•	if decideSuggestion exists:
+	•	integrate musicBias inside decideSuggestion without changing signature OR
+	•	add a wrapper function that calls decideSuggestion and applies musicBias preference after
+
+Priority:
+	1.	audio_player → no suggestion
+	2.	highArousal → activity > track
+	3.	musicBias → track > activity
+
+⸻
+
+7) server/index.js integration (minimal)
+
+Inside POST /api/chat:
+	•	read client_state, compute signals
+	•	compute rules
+	•	build system prompt injecting rules.toneHint
+	•	call OpenAI
+	•	apply tightenTraceReply(reply, { maxSentences: rules.maxSentences })
+	•	compute curiosity_hook = maybeAddCuriosityHook(...)
+	•	return:
+{
+  assistant_message,
+  curiosity_hook,
+  client_state_patch
+}
+No new routes.
+
+⸻
+
+Deliverables
+	•	Modified server/traceBrain.js with:
+	•	applyTimeOfDayRules
+	•	expanded getSignals
+	•	updated system prompt builder (existing function)
+	•	tightenTraceReply improvements
+	•	curiosity hook function
+	•	Minimal server/index.js wiring changes
+	•	Confirm no breaking changes to decideSuggestion signature
+	•	Confirm timeOfDay works even if frontend missing fields (fallback compute)
+
+ generate the micro frontend prompt to ensure these are sent/stored cleanly:
+	•	client_state.timeOfDay OR localNow
+	•	timezone
+	•	sessionTurnCount
+	•	lastHookAt, lastHookGlobalAt persistence
