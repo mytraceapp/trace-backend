@@ -69,7 +69,24 @@ function looksLikeMusicDoor(t) {
   ];
 
   const vague = includesAny(t, ["your music", "you make music", "you write music", "you made a song", "your album"]);
-  return includesAny(t, direct) || vague;
+  
+  // Follow-up questions after music reveal
+  const followUpPatterns = [
+    "what kind of music",
+    "what type of music",
+    "what genre",
+    "tell me more",
+    "more about that",
+    "what's it like",
+    "what is it like",
+    "what does it sound like",
+    "can i hear",
+    "can you play",
+    "let me hear",
+    "show me",
+  ];
+  
+  return includesAny(t, direct) || vague || includesAny(t, followUpPatterns);
 }
 
 function looksLikeLyricsRequest(t) {
@@ -243,7 +260,35 @@ function handleTraceStudios({ userText, clientState = {}, userId = "" }) {
     };
   }
 
-  if (looksLikeMusicDoor(t) || inNeonContext) {
+  // Check if in music_general context (just revealed we make music)
+  const inMusicGeneralContext = clientState?.traceStudiosContext === "music_general";
+  
+  if (looksLikeMusicDoor(t) || inNeonContext || inMusicGeneralContext) {
+    // Follow-up about music type/genre after reveal
+    const isMusicFollowUp = includesAny(t, [
+      "what kind", "what type", "what genre", "tell me more", 
+      "more about", "what's it like", "what is it like", "what does it sound"
+    ]);
+    
+    if (isMusicFollowUp && inMusicGeneralContext) {
+      // Natural reveal of Night Swim album
+      const responses = [
+        "It's called *Night Swim*. It's the kind of music you put on when you don't need words — just something that sits with you.",
+        "*Night Swim*. It's ambient, mostly. Like something you'd drive to at 2am when you're trying to feel okay again.",
+        "It's an album called *Night Swim*. Soft, slow, kind of floaty. For when you need something that doesn't ask anything of you.",
+        "*Night Swim.* Moody. Layered. The kind of thing that just holds space without filling it with noise.",
+      ];
+      const msg = pickRotating(responses, seed);
+      return {
+        assistant_message: msg,
+        mode: "trace_studios",
+        traceStudios: {
+          kind: "album_reveal",
+          traceStudiosContext: "neon_promise",
+        },
+      };
+    }
+    
     if (looksLikeHowMadeQuestion(t) && (looksLikeNeonPromiseRequest(t) || inNeonContext)) {
       const msg = pickRotating(HOW_MADE_VARIANTS, seed);
       return {
