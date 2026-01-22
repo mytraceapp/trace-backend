@@ -272,25 +272,53 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
   
   if (wantsToPlay && (justMentionedNightSwim || justMentionedNeonPromise || inNeonContext)) {
     console.log('[TRACE STUDIOS] Play request after Night Swim/Neon Promise mention');
-    const responses = [
-      "Putting on Night Swim for you.",
-      "Here's Night Swim.",
-      "Playing Night Swim.",
-    ];
-    const msg = pickRotating(responses, seed);
-    return {
-      assistant_message: msg,
-      mode: "trace_studios",
-      traceStudios: {
-        kind: "play_night_swim",
-        traceStudiosContext: "neon_promise",
-        audio_action: {
-          action: "play",
-          trackId: "night_swim",
-          source: "trace_originals",
+    
+    // Determine if user specifically wants Neon Promise
+    const wantsNeonPromise = justMentionedNeonPromise || inNeonContext;
+    
+    if (wantsNeonPromise) {
+      // Play Neon Promise specifically
+      const responses = [
+        "Putting on Neon Promise for you.",
+        "Here's Neon Promise.",
+        "Playing Neon Promise.",
+      ];
+      const msg = pickRotating(responses, seed);
+      return {
+        assistant_message: msg,
+        mode: "trace_studios",
+        traceStudios: {
+          kind: "play_neon_promise",
+          traceStudiosContext: "neon_promise",
+          audio_action: {
+            action: "play",
+            trackId: "neon_promise",
+            source: "trace_originals",
+          },
         },
-      },
-    };
+      };
+    } else {
+      // Play Night Swim album from the beginning
+      const responses = [
+        "Putting on Night Swim for you.",
+        "Here's Night Swim.",
+        "Playing Night Swim.",
+      ];
+      const msg = pickRotating(responses, seed);
+      return {
+        assistant_message: msg,
+        mode: "trace_studios",
+        traceStudios: {
+          kind: "play_night_swim",
+          traceStudiosContext: "neon_promise",
+          audio_action: {
+            action: "play",
+            trackId: "night_swim",
+            source: "trace_originals",
+          },
+        },
+      };
+    }
   }
 
   if (looksLikeFunQuestion(t)) {
