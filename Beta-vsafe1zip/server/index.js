@@ -61,7 +61,7 @@ if (process.env.NEON_PROMISE_LYRICS) {
   TRACKS.neon_promise.lyrics = process.env.NEON_PROMISE_LYRICS;
 }
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
-const { getSignals: getBrainSignals, buildClientStateContext, decideSuggestion, tightenResponse, applyTimeOfDayRules, maybeAddCuriosityHook } = require('./traceBrain');
+const { getSignals: getBrainSignals, buildClientStateContext, decideSuggestion, tightenResponse, applyTimeOfDayRules, maybeAddCuriosityHook, maybeWinback, buildWinbackMessage } = require('./traceBrain');
 const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
@@ -3166,6 +3166,40 @@ app.post('/api/chat', async (req, res) => {
           }
         });
       }
+    }
+    
+    // ===== PILLAR 11: EXIT FRICTION & WINBACK =====
+    // Check if user is returning after extended absence
+    const lastUserMsgText = rawMessages?.filter(m => m.role === 'user').pop()?.content || '';
+    const winbackSignals = getBrainSignals(lastUserMsgText);
+    const winbackCheck = maybeWinback(safeClientState, winbackSignals);
+    
+    if (winbackCheck.shouldShow) {
+      const winbackMsg = buildWinbackMessage({
+        days: winbackCheck.days,
+        tier: winbackCheck.tier,
+        clientState: safeClientState,
+      });
+      
+      console.log('[WINBACK] Triggered:', { tier: winbackCheck.tier, days: winbackCheck.days });
+      
+      // Log winback event for telemetry
+      if (effectiveUserId) {
+        logEvent({
+          user_id: effectiveUserId,
+          event_name: 'winback_triggered',
+          props: {
+            tier: winbackCheck.tier,
+            days: winbackCheck.days,
+          }
+        }).catch(() => {});
+      }
+      
+      return res.json({
+        message: winbackMsg,
+        winback: { days: winbackCheck.days, tier: winbackCheck.tier },
+        client_state_patch: { winbackShownAt: Date.now() }
+      });
     }
     
     // Banned phrases that should not be in conversation history (causes AI to copy them)

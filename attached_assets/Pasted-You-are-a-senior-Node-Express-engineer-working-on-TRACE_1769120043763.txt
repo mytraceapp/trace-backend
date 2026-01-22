@@ -1,0 +1,135 @@
+You are a senior Node/Express engineer working on TRACE backend (Replit). Implement ONLY Pillar 11: Exit Friction & Winback.
+
+No new routes. No UI rebuild. Keep changes minimal and production-safe. Do not interfere with existing doorways/safety logic.
+
+⸻
+
+0) Goal
+
+When a user returns after being away, TRACE should respond with a premium re-entry that:
+	•	feels personal, not robotic
+	•	doesn’t guilt-trip
+	•	helps them re-enter in 1 step
+	•	never stacks multiple scripts
+
+⸻
+
+1) Inputs (from frontend client_state)
+
+Assume client_state may include:
+	•	lastSeenAt (epoch ms) — preferred
+	•	OR daysSinceLastSeen (number) — optional fallback
+	•	mode, recentSentiment, nowPlaying, lastActivity, lastSuggestion
+
+If missing, winback should not trigger.
+
+⸻
+
+2) Winback detection
+
+Add helper in server/traceBrain.js:
+function computeDaysSinceLastSeen(client_state) { ... }
+Rules:
+	•	If daysSinceLastSeen provided, use it.
+	•	Else if lastSeenAt provided, compute from Date.now().
+	•	Else return null.
+
+Trigger tiers:
+	•	Tier A: 7–13 days
+	•	Tier B: 14–29 days
+	•	Tier C: 30+ days
+
+Also add a once-per-return-session gate:
+	•	If client_state.winbackShownAt exists and is within the last 12 hours → do not show again.
+
+Return:
+{ shouldShow: boolean, days: number, tier: "A"|"B"|"C" }
+3) Winback message generation (TRACE voice)
+
+Add:
+function buildWinbackMessage({ days, tier, client_state }) { ... }
+Requirements:
+	•	2–4 sentences max
+	•	one perspective (TRACE)
+	•	no lists
+	•	one question max
+	•	no “Welcome back!” (robotic)
+	•	no guilt (“you disappeared” / “you should”)
+	•	conversational, warm, premium
+
+Optional personalization (only if available and safe):
+	•	If client_state.lastActivity?.name exists: gently reference it.
+	•	If recentSentiment exists: acknowledge vibe (“feels like a quiet return”).
+	•	If nowPlaying exists OR audio_player mode: DO NOT winback (user is already in a flow).
+
+Example tone (not verbatim):
+	•	Tier A: “Feels like it’s been a minute. Want to pick up where you left off, or start fresh tonight?”
+	•	Tier B: “You’re back. No pressure — we can go small. What’s the one thing you want to feel right now?”
+	•	Tier C: “A lot can shift in a month. Tell me what changed most since you were last here.”
+
+⸻
+
+4) “Easy win” option (STRICT)
+
+Do NOT suggest features broadly. If you include an easy win:
+	•	only ONE option (music OR one activity), not both
+	•	only if user is NOT in audio_player mode and not already listening
+	•	only if not high-arousal/crisis (reuse existing getSignals)
+	•	keep it as an invitation, not a directive
+Example: “If you want something gentle first, I can put on something calm.”
+
+This should not override existing suggestion routing—winback is primary message only.
+
+⸻
+
+5) Priority / Non-clash rules
+
+In server/index.js inside POST /api/chat, integrate winback in this priority order:
+	1.	Safety / crisis handling (existing)
+	2.	Hard flows (existing reflection/doorways if you have them)
+	3.	Winback (Pillar 11) ← add here
+	4.	Normal chat / model response
+
+Winback must not stack with other scripts:
+	•	If winback triggers, return it as assistant_message immediately (early return).
+	•	Do NOT call OpenAI for that request (unless your architecture requires it—prefer not).
+
+⸻
+
+6) Response shape
+
+Return:
+{
+  assistant_message: string,
+  winback: { days: number, tier: string } | null,
+  client_state_patch: { winbackShownAt: number }
+}
+
+If not triggered:
+	•	winback: null
+	•	no patch
+
+⸻
+
+7) Files to edit
+	•	server/traceBrain.js
+	•	computeDaysSinceLastSeen
+	•	maybeWinback(client_state, signals) (or similar)
+	•	buildWinbackMessage
+	•	server/index.js
+	•	Call winback check early (after safety/doorways, before OpenAI)
+	•	If triggered: return early
+
+⸻
+
+8) Testing checklist (quick)
+	•	lastSeenAt missing → no winback
+	•	daysSinceLastSeen=6 → no winback
+	•	daysSinceLastSeen=7 → Tier A triggers once
+	•	daysSinceLastSeen=20 → Tier B triggers once
+	•	daysSinceLastSeen=45 → Tier C triggers once
+	•	winbackShownAt within 12 hours → no winback
+	•	audio_player / nowPlaying present → no winback
+	•	high-arousal message on return → no winback (let normal safety/tone take over)
+
+Implement cleanly with minimal code and no breaking changes.

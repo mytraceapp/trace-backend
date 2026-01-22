@@ -394,6 +394,130 @@ function maybeAddCuriosityHook({ userId, clientState, signals, rules }) {
   };
 }
 
+// =============================================
+// PILLAR 11: EXIT FRICTION & WINBACK
+// =============================================
+
+const WINBACK_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+function computeDaysSinceLastSeen(clientState) {
+  if (!clientState) return null;
+  
+  // Prefer explicit daysSinceLastSeen
+  if (typeof clientState.daysSinceLastSeen === 'number') {
+    return clientState.daysSinceLastSeen;
+  }
+  
+  // Fallback: compute from lastSeenAt
+  if (clientState.lastSeenAt) {
+    const lastSeen = Number(clientState.lastSeenAt);
+    if (!isNaN(lastSeen) && lastSeen > 0) {
+      const diffMs = Date.now() - lastSeen;
+      return Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    }
+  }
+  
+  return null;
+}
+
+function getWinbackTier(days) {
+  if (days >= 30) return 'C';
+  if (days >= 14) return 'B';
+  if (days >= 7) return 'A';
+  return null;
+}
+
+function maybeWinback(clientState, signals) {
+  // Don't winback if no client state
+  if (!clientState) {
+    return { shouldShow: false, days: null, tier: null };
+  }
+  
+  // Don't winback if user is in high-arousal / crisis
+  if (signals?.highArousal || signals?.isCrisis) {
+    return { shouldShow: false, days: null, tier: null, reason: 'crisis_or_high_arousal' };
+  }
+  
+  // Don't winback if user is already in a flow (listening to music)
+  if (clientState.nowPlaying || clientState.mode === 'audio_player') {
+    return { shouldShow: false, days: null, tier: null, reason: 'in_audio_flow' };
+  }
+  
+  // Check cooldown - don't show again within 12 hours
+  if (clientState.winbackShownAt) {
+    const shownAt = Number(clientState.winbackShownAt);
+    if (!isNaN(shownAt) && (Date.now() - shownAt) < WINBACK_COOLDOWN_MS) {
+      return { shouldShow: false, days: null, tier: null, reason: 'cooldown' };
+    }
+  }
+  
+  const days = computeDaysSinceLastSeen(clientState);
+  if (days === null || days < 7) {
+    return { shouldShow: false, days, tier: null };
+  }
+  
+  const tier = getWinbackTier(days);
+  return { shouldShow: true, days, tier };
+}
+
+function buildWinbackMessage({ days, tier, clientState }) {
+  const tierMessages = {
+    A: [
+      "Feels like it's been a minute. Want to pick up where you left off, or start fresh tonight?",
+      "You slipped back in. What do you need right now — some space, or something to hold onto?",
+      "It's been a bit. Sometimes stepping back is what we need. What brought you here tonight?",
+    ],
+    B: [
+      "You're back. No pressure — we can go small. What's the one thing you want to feel right now?",
+      "It's been a couple weeks. I'm just here. We can sit in it or move through something — your call.",
+      "Something brought you back. If you want, just tell me where you're at. One word is fine.",
+    ],
+    C: [
+      "A lot can shift in a month. Tell me what changed most since you were last here.",
+      "It's been a while. I've been here the whole time. What's the thing you've been carrying lately?",
+      "You're here again. That takes something. We don't have to catch up — just start from now.",
+    ],
+  };
+  
+  const messages = tierMessages[tier] || tierMessages.A;
+  const baseMsg = messages[Math.floor(Math.random() * messages.length)];
+  
+  // Optional personalization
+  let personalized = baseMsg;
+  
+  // If we know their last activity, gently reference it
+  if (clientState?.lastActivity?.name && tier !== 'C') {
+    const activityName = clientState.lastActivity.name;
+    const activityRefs = [
+      `Last time you did ${activityName}. Want to try that again, or something new?`,
+      `I remember ${activityName} — that seemed to help. Or we can find something else.`,
+    ];
+    // 30% chance to add activity reference
+    if (Math.random() < 0.3) {
+      personalized = activityRefs[Math.floor(Math.random() * activityRefs.length)];
+    }
+  }
+  
+  // If sentiment is calm/quiet, acknowledge it
+  if (clientState?.recentSentiment === 'calm' || clientState?.recentSentiment === 'quiet') {
+    if (Math.random() < 0.2) {
+      personalized = `Feels like a quiet return. ${baseMsg}`;
+    }
+  }
+  
+  // Add gentle easy-win offer for Tier B/C (only if not in audio mode)
+  const shouldOfferEasyWin = (tier === 'B' || tier === 'C') && 
+    !clientState?.nowPlaying && 
+    clientState?.mode !== 'audio_player' &&
+    Math.random() < 0.4;
+    
+  if (shouldOfferEasyWin) {
+    personalized += "\n\nIf you want something gentle first, I can put on something calm.";
+  }
+  
+  return personalized;
+}
+
 module.exports = {
   getSignals,
   buildClientStateContext,
@@ -401,4 +525,8 @@ module.exports = {
   tightenResponse,
   applyTimeOfDayRules,
   maybeAddCuriosityHook,
+  // Pillar 11: Winback
+  computeDaysSinceLastSeen,
+  maybeWinback,
+  buildWinbackMessage,
 };
