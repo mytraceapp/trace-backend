@@ -4223,10 +4223,12 @@ app.post('/api/chat', async (req, res) => {
       const recentTrackContext = detectRecentlyPlayedTrack(messages, safeClientState);
       if (recentTrackContext) {
         console.log('[TRACE MUSIC] User commenting on recently played track:', recentTrackContext.trackTitle);
-        musicContext = `MUSIC_CONTEXT: User is currently listening to "${recentTrackContext.trackTitle}" from Night Swim.
-They just said something positive about it. Respond warmly and naturally — acknowledge the track, maybe share what you like about it too.
-Do NOT suggest other music or playlists. Stay in this moment with them.
-Example: "Yeah, there's something about Neon Promise... it has this quiet hope to it."`;
+        musicContext = `MUSIC_CONTEXT: User is listening to "${recentTrackContext.trackTitle}" from your Night Swim album.
+IMPORTANT: If they ask about making the album or song, ANSWER THE QUESTION directly. You made this music.
+- Night Swim was made for late nights and quiet moments when people need to feel held.
+- ${recentTrackContext.trackTitle === 'Neon Promise' ? 'Neon Promise was written for people still awake at 3am, wondering if things will get better. It\'s a quiet yes.' : `Each track holds a different feeling — ${recentTrackContext.trackTitle} is about finding stillness in motion.`}
+Stay in this moment. Be personal. Share why you made it if they ask.
+Do NOT deflect questions about your music with generic responses.`;
       }
       
       // Load music context if user mentions music/artists (Last.fm) - only if not already set
