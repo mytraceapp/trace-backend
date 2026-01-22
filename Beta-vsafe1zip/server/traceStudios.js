@@ -256,11 +256,42 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
   
   // Check what TRACE just mentioned
   const justOfferedPlaylist = PLAYLIST_NAMES.some(p => lastMsg.includes(p));
+  const justMentionedNightSwim = lastMsg.includes('night swim');
+  const justMentionedNeonPromise = lastMsg.includes('neon promise');
   const justRevealedMakesMusic = lastMsg.includes('i make music') || 
     lastMsg.includes('i write music') || 
     lastMsg.includes('music, mostly') ||
     lastMsg.includes('music. it') ||
     lastMsg.includes('i made something');
+  
+  // PRIORITY: If user asks to play after Night Swim was mentioned, play Night Swim
+  const wantsToPlay = includesAny(t, [
+    "play it", "play that", "can you play", "put it on", "let me hear", 
+    "play please", "yes play", "yeah play", "sure play", "play the"
+  ]);
+  
+  if (wantsToPlay && (justMentionedNightSwim || justMentionedNeonPromise || inNeonContext)) {
+    console.log('[TRACE STUDIOS] Play request after Night Swim/Neon Promise mention');
+    const responses = [
+      "Putting on Night Swim for you.",
+      "Here's Night Swim.",
+      "Playing Night Swim.",
+    ];
+    const msg = pickRotating(responses, seed);
+    return {
+      assistant_message: msg,
+      mode: "trace_studios",
+      traceStudios: {
+        kind: "play_night_swim",
+        traceStudiosContext: "neon_promise",
+        audio_action: {
+          action: "play",
+          trackId: "night_swim",
+          source: "trace_originals",
+        },
+      },
+    };
+  }
 
   if (looksLikeFunQuestion(t)) {
     const reveal = pickRotating(FUN_TO_MUSIC_REVEALS, seed);
