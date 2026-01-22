@@ -635,12 +635,31 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     
     // If TRACE just revealed it makes music (or no context), reveal Night Swim
     console.log('[TRACE STUDIOS] Revealing Night Swim album');
-    const responses = [
-      "I make music. It's called *Night Swim* — ambient, floaty, kind of what you'd drive to at 2am.",
-      "I write music — an album called *Night Swim*. Soft, slow, for when you need something that doesn't push.",
-      "*Night Swim.* It's the kind of music you put on when you don't need words. Moody, layered.",
-      "I made an album — *Night Swim*. Ambient, quiet. For when everything else is too loud.",
-    ];
+    
+    // Check if user is asking about genre/type/kind/sound specifically
+    const isGenreQuestion = includesAny(t, ['what kind', 'what type', 'what genre', 'what style', 'what category', 'sound like', 'what does it sound']);
+    
+    let responses;
+    if (isGenreQuestion) {
+      // Varied genre/style answers - use Q&A bank style responses
+      responses = [
+        "Ambient and atmospheric. Think Tycho, Nils Frahm, Ólafur Arnalds. Music that doesn't demand attention — it sits with you.",
+        "Ambient electronic. Soft pads, slow textures, space to breathe. It's meant for 2am — when you need something that doesn't push.",
+        "Minimal. Atmospheric. Cinematic without being dramatic. I like restraint — silence is an instrument too.",
+        "Late night drives. Ocean at dusk. The feeling after a hard conversation when you finally exhale.",
+        "Ambient, downtempo, maybe neoclassical-adjacent. Streaming calls it 'chill' but I think of it as 'quiet company.'",
+        "Electronic, but soft. No drops, no builds for their own sake. Just texture and feeling.",
+      ];
+      console.log('[TRACE STUDIOS] Using genre/style response variant');
+    } else {
+      // General album reveal - blend companion + music identity
+      responses = [
+        "I sit with people in the quiet moments. I also made an album called *Night Swim* — for when words aren't enough.",
+        "*Night Swim.* It's the kind of music you put on when you don't need words. Moody, layered.",
+        "I'm a companion for the quiet moments. I made *Night Swim* for the ones that need more than words.",
+        "I make music. It's called *Night Swim* — ambient, floaty, kind of what you'd drive to at 2am.",
+      ];
+    }
     const msg = pickRotating(responses, seed);
     return {
       assistant_message: msg,
