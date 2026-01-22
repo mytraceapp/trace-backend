@@ -1,0 +1,241 @@
+1) VS Code Frontend changes (context in, patch out)
+
+A) Add client_state to every chat request
+
+In mobile/lib/chat.ts (or wherever you call /api/chat), send:
+const payload = {
+  message: userMessage,
+  user_id: userId,
+  client_state: {
+    mode, // "chat" | "audio_player" | "activity_reflection"
+    timeOfDay, // "morning" | "afternoon" | "evening" | "late_night"
+    recentSentiment, // string | null
+    nowPlaying, // null | { trackId, title, album? }
+    lastSuggestion, // null | { type, id, ts, accepted? }
+    lastActivity, // null | { id, ts }
+    doorwayState, // null | { lastDoorwayId, ts }  (optional)
+  },
+};
+B) Store client_state_patch returned by backend
+
+When you receive response JSON, apply:
+if (data.client_state_patch) {
+  // merge into your local state / AsyncStorage
+  // ex: lastSuggestion ts, lastDoorwayId, etc.
+}
+
+That’s all frontend needs.
+
+⸻
+
+2) Replit backend changes (actual Doorways system)
+
+A) Create server/doorways.js
+
+Paste this whole file:
+// server/doorways.js
+function norm(s = "") { return String(s).toLowerCase().trim(); }
+function includesAny(t, arr) { return arr.some(p => t.includes(p)); }
+
+function minutesSince(ts) {
+  if (!ts) return Infinity;
+  return (Date.now() - ts) / 60000;
+}
+
+function pick(arr, seedStr="") {
+  let h = 0;
+  for (let i = 0; i < seedStr.length; i++) h = (h * 31 + seedStr.charCodeAt(i)) >>> 0;
+  return arr[h % arr.length];
+}
+
+// --- Doorway definitions (V1) ---
+const DOORWAYS = [
+  {
+    id: "dream_mode",
+    triggers: ["i had a dream", "i dreamed", "i dreamt", "last night i dreamt", "i keep dreaming"],
+    openers: [
+      "Okay… tell me the dream exactly how it happened.",
+      "Yeah… dreams don’t come up for no reason. Tell me what you saw.",
+      "I’m listening. What was the dream?",
+    ],
+    followups: [
+      "Just three things: what happened, what you felt most, and what stood out.",
+      "Give me what happened, the strongest feeling, and the thing you can’t stop thinking about from it.",
+    ],
+    anchors: [
+      "What part felt the most real?",
+      "What are you afraid of losing right now?",
+      "What in your life feels out of your control lately?",
+    ],
+    cadenceMinutes: 0, // only triggers on explicit dream mention
+  },
+
+  {
+    id: "meaning_mode",
+    triggers: ["why is this happening", "what does this mean", "what am i supposed to learn", "what is this teaching me"],
+    openers: [
+      "This feels like it’s trying to teach you something.",
+      "This isn’t random. It’s revealing something.",
+      "Yeah… there’s meaning in this.",
+    ],
+    anchors: [
+      "What do you think this is trying to expose?",
+      "What lesson are you resisting right now?",
+      "What part of you is changing?",
+    ],
+    cadenceMinutes: 120,
+  },
+
+  {
+    id: "pattern_portal",
+    triggers: ["this keeps happening", "same thing again", "why do i always", "every time i", "it keeps coming back"],
+    openers: [
+      "That’s a pattern, not a coincidence.",
+      "Okay… this has happened before. That matters.",
+      "This keeps coming back because it’s unresolved.",
+    ],
+    followups: [
+      "Tell me the last 2–3 times it happened.",
+      "Give me the last couple times — just the facts.",
+    ],
+    anchors: [
+      "What’s the common thread every time?",
+      "What do you usually do next?",
+      "What do you think you’re trying to protect?",
+    ],
+    cadenceMinutes: 180,
+  },
+
+  {
+    id: "inner_child",
+    triggers: ["i feel rejected", "why does this hurt so much", "i feel abandoned", "i feel unworthy", "i feel like a kid", "not enough"],
+    openers: [
+      "That pain feels older than today.",
+      "This feels like something deep got touched.",
+      "Yeah… that’s not just about this moment.",
+    ],
+    anchors: [
+      "How old do you feel right now?",
+      "Who does this remind you of?",
+      "What did you need back then that you didn’t get?",
+    ],
+    cadenceMinutes: 240,
+  },
+
+  {
+    id: "name_the_season",
+    triggers: ["i feel stuck", "i feel like i'm changing", "i feel like something is coming", "i'm in transition", "what season am i in"],
+    openers: [
+      "This feels like a transition season.",
+      "This isn’t failure — this is formation.",
+      "You’re not stuck. You’re being shaped.",
+    ],
+    anchors: [
+      "What do you think is ending?",
+      "What is being built in you right now?",
+      "What are you being prepared for?",
+    ],
+    cadenceMinutes: 1440, // 1/day max
+  },
+
+  {
+    id: "future_self",
+    triggers: ["i don't know what to do", "i feel lost", "i need direction", "i'm confused"],
+    openers: [
+      "Okay. Let’s borrow your future clarity for a second.",
+      "Let’s get quiet and honest for one moment.",
+      "You already know more than you think.",
+    ],
+    anchors: [
+      "If your future self could speak for 10 seconds… what would she say?",
+      "What decision would feel clean in your body?",
+      "What would you do if you weren’t afraid?",
+    ],
+    cadenceMinutes: 120,
+  },
+
+  {
+    id: "confession",
+    triggers: ["don't judge me", "i've never told anyone", "promise you won't", "this is embarrassing", "i feel ashamed"],
+    openers: [
+      "I’m not here to judge you.",
+      "You’re safe with me.",
+      "I’m not going anywhere.",
+    ],
+    anchors: [
+      "What’s the part you’re afraid to say out loud?",
+      "What do you think it means about you?",
+      "What do you wish someone would say back to you right now?",
+    ],
+    cadenceMinutes: 0, // always okay
+  },
+];
+
+// --- detection ---
+function detectDoorway(userText) {
+  const t = norm(userText);
+  for (const d of DOORWAYS) {
+    if (includesAny(t, d.triggers)) return d;
+  }
+  return null;
+}
+
+// --- cadence gate (client_state-based, minimal) ---
+function passCadence(doorway, clientState = {}) {
+  const last = clientState?.doorwayState?.ts;
+  const lastId = clientState?.doorwayState?.lastDoorwayId;
+  const mins = minutesSince(last);
+
+  // If different doorway, still respect cadence loosely
+  const required = doorway.cadenceMinutes ?? 0;
+  if (!required) return true;
+
+  // If same doorway recently, block
+  if (lastId === doorway.id && mins < required) return false;
+
+  // If any doorway recently and required is large, block too
+  if (mins < Math.min(required, 30)) return false;
+
+  return true;
+}
+
+function buildDoorwayResponse(doorway, userText, userId="") {
+  const seed = `${userId}::${doorway.id}::${userText}`;
+  const opener = pick(doorway.openers, seed);
+  const anchor = pick(doorway.anchors || [], seed + "::a");
+  const follow = doorway.followups ? pick(doorway.followups, seed + "::f") : null;
+
+  const parts = [opener];
+  if (follow) parts.push(follow);
+  if (anchor) parts.push(anchor);
+
+  return parts.filter(Boolean).join("\n\n");
+}
+
+module.exports = {
+  detectDoorway,
+  passCadence,
+  buildDoorwayResponse,
+};
+
+B) Wire it into server/index.js BEFORE OpenAI call
+
+Add at top:
+const { detectDoorway, passCadence, buildDoorwayResponse } = require("./doorways");
+Inside POST /api/chat (before your model call):
+
+const { message, user_id, client_state } = req.body;
+
+const doorway = detectDoorway(message);
+if (doorway && passCadence(doorway, client_state)) {
+  const assistant_message = buildDoorwayResponse(doorway, message, user_id);
+
+  return res.json({
+    assistant_message,
+    mode: "doorway",
+    doorway: { id: doorway.id },
+    client_state_patch: {
+      doorwayState: { lastDoorwayId: doorway.id, ts: Date.now() }
+    }
+  });
+}

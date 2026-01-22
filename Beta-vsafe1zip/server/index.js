@@ -62,6 +62,7 @@ if (process.env.NEON_PROMISE_LYRICS) {
 }
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
 const { getSignals: getBrainSignals, buildClientStateContext, decideSuggestion, tightenResponse } = require('./traceBrain');
+const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
 const { 
@@ -2893,6 +2894,38 @@ app.post('/api/chat', async (req, res) => {
         }
         
         return res.json(response);
+      }
+    }
+    
+    // ===== DOORWAYS SYSTEM: Scripted therapeutic moments =====
+    // Detect doorway triggers BEFORE OpenAI to return scripted, grounded responses
+    const studiosUserMsgForDoorway = rawMessages?.filter(m => m.role === 'user').pop();
+    if (studiosUserMsgForDoorway?.content) {
+      const doorway = detectDoorway(studiosUserMsgForDoorway.content);
+      if (doorway && passCadence(doorway, safeClientState)) {
+        const doorwayMessage = buildDoorwayResponse(doorway, studiosUserMsgForDoorway.content, effectiveUserId);
+        console.log('[DOORWAYS] Triggered:', doorway.id);
+        
+        // Log doorway_triggered event for telemetry
+        if (effectiveUserId) {
+          logEvent({
+            user_id: effectiveUserId,
+            event_name: 'doorway_triggered',
+            props: {
+              doorway_id: doorway.id,
+              triggers: doorway.triggers.slice(0, 3),
+            }
+          }).catch(() => {});
+        }
+        
+        return res.json({
+          message: doorwayMessage,
+          mode: 'doorway',
+          doorway: { id: doorway.id },
+          client_state_patch: {
+            doorwayState: { lastDoorwayId: doorway.id, ts: Date.now() }
+          }
+        });
       }
     }
     

@@ -30,6 +30,15 @@ import { getDisplayName } from '../../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 
+// Helper to get time of day for client state
+function getTimeOfDay(): 'morning' | 'afternoon' | 'evening' | 'late_night' {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 22) return 'evening';
+  return 'late_night';
+}
+
 // Helper to detect pattern-related questions
 function isPatternQuestion(text: string): boolean {
   const lowerText = text.toLowerCase();
@@ -549,6 +558,25 @@ export default function ChatScreen() {
     shown_ts: number;
     accepted_ts?: number;
   } | null>(null);
+  
+  // Client state for context-aware backend responses (doorways, suggestions, etc.)
+  const clientStateRef = useRef<{
+    mode: 'chat' | 'audio_player' | 'activity_reflection';
+    timeOfDay: 'morning' | 'afternoon' | 'evening' | 'late_night';
+    recentSentiment: string | null;
+    nowPlaying: { trackId: string; title: string; album?: string } | null;
+    lastSuggestion: { suggestion_id?: string; type: string; id: string; ts: number; accepted?: boolean | null } | null;
+    lastActivity: { id: string; ts: number } | null;
+    doorwayState: { lastDoorwayId: string; ts: number } | null;
+  }>({
+    mode: 'chat',
+    timeOfDay: getTimeOfDay(),
+    recentSentiment: null,
+    nowPlaying: null,
+    lastSuggestion: null,
+    lastActivity: null,
+    doorwayState: null,
+  });
 
   const [fontsLoaded] = useFonts({
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
@@ -1423,6 +1451,9 @@ export default function ChatScreen() {
         }
       }
 
+      // Update timeOfDay before each request
+      clientStateRef.current.timeOfDay = getTimeOfDay();
+      
       const result = await sendChatMessage({
         messages: payloadMessages,
         userName: null,
@@ -1435,6 +1466,7 @@ export default function ChatScreen() {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         patternContext,
         traceStudiosContext, // Pass current context to avoid playlist clash
+        client_state: clientStateRef.current, // Pass full client state for doorways/brain
       });
 
       console.log('📥 TRACE received reply:', result);
@@ -1445,6 +1477,24 @@ export default function ChatScreen() {
       } else if (traceStudiosContext) {
         // Clear context after one turn without renewal
         setTraceStudiosContext(null);
+      }
+      
+      // ===== APPLY CLIENT STATE PATCH from backend (doorways, suggestions) =====
+      if (result?.client_state_patch) {
+        const patch = result.client_state_patch;
+        if (patch.doorwayState) {
+          clientStateRef.current.doorwayState = patch.doorwayState;
+          console.log('📊 TRACE client_state_patch applied: doorwayState', patch.doorwayState.lastDoorwayId);
+        }
+        if (patch.lastSuggestion) {
+          clientStateRef.current.lastSuggestion = patch.lastSuggestion;
+          console.log('📊 TRACE client_state_patch applied: lastSuggestion', patch.lastSuggestion.id);
+        }
+      }
+      
+      // Log doorway mode if triggered
+      if (result?.doorway) {
+        console.log('🚪 TRACE doorway mode:', result.doorway.id);
       }
 
       // Handle multi-message crisis responses (2-3 messages displayed sequentially)

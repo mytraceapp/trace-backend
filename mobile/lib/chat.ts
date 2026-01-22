@@ -10,7 +10,17 @@ export interface PatternContext {
   lastCalculatedAt?: string | null;
 }
 
-export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone, patternContext, tonePreference, traceStudiosContext }: {
+export interface ClientState {
+  mode?: 'chat' | 'audio_player' | 'activity_reflection';
+  timeOfDay?: 'morning' | 'afternoon' | 'evening' | 'late_night';
+  recentSentiment?: string | null;
+  nowPlaying?: { trackId: string; title: string; album?: string } | null;
+  lastSuggestion?: { suggestion_id?: string; type: string; id: string; ts: number; accepted?: boolean | null } | null;
+  lastActivity?: { id: string; ts: number } | null;
+  doorwayState?: { lastDoorwayId: string; ts: number } | null;
+}
+
+export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone, patternContext, tonePreference, traceStudiosContext, client_state }: {
   messages: Array<{ role: string; content: string }>;
   userName?: string | null;
   chatStyle?: string;
@@ -23,6 +33,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
   patternContext?: PatternContext | null;
   tonePreference?: 'neutral' | 'faith' | null;
   traceStudiosContext?: string | null;
+  client_state?: ClientState | null;
 }) {
   console.log(
     '🆔 TRACE sendChatMessage ids:',
@@ -54,6 +65,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
           patternContext: patternContext || null,
           tonePreference: tonePreference || 'neutral',
           traceStudiosContext: traceStudiosContext || null,
+          client_state: client_state || null,
         }),
         signal: controller.signal,
       }
@@ -92,6 +104,15 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
     // Extract audio_action for Night Swim / Spotify playback
     const audio_action = data.audio_action || null;
     
+    // Extract client_state_patch for state updates (doorways, suggestions, etc.)
+    const client_state_patch = data.client_state_patch || null;
+    
+    // Extract doorway info if triggered
+    const doorway = data.doorway || null;
+    
+    // Extract brain suggestion if present
+    const suggestion = data.suggestion || null;
+    
     return {
       message: data.message || "mm, I'm here.",
       messages: data.messages || null, // Multi-message array for crisis mode
@@ -100,6 +121,9 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
       pattern_metadata: patternMetadata,
       traceStudios, // Pass back for context tracking
       audio_action, // Pass back for Night Swim / Spotify playback
+      client_state_patch, // Pass back for state updates
+      doorway, // Pass back for doorway mode
+      suggestion, // Pass back for brain suggestions
     };
   } catch (err: any) {
     clearTimeout(timeout);
