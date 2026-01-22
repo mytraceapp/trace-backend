@@ -41,6 +41,12 @@ const {
 } = require('./traceSystemPrompt');
 const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
+const { handleTraceStudios, TRACKS } = require('./traceStudios');
+
+// Load Neon Promise lyrics from env (or Supabase later)
+if (process.env.NEON_PROMISE_LYRICS) {
+  TRACKS.neon_promise.lyrics = process.env.NEON_PROMISE_LYRICS;
+}
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
@@ -2746,6 +2752,26 @@ app.post('/api/chat', async (req, res) => {
       deviceId
     );
     console.log('🧠 /api/chat mode=chat_core userId:', userId, 'deviceId:', deviceId);
+    
+    // TRACE Studios interception - music/lyrics conversations
+    const studiosUserMsg = rawMessages?.filter(m => m.role === 'user').pop();
+    if (studiosUserMsg?.content) {
+      const clientState = req.body.traceStudiosContext ? { traceStudiosContext: req.body.traceStudiosContext } : {};
+      const studiosResponse = handleTraceStudios({
+        userText: studiosUserMsg.content,
+        clientState,
+        userId: effectiveUserId,
+      });
+      
+      if (studiosResponse) {
+        console.log('[TRACE STUDIOS] Intercepted:', studiosResponse.traceStudios?.kind);
+        return res.json({
+          message: studiosResponse.assistant_message,
+          mode: studiosResponse.mode,
+          traceStudios: studiosResponse.traceStudios,
+        });
+      }
+    }
     
     // Banned phrases that should not be in conversation history (causes AI to copy them)
     const BANNED_ASSISTANT_PHRASES = [
