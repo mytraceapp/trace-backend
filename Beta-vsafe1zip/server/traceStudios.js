@@ -51,6 +51,7 @@ function looksLikeFunQuestion(t) {
 }
 
 function looksLikeMusicDoor(t) {
+  // Direct mentions of TRACE music/albums/tracks
   const direct = [
     "night swim",
     "neon promise",
@@ -68,7 +69,16 @@ function looksLikeMusicDoor(t) {
     "music you made",
   ];
 
-  const vague = includesAny(t, ["your music", "you make music", "you write music", "you made a song", "your album"]);
+  // Questions about TRACE's music (not compliments)
+  const questionPatterns = [
+    "do you make music",
+    "do you write music", 
+    "can i hear your music",
+    "play your music",
+    "what music do you",
+    "tell me about your music",
+    "what's your music like",
+  ];
   
   // Follow-up questions after music reveal
   const followUpPatterns = [
@@ -86,7 +96,17 @@ function looksLikeMusicDoor(t) {
     "show me",
   ];
   
-  return includesAny(t, direct) || vague || includesAny(t, followUpPatterns);
+  // Compliment patterns - these should NOT trigger music suggestions
+  const isCompliment = includesAny(t, [
+    "great music", "good music", "nice music", "love your music", "like your music",
+    "amazing music", "beautiful music", "lovely music", "awesome music",
+    "make great", "makes great", "made great",
+  ]);
+  
+  // If it's a compliment, don't open music door
+  if (isCompliment) return false;
+  
+  return includesAny(t, direct) || includesAny(t, questionPatterns) || includesAny(t, followUpPatterns);
 }
 
 function looksLikeLyricsRequest(t) {
