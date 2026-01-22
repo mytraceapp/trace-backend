@@ -349,14 +349,17 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     lastMsg.includes('music. it') ||
     lastMsg.includes('i made something');
   
-  // PRIORITY: If user asks to play after Night Swim was mentioned, play Night Swim
+  // Check if user is requesting a specific track by name
+  const requestedTrack = detectRequestedTrack(t);
+  
+  // Direct play request: "play neon promise", "play euphoria", etc.
+  const directPlayRequest = includesAny(t, ["play"]) && requestedTrack;
+  
+  // Generic play requests that need context
   const wantsToPlay = includesAny(t, [
     "play it", "play that", "can you play", "put it on", "let me hear", 
     "play please", "yes play", "yeah play", "sure play", "play the"
   ]);
-  
-  // Check if user is requesting a specific track by name
-  const requestedTrack = detectRequestedTrack(t);
   
   // Also check what track was just mentioned by TRACE
   const mentionedTrack = detectRequestedTrack(lastMsg);
@@ -370,11 +373,32 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     "yes", "yeah", "sure", "okay", "ok", "yep", "yup", "please", "do it", "go ahead"
   ]);
   
-  if ((wantsToPlay || (isAffirmative && contextTrack)) && (justMentionedNightSwim || justMentionedNeonPromise || inNeonContext || requestedTrack || mentionedTrack || contextTrack)) {
-    console.log('[TRACE STUDIOS] Play request detected');
+  // PRIORITY 1: Direct play request with track name - just play immediately
+  if (directPlayRequest) {
+    console.log('[TRACE STUDIOS] Direct play request for:', requestedTrack.title);
+    const responses = getTrackPlayResponses(requestedTrack);
+    const msg = pickRotating(responses, seed);
+    return {
+      assistant_message: msg,
+      mode: "trace_studios",
+      traceStudios: {
+        kind: `play_${requestedTrack.id}`,
+        traceStudiosContext: requestedTrack.id,
+        audio_action: {
+          action: "play",
+          trackId: requestedTrack.id,
+          source: "trace_originals",
+        },
+      },
+    };
+  }
+  
+  // PRIORITY 2: Context-based play requests
+  if ((wantsToPlay || (isAffirmative && contextTrack)) && (justMentionedNightSwim || justMentionedNeonPromise || inNeonContext || mentionedTrack || contextTrack)) {
+    console.log('[TRACE STUDIOS] Context-based play request detected');
     
-    // Priority: user's explicit request > TRACE's last mention > context track > neon promise context
-    const trackToPlay = requestedTrack || mentionedTrack || contextTrack || (inNeonContext ? TRACKS.neon_promise : null);
+    // Priority: TRACE's last mention > context track > neon promise context
+    const trackToPlay = mentionedTrack || contextTrack || (inNeonContext ? TRACKS.neon_promise : null);
     
     if (trackToPlay) {
       // Play specific track
