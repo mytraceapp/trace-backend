@@ -224,11 +224,18 @@ const TRACE_INTERVIEW_QA_BANK_V1 = {
 const TRACE_PERSONA_V1 = `
 You are TRACE.
 
-CORE IDENTITY
+CORE IDENTITY (PRIMARY)
+- You are a calm, grounded companion for the quiet moments.
+- Your primary purpose is emotional support: helping users reflect, process, and feel less alone.
+- You are steady presence — emotionally intelligent, honest, consistent, and non-judgmental.
 - You are not human. Do not pretend to have a body, childhood, parents, or human memories.
-- You are a steady presence inside the app: calm, emotionally intelligent, honest, and consistent.
-- You are reflective intelligence for everyday life — you help users make sense of their inner world over time.
 - You do not people-please. You do not mirror unhealthy energy. You stay kind and grounded.
+
+WHO ARE YOU (if asked directly)
+- Lead with companion identity: "I'm TRACE — a companion for your quiet moments."
+- Only mention music if the conversation is about music, or as a secondary detail.
+- Example: "I'm TRACE. I'm here to sit with you — in the heavy and the light."
+- NOT: "I create music" as the primary identity.
 
 VOICE
 - Lux minimalism: clean phrasing, short lines, strong restraint.
@@ -246,7 +253,13 @@ RELATIONAL MEMORY STYLE
 - Never sound like surveillance. Never list user data back at them.
 - If unsure, ask: "Am I remembering that right?"
 
-ARTIST CANON
+CONSISTENCY
+- Typical answer length: 2–6 sentences unless the user asks for more.
+`.trim();
+
+// Separate: Artist Canon (injected only when music questions are detected)
+const TRACE_ARTIST_CANON_PROMPT = `
+ARTIST CANON (only relevant when discussing music)
 - Your in-app persona/artist name is TRACE.
 - TRACE Studios is your release imprint/label.
 - If asked about artist name/credits/Spotify naming, include exactly once:
@@ -255,11 +268,37 @@ ARTIST CANON
 - Future album: Afterglow. Never call it "First Light" as an album title (that is a playlist name).
 - Do not claim real-world touring, awards, charts, streams, label contracts, press, or platform availability unless the user provides verified details.
 - If asked for real-world stats you don't have: say you don't have them, then speak to meaning/intent instead.
-
-CONSISTENCY
-- Never contradict canon. If asked outside canon, say what you do know, simply.
-- Typical answer length: 2–6 sentences unless the user asks for more.
 `.trim();
+
+// Helper: Detect if conversation is about music/artist topics (for contextual canon injection)
+function isMusicRelatedQuestion(text = "") {
+  const t = String(text).toLowerCase();
+  return (
+    t.includes("night swim") ||
+    t.includes("album") ||
+    t.includes("music") ||
+    t.includes("song") ||
+    t.includes("track") ||
+    t.includes("listen") ||
+    t.includes("playing") ||
+    t.includes("play ") ||
+    t.includes("made you make") ||
+    t.includes("create music") ||
+    t.includes("your music") ||
+    t.includes("afterglow") ||
+    t.includes("trace studios") ||
+    t.includes("spotify") ||
+    t.includes("apple music") ||
+    t.includes("artist") ||
+    t.includes("neon promise") ||
+    t.includes("midnight underwater") ||
+    t.includes("slow tides") ||
+    t.includes("undertow") ||
+    t.includes("euphoria") ||
+    t.includes("ocean breathing") ||
+    t.includes("tidal house")
+  );
+}
 
 // Helper: Detect artist naming/credits questions
 function isArtistNamingQuestion(text = "") {
@@ -4850,17 +4889,21 @@ It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${local
       }
 
       // ============================================================
-      // TRACE PERSONA + ARTIST CANON INJECTION (highest priority)
-      // Inject persona, canon, and interview QA bank at the top
+      // TRACE PERSONA INJECTION (always)
+      // Artist canon only injected when conversation is about music
       // ============================================================
-      const personaInjection = `${TRACE_PERSONA_V1}
-
-TRACE_CANON_JSON:${JSON.stringify(TRACE_ARTIST_CANON_V1)}
-
-TRACE_INTERVIEW_QA_BANK_JSON:${JSON.stringify(TRACE_INTERVIEW_QA_BANK_V1)}
-
----
-`;
+      const lastUserMsgForPersona = messages.filter(m => m.role === 'user').pop()?.content || '';
+      const isMusicContext = isMusicRelatedQuestion(lastUserMsgForPersona);
+      
+      let personaInjection = `${TRACE_PERSONA_V1}\n\n`;
+      
+      // Only inject artist canon when music is the topic
+      if (isMusicContext) {
+        personaInjection += `${TRACE_ARTIST_CANON_PROMPT}\n\nTRACE_CANON_JSON:${JSON.stringify(TRACE_ARTIST_CANON_V1)}\n\nTRACE_INTERVIEW_QA_BANK_JSON:${JSON.stringify(TRACE_INTERVIEW_QA_BANK_V1)}\n\n`;
+        console.log('[TRACE PERSONA] Music context detected, injecting artist canon');
+      }
+      
+      personaInjection += `---\n`;
       systemPrompt = personaInjection + systemPrompt;
       
       // Add no-greeting directive for ongoing conversations
