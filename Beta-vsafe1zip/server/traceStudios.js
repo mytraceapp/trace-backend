@@ -449,6 +449,34 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     "that one", "the one called", "the track called"
   ]);
   
+  // Handle "what is this song about" when a track is in context (currently playing)
+  const asksAboutThisSong = includesAny(t, [
+    "this song", "this track", "what is this", "what's this about",
+    "what is it about", "what's it about", "about this song", "about this track"
+  ]);
+  
+  if (asksAboutThisSong && contextTrack) {
+    console.log('[TRACE STUDIOS] User asking about currently playing track:', contextTrack.title);
+    const track = contextTrack;
+    
+    // Natural description of what the song is about
+    const descriptions = [
+      `${track.description}`,
+      `This one? ${track.description}`,
+      `**${track.title}**. ${track.description}`,
+    ];
+    const msg = pickRotating(descriptions, seed);
+    
+    return {
+      assistant_message: msg,
+      mode: "trace_studios",
+      traceStudios: {
+        kind: "track_description",
+        traceStudiosContext: track.id,
+      },
+    };
+  }
+  
   if (asksAboutTrack && requestedTrack) {
     console.log('[TRACE STUDIOS] User asking about track:', requestedTrack.title);
     const track = requestedTrack;
@@ -460,7 +488,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       `That one. ${track.description}`,
     ];
     const msg = pickRotating(descriptions, seed);
-    const followUp = "\n\nWant me to play it?";
+    const followUp = "";
     
     return {
       assistant_message: msg + followUp,
