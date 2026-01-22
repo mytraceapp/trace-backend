@@ -2792,11 +2792,31 @@ app.post('/api/chat', async (req, res) => {
         // If traceStudios has audio_action, send to frontend with album/track info
         if (studiosResponse.traceStudios?.audio_action) {
           const studioAction = studiosResponse.traceStudios.audio_action;
+          
+          // Map track IDs to track indices (matches trace_originals_tracks in Supabase)
+          const TRACK_INDEX_MAP = {
+            'midnight_underwater': 0,
+            'slow_tides': 1,
+            'slow_tides_over_glass': 1,
+            'undertow': 2,
+            'midnight_undertow': 2,
+            'euphoria': 3,
+            'calm_euphoria': 3,
+            'ocean_breathing': 4,
+            'tidal_house': 5,
+            'tidal_memory_glow': 5,
+            'neon_promise': 6,
+            'night_swim': 0, // Default to first track when album requested
+          };
+          
+          const trackIndex = TRACK_INDEX_MAP[studioAction.trackId] ?? 0;
+          
           response.audio_action = {
             type: 'open',
             source: 'originals',
-            album: 'Night Swim', // Album name for frontend
-            track: studioAction.trackId === 'neon_promise' ? 1 : 0, // Track index
+            album: 'night_swim',
+            track: trackIndex,
+            autoplay: true,
           };
           console.log('[TRACE STUDIOS] Sending audio_action to frontend:', response.audio_action);
         }
