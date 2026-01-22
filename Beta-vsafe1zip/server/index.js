@@ -7218,14 +7218,57 @@ function detectUserRequestedMusic(messageText = '') {
     return false;
   }
   
-  return (
-    txt.includes('music') ||
+  // Skip conversational music mentions - user is TALKING ABOUT music, not REQUESTING music
+  // "He makes music that feels good" is about an artist, not a request
+  const isConversationalMusicMention = (
+    txt.includes('makes music') ||
+    txt.includes('their music') ||
+    txt.includes('his music') ||
+    txt.includes('her music') ||
+    txt.includes('the music') ||
+    txt.includes('that music') ||
+    txt.includes('good music') ||
+    txt.includes('great music') ||
+    txt.includes('love music') ||
+    txt.includes('like music') ||
+    txt.includes('music that') ||
+    txt.includes('music is') ||
+    txt.includes('music feels') ||
+    txt.includes('music sounds') ||
+    txt.includes('favorite music') ||
+    txt.includes('kind of music') ||
+    txt.includes('type of music') ||
+    txt.includes('genre') ||
+    txt.includes('artist') ||
+    txt.includes('band') ||
+    txt.includes('album') ||
+    // User describing a song/artist, not asking to play
+    (txt.includes('song') && (txt.includes('their') || txt.includes('his') || txt.includes('her') || txt.includes('that') || txt.includes('the')))
+  );
+  
+  if (isConversationalMusicMention) {
+    console.log('[MUSIC DETECT] Skipping - user talking ABOUT music, not requesting to listen');
+    return false;
+  }
+  
+  // Only trigger for actual requests to listen/play music
+  const isActualMusicRequest = (
+    txt.includes('play music') ||
+    txt.includes('play some music') ||
+    txt.includes('put on music') ||
+    txt.includes('listen to music') ||
+    txt.includes('want music') ||
+    txt.includes('need music') ||
+    txt.includes('some music') ||
     txt.includes('playlist') ||
     txt.includes('ground') ||
     txt.includes('drift') ||
     txt.includes('rising') ||
-    txt.includes('song')
+    (txt.includes('music') && txt.includes('please')) ||
+    (txt.includes('song') && txt.includes('play'))
   );
+  
+  return isActualMusicRequest;
 }
 
 function canInviteMusic(state, context = {}) {
