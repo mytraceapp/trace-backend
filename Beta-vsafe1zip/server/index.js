@@ -8153,6 +8153,14 @@ app.post('/api/patterns/last-hour', async (req, res) => {
       // Fallback: fetch from Supabase
       const effectiveUserId = userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
       
+      // Debug: count all messages in table
+      const { count: totalCount } = await supabaseServer
+        .from('chat_messages')
+        .select('*', { count: 'exact', head: true });
+      console.log('🧠 Total messages in chat_messages table:', totalCount);
+      
+      console.log('🧠 Querying Supabase chat_messages for user:', effectiveUserId);
+      
       const { data, error } = await supabaseServer
         .from('chat_messages')
         .select('role, content, created_at')
@@ -8160,11 +8168,12 @@ app.post('/api/patterns/last-hour', async (req, res) => {
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('[TRACE PATTERNS] history query error:', error);
+        console.error('[TRACE PATTERNS] history query error:', error.message || error);
       } else {
         const allMessages = data || [];
+        console.log('🧠 Supabase returned', allMessages.length, 'total messages');
         messagesToAnalyze = filterMessagesToLastHour(allMessages);
-        console.log('🧠 Using Supabase messages:', messagesToAnalyze.length, 'messages');
+        console.log('🧠 Using Supabase messages:', messagesToAnalyze.length, 'messages (filtered to last hour)');
       }
     }
 
