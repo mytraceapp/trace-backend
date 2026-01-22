@@ -2789,14 +2789,16 @@ app.post('/api/chat', async (req, res) => {
           traceStudios: studiosResponse.traceStudios,
         };
         
-        // If traceStudios has audio_action, send trigger signal to frontend
-        // Frontend determines which album/track based on its own context
+        // If traceStudios has audio_action, send to frontend with album/track info
         if (studiosResponse.traceStudios?.audio_action) {
+          const studioAction = studiosResponse.traceStudios.audio_action;
           response.audio_action = {
-            type: 'open', // Signal to spawn player
-            source: 'originals', // TRACE Originals
+            type: 'open',
+            source: 'originals',
+            album: 'Night Swim', // Album name for frontend
+            track: studioAction.trackId === 'neon_promise' ? 1 : 0, // Track index
           };
-          console.log('[TRACE STUDIOS] Sending audio trigger to frontend:', response.audio_action);
+          console.log('[TRACE STUDIOS] Sending audio_action to frontend:', response.audio_action);
         }
         
         return res.json(response);
