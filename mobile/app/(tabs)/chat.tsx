@@ -14,6 +14,8 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import * as Contacts from 'expo-contacts';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -559,6 +561,10 @@ export default function ChatScreen() {
     accepted_ts?: number;
   } | null>(null);
   
+  // Track when user leaves for Spotify to show return message
+  const leftForSpotifyRef = useRef<{ left: boolean; trackTitle?: string; leftAt?: number }>({ left: false });
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  
   // Client state for context-aware backend responses (doorways, suggestions, etc.)
   const clientStateRef = useRef<{
     mode: 'chat' | 'audio_player' | 'activity_reflection';
@@ -608,6 +614,57 @@ export default function ChatScreen() {
       };
     }, [showNightSwimPlayer])
   );
+  
+  // AppState listener to detect return from Spotify
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      // If coming back to active from background AND user left for Spotify
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextAppState === 'active' &&
+        leftForSpotifyRef.current.left
+      ) {
+        const leftAt = leftForSpotifyRef.current.leftAt || 0;
+        const awayDuration = Date.now() - leftAt;
+        
+        // Only show return message if away for at least 5 seconds (actually listened)
+        if (awayDuration > 5000) {
+          console.log('🎵 User returned from Spotify after', Math.round(awayDuration / 1000), 'seconds');
+          
+          // Pick a varied return message
+          const trackTitle = leftForSpotifyRef.current.trackTitle;
+          const returnMessages = trackTitle ? [
+            `How was ${trackTitle}?`,
+            `What did you think?`,
+            `Did that hit the spot?`,
+            `How are you feeling after that?`,
+          ] : [
+            `How was the music?`,
+            `What did you think?`,
+            `Did that help?`,
+            `How are you feeling now?`,
+          ];
+          const returnMsg = returnMessages[Math.floor(Math.random() * returnMessages.length)];
+          
+          // Add TRACE's return message
+          addMessage({
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: returnMsg,
+            timestamp: new Date(),
+          });
+        }
+        
+        // Reset the flag
+        leftForSpotifyRef.current = { left: false };
+      }
+      
+      appStateRef.current = nextAppState;
+    };
+    
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, []);
 
   // Week 1 Payoff: Check 72h trigger on mount
   useEffect(() => {
@@ -1622,12 +1679,15 @@ export default function ChatScreen() {
         if (route?.startsWith('spotify:')) {
           const mood = route.replace('spotify:', '') as MoodSpace;
           console.log('🎵 TRACE opening Spotify playlist:', mood);
+          // Track that user is leaving for Spotify
+          leftForSpotifyRef.current = { left: true, trackTitle: mood, leftAt: Date.now() };
           setTimeout(async () => {
             const success = await openSpotifyPlaylist(mood);
             if (success) {
               console.log('🎵 TRACE Spotify opened successfully');
             } else {
               console.warn('🎵 TRACE Spotify failed to open');
+              leftForSpotifyRef.current = { left: false }; // Reset if failed
             }
           }, 800);
         } else if (route) {
@@ -1688,6 +1748,8 @@ export default function ChatScreen() {
         } else if (audioAction.source === 'spotify') {
           // Spotify fallback - open Spotify app/web
           console.log('🎵 Opening Spotify playlist:', audioAction.album);
+          // Track that user is leaving for Spotify
+          leftForSpotifyRef.current = { left: true, trackTitle: audioAction.album, leftAt: Date.now() };
           setTimeout(async () => {
             const mood = audioAction.album as MoodSpace;
             await openSpotifyPlaylist(mood);
