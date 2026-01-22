@@ -1,0 +1,193 @@
+You are a senior Node/Express engineer working on TRACE backend (Replit). Implement ONLY Pillar 12: Progress Insights.
+
+Constraints:
+	•	No new routes
+	•	Minimal code
+	•	Must not clash with safety/doorways/winback/suggestions
+	•	Prefer early return (no OpenAI call) when insight triggers
+
+⸻
+
+0) Goal
+
+Occasionally return a short “Here’s what I noticed” insight that is:
+	•	grounded in recent evidence (last 7 days)
+	•	deterministic (no randomness, no model-generated phrasing)
+	•	non-clinical, non-judgmental
+	•	2–4 sentences max, no lists
+
+⸻
+
+1) Input format assumptions (client_state)
+
+Assume client_state may include:
+	•	lastInsightAt: number (epoch ms)
+	•	lastActivity: { id?: string, name?: string, ts?: number }
+	•	lastSuggestion: { type?: string, id?: string, ts?: number, accepted?: boolean }
+	•	recentSentimentHistory: Array<{ value: string, ts: number }>
+	•	value is a sentiment tag string (ex: “calm”, “sad”, “lonely”, “anxious”, “reflective”)
+	•	timeOfDay?: "morning"|"day"|"evening"|"late_night"
+	•	mode?: string
+	•	nowPlaying?: any
+
+⸻
+
+2) Hard skips + cooldown
+
+Implement:
+maybeInsight({ user_id, client_state, signals })
+Hard skip (must return shouldShow=false):
+	•	signals.isCrisis === true OR signals.highArousal === true
+	•	client_state.mode === "audio_player" OR client_state.nowPlaying != null
+
+Cooldown:
+	•	If client_state.lastInsightAt exists AND (Date.now() - lastInsightAt) < 3 days → no insight
+
+⸻
+
+3) Evidence threshold (last 7 days only)
+
+Let:
+	•	now = Date.now()
+	•	cutoff7d = now - 7*24*60*60*1000
+
+Evidence is valid if ANY:
+
+Type B evidence (activity)
+	•	lastActivity.ts >= cutoff7d AND lastActivity.name truthy
+
+Type D evidence (accepted suggestion)
+	•	lastSuggestion.accepted === true AND lastSuggestion.ts >= cutoff7d
+
+Type A evidence (sentiment)
+	•	recentSentimentHistory has >= 3 entries with:
+	•	entry.ts >= cutoff7d
+	•	AND entry.value truthy
+
+If none → return { shouldShow:false } (no generic filler insights)
+
+⸻
+
+4) availableTypes ordering (deterministic)
+
+Build availableTypes in THIS exact order:
+availableTypes = [];
+if (typeB_usable) availableTypes.push("B");
+if (typeD_usable) availableTypes.push("D");
+if (typeA_usable) availableTypes.push("A");
+If empty → shouldShow:false
+
+⸻
+
+5) Deterministic selection (no collisions)
+
+Use stable hash:
+	•	idx = hash(user_id + YYYY-MM-DD)
+
+Pick type:
+	•	type = availableTypes[idx % availableTypes.length]
+
+Pick variant:
+	•	variantIdx = (idx >>> 8) % variants.length
+Never hardcode 3; always use variants.length.
+
+⸻
+
+6) Type A variant set selection (FINAL)
+
+Type A has two sets:
+	•	typeA_timeSpecific → use ONLY if client_state.timeOfDay exists
+	•	typeA_sentimentOnly → use if timeOfDay missing
+
+Rule:
+	•	If timeOfDay present → ALWAYS choose from typeA_timeSpecific
+	•	Else → ALWAYS choose from typeA_sentimentOnly
+
+Then pick variant deterministically with:
+	•	(idx >>> 8) % variants.length
+
+Never use “tonight/late hours” if timeOfDay is missing.
+
+⸻
+
+7) Templates (explicit)
+
+Messages: 2–4 sentences, no lists, no diagnosis language.
+
+Type A — Rhythm (NO question)
+
+typeA_timeSpecific (requires timeOfDay):
+	1.	“I’ve noticed you tend to show up more in the {timeOfDay}. That’s usually when things get quieter and the real thoughts surface. I’ll meet you there.”
+	2.	“You’ve been returning around the same part of the day lately. That kind of consistency usually means something in you is asking for space to breathe.”
+	3.	“Your timing lately feels steady — not loud, but real. Even a few minutes here seems to help you come back to yourself.”
+
+typeA_sentimentOnly (no timeOfDay):
+	1.	“I’ve noticed a steady emotional thread in what you’ve been sharing lately. Even when it’s heavy, you keep reaching for clarity.”
+	2.	“There’s a consistency in your check-ins — the same need keeps surfacing. That’s usually your system asking to be listened to.”
+	3.	“You’ve been showing up with more honesty lately. That matters more than perfect.”
+
+⸻
+
+Type B — Regulation / Activity (Question allowed)
+
+(Requires lastActivity.name)
+	1.	“When you use {lastActivity.name}, you tend to settle faster. That’s your nervous system learning you. Want to start there again?”
+	2.	“You reached for {lastActivity.name} recently when things felt heavy, and it seems to steady you. Do you want that kind of gentle again?”
+	3.	“I’ve seen you choose {lastActivity.name} instead of forcing a big fix. That’s strength. Want one quiet minute of it?”
+
+⸻
+
+Type D — Choice / Small Steps (Question allowed)
+
+(timezone-agnostic)
+	1.	“You respond best to small steps that actually land — not big resets. That’s how your progress sticks. Want to take one small step soon?”
+	2.	“When you accept a gentle suggestion, you tend to come back clearer. It’s like you trust the smaller doorway more than the big push. Want another small doorway?”
+	3.	“You’re building consistency the quiet way — choosing what’s doable instead of what’s perfect. Want me to keep it simple with you?”
+
+Question rule:
+	•	Ask question ONLY for B and D
+	•	No question for A
+
+⸻
+
+8) Response shape (clarified)
+
+If insight triggers:
+	•	assistant_message must equal insight.message (same string)
+
+Return:
+{
+  assistant_message: message,
+  insight: { message },
+  client_state_patch: {
+    lastInsightAt: now,
+    sessionTurnCount: (client_state.sessionTurnCount || 0) + 1
+  }
+}
+If insight does NOT trigger:
+	•	fall through to normal OpenAI chat
+	•	return with either:
+	•	no insight field OR insight: null (either is acceptable, but keep consistent with existing API style)
+
+⸻
+
+9) Integration priority (non-clash)
+
+In server/index.js integrate with priority:
+	1.	safety
+	2.	doorways/hard flows
+	3.	winback
+	4.	insight (early return; no OpenAI call)
+	5.	normal chat
+
+⸻
+
+10) Files to edit
+	•	server/traceBrain.js
+	•	stable hash helper
+	•	maybeInsight + evidence checks + deterministic template selection
+	•	server/index.js
+	•	call maybeInsight at correct priority
+	•	early return if triggered
+
+Implement cleanly with minimal code and no breaking changes.

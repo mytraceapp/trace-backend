@@ -523,6 +523,128 @@ function buildWinbackMessage({ days, tier, clientState }) {
   return personalized;
 }
 
+// ========== PILLAR 12: PROGRESS INSIGHTS ==========
+const INSIGHT_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+const EVIDENCE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+// Stable date-based hash for deterministic daily selection
+function stableDailyHash(userId) {
+  const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  return simpleHash(userId + dateStr);
+}
+
+// Type A templates - Rhythm insights (NO question)
+const TYPE_A_TIME_SPECIFIC = [
+  "I've noticed you tend to show up more in the {timeOfDay}. That's usually when things get quieter and the real thoughts surface. I'll meet you there.",
+  "You've been returning around the same part of the day lately. That kind of consistency usually means something in you is asking for space to breathe.",
+  "Your timing lately feels steady — not loud, but real. Even a few minutes here seems to help you come back to yourself.",
+];
+
+const TYPE_A_SENTIMENT_ONLY = [
+  "I've noticed a steady emotional thread in what you've been sharing lately. Even when it's heavy, you keep reaching for clarity.",
+  "There's a consistency in your check-ins — the same need keeps surfacing. That's usually your system asking to be listened to.",
+  "You've been showing up with more honesty lately. That matters more than perfect.",
+];
+
+// Type B templates - Regulation/Activity (question allowed)
+const TYPE_B_ACTIVITY = [
+  "When you use {activityName}, you tend to settle faster. That's your nervous system learning you. Want to start there again?",
+  "You reached for {activityName} recently when things felt heavy, and it seems to steady you. Do you want that kind of gentle again?",
+  "I've seen you choose {activityName} instead of forcing a big fix. That's strength. Want one quiet minute of it?",
+];
+
+// Type D templates - Choice/Small Steps (question allowed)
+const TYPE_D_CHOICE = [
+  "You respond best to small steps that actually land — not big resets. That's how your progress sticks. Want to take one small step soon?",
+  "When you accept a gentle suggestion, you tend to come back clearer. It's like you trust the smaller doorway more than the big push. Want another small doorway?",
+  "You're building consistency the quiet way — choosing what's doable instead of what's perfect. Want me to keep it simple with you?",
+];
+
+function maybeInsight({ userId, clientState, signals }) {
+  const now = Date.now();
+  const cutoff7d = now - EVIDENCE_WINDOW_MS;
+  
+  // Hard skips
+  if (signals?.isCrisis || signals?.highArousal) {
+    return { shouldShow: false, reason: 'crisis_or_arousal' };
+  }
+  if (clientState?.mode === 'audio_player' || clientState?.nowPlaying) {
+    return { shouldShow: false, reason: 'audio_playing' };
+  }
+  
+  // Cooldown check
+  const lastInsightAt = clientState?.lastInsightAt;
+  if (lastInsightAt && (now - lastInsightAt) < INSIGHT_COOLDOWN_MS) {
+    return { shouldShow: false, reason: 'cooldown' };
+  }
+  
+  // Evidence checks
+  const lastActivity = clientState?.lastActivity;
+  const lastSuggestion = clientState?.lastSuggestion;
+  const sentimentHistory = clientState?.recentSentimentHistory || [];
+  const timeOfDay = clientState?.timeOfDay;
+  
+  // Type B: Activity evidence
+  const typeB_usable = lastActivity?.ts >= cutoff7d && lastActivity?.name;
+  
+  // Type D: Accepted suggestion evidence
+  const typeD_usable = lastSuggestion?.accepted === true && lastSuggestion?.ts >= cutoff7d;
+  
+  // Type A: Sentiment pattern (need 3+ entries in last 7 days)
+  const recentSentiments = sentimentHistory.filter(e => e.ts >= cutoff7d && e.value);
+  const typeA_usable = recentSentiments.length >= 3;
+  
+  // Build available types in priority order
+  const availableTypes = [];
+  if (typeB_usable) availableTypes.push('B');
+  if (typeD_usable) availableTypes.push('D');
+  if (typeA_usable) availableTypes.push('A');
+  
+  if (availableTypes.length === 0) {
+    return { shouldShow: false, reason: 'no_evidence' };
+  }
+  
+  // Deterministic selection
+  const idx = stableDailyHash(userId || 'anonymous');
+  const selectedType = availableTypes[idx % availableTypes.length];
+  const variantIdx = (idx >>> 8);
+  
+  let message = '';
+  
+  if (selectedType === 'A') {
+    // Type A: Rhythm insight
+    if (timeOfDay) {
+      const variants = TYPE_A_TIME_SPECIFIC;
+      const template = variants[variantIdx % variants.length];
+      message = template.replace('{timeOfDay}', timeOfDay);
+    } else {
+      const variants = TYPE_A_SENTIMENT_ONLY;
+      message = variants[variantIdx % variants.length];
+    }
+  } else if (selectedType === 'B') {
+    // Type B: Activity insight
+    const variants = TYPE_B_ACTIVITY;
+    const template = variants[variantIdx % variants.length];
+    message = template.replace('{activityName}', lastActivity.name);
+  } else if (selectedType === 'D') {
+    // Type D: Choice/steps insight
+    const variants = TYPE_D_CHOICE;
+    message = variants[variantIdx % variants.length];
+  }
+  
+  console.log(`[INSIGHT] Pillar 12 triggered: type=${selectedType}, userId=${(userId || '').slice(0, 8)}...`);
+  
+  return {
+    shouldShow: true,
+    type: selectedType,
+    message,
+    client_state_patch: {
+      lastInsightAt: now,
+      sessionTurnCount: (clientState?.sessionTurnCount || 0) + 1,
+    },
+  };
+}
+
 module.exports = {
   getSignals,
   buildClientStateContext,
@@ -534,4 +656,6 @@ module.exports = {
   computeDaysSinceLastSeen,
   maybeWinback,
   buildWinbackMessage,
+  // Pillar 12: Progress Insights
+  maybeInsight,
 };

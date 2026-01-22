@@ -61,7 +61,7 @@ if (process.env.NEON_PROMISE_LYRICS) {
   TRACKS.neon_promise.lyrics = process.env.NEON_PROMISE_LYRICS;
 }
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
-const { getSignals: getBrainSignals, buildClientStateContext, decideSuggestion, tightenResponse, applyTimeOfDayRules, maybeAddCuriosityHook, maybeWinback, buildWinbackMessage } = require('./traceBrain');
+const { getSignals: getBrainSignals, buildClientStateContext, decideSuggestion, tightenResponse, applyTimeOfDayRules, maybeAddCuriosityHook, maybeWinback, buildWinbackMessage, maybeInsight } = require('./traceBrain');
 const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
@@ -3210,6 +3210,32 @@ app.post('/api/chat', async (req, res) => {
         message: winbackMsg,
         winback: { days: winbackCheck.days, tier: winbackCheck.tier },
         client_state_patch: { winbackShownAt: Date.now() }
+      });
+    }
+    
+    // ===== PILLAR 12: PROGRESS INSIGHTS (Early return, no OpenAI) =====
+    const insightCheck = maybeInsight({
+      userId: effectiveUserId,
+      clientState: safeClientState,
+      signals: winbackSignals,
+    });
+    
+    if (insightCheck.shouldShow) {
+      console.log('[INSIGHT] Pillar 12 triggered:', { type: insightCheck.type });
+      
+      // Log insight event for telemetry
+      if (effectiveUserId) {
+        logEvent({
+          user_id: effectiveUserId,
+          event_name: 'insight_triggered',
+          props: { type: insightCheck.type }
+        }).catch(() => {});
+      }
+      
+      return res.json({
+        message: insightCheck.message,
+        insight: { message: insightCheck.message, type: insightCheck.type },
+        client_state_patch: insightCheck.client_state_patch,
       });
     }
     
