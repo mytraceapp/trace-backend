@@ -68,6 +68,7 @@ function getSignals(userText) {
     rumination: /overthinking|can't stop thinking|stuck in my head|spiraling|ruminating/i.test(t),
     musicRequest: /play|music|song|track|night swim|listen/i.test(t),
     isCrisis: /suicidal|kill myself|end it|want to die|hurt myself/i.test(t),
+    midEnergy: /\bmid\b|so.?so|meh|okay.?ish|not great|just okay|alright i guess|could be better|blah|sluggish|lazy/i.test(t),
     meaningSeeking,
     patternLanguage,
     reflectiveTone,
@@ -274,6 +275,10 @@ function decideSuggestion(clientState, signals, rules = null) {
       }
     } else if (musicBias && signals.reflectiveTone) {
       suggestion = { type: 'track', id: 'midnight_underwater', reason: 'to sit with this' };
+    } else if (signals.midEnergy) {
+      suggestion = { type: 'activity', id: 'walking', reason: 'gentle movement' };
+    } else {
+      suggestion = { type: 'activity', id: 'walking', reason: 'a little shift' };
     }
   }
   

@@ -165,7 +165,7 @@ When unsure, ask instead of asserting
 - Maze: Finger-tracing for anxious energy
 - Breathing: Orb-based breath exercises for panic/anxiety
 - Grounding: 5-4-3-2-1 body centering for dissociation
-- Walking: Physical movement for anger/restlessness
+- Walking: Physical movement for anger, restlessness, OR sluggish/meh energy needing a gentle shift
 - Window: Rain on window for melancholy
 - Ripple: Water ripples for centering scattered thoughts
 
