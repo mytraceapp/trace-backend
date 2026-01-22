@@ -1,0 +1,128 @@
+Implement TRACE Telemetry v1 in Replit backend (server/index.js). Seamless + safe.
+
+GOAL
+Add a safe telemetry logger that writes to Supabase public.events (append-only) using SERVICE ROLE.
+Log only “brain” events:
+- state_detected
+- drift_rewrite_used (ONLY if rewrite actually occurred)
+Support mobile batch flush via POST /api/events.
+
+HARD RULES
+- Telemetry must never break chat. Logging failures are ignored.
+- Do NOT log drift events unless rewrite truly happened.
+- Do NOT store user message content in props (no full text).
+- If userId is missing, skip telemetry (do not guess).
+
+ASSUMED SUPABASE SCHEMA
+public.events columns:
+- user_id uuid
+- event_name text
+- props jsonb
+- ts timestamptz
+
+ENV VARS
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+
+IMPLEMENTATION
+
+1) Add Supabase admin client:
+
+const { createClient } = require('@supabase/supabase-js');
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { persistSession: false } }
+);
+
+2) Add safe helpers (fire-and-forget, try/catch):
+
+async function logEvent({ user_id, event_name, props = {}, ts }) {
+  try {
+    if (!user_id) return;
+    const row = {
+      user_id,
+      event_name,
+      props,
+      ts: ts || new Date().toISOString()
+    };
+    const { error } = await supabaseAdmin.from('events').insert([row]);
+    if (error) console.warn('[EVENTS] insert error:', error.message);
+  } catch (e) {
+    console.warn('[EVENTS] logEvent failed:', e.message);
+  }
+}
+
+async function logEventsBatch({ user_id, events }) {
+  try {
+    if (!user_id) return;
+    if (!Array.isArray(events) || events.length === 0) return;
+
+    const rows = events.slice(0, 50).map(ev => ({
+      user_id,
+      event_name: ev.event_name,
+      props: ev.props || {},
+      ts: ev.ts || new Date().toISOString()
+    }));
+
+    const { error } = await supabaseAdmin.from('events').insert(rows);
+    if (error) console.warn('[EVENTS] batch insert error:', error.message);
+  } catch (e) {
+    console.warn('[EVENTS] logEventsBatch failed:', e.message);
+  }
+}
+
+3) Add endpoint for mobile batch flush:
+
+POST /api/events
+Body: { userId: string, events: Array<{event_name:string, ts?:string, props?:object}> }
+
+Implementation:
+- Extract userId = req.body.userId
+- Extract events = req.body.events
+- If missing/invalid -> return { ok:true } (don’t crash)
+- Call logEventsBatch({ user_id: userId, events })
+- Return { ok:true }
+
+4) In /api/chat:
+After you compute detected_state/posture/confidence/triggers:
+- determine userId exactly the same way you currently do in chat/pattern storage
+- If userId exists, log:
+
+logEvent({
+  user_id: userId,
+  event_name: 'state_detected',
+  props: {
+    detected_state,
+    posture,
+    confidence,
+    triggers,          // array of matched trigger strings
+    session_id,        // optional if mobile sends it; include if available
+    app_version        // optional if mobile sends it
+  }
+});
+
+5) Drift rewrite logging:
+Only if you have validator + rewrite-once logic:
+- Create boolean didRewrite = false
+- Set didRewrite = true only if rewrite branch executed
+- Only then:
+
+logEvent({
+  user_id: userId,
+  event_name: 'drift_rewrite_used',
+  props: { rewrite_count: 1, reason: 'validator_hit' }
+});
+
+If you DO NOT currently have rewrite logic:
+- DO NOT add drift logging yet.
+
+DELIVERABLES
+- Updated server/index.js code blocks for:
+  - supabaseAdmin init
+  - logEvent + logEventsBatch
+  - POST /api/events route
+  - state_detected log call inside /api/chat
+- Example JSON response from /api/events: { ok:true }
+- Confirm logging never blocks responses.
+Stop after implementing.

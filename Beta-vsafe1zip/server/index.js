@@ -1830,6 +1830,49 @@ if (supabaseUrl && supabaseServiceKey) {
   console.log('   Add this secret to enable per-user timezone notifications');
 }
 
+// ============================================================
+// TRACE TELEMETRY v1 - Safe, fire-and-forget event logging
+// Logs brain events to Supabase public.events (append-only)
+// ============================================================
+
+async function logEvent({ user_id, event_name, props = {}, ts }) {
+  try {
+    if (!user_id || !supabaseServer) return;
+    if (!isValidUuid(user_id)) return;
+    
+    const row = {
+      user_id,
+      event_name,
+      props,
+      ts: ts || new Date().toISOString()
+    };
+    const { error } = await supabaseServer.from('events').insert([row]);
+    if (error) console.warn('[EVENTS] insert error:', error.message);
+  } catch (e) {
+    console.warn('[EVENTS] logEvent failed:', e.message);
+  }
+}
+
+async function logEventsBatch({ user_id, events }) {
+  try {
+    if (!user_id || !supabaseServer) return;
+    if (!isValidUuid(user_id)) return;
+    if (!Array.isArray(events) || events.length === 0) return;
+
+    const rows = events.slice(0, 50).map(ev => ({
+      user_id,
+      event_name: ev.event_name,
+      props: ev.props || {},
+      ts: ev.ts || new Date().toISOString()
+    }));
+
+    const { error } = await supabaseServer.from('events').insert(rows);
+    if (error) console.warn('[EVENTS] batch insert error:', error.message);
+  } catch (e) {
+    console.warn('[EVENTS] logEventsBatch failed:', e.message);
+  }
+}
+
 // CORS configuration for mobile apps (Expo Go, dev builds, production)
 const corsOptions = {
   origin: true, // Allow all origins in development
@@ -2318,6 +2361,28 @@ app.post('/api/analyze-emotion', async (req, res) => {
   } catch (error) {
     console.error('Emotion analysis error:', error);
     res.json({ emotion: "neutral", intensity: 2 });
+  }
+});
+
+// ===== TELEMETRY EVENTS ENDPOINT =====
+// Mobile batch flush for brain events (fire-and-forget, never blocks)
+app.post('/api/events', async (req, res) => {
+  try {
+    const { userId, events } = req.body;
+    
+    // Validate but don't fail - telemetry should never break the app
+    if (!userId || !Array.isArray(events)) {
+      return res.json({ ok: true });
+    }
+    
+    // Fire and forget - don't await
+    logEventsBatch({ user_id: userId, events }).catch(() => {});
+    
+    res.json({ ok: true });
+  } catch (error) {
+    // Never fail telemetry
+    console.warn('[EVENTS] /api/events error:', error.message);
+    res.json({ ok: true });
   }
 });
 
@@ -4622,6 +4687,22 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     const postureResult = detectPosture(lastUserContent, recentMessages, isCrisisMode);
     const { posture, detected_state, confidence: postureConfidence, triggers: postureTriggers } = postureResult;
     
+    // ===== TELEMETRY: Log state_detected event (fire-and-forget) =====
+    if (effectiveUserId) {
+      logEvent({
+        user_id: effectiveUserId,
+        event_name: 'state_detected',
+        props: {
+          detected_state,
+          posture,
+          confidence: postureConfidence,
+          triggers: postureTriggers,
+          session_id: safeClientState.sessionId || null,
+          app_version: safeClientState.appVersion || null,
+        }
+      }).catch(() => {});
+    }
+    
     // Inject attunement prompt (Voice Lock + Posture Rules)
     const attunementBlock = buildAttunementPrompt(posture, detected_state);
     systemPrompt = `${attunementBlock}\n\n${systemPrompt}`;
@@ -5203,6 +5284,19 @@ Your response:`;
           if (!rewriteDriftCheck.hasViolation) {
             processedAssistantText = rewritten;
             console.log('[DRIFT LOCK] Successfully rewrote response');
+            
+            // ===== TELEMETRY: Log drift_rewrite_used event =====
+            if (effectiveUserId) {
+              logEvent({
+                user_id: effectiveUserId,
+                event_name: 'drift_rewrite_used',
+                props: {
+                  rewrite_count: 1,
+                  reason: 'validator_hit',
+                  violations: driftCheck.violations,
+                }
+              }).catch(() => {});
+            }
           } else {
             console.log('[DRIFT LOCK] Rewrite still has violations, keeping original');
           }
