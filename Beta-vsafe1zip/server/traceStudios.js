@@ -735,7 +735,32 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       };
     }
 
-    if (looksLikeNightSwimRequest(t) || looksLikeNeonPromiseRequest(t) || inNeonContext) {
+    // Handle Neon Promise specific questions - DON'T combine with Night Swim intro
+    if (looksLikeNeonPromiseRequest(t)) {
+      // Specific track responses - describe the track directly
+      const neonPromiseDescriptions = [
+        "**Neon Promise** is a track on *Night Swim*. It carries this quiet kind of hope — the feeling when you're not okay but you know you will be.",
+        "**Neon Promise**… that one means a lot to me. It's the track people tend to find when they need it most.",
+        "It's about holding onto something — even when you're not sure what. **Neon Promise** has this gentle pull to it.",
+        "**Neon Promise** is the sixth track on *Night Swim*. Written around 3am, like most of them. It's for the hopeful moments.",
+      ];
+      const soften = pickRotating(BEFORE_LYRICS_SOFTENERS, seed + "::soften");
+      const desc = pickRotating(neonPromiseDescriptions, seed);
+
+      return {
+        assistant_message: `${desc}\n\n${soften}`,
+        mode: "trace_studios",
+        traceStudios: {
+          kind: "door_open",
+          trackId: "neon_promise",
+          traceStudiosContext: "neon_promise",
+          suggestion: "lyrics_confirm",
+        },
+      };
+    }
+    
+    // General Night Swim requests (not Neon Promise specific)
+    if (looksLikeNightSwimRequest(t) || inNeonContext) {
       const door = pickRotating(MUSIC_DOOR_OPENERS, seed);
       const intro = pickRotating(NEON_PROMISE_INTROS, seed + "::intro");
       const soften = pickRotating(BEFORE_LYRICS_SOFTENERS, seed + "::soften");
