@@ -3929,7 +3929,11 @@ app.post('/api/chat', async (req, res) => {
 
     // ===== LIGHT CLOSURE DETECTION =====
     // Handle short acknowledgment messages with quick responses (only for non-onboarding users)
-    if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content)) {
+    // BUT: If TRACE just asked a question, user's short reply is an ANSWER, not a closure!
+    const lastAssistantMsg = messages.filter(m => m.role === 'assistant').pop();
+    const traceJustAskedQuestion = lastAssistantMsg?.content?.includes('?') || false;
+    
+    if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && !traceJustAskedQuestion) {
       console.log('[TRACE CHAT] Light closure detected, sending short ack:', lastUserMsg.content);
       return res.json({
         message: pickRandom(LIGHT_ACKS),
@@ -3939,6 +3943,8 @@ app.post('/api/chat', async (req, res) => {
           should_navigate: false,
         },
       });
+    } else if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && traceJustAskedQuestion) {
+      console.log('[TRACE CHAT] Short reply but TRACE asked question - treating as answer, not closure');
     }
 
     // Load return warmth line (for users returning after time away)
