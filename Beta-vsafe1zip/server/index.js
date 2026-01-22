@@ -11488,15 +11488,38 @@ app.post('/api/users/:userId/signals', async (req, res) => {
     const { userId } = req.params;
     const signal = req.body;
     
-    if (!userId || !signal.conversationId || !signal.timestamp) {
-      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    if (!userId || !isValidUuid(userId)) {
+      return res.status(400).json({ success: false, error: 'Invalid userId format' });
+    }
+    
+    if (!signal.conversationId || !signal.timestamp) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: conversationId, timestamp' });
     }
     
     if (!pool) {
       return res.status(503).json({ success: false, error: 'Database unavailable' });
     }
     
-    const signalId = await storeSignal(pool, { ...signal, userId });
+    // Normalize timestamp to milliseconds if provided in seconds
+    const normalizedTimestamp = signal.timestamp < 1e12 
+      ? signal.timestamp * 1000 
+      : signal.timestamp;
+    
+    // Validate enum fields
+    const validLengths = ['short', 'medium', 'long'];
+    const validTones = ['warm', 'practical', 'reflective'];
+    const validSentiments = ['escalating', 'calm', 'processing'];
+    
+    const normalizedSignal = {
+      ...signal,
+      userId,
+      timestamp: normalizedTimestamp,
+      responseLength: validLengths.includes(signal.responseLength) ? signal.responseLength : null,
+      responseTone: validTones.includes(signal.responseTone) ? signal.responseTone : null,
+      userSentiment: validSentiments.includes(signal.userSentiment) ? signal.userSentiment : null,
+    };
+    
+    const signalId = await storeSignal(pool, normalizedSignal);
     console.log('[FEEDBACK] Signal stored for user:', userId, 'id:', signalId);
     
     res.json({ success: true, signalId });
@@ -11511,8 +11534,8 @@ app.get('/api/users/:userId/learnings', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    if (!userId) {
-      return res.status(400).json({ success: false, error: 'Missing userId' });
+    if (!userId || !isValidUuid(userId)) {
+      return res.status(400).json({ success: false, error: 'Invalid userId format' });
     }
     
     if (!pool) {
@@ -11539,8 +11562,8 @@ app.get('/api/users/:userId/analytics', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    if (!userId) {
-      return res.status(400).json({ success: false, error: 'Missing userId' });
+    if (!userId || !isValidUuid(userId)) {
+      return res.status(400).json({ success: false, error: 'Invalid userId format' });
     }
     
     if (!pool) {
