@@ -241,11 +241,26 @@ function formatLyricsBlock(track) {
   return `**${track.title}** — *${track.album}*\n\n${track.lyrics}`;
 }
 
-function handleTraceStudios({ userText, clientState = {}, userId = "" }) {
+// Playlist names that TRACE might mention
+const PLAYLIST_NAMES = [
+  "first light", "slow tides", "night drift", "ground", "rising",
+  "midnight underwater", "slow tides over glass"
+];
+
+function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssistantMessage = "" }) {
   const t = norm(userText);
   const seed = `${userId}::${t}`;
+  const lastMsg = (lastAssistantMessage || '').toLowerCase();
 
   const inNeonContext = clientState?.traceStudiosContext === "neon_promise";
+  
+  // Check what TRACE just mentioned
+  const justOfferedPlaylist = PLAYLIST_NAMES.some(p => lastMsg.includes(p));
+  const justRevealedMakesMusic = lastMsg.includes('i make music') || 
+    lastMsg.includes('i write music') || 
+    lastMsg.includes('music, mostly') ||
+    lastMsg.includes('music. it') ||
+    lastMsg.includes('i made something');
 
   if (looksLikeFunQuestion(t)) {
     const reveal = pickRotating(FUN_TO_MUSIC_REVEALS, seed);
@@ -263,15 +278,49 @@ function handleTraceStudios({ userText, clientState = {}, userId = "" }) {
   // Check if in music_general context (just revealed we make music)
   const inMusicGeneralContext = clientState?.traceStudiosContext === "music_general";
   
-  // Follow-up about music type/genre - catch even WITHOUT prior context
+  // Follow-up about music type/genre
   const isMusicFollowUp = includesAny(t, [
     "what kind of music", "what type of music", "what genre", 
-    "what's it like", "what is it like", "what does it sound like"
+    "what's it like", "what is it like", "what does it sound like",
+    "what kind", "what type"
   ]);
   
-  // If user asks "what kind of music" standalone, reveal Night Swim directly
   if (isMusicFollowUp) {
-    console.log('[TRACE STUDIOS] Caught music follow-up question:', t.slice(0, 50));
+    console.log('[TRACE STUDIOS] Music follow-up detected. justOfferedPlaylist:', justOfferedPlaylist, 'justRevealedMakesMusic:', justRevealedMakesMusic);
+    
+    // Context-aware response: If TRACE just offered a playlist, describe the playlist
+    if (justOfferedPlaylist) {
+      // Extract which playlist was mentioned
+      const playlistDescriptions = {
+        "first light": "Slow, warm. Like the sun coming up before anyone else is awake. It doesn't push — just holds space while you find your rhythm.",
+        "slow tides": "Ambient, drifty. Like watching water move without needing to think about anything.",
+        "midnight underwater": "Deep, quiet. The kind of thing that makes 3am feel less sharp.",
+        "slow tides over glass": "Layered, gentle. Like looking through a window when everything outside is still.",
+        "night drift": "Soft edges, long tones. For when you want to float a little.",
+        "ground": "Steady, earthy. Something to hold onto when things feel too fast.",
+        "rising": "Gradual, hopeful. Builds slowly without rushing you anywhere.",
+      };
+      
+      let description = "It's ambient, mostly. Soft, layered. The kind of music that doesn't ask anything of you.";
+      for (const [name, desc] of Object.entries(playlistDescriptions)) {
+        if (lastMsg.includes(name)) {
+          description = desc;
+          break;
+        }
+      }
+      
+      return {
+        assistant_message: description,
+        mode: "trace_studios",
+        traceStudios: {
+          kind: "playlist_description",
+          traceStudiosContext: null, // Don't continue music reveal flow
+        },
+      };
+    }
+    
+    // If TRACE just revealed it makes music (or no context), reveal Night Swim
+    console.log('[TRACE STUDIOS] Revealing Night Swim album');
     const responses = [
       "I make music. It's called *Night Swim* — ambient, floaty, kind of what you'd drive to at 2am.",
       "I write music — an album called *Night Swim*. Soft, slow, for when you need something that doesn't push.",

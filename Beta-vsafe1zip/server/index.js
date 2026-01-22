@@ -2769,11 +2769,14 @@ app.post('/api/chat', async (req, res) => {
     // TRACE Studios interception - music/lyrics conversations
     const studiosUserMsg = rawMessages?.filter(m => m.role === 'user').pop();
     if (studiosUserMsg?.content) {
+      // Get last assistant message for context-aware responses
+      const lastAssistantMsg = rawMessages?.filter(m => m.role === 'assistant').pop()?.content || '';
       const clientState = req.body.traceStudiosContext ? { traceStudiosContext: req.body.traceStudiosContext } : {};
       const studiosResponse = handleTraceStudios({
         userText: studiosUserMsg.content,
         clientState,
         userId: effectiveUserId,
+        lastAssistantMessage: lastAssistantMsg,
       });
       
       if (studiosResponse) {
