@@ -49,6 +49,12 @@ const {
   buildAdaptedPromptSection,
   getSignalsForUser,
 } = require('./traceFeedback');
+const {
+  detectPosture,
+  buildAttunementPrompt,
+  checkDriftViolations,
+  buildRewritePrompt,
+} = require('./traceAttunement');
 
 // Load Neon Promise lyrics from env (or Supabase later)
 if (process.env.NEON_PROMISE_LYRICS) {
@@ -4546,6 +4552,23 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     }
     
     // ============================================================
+    // TRACE ATTUNEMENT ENGINE v1
+    // Detect care posture based on user emotional state
+    // Inject Voice Lock + posture rules to prevent drift
+    // ============================================================
+    const lastUserContent = messages.filter(m => m.role === 'user').pop()?.content || '';
+    const recentMessages = messages.slice(-6);
+    
+    const postureResult = detectPosture(lastUserContent, recentMessages, isCrisisMode);
+    const { posture, detected_state, confidence: postureConfidence, triggers: postureTriggers } = postureResult;
+    
+    // Inject attunement prompt (Voice Lock + Posture Rules)
+    const attunementBlock = buildAttunementPrompt(posture, detected_state);
+    systemPrompt = `${attunementBlock}\n\n${systemPrompt}`;
+    
+    console.log(`[ATTUNE] posture=${posture} state=${detected_state} conf=${postureConfidence.toFixed(2)} triggers=${JSON.stringify(postureTriggers)}`);
+    
+    // ============================================================
     // BULLETPROOF OPENAI RESPONSE SYSTEM
     // Layer 1: Primary model with retries
     // Layer 2: Backup model (gpt-4o-mini) 
@@ -4556,7 +4579,6 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     
     let rawContent = '';
     let parsed = null;
-    const lastUserContent = messages.filter(m => m.role === 'user').pop()?.content || '';
     
     // LAYER 1: Primary model (gpt-4o) with 3 retries
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -5097,10 +5119,46 @@ Your response:`;
       messagesArray[0] = finalAssistantText;
     }
     
+    // ===== TONE DRIFT LOCK - One-Shot Validator =====
+    // Check for drift violations and optionally rewrite
+    let processedAssistantText = finalAssistantText;
+    const driftCheck = checkDriftViolations(processedAssistantText);
+    
+    if (driftCheck.hasViolation && openai) {
+      console.log('[DRIFT LOCK] Violations detected:', driftCheck.violations);
+      try {
+        const rewritePrompt = buildRewritePrompt(processedAssistantText);
+        const rewriteResponse = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: 'You are a voice editor. Rewrite text to match TRACE voice: grounded, calm, concise, no therapy-template language.' },
+            { role: 'user', content: rewritePrompt }
+          ],
+          max_tokens: 400,
+          temperature: 0.5,
+        });
+        const rewritten = rewriteResponse.choices?.[0]?.message?.content?.trim();
+        if (rewritten && rewritten.length > 10) {
+          const rewriteDriftCheck = checkDriftViolations(rewritten);
+          if (!rewriteDriftCheck.hasViolation) {
+            processedAssistantText = rewritten;
+            console.log('[DRIFT LOCK] Successfully rewrote response');
+          } else {
+            console.log('[DRIFT LOCK] Rewrite still has violations, keeping original');
+          }
+        }
+      } catch (rewriteErr) {
+        console.error('[DRIFT LOCK] Rewrite failed:', rewriteErr.message);
+      }
+    }
+    
     // Build response - include messages array if crisis mode
     const response = {
-      message: finalAssistantText, // First message with optional disclaimer
-      activity_suggestion: activitySuggestion
+      message: processedAssistantText, // First message with optional disclaimer
+      activity_suggestion: activitySuggestion,
+      posture: posture,
+      detected_state: detected_state,
+      posture_confidence: postureConfidence,
     };
     
     // Add pattern_metadata if we used pattern context in this response
