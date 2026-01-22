@@ -1835,6 +1835,7 @@ if (hasOpenAIKey) {
   openai = new OpenAI({
     baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || 'https://api.openai.com/v1',
     apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+    timeout: 25000, // 25 second timeout per request
   });
   console.log('OpenAI client initialized');
 } else {

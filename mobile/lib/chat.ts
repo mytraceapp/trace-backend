@@ -32,7 +32,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
   );
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45000); // 45s timeout for retry system
+  const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout for retry system
 
   try {
     const res = await fetch(
