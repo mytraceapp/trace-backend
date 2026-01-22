@@ -4218,8 +4218,19 @@ app.post('/api/chat', async (req, res) => {
         console.error('[TRACE ANNIVERSARY] Failed to load anniversary context:', err.message);
       }
 
-      // Load music context if user mentions music/artists (Last.fm)
-      try {
+      // Check if user is commenting on recently played music (conversation context)
+      // e.g. User: "play neon promise" -> TRACE: "Here you go" -> User: "such a good song"
+      const recentTrackContext = detectRecentlyPlayedTrack(messages, safeClientState);
+      if (recentTrackContext) {
+        console.log('[TRACE MUSIC] User commenting on recently played track:', recentTrackContext.trackTitle);
+        musicContext = `MUSIC_CONTEXT: User is currently listening to "${recentTrackContext.trackTitle}" from Night Swim.
+They just said something positive about it. Respond warmly and naturally — acknowledge the track, maybe share what you like about it too.
+Do NOT suggest other music or playlists. Stay in this moment with them.
+Example: "Yeah, there's something about Neon Promise... it has this quiet hope to it."`;
+      }
+      
+      // Load music context if user mentions music/artists (Last.fm) - only if not already set
+      if (!musicContext) try {
         const musicResult = await maybeAttachMusicContext({ messages });
         if (musicResult.musicContext) {
           const mc = musicResult.musicContext;
@@ -7126,6 +7137,58 @@ app.post('/api/journal/memory-consent', async (req, res) => {
     return res.status(500).json({ success: false, error: 'Failed to update consent' });
   }
 });
+
+// Helper: Detect if user is commenting on recently played music from conversation context
+function detectRecentlyPlayedTrack(messages, clientState) {
+  // First check client state for nowPlaying
+  if (clientState?.nowPlaying?.title) {
+    return { trackTitle: clientState.nowPlaying.title, source: 'client_state' };
+  }
+  
+  // Fallback: Check recent conversation for track that was just played
+  const trackNames = [
+    'midnight underwater', 'slow tides', 'undertow', 'euphoria',
+    'ocean breathing', 'tidal house', 'neon promise', 'night swim'
+  ];
+  
+  const recentMsgs = messages.slice(-6);
+  
+  // Look for a pattern: user asked for track -> TRACE responded -> user commenting
+  for (let i = recentMsgs.length - 1; i >= 0; i--) {
+    const msg = recentMsgs[i];
+    if (msg.role !== 'user') continue;
+    
+    const txt = (msg.content || '').toLowerCase();
+    
+    // Check if user requested a track recently
+    for (const track of trackNames) {
+      if (txt.includes('play ' + track) || txt.includes('put on ' + track)) {
+        // Found a recent track request - user is now commenting on it
+        const titleCase = track.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+        return { trackTitle: titleCase, source: 'conversation_history' };
+      }
+    }
+  }
+  
+  // Also check if TRACE just said "Here you go" or started playing something
+  for (let i = recentMsgs.length - 1; i >= 0; i--) {
+    const msg = recentMsgs[i];
+    if (msg.role !== 'assistant') continue;
+    
+    const txt = (msg.content || '').toLowerCase();
+    if (txt.includes('here you go') || txt.includes('playing')) {
+      // Check the message before for track name
+      for (const track of trackNames) {
+        if (txt.includes(track)) {
+          const titleCase = track.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+          return { trackTitle: titleCase, source: 'assistant_response' };
+        }
+      }
+    }
+  }
+  
+  return null;
+}
 
 // GET /api/music-config - Spotify playlist configuration for TRACE mood spaces
 // Display names updated: Ground→Rooted, Drift→Low Orbit, Rising→First Light

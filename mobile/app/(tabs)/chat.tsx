@@ -1658,9 +1658,27 @@ export default function ChatScreen() {
       if (audioAction?.type === 'open') {
         console.log('🎵 TRACE audio_action: open', audioAction);
         
+        // Track titles for context awareness
+        const NIGHT_SWIM_TRACKS = [
+          'Midnight Underwater', 'Slow Tides', 'Undertow', 'Euphoria',
+          'Ocean Breathing', 'Tidal House', 'Neon Promise'
+        ];
+        
         if (audioAction.source === 'originals') {
           // TRACE Originals (Night Swim) - spawn inline player on chat page
           console.log('🎵 Opening TRACE Originals (Night Swim) player');
+          
+          // Update client_state so backend knows what's playing
+          const trackIndex = audioAction.track || 0;
+          const trackTitle = NIGHT_SWIM_TRACKS[trackIndex] || 'Night Swim';
+          clientStateRef.current.nowPlaying = {
+            trackId: `night_swim_${trackIndex}`,
+            title: trackTitle,
+            album: 'night_swim'
+          };
+          clientStateRef.current.mode = 'audio_player';
+          console.log('🎵 Updated nowPlaying:', clientStateRef.current.nowPlaying);
+          
           setTimeout(() => {
             openNightSwimPlayer(
               audioAction.autoplay !== false,
