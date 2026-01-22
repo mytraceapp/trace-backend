@@ -106,6 +106,24 @@ function looksLikeMusicDoor(t) {
   // If it's a compliment, don't open music door
   if (isCompliment) return false;
   
+  // Clarifying questions - user is confused, not requesting music
+  const isClarifyingQuestion = includesAny(t, [
+    "what do you mean",
+    "what does that mean",
+    "what did you mean",
+    "what are you talking about",
+    "i don't understand",
+    "don't get it",
+    "confused",
+    "huh?",
+    "what?",
+    "explain",
+    "clarify",
+  ]);
+  
+  // If it's a clarifying question, don't trigger music
+  if (isClarifyingQuestion) return false;
+  
   return includesAny(t, direct) || includesAny(t, questionPatterns) || includesAny(t, followUpPatterns);
 }
 

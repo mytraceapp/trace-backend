@@ -7161,6 +7161,26 @@ function detectUserRequestedMusic(messageText = '') {
     return false;
   }
   
+  // Skip clarifying questions - user is confused, not requesting music
+  const isClarifyingQuestion = (
+    txt.includes('what do you mean') ||
+    txt.includes('what does that mean') ||
+    txt.includes('what did you mean') ||
+    txt.includes('what are you talking about') ||
+    txt.includes("i don't understand") ||
+    txt.includes("don't get it") ||
+    txt.includes('confused') ||
+    txt.includes('explain') ||
+    txt.includes('clarify') ||
+    (txt.includes('what?') && txt.length < 30) ||
+    (txt.includes('huh?') && txt.length < 30)
+  );
+  
+  if (isClarifyingQuestion) {
+    console.log('[MUSIC DETECT] Skipping - user asking clarifying question, not requesting music');
+    return false;
+  }
+  
   return (
     txt.includes('music') ||
     txt.includes('playlist') ||
