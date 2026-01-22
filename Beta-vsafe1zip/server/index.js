@@ -3735,7 +3735,7 @@ app.post('/api/chat', async (req, res) => {
             state: 'general',
             activity: 'breathing',
             activityLabel: 'Breathing',
-            message: "I hear you. Before we go deeper — let's bring your system down first.\nI'd recommend Breathing (1 minute). Just say okay when you're ready.",
+            message: "I hear you. Before we go deeper — let's bring your system down first.\nI'd recommend Breathing (30 seconds). Just say okay when you're ready.",
             reason: 'User shared something difficult - offering grounding activity',
             route: '/activities/breathing'
           };
