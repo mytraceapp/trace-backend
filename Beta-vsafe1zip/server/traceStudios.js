@@ -319,6 +319,11 @@ function getTrackPlayResponses(track) {
     `Putting on ${track.title} for you.`,
     `Here's ${track.title}.`,
     `Playing ${track.title}.`,
+    `${track.title}. Here you go.`,
+    `This one. ${track.title}.`,
+    `${track.title} coming up.`,
+    `Got it. ${track.title}.`,
+    `${track.title}…`,
   ];
 }
 
@@ -459,11 +464,15 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     console.log('[TRACE STUDIOS] User asking about currently playing track:', contextTrack.title);
     const track = contextTrack;
     
-    // Natural description of what the song is about
+    // More natural, varied descriptions
     const descriptions = [
       `${track.description}`,
       `This one? ${track.description}`,
       `**${track.title}**. ${track.description}`,
+      `Mm. ${track.description}`,
+      `${track.description} That's what this one is.`,
+      `It's about ${track.mood}. ${track.description}`,
+      `This is ${track.title}. ${track.description}`,
     ];
     const msg = pickRotating(descriptions, seed);
     
