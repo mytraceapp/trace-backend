@@ -1,0 +1,160 @@
+Here are 6 Supabase queries you can run in the SQL editor (or as saved queries) once events are flowing. They’re designed to answer exactly what you said you want to monitor: usage, correlations, false positives, cooldown tuning.
+
+Assumptions: public.events(event_name text, ts timestamptz, user_id uuid, props jsonb) and your telemetry includes:
+
+	•	props.activity_name
+	•	props.source
+	•	props.detected_state
+	•	props.posture
+	•	props.confidence
+	•	props.suggestion_id
+	•	props.window (“strict”/“loose”)
+	•	props.feature (for cooldown suppression)
+	•	props.remaining_seconds
+
+⸻
+
+1) Suggestion funnel conversion by activity (shown → accepted → completed)
+with base as (
+  select
+    props->>'suggestion_id' as suggestion_id,
+    max(case when event_name='suggestion_shown' then 1 else 0 end) as shown,
+    max(case when event_name='suggestion_accepted' then 1 else 0 end) as accepted,
+    max(case when event_name='suggestion_completed' then 1 else 0 end) as completed,
+    max(props->>'activity_name') as activity_name,
+    min(ts) as first_ts
+  from public.events
+  where event_name in ('suggestion_shown','suggestion_accepted','suggestion_completed')
+    and ts >= now() - interval '30 days'
+    and props ? 'suggestion_id'
+  group by 1
+)
+select
+  activity_name,
+  count(*) filter (where shown=1) as shown_ct,
+  count(*) filter (where accepted=1) as accepted_ct,
+  count(*) filter (where completed=1) as completed_ct,
+  round(100.0 * count(*) filter (where accepted=1) / nullif(count(*) filter (where shown=1),0), 2) as accept_rate_pct,
+  round(100.0 * count(*) filter (where completed=1) / nullif(count(*) filter (where accepted=1),0), 2) as complete_rate_pct
+from base
+group by 1
+order by shown_ct desc;
+What it tells you: which activities actually convert.
+
+⸻
+
+2) Acceptance rate by detected_state + posture (does your “brain” choose well?)
+with shown as (
+  select
+    props->>'suggestion_id' as suggestion_id,
+    props->>'detected_state' as detected_state,
+    props->>'posture' as posture
+  from public.events
+  where event_name='suggestion_shown'
+    and ts >= now() - interval '30 days'
+    and props ? 'suggestion_id'
+),
+accepted as (
+  select distinct props->>'suggestion_id' as suggestion_id
+  from public.events
+  where event_name='suggestion_accepted'
+    and ts >= now() - interval '30 days'
+    and props ? 'suggestion_id'
+)
+select
+  coalesce(s.detected_state,'unknown') as detected_state,
+  coalesce(s.posture,'unknown') as posture,
+  count(*) as shown_ct,
+  count(a.suggestion_id) as accepted_ct,
+  round(100.0 * count(a.suggestion_id) / nullif(count(*),0), 2) as accept_rate_pct
+from shown s
+left join accepted a using (suggestion_id)
+group by 1,2
+order by shown_ct desc;
+What it tells you: where state detection + posture is helping or failing.
+
+⸻
+
+3) Strict vs loose acceptance timing (is 10 minutes too strict?)
+select
+  props->>'window' as window,
+  count(*) as accepted_ct,
+  round(100.0 * count(*) / nullif(sum(count(*)) over (),0), 2) as pct
+from public.events
+where event_name='suggestion_accepted'
+  and ts >= now() - interval '30 days'
+group by 1
+order by accepted_ct desc;
+What it tells you: if lots of acceptances are “loose,” you may want a longer strict window.
+
+⸻
+
+4) Median time-to-accept + time-to-complete by activity
+select
+  props->>'activity_name' as activity_name,
+  percentile_cont(0.5) within group (order by (props->>'time_to_accept_seconds')::int) as median_accept_s,
+  percentile_cont(0.5) within group (order by (props->>'time_to_complete_seconds')::int) as median_complete_s
+from public.events
+where event_name in ('suggestion_accepted','suggestion_completed')
+  and ts >= now() - interval '30 days'
+  and (
+    (event_name='suggestion_accepted' and props ? 'time_to_accept_seconds')
+    or
+    (event_name='suggestion_completed' and props ? 'time_to_complete_seconds')
+  )
+group by 1
+order by 1;
+What it tells you: which activities are “easy to start” vs “hard to finish.”
+
+⸻
+
+5) Negative response rate after suggestions (suggestions annoying?)
+with shown as (
+  select
+    user_id,
+    props->>'suggestion_id' as suggestion_id,
+    ts as shown_ts
+  from public.events
+  where event_name='suggestion_shown'
+    and ts >= now() - interval '30 days'
+),
+neg as (
+  select
+    user_id,
+    ts as neg_ts,
+    props->>'context' as context
+  from public.events
+  where event_name='negative_response_detected'
+    and ts >= now() - interval '30 days'
+)
+select
+  count(*) as suggestions_shown,
+  count(*) filter (where exists (
+    select 1 from neg n
+    where n.user_id = s.user_id
+      and n.context = 'post_suggestion'
+      and n.neg_ts between s.shown_ts and s.shown_ts + interval '10 minutes'
+  )) as suggestions_with_neg10m,
+  round(
+    100.0 * count(*) filter (where exists (
+      select 1 from neg n
+      where n.user_id = s.user_id
+        and n.context = 'post_suggestion'
+        and n.neg_ts between s.shown_ts and s.shown_ts + interval '10 minutes'
+    )) / nullif(count(*),0), 2
+  ) as neg_rate_pct
+from shown s;
+What it tells you: if your recommendation language is irritating users (or poorly timed).
+
+⸻
+
+6) Cooldown suppression volume (too strict vs too loose)
+select
+  props->>'feature' as feature,
+  count(*) as suppressed_ct,
+  round(avg((props->>'remaining_seconds')::numeric), 2) as avg_remaining_seconds
+from public.events
+where event_name='suppressed_due_to_cooldown'
+  and ts >= now() - interval '30 days'
+group by 1
+order by suppressed_ct desc;

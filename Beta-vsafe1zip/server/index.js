@@ -5308,9 +5308,45 @@ Your response:`;
     
     // ===== TRACE BRAIN SUGGESTION LOGIC =====
     // Decide if we should include a suggestion (with cooldown)
-    const brainSuggestion = decideSuggestion(safeClientState, brainSignals);
+    const brainResult = decideSuggestion(safeClientState, brainSignals);
+    const brainSuggestion = brainResult?.suggestion || null;
+    const brainSuppressed = brainResult?.suppressed || null;
+    
     if (brainSuggestion) {
       console.log('[TRACE BRAIN] Suggestion:', JSON.stringify(brainSuggestion));
+      
+      // ===== TELEMETRY: Log suggestion_shown event =====
+      if (effectiveUserId) {
+        logEvent({
+          user_id: effectiveUserId,
+          event_name: 'suggestion_shown',
+          props: {
+            suggestion_id: brainSuggestion.suggestion_id,
+            activity_name: brainSuggestion.id,
+            source: brainSuggestion.type,
+            detected_state,
+            posture,
+            confidence: postureConfidence,
+          }
+        }).catch(() => {});
+      }
+    }
+    
+    if (brainSuppressed) {
+      console.log('[TRACE BRAIN] Suggestion suppressed by cooldown:', brainSuppressed.remaining_seconds, 's remaining');
+      
+      // ===== TELEMETRY: Log suppressed_due_to_cooldown event =====
+      if (effectiveUserId) {
+        logEvent({
+          user_id: effectiveUserId,
+          event_name: 'suppressed_due_to_cooldown',
+          props: {
+            feature: brainSuppressed.feature,
+            remaining_seconds: brainSuppressed.remaining_seconds,
+            cooldown_type: brainSuppressed.cooldown_type,
+          }
+        }).catch(() => {});
+      }
     }
     
     // ===== RESPONSE TIGHTENING =====
@@ -5334,6 +5370,7 @@ Your response:`;
       response.suggestion = brainSuggestion;
       response.client_state_patch = {
         lastSuggestion: {
+          suggestion_id: brainSuggestion.suggestion_id,
           type: brainSuggestion.type,
           id: brainSuggestion.id,
           ts: Date.now(),

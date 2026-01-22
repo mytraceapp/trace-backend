@@ -53,7 +53,7 @@ function decideSuggestion(clientState, signals) {
   const now = Date.now();
   
   if (mode === 'audio_player' && !signals.asksForHelp) {
-    return null;
+    return { suggestion: null, suppressed: null };
   }
   
   if (lastSuggestion) {
@@ -61,26 +61,37 @@ function decideSuggestion(clientState, signals) {
     const cooldown = lastSuggestion.accepted === false ? IGNORED_COOLDOWN_MS : SUGGESTION_COOLDOWN_MS;
     
     if (timeSinceLast < cooldown && !signals.asksForHelp) {
-      return null;
+      const remainingSeconds = Math.round((cooldown - timeSinceLast) / 1000);
+      return {
+        suggestion: null,
+        suppressed: {
+          feature: 'suggestion',
+          remaining_seconds: remainingSeconds,
+          cooldown_type: lastSuggestion.accepted === false ? 'ignored' : 'standard',
+        }
+      };
     }
   }
+  
+  let suggestion = null;
   
   if (signals.asksForHelp) {
     if (signals.highArousal) {
-      return { type: 'activity', id: 'breathing', reason: 'grounding' };
-    }
-    if (signals.rumination) {
-      return { type: 'activity', id: 'grounding', reason: 'getting out of your head' };
-    }
-    if (signals.restNeed) {
-      return { type: 'activity', id: 'power_nap', reason: 'rest' };
-    }
-    if (signals.lowMood) {
-      return { type: 'track', id: 'neon_promise', reason: 'something gentle' };
+      suggestion = { type: 'activity', id: 'breathing', reason: 'grounding' };
+    } else if (signals.rumination) {
+      suggestion = { type: 'activity', id: 'grounding', reason: 'getting out of your head' };
+    } else if (signals.restNeed) {
+      suggestion = { type: 'activity', id: 'power_nap', reason: 'rest' };
+    } else if (signals.lowMood) {
+      suggestion = { type: 'track', id: 'neon_promise', reason: 'something gentle' };
     }
   }
   
-  return null;
+  if (suggestion) {
+    suggestion.suggestion_id = `${now}-${suggestion.id}`;
+  }
+  
+  return { suggestion, suppressed: null };
 }
 
 function tightenResponse(text) {
