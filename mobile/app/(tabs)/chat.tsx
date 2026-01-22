@@ -25,6 +25,7 @@ import { useFonts } from 'expo-font';
 import { playAmbient, stopAmbient } from '../../lib/ambientAudio';
 import { sendChatMessage, fetchWelcomeGreeting, PatternContext } from '../../lib/chat';
 import { getStableId } from '../../lib/stableId';
+import { logSuggestionAccepted, logSuggestionCompleted, logNegativeResponse } from '../../lib/telemetry';
 import { getDisplayName } from '../../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
@@ -539,6 +540,15 @@ export default function ChatScreen() {
   const [isNightSwimPlaying, setIsNightSwimPlaying] = useState(false);
   const [isNightSwimLoading, setIsNightSwimLoading] = useState(false);
   const nightSwimSoundRef = useRef<Audio.Sound | null>(null);
+  
+  // Track brain suggestions for telemetry
+  const lastBrainSuggestionRef = useRef<{
+    suggestion_id: string;
+    activity_name: string;
+    type: string;
+    shown_ts: number;
+    accepted_ts?: number;
+  } | null>(null);
 
   const [fontsLoaded] = useFonts({
     'Canela': require('../../assets/fonts/Canela-Regular.ttf'),
@@ -1249,6 +1259,17 @@ export default function ChatScreen() {
       content: trimmed,
     };
 
+    // ===== TELEMETRY: Detect negative response after suggestion =====
+    const lastSugg = lastBrainSuggestionRef.current;
+    if (lastSugg && lastSugg.shown_ts && (Date.now() - lastSugg.shown_ts < 10 * 60 * 1000)) {
+      const lower = trimmed.toLowerCase();
+      const negativePatterns = /no thanks|not now|don't want|stop|leave me alone|not helpful|annoying|shut up|go away|not interested/i;
+      if (negativePatterns.test(lower)) {
+        console.log('📊 TRACE negative response detected post-suggestion:', trimmed.slice(0, 30));
+        logNegativeResponse(currentUserId, 'post_suggestion', trimmed.slice(0, 50));
+      }
+    }
+
     const previousMessages = messages;
 
     addMessage(userMessage);
@@ -1494,9 +1515,35 @@ export default function ChatScreen() {
         }
       }
 
+      // ===== TELEMETRY: Track brain suggestion from traceBrain =====
+      const brainSuggestion = result?.suggestion;
+      if (brainSuggestion?.suggestion_id) {
+        console.log('📊 TRACE brain suggestion received:', brainSuggestion);
+        lastBrainSuggestionRef.current = {
+          suggestion_id: brainSuggestion.suggestion_id,
+          activity_name: brainSuggestion.id,
+          type: brainSuggestion.type,
+          shown_ts: Date.now(),
+        };
+      }
+
       const suggestion = result?.activity_suggestion;
       if (suggestion?.should_navigate === true && suggestion?.name) {
         const route = ACTIVITY_ROUTES[suggestion.name];
+        
+        // ===== TELEMETRY: Log suggestion_accepted if this matches last brain suggestion =====
+        const lastSugg = lastBrainSuggestionRef.current;
+        if (lastSugg && lastSugg.activity_name === suggestion.name?.toLowerCase()) {
+          logSuggestionAccepted(userId, lastSugg.suggestion_id, lastSugg.shown_ts, lastSugg.activity_name);
+          const acceptedTs = Date.now();
+          lastBrainSuggestionRef.current = { ...lastSugg, accepted_ts: acceptedTs };
+          // Store for activity completion tracking
+          AsyncStorage.setItem('trace:pendingSuggestion', JSON.stringify({
+            suggestion_id: lastSugg.suggestion_id,
+            activity_name: lastSugg.activity_name,
+            accepted_ts: acceptedTs,
+          })).catch(() => {});
+        }
         
         // Handle Spotify playlists with fallback
         if (route?.startsWith('spotify:')) {

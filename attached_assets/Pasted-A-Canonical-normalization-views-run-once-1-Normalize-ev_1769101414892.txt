@@ -1,0 +1,218 @@
+A) Canonical normalization views (run once)
+
+1) Normalize events into columns you’ll reuse everywhere
+create or replace view public.v_events_norm as
+select
+  e.id,
+  e.user_id,
+  e.event_name,
+  e.ts,
+  -- common context (optional fields; safe if missing)
+  nullif(e.props->>'session_id','') as session_id,
+  nullif(e.props->>'app_version','') as app_version,
+  nullif(e.props->>'platform','') as platform,
+
+  -- suggestion fields
+  nullif(e.props->>'suggestion_id','') as suggestion_id,
+  nullif(e.props->>'activity_name','') as activity_name,
+  nullif(e.props->>'source','') as source,
+
+  -- brain fields
+  nullif(e.props->>'detected_state','') as detected_state,
+  nullif(e.props->>'posture','') as posture,
+  case
+    when (e.props ? 'confidence') then (e.props->>'confidence')::numeric
+    else null
+  end as confidence,
+
+  -- timing fields
+  case when (e.props ? 'time_to_accept_seconds') then (e.props->>'time_to_accept_seconds')::int else null end as time_to_accept_seconds,
+  case when (e.props ? 'time_to_complete_seconds') then (e.props->>'time_to_complete_seconds')::int else null end as time_to_complete_seconds,
+  nullif(e.props->>'window','') as acceptance_window,
+
+  -- suppression
+  nullif(e.props->>'feature','') as feature,
+  case when (e.props ? 'remaining_seconds') then (e.props->>'remaining_seconds')::numeric else null end as remaining_seconds,
+
+  -- outcome signals (small phrases only)
+  nullif(e.props->>'context','') as context,
+  nullif(e.props->>'signal_type','') as signal_type,
+  nullif(e.props->>'phrase','') as phrase,
+  case when (e.props ? 'confidence') then (e.props->>'confidence')::numeric else null end as signal_confidence,
+
+  -- keep raw props available for future without breaking anything
+  e.props
+from public.events e;
+2) Canonical suggestion funnel view (shown → accepted → completed)
+
+This gives you one row per suggestion_id with attributes + timestamps + funnel booleans.
+create or replace view public.v_suggestion_funnel as
+with s as (
+  select
+    suggestion_id,
+    max(activity_name) as activity_name,
+    max(source) as source,
+    max(detected_state) as detected_state,
+    max(posture) as posture,
+    min(ts) filter (where event_name='suggestion_shown') as shown_ts,
+    min(ts) filter (where event_name='suggestion_accepted') as accepted_ts,
+    min(ts) filter (where event_name='suggestion_completed') as completed_ts,
+    min(time_to_accept_seconds) filter (where event_name='suggestion_accepted') as time_to_accept_seconds,
+    min(acceptance_window) filter (where event_name='suggestion_accepted') as acceptance_window,
+    min(time_to_complete_seconds) filter (where event_name='suggestion_completed') as time_to_complete_seconds
+  from public.v_events_norm
+  where suggestion_id is not null
+    and event_name in ('suggestion_shown','suggestion_accepted','suggestion_completed')
+  group by 1
+)
+select
+  suggestion_id,
+  activity_name,
+  source,
+  detected_state,
+  posture,
+  shown_ts,
+  accepted_ts,
+  completed_ts,
+  (shown_ts is not null)::int as shown,
+  (accepted_ts is not null)::int as accepted,
+  (completed_ts is not null)::int as completed,
+  time_to_accept_seconds,
+  acceptance_window,
+  time_to_complete_seconds
+from s;
+B) Tight, “don’t-touch-again” queries (last 30 days by default)
+
+You can change the window once (30 → 60 days) and keep everything else stable.
+
+Q1) Funnel conversion by activity
+select
+  coalesce(activity_name,'unknown') as activity_name,
+  count(*) filter (where shown=1) as shown_ct,
+  count(*) filter (where accepted=1) as accepted_ct,
+  count(*) filter (where completed=1) as completed_ct,
+  round(100.0 * count(*) filter (where accepted=1) / nullif(count(*) filter (where shown=1),0), 2) as accept_rate_pct,
+  round(100.0 * count(*) filter (where completed=1) / nullif(count(*) filter (where accepted=1),0), 2) as complete_rate_pct
+from public.v_suggestion_funnel
+where shown_ts >= now() - interval '30 days'
+group by 1
+order by shown_ct desc;
+
+Q2) Acceptance rate by detected_state + posture
+select
+  coalesce(detected_state,'unknown') as detected_state,
+  coalesce(posture,'unknown') as posture,
+  count(*) as shown_ct,
+  count(*) filter (where accepted=1) as accepted_ct,
+  round(100.0 * count(*) filter (where accepted=1) / nullif(count(*),0), 2) as accept_rate_pct
+from public.v_suggestion_funnel
+where shown_ts >= now() - interval '30 days'
+group by 1,2
+order by shown_ct desc;
+Q3) Strict vs loose acceptance split
+select
+  coalesce(acceptance_window,'unknown') as window,
+  count(*) filter (where accepted=1) as accepted_ct,
+  round(100.0 * count(*) filter (where accepted=1) / nullif(sum(count(*) filter (where accepted=1)) over (),0), 2) as pct_of_accepts
+from public.v_suggestion_funnel
+where accepted_ts >= now() - interval '30 days'
+group by 1
+order by accepted_ct desc;
+Q4) Median time-to-accept and time-to-complete by activity
+select
+  coalesce(activity_name,'unknown') as activity_name,
+  percentile_cont(0.5) within group (order by time_to_accept_seconds) as median_accept_s,
+  percentile_cont(0.5) within group (order by time_to_complete_seconds) as median_complete_s
+from public.v_suggestion_funnel
+where shown_ts >= now() - interval '30 days'
+group by 1
+order by 1;
+Q5) “Suggestion regret” rate (negative responses within 10 minutes of suggestion_shown)
+
+This is the tighter “did we annoy them?” metric.
+with neg as (
+  select user_id, ts
+  from public.v_events_norm
+  where event_name='negative_response_detected'
+    and ts >= now() - interval '30 days'
+)
+select
+  count(*) as suggestions_shown,
+  count(*) filter (where exists (
+    select 1
+    from neg n
+    where n.user_id = (select user_id from public.events e2 where e2.props->>'suggestion_id'=f.suggestion_id limit 1)
+      and n.ts between f.shown_ts and f.shown_ts + interval '10 minutes'
+  )) as shown_with_neg10m,
+  round(
+    100.0 * count(*) filter (where exists (
+      select 1
+      from neg n
+      where n.user_id = (select user_id from public.events e2 where e2.props->>'suggestion_id'=f.suggestion_id limit 1)
+        and n.ts between f.shown_ts and f.shown_ts + interval '10 minutes'
+    )) / nullif(count(*),0), 2
+  ) as neg_rate_pct
+from public.v_suggestion_funnel f
+where f.shown_ts >= now() - interval '30 days';
+If you include user_id inside suggestion events (recommended), this query becomes cleaner. If you don’t yet, this still works by looking up user_id from any event row with that suggestion_id.
+
+Q6) Cooldown suppression volume (too strict?)
+select
+  coalesce(feature,'unknown') as feature,
+  count(*) as suppressed_ct,
+  round(avg(remaining_seconds), 2) as avg_remaining_seconds
+from public.v_events_norm
+where event_name='suppressed_due_to_cooldown'
+  and ts >= now() - interval '30 days'
+group by 1
+order by suppressed_ct desc;
+C) Q7 The tight “false positive canary” you asked about
+
+Instead of tying negatives to state_detected (which can be noisy), this ties negatives to suggestion_shown + the brain context attached to that suggestion.
+
+“Which detected_state + posture combos lead to rejection after suggestions?”
+with neg as (
+  select user_id, ts
+  from public.v_events_norm
+  where event_name='negative_response_detected'
+    and ts >= now() - interval '30 days'
+),
+base as (
+  select
+    f.suggestion_id,
+    f.detected_state,
+    f.posture,
+    f.shown_ts
+  from public.v_suggestion_funnel f
+  where f.shown_ts >= now() - interval '30 days'
+),
+u as (
+  select
+    suggestion_id,
+    max(user_id) as user_id
+  from public.v_events_norm
+  where suggestion_id is not null
+  group by 1
+)
+select
+  coalesce(b.detected_state,'unknown') as detected_state,
+  coalesce(b.posture,'unknown') as posture,
+  count(*) as suggestions,
+  count(*) filter (where exists (
+    select 1 from neg n
+    where n.user_id = u.user_id
+      and n.ts between b.shown_ts and b.shown_ts + interval '10 minutes'
+  )) as suggestions_with_neg10m,
+  round(
+    100.0 * count(*) filter (where exists (
+      select 1 from neg n
+      where n.user_id = u.user_id
+        and n.ts between b.shown_ts and b.shown_ts + interval '10 minutes'
+    )) / nullif(count(*),0), 2
+  ) as neg_rate_pct
+from base b
+join u using (suggestion_id)
+group by 1,2
+order by neg_rate_pct desc, suggestions desc;
+
+i'm going to create and upate the sqls are they fully supported on the mobile side?
