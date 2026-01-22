@@ -570,7 +570,7 @@ If you want to sit there for a while, I'll be right here with you.`,
 
   rising: `I can feel you opening a little — even if it's small.
 
-Inside the journal there's a space called **First Light**. The music there warms slowly. It doesn't push you — it just lets the light return at your pace.
+Inside the journal there's a space called First Light. The music there warms slowly. It doesn't push you — it just lets the light return at your pace.
 
 If that sounds right, we can visit whenever you're ready.`,
 };

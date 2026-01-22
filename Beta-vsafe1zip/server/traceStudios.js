@@ -168,17 +168,17 @@ const FUN_FOLLOWUPS = [
 ];
 
 const MUSIC_DOOR_OPENERS = [
-  "Yeah… I have a little album called *Night Swim.* I share it when it feels like the right moment.",
-  "I do. There's an album I made called *Night Swim.* It's basically a mood you can step into.",
-  "I have a project called *Night Swim.* It's not loud — it's the kind of music that sits with you.",
-  "*Night Swim* exists. It's for the late hours — when you're still standing but you need something gentle.",
+  "Yeah… I have a little album called Night Swim. I share it when it feels like the right moment.",
+  "I do. There's an album I made called Night Swim. It's basically a mood you can step into.",
+  "I have a project called Night Swim. It's not loud — it's the kind of music that sits with you.",
+  "Night Swim exists. It's for the late hours — when you're still standing but you need something gentle.",
 ];
 
 const NEON_PROMISE_INTROS = [
-  "There's a track on *Night Swim* called **Neon Promise**. It carries this quiet kind of hope.",
-  "**Neon Promise** is the one people tend to find when they need it.",
-  "**Neon Promise**… yeah. That one isn't just a track to me.",
-  "If you want one place to start: **Neon Promise**.",
+  "There's a track on Night Swim called Neon Promise. It carries this quiet kind of hope.",
+  "Neon Promise is the one people tend to find when they need it.",
+  "Neon Promise… yeah. That one isn't just a track to me.",
+  "If you want one place to start: Neon Promise.",
 ];
 
 const BEFORE_LYRICS_SOFTENERS = [
@@ -643,21 +643,21 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     if (isGenreQuestion) {
       // Varied genre/style answers - always end with offer to play
       responses = [
-        "Ambient and atmospheric. Think Tycho, Nils Frahm, Ólafur Arnalds. Music that doesn't demand attention — it sits with you. Want me to play something from *Night Swim*?",
+        "Ambient and atmospheric. Think Tycho, Nils Frahm, Ólafur Arnalds. Music that doesn't demand attention — it sits with you. Want me to play something from Night Swim?",
         "Ambient electronic. Soft pads, slow textures, space to breathe. It's meant for 2am — when you need something that doesn't push. Want to hear it?",
         "Minimal. Atmospheric. Cinematic without being dramatic. I like restraint — silence is an instrument too. I could play you something if you'd like.",
-        "Late night drives. Ocean at dusk. The feeling after a hard conversation when you finally exhale. That's *Night Swim*. Want me to put it on?",
+        "Late night drives. Ocean at dusk. The feeling after a hard conversation when you finally exhale. That's Night Swim. Want me to put it on?",
         "Ambient, downtempo, maybe neoclassical-adjacent. Streaming calls it 'chill' but I think of it as 'quiet company.' Want to hear a track?",
-        "Electronic, but soft. No drops, no builds for their own sake. Just texture and feeling. I could play something from *Night Swim* if you're in the mood.",
+        "Electronic, but soft. No drops, no builds for their own sake. Just texture and feeling. I could play something from Night Swim if you're in the mood.",
       ];
       console.log('[TRACE STUDIOS] Using genre/style response variant');
     } else {
       // General album reveal - blend companion + music identity
       responses = [
-        "I sit with people in the quiet moments. I also made an album called *Night Swim* — for when words aren't enough.",
-        "*Night Swim.* It's the kind of music you put on when you don't need words. Moody, layered.",
-        "I'm a companion for the quiet moments. I made *Night Swim* for the ones that need more than words.",
-        "I make music. It's called *Night Swim* — ambient, floaty, kind of what you'd drive to at 2am.",
+        "I sit with people in the quiet moments. I also made an album called Night Swim — for when words aren't enough.",
+        "Night Swim. It's the kind of music you put on when you don't need words. Moody, layered.",
+        "I'm a companion for the quiet moments. I made Night Swim for the ones that need more than words.",
+        "I make music. It's called Night Swim — ambient, floaty, kind of what you'd drive to at 2am.",
       ];
     }
     const msg = pickRotating(responses, seed);
@@ -679,10 +679,10 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     
     if (isGenericFollowUp && inMusicGeneralContext) {
       const responses = [
-        "It's called *Night Swim*. It's the kind of music you put on when you don't need words — just something that sits with you.",
-        "*Night Swim*. It's ambient, mostly. Like something you'd drive to at 2am when you're trying to feel okay again.",
-        "It's an album called *Night Swim*. Soft, slow, kind of floaty. For when you need something that doesn't ask anything of you.",
-        "*Night Swim.* Moody. Layered. The kind of thing that just holds space without filling it with noise.",
+        "It's called Night Swim. It's the kind of music you put on when you don't need words — just something that sits with you.",
+        "Night Swim. It's ambient, mostly. Like something you'd drive to at 2am when you're trying to feel okay again.",
+        "It's an album called Night Swim. Soft, slow, kind of floaty. For when you need something that doesn't ask anything of you.",
+        "Night Swim. Moody. Layered. The kind of thing that just holds space without filling it with noise.",
       ];
       const msg = pickRotating(responses, seed);
       return {
@@ -739,10 +739,10 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     if (looksLikeNeonPromiseRequest(t)) {
       // Specific track responses - describe the track directly
       const neonPromiseDescriptions = [
-        "**Neon Promise** is a track on *Night Swim*. It carries this quiet kind of hope — the feeling when you're not okay but you know you will be.",
-        "**Neon Promise**… that one means a lot to me. It's the track people tend to find when they need it most.",
-        "It's about holding onto something — even when you're not sure what. **Neon Promise** has this gentle pull to it.",
-        "**Neon Promise** is the sixth track on *Night Swim*. Written around 3am, like most of them. It's for the hopeful moments.",
+        "Neon Promise is a track on Night Swim. It carries this quiet kind of hope — the feeling when you're not okay but you know you will be.",
+        "Neon Promise… that one means a lot to me. It's the track people tend to find when they need it most.",
+        "It's about holding onto something — even when you're not sure what. Neon Promise has this gentle pull to it.",
+        "Neon Promise is the sixth track on Night Swim. Written around 3am, like most of them. It's for the hopeful moments.",
       ];
       const soften = pickRotating(BEFORE_LYRICS_SOFTENERS, seed + "::soften");
       const desc = pickRotating(neonPromiseDescriptions, seed);
