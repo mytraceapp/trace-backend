@@ -32,15 +32,21 @@ interface ChatMessage {
 async function loadRecentChatMessages(userId: string | null): Promise<ChatMessage[]> {
   if (!userId) return [];
   try {
-    const key = `trace_chat_history_${userId}`;
+    const key = `trace:conversation_history:${userId}`;
     const stored = await AsyncStorage.getItem(key);
-    if (!stored) return [];
+    if (!stored) {
+      console.log('🧠 [PATTERNS] No stored messages found for key:', key);
+      return [];
+    }
     const messages: ChatMessage[] = JSON.parse(stored);
+    console.log('🧠 [PATTERNS] Loaded', messages.length, 'total messages from storage');
     const oneHourAgo = Date.now() - 60 * 60 * 1000;
-    return messages.filter(m => {
+    const filtered = messages.filter(m => {
       if (!m.timestamp) return true;
       return new Date(m.timestamp).getTime() >= oneHourAgo;
     });
+    console.log('🧠 [PATTERNS] Filtered to', filtered.length, 'messages from last hour');
+    return filtered;
   } catch (err) {
     console.error('Failed to load chat messages:', err);
     return [];
