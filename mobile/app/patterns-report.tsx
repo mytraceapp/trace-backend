@@ -14,12 +14,38 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { TrendingUp } from 'lucide-react-native';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { Colors } from '../constants/colors';
 import { FontFamily, TraceWordmark } from '../constants/typography';
 import { Shadows } from '../constants/shadows';
 import { getStableId } from '../lib/stableId';
 import { fetchPatternsWeeklySummary, fetchPatternsInsights, PatternsInsightsResult } from '../lib/chat';
 import { getTraceUserId } from '../lib/supabase';
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp?: string;
+}
+
+async function loadRecentChatMessages(userId: string | null): Promise<ChatMessage[]> {
+  if (!userId) return [];
+  try {
+    const key = `trace_chat_history_${userId}`;
+    const stored = await AsyncStorage.getItem(key);
+    if (!stored) return [];
+    const messages: ChatMessage[] = JSON.parse(stored);
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    return messages.filter(m => {
+      if (!m.timestamp) return true;
+      return new Date(m.timestamp).getTime() >= oneHourAgo;
+    });
+  } catch (err) {
+    console.error('Failed to load chat messages:', err);
+    return [];
+  }
+}
 
 const API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
 
@@ -51,8 +77,15 @@ function getCheckinCountText(count: number): string | null {
   return `This is the ${getOrdinalSuffix(count)} time you've checked in today.`;
 }
 
-async function fetchLastHourSummary(params: { userId: string | null; deviceId: string }): Promise<LastHourResult> {
-  console.log('🧠 fetchLastHourSummary called with:', params);
+async function fetchLastHourSummary(params: { 
+  userId: string | null; 
+  deviceId: string;
+  recentMessages?: ChatMessage[];
+}): Promise<LastHourResult> {
+  console.log('🧠 fetchLastHourSummary called with:', { 
+    ...params, 
+    recentMessagesCount: params.recentMessages?.length || 0 
+  });
   const res = await fetch(`${API_BASE}/api/patterns/last-hour`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -126,9 +159,13 @@ export default function PatternsReport() {
       setIsLastHourLoading(true);
       setError(null);
 
+      const recentMessages = await loadRecentChatMessages(userId);
+      console.log('🧠 [TRACE PATTERNS] loaded recentMessages:', recentMessages.length);
+
       const result = await fetchLastHourSummary({
         userId: userId,
         deviceId: stableId,
+        recentMessages,
       });
 
       console.log('🧠 [TRACE PATTERNS] last-hour result:', result);
