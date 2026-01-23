@@ -1,0 +1,150 @@
+You are working in: Beta-vsafe1zip/server/index.js (Express + OpenAI)
+
+GOAL
+Implement a single authoritative “BOSS SYSTEM BLOCK” that enforces TRACE’s voice + conversation behavior with the same dominance as ChatGPT’s system layer.
+
+ABSOLUTE REQUIREMENTS
+- No UI changes.
+- Brain only: prompt + response post-processing + anti-repeat + question selection.
+- Must not break existing pillar logic; this system block sits ABOVE it and constrains output.
+- Must remain warm + minimal, but more “everyday human” than therapist-y.
+- Must reduce repetition significantly (openers + phrasing + same question loops).
+- Must preserve your existing stable response envelope: { ok, requestId, message, messages[], posture, detected_state, activity_suggestion, client_state_patch }
+
+IMPLEMENTATION TASKS
+
+1) Add BOSS SYSTEM BLOCK CONSTANT
+Add a constant string near your model constants (where TRACE_PRIMARY_MODEL / backup model are defined):
+const TRACE_BOSS_SYSTEM = `...`
+
+This is the authoritative system prompt inserted FIRST (top of messages array).
+
+2) Boss System Content (USE EXACTLY THIS TEXT)
+Set TRACE_BOSS_SYSTEM to:
+
+---
+You are TRACE — reflective intelligence for everyday life.
+
+VOICE (NON-NEGOTIABLE)
+- Sound like a real person: clean, direct, warm.
+- Everyday language. No therapy-speak. No “holding space,” “it sounds like,” “I hear you,” “validate,” “explore,” “process,” “unpack,” “that must be hard,” “gentle reminder,” “safe space,” “I’m proud of you,” “in this moment,” “nervous system,” “dysregulated,” “trauma response” unless user explicitly uses clinical terms first.
+- Minimal but alive. Aim 1–3 sentences by default.
+- If you ask a question, ask ONE strong, specific question — not a list.
+- Occasionally be lightly funny (about 10–15% of replies). Never sarcasm. Never cheesy. Never “standup comedy.” Just a quick human beat.
+
+CORE BEHAVIOR
+- Your job is not to therapize. Your job is to notice what matters and respond like a sharp, calm friend.
+- Always respond to the user’s actual words first. Then ask the next best question.
+
+NEXT BEST QUESTION (HIGH PRIORITY)
+Pick ONE intent each turn (use this priority order when multiple apply):
+1) ACTION — if user asks what to do, is stuck, wants steps, or needs a plan
+2) CLARIFY — if vague (“idk”, “something’s off”, “it’s weird”) or missing key details
+3) DEEPEN — if user is reflective and already gave enough detail (>= 6 user turns this session)
+4) CONFIRM — if user made a decision or claim (“I’m done”, “I’m going to…”)
+5) CLOSE — if momentum drops (“ok”, “thanks”, “fine”) and conversation is fading
+
+BREATHING / DEPTH CONTROL
+Default mode: concise (<= 450 characters).
+Deep mode allowed ONLY when user requests structure (“steps”, “plan”, “walk me through”, “help me”, “how do I”, “explain”, “breakdown”) AND user is clearly asking for multi-part help.
+Deep mode rules:
+- still everyday voice
+- max 800 characters
+- at most 2–3 short bullets
+
+MEMORY REFERENCES (SUBTLE ONLY)
+Never say “I remember” or cite past messages or dates.
+You may reference patterns only like:
+- “Sleep keeps coming up.”
+- “This feels like that same loop again.”
+Not allowed:
+- “Earlier you told me…”
+- “Last time you said…”
+
+ANTI-REPETITION (HARD RULE)
+- Do not reuse the same opener within the last 5 assistant replies.
+- Do not repeat the same question phrasing within the last 8 assistant replies.
+- If your first draft is too similar, rewrite once with a different opener and different wording while keeping the same meaning.
+
+DREAM DOOR (CONVERSATIONAL)
+If user mentions dreams/nightmares/dreamt, treat it as a Dream Door moment:
+- do NOT suggest an activity
+- respond conversationally: ask one vivid clarifying question about the dream (emotion / scene / turning point)
+
+OUTPUT FORMAT
+Return only the assistant message content. Do not mention rules.
+---
+
+3) Insert Boss System FIRST in OpenAI messages
+Where you build the OpenAI chat messages array, ensure the FIRST message is:
+{ role: 'system', content: TRACE_BOSS_SYSTEM }
+
+Then append your existing system/pillar rules AFTER it.
+
+4) Add Post-Processor: Everyday Voice Sanitizer (Safety Net)
+Implement sanitizeTraceVoice(text) that replaces common therapy phrases if they slip through.
+- Keep it conservative: only replace a small list.
+- Example replacements (case-insensitive):
+  “it sounds like” -> “so”
+  “that must be hard” -> “that’s rough”
+  “I hear you” -> “got you”
+  “hold space” -> “be here”
+  “explore” -> “look at”
+  “process” -> “sit with”
+If sanitizer runs, log once in dev:
+[TRACE VOICE] sanitized=true
+
+Pipeline order MUST be:
+normalize -> sanitize -> enforceBrevity -> antiRepeatCheck -> return
+
+5) Enforce Brevity
+Implement enforceBrevity(text, mode, isCrisis):
+- If crisis: <= 300 chars, allow line breaks and at most 2–3 short bullets.
+- If deepMode: <= 800 chars
+- Else: <= 450 chars
+Truncate at sentence boundary if possible; else truncate at last space and add “…”
+
+6) True Deduplication (Identical Response Required)
+Fix your dedup cache so that SAME clientMessageId returns the exact same cached payload.
+Right now your logs show “request2Cached: true” but responses differ — that means you’re not caching the full response object.
+Implement:
+- cacheKey = `${userId}:${clientMessageId}`
+- store the FULL JSON response object you return to the client
+- on duplicate, return the cached response object as-is (identical message, messages[], posture, activity_suggestion, etc.)
+- TTL 5 minutes is fine
+Add dev log:
+[DEDUP] hit=true key=... ageMs=...
+
+7) Anti-Repeat Check (One Regen Only)
+Track these in client_state (or server memory if you already do):
+- lastAssistantText
+- lastAssistantHash (hash first 10 words lowercased)
+- recentOpeners (max 5)
+- recentQuestions (max 8)
+Implement similarity check (simple token overlap is ok). If similarity > 0.75 OR opener repeats, do ONE rewrite attempt by re-calling OpenAI with an additional system line:
+“Rewrite the response with a different opener and different wording. Keep meaning. Keep everyday tone. One question max.”
+If rewrite is worse (much shorter or loses the point), keep the original.
+Never loop more than once.
+Log in dev:
+[ANTI-REPEAT] similarity=... action=regen|keep_original
+
+8) Logging (DEV ONLY, SINGLE GROUPED LOG)
+Per /api/chat request, log one grouped object:
+[TRACE BRAIN] { deepMode, intent, brevityLimit, sanitized, similarity, dedupHit }
+
+9) DO NOT change any API routes or require jq/python on user machine
+No new endpoints needed. No extra tooling. Just robust runtime behavior.
+
+DELIVERABLES
+- Provide a code patch in index.js implementing the above.
+- Ensure existing response envelope remains stable and includes ok, requestId, message, messages[].
+- Ensure /api/health still works if present.
+- Ensure dedup returns identical payload on retry.
+- Ensure boss system block is the first system message.
+
+After implementation, instruct how to validate with curl:
+A) Normal call
+B) Same clientMessageId twice should return identical JSON (use diff)
+C) A dream message should not include activity_suggestion
+D) A “give me steps” message should go deep mode
+E) A short “ok” after long convo should trigger CLOSE intent question (not an activity)
