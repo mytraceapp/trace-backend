@@ -1,0 +1,131 @@
+cmdand quote>   }' 2>&1 | tail -20
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+curl: (7) Failed to connect to localhost port 3000 after 0 ms: Couldn't connect to server
+ninaresurreccion@Mac server % node index.js 2>&1 | head -30
+/Users/ninaresurreccion/Dev/BetaTrace/server/index.js:609
+    }
+    ^
+
+SyntaxError: Missing catch or finally after try
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+    at node:internal/main/run_main_module:28:49
+
+Node.js v20.19.6
+ninaresurreccion@Mac server % cd /Users/ninaresurreccion/Dev/BetaTr
+ace/server && node index.js &
+[1] 94741
+ninaresurreccion@Mac server % sleep 2
+echo "✅ Server started"
+✓ Supabase client initialized
+Server listening on http://localhost:3000
+OpenAI: ✓ Connected
+ninaresurreccion@Mac server % echo "✅ Server started"
+✅ Server started
+ninaresurreccion@Mac server % sleep 2 && curl -X POST http://localh
+ost:3000/api/chat \
+cmdand>   -H "Content-Type: application/json" \
+cmdand>   -d '{
+cmdand quote>     "userId": "test-user",
+cmdand quote>     "messages": [
+cmdand quote>       {"role": "user", "content": "How are you feelin
+g today?"},
+cmdand quote>       {"role": "assistant", "content": "I am feeling 
+great today"},
+cmdand quote>       {"role": "user", "content": "what about the wea
+ther?"}
+cmdand quote>     ],
+cmdand quote>     "client_state": {},
+cmdand quote>     "weatherContext": {
+cmdand quote>       "temperature": 37.1,
+cmdand quote>       "windSpeed": 24.3,
+cmdand quote>       "summary": "Overcast, 37°F, 26% humidity, wind 
+24 mph"
+cmdand quote>     }
+cmdand quote>   }' 2>&1 | grep -E "WEATHER|ANTI-REPEAT|OpenAI respo
+nded|messages" | head -10
+📨 Received chat request with 3 messages
+[WEATHER] Context received: {
+  temp: 37.1,
+  wind: 24.3,
+  summary: 'Overcast, 37°F, 26% humidity, wind 24 mph'
+}
+[VALIDATION] client_state sanitized: { keys: [], hasSentiment: false, hasActivity: false, timeOfDay: null }
+[TRACE CHAT] Profile query result: { userId: 'test-user', profile: null, first_chat_completed: undefined }
+[TRACE CHAT] First chat check - userId: test-user isFirstChat: false first_chat_completed: undefined (took 365 ms)
+[TRACE BRAIN] Signals detected: {
+  asksForHelp: false,
+  highArousal: false,
+  lowMood: false,
+  restNeed: false,
+  rumination: false,
+  isCrisis: false,
+  meaningSeeking: false,
+  patternLanguage: false,
+  reflectiveTone: false
+}
+[WEATHER] Injected into system prompt
+[OPENAI] About to call OpenAI with 4 messages
+[OPENAI] System prompt length: 2810
+[OPENAI] Recent messages: 3
+✅ OpenAI responded in 1154 ms: It's overcast and a bit chilly outside. The kind o...
+[TRACE BRAIN] → No suggestion (normal flow)
+[TRACE BRAIN] → No suggestion
+[PERF] /api/chat completed in 1841 ms {"start":1769197899172,"supabaseStart":1769197899173,"supabaseDuration":365,"openaiStart":1769197899858,"openaiDuration":1154,"totalDuration":1841}
+{"messages":["It's overcast and a bit chilly outside. The kind of day that invites you to slow down and find some warmth. How does the weather feel for you today?"],"suggestion":null}
+ninaresurreccion@Mac server % [WEATHER] Location (40.7128, -74.006): Overcast, 37°F, 26% humidity, wind 24 mph
+📨 Received chat request with 12 messages
+[WEATHER] Context received: {
+  temp: 37.1,
+  wind: 24.3,
+  summary: 'Overcast, 37°F, 26% humidity, wind 24 mph'
+}
+[VALIDATION] client_state sanitized: {
+  keys: [
+    'mode',
+    'timeOfDay',
+    'recentSentiment',
+    'nowPlaying',
+    'lastSuggestion',
+    'lastActivity',
+    'sessionTurnCount',
+    'lastHookAt',
+    'lastHookGlobalAt',
+    'lastInsightAt',
+    'localNow'
+  ],
+  hasSentiment: false,
+  hasActivity: false,
+  timeOfDay: 'morning'
+}
+[TRACE CHAT] Profile query result: {
+  userId: '80624861-1955-40f4-b302-2af2c9dc67c1',
+  profile: null,
+  first_chat_completed: undefined
+}
+[TRACE CHAT] First chat check - userId: 80624861-1955-40f4-b302-2af2c9dc67c1 isFirstChat: false first_chat_completed: undefined (took 337 ms)
+[TRACE BRAIN] Signals detected: {
+  asksForHelp: false,
+  highArousal: false,
+  lowMood: false,
+  restNeed: false,
+  rumination: false,
+  isCrisis: false,
+  meaningSeeking: false,
+  patternLanguage: false,
+  reflectiveTone: false
+}
+[WEATHER] Injected into system prompt
+[OPENAI] About to call OpenAI with 11 messages
+[OPENAI] System prompt length: 2810
+[OPENAI] Recent messages: 10
+✅ OpenAI responded in 1366 ms: I can't provide current weather updates. It might ...
+[TRACE BRAIN] → No suggestion (normal flow)
+[TRACE BRAIN] → No suggestion
+[PERF] /api/chat completed in 1952 ms {"start":1769197939121,"supabaseStart":1769197939122,"supabaseDuration":337,"openaiStart":1769197939707,"openaiDuration":1366,"totalDuration":1952}
