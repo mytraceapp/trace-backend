@@ -1,7 +1,81 @@
+const crypto = require('crypto');
+
 const SUGGESTION_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
 const IGNORED_COOLDOWN_MS = 20 * 60 * 1000; // 20 minutes if user ignored last suggestion
 const HOOK_SESSION_COOLDOWN_MS = 60 * 60 * 1000; // 60 minutes within session
 const HOOK_GLOBAL_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours global
+
+// ============================================================
+// PREMIUM CONVERSATION ENGINE v1 - State & Constants
+// ============================================================
+const SESSION_GAP_MS = 6 * 60 * 60 * 1000; // 6 hours = new session
+const PREMIUM_MOMENT_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours rolling window
+const PREMIUM_MOMENT_TURN_COOLDOWN = 15; // minimum turns between premium moments
+const GUIDED_STEP_TURN_COOLDOWN = 10; // minimum turns between guided steps
+const MEMORY_DECAY_MS = 6 * 60 * 60 * 1000; // 6 hours memory decay
+
+// State caps
+const MAX_RECENT_TOPICS = 5;
+const MAX_ACTIVE_LOOPS = 3;
+const MAX_RECENT_WINS = 3;
+const MAX_RECENT_PHRASES = 8;
+
+// Topic headers for memory extraction
+const TOPIC_HEADERS = [
+  'work', 'relationship', 'sleep', 'money', 'health', 'trace', 'nyla', 'church',
+  'school', 'faith', 'purpose', 'family', 'career', 'anxiety', 'creativity', 'motivation'
+];
+
+// Loop keywords
+const LOOP_KEYWORDS = ['stuck', 'again', 'keeps happening', 'same', 'loop', 'every time', 'always'];
+
+// Win keywords (positive verbs)
+const WIN_VERBS = ['did', 'tried', 'managed', 'finally', 'finished', 'shipped', 'completed', 'made it', 'got through'];
+
+// Deep mode trigger keywords and verbs
+const DEEP_MODE_KEYWORDS = ['plan', 'steps', 'how to', 'guide', 'explain', 'breakdown'];
+const DEEP_MODE_VERBS = ['give me', 'help', 'walk me through', 'can you', 'show me', 'teach me'];
+
+// Pause detection short responses
+const PAUSE_RESPONSES = ['ok', 'okay', 'thanks', 'idk', 'sure', 'lol', 'hmm', 'yeah', 'yep', 'nah', 'k'];
+
+// Guided step prompts
+const GUIDED_STEP_PROMPTS = [
+  "Want a quick 60-second reset?",
+  "Want me to pull the pattern I'm seeing?",
+  "Want a tiny plan for today?",
+  "Want to try something small right now?",
+  "Want to pause and breathe for a sec?",
+];
+
+// Next Best Question templates by intent
+const NEXT_QUESTION_TEMPLATES = {
+  action: [
+    "What's one thing you could try right now?",
+    "What would help most in the next hour?",
+    "What feels doable right now?",
+  ],
+  clarify: [
+    "What's the main thing bothering you?",
+    "Can you tell me more about that?",
+    "What do you mean by that?",
+  ],
+  deepen: [
+    "What do you think that's really about?",
+    "What's underneath that feeling?",
+    "What does that remind you of?",
+  ],
+  confirm: [
+    "Is that what you want to do?",
+    "Does that feel right?",
+    "Ready to try it?",
+  ],
+  close: [
+    "Anything else on your mind?",
+    "How are you feeling about all this?",
+    "Want to leave it here for now?",
+  ],
+};
 
 const CURIOSITY_HOOKS = [
   "There's a pattern forming here — if you want, we can keep watching it together.",
@@ -73,6 +147,450 @@ function getSignals(userText) {
     patternLanguage,
     reflectiveTone,
   };
+}
+
+// ============================================================
+// PREMIUM CONVERSATION ENGINE v1 - Core Functions
+// ============================================================
+
+// Session management: update session state on each user message
+function updateSessionState(clientState = {}) {
+  const now = Date.now();
+  const lastUserAt = clientState.lastUserAt || 0;
+  const sessionStartedAt = clientState.sessionStartedAt || now;
+  
+  // Check if this is a new session (gap > 6 hours)
+  const isNewSession = (now - lastUserAt) > SESSION_GAP_MS;
+  
+  if (isNewSession) {
+    console.log('[SESSION] New session started (gap > 6 hours)');
+    return {
+      sessionStartedAt: now,
+      lastUserAt: now,
+      sessionTurnCount: 1,
+      // Reset per-session gates
+      lastGuidedStepTurn: 0,
+    };
+  }
+  
+  return {
+    sessionStartedAt,
+    lastUserAt: now,
+    sessionTurnCount: (clientState.sessionTurnCount || 0) + 1,
+    lastGuidedStepTurn: clientState.lastGuidedStepTurn || 0,
+  };
+}
+
+// Memory cleanup: decay old entries, enforce caps
+function cleanupMemory(clientState = {}) {
+  const now = Date.now();
+  const cutoff = now - MEMORY_DECAY_MS;
+  
+  // Filter and cap recentTopics
+  let recentTopics = (clientState.recentTopics || [])
+    .filter(t => t.timestamp > cutoff)
+    .slice(-MAX_RECENT_TOPICS);
+  
+  // Filter and cap activeLoops
+  let activeLoops = (clientState.activeLoops || [])
+    .filter(l => l.timestamp > cutoff)
+    .slice(-MAX_ACTIVE_LOOPS);
+  
+  // Filter and cap recentWins
+  let recentWins = (clientState.recentWins || [])
+    .filter(w => w.timestamp > cutoff)
+    .slice(-MAX_RECENT_WINS);
+  
+  // Cap recentPhrases
+  let recentPhrases = (clientState.recentPhrases || [])
+    .slice(-MAX_RECENT_PHRASES);
+  
+  return { recentTopics, activeLoops, recentWins, recentPhrases };
+}
+
+// Extract topics from user message
+function extractTopics(userText) {
+  const t = (userText || '').toLowerCase();
+  const found = [];
+  
+  for (const topic of TOPIC_HEADERS) {
+    if (t.includes(topic)) {
+      found.push(topic);
+    }
+  }
+  
+  return found;
+}
+
+// Check if user message indicates a loop pattern
+function detectLoop(userText) {
+  const t = (userText || '').toLowerCase();
+  
+  for (const keyword of LOOP_KEYWORDS) {
+    if (t.includes(keyword)) {
+      return keyword;
+    }
+  }
+  return null;
+}
+
+// Check if user message indicates a win
+function detectWin(userText) {
+  const t = (userText || '').toLowerCase();
+  
+  // Check for positive sentiment + win verb
+  const hasPositive = /good|great|better|finally|managed|did it|proud|happy|relieved/i.test(t);
+  const hasWinVerb = WIN_VERBS.some(v => t.includes(v));
+  
+  if (hasPositive && hasWinVerb) {
+    // Extract a simple label
+    const words = t.split(/\s+/).slice(0, 5);
+    return words.join(' ').substring(0, 30);
+  }
+  return null;
+}
+
+// Update memory with extracted patterns (dedup by label)
+function updateMemory(clientState, userText) {
+  const now = Date.now();
+  const memory = cleanupMemory(clientState);
+  
+  // Extract and add topics (dedup)
+  const newTopics = extractTopics(userText);
+  for (const topic of newTopics) {
+    const existing = memory.recentTopics.find(t => t.label === topic);
+    if (existing) {
+      existing.timestamp = now; // Update timestamp
+    } else {
+      memory.recentTopics.push({ label: topic, timestamp: now });
+    }
+  }
+  memory.recentTopics = memory.recentTopics.slice(-MAX_RECENT_TOPICS);
+  
+  // Detect and track loops
+  const loopLabel = detectLoop(userText);
+  if (loopLabel) {
+    const existing = memory.activeLoops.find(l => l.label === loopLabel);
+    if (existing) {
+      existing.timestamp = now;
+      existing.count = (existing.count || 1) + 1;
+    } else {
+      // Replace oldest if at cap
+      if (memory.activeLoops.length >= MAX_ACTIVE_LOOPS) {
+        memory.activeLoops.sort((a, b) => a.timestamp - b.timestamp);
+        memory.activeLoops.shift();
+      }
+      memory.activeLoops.push({ label: loopLabel, timestamp: now, count: 1 });
+    }
+  }
+  
+  // Detect and track wins (dedup)
+  const winLabel = detectWin(userText);
+  if (winLabel) {
+    const existing = memory.recentWins.find(w => w.label === winLabel);
+    if (existing) {
+      existing.timestamp = now;
+    } else {
+      memory.recentWins.push({ label: winLabel, timestamp: now });
+    }
+  }
+  memory.recentWins = memory.recentWins.slice(-MAX_RECENT_WINS);
+  
+  return memory;
+}
+
+// Detect if deep mode should trigger
+function isDeepMode(userText) {
+  const t = (userText || '').toLowerCase();
+  
+  const hasKeyword = DEEP_MODE_KEYWORDS.some(k => t.includes(k));
+  const hasVerb = DEEP_MODE_VERBS.some(v => t.includes(v));
+  
+  return hasKeyword && hasVerb;
+}
+
+// Enforce brevity based on mode (strict/deep/crisis)
+function enforceBrevity(text, mode = 'strict') {
+  if (!text) return text;
+  
+  const limits = {
+    strict: { chars: 450, sentences: 3, bullets: 0 },
+    deep: { chars: 800, sentences: 5, bullets: 3 },
+    crisis: { chars: 300, sentences: 3, bullets: 2 },
+  };
+  
+  const limit = limits[mode] || limits.strict;
+  let result = text;
+  
+  // Remove bullets if not allowed
+  if (limit.bullets === 0) {
+    const lines = result.split('\n');
+    result = lines.filter(line => {
+      const trimmed = line.trim();
+      return !(/^[\-\*]\s/.test(trimmed) || /^\d+[\.\)]\s/.test(trimmed));
+    }).join('\n').trim();
+  }
+  
+  // Sentence limiting
+  const sentences = result.match(/[^.!?]+[.!?]+/g) || [result];
+  if (sentences.length > limit.sentences) {
+    result = sentences.slice(0, limit.sentences).join(' ').trim();
+  }
+  
+  // Character limiting (truncate at sentence boundary if possible)
+  if (result.length > limit.chars) {
+    const truncated = result.substring(0, limit.chars);
+    const lastPeriod = Math.max(truncated.lastIndexOf('.'), truncated.lastIndexOf('!'), truncated.lastIndexOf('?'));
+    if (lastPeriod > limit.chars * 0.5) {
+      result = truncated.substring(0, lastPeriod + 1);
+    } else {
+      result = truncated.trim() + '...';
+    }
+  }
+  
+  return result.trim();
+}
+
+// Pick Next Best Question based on priority stack
+function pickNextQuestion({ userText, signals, turnCount, lastUserTexts = [] }) {
+  const t = (userText || '').toLowerCase();
+  let intent = null;
+  let reason = '';
+  
+  // Priority 1: ACTION - stuck/help keywords
+  const actionKeywords = ['stuck', 'what do i do', 'overwhelmed', 'need a plan', 'help me', 'any ideas'];
+  if (actionKeywords.some(k => t.includes(k))) {
+    intent = 'action';
+    reason = 'user_seeking_action';
+  }
+  
+  // Priority 2: CLARIFY - vague/short response
+  if (!intent && userText.length < 20) {
+    intent = 'clarify';
+    reason = 'vague_response';
+  }
+  
+  // Priority 3: DEEPEN - reflective tone AND turn >= 6
+  if (!intent && (signals.reflectiveTone || signals.meaningSeeking) && turnCount >= 6) {
+    intent = 'deepen';
+    reason = 'reflective_depth';
+  }
+  
+  // Priority 4: CONFIRM - decision/commitment language
+  const confirmKeywords = ['i think i should', 'maybe i will', 'i might', 'i could try', 'i want to'];
+  if (!intent && confirmKeywords.some(k => t.includes(k))) {
+    intent = 'confirm';
+    reason = 'decision_language';
+  }
+  
+  // Priority 5: CLOSE - momentum drops (fallback)
+  if (!intent && turnCount >= 10) {
+    intent = 'close';
+    reason = 'momentum_check';
+  }
+  
+  // If no intent matched, don't force a question
+  if (!intent) {
+    return { intent: null, question: null, reason: 'no_question_needed' };
+  }
+  
+  // Pick a question from templates
+  const templates = NEXT_QUESTION_TEMPLATES[intent] || [];
+  const question = templates[Math.floor(Math.random() * templates.length)] || null;
+  
+  console.log(`[TRACE BRAIN] Next Best Question chosen: { intent: "${intent}", reason: "${reason}" }`);
+  
+  return { intent, question, reason };
+}
+
+// Pause detection for guided steps
+function detectPause(userText, turnCount, lastUserTexts = []) {
+  const t = (userText || '').toLowerCase().replace(/[^a-z\s]/g, '').trim();
+  
+  // Check if short response after 4+ longer turns
+  if (userText.length < 15 && turnCount >= 4) {
+    return { isPause: true, reason: 'short_after_long' };
+  }
+  
+  // Check for pause responses
+  const firstWord = t.split(/\s+/)[0] || '';
+  const isPauseResponse = PAUSE_RESPONSES.includes(firstWord);
+  if (isPauseResponse) {
+    return { isPause: true, reason: `pause_word_${firstWord}` };
+  }
+  
+  // Check for repeated short response in last 3 turns
+  const last3 = lastUserTexts.slice(-3).map(txt => 
+    (txt || '').toLowerCase().replace(/[^a-z\s]/g, '').trim().split(/\s+/)[0]
+  );
+  const counts = {};
+  last3.forEach(word => {
+    if (word && PAUSE_RESPONSES.includes(word)) {
+      counts[word] = (counts[word] || 0) + 1;
+    }
+  });
+  const hasRepeat = Object.values(counts).some(c => c >= 2);
+  if (hasRepeat) {
+    return { isPause: true, reason: 'repeated_pause' };
+  }
+  
+  // Check for long conversation without action
+  if (turnCount >= 12) {
+    return { isPause: true, reason: 'long_without_action' };
+  }
+  
+  return { isPause: false, reason: null };
+}
+
+// Check and fire Guided Step prompt
+function maybeGuidedStep({ userText, turnCount, clientState, signals, lastUserTexts = [] }) {
+  const now = Date.now();
+  const lastGuidedStepTurn = clientState?.lastGuidedStepTurn || 0;
+  
+  // ENFORCEMENT ORDER: Cooldown check FIRST
+  if ((turnCount - lastGuidedStepTurn) < GUIDED_STEP_TURN_COOLDOWN) {
+    console.log(`[TRACE BRAIN] Guided Step: { fired: false, reason: "cooldown", turnsLeft: ${GUIDED_STEP_TURN_COOLDOWN - (turnCount - lastGuidedStepTurn)} }`);
+    return { fired: false, reason: 'cooldown', prompt: null, client_state_patch: null };
+  }
+  
+  // Only THEN check pause signals
+  const pause = detectPause(userText, turnCount, lastUserTexts);
+  if (!pause.isPause) {
+    console.log(`[TRACE BRAIN] Guided Step: { fired: false, reason: "no_pause" }`);
+    return { fired: false, reason: 'no_pause', prompt: null, client_state_patch: null };
+  }
+  
+  // Skip if crisis
+  if (signals?.isCrisis || signals?.highArousal) {
+    return { fired: false, reason: 'crisis', prompt: null, client_state_patch: null };
+  }
+  
+  // Pick a guided prompt
+  const prompt = GUIDED_STEP_PROMPTS[Math.floor(Math.random() * GUIDED_STEP_PROMPTS.length)];
+  
+  console.log(`[TRACE BRAIN] Guided Step: { fired: true, reason: "${pause.reason}" }`);
+  
+  return {
+    fired: true,
+    reason: pause.reason,
+    prompt,
+    client_state_patch: {
+      lastGuidedStepTurn: turnCount,
+    },
+  };
+}
+
+// Check and fire Premium Moment
+function maybeFirePremiumMoment({ userText, turnCount, signals, clientState }) {
+  const now = Date.now();
+  const lastPremiumMomentTime = clientState?.lastPremiumMomentTime || 0;
+  const lastPremiumMomentTurn = clientState?.lastPremiumMomentTurn || 0;
+  
+  // Conditions that must ALL be true:
+  // 1. NOT crisis
+  if (signals?.isCrisis) {
+    return { fired: false, reason: 'crisis' };
+  }
+  
+  // 2. NOT first chat
+  if (turnCount < 2) {
+    return { fired: false, reason: 'first_chat' };
+  }
+  
+  // 3. userMessageLength > 30
+  if ((userText || '').length <= 30) {
+    return { fired: false, reason: 'message_too_short' };
+  }
+  
+  // 4. (reflectiveTone || meaningSeeking) AND (lowMood || rumination)
+  const hasReflection = signals?.reflectiveTone || signals?.meaningSeeking;
+  const hasEmotion = signals?.lowMood || signals?.rumination;
+  if (!hasReflection || !hasEmotion) {
+    return { fired: false, reason: 'signals_not_met' };
+  }
+  
+  // 5. Turn cooldown: (turnCount - lastPremiumMomentTurn) >= 15
+  if ((turnCount - lastPremiumMomentTurn) < PREMIUM_MOMENT_TURN_COOLDOWN) {
+    return { fired: false, reason: 'turn_cooldown', turnsLeft: PREMIUM_MOMENT_TURN_COOLDOWN - (turnCount - lastPremiumMomentTurn) };
+  }
+  
+  // 6. Time cooldown: (now - lastPremiumMomentTime) >= 4 hours OR null
+  if (lastPremiumMomentTime && (now - lastPremiumMomentTime) < PREMIUM_MOMENT_COOLDOWN_MS) {
+    const minutesLeft = Math.round((PREMIUM_MOMENT_COOLDOWN_MS - (now - lastPremiumMomentTime)) / 60000);
+    return { fired: false, reason: 'time_cooldown', minutesLeft };
+  }
+  
+  console.log(`[TRACE BRAIN] Premium Moment fired: { turnCount: ${turnCount}, signals: reflective=${hasReflection}, emotional=${hasEmotion} }`);
+  
+  return {
+    fired: true,
+    reason: 'conditions_met',
+    client_state_patch: {
+      lastPremiumMomentTime: now,
+      lastPremiumMomentTurn: turnCount,
+    },
+  };
+}
+
+// Anti-repetition: SHA-256 hash of first 10 words
+function computeResponseHash(text) {
+  if (!text) return null;
+  const first10 = (text || '').toLowerCase().split(/\s+/).slice(0, 10).join(' ');
+  return crypto.createHash('sha256').update(first10).digest('hex');
+}
+
+// Token overlap similarity (0-1)
+function computeSimilarity(textA, textB) {
+  if (!textA || !textB) return 0;
+  
+  const tokenize = t => new Set(t.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean));
+  const tokensA = tokenize(textA);
+  const tokensB = tokenize(textB);
+  
+  if (tokensA.size === 0 && tokensB.size === 0) return 1;
+  
+  let overlap = 0;
+  for (const t of tokensA) {
+    if (tokensB.has(t)) overlap++;
+  }
+  
+  return overlap / (tokensA.size + tokensB.size - overlap);
+}
+
+// Check for repetition and return action
+function checkRepetition(newText, clientState) {
+  const lastHash = clientState?.lastAssistantHash;
+  const lastText = clientState?.lastAssistantText;
+  const newHash = computeResponseHash(newText);
+  
+  // Exact hash match = definite repetition
+  if (lastHash && newHash === lastHash) {
+    console.log(`[TRACE BRAIN] Anti-repetition: { similarity: 1.0, actionTaken: "regen_needed", hash_match: true }`);
+    return { isRepeat: true, similarity: 1.0, action: 'regen' };
+  }
+  
+  // Similarity check
+  const similarity = computeSimilarity(newText, lastText);
+  if (similarity > 0.75) {
+    console.log(`[TRACE BRAIN] Anti-repetition: { similarity: ${similarity.toFixed(2)}, actionTaken: "log_only" }`);
+    return { isRepeat: false, similarity, action: 'log' };
+  }
+  
+  console.log(`[TRACE BRAIN] Anti-repetition: { similarity: ${similarity.toFixed(2)}, actionTaken: "none" }`);
+  return { isRepeat: false, similarity, action: 'none' };
+}
+
+// Dream door detection
+function detectDreamDoor(userText) {
+  const t = (userText || '').toLowerCase();
+  const dreamKeywords = ['dream', 'dreamt', 'had a dream', 'nightmare', 'dreams'];
+  
+  for (const keyword of dreamKeywords) {
+    if (t.includes(keyword)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function applyTimeOfDayRules(clientState, signals) {
@@ -742,4 +1260,21 @@ module.exports = {
   maybeInsight,
   // Tone sanitizer
   sanitizeTone,
+  // Premium Conversation Engine v1
+  updateSessionState,
+  cleanupMemory,
+  updateMemory,
+  extractTopics,
+  detectLoop,
+  detectWin,
+  isDeepMode,
+  enforceBrevity,
+  pickNextQuestion,
+  detectPause,
+  maybeGuidedStep,
+  maybeFirePremiumMoment,
+  computeResponseHash,
+  computeSimilarity,
+  checkRepetition,
+  detectDreamDoor,
 };

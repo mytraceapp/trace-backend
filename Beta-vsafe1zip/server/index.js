@@ -61,7 +61,30 @@ if (process.env.NEON_PROMISE_LYRICS) {
   TRACKS.neon_promise.lyrics = process.env.NEON_PROMISE_LYRICS;
 }
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
-const { getSignals: getBrainSignals, buildClientStateContext, decideSuggestion, tightenResponse, applyTimeOfDayRules, maybeAddCuriosityHook, maybeWinback, buildWinbackMessage, maybeInsight, sanitizeTone } = require('./traceBrain');
+const { 
+  getSignals: getBrainSignals, 
+  buildClientStateContext, 
+  decideSuggestion, 
+  tightenResponse, 
+  applyTimeOfDayRules, 
+  maybeAddCuriosityHook, 
+  maybeWinback, 
+  buildWinbackMessage, 
+  maybeInsight, 
+  sanitizeTone,
+  // Premium Conversation Engine v1
+  updateSessionState,
+  cleanupMemory,
+  updateMemory,
+  isDeepMode,
+  enforceBrevity,
+  pickNextQuestion,
+  maybeGuidedStep,
+  maybeFirePremiumMoment,
+  computeResponseHash,
+  checkRepetition,
+  detectDreamDoor,
+} = require('./traceBrain');
 const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
@@ -5347,6 +5370,69 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     const brainSignals = getBrainSignals(userMsgForBrain);
     console.log('[TRACE BRAIN] signals:', JSON.stringify(brainSignals));
     
+    // ============================================================
+    // PREMIUM CONVERSATION ENGINE v1: Session & Memory Update
+    // ============================================================
+    // Apply memory cleanup to incoming client_state to enforce caps/decay
+    const cleanedMemory = cleanupMemory(safeClientState);
+    const cleanedClientState = { ...safeClientState, ...cleanedMemory };
+    
+    const sessionUpdate = updateSessionState(cleanedClientState);
+    const memoryUpdate = updateMemory(cleanedClientState, userMsgForBrain);
+    const turnCount = sessionUpdate.sessionTurnCount;
+    
+    // Build last user texts for pause detection
+    const lastUserTexts = messages
+      .filter(m => m.role === 'user')
+      .map(m => m.content)
+      .slice(-5);
+    
+    // Check for deep mode (longer responses allowed)
+    const deepModeActive = isDeepMode(userMsgForBrain);
+    const brevityMode = isCrisisMode ? 'crisis' : (deepModeActive ? 'deep' : 'strict');
+    console.log('[TRACE BRAIN] brevityMode:', brevityMode, 'turnCount:', turnCount);
+    
+    // Check for Dream Door (suppress activity suggestions for dream topics)
+    const isDreamDoor = detectDreamDoor(userMsgForBrain);
+    if (isDreamDoor) {
+      console.log('[TRACE BRAIN] Dream Door detected - activity suggestions will be suppressed');
+    }
+    
+    // ============================================================
+    // PREMIUM CONVERSATION ENGINE v1: Premium Moment Check
+    // ============================================================
+    const premiumMomentResult = maybeFirePremiumMoment({
+      userText: userMsgForBrain,
+      turnCount,
+      signals: brainSignals,
+      clientState: safeClientState
+    });
+    
+    // ============================================================
+    // PREMIUM CONVERSATION ENGINE v1: Guided Step Check
+    // (Only if NOT crisis AND NOT premium moment)
+    // ============================================================
+    let guidedStepResult = { fired: false };
+    if (!isCrisisMode && !premiumMomentResult.fired) {
+      guidedStepResult = maybeGuidedStep({
+        userText: userMsgForBrain,
+        turnCount,
+        clientState: safeClientState,
+        signals: brainSignals,
+        lastUserTexts
+      });
+    }
+    
+    // ============================================================
+    // PREMIUM CONVERSATION ENGINE v1: Next Best Question
+    // ============================================================
+    const nextQuestionResult = pickNextQuestion({
+      userText: userMsgForBrain,
+      signals: brainSignals,
+      turnCount,
+      lastUserTexts
+    });
+    
     // Apply time-of-day rules for tone, brevity, and musicBias
     const todRules = applyTimeOfDayRules(safeClientState, brainSignals);
     console.log('[TIME-OF-DAY] tone:', todRules.tone, 'maxSentences:', todRules.maxSentences, 'musicBias:', todRules.musicBias);
@@ -5668,6 +5754,46 @@ Your response:`;
     console.log('[TRACE OPENAI FINAL] message length:', finalMsgLength, parsed.messages ? `(${parsed.messages.length} messages)` : '');
     
     // ============================================================
+    // PREMIUM CONVERSATION ENGINE v1: Anti-Repetition Check
+    // ============================================================
+    const originalResponse = parsed.message || '';
+    const repetitionCheck = checkRepetition(originalResponse, safeClientState);
+    
+    if (repetitionCheck.isRepeat && repetitionCheck.action === 'regen') {
+      console.log('[TRACE BRAIN] Anti-repetition: regenerating response');
+      try {
+        // Regenerate with anti-repetition instruction
+        const regenMessages = [
+          ...finalMessages,
+          { role: 'assistant', content: originalResponse },
+          { role: 'user', content: 'Vary the opener. Keep the insight. Be shorter. Don\'t repeat.' }
+        ];
+        
+        const regenCompletion = await openai.chat.completions.create({
+          model: selectedModel,
+          messages: regenMessages,
+          temperature: 0.8,
+          max_tokens: 300,
+        });
+        
+        const regenText = regenCompletion.choices[0]?.message?.content?.trim() || '';
+        
+        // Quality check: only use if not worse
+        const isWorse = regenText.length < originalResponse.length * 0.6 || 
+                       (!regenText.includes('?') && originalResponse.includes('?'));
+        
+        if (!isWorse && regenText.length > 10) {
+          parsed.message = regenText;
+          console.log(`[TRACE BRAIN] Anti-repetition: { similarity: ${repetitionCheck.similarity.toFixed(2)}, actionTaken: "regen_used", usedFallback: false }`);
+        } else {
+          console.log(`[TRACE BRAIN] Anti-repetition: { similarity: ${repetitionCheck.similarity.toFixed(2)}, actionTaken: "regen_discarded", usedFallback: true }`);
+        }
+      } catch (regenErr) {
+        console.error('[TRACE BRAIN] Anti-repetition regen failed:', regenErr.message);
+      }
+    }
+    
+    // ============================================================
     // SERVER-SIDE TWO-STEP CONFIRMATION ENFORCEMENT
     // ============================================================
     // Detect if user is confirming after an activity was offered
@@ -5858,6 +5984,15 @@ Your response:`;
           console.log('[DREAMSCAPE] Using AI-provided track:', activitySuggestion.dreamscapeTrackId);
         }
       }
+    }
+    
+    // ============================================================
+    // PREMIUM CONVERSATION ENGINE v1: Dream Door Gating
+    // Suppress activity suggestions for dream topics (conversational only)
+    // ============================================================
+    if (isDreamDoor && activitySuggestion.name) {
+      console.log('[TRACE BRAIN] Dream Door gating: suppressing activity_suggestion', activitySuggestion.name);
+      activitySuggestion = { name: null, reason: null, should_navigate: false };
     }
     
     // ==================== TRACE ORIGINALS AUDIO_ACTION LOGIC ====================
@@ -6222,9 +6357,14 @@ Your response:`;
       tightenedText = processedAssistantText;
       console.log('[TRACE BRAIN] Skipping tighten - lyrics request detected');
     } else {
+      // Apply original tightenResponse for sentence limits
       tightenedText = tightenResponse(processedAssistantText, { maxSentences: todRules.maxSentences });
+      
+      // Apply enforceBrevity based on mode (strict/deep/crisis)
+      tightenedText = enforceBrevity(tightenedText, brevityMode);
+      
       if (tightenedText !== processedAssistantText) {
-        console.log('[TRACE BRAIN] Response tightened (maxSentences:', todRules.maxSentences, ')');
+        console.log('[TRACE BRAIN] Response tightened (mode:', brevityMode, 'maxSentences:', todRules.maxSentences, ')');
       }
     }
     
@@ -6275,6 +6415,24 @@ Your response:`;
       response.curiosity_hook = curiosityHook;
     }
     
+    // Add guided step if fired (conversational prompt, not activity)
+    if (guidedStepResult.fired && guidedStepResult.prompt) {
+      response.guided_step = guidedStepResult.prompt;
+    }
+    
+    // Add premium moment flag if fired
+    if (premiumMomentResult.fired) {
+      response.premium_moment = true;
+    }
+    
+    // Add Next Best Question to response (for frontend display if desired)
+    if (nextQuestionResult.intent && nextQuestionResult.question) {
+      response.next_question = {
+        intent: nextQuestionResult.intent,
+        question: nextQuestionResult.question,
+      };
+    }
+    
     // Build client_state_patch (merge suggestion patch + hook patch + tier2 cooldown)
     let clientStatePatch = { ...tier2CooldownPatch };
     
@@ -6293,6 +6451,40 @@ Your response:`;
     // Merge hook state patch
     if (hookStatePatch) {
       clientStatePatch = { ...clientStatePatch, ...hookStatePatch };
+    }
+    
+    // ============================================================
+    // PREMIUM CONVERSATION ENGINE v1: Merge State Patches
+    // ============================================================
+    // Session update
+    clientStatePatch = { ...clientStatePatch, ...sessionUpdate };
+    
+    // Memory update
+    clientStatePatch.recentTopics = memoryUpdate.recentTopics;
+    clientStatePatch.activeLoops = memoryUpdate.activeLoops;
+    clientStatePatch.recentWins = memoryUpdate.recentWins;
+    clientStatePatch.recentPhrases = memoryUpdate.recentPhrases;
+    
+    // Premium moment state patch
+    if (premiumMomentResult.fired && premiumMomentResult.client_state_patch) {
+      clientStatePatch = { ...clientStatePatch, ...premiumMomentResult.client_state_patch };
+    }
+    
+    // Guided step state patch
+    if (guidedStepResult.fired && guidedStepResult.client_state_patch) {
+      clientStatePatch = { ...clientStatePatch, ...guidedStepResult.client_state_patch };
+    }
+    
+    // Anti-repetition: Store last assistant hash for next request
+    const responseHash = computeResponseHash(tightenedText);
+    if (responseHash) {
+      clientStatePatch.lastAssistantHash = responseHash;
+      clientStatePatch.lastAssistantText = tightenedText.substring(0, 200);
+    }
+    
+    // Store last question intent
+    if (nextQuestionResult.intent) {
+      clientStatePatch.lastQuestionIntent = nextQuestionResult.intent;
     }
     
     // Only add client_state_patch if we have something to patch

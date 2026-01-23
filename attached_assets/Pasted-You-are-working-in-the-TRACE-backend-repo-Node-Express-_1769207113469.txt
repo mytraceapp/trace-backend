@@ -1,0 +1,386 @@
+You are working in the TRACE backend repo (Node/Express). Implement Premium Conversation Engine v1 focused on:
+
+Intuition (#2), Memory (#3), Premium Moments (#4), Breathing (#5), Guided Next Step prompts (#7)
+PLUS: strict Everyday Voice enforcement + repetition elimination + dream-door gating.
+
+Dream Door is NOT an activity. Dream Door is a conversational experience triggered naturally when the user mentions dreams. Never output activity_suggestion for dream moments.
+
+⸻
+
+0) NON-NEGOTIABLE GOALS
+	1.	TRACE must sound everyday + human, not therapist.
+	2.	TRACE must feel intuitive (asks the right next question, not filler).
+	3.	Default responses must be short + breathable.
+	4.	Premium Moments should be rare + earned (cooldown + time-window rules).
+	5.	Guided steps are conversation prompts only (NOT activities, no navigation).
+	6.	Fix repetition: no repeated openers/content back-to-back or within a short window.
+	7.	All state must be bounded (caps + cleanup enforced in code).
+
+⸻
+
+1) DEFINITIONS (CRITICAL)
+
+1.1 Turn counting (used everywhere)
+
+turnCount = number of USER messages in the current conversation session.
+	•	Does NOT include assistant messages.
+	•	Resets on new session start (see session logic below).
+
+1.2 Session definition
+
+A “session” is continuous conversation with no > 6 hour gap since last user activity.
+	•	If user returns after 6+ hours, start a new session and reset session-turn counters + per-session gates.
+
+Store:
+	•	sessionStartedAt
+	•	lastUserAt
+	•	sessionTurnCount (user-only)
+
+⸻
+
+2) CONTEXT HIERARCHY (WHAT WINS)
+
+Only ONE layer controls final output:
+	1.	CRISIS response (overrides everything)
+	2.	PREMIUM MOMENT response (if fired → this is the response; suppress guided step)
+	3.	REGULAR response = everyday voice + (optional insight) + Next Best Question (max 1 question)
+	4.	GUIDED NEXT STEP (only if pause detected AND no premium AND not crisis)
+
+Implement hierarchy centrally so systems cannot compete.
+
+⸻
+
+3) EVERYDAY VOICE ENFORCEMENT (SYSTEM RULES + SANITIZER)
+
+3.1 System prompt: Everyday TRACE Voice Canon
+	•	Text like a real human. Short, direct, natural.
+	•	Avoid therapist language / “clinical vibe.”
+	•	Avoid phrases like:
+“it sounds like”, “that must be hard”, “I hear you”, “hold space”, “validate”, “process”,
+“navigate”, “explore”, “significant realization”, “emotional container”
+	•	Prefer:
+“for real”, “yeah”, “got it”, “that’s tough”, “okay wait”, “honestly…”, “here’s the thing…”
+	•	Default: 1–3 sentences, max 1 question.
+	•	Humor: occasional only (light/dry), never corny, never memes.
+
+3.2 Memory reference guidance (system prompt MUST include)
+
+“You have access to patterns from this session. Reference them ONLY through pattern language, never by citing past messages.”
+Examples:
+✅ “Sleep keeps coming up.”
+✅ “This feels like that same loop again.”
+❌ “You mentioned this last time.”
+❌ “Earlier you told me…”
+
+3.3 Dream door guidance (system prompt placement is explicit)
+
+Insert immediately after Everyday Voice rules, before any pillar rules:
+
+“If the user mentions dreams (dream, dreamt, nightmare), respond conversationally (Dream Door experience). Do NOT suggest an activity. Keep focus on reflection, not actions.”
+
+3.4 Humor logging (measurement-friendly, no fancy enforcement)
+
+Add DEV log field: humorAttempt: true/false per assistant reply.
+Goal (manual QA): ~10–15% max across ~100 replies.
+
+⸻
+
+4) BREATHING + DEEP MODE (STRUCTURE, NOT TONE)
+
+Default strict mode:
+	•	<= 450 chars
+	•	1–3 sentences
+	•	max 1 question
+	•	no bullets
+
+4.1 Deep mode trigger — clarified AND logic
+
+Deep mode triggers IF:
+	•	(keyword present) AND (request-verb present)
+
+Keywords (case-insensitive):
+“plan”, “steps”, “how to”, “guide”, “explain”, “breakdown”
+
+Request verbs:
+“give me”, “help”, “walk me through”, “can you”, “show me”, “teach me”
+
+If both conditions true → deep mode.
+
+Deep mode:
+	•	<= 800 chars
+	•	max 2–3 bullets
+	•	STILL enforce everyday voice (no therapist tone)
+	•	Sanitizer still runs.
+
+4.2 Crisis override formatting — clarified
+
+Crisis mode:
+	•	<= 300 chars
+	•	line breaks allowed ✅
+	•	up to 2–3 short bullets allowed ✅
+	•	no long paragraphs ✗
+
+Implement: enforceBrevity(text, mode) where mode = strict | deep | crisis.
+
+⸻
+
+5) INTUITION: NEXT BEST QUESTION PRIORITY STACK
+
+Implement:
+pickNextQuestion({ userText, signals, turnCount, lastUserText, lastAssistantText })
+
+Return exactly ONE question (never “How can I help?”)
+
+Priority order:
+	1.	ACTION — stuck/help keywords (“stuck”, “what do I do”, “overwhelmed”, “need a plan”, etc.)
+	2.	CLARIFY — vagueness score high (short/meaningless replies)
+	3.	DEEPEN — reflective/meaning seeking AND turnCount >= 6
+	4.	CONFIRM — decision/commitment language detected
+	5.	CLOSE — momentum drops
+
+DEV log:
+[TRACE BRAIN] Next Best Question chosen: { intent, reason, question }
+
+⸻
+
+6) MEMORY LAYER (SUBTLE PATTERN REFERENCE — NOT “I REMEMBER”)
+
+6.1 Extraction: expanded topic headers
+
+Topic headers include:
+work, relationship, sleep, money, health, TRACE, Nyla, church, school,
+faith, purpose, family, career, anxiety, creativity, motivation
+
+Fallback: keyword frequency extraction.
+
+Loops keywords:
+“stuck”, “again”, “keeps happening”, “same”, “loop”, “every time”, “always”
+
+Wins keywords:
+positive sentiment + verbs (“did”, “tried”, “managed”, “finally”, “finished”, “shipped”, “completed”)
+
+6.2 Promotion to activeLoops — tie-breaking clarified
+
+Rule:
+If same loop label appears 3+ times in last 10 USER turns → qualifies.
+
+If activeLoops.length < 3 → promote.
+If activeLoops.length == 3 and new loop qualifies → replace oldest entry by timestamp.
+
+ActiveLoops structure must include timestamps:
+activeLoops: Array<{ label: string, timestamp: number }> (cap 3)
+
+6.3 Dedup for wins/topics (polish)
+	•	recentWins should dedup by label (store once; update timestamp if repeated)
+	•	recentTopics should dedup similarly (update timestamp, do not add duplicates)
+
+6.4 Memory decay + cleanup timing clarified (MUST run every request)
+
+On EVERY /api/chat request, before responding:
+	•	filter recentTopics, activeLoops, recentWins removing items older than 6 hours
+	•	enforce caps with .slice(-N) patterns
+
+If memory becomes empty because user returns after 6h+:
+Optional re-entry line (no detail):
+“Feels like it’s been a minute — what’s the vibe today?”
+
+Do not say “I remember.”
+
+⸻
+
+7) PREMIUM MOMENTS (CLARIFIED FIRING POLICY)
+
+7.1 Firing intent
+
+Premium moments target emotional processing, not breakthroughs.
+Do NOT trigger on “happy wins” alone.
+
+7.2 Firing policy (answering the confusion explicitly)
+
+✅ Premium Moment can fire at most ONCE per 4-hour rolling window per user.
+	•	It is NOT “once per session forever.”
+	•	If user returns after 6+ hours → new session; premium may fire again IF 4-hour window allows.
+	•	If user stays in one session for 4+ hours (rare), it may fire again, but still must pass turn cooldown.
+
+Track:
+	•	lastPremiumMomentTime (timestamp)
+	•	lastPremiumMomentTurn (user-turn index)
+
+7.3 Conditions (all must be true)
+	•	NOT crisis
+	•	NOT first chat
+	•	userMessageLength > 30
+	•	(reflectiveTone || meaningSeeking) AND (lowMood || rumination)
+	•	(turnCount - lastPremiumMomentTurn) >= 15
+	•	(now - lastPremiumMomentTime) >= 4 hours OR null
+
+Format:
+	•	1 pattern sentence
+	•	1 next-step sentence
+	•	optional 1 question
+
+Premium beats pause:
+If both pause AND premium met → premium fires, guided suppressed.
+
+Premium does NOT reset guided-step cooldowns (independent systems).
+
+DEV log:
+[TRACE BRAIN] Premium Moment fired: { ... }
+
+⸻
+
+8) GUIDED NEXT STEP PROMPTS (CONVERSATIONAL ONLY)
+
+Guided steps are conversational re-engagement prompts, not activities.
+If user says yes → continue chat; do NOT output activity_suggestion.
+
+8.1 ENFORCEMENT ORDER (NON-NEGOTIABLE)
+
+🔴 MUST IMPLEMENT IN THIS EXACT ORDER:
+	1.	If (turnCount - lastGuidedStepTurn) < 10 → return early (NO guided step)
+	2.	ONLY if cooldown passed → check pause signals
+	3.	If pause detected → offer guided step
+
+No exceptions.
+
+State:
+	•	lastGuidedStepTurn
+
+8.2 Pause detection rules (user-turn based)
+
+Pause signals include:
+	•	userText < 15 chars after 4+ longer turns
+	•	user says: “ok”, “thanks”, “idk”, “sure”, “lol”, “hmm”
+	•	conversation >= 12 user turns without action
+	•	user repeats same short response twice within last 3 user turns
+
+8.3 Fuzzy match specifics (clarified)
+
+For “short response repeats”:
+	•	normalize: lowercase
+	•	strip punctuation
+	•	split whitespace
+	•	extract first token root
+	•	treat “ok”, “okay”, “ok lol”, “ok?” as same root “ok”
+Implementation rule:
+if root token matches twice in last 3 user turns → pause=true
+
+Guided examples:
+	•	“Want a quick 60-second reset?”
+	•	“Want me to pull the pattern I’m seeing?”
+	•	“Want a tiny plan for today?”
+
+DEV log:
+[TRACE BRAIN] Guided Step: { fired, reason }
+
+⸻
+
+9) ANTI-REPETITION SYSTEM (SPECIFIED HASH + SIMILARITY)
+
+State:
+	•	lastAssistantHash
+	•	lastAssistantText
+	•	recentPhrases rolling max 8
+
+9.1 Hash algorithm specified
+
+Use SHA-256:
+crypto.createHash('sha256').update(first10WordsLowercased).digest('hex')
+
+9.2 Similarity score specified (simple + deterministic)
+
+Token overlap similarity:
+	•	tokenize both texts into unique tokens (lowercase, strip punctuation)
+	•	overlap = count of shared tokens
+	•	similarity = overlap / (uniqueTokensA.size + uniqueTokensB.size)  (0–1)
+
+Threshold:
+	•	if similarity > 0.75 and hash differs → log only (no regen)
+
+9.3 Regen rule (one attempt + quality fallback)
+
+Rules:
+	1.	if hash == lastAssistantHash → regenerate ONCE with:
+“Vary the opener. Keep the insight. Be shorter. Don’t repeat.”
+	2.	If regen is worse (significantly shorter or loses helpful content):
+	•	“worse” definition:
+regenLength < 0.6 * originalLength OR missing the question/insight entirely
+→ return ORIGINAL
+	3.	Never loop more than once.
+
+DEV log:
+[TRACE BRAIN] Anti-repetition: { similarity, actionTaken, usedFallback }
+
+⸻
+
+10) DREAM DOOR GATING (EXPLICIT)
+
+If userText contains:
+[“dream”,“dreamt”,“had a dream”,“nightmare”,“dreams”]
+→ signals.doorway_hint=“dream”
+
+Then:
+	•	suppress activity_suggestion entirely (return null)
+	•	treat response as conversational reflection (Dream Door)
+	•	keep everyday voice, breathable output
+
+⸻
+
+11) CLIENT STATE SCHEMA + CAPS + CLEANUP
+
+client_state {
+// repetition
+lastAssistantHash: string
+lastAssistantText: string
+recentPhrases: string[] // cap 8
+
+// memory (store timestamps)
+recentTopics: Array<{ label: string, timestamp: number }> // cap 5, dedup
+activeLoops: Array<{ label: string, timestamp: number }> // cap 3, replace oldest
+recentWins: Array<{ label: string, timestamp: number }>  // cap 3, dedup
+
+// premium
+lastPremiumMomentTurn: number
+lastPremiumMomentTime: number
+
+// guided
+lastGuidedStepTurn: number
+
+// question
+lastQuestionIntent: “clarify”|“deepen”|“action”|“confirm”|“close”|null
+
+// session
+sessionStartedAt: number
+lastUserAt: number
+sessionTurnCount: number
+}
+
+Cleanup must run every /api/chat call before responding.
+
+⸻
+
+12) EXECUTION ORDER (STRICT PIPELINE)
+	1.	session update + turnCount increment (user-only)
+	2.	detect signals
+	3.	memory extract + decay + caps + promotions
+	4.	premium check
+	5.	OpenAI call
+	6.	sanitizeTraceVoice
+	7.	enforceBrevity (strict/deep/crisis)
+	8.	anti-repetition check + regen once + fallback allowed
+	9.	dream gating for suggestions
+	10.	return response
+
+⸻
+
+DELIVERABLES
+
+Return:
+	1.	files modified + why
+	2.	helpers added + call sites
+	3.	proof hierarchy enforcement
+	4.	proof: premium firing policy implemented exactly (4-hour window + 15-turn cooldown)
+	5.	proof: guided-step cooldown enforcement order (early return before pause detection)
+	6.	state cleanup + caps demonstrated in code
+
+✅ End. Implement carefully. No breaking changes.
