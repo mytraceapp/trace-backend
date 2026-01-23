@@ -18,11 +18,11 @@ export interface WeatherContext {
 interface WeatherResponse {
   summary: string;
   current: {
-    Temperature?: { Imperial?: { Value: number } };
-    Wind?: { Speed?: { Imperial?: { Value: number } } };
-    CloudCover?: number;
-    IsDayTime?: boolean;
-    WeatherText?: string;
+    temperature?: number;
+    wind?: number;
+    cloudCover?: number;
+    isDayTime?: boolean;
+    weatherText?: string;
   };
 }
 
@@ -94,11 +94,11 @@ export async function getWeather(lat?: number, lon?: number): Promise<WeatherCon
     const data: WeatherResponse = await response.json();
 
     const weatherContext: WeatherContext = {
-      temperature: data.current?.Temperature?.Imperial?.Value ?? 70,
-      windSpeed: data.current?.Wind?.Speed?.Imperial?.Value ?? 0,
-      summary: data.summary || data.current?.WeatherText || 'Unknown conditions',
-      cloudCover: data.current?.CloudCover ?? 0,
-      isDayTime: data.current?.IsDayTime ?? true,
+      temperature: data.current?.temperature ?? 70,
+      windSpeed: data.current?.wind ?? 0,
+      summary: data.summary || data.current?.weatherText || 'Unknown conditions',
+      cloudCover: data.current?.cloudCover ?? 0,
+      isDayTime: data.current?.isDayTime ?? true,
     };
 
     cachedWeather = weatherContext;
