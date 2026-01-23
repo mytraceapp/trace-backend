@@ -140,7 +140,7 @@ export default function PatternsReport() {
     { lastHourSummary, hasLastHourHistory, isLastHourLoading }
   );
 
-  // UNIFIED INIT - exactly matching chat.tsx pattern that works
+  // UNIFIED INIT - read from AsyncStorage key saved by chat.tsx
   useEffect(() => {
     const initPatterns = async () => {
       console.log('🚀 [PATTERNS INIT] Starting...');
@@ -150,22 +150,39 @@ export default function PatternsReport() {
       setStableId(deviceId);
       console.log('🆔 [PATTERNS INIT] deviceId:', deviceId);
       
-      // Step 2: Get user ID - using exact same pattern as chat.tsx
-      const { data } = await supabase.auth.getUser();
-      let authUserId = data?.user?.id ?? null;
-      console.log('🆔 [PATTERNS INIT] getUser result:', authUserId?.slice(0, 8) || 'null');
+      // Step 2: Get user ID - try multiple sources
+      let authUserId: string | null = null;
       
-      // Fallback to AsyncStorage (same as chat.tsx)
+      // Try 1: Check AsyncStorage key saved by chat.tsx (most reliable)
+      try {
+        authUserId = await AsyncStorage.getItem('trace:auth_user_id');
+        if (authUserId) {
+          console.log('🆔 [PATTERNS INIT] Got userId from trace:auth_user_id:', authUserId.slice(0, 8));
+        }
+      } catch (e) {
+        console.log('🆔 [PATTERNS INIT] trace:auth_user_id error:', e);
+      }
+      
+      // Try 2: Supabase auth
+      if (!authUserId) {
+        try {
+          const { data } = await supabase.auth.getUser();
+          authUserId = data?.user?.id ?? null;
+          console.log('🆔 [PATTERNS INIT] getUser result:', authUserId?.slice(0, 8) || 'null');
+        } catch (e) {
+          console.log('🆔 [PATTERNS INIT] getUser error:', e);
+        }
+      }
+      
+      // Try 3: Legacy user_id key
       if (!authUserId) {
         try {
           const storedUserId = await AsyncStorage.getItem('user_id');
           if (storedUserId) {
             authUserId = storedUserId;
-            console.log('🆔 [PATTERNS INIT] fallback to AsyncStorage:', authUserId?.slice(0, 8));
+            console.log('🆔 [PATTERNS INIT] fallback to user_id:', authUserId?.slice(0, 8));
           }
-        } catch (e) {
-          console.log('🆔 [PATTERNS INIT] AsyncStorage error:', e);
-        }
+        } catch (e) {}
       }
       
       console.log('🆔 [PATTERNS INIT] FINAL userId:', authUserId);

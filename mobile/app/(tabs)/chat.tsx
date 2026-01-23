@@ -820,6 +820,12 @@ export default function ChatScreen() {
       setAuthUserId(userId);
       authUserIdRef.current = userId;
       console.log('🆔 userId:', userId);
+      
+      // Save userId to AsyncStorage so other screens (patterns) can access it
+      if (userId) {
+        await AsyncStorage.setItem('trace:auth_user_id', userId);
+        console.log('💾 [CHAT] Saved userId to AsyncStorage:', userId.slice(0, 8));
+      }
 
       // Step 3: Load existing conversation from SERVER (Supabase) with one-hour session logic
       let serverMessages: ChatMessage[] = [];
