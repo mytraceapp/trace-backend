@@ -1,0 +1,83 @@
+You are a senior Node.js / Express backend QA engineer.
+
+Project: TRACE backend running on Replit (Node/Express). The backend exposes:
+	•	POST /api/chat
+	•	(optional) POST /api/greeting
+	•	other endpoints as implemented
+
+GOAL
+
+I want a single final mobile integration mock test that validates:
+	•	backend accepts the same payload shape mobile uses
+	•	OpenAI call succeeds
+	•	response schema matches what mobile expects
+	•	server doesn’t hang under rapid requests
+	•	fallback behavior is safe if OpenAI fails
+
+TEST SPEC
+
+Create a DEV-ONLY test script OR endpoint that simulates mobile calls.
+
+✅ Preferred approach:
+Create a script:
+
+server/scripts/mobileIntegrationMockTest.js
+
+(or server/scripts/mobileIntegrationMockTest.cjs if needed)
+
+This script must:
+
+1) Health validation
+	•	Confirm server is running and reachable
+	•	Test endpoint:
+	•	GET / OR GET /api/health if available
+	•	If no root health route exists, add a DEV-safe route:
+	•	GET /api/health → { ok: true }
+
+2) Correct payload test (main mobile flow)
+Send:
+{
+  "messages":[{"role":"user","content":"mock integration test ping"}],
+  "userId":"mock-mobile-test"
+}
+to:
+POST /api/chat
+
+Validate response includes:
+	•	messages array
+	•	first message is a non-empty string
+	•	no error field present (or if present, verify fallback behavior is intentional)
+
+3) Resume storm test (real-world crash/foreground behavior)
+Send 3 parallel requests instantly (Promise.all):
+	•	“resume storm one”
+	•	“resume storm two”
+	•	“resume storm three”
+
+Validate:
+	•	each returns successfully (HTTP 200)
+	•	each contains messages
+	•	each contains a unique requestId if the backend provides one
+	•	total duration reasonable (< 8s)
+
+4) Report results
+Print a final summary:
+
+✅ PASS: Mobile Integration Mock Test
+or
+❌ FAIL: 
+
+REPLIT EXECUTION
+
+After implementing, run the test in the Replit shell with:
+node server/scripts/mobileIntegrationMockTest.js
+
+(or .cjs)
+
+RESTRICTIONS
+	•	Do NOT change production behavior
+	•	Only add DEV-only script or DEV-only health endpoint
+	•	Keep changes minimal and reversible
+	•	Tell me exactly what files changed and how to remove afterward
+
+Now implement the test and run it. Show me the output.
