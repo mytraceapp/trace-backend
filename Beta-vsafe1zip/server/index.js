@@ -3057,6 +3057,37 @@ function normalizeChatResponse(payload, requestId) {
   };
 }
 
+// Request deduplication cache (30-second TTL for retry storm protection)
+const requestCache = new Map();
+const REQUEST_CACHE_TTL_MS = 30000;
+
+function getCachedResponse(requestId) {
+  if (!requestId) return null;
+  const cached = requestCache.get(requestId);
+  if (cached && Date.now() - cached.timestamp < REQUEST_CACHE_TTL_MS) {
+    console.log('[DEDUP] Returning cached response for requestId:', requestId);
+    return { ...cached.response, deduped: true };
+  }
+  if (cached) {
+    requestCache.delete(requestId);
+  }
+  return null;
+}
+
+function cacheResponse(requestId, response) {
+  if (!requestId) return;
+  requestCache.set(requestId, { response, timestamp: Date.now() });
+  // Cleanup old entries periodically
+  if (requestCache.size > 1000) {
+    const now = Date.now();
+    for (const [key, val] of requestCache.entries()) {
+      if (now - val.timestamp > REQUEST_CACHE_TTL_MS) {
+        requestCache.delete(key);
+      }
+    }
+  }
+}
+
 app.post('/api/chat', async (req, res) => {
   try {
     const {
@@ -3078,6 +3109,14 @@ app.post('/api/chat', async (req, res) => {
     
     // Generate stable requestId for this request
     const requestId = clientRequestId || `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    
+    // Check for cached response (deduplication for retry storms)
+    if (clientRequestId) {
+      const cachedResponse = getCachedResponse(clientRequestId);
+      if (cachedResponse) {
+        return res.json(cachedResponse);
+      }
+    }
     
     // Extract client_state for context-aware responses
     const safeClientState = clientState || {};
@@ -3166,7 +3205,9 @@ app.post('/api/chat', async (req, res) => {
           console.log('[TRACE STUDIOS] Sending audio_action to frontend:', response.audio_action);
         }
         
-        return res.json(normalizeChatResponse(response, requestId));
+        const studioResponse = normalizeChatResponse(response, requestId);
+        cacheResponse(requestId, studioResponse);
+        return res.json(studioResponse);
       }
     }
     
@@ -3191,14 +3232,16 @@ app.post('/api/chat', async (req, res) => {
           }).catch(() => {});
         }
         
-        return res.json(normalizeChatResponse({
+        const doorwayResponse = normalizeChatResponse({
           message: doorwayMessage,
           mode: 'doorway',
           doorway: { id: doorway.id },
           client_state_patch: {
             doorwayState: { lastDoorwayId: doorway.id, ts: Date.now() }
           }
-        }, requestId));
+        }, requestId);
+        cacheResponse(requestId, doorwayResponse);
+        return res.json(doorwayResponse);
       }
     }
     
@@ -4268,14 +4311,16 @@ app.post('/api/chat', async (req, res) => {
     
     if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && !traceJustAskedQuestion) {
       console.log('[TRACE CHAT] Light closure detected, sending short ack:', lastUserMsg.content);
-      return res.json(normalizeChatResponse({
+      const closureResponse = normalizeChatResponse({
         message: pickRandom(LIGHT_ACKS),
         activity_suggestion: {
           name: null,
           reason: null,
           should_navigate: false,
         },
-      }, requestId));
+      }, requestId);
+      cacheResponse(requestId, closureResponse);
+      return res.json(closureResponse);
     } else if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && traceJustAskedQuestion) {
       console.log('[TRACE CHAT] Short reply but TRACE asked question - treating as answer, not closure');
     }
@@ -5906,7 +5951,9 @@ Your response:`;
       console.log('[TRACE RETURN-TO-LIFE] Added grounding cue to response');
     }
     
-    return res.json(normalizeChatResponse(response, requestId));
+    const finalResponse = normalizeChatResponse(response, requestId);
+    cacheResponse(requestId, finalResponse);
+    return res.json(finalResponse);
   } catch (error) {
     console.error('TRACE API error:', error.message || error);
     res.status(500).json(normalizeChatResponse({ 
