@@ -3039,6 +3039,24 @@ function addReturnToLifeCue(assistantText) {
   return `${assistantText.trim()}\n\n${cue}`;
 }
 
+// Normalize chat response for consistent mobile-friendly envelope
+function normalizeChatResponse(payload, requestId) {
+  const msg =
+    typeof payload?.message === "string"
+      ? payload.message
+      : Array.isArray(payload?.messages) && typeof payload.messages[0] === "string"
+        ? payload.messages[0]
+        : "";
+
+  return {
+    ok: payload?.ok ?? true,
+    requestId: requestId || payload?.requestId,
+    ...payload,
+    message: msg,
+    messages: msg ? [msg] : [],
+  };
+}
+
 app.post('/api/chat', async (req, res) => {
   try {
     const {
@@ -3055,7 +3073,11 @@ app.post('/api/chat', async (req, res) => {
       patternContext,
       tonePreference = 'neutral',
       client_state: clientState,
+      requestId: clientRequestId,
     } = req.body;
+    
+    // Generate stable requestId for this request
+    const requestId = clientRequestId || `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     
     // Extract client_state for context-aware responses
     const safeClientState = clientState || {};
@@ -3072,10 +3094,11 @@ app.post('/api/chat', async (req, res) => {
     
     if (!effectiveUserId) {
       console.warn('[TRACE CHAT] No userId provided, returning 401');
-      return res.status(401).json({ 
+      return res.status(401).json(normalizeChatResponse({ 
+        ok: false,
         error: 'Authentication required',
         message: "mm, I lost you for a second. Try again?" 
-      });
+      }, clientRequestId));
     }
 
     console.log(
@@ -3143,7 +3166,7 @@ app.post('/api/chat', async (req, res) => {
           console.log('[TRACE STUDIOS] Sending audio_action to frontend:', response.audio_action);
         }
         
-        return res.json(response);
+        return res.json(normalizeChatResponse(response, requestId));
       }
     }
     
@@ -3168,14 +3191,14 @@ app.post('/api/chat', async (req, res) => {
           }).catch(() => {});
         }
         
-        return res.json({
+        return res.json(normalizeChatResponse({
           message: doorwayMessage,
           mode: 'doorway',
           doorway: { id: doorway.id },
           client_state_patch: {
             doorwayState: { lastDoorwayId: doorway.id, ts: Date.now() }
           }
-        });
+        }, requestId));
       }
     }
     
@@ -4245,14 +4268,14 @@ app.post('/api/chat', async (req, res) => {
     
     if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && !traceJustAskedQuestion) {
       console.log('[TRACE CHAT] Light closure detected, sending short ack:', lastUserMsg.content);
-      return res.json({
+      return res.json(normalizeChatResponse({
         message: pickRandom(LIGHT_ACKS),
         activity_suggestion: {
           name: null,
           reason: null,
           should_navigate: false,
         },
-      });
+      }, requestId));
     } else if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && traceJustAskedQuestion) {
       console.log('[TRACE CHAT] Short reply but TRACE asked question - treating as answer, not closure');
     }
@@ -5883,10 +5906,14 @@ Your response:`;
       console.log('[TRACE RETURN-TO-LIFE] Added grounding cue to response');
     }
     
-    return res.json(response);
+    return res.json(normalizeChatResponse(response, requestId));
   } catch (error) {
     console.error('TRACE API error:', error.message || error);
-    res.status(500).json({ error: 'Failed to get response', message: "Something went wrong on my end. What's on your mind?" });
+    res.status(500).json(normalizeChatResponse({ 
+      ok: false, 
+      error: 'Failed to get response', 
+      message: "Something went wrong on my end. What's on your mind?" 
+    }, req.body?.requestId));
   }
 });
 
