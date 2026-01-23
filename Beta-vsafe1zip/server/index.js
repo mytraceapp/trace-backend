@@ -2171,16 +2171,29 @@ if (hasOpenAIKey) {
 // ============================================================
 // OpenAI Configuration Helper (for debugging model selection)
 // ============================================================
-const TRACE_PRIMARY_MODEL = 'gpt-4o';
-const TRACE_BACKUP_MODEL = 'gpt-4o-mini';
+const TRACE_PRIMARY_MODEL = 'gpt-5.1';
+const TRACE_BACKUP_MODEL = 'gpt-5-mini';
+const TRACE_FALLBACK_MODEL_2 = 'gpt-4o-mini'; // Legacy fallback if gpt-5 fails
 
 // Tiered Model Routing Constants
-const TRACE_TIER0_MODEL = process.env.TRACE_TIER0_MODEL || TRACE_BACKUP_MODEL; // Fast/cheap (scripts, onboarding)
-const TRACE_TIER1_MODEL = process.env.TRACE_TIER1_MODEL || TRACE_PRIMARY_MODEL; // Normal chat
-const TRACE_TIER2_MODEL = process.env.TRACE_TIER2_MODEL || 'gpt-4.1';           // Premium moments (best model)
+const TRACE_TIER0_MODEL = process.env.TRACE_TIER0_MODEL || 'gpt-4o-mini';       // Fast/cheap (scripts, onboarding)
+const TRACE_TIER1_MODEL = process.env.TRACE_TIER1_MODEL || 'gpt-4o';            // Normal chat
+const TRACE_TIER2_MODEL = process.env.TRACE_TIER2_MODEL || 'gpt-5.1';           // Premium moments (best model)
 
 // Tier 2 cooldown duration (4 minutes)
 const TIER2_COOLDOWN_MS = 240000;
+
+/**
+ * Helper to get correct token limit param for model
+ * GPT-5+ models use max_completion_tokens, older models use max_tokens
+ */
+function getTokenParams(model, limit = 500) {
+  const isGpt5 = model && (model.startsWith('gpt-5') || model.startsWith('o1') || model.startsWith('o3'));
+  if (isGpt5) {
+    return { max_completion_tokens: limit };
+  }
+  return { max_tokens: limit };
+}
 
 // Premium moment keywords that trigger Tier 2
 const TIER2_KEYWORDS = [
@@ -5603,7 +5616,7 @@ If user's message contains a clear preference (style, vibe, constraint), mirror 
             { role: 'system', content: systemPrompt },
             ...messagesWithHydration
           ],
-          max_tokens: 500,
+          ...getTokenParams(selectedModel, 500),
           temperature: chatTemperature,
           response_format: { type: "json_object" },
         });
@@ -5643,7 +5656,7 @@ If user's message contains a clear preference (style, vibe, constraint), mirror 
               { role: 'system', content: systemPrompt },
               ...messagesWithHydration
             ],
-            max_tokens: 500,
+            ...getTokenParams(TRACE_BACKUP_MODEL, 500),
             temperature: chatTemperature,
             response_format: { type: "json_object" },
           });
