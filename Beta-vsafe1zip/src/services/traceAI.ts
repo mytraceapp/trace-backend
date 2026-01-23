@@ -5,8 +5,11 @@
 const MAX_CONVERSATION_HISTORY = 12;
 
 // Get a unique AI-generated greeting from TRACE
-export async function getAIGreeting(userName?: string | null): Promise<string> {
+export async function getAIGreeting(userName?: string | null, userId?: string | null): Promise<string> {
   try {
+    // Determine if this is a returning user based on localStorage conversation history
+    const hasLocalHistory = loadConversationHistory().length > 0;
+    
     const response = await fetch('/api/greeting', {
       method: 'POST',
       headers: {
@@ -14,6 +17,8 @@ export async function getAIGreeting(userName?: string | null): Promise<string> {
       },
       body: JSON.stringify({
         userName: userName || null,
+        userId: userId || null,
+        isReturningUser: hasLocalHistory,
         localTime: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
         localDay: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
         localDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
@@ -25,6 +30,12 @@ export async function getAIGreeting(userName?: string | null): Promise<string> {
     }
 
     const data = await response.json();
+    
+    // Skip greeting if server says so (e.g., during onboarding)
+    if (data.skipGreeting) {
+      return '';
+    }
+    
     return data.greeting || "Whenever you're ready.";
   } catch (error) {
     console.error('Failed to get AI greeting:', error);

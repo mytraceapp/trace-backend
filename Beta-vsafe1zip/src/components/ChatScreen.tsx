@@ -12,12 +12,9 @@ import {
   detectUserAgreement, 
   getLastSuggestedActivity,
   clearLastSuggestedActivity,
-  addAssistantMessageToHistory,
-  canShowRecallPrompt,
-  markRecallPromptShown,
   ActivityType 
 } from '../services/traceAI';
-import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages, getTodayStitch, getLastHourSummary } from '../lib/messageService';
+import { getCurrentUserId, saveTraceMessage, loadRecentTraceMessages } from '../lib/messageService';
 import { supabase } from '../lib/supabaseClient';
 import { getUserPreferences, updateUserPreferences, type UserPreferences } from '../lib/preferences';
 
@@ -136,17 +133,6 @@ export function ChatScreen({
   const [message, setMessage] = React.useState('');
   const [hasResponded, setHasResponded] = React.useState(false);
   const [hasOfferedSupportThisSession, setHasOfferedSupportThisSession] = React.useState(false);
-  const [hasShownRecallThisSession, setHasShownRecallThisSession] = React.useState(false);
-  const [lastHourSummary, setLastHourSummary] = React.useState<{
-    total: number;
-    calm: number;
-    flat: number;
-    heavy: number;
-    anxious: number;
-    avgIntensity: number;
-    arc: 'softening' | 'rising' | 'steady' | null;
-  } | null>(null);
-  const [hasOfferedRecallThisSession, setHasOfferedRecallThisSession] = React.useState(false);
   const [hasUserSpokenThisSession, setHasUserSpokenThisSession] = React.useState(false);
   const [_userMessage, setUserMessage] = React.useState('');
   void _userMessage;
@@ -225,7 +211,15 @@ export function ChatScreen({
   const fetchAIGreeting = React.useCallback(async () => {
     setIsLoadingGreeting(true);
     try {
-      const greeting = await getAIGreeting(userName);
+      const userId = await getCurrentUserId();
+      const greeting = await getAIGreeting(userName, userId);
+      
+      // Skip greeting if empty (e.g., during onboarding)
+      if (!greeting) {
+        setIsLoadingGreeting(false);
+        return;
+      }
+      
       setGreetingText(greeting);
     } catch (error) {
       console.error('Failed to fetch AI greeting:', error);
@@ -319,43 +313,6 @@ export function ChatScreen({
 
     maybeRunCheckin();
   }, []);
-
-  // Emotional recall - DISABLED to prevent repetitive questions
-  // The AI's existing conversation history handles emotional continuity naturally
-  // React.useEffect(() => { ... }, [hasShownRecallThisSession]);
-
-  // Fetch last hour summary for emotional recall feature
-  React.useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const userId = await getCurrentUserId();
-        if (!userId || cancelled) return;
-
-        const summary = await getLastHourSummary(userId);
-        if (!cancelled) {
-          setLastHourSummary(summary);
-        }
-      } catch (err) {
-        console.error('TRACE emotional recall: failed to load summary', err);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Emotional recall helper - DISABLED to prevent repetitive questions
-  // The AI's natural conversation flow handles emotional continuity
-  const maybeOfferEmotionalRecall = React.useCallback(
-    async () => {
-      // Completely disabled - return immediately
-      return;
-    },
-    []
-  );
 
   React.useEffect(() => {
     if (showTypewriter && currentIndex < greetingText.length && !hasResponded) {
@@ -605,11 +562,20 @@ export function ChatScreen({
         const thinkingDelay = 2000 + Math.random() * 1500;
         await new Promise(resolve => setTimeout(resolve, thinkingDelay));
         
-        setMessages(prev => [...prev, {
-          id: `ai-${Date.now() + 1}`,
-          role: 'assistant',
-          content: responseMessage
-        }]);
+        // Add assistant message with deduplication check
+        setMessages(prev => {
+          // Prevent duplicate messages - check if last message has same content
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg?.role === 'assistant' && lastMsg?.content === responseMessage) {
+            console.log('[CHAT] Skipped duplicate assistant message');
+            return prev;
+          }
+          return [...prev, {
+            id: `ai-${Date.now() + 1}`,
+            role: 'assistant',
+            content: responseMessage
+          }];
+        });
         
         // Save TRACE's response to Supabase
         getCurrentUserId().then(userId => {
@@ -681,10 +647,9 @@ export function ChatScreen({
           }
         }
         
-        // Emotional recall - only on first user message this session
+        // Mark that user has spoken this session
         if (!hasUserSpokenThisSession) {
           setHasUserSpokenThisSession(true);
-          maybeOfferEmotionalRecall();
         }
         
         // Return to idle after response settles
@@ -1490,32 +1455,4 @@ export function ChatScreen({
 
     </div>
   );
-}
-
-// Helper function to generate emotional recall message based on last hour summary
-function buildEmotionalRecallMessage(summary: {
-  total: number;
-  calm: number;
-  flat: number;
-  heavy: number;
-  anxious: number;
-  avgIntensity: number;
-  arc: 'softening' | 'rising' | 'steady' | null;
-}): string | null {
-  if (!summary || summary.total < 3) return null;
-
-  const heavyCount = summary.heavy + summary.anxious;
-
-  // If things were clearly heavy or rising
-  if (heavyCount >= 2 || summary.arc === 'rising') {
-    return "Earlier today felt a bit loaded for you. Is any of that still sitting with you right now?";
-  }
-
-  // If things were heavy but softened
-  if (summary.arc === 'softening' && heavyCount > 0) {
-    return "Earlier today carried a little weight but seemed to ease toward the end. How does it feel as you're checking in now?";
-  }
-
-  // If things were mostly calm/steady, we stay quiet
-  return null;
 }

@@ -6036,12 +6036,37 @@ Your response:`;
     
     try {
       const onboardingComplete = userProfile?.onboarding_completed === true;
+      // firstChatPending = explicit false only (null/undefined = assume already shown for safety)
       const firstChatPending = userProfile?.first_chat_completed === false;
       const userMsgIsAffirmation = isAffirmationOnly(userText);
       
-      // Only show disclaimer if: onboarding done + first chat pending + not just affirming
+      // Extra safety: check if user has chat history - if so, they've definitely chatted before
+      let hasChatHistory = false;
+      if (supabaseServer && effectiveUserId && firstChatPending) {
+        try {
+          const { count } = await supabaseServer
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', effectiveUserId)
+            .limit(1);
+          hasChatHistory = (count || 0) > 0;
+          if (hasChatHistory) {
+            console.log('[TRACE DISCLAIMER] User has chat history - marking first_chat_completed = true');
+            // Fix the profile for next time
+            supabaseServer
+              .from('profiles')
+              .update({ first_chat_completed: true })
+              .eq('user_id', effectiveUserId)
+              .catch(() => {});
+          }
+        } catch (e) {
+          // Ignore
+        }
+      }
+      
+      // Only show disclaimer if: onboarding done + first chat pending + no chat history + not just affirming
       if (supabaseServer && effectiveUserId && userProfile && 
-          onboardingComplete && firstChatPending && !userMsgIsAffirmation) {
+          onboardingComplete && firstChatPending && !hasChatHistory && !userMsgIsAffirmation) {
         isFirstChat = true;
         const disclaimerText = "Quick note: I'm not a therapist and I can't diagnose or treat anything — but I can support you through what you're feeling.\n\n";
         finalAssistantText = disclaimerText + finalAssistantText;
