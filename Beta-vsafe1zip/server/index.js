@@ -6020,21 +6020,30 @@ app.get('/api/health', (req, res) => {
 
 // ==================== DEBUG: MODEL CONFIGURATION ====================
 // DEV-ONLY endpoint to verify OpenAI model configuration
+const TRACE_DEBUG_TOKEN = process.env.TRACE_DEBUG_TOKEN;
+
 app.get('/api/debug/model', (req, res) => {
   const isProduction = process.env.NODE_ENV === 'production';
-  const debugToken = process.env.TRACE_DEBUG_TOKEN;
-  const headerToken = req.headers['x-trace-debug'];
+  const headerToken = req.headers['x-trace-debug-token'];
   
-  // Guard: Only allow in non-production OR with valid debug token
-  if (isProduction && (!debugToken || headerToken !== debugToken)) {
+  // Guard: Block in production, and require token if configured
+  if (isProduction) {
     return res.status(403).json({ error: 'Debug endpoint not available in production' });
   }
   
-  const config = getConfiguredModel();
+  // If TRACE_DEBUG_TOKEN is set, require it
+  if (TRACE_DEBUG_TOKEN && headerToken !== TRACE_DEBUG_TOKEN) {
+    return res.status(403).json({ error: 'Invalid or missing x-trace-debug-token header' });
+  }
   
   res.json({
     ok: true,
-    configured: config,
+    configured: {
+      primaryModel: TRACE_PRIMARY_MODEL,
+      backupModel: TRACE_BACKUP_MODEL,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || 'https://api.openai.com/v1',
+      provider: 'openai',
+    },
     runtime: {
       node: process.version,
       env: process.env.NODE_ENV || 'development',
