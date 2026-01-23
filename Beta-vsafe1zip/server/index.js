@@ -2151,6 +2151,22 @@ if (hasOpenAIKey) {
 const TRACE_PRIMARY_MODEL = 'gpt-4o';
 const TRACE_BACKUP_MODEL = 'gpt-4o-mini';
 
+// In-memory store for last OpenAI call metadata (DEV debugging)
+globalThis.__TRACE_LAST_OPENAI_CALL__ = null;
+
+function recordOpenAICall(intendedModel, response, requestId, startTime) {
+  const actualModel = response?.model || response?.response?.model || null;
+  const latencyMs = Date.now() - startTime;
+  globalThis.__TRACE_LAST_OPENAI_CALL__ = {
+    requestId: requestId || `chat_${Date.now()}`,
+    intendedModel,
+    actualModel,
+    provider: 'openai',
+    latencyMs,
+    time: new Date().toISOString(),
+  };
+}
+
 function getConfiguredModel() {
   const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '';
   return {
@@ -5220,12 +5236,14 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     
     // LAYER 1: Primary model with 3 retries
     const cfg = getConfiguredModel();
+    const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
     console.log(`[OPENAI CONFIG] model=${cfg.primaryModel} baseURL=${cfg.baseURL}`);
     
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         if (attempt > 1) await sleep(300 * attempt); // Exponential backoff
         
+        const openaiStart = Date.now();
         const response = await openai.chat.completions.create({
           model: TRACE_PRIMARY_MODEL,
           messages: [
@@ -5237,6 +5255,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
           response_format: { type: "json_object" },
         });
         
+        recordOpenAICall(TRACE_PRIMARY_MODEL, response, chatRequestId, openaiStart);
         console.log(`[OPENAI RESPONSE] model=${response.model || 'unknown'}`);
         rawContent = response.choices[0]?.message?.content || '';
         
@@ -5264,6 +5283,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
         try {
           if (attempt > 1) await sleep(400);
           
+          const openaiStart = Date.now();
           const response = await openai.chat.completions.create({
             model: TRACE_BACKUP_MODEL,
             messages: [
@@ -5275,6 +5295,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
             response_format: { type: "json_object" },
           });
           
+          recordOpenAICall(TRACE_BACKUP_MODEL, response, chatRequestId, openaiStart);
           console.log(`[OPENAI RESPONSE] model=${response.model || 'unknown'} (fallback)`);
           rawContent = response.choices[0]?.message?.content || '';
           
@@ -6049,6 +6070,33 @@ app.get('/api/debug/model', (req, res) => {
       env: process.env.NODE_ENV || 'development',
     },
     time: new Date().toISOString(),
+  });
+});
+
+// GET /api/debug/openai-last - Returns the most recent OpenAI call metadata
+app.get('/api/debug/openai-last', (req, res) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const headerToken = req.headers['x-trace-debug-token'];
+  
+  // Guard: Block in production
+  if (isProduction) {
+    return res.status(403).json({ error: 'Debug endpoint not available in production' });
+  }
+  
+  // If TRACE_DEBUG_TOKEN is set, require it
+  if (TRACE_DEBUG_TOKEN && headerToken !== TRACE_DEBUG_TOKEN) {
+    return res.status(403).json({ error: 'Invalid or missing x-trace-debug-token header' });
+  }
+  
+  // Check if any OpenAI call has been recorded
+  const lastCall = globalThis.__TRACE_LAST_OPENAI_CALL__;
+  if (!lastCall) {
+    return res.status(404).json({ ok: false, error: 'No OpenAI calls recorded yet' });
+  }
+  
+  res.json({
+    ok: true,
+    lastOpenAI: lastCall,
   });
 });
 
