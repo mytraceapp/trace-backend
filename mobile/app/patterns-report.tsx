@@ -21,7 +21,7 @@ import { FontFamily, TraceWordmark } from '../constants/typography';
 import { Shadows } from '../constants/shadows';
 import { getStableId } from '../lib/stableId';
 import { fetchPatternsWeeklySummary, fetchPatternsInsights, PatternsInsightsResult } from '../lib/chat';
-import { ensureAuthSession } from '../lib/supabase';
+import { supabase, ensureAuthSession } from '../lib/supabase';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -144,11 +144,39 @@ export default function PatternsReport() {
   useEffect(() => {
     const loadIds = async () => {
       const deviceId = await getStableId();
-      // Use Supabase auth ID (same as activity_logs) instead of SecureStore UUID
-      const authUserId = await ensureAuthSession();
       console.log('💠 [TRACE PATTERNS] stableId loaded:', deviceId);
-      console.log('💠 [TRACE PATTERNS] authUserId loaded:', authUserId);
       setStableId(deviceId);
+      
+      // Use same fallback chain as chat.tsx to get the Supabase auth user ID
+      let authUserId: string | null = null;
+      
+      // Try 1: Get from current Supabase session
+      try {
+        const { data } = await supabase.auth.getUser();
+        authUserId = data?.user?.id ?? null;
+        console.log('💠 [TRACE PATTERNS] getUser result:', authUserId?.slice(0, 8) || 'null');
+      } catch (e) {
+        console.log('💠 [TRACE PATTERNS] getUser error:', e);
+      }
+      
+      // Try 2: Fallback to stored user_id in AsyncStorage
+      if (!authUserId) {
+        try {
+          const storedUserId = await AsyncStorage.getItem('user_id');
+          if (storedUserId) {
+            authUserId = storedUserId;
+            console.log('💠 [TRACE PATTERNS] fallback to AsyncStorage user_id:', authUserId?.slice(0, 8));
+          }
+        } catch (e) {}
+      }
+      
+      // Try 3: If still null, call ensureAuthSession to create anonymous user
+      if (!authUserId) {
+        authUserId = await ensureAuthSession();
+        console.log('💠 [TRACE PATTERNS] ensureAuthSession result:', authUserId?.slice(0, 8) || 'null');
+      }
+      
+      console.log('💠 [TRACE PATTERNS] FINAL authUserId:', authUserId);
       setUserId(authUserId);
     };
     loadIds();

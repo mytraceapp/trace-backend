@@ -1,0 +1,85 @@
+1-23T09:09:00.625Z", "lastHourSummary": {"checkinsLastHour": 0, "checkinsToday": 0, "comparisonLabel": null}, "mostHelpfulActivity": {"count": 0, "label": "Once you've tried a few more activities, I'll notice which ones you return to.", "lastCalculatedAt": "2026-01-23T09:09:00.625Z"}, "mostHelpfulActivityCount": 0, "mostHelpfulActivityLabel": "Once you've tried a few more activities, I'll notice which ones you return to.", "peakWindow": {"confidence": "emerging", "endHour": null, "label": null, "lastCalculatedAt": "2026-01-23T09:09:00.625Z", "sampleSize": 0, "startHour": null}, "peakWindowEndRatio": null, "peakWindowLabel": null, "peakWindowStartRatio": null, "predictiveHint": null, "presenceTrend": null, "reliefLabel": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "reliefSpotlight": null, "sampleSize": 0, "softening": {"confidence": "emerging", "label": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "lastCalculatedAt": "2026-01-23T09:09:00.625Z", "percentage": null, "sampleSize": 0, "topDayIndex": null, "totalSoftEntries": 0}, "stillLearning": true, "stressEchoes": {"confidence": "emerging", "label": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "lastCalculatedAt": "2026-01-23T09:09:00.625Z", "sampleSize": 0, "stressCount": 0, "topDayIndex": null, "totalStressEntries": 0}, "stressEchoesLabel": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "studioInsights": null, "totalSoftEntries": 0, "weeklyMoodTrend": {"calm": {"direction": "stable", "label": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "lastWeek": 0, "thisWeek": 0}, "stress": {"direction": "stable", "label": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "lastWeek": 0, "thisWeek": 0}}}
+ LOG  📊 TRACE energyRhythmLabel from backend: I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.
+ LOG  📊 TRACE stressEchoesLabel from backend: I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.
+ LOG  📊 TRACE energyDayBuckets from backend: [0, 0, 0, 0, 0, 0, 0]
+ LOG  📊 TRACE stillLearning: true sampleSize: 0
+ LOG  [PATTERNS] insights sampleSize 0 stillLearning true
+ LOG  [PATTERNS] peakWindowLabel null
+ LOG  [PATTERNS] energyFrequencyBuckets (behavioral) null
+ LOG  [PATTERNS] emotionalRhythmBuckets (emotional) null
+ LOG  [PATTERNS] stressEchoesLabel I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.
+ LOG  [PATTERNS] reliefLabel I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge. totalSoftEntries 0
+ LOG  [PATTERNS] mostHelpfulActivity Once you've tried a few more activities, I'll notice which ones you return to. 0
+ LOG  [PATTERNS] lastHourSummary {"checkinsLastHour": 0, "checkinsToday": 0, "comparisonLabel": null}
+ LOG  [PATTERNS] lastHourStats - checkinsLastHour: null checkinsToday: null comparisonLabel: null
+ LOG  [PATTERNS] weeklyNarrative null predictiveHint null
+ LOG  [PATTERNS] crisisMode false
+ LOG  [TRACE Profile] Profile loaded successfully: {"displayName": "Nina Tested", "email": "nr.zink1617@gmail.com", "planStatus": "premium", "userId": "80624861-1955-40f4-b302-2af2c9dc67c1"}
+ LOG  [ProfileProvider] Received profile data: {"displayName": "Nina Tested", "email": "nr.zink1617@gmail.com", "planStatus": "premium", "userId": "80624861-1955-40f4-b302-2af2c9dc67c1"}
+ LOG  🚀🚀🚀 [PATTERNS] PatternsScreen component function executing!
+ LOG  🔥🔥🔥 USEEFFECT TEST - This log is BEFORE all hooks
+ LOG  🎨 RENDER CHECK - peakWindowLabel: null
+ LOG  🎨 RENDER CHECK - peakWindowStartRatio: null
+ LOG  🎨 RENDER CHECK - peakWindowEndRatio: null
+ LOG  🎨 BAR RENDER - ratios are null, not rendering bar
+ LOG  🔵 activeSignatureKey: null
+ LOG  🔵 activeSignature: null
+ LOG  [PATTERNS] Hourly activity counts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+ LOG  [PATTERNS] Last 7 days activities: 0
+ LOG  [PATTERNS] Energy Tides frequency buckets: [0, 0, 0, 0, 0, 0, 0]
+ LOG  [PATTERNS] Using frequency as fallback for emotional rhythm (backend not ready)
+ LOG  [PATTERNS] Using backend rhythm label: I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.
+ LOG  [PATTERNS] stressEchoesLabel from backend: I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.
+ LOG  [PATTERNS] Set stress strength to: 0
+ LOG  📝 [WEEKLY NARRATIVE] Backend returned: null
+ LOG  📝 [WEEKLY NARRATIVE] Backend returned null, keeping default
+ LOG  [PATTERNS] Hourly activity counts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+ LOG  [PATTERNS] Last 7 days activities: 0
+ LOG  [PATTERNS] Energy Tides frequency buckets: [0, 0, 0, 0, 0, 0, 0]
+ LOG  [PATTERNS] Using frequency as fallback for emotional rhythm (backend not ready)
+ LOG  [PATTERNS] Using backend rhythm label: I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.
+ LOG  [PATTERNS] stressEchoesLabel from backend: I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.
+ LOG  [PATTERNS] Set stress strength to: 0
+ LOG  📝 [WEEKLY NARRATIVE] Backend returned: null
+ LOG  📝 [WEEKLY NARRATIVE] Backend returned null, keeping default
+ LOG  🚀🚀🚀 [PATTERNS] PatternsScreen component function executing!
+ LOG  🔥🔥🔥 USEEFFECT TEST - This log is BEFORE all hooks
+ LOG  🎨 RENDER CHECK - peakWindowLabel: null
+ LOG  🎨 RENDER CHECK - peakWindowStartRatio: null
+ LOG  🎨 RENDER CHECK - peakWindowEndRatio: null
+ LOG  🎨 BAR RENDER - ratios are null, not rendering bar
+ LOG  🔵 activeSignatureKey: null
+ LOG  🔵 activeSignature: null
+ LOG  💾 [CACHE] Saved patterns insights for guest
+ LOG  🔥🔥🔥 [WEEKLY METRICS #1769159340830] STARTING
+ LOG  💾 [CACHE] Saved patterns insights for guest
+ LOG  🚀🚀🚀 [PATTERNS] PatternsScreen component function executing!
+ LOG  🔥🔥🔥 USEEFFECT TEST - This log is BEFORE all hooks
+ LOG  🎨 RENDER CHECK - peakWindowLabel: null
+ LOG  🎨 RENDER CHECK - peakWindowStartRatio: null
+ LOG  🎨 RENDER CHECK - peakWindowEndRatio: null
+ LOG  🎨 BAR RENDER - ratios are null, not rendering bar
+ LOG  🔵 activeSignatureKey: null
+ LOG  🔵 activeSignature: null
+ LOG  🔥🔥🔥 [WEEKLY METRICS #1769159340830] ALL activity logs: 0
+ LOG  🔥🔥🔥 [WEEKLY METRICS #1769159340830] weekLogs count: 0
+ LOG  🔥🔥🔥 [WEEKLY METRICS #1769159340830] weekSessionsCount: 0
+ LOG  🔥🔥🔥 [WEEKLY METRICS #1769159340830] Using backend peak window data only
+ LOG  📊 [PATTERNS] Using backend most helpful activity data only
+ LOG  🔥🔥🔥 [ENERGY TIDES] Using backend frequency + emotional rhythm data
+ LOG  🔥🔥🔥 [ENERGY TIDES] Using backend energyRhythmLabel only
+ LOG  🌊 [ENERGY TIDES] Glance text calculated in loadPatternsInsights
+ LOG  🎯 [SIGNATURES] Starting detection, weekLogs: 0
+ LOG  🎯 [SIGNATURES] New user - showing default patterns
+ LOG  🎯 [SIGNATURES] Default earned: ["morningSharpness", "solitudeRecovery"]
+ LOG  🚀🚀🚀 [PATTERNS] PatternsScreen component function executing!
+ LOG  🔥🔥🔥 USEEFFECT TEST - This log is BEFORE all hooks
+ LOG  🎨 RENDER CHECK - peakWindowLabel: null
+ LOG  🎨 RENDER CHECK - peakWindowStartRatio: null
+ LOG  🎨 RENDER CHECK - peakWindowEndRatio: null
+ LOG  🎨 BAR RENDER - ratios are null, not rendering bar
+ LOG  🔵 activeSignatureKey: null
+ LOG  🔵 activeSignature: null
+ LOG  💾 [CACHE] Loaded patterns cache (0min old)
+ LOG  💾 [CACHE] Saved patterns insights for guest
+ LOG  💾 [CACHE] Updated earnedSignatures: ["morningSharpness", "solitudeRecovery"]
