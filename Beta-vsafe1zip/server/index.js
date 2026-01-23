@@ -3279,6 +3279,10 @@ function storeDedupResponse(dedupKey, payload) {
   console.log(`[DEDUP] STORED dedupKey=${dedupKey} cacheSize=${dedupCache.size}`);
 }
 
+// Track last N light-acks per user to avoid repeats (MUST be outside route handler)
+const recentLightAcksPerUser = new Map();
+const LIGHT_ACK_HISTORY_SIZE = 5;
+
 app.post('/api/chat', async (req, res) => {
   // Build dedup key BEFORE try block so it's available for caching on success
   const dedupKey = getDedupKey(req);
@@ -3569,7 +3573,25 @@ app.post('/api/chat', async (req, res) => {
       "Of course.",
       "No problem.",
       "I'm here if you want to share more.",
+      "Heard.",
+      "Yeah.",
+      "Alright.",
+      "Sure thing.",
+      "Cool.",
+      "Mm-hm.",
+      "I'm around.",
+      "Gotcha.",
     ];
+    
+    function pickRandomNoRepeat(arr, userId) {
+      const recentAcks = recentLightAcksPerUser.get(userId) || [];
+      const filtered = arr.filter(a => !recentAcks.includes(a));
+      const candidates = filtered.length > 0 ? filtered : arr;
+      const choice = candidates[Math.floor(Math.random() * candidates.length)];
+      const updatedHistory = [...recentAcks, choice].slice(-LIGHT_ACK_HISTORY_SIZE);
+      recentLightAcksPerUser.set(userId, updatedHistory);
+      return choice;
+    }
     
     function pickRandom(arr) {
       return arr[Math.floor(Math.random() * arr.length)];
@@ -4509,7 +4531,7 @@ app.post('/api/chat', async (req, res) => {
     if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && !traceJustAskedQuestion) {
       console.log('[TRACE CHAT] Light closure detected, sending short ack:', lastUserMsg.content);
       const closureResponse = normalizeChatResponse({
-        message: pickRandom(LIGHT_ACKS),
+        message: pickRandomNoRepeat(LIGHT_ACKS, effectiveUserId),
         activity_suggestion: {
           name: null,
           reason: null,

@@ -1,0 +1,130 @@
+REPLIT TASK: TRACE Everyday Voice Upgrade + Repeat Response Fix (CRITICAL)
+
+You are working in TRACE backend: /server/index.js (+ any helper file like traceBrain.js or prompt builder file if present).
+
+GOAL
+
+Upgrade TRACE’s voice to feel more human + premium (less therapist-y / less frou-frou) AND fix a bug where TRACE repeats the same response.
+
+This must be:
+	•	minimal risk
+	•	backward compatible
+	•	no breaking changes
+	•	no UI changes required
+
+⸻
+
+✅ PART A — Everyday Voice (Premium Human Tone)
+
+Problem
+
+TRACE output is too clinical / therapist-coded:
+	•	“That’s a significant realization.”
+	•	“How do you envision…”
+	•	“That longing can be profound…”
+
+This feels robotic and repetitive.
+
+Fix
+
+Update the system prompt builder so TRACE speaks in:
+	•	casual intelligent voice
+	•	short sentences
+	•	natural emotional reactions
+	•	fewer abstract nouns
+	•	less interrogation mode
+	•	more “friend/companion” tone
+
+Add these hard system rules:
+
+EVERYDAY VOICE RULES
+	1.	Use plain conversational language. Avoid therapy-speak.
+	2.	Avoid phrases:
+	•	“significant realization”
+	•	“valuable insight”
+	•	“it can be profound”
+	•	“how do you envision”
+	•	“influence your approach”
+	3.	Keep responses shorter:
+	•	Max 2–4 sentences for normal chat.
+	4.	Use gentle warmth and subtle humor sometimes (5–10% of messages).
+	5.	Ask fewer questions:
+	•	max 1 question most turns
+	•	do not ask a question if the user message already contains a clear direction
+	6.	React naturally first, then respond.
+	•	“Honestly… yeah.”
+	•	“That makes sense.”
+	•	“Oof, I feel that.”
+	7.	Mirror the user’s energy:
+	•	if user says “lol”, TRACE can say “lol” back occasionally
+	8.	Don’t over-validate every line.
+	•	Not every response needs praise or affirmation.
+
+Add “BREATHE” Rule:
+
+If the conversation is already flowing, TRACE should sometimes respond with:
+	•	1 short reflection line
+	•	OR a quick check-in
+instead of diving deeper every message.
+
+Example:
+User: “I think my nursing background helps.”
+TRACE: “Oh 100%. That’s your superpower in this.” (pause) “What part of nursing shows up most in TRACE?”
+
+⸻
+
+✅ PART B — Repeat Response Fix (Critical Bug)
+
+Problem
+
+TRACE sometimes repeats the same response bubble verbatim in consecutive turns.
+
+This is likely caused by one of:
+	1.	duplicate request retry (mobile sends twice)
+	2.	response caching keyed wrong
+	3.	incorrect message history not appended
+	4.	stale system prompt reuse
+	5.	assistant message not included in history
+	6.	deduplication cache returns wrong response
+
+Fix Requirements
+
+1) Add response-level anti-repeat guard:
+
+Before returning response to client:
+	•	compare the new assistant message to the last assistant message from conversation history
+	•	if identical or >0.92 similarity → regenerate once OR apply a rewrite function
+
+Implementation:
+	•	store lastAssistantText from incoming messages array
+	•	compare to finalMessage
+	•	if repeat → add rewrite instruction:
+	•	“Rewrite your last reply differently. Do NOT repeat sentences.”
+
+Do not infinite loop:
+	•	allow only 1 rewrite attempt.
+
+2) Improve deduplication cache key
+
+If deduplication exists:
+Ensure cache key uses:
+	•	authUserId + clientMessageId
+OR
+	•	authUserId + hash(userText + lastUserMessageTimestamp)
+
+Do NOT dedupe based only on userText.
+
+3) Add logging
+
+Log when repeat guard triggers:
+
+[ANTI-REPEAT] Detected repeat — rewriting…
+
+⸻
+
+DELIVERABLES
+	1.	Implement Everyday Voice Rules in system prompt builder.
+	2.	Implement Anti-repeat guard.
+	3.	Ensure behavior is safe + deterministic.
+	4.	Add minimal logs.
+	5.	Return patched code sections + explain where changes were made.
