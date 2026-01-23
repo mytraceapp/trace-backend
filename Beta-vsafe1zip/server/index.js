@@ -3057,38 +3057,59 @@ function normalizeChatResponse(payload, requestId) {
   };
 }
 
-// Request deduplication cache (30-second TTL for retry storm protection)
-const requestCache = new Map();
-const REQUEST_CACHE_TTL_MS = 30000;
+// Request deduplication cache (5-minute TTL for retry storm protection)
+// Uses clientMessageId scoped by userId to return exact same response on retries
+const dedupCache = new Map(); // Map<dedupKey, { ts: number, payload: object }>
+const DEDUP_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-function getCachedResponse(requestId) {
-  if (!requestId) return null;
-  const cached = requestCache.get(requestId);
-  if (cached && Date.now() - cached.timestamp < REQUEST_CACHE_TTL_MS) {
-    console.log('[DEDUP] Returning cached response for requestId:', requestId);
-    return { ...cached.response, deduped: true };
+// Cleanup expired entries every 60 seconds
+setInterval(() => {
+  const now = Date.now();
+  let cleaned = 0;
+  for (const [key, val] of dedupCache.entries()) {
+    if (now - val.ts > DEDUP_TTL_MS) {
+      dedupCache.delete(key);
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) {
+    console.log(`[DEDUP] Cleanup: removed ${cleaned} expired entries, ${dedupCache.size} remaining`);
+  }
+}, 60000);
+
+function getDedupKey(req) {
+  const clientMessageId = req.body.clientMessageId || req.body.client_state?.clientMessageId;
+  if (!clientMessageId) return null;
+  const userKey = req.body.userId || req.body.user_id || 'anon';
+  return `dedup:${userKey}:${clientMessageId}`;
+}
+
+function getCachedDedup(dedupKey) {
+  if (!dedupKey) return null;
+  const cached = dedupCache.get(dedupKey);
+  if (cached && Date.now() - cached.ts < DEDUP_TTL_MS) {
+    const ageMs = Date.now() - cached.ts;
+    console.log(`[DEDUP] HIT dedupKey=${dedupKey} ageMs=${ageMs}`);
+    return { ...cached.payload, deduped: true };
   }
   if (cached) {
-    requestCache.delete(requestId);
+    console.log(`[DEDUP] EXPIRED dedupKey=${dedupKey}`);
+    dedupCache.delete(dedupKey);
   }
   return null;
 }
 
-function cacheResponse(requestId, response) {
-  if (!requestId) return;
-  requestCache.set(requestId, { response, timestamp: Date.now() });
-  // Cleanup old entries periodically
-  if (requestCache.size > 1000) {
-    const now = Date.now();
-    for (const [key, val] of requestCache.entries()) {
-      if (now - val.timestamp > REQUEST_CACHE_TTL_MS) {
-        requestCache.delete(key);
-      }
-    }
-  }
+function storeDedupResponse(dedupKey, payload) {
+  if (!dedupKey) return;
+  const payloadWithFlag = { ...payload, deduped: false };
+  dedupCache.set(dedupKey, { ts: Date.now(), payload: payloadWithFlag });
+  console.log(`[DEDUP] STORED dedupKey=${dedupKey} cacheSize=${dedupCache.size}`);
 }
 
 app.post('/api/chat', async (req, res) => {
+  // Build dedup key BEFORE try block so it's available for caching on success
+  const dedupKey = getDedupKey(req);
+  
   try {
     const {
       messages: rawMessages,
@@ -3111,11 +3132,14 @@ app.post('/api/chat', async (req, res) => {
     const requestId = clientRequestId || `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     
     // Check for cached response (deduplication for retry storms)
-    if (clientRequestId) {
-      const cachedResponse = getCachedResponse(clientRequestId);
+    // Uses clientMessageId to return EXACT same response on network retries
+    if (dedupKey) {
+      const cachedResponse = getCachedDedup(dedupKey);
       if (cachedResponse) {
+        res.set('X-Trace-Dedup', '1');
         return res.json(cachedResponse);
       }
+      console.log(`[DEDUP] MISS dedupKey=${dedupKey}`);
     }
     
     // Extract client_state for context-aware responses
@@ -3206,8 +3230,8 @@ app.post('/api/chat', async (req, res) => {
         }
         
         const studioResponse = normalizeChatResponse(response, requestId);
-        cacheResponse(requestId, studioResponse);
-        return res.json(studioResponse);
+        storeDedupResponse(dedupKey, studioResponse);
+        return res.json({ ...studioResponse, deduped: false });
       }
     }
     
@@ -3240,8 +3264,8 @@ app.post('/api/chat', async (req, res) => {
             doorwayState: { lastDoorwayId: doorway.id, ts: Date.now() }
           }
         }, requestId);
-        cacheResponse(requestId, doorwayResponse);
-        return res.json(doorwayResponse);
+        storeDedupResponse(dedupKey, doorwayResponse);
+        return res.json({ ...doorwayResponse, deduped: false });
       }
     }
     
@@ -4319,8 +4343,8 @@ app.post('/api/chat', async (req, res) => {
           should_navigate: false,
         },
       }, requestId);
-      cacheResponse(requestId, closureResponse);
-      return res.json(closureResponse);
+      storeDedupResponse(dedupKey, closureResponse);
+      return res.json({ ...closureResponse, deduped: false });
     } else if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && traceJustAskedQuestion) {
       console.log('[TRACE CHAT] Short reply but TRACE asked question - treating as answer, not closure');
     }
@@ -5952,8 +5976,8 @@ Your response:`;
     }
     
     const finalResponse = normalizeChatResponse(response, requestId);
-    cacheResponse(requestId, finalResponse);
-    return res.json(finalResponse);
+    storeDedupResponse(dedupKey, finalResponse);
+    return res.json({ ...finalResponse, deduped: false });
   } catch (error) {
     console.error('TRACE API error:', error.message || error);
     res.status(500).json(normalizeChatResponse({ 
