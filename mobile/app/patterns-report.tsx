@@ -21,7 +21,7 @@ import { FontFamily, TraceWordmark } from '../constants/typography';
 import { Shadows } from '../constants/shadows';
 import { getStableId } from '../lib/stableId';
 import { fetchPatternsWeeklySummary, fetchPatternsInsights, PatternsInsightsResult } from '../lib/chat';
-import { getTraceUserId } from '../lib/supabase';
+import { ensureAuthSession } from '../lib/supabase';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -144,11 +144,12 @@ export default function PatternsReport() {
   useEffect(() => {
     const loadIds = async () => {
       const deviceId = await getStableId();
-      const traceUserId = await getTraceUserId();
+      // Use Supabase auth ID (same as activity_logs) instead of SecureStore UUID
+      const authUserId = await ensureAuthSession();
       console.log('💠 [TRACE PATTERNS] stableId loaded:', deviceId);
-      console.log('💠 [TRACE PATTERNS] userId loaded:', traceUserId);
+      console.log('💠 [TRACE PATTERNS] authUserId loaded:', authUserId);
       setStableId(deviceId);
-      setUserId(traceUserId);
+      setUserId(authUserId);
     };
     loadIds();
   }, []);
