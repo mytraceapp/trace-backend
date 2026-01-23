@@ -25,7 +25,8 @@ import { Spacing } from '../../constants/spacing';
 import { BodyText, FontFamily } from '../../constants/typography';
 import { useFonts } from 'expo-font';
 import { playAmbient, stopAmbient } from '../../lib/ambientAudio';
-import { sendChatMessage, fetchWelcomeGreeting, PatternContext } from '../../lib/chat';
+import { sendChatMessage, fetchWelcomeGreeting, PatternContext, WeatherContext } from '../../lib/chat';
+import { getWeather } from '../../lib/weather';
 import { getStableId } from '../../lib/stableId';
 import { logSuggestionAccepted, logSuggestionCompleted, logNegativeResponse } from '../../lib/telemetry';
 import { getDisplayName } from '../../lib/supabase';
@@ -1527,6 +1528,24 @@ export default function ChatScreen() {
       clientStateRef.current.localNow = Date.now();
       clientStateRef.current.sessionTurnCount = (clientStateRef.current.sessionTurnCount || 0) + 1;
       
+      // Fetch weather context (cached, non-blocking - returns null if unavailable)
+      let weatherContext: WeatherContext | null = null;
+      try {
+        const weather = await getWeather();
+        if (weather) {
+          weatherContext = {
+            temperature: weather.temperature,
+            windSpeed: weather.windSpeed,
+            summary: weather.summary,
+            cloudCover: weather.cloudCover,
+            isDayTime: weather.isDayTime,
+          };
+          console.log('[TRACE Chat] Weather context loaded:', weather.summary);
+        }
+      } catch (err) {
+        console.log('[TRACE Chat] Weather unavailable, continuing without');
+      }
+      
       const result = await sendChatMessage({
         messages: payloadMessages,
         userName: null,
@@ -1540,6 +1559,7 @@ export default function ChatScreen() {
         patternContext,
         traceStudiosContext, // Pass current context to avoid playlist clash
         client_state: clientStateRef.current, // Pass full client state for doorways/brain
+        weatherContext, // Include weather for contextual responses
       });
 
       console.log('📥 TRACE received reply:', result);

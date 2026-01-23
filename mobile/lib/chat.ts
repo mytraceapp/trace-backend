@@ -24,7 +24,15 @@ export interface ClientState {
   localNow?: number;
 }
 
-export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone, patternContext, tonePreference, traceStudiosContext, client_state }: {
+export interface WeatherContext {
+  temperature?: number;
+  windSpeed?: number;
+  summary?: string;
+  cloudCover?: number;
+  isDayTime?: boolean;
+}
+
+export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone, patternContext, tonePreference, traceStudiosContext, client_state, weatherContext }: {
   messages: Array<{ role: string; content: string }>;
   userName?: string | null;
   chatStyle?: string;
@@ -38,6 +46,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
   tonePreference?: 'neutral' | 'faith' | null;
   traceStudiosContext?: string | null;
   client_state?: ClientState | null;
+  weatherContext?: WeatherContext | null;
 }) {
   console.log(
     '🆔 TRACE sendChatMessage ids:',
@@ -70,6 +79,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
           tonePreference: tonePreference || 'neutral',
           traceStudiosContext: traceStudiosContext || null,
           client_state: client_state || null,
+          weatherContext: weatherContext || null,
         }),
         signal: controller.signal,
       }
