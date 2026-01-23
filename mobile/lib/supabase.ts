@@ -1,19 +1,22 @@
 import 'react-native-url-polyfill/auto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-const ExpoSecureStoreAdapter = {
+// Use AsyncStorage for Supabase session persistence (sessions can be large, 2KB+ with tokens/user data)
+// SecureStore has a 2048 byte limit on iOS and is intended for small secrets only
+const AsyncStorageAdapter = {
   getItem: async (key: string): Promise<string | null> => {
-    return await SecureStore.getItemAsync(key);
+    return await AsyncStorage.getItem(key);
   },
   setItem: async (key: string, value: string): Promise<void> => {
-    await SecureStore.setItemAsync(key, value);
+    await AsyncStorage.setItem(key, value);
   },
   removeItem: async (key: string): Promise<void> => {
-    await SecureStore.deleteItemAsync(key);
+    await AsyncStorage.removeItem(key);
   },
 };
 
@@ -25,7 +28,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 } else {
   supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-      storage: ExpoSecureStoreAdapter,
+      storage: AsyncStorageAdapter,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
@@ -46,6 +49,8 @@ function generateUUID(): string {
   });
 }
 
+// SecureStore is only used for small secrets (user ID is 36 bytes, well under 2KB limit)
+// This keeps the anonymous user ID secure and persistent across app reinstalls on iOS
 export async function getTraceUserId(): Promise<string> {
   const TRACE_USER_ID_KEY = 'trace_user_id';
   let userId = await SecureStore.getItemAsync(TRACE_USER_ID_KEY);
