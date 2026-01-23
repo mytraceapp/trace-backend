@@ -2241,6 +2241,7 @@ const TIER2_COOLDOWN_MS = 240000;
 /**
  * Helper to get correct token limit param for model
  * GPT-5+ models use max_completion_tokens, older models use max_tokens
+ * GPT-5-mini doesn't support custom temperature
  */
 function getTokenParams(model, limit = 500) {
   const isGpt5 = model && (model.startsWith('gpt-5') || model.startsWith('o1') || model.startsWith('o3'));
@@ -2248,6 +2249,19 @@ function getTokenParams(model, limit = 500) {
     return { max_completion_tokens: limit };
   }
   return { max_tokens: limit };
+}
+
+/**
+ * Helper to check if model supports custom temperature
+ * GPT-5-mini and o1/o3 models only support temperature=1
+ */
+function supportsCustomTemperature(model) {
+  if (!model) return true;
+  // gpt-5-mini and reasoning models don't support custom temperature
+  if (model.includes('5-mini') || model.startsWith('o1') || model.startsWith('o3')) {
+    return false;
+  }
+  return true;
 }
 
 // Premium moment keywords that trigger Tier 2
@@ -2276,7 +2290,8 @@ function selectTraceModel({
   hasActiveConversation = false,
   clientState = {},
   posture = 'STEADY',
-  detected_state = 'neutral'
+  detected_state = 'neutral',
+  isPremium = false
 }) {
   const now = Date.now();
   const lowerText = userText.toLowerCase();
@@ -2300,6 +2315,16 @@ function selectTraceModel({
   // Never use Tier 2 for crisis (need reliability over quality)
   if (isCrisis) {
     return { model: TRACE_TIER1_MODEL, tier: 1, reason: 'crisis_mode', newCooldownUntil: null };
+  }
+  
+  // Premium subscription: always use Tier 2 model (gpt-5.1)
+  if (isPremium) {
+    return {
+      model: TRACE_TIER2_MODEL,
+      tier: 2,
+      reason: 'premium_subscription',
+      newCooldownUntil: null // No cooldown for premium users
+    };
   }
   
   // Tier 2 trigger conditions (premium moments)
@@ -5542,6 +5567,11 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     // TIERED MODEL ROUTING
     // Select optimal model based on conversation context
     // ============================================================
+    // Determine premium status from user profile
+    const isPremium = userProfile?.plan_status === 'premium' ||
+                      userProfile?.plan === 'premium' ||
+                      userProfile?.is_premium === true;
+    
     const modelRoute = selectTraceModel({
       userText: lastUserContent,
       mode: safeClientState?.currentScreen || 'chat',
@@ -5550,14 +5580,17 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
       hasActiveConversation: messages.length > 4,
       clientState: safeClientState,
       posture,
-      detected_state
+      detected_state,
+      isPremium
     });
     
     const selectedModel = modelRoute.model;
+    const tierResult = modelRoute; // Alias for grouped logging
     const tier2CooldownPatch = modelRoute.newCooldownUntil ? { tier2CooldownUntil: modelRoute.newCooldownUntil } : {};
     
     // DEV-only log for model routing
     if (process.env.NODE_ENV !== 'production') {
+      console.log('[TRACE MODEL]', { isPremium, intendedModel: selectedModel, userId: effectiveUserId?.slice?.(0, 8) });
       console.log(`[MODEL ROUTE] tier=T${modelRoute.tier} model=${selectedModel} reason=${modelRoute.reason}`);
     }
     
@@ -5665,7 +5698,7 @@ If user's message contains a clear preference (style, vibe, constraint), mirror 
         if (attempt > 1) await sleep(300 * attempt); // Exponential backoff
         
         const openaiStart = Date.now();
-        const response = await openai.chat.completions.create({
+        const openaiParams = {
           model: selectedModel,
           messages: [
             { role: 'system', content: TRACE_BOSS_SYSTEM },
@@ -5673,12 +5706,17 @@ If user's message contains a clear preference (style, vibe, constraint), mirror 
             ...messagesWithHydration
           ],
           ...getTokenParams(selectedModel, 500),
-          temperature: chatTemperature,
           response_format: { type: "json_object" },
-        });
+        };
+        if (supportsCustomTemperature(selectedModel)) {
+          openaiParams.temperature = chatTemperature;
+        }
+        const response = await openai.chat.completions.create(openaiParams);
         
         recordOpenAICall(selectedModel, response, chatRequestId, openaiStart);
-        console.log(`[OPENAI RESPONSE] model=${response.model || 'unknown'}`);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[TRACE MODEL]', { intendedModel: selectedModel, actualModel: response?.model });
+        }
         rawContent = response.choices[0]?.message?.content || '';
         
         if (rawContent.trim()) {
@@ -5706,7 +5744,7 @@ If user's message contains a clear preference (style, vibe, constraint), mirror 
           if (attempt > 1) await sleep(400);
           
           const openaiStart = Date.now();
-          const response = await openai.chat.completions.create({
+          const backupParams = {
             model: TRACE_BACKUP_MODEL,
             messages: [
               { role: 'system', content: TRACE_BOSS_SYSTEM },
@@ -5714,9 +5752,12 @@ If user's message contains a clear preference (style, vibe, constraint), mirror 
               ...messagesWithHydration
             ],
             ...getTokenParams(TRACE_BACKUP_MODEL, 500),
-            temperature: chatTemperature,
             response_format: { type: "json_object" },
-          });
+          };
+          if (supportsCustomTemperature(TRACE_BACKUP_MODEL)) {
+            backupParams.temperature = chatTemperature;
+          }
+          const response = await openai.chat.completions.create(backupParams);
           
           recordOpenAICall(TRACE_BACKUP_MODEL, response, chatRequestId, openaiStart);
           console.log(`[OPENAI RESPONSE] model=${response.model || 'unknown'} (fallback)`);
@@ -6636,6 +6677,20 @@ Your response:`;
     if (shouldAddReturnToLife(userText, response.message)) {
       response.message = addReturnToLifeCue(response.message);
       console.log('[TRACE RETURN-TO-LIFE] Added grounding cue to response');
+    }
+    
+    // Grouped TRACE BRAIN summary log (dev only)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[TRACE BRAIN]', {
+        deepMode: brevityMode === 'deep',
+        intent: nextQuestionResult?.intent || null,
+        brevityLimit: brevityMode === 'deep' ? 800 : (brevityMode === 'crisis' ? 300 : 450),
+        sanitized: false, // TODO: track if sanitizeTone changed text
+        similarity: repetitionCheck?.similarity || 0,
+        dedupHit: false,
+        model: selectedModel,
+        tier: tierResult?.tier,
+      });
     }
     
     const finalResponse = normalizeChatResponse(response, requestId);
