@@ -645,6 +645,88 @@ function maybeInsight({ userId, clientState, signals }) {
   };
 }
 
+// ============================================================
+// TONE SANITIZER - Rewrite therapy-speak to Everyday Premium Voice
+// ============================================================
+const THERAPY_PATTERNS = [
+  { pattern: /\bI hear you\b/gi, replacement: "Got it" },
+  { pattern: /\bI'm here for you\b/gi, replacement: "I'm here" },
+  { pattern: /\bI'm here with you\b/gi, replacement: "I'm here" },
+  { pattern: /\bThat sounds like\b/gi, replacement: "Sounds like" },
+  { pattern: /\bIt sounds like\b/gi, replacement: "Sounds like" },
+  { pattern: /\bThat must be\b/gi, replacement: "That's" },
+  { pattern: /\bThat can feel\b/gi, replacement: "That feels" },
+  { pattern: /\bIt's interesting how\b/gi, replacement: "Yeah," },
+  { pattern: /\bIt really does\b/gi, replacement: "Yeah, it" },
+  { pattern: /\bAbsolutely, those\b/gi, replacement: "Yeah, those" },
+  { pattern: /\bI appreciate the\b/gi, replacement: "Thanks for" },
+  { pattern: /\bI appreciate you sharing\b/gi, replacement: "Thanks for sharing" },
+  { pattern: /\bdeeply human\b/gi, replacement: "real" },
+  { pattern: /\bprofound\b/gi, replacement: "deep" },
+  { pattern: /\bsignificant\b/gi, replacement: "big" },
+  { pattern: /\bbeautiful insight\b/gi, replacement: "good point" },
+  { pattern: /\bvaried expressions\b/gi, replacement: "different ways" },
+  { pattern: /\bfeel deeply\b/gi, replacement: "feel" },
+  { pattern: /\bconnect us all\b/gi, replacement: "connect" },
+  { pattern: /\bHow are you managing\b/gi, replacement: "How's it going" },
+  { pattern: /\bWhat comes up for you\b/gi, replacement: "What's on your mind" },
+  { pattern: /\bspace to process\b/gi, replacement: "time" },
+  { pattern: /\bholding space\b/gi, replacement: "here" },
+  { pattern: /\bsit with that\b/gi, replacement: "think about it" },
+  { pattern: /\bjourney\b/gi, replacement: "path" },
+  { pattern: /\bself-care\b/gi, replacement: "rest" },
+  { pattern: /\bwellness\b/gi, replacement: "health" },
+  { pattern: /\bThat resonates\b/gi, replacement: "That makes sense" },
+  { pattern: /\bI'm curious\b/gi, replacement: "I wonder" },
+  { pattern: /\bI wonder if\b/gi, replacement: "Maybe" },
+  { pattern: /\bIt sounds challenging\b/gi, replacement: "That's tough" },
+  { pattern: /\bThat's a lot to navigate\b/gi, replacement: "That's a lot" },
+  { pattern: /\bHow does that land for you\b/gi, replacement: "How's that feel" },
+];
+
+// Cooldown tracking for "honestly/real talk" phrases (in-memory per user)
+const everydayEmphasisCooldowns = new Map(); // userId -> lastUsedAt timestamp
+const EMPHASIS_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes between uses
+
+function sanitizeTone(text, options = {}) {
+  if (!text) return text;
+  let result = text;
+  let changed = false;
+  
+  for (const { pattern, replacement } of THERAPY_PATTERNS) {
+    if (pattern.test(result)) {
+      result = result.replace(pattern, replacement);
+      changed = true;
+    }
+  }
+  
+  // "Honestly/real talk" cooldown enforcement
+  const userId = options.userId || 'anon';
+  const hasEmphasis = /\b(honestly|real talk|to be honest|tbh)\b/i.test(result);
+  if (hasEmphasis) {
+    const lastUsed = everydayEmphasisCooldowns.get(userId) || 0;
+    const now = Date.now();
+    if (now - lastUsed < EMPHASIS_COOLDOWN_MS) {
+      // Remove emphasis phrases if used too recently
+      result = result.replace(/\b(Honestly,?|Real talk,?|To be honest,?|Tbh,?)\s*/gi, '');
+      console.log('[TONE SANITIZER] Removed emphasis phrase (cooldown active)');
+    } else {
+      // Allow it and update cooldown
+      everydayEmphasisCooldowns.set(userId, now);
+    }
+  }
+  
+  // Clean up double spaces and leading punctuation
+  result = result.replace(/\s{2,}/g, ' ').trim();
+  result = result.replace(/^\s*[,\.]\s*/, '');
+  
+  if (changed) {
+    console.log('[TONE SANITIZER] Cleaned therapy-speak from response');
+  }
+  
+  return result;
+}
+
 module.exports = {
   getSignals,
   buildClientStateContext,
@@ -658,4 +740,6 @@ module.exports = {
   buildWinbackMessage,
   // Pillar 12: Progress Insights
   maybeInsight,
+  // Tone sanitizer
+  sanitizeTone,
 };

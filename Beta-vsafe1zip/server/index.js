@@ -61,7 +61,7 @@ if (process.env.NEON_PROMISE_LYRICS) {
   TRACKS.neon_promise.lyrics = process.env.NEON_PROMISE_LYRICS;
 }
 const { updateLastSeen, buildReturnWarmthLine, buildMemoryCue } = require('./tracePresence');
-const { getSignals: getBrainSignals, buildClientStateContext, decideSuggestion, tightenResponse, applyTimeOfDayRules, maybeAddCuriosityHook, maybeWinback, buildWinbackMessage, maybeInsight } = require('./traceBrain');
+const { getSignals: getBrainSignals, buildClientStateContext, decideSuggestion, tightenResponse, applyTimeOfDayRules, maybeAddCuriosityHook, maybeWinback, buildWinbackMessage, maybeInsight, sanitizeTone } = require('./traceBrain');
 const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
@@ -3262,7 +3262,7 @@ function getCachedDedup(dedupKey) {
   const cached = dedupCache.get(dedupKey);
   if (cached && Date.now() - cached.ts < DEDUP_TTL_MS) {
     const ageMs = Date.now() - cached.ts;
-    console.log(`[DEDUP] HIT dedupKey=${dedupKey} ageMs=${ageMs}`);
+    console.log(`[DEDUP] returning cached response dedupKey=${dedupKey} ageMs=${ageMs}`);
     return { ...cached.payload, deduped: true };
   }
   if (cached) {
@@ -6227,6 +6227,11 @@ Your response:`;
         console.log('[TRACE BRAIN] Response tightened (maxSentences:', todRules.maxSentences, ')');
       }
     }
+    
+    // ===== TONE SANITIZER =====
+    // Server-side cleanup of any therapy-speak that slips through
+    // Pass userId for "honestly/real talk" cooldown enforcement
+    tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId });
     
     // ===== ARTIST CANON GUARDRAILS =====
     // Guardrail A: Ensure canonical credit line for naming/credits questions

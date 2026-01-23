@@ -1,0 +1,45 @@
+Update my repo: Beta-vsafe1zip/server.
+
+PRIMARY GOAL
+Make TRACE responses feel premium and human (Everyday Premium Voice), and stop repeated responses.
+
+NON-NEGOTIABLES
+1) Insert this EXACT canon block at the TOP of the system prompt builder used by /api/chat.
+   It must be FIRST and explicitly override any other tone rules:
+
+<<<PASTE EXACT CANON BLOCK HERE>>>
+
+2) Enforce it strictly:
+   - Add a server-side “tone sanitizer” pass before sending the final response:
+     If banned therapy/coach phrases appear (or close variants), rewrite the response into Everyday Premium voice.
+     Keep rewrites minimal (no personality reset, preserve meaning).
+   - Do not add frou-frou synonyms (“profound”, “significant”, “beautiful insight”, etc).
+   - Allow “I’m here.” but use it sparingly.
+   - “Honestly/real talk” only occasionally — implement a simple cooldown using client_state (e.g., lastEverydayEmphasisAt).
+
+3) Fix repetition (two layers):
+   A) Request deduplication:
+      - If client provides clientMessageId, use it as dedup key.
+      - Keep an in-memory Map cache with TTL=5 minutes of FULL JSON response.
+      - On duplicate key, return the EXACT cached JSON response (identical message, identical requestId), and do NOT call OpenAI.
+      - Log “[DEDUP] returning cached response”.
+
+   B) Model repeat guard:
+      - Compare new assistant text to previous assistant text (from messages history).
+      - If identical or highly similar, regenerate ONCE with added instruction:
+        “Do not repeat or paraphrase the last assistant message. Reply differently in Everyday Premium voice.”
+      - If still repeating after one regen, return it but log “[REPEAT] regen failed”.
+
+SCOPE (where to change)
+- Identify the system prompt builder function used by /api/chat (buildSystemPrompt/getSystemPrompt/etc).
+  Prepend the canon block there.
+- Implement dedup and repeat guard in the /api/chat OpenAI call path (index.js or wherever OpenAI is called).
+- If you already have a “tighten reply” step, modify it to align with Everyday Premium voice and ban therapy phrasing.
+
+OUTPUT REQUIRED
+After implementing, print:
+- Files changed + line locations
+- The exact inserted canon block location (function name)
+- The dedup cache key logic and TTL
+- A curl snippet to verify dedup works (two calls same clientMessageId should return identical JSON and show [DEDUP] log)
+- 5 “before → after” tone examples (therapist → Everyday Premium)
