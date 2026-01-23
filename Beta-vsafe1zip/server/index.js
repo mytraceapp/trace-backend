@@ -6211,9 +6211,21 @@ Your response:`;
     
     // ===== RESPONSE TIGHTENING =====
     // Ensure concise TRACE voice with time-of-day aware sentence limits
-    let tightenedText = tightenResponse(processedAssistantText, { maxSentences: todRules.maxSentences });
-    if (tightenedText !== processedAssistantText) {
-      console.log('[TRACE BRAIN] Response tightened (maxSentences:', todRules.maxSentences, ')');
+    // EXCEPTION: Skip tightening for lyrics requests - they need the full text
+    const lastUserMsgLower = (messages.filter(m => m.role === 'user').pop()?.content || '').toLowerCase();
+    const isLyricsRequest = /lyrics|words to|the words|show me the/.test(lastUserMsgLower) || 
+                            processedAssistantText.includes('Verse') || 
+                            processedAssistantText.includes('[Verse');
+    
+    let tightenedText;
+    if (isLyricsRequest) {
+      tightenedText = processedAssistantText;
+      console.log('[TRACE BRAIN] Skipping tighten - lyrics request detected');
+    } else {
+      tightenedText = tightenResponse(processedAssistantText, { maxSentences: todRules.maxSentences });
+      if (tightenedText !== processedAssistantText) {
+        console.log('[TRACE BRAIN] Response tightened (maxSentences:', todRules.maxSentences, ')');
+      }
     }
     
     // ===== ARTIST CANON GUARDRAILS =====
