@@ -5381,6 +5381,29 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
       console.log(`[MODEL ROUTE] tier=T${modelRoute.tier} model=${selectedModel} reason=${modelRoute.reason}`);
     }
     
+    // ============================================================
+    // ANTI-REPETITION: Extract recent assistant openers to avoid
+    // ============================================================
+    const recentAssistantMessages = messages
+      .filter(m => m.role === 'assistant')
+      .slice(-3) // Last 3 assistant responses
+      .map(m => {
+        const content = m.content || '';
+        // Extract first sentence/line as "opener" (up to 80 chars)
+        const opener = content.split(/[.!?\n]/)[0]?.trim()?.slice(0, 80) || '';
+        return opener;
+      })
+      .filter(Boolean);
+    
+    if (recentAssistantMessages.length > 0) {
+      systemPrompt += `
+
+RESPONSE HISTORY (DO NOT REPEAT THESE OPENERS):
+${recentAssistantMessages.map((o, i) => `- "${o}"`).join('\n')}
+Vary your opening. Use a different rhythm than above.`;
+      console.log(`[ANTI-REPEAT] Injected ${recentAssistantMessages.length} recent openers into prompt`);
+    }
+    
     // Tier 2 enhancement: Premium Experience Mode
     if (modelRoute.tier === 2 && !isCrisisMode) {
       systemPrompt += `
