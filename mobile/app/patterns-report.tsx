@@ -13,7 +13,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { TrendingUp } from 'lucide-react-native';
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Colors } from '../constants/colors';
@@ -21,7 +20,7 @@ import { FontFamily, TraceWordmark } from '../constants/typography';
 import { Shadows } from '../constants/shadows';
 import { getStableId } from '../lib/stableId';
 import { fetchPatternsWeeklySummary, fetchPatternsInsights, PatternsInsightsResult } from '../lib/chat';
-import { supabase, ensureAuthSession } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -142,44 +141,48 @@ export default function PatternsReport() {
   );
 
   useEffect(() => {
-    const loadIds = async () => {
+    const loadDeviceId = async () => {
       const deviceId = await getStableId();
       console.log('💠 [TRACE PATTERNS] stableId loaded:', deviceId);
       setStableId(deviceId);
-      
-      // Use same fallback chain as chat.tsx to get the Supabase auth user ID
-      let authUserId: string | null = null;
-      
-      // Try 1: Get from current Supabase session
-      try {
-        const { data } = await supabase.auth.getUser();
-        authUserId = data?.user?.id ?? null;
-        console.log('💠 [TRACE PATTERNS] getUser result:', authUserId?.slice(0, 8) || 'null');
-      } catch (e) {
-        console.log('💠 [TRACE PATTERNS] getUser error:', e);
-      }
-      
-      // Try 2: Fallback to stored user_id in AsyncStorage
-      if (!authUserId) {
-        try {
-          const storedUserId = await AsyncStorage.getItem('user_id');
-          if (storedUserId) {
-            authUserId = storedUserId;
-            console.log('💠 [TRACE PATTERNS] fallback to AsyncStorage user_id:', authUserId?.slice(0, 8));
-          }
-        } catch (e) {}
-      }
-      
-      // Try 3: If still null, call ensureAuthSession to create anonymous user
-      if (!authUserId) {
-        authUserId = await ensureAuthSession();
-        console.log('💠 [TRACE PATTERNS] ensureAuthSession result:', authUserId?.slice(0, 8) || 'null');
-      }
-      
-      console.log('💠 [TRACE PATTERNS] FINAL authUserId:', authUserId);
-      setUserId(authUserId);
     };
-    loadIds();
+    loadDeviceId();
+  }, []);
+
+  // Listen for Supabase auth state changes to get userId when session is ready
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('💠 [TRACE PATTERNS] Auth state changed:', event, 'userId:', session?.user?.id?.slice(0, 8) || 'null');
+        
+        if (session?.user?.id) {
+          setUserId(session.user.id);
+          console.log('💠 [TRACE PATTERNS] Set userId from auth state:', session.user.id.slice(0, 8));
+        } else if (event === 'SIGNED_OUT') {
+          setUserId(null);
+        }
+      }
+    );
+
+    // Also try to get current session immediately (in case already restored)
+    const checkCurrentSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          console.log('💠 [TRACE PATTERNS] Got userId from current session:', session.user.id.slice(0, 8));
+          setUserId(session.user.id);
+        } else {
+          console.log('💠 [TRACE PATTERNS] No current session, waiting for auth state change...');
+        }
+      } catch (e) {
+        console.log('💠 [TRACE PATTERNS] getSession error:', e);
+      }
+    };
+    checkCurrentSession();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loadLastHourSummary = useCallback(async () => {
