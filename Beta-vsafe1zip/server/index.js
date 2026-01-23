@@ -4719,7 +4719,9 @@ app.post('/api/chat', async (req, res) => {
           const windInfo = windSpeed ? `, wind ${Math.round(windSpeed)} mph` : '';
           const dayNightInfo = isDayTime === false ? ', nighttime' : isDayTime === true ? ', daytime' : '';
           const cloudInfo = cloudCover !== undefined ? ` (${cloudCover}% cloud cover)` : '';
-          weatherContext = `WEATHER_CONTEXT: Current local conditions: ${summary || 'Unknown conditions'}${cloudInfo}, ${Math.round(temperature)}°F${windInfo}${dayNightInfo}.\nYou CAN reference sky conditions, daylight, cloud coverage, temperature, and weather naturally. Examples: "with the overcast skies today...", "in the bright sunshine...", "as evening settles in...". Use contextually - do not force into every response. Never mention APIs or data sources.`;
+          weatherContext = `REAL-TIME WEATHER DATA (YOU HAVE THIS - USE IT WHEN ASKED):
+Current conditions at user's location: ${summary || 'Unknown conditions'}${cloudInfo}, ${Math.round(temperature)}°F${windInfo}${dayNightInfo}.
+CRITICAL: When user asks about weather, temperature, or outside conditions, RESPOND WITH THIS DATA. Do not say "I can't provide weather" - you HAVE the data above. Answer naturally like a friend who looked out the window.`;
           console.log('[TRACE WEATHER] Using client-provided weather context:', summary, temperature + '°F', 'isDayTime:', isDayTime, 'cloudCover:', cloudCover);
         } else {
           // Fall back to server-side weather fetch based on profile lat/lon
@@ -4729,7 +4731,9 @@ app.post('/api/chat', async (req, res) => {
             profile: profileForWeather,
           });
           if (weatherResult.weatherSummary) {
-            weatherContext = `WEATHER_CONTEXT: ${weatherResult.weatherSummary}\nYou CAN reference sky conditions, daylight, cloud coverage, temperature, and weather naturally. Use contextually - do not force into every response. Never mention APIs or data sources.`;
+            weatherContext = `REAL-TIME WEATHER DATA (YOU HAVE THIS - USE IT WHEN ASKED):
+Current conditions at user's location: ${weatherResult.weatherSummary}.
+CRITICAL: When user asks about weather, temperature, or outside conditions, RESPOND WITH THIS DATA. Do not say "I can't provide weather" - you HAVE the data above. Answer naturally like a friend who looked out the window.`;
           }
         }
       } catch (err) {

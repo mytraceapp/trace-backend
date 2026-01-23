@@ -1,0 +1,48 @@
+LOG  [TRACE CHAT] Params: {}
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE Chat] Profile check: {"hasLat": true, "hasLon": true, "hasProfile": true, "lat": 40.7128, "lon": -74.006, "weatherEnabled": true}
+ LOG  [TRACE Chat] 🌤️ Fetching weather context for location: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] Calling getWeather with: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] 🌤️ Weather API response received: {
+  "summary": "Overcast, 38°F, 25% humidity, wind 29 mph",
+  "current": {
+    "temperature_2m": 37.5,
+    "wind_speed_10m": 28.8,
+    "humidity": 25,
+    "weather_code": 3,
+    "weather_description": "Overcast"
+  },
+  "timezone": "America/New_York"
+}
+ LOG  [TRACE Chat] 🌤️ Weather context SUCCESSFULLY prepared: {
+  "temperature": 37.5,
+  "windSpeed": 28.8,
+  "summary": "Overcast, 38°F, 25% humidity, wind 29 mph"
+}
+ LOG  [TRACE Chat] Backend URL: http://localhost:3000
+ LOG  [TRACE Chat] Sending to: http://localhost:3000/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Overcast, 38°F, 25% humidity, wind 29 mph", "temperature": 37.5, "windSpeed": 28.8}
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"messages":["I can't provide current weather updates. It might be a good idea to check a weather app or website for that information. How are you feeling today, regardless of the weather?"],"suggestion":null}
+ LOG  [TRACE Chat] Processed messages array: ["I can't provide current weather updates. It might be a good idea to check a weather app or website for that information. How are you feeling today, regardless of the weather?"]
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  Responses to add: 1
+ LOG  [PILLAR 10] Session turn count incremented: 1
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  MESSAGES_LEN_AFTER: 14 deduped from: 14
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {}
+ 
