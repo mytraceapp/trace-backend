@@ -6035,8 +6035,25 @@ Your response:`;
   }
 });
 
+const SERVER_START_TIME = Date.now();
+
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+  const uptimeSeconds = (Date.now() - SERVER_START_TIME) / 1000;
+  
+  res.json({
+    ok: true,
+    service: 'trace-chat-server',
+    env: process.env.NODE_ENV || 'development',
+    uptimeSeconds: Math.round(uptimeSeconds * 10) / 10,
+    time: new Date().toISOString(),
+    runtime: {
+      node: process.version,
+    },
+    deps: {
+      openaiConfigured: Boolean(process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY),
+      supabaseConfigured: Boolean((process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL) && process.env.SUPABASE_SERVICE_ROLE_KEY),
+    },
+  });
 });
 
 // ==================== DEBUG: MODEL CONFIGURATION ====================
