@@ -1,0 +1,41 @@
+ LOG  🔥🔥🔥 USEEFFECT TEST - This log is BEFORE all hooks
+ LOG  🎨 RENDER CHECK - peakWindowLabel: null
+ LOG  🎨 RENDER CHECK - peakWindowStartRatio: null
+ LOG  🎨 RENDER CHECK - peakWindowEndRatio: null
+ LOG  🎨 BAR RENDER - ratios are null, not rendering bar
+ LOG  🔵 activeSignatureKey: null
+ LOG  🔵 activeSignature: null
+ LOG  💾 [CACHE] Saved patterns insights for guest
+ LOG  💾 [CACHE] Saved patterns insights for guest
+ LOG  🔥🔥🔥 [WEEKLY METRICS #1769160213530] STARTING
+ LOG  🔥🔥🔥 [WEEKLY METRICS #1769160213530] ALL activity logs: 0
+ LOG  🚀🚀🚀 [PATTERNS] PatternsScreen component function executing!
+ LOG  🔥🔥🔥 USEEFFECT TEST - This log is BEFORE all hooks
+ LOG  🎨 RENDER CHECK - peakWindowLabel: null
+ LOG  🎨 RENDER CHECK - peakWindowStartRatio: null
+ LOG  🎨 RENDER CHECK - peakWindowEndRatio: null
+ LOG  🎨 BAR RENDER - ratios are null, not rendering bar
+ LOG  🔵 activeSignatureKey: null
+ LOG  🔵 activeSignature: null
+ LOG  🔥🔥🔥 [WEEKLY METRICS #1769160213530] weekLogs count: 0
+ LOG  🔥🔥🔥 [WEEKLY METRICS #1769160213530] weekSessionsCount: 0
+ LOG  🔥🔥🔥 [WEEKLY METRICS #1769160213530] Using backend peak window data only
+ LOG  📊 [PATTERNS] Using backend most helpful activity data only
+ LOG  🔥🔥🔥 [ENERGY TIDES] Using backend frequency + emotional rhythm data
+ LOG  🔥🔥🔥 [ENERGY TIDES] Using backend energyRhythmLabel only
+ LOG  🌊 [ENERGY TIDES] Glance text calculated in loadPatternsInsights
+ LOG  🎯 [SIGNATURES] Starting detection, weekLogs: 0
+ LOG  🎯 [SIGNATURES] New user - showing default patterns
+ LOG  🎯 [SIGNATURES] Default earned: ["morningSharpness", "solitudeRecovery"]
+ LOG  🚀🚀🚀 [PATTERNS] PatternsScreen component function executing!
+ LOG  🔥🔥🔥 USEEFFECT TEST - This log is BEFORE all hooks
+ LOG  🎨 RENDER CHECK - peakWindowLabel: null
+ LOG  🎨 RENDER CHECK - peakWindowStartRatio: null
+ LOG  🎨 RENDER CHECK - peakWindowEndRatio: null
+ LOG  🎨 BAR RENDER - ratios are null, not rendering bar
+ LOG  🔵 activeSignatureKey: null
+ LOG  🔵 activeSignature: null
+ LOG  💾 [CACHE] Loaded patterns cache (0min old)
+ LOG  💾 [CACHE] Saved patterns insights for guest
+ LOG  💾 [CACHE] Updated earnedSignatures: ["morningSharpness", "solitudeRecovery"]
+
