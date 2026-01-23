@@ -140,49 +140,39 @@ export default function PatternsReport() {
     { lastHourSummary, hasLastHourHistory, isLastHourLoading }
   );
 
+  // UNIFIED INIT - exactly matching chat.tsx pattern that works
   useEffect(() => {
-    const loadDeviceId = async () => {
+    const initPatterns = async () => {
+      console.log('🚀 [PATTERNS INIT] Starting...');
+      
+      // Step 1: Get device ID
       const deviceId = await getStableId();
-      console.log('💠 [TRACE PATTERNS] stableId loaded:', deviceId);
       setStableId(deviceId);
-    };
-    loadDeviceId();
-  }, []);
-
-  // Listen for Supabase auth state changes to get userId when session is ready
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('💠 [TRACE PATTERNS] Auth state changed:', event, 'userId:', session?.user?.id?.slice(0, 8) || 'null');
-        
-        if (session?.user?.id) {
-          setUserId(session.user.id);
-          console.log('💠 [TRACE PATTERNS] Set userId from auth state:', session.user.id.slice(0, 8));
-        } else if (event === 'SIGNED_OUT') {
-          setUserId(null);
+      console.log('🆔 [PATTERNS INIT] deviceId:', deviceId);
+      
+      // Step 2: Get user ID - using exact same pattern as chat.tsx
+      const { data } = await supabase.auth.getUser();
+      let authUserId = data?.user?.id ?? null;
+      console.log('🆔 [PATTERNS INIT] getUser result:', authUserId?.slice(0, 8) || 'null');
+      
+      // Fallback to AsyncStorage (same as chat.tsx)
+      if (!authUserId) {
+        try {
+          const storedUserId = await AsyncStorage.getItem('user_id');
+          if (storedUserId) {
+            authUserId = storedUserId;
+            console.log('🆔 [PATTERNS INIT] fallback to AsyncStorage:', authUserId?.slice(0, 8));
+          }
+        } catch (e) {
+          console.log('🆔 [PATTERNS INIT] AsyncStorage error:', e);
         }
       }
-    );
-
-    // Also try to get current session immediately (in case already restored)
-    const checkCurrentSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.id) {
-          console.log('💠 [TRACE PATTERNS] Got userId from current session:', session.user.id.slice(0, 8));
-          setUserId(session.user.id);
-        } else {
-          console.log('💠 [TRACE PATTERNS] No current session, waiting for auth state change...');
-        }
-      } catch (e) {
-        console.log('💠 [TRACE PATTERNS] getSession error:', e);
-      }
+      
+      console.log('🆔 [PATTERNS INIT] FINAL userId:', authUserId);
+      setUserId(authUserId);
     };
-    checkCurrentSession();
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    
+    initPatterns();
   }, []);
 
   const loadLastHourSummary = useCallback(async () => {

@@ -1,0 +1,31 @@
+ LOG  🔵 activeSignatureKey: null
+ LOG  🔵 activeSignature: null
+ LOG  💾 [CACHE] Loaded patterns cache (0min old)
+ LOG  💾 [CACHE] Saved patterns insights for guest
+ LOG  💾 [CACHE] Updated earnedSignatures: ["morningSharpness", "solitudeRecovery"]
+ LOG  🚀🚀🚀 [PATTERNS] PatternsScreen component function executing!
+ LOG  🔥🔥🔥 USEEFFECT TEST - This log is BEFORE all hooks
+ LOG  🎨 RENDER CHECK - peakWindowLabel: null
+ LOG  🎨 RENDER CHECK - peakWindowStartRatio: null
+ LOG  🎨 RENDER CHECK - peakWindowEndRatio: null
+ LOG  🎨 BAR RENDER - ratios are null, not rendering bar
+ LOG  🔵 activeSignatureKey: null
+ LOG  🔵 activeSignature: null
+ LOG  🔥🔥🔥 TRACE last-hour summary CALLING: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/patterns/last-hour
+ LOG  🔥🔥🔥 TRACE last-hour params: {"analysisType": "detailed", "deviceId": "anon-kl2150tymkqlhlih", "messageCount": 0, "userId": null}
+ LOG  📊 TRACE patterns/insights: calling https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/patterns/insights
+ LOG  📊 TRACE user timezone: America/Los_Angeles
+ LOG  🔥🔥🔥 TRACE last-hour summary CALLING: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/patterns/last-hour
+ LOG  🔥🔥🔥 TRACE last-hour params: {"analysisType": "detailed", "deviceId": "anon-kl2150tymkqlhlih", "messageCount": 0, "userId": null}
+ LOG  [TRACE JOURNAL] No userId, using local storage only
+ LOG  [TRACE JOURNAL] Using local storage
+ LOG  [TRACE JOURNAL] No userId, using local storage only
+ LOG  [TRACE JOURNAL] Using local storage
+ LOG  🔥🔥🔥 TRACE last-hour RESPONSE: {"hasHistory": false, "ok": true, "summaryText": null}
+ LOG  📊 TRACE patterns/insights response: {"crossPatternHint": null, "emotionalLoadTrend": null, "energyDayBuckets": [0, 0, 0, 0, 0, 0, 0], "energyFlow": {"label": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "lastCalculatedAt": "2026-01-23T09:20:22.283Z", "percentage": null, "sampleSize": 0, "topDayIndex": null, "totalActivities": 0}, "energyRhythmLabel": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "journalSampleSize": 0, "lastCalculatedAt": "2026-01-23T09:20:22.283Z", "lastHourSummary": {"checkinsLastHour": 0, "checkinsToday": 0, "comparisonLabel": null}, "mostHelpfulActivity": {"count": 0, "label": "Once you've tried a few more activities, I'll notice which ones you return to.", "lastCalculatedAt": "2026-01-23T09:20:22.283Z"}, "mostHelpfulActivityCount": 0, "mostHelpfulActivityLabel": "Once you've tried a few more activities, I'll notice which ones you return to.", "peakWindow": {"confidence": "emerging", "endHour": null, "label": null, "lastCalculatedAt": "2026-01-23T09:20:22.283Z", "sampleSize": 0, "startHour": null}, "peakWindowEndRatio": null, "peakWindowLabel": null, "peakWindowStartRatio": null, "predictiveHint": null, "presenceTrend": null, "reliefLabel": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "reliefSpotlight": null, "sampleSize": 0, "softening": {"confidence": "emerging", "label": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "lastCalculatedAt": "2026-01-23T09:20:22.283Z", "percentage": null, "sampleSize": 0, "topDayIndex": null, "totalSoftEntries": 0}, "stillLearning": true, "stressEchoes": {"confidence": "emerging", "label": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "lastCalculatedAt": "2026-01-23T09:20:22.283Z", "sampleSize": 0, "stressCount": 0, "topDayIndex": null, "totalStressEntries": 0}, "stressEchoesLabel": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "studioInsights": null, "totalSoftEntries": 0, "weeklyMoodTrend": {"calm": {"direction": "stable", "label": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "lastWeek": 0, "thisWeek": 0}, "stress": {"direction": "stable", "label": "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.", "lastWeek": 0, "thisWeek": 0}}}
+ LOG  📊 TRACE energyRhythmLabel from backend: I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.
+ LOG  📊 TRACE stressEchoesLabel from backend: I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.
+ LOG  📊 TRACE energyDayBuckets from backend: [0, 0, 0, 0, 0, 0, 0]
+ LOG  📊 TRACE stillLearning: true sampleSize: 0
+ LOG  🔥🔥🔥 TRACE last-hour RESPONSE: {"hasHistory": false, "ok": true, "summaryText": null}
+
