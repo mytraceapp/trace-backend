@@ -5734,6 +5734,51 @@ Your response:`;
       // Normal mode: use single message
       assistantText = (parsed.message || '').trim() || "What's on your mind?";
     }
+    
+    // ============================================================
+    // ANTI-REPEAT GUARD: Regenerate once if identical to last reply
+    // ============================================================
+    if (!isCrisisMode && !messagesArray && assistantText) {
+      const lastAssistantInHistory = messages
+        .filter(m => m.role === 'assistant')
+        .pop()?.content?.trim();
+      
+      if (lastAssistantInHistory && assistantText.trim() === lastAssistantInHistory) {
+        console.log('[ANTI-REPEAT] triggered -> regenOnce');
+        
+        try {
+          const regenResponse = await openai.chat.completions.create({
+            model: selectedModel,
+            messages: [
+              { role: 'system', content: systemPrompt + '\n\nIMPORTANT: Rewrite the reply to say the same thing but with different wording; keep the same tone and length. Do NOT repeat the exact same words.' },
+              ...messagesWithHydration,
+              { role: 'assistant', content: assistantText },
+              { role: 'user', content: '[SYSTEM: Your previous reply was identical to your last message. Please rephrase while keeping the same meaning.]' }
+            ],
+            max_tokens: 500,
+            temperature: 0.8,
+            response_format: { type: "json_object" },
+          });
+          
+          const regenContent = regenResponse.choices[0]?.message?.content || '';
+          if (regenContent.trim()) {
+            try {
+              const regenParsed = JSON.parse(regenContent);
+              if (regenParsed.message && regenParsed.message.trim() !== lastAssistantInHistory) {
+                assistantText = regenParsed.message.trim();
+                parsed.message = assistantText;
+                console.log('[ANTI-REPEAT] regeneration successful, new response applied');
+              }
+            } catch (e) {
+              console.warn('[ANTI-REPEAT] regen parse failed, keeping original');
+            }
+          }
+        } catch (regenErr) {
+          console.warn('[ANTI-REPEAT] regen API call failed:', regenErr.message);
+        }
+      }
+    }
+    // ============================================================
 
     // Save assistant reply safely
     try {

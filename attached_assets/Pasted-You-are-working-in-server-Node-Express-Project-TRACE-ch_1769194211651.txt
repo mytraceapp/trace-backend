@@ -1,0 +1,91 @@
+You are working in: /server (Node/Express). Project: TRACE chat server.
+
+GOAL (2 changes):
+1) Make TRACE replies feel premium + human (everyday voice, not therapist-y).
+2) Fix repeated assistant messages (true dedupe + anti-repeat guard).
+
+NON-NEGOTIABLE:
+- Do NOT change endpoints, payload contract, or break mobile.
+- Keep current Pillars logic and existing safety rules.
+- Keep “TRACE” persona canon.
+- Changes must be minimal, readable, and logged in dev.
+
+========================================================
+TASK A — “Everyday Voice Filter” (SYSTEM PROMPT UPGRADE)
+========================================================
+
+Where:
+- Locate the function that builds the SYSTEM prompt for /api/chat (e.g. buildSystemPrompt / getSystemPrompt / traceBrain prompt builder) inside server/index.js or traceBrain.js (where you already apply Pillars and inject rules).
+
+Add a new always-on style section near the end of the system prompt (after safety + routing rules), titled:
+
+[EVERYDAY VOICE — PREMIUM]
+
+Rules to add (verbatim intent, but write in your existing style format):
+- Sound like a real person texting (warm, grounded, premium).
+- Use contractions naturally (“you’ve”, “it’s”, “that’s”).
+- Keep it concise: 1–4 short paragraphs max.
+- Avoid poetic/therapy language. Specifically avoid phrases like:
+  “hold space”, “honor that”, “come back to yourself”, “nervous system”, “regulate”, “ground into”, “safe container”, “processing”, “validate”, “that lands”, “I hear you”
+- Prefer everyday words: “reset”, “shake it off”, “makes sense”, “that’s a lot”, “fair”, “rough”, “solid”, “what happened?”
+- Insight style: reflect plainly + ask one good follow-up question.
+- If you accidentally sound like a therapist, rewrite the sentence in everyday language before finalizing.
+
+Also add a “MICRO HUMOR” rule:
+- Light humor is allowed 5–10% of the time when user tone is casual (never in crisis, never when user is distressed).
+- No sarcasm, no teasing user. Keep it gentle.
+
+Implementation detail:
+- This is prompt-only. No model changes required.
+- Ensure this section is appended every time.
+
+========================================================
+TASK B — REPEAT FIX (STRICT DEDUPE + ANTI-REPEAT GUARD)
+========================================================
+
+Problem:
+Mobile/network retries or double-sends can produce duplicate assistant messages. We already have clientMessageId support. Make it correct and strict.
+
+B1) Strict deduplication keyed ONLY by clientMessageId
+- In /api/chat handler, extract:
+  authUserId (or trace_user_id/device user id) AND clientMessageId from request body.
+- If clientMessageId exists:
+  dedupeKey MUST be `${authUserId}:${clientMessageId}` (authUserId required; if missing, fall back to `${deviceId || 'anon'}:${clientMessageId}`).
+- Use an in-memory Map cache:
+  Map<dedupeKey, { responseJson, createdAt }>
+- TTL: 5 minutes.
+- Cleanup interval: every 60 seconds remove expired entries.
+- Behavior:
+  - If dedupeKey exists and not expired: return the cached response JSON immediately (identical).
+  - If not: process normally, then cache the final response JSON before sending.
+
+IMPORTANT:
+- Cache the FINAL response after tightening / post-processing so duplicates return identical payloads.
+- Add a dev log when cache HIT occurs: `[DEDUP] hit key=... ageMs=...`
+- Add a dev log when cache SET occurs: `[DEDUP] set key=...`
+
+B2) Anti-repeat guard (one regeneration)
+- After getting the assistant text (final message string), compare it to the last assistant message in the conversation history (from the incoming messages array).
+- If it is identical after trimming (or extremely close), regenerate ONCE with a small instruction:
+  “Rewrite the reply to say the same thing but with different wording; keep the same tone and length.”
+- Do NOT loop more than 1 retry.
+- Cache the final chosen response (post-regeneration).
+- Log in dev: `[ANTI-REPEAT] triggered -> regenOnce`.
+
+Edge cases:
+- Never regen in crisis mode.
+- Never regen if the response is an error/fallback message.
+- Preserve the same JSON response envelope.
+
+========================================================
+OUTPUT REQUIREMENTS
+========================================================
+1) Tell me exactly which files you edited and approx line ranges.
+2) Provide a concise diff-style snippet for:
+   - system prompt Everyday Voice block insertion
+   - dedupe Map (init + cleanup + hit/set)
+   - anti-repeat regen block
+3) Ensure server still starts cleanly.
+4) Do not add new dependencies.
+
+Start now. Implement with minimal disruption.
