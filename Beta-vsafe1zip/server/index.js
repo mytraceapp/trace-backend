@@ -2151,6 +2151,139 @@ if (hasOpenAIKey) {
 const TRACE_PRIMARY_MODEL = 'gpt-4o';
 const TRACE_BACKUP_MODEL = 'gpt-4o-mini';
 
+// Tiered Model Routing Constants
+const TRACE_TIER0_MODEL = process.env.TRACE_TIER0_MODEL || TRACE_BACKUP_MODEL; // Fast/cheap (scripts, onboarding)
+const TRACE_TIER1_MODEL = process.env.TRACE_TIER1_MODEL || TRACE_PRIMARY_MODEL; // Normal chat
+const TRACE_TIER2_MODEL = process.env.TRACE_TIER2_MODEL || 'gpt-4.1';           // Premium moments (best model)
+
+// Tier 2 cooldown duration (4 minutes)
+const TIER2_COOLDOWN_MS = 240000;
+
+// Premium moment keywords that trigger Tier 2
+const TIER2_KEYWORDS = [
+  'why', 'meaning', 'pattern', 'keeps happening', "i don't know why", 
+  'insight', 'summarize', 'what does it mean', 'dream', 'realize',
+  'understand myself', 'figure out', 'make sense of', 'been thinking'
+];
+
+// First-person sharing patterns (for personal depth detection)
+const PERSONAL_SHARING_PATTERNS = [
+  'i feel', "i've been", "i'm stuck", 'i miss', 'i wonder', 
+  'i keep', 'i can\'t stop', 'i noticed', 'i realized'
+];
+
+/**
+ * Select the appropriate TRACE model tier based on conversation context
+ * @param {Object} params - Context parameters
+ * @returns {Object} - { model, tier, reason, newCooldownUntil }
+ */
+function selectTraceModel({ 
+  userText = '', 
+  mode = 'chat', 
+  isCrisis = false, 
+  isFirstChat = false, 
+  hasActiveConversation = false,
+  clientState = {},
+  posture = 'STEADY',
+  detected_state = 'neutral'
+}) {
+  const now = Date.now();
+  const lowerText = userText.toLowerCase();
+  
+  // Check if Tier 2 cooldown is still active
+  const existingCooldown = clientState?.tier2CooldownUntil || 0;
+  if (existingCooldown > now) {
+    return {
+      model: TRACE_TIER2_MODEL,
+      tier: 2,
+      reason: 'cooldown_active',
+      newCooldownUntil: existingCooldown
+    };
+  }
+  
+  // Tier 0: Scripted flows, onboarding ONLY (not first chat which deserves quality)
+  if (mode === 'onboarding' || mode === 'scripted') {
+    return { model: TRACE_TIER0_MODEL, tier: 0, reason: 'scripted_flow', newCooldownUntil: null };
+  }
+  
+  // Never use Tier 2 for crisis (need reliability over quality)
+  if (isCrisis) {
+    return { model: TRACE_TIER1_MODEL, tier: 1, reason: 'crisis_mode', newCooldownUntil: null };
+  }
+  
+  // Tier 2 trigger conditions (premium moments)
+  let tier2Reason = null;
+  
+  // Check emotional depth indicators from posture detection
+  const isEmotionallyDeep = ['TENDER', 'SEARCHING', 'REFLECTIVE'].includes(posture) ||
+                            ['sad', 'anxious', 'reflective', 'vulnerable'].includes(detected_state);
+  
+  // Check for meaning-seeking keywords
+  const hasKeywords = TIER2_KEYWORDS.some(kw => lowerText.includes(kw));
+  
+  // Check for substantial personal sharing (length + first-person language)
+  const isPersonalSharing = userText.length >= 120 && 
+                            PERSONAL_SHARING_PATTERNS.some(p => lowerText.includes(p));
+  
+  // Check for very long messages (indicates depth)
+  const isLongMessage = userText.length >= 180;
+  
+  // Check for special modes that deserve premium treatment
+  const isPremiumMode = ['doorways', 'insights', 'patterns', 'dreamscape'].includes(mode);
+  
+  // Determine if Tier 2 should trigger
+  if (isEmotionallyDeep && hasActiveConversation) {
+    tier2Reason = 'emotional_depth';
+  } else if (hasKeywords) {
+    tier2Reason = 'meaning_seeking';
+  } else if (isPersonalSharing && hasActiveConversation) {
+    tier2Reason = 'personal_sharing';
+  } else if (isLongMessage) {
+    tier2Reason = 'substantial_message';
+  } else if (isPremiumMode) {
+    tier2Reason = `premium_mode_${mode}`;
+  }
+  
+  if (tier2Reason) {
+    return {
+      model: TRACE_TIER2_MODEL,
+      tier: 2,
+      reason: tier2Reason,
+      newCooldownUntil: now + TIER2_COOLDOWN_MS
+    };
+  }
+  
+  // Default: Tier 1 (normal chat)
+  return { model: TRACE_TIER1_MODEL, tier: 1, reason: 'standard_chat', newCooldownUntil: null };
+}
+
+// DEV-only: Test model routing on startup
+if (process.env.NODE_ENV !== 'production') {
+  const testCases = [
+    { userText: 'hi', mode: 'chat', expected: 'T0/T1' },
+    { userText: 'I keep thinking about why this keeps happening to me', mode: 'chat', hasActiveConversation: true, expected: 'T2' },
+    { userText: 'What does it mean when I dream about falling?', mode: 'doorways', hasActiveConversation: true, expected: 'T2' },
+    { userText: "I've been feeling really stuck lately. I don't know why I can't move forward. It's like I'm trapped in this pattern.", mode: 'chat', hasActiveConversation: true, expected: 'T2' },
+    { userText: 'ok thanks', mode: 'chat', expected: 'T1' },
+    { userText: 'help me', isCrisis: true, expected: 'T1 (crisis)' },
+  ];
+  
+  console.log('[MODEL ROUTING] Startup test:');
+  testCases.forEach((tc, i) => {
+    const result = selectTraceModel({
+      userText: tc.userText,
+      mode: tc.mode || 'chat',
+      isCrisis: tc.isCrisis || false,
+      isFirstChat: tc.isFirstChat || false,
+      hasActiveConversation: tc.hasActiveConversation || false,
+      clientState: {},
+      posture: 'STEADY',
+      detected_state: 'neutral'
+    });
+    console.log(`  [${i+1}] T${result.tier} ${result.model} (${result.reason}) <- "${tc.userText.slice(0,40)}..."`);
+  });
+}
+
 // In-memory store for last OpenAI call metadata (DEV debugging)
 globalThis.__TRACE_LAST_OPENAI_CALL__ = null;
 
@@ -2172,6 +2305,9 @@ function getConfiguredModel() {
   return {
     primaryModel: TRACE_PRIMARY_MODEL,
     backupModel: TRACE_BACKUP_MODEL,
+    tier0Model: TRACE_TIER0_MODEL,
+    tier1Model: TRACE_TIER1_MODEL,
+    tier2Model: TRACE_TIER2_MODEL,
     baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || 'https://api.openai.com/v1',
     apiKeyPrefix: apiKey.slice(0, 7) || 'none',
     provider: 'openai',
@@ -5223,8 +5359,39 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     console.log(`[ATTUNE] posture=${posture} state=${detected_state} conf=${postureConfidence.toFixed(2)} triggers=${JSON.stringify(postureTriggers)}`);
     
     // ============================================================
+    // TIERED MODEL ROUTING
+    // Select optimal model based on conversation context
+    // ============================================================
+    const modelRoute = selectTraceModel({
+      userText: lastUserContent,
+      mode: safeClientState?.currentScreen || 'chat',
+      isCrisis: isCrisisMode,
+      isFirstChat: messages.length <= 2,
+      hasActiveConversation: messages.length > 4,
+      clientState: safeClientState,
+      posture,
+      detected_state
+    });
+    
+    const selectedModel = modelRoute.model;
+    const tier2CooldownPatch = modelRoute.newCooldownUntil ? { tier2CooldownUntil: modelRoute.newCooldownUntil } : {};
+    
+    // DEV-only log for model routing
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[MODEL ROUTE] tier=T${modelRoute.tier} model=${selectedModel} reason=${modelRoute.reason}`);
+    }
+    
+    // Tier 2 enhancement: Add empathetic echo instruction for premium moments
+    if (modelRoute.tier === 2 && !isCrisisMode) {
+      systemPrompt += `
+
+TIER 2 PRESENCE RULE:
+When user shares something personal, echo 3-7 words back, then ask one gentle follow-up question.`;
+    }
+    
+    // ============================================================
     // BULLETPROOF OPENAI RESPONSE SYSTEM
-    // Layer 1: Primary model with retries
+    // Layer 1: Selected model with retries
     // Layer 2: Backup model (gpt-4o-mini) 
     // Layer 3: Plain text mode (no JSON requirement)
     // Layer 4: AI-generated contextual response via mini model
@@ -5234,10 +5401,10 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     let rawContent = '';
     let parsed = null;
     
-    // LAYER 1: Primary model with 3 retries
+    // LAYER 1: Selected model with 3 retries
     const cfg = getConfiguredModel();
     const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
-    console.log(`[OPENAI CONFIG] model=${cfg.primaryModel} baseURL=${cfg.baseURL}`);
+    console.log(`[OPENAI CONFIG] model=${selectedModel} baseURL=${cfg.baseURL}`);
     
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
@@ -5245,7 +5412,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
         
         const openaiStart = Date.now();
         const response = await openai.chat.completions.create({
-          model: TRACE_PRIMARY_MODEL,
+          model: selectedModel,
           messages: [
             { role: 'system', content: systemPrompt },
             ...messagesWithHydration
@@ -5255,7 +5422,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
           response_format: { type: "json_object" },
         });
         
-        recordOpenAICall(TRACE_PRIMARY_MODEL, response, chatRequestId, openaiStart);
+        recordOpenAICall(selectedModel, response, chatRequestId, openaiStart);
         console.log(`[OPENAI RESPONSE] model=${response.model || 'unknown'}`);
         rawContent = response.choices[0]?.message?.content || '';
         
@@ -5921,8 +6088,8 @@ Your response:`;
       response.curiosity_hook = curiosityHook;
     }
     
-    // Build client_state_patch (merge suggestion patch + hook patch)
-    let clientStatePatch = {};
+    // Build client_state_patch (merge suggestion patch + hook patch + tier2 cooldown)
+    let clientStatePatch = { ...tier2CooldownPatch };
     
     // Add brain suggestion if present (separate from activity_suggestion for clarity)
     if (brainSuggestion) {

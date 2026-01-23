@@ -1,0 +1,115 @@
+You are working in my Node/Express TRACE backend (Beta-vsafe1zip/server). Implement Tiered Model Routing for /api/chat with a “Tier 2 = best model” upgrade path.
+
+GOALS
+1) Add a clean model router that chooses between Tier 0 / Tier 1 / Tier 2.
+2) Tier 2 should be used only for “premium moments” (meaning-seeking, reflective tone, rumination, insight/pattern requests, dream interpretation, journaling synthesis, deeper personal sharing).
+3) Tier 2 should stick for a short cooldown window (3–5 minutes) once triggered to keep the conversation feeling premium and coherent.
+4) Do NOT add any new debug endpoints, tracking endpoints, or extra tooling. No new /api/debug/* routes.
+5) Keep backward compatibility with mobile. No API response shape changes beyond what already exists (ok/requestId/message/messages[]).
+
+CONSTRAINTS
+- Keep current OpenAI integration structure and fallbacks intact.
+- Do not change the existing “pillars” logic except to use the selected model.
+- No new dependencies.
+- Must be safe if env vars are missing: default back to Tier 1 model.
+- Must be deterministic and not “random model switching” every message.
+
+IMPLEMENTATION DETAILS
+
+A) ENV + MODEL CONSTANTS
+In server/index.js (or wherever you define TRACE_PRIMARY_MODEL), add these constants:
+- TRACE_TIER0_MODEL: default to existing backup (e.g. 'gpt-4o-mini') unless env overrides
+- TRACE_TIER1_MODEL: default to existing primary (e.g. 'gpt-4o')
+- TRACE_TIER2_MODEL: “best model” set via env var TRACE_TIER2_MODEL, fallback to TRACE_TIER1_MODEL if not set
+
+Example desired behavior:
+Tier 0: fast/cheap (scripts, onboarding, confirmations)
+Tier 1: normal chat (current default)
+Tier 2: best model (premium moments)
+
+B) ROUTER FUNCTION
+Create a function selectTraceModel({ signals, userText, mode, isCrisis, isFirstChat, hasActiveConversation, clientState }) that returns:
+{ model, tier, reason, newCooldownUntil }
+
+Rules:
+Tier 2 triggers if NOT crisis AND NOT first-chat AND any of:
+- signals.meaningSeeking OR signals.reflectiveTone OR signals.rumination (true)
+- userText length >= 180
+- userText includes keywords: "why", "meaning", "pattern", "keeps happening", "I don't know why", "insight", "summarize", "what does it mean", "dream"
+- mode indicates "doorways" for dream interpretation or "insights" generation
+- user has completed onboarding and hasActiveConversation is true AND user message seems personal (length>=120 + contains first-person language like “I feel”, “I’ve been”, “I’m stuck”, “I miss”)
+
+Cooldown:
+- Store cooldown in client state patch: client_state_patch.tier2CooldownUntil (timestamp ms)
+- If clientState.tier2CooldownUntil exists and Date.now() < it, keep Tier 2
+- When Tier 2 triggers, set cooldown for 4 minutes (240000 ms)
+
+Tier 0 triggers if:
+- mode is onboarding/scripted flow OR response is simple acknowledgement OR server is in a non-chat mode that is purely scripted (keep it conservative)
+Otherwise Tier 1.
+
+C) APPLY MODEL TO OPENAI CALL
+In /api/chat right before calling OpenAI:
+- Compute signals as you already do
+- Call selectTraceModel(...)
+- Use returned model in the OpenAI request (intended model)
+- Do NOT add logs beyond a single concise DEV-only console.log line:
+  [MODEL ROUTE] tier=T2 model=... reason=...
+Guard this log behind NODE_ENV !== 'production'
+
+D) RETURN COOLDOWN TO MOBILE
+If Tier 2 triggers or remains active:
+- Include client_state_patch.tier2CooldownUntil in the response payload so mobile can persist it.
+
+E) AVOID ROBOTIC REPETITION (LIGHT TOUCH)
+When Tier 2 is active, add ONE system instruction line to your system prompt builder:
+- “When user shares something personal, echo 3–7 words back, then ask one gentle follow-up question.”
+Only add this line when Tier 2 is active and not crisis.
+Do not add it globally.
+
+F) TEST
+Add a small, DEV-only internal unit test function (no endpoint) that runs once on server start in development:
+- feeds 6 sample inputs and prints chosen tier/model
+- do NOT introduce any new external routes
+- do NOT require additional installs
+
+DELIVERABLE
+- Modify only server/index.js (and any existing prompt builder file if needed).
+- No new files unless absolutely necessary; prefer in-file additions.
+- Keep code clean and commented.
+
+After implementation, output:
+1) The exact constants added and their defaults
+2) The selectTraceModel function
+3) The exact place where the model is applied to the OpenAI call
+4) The response field added: client_state_patch.tier2CooldownUntil
+
+You are working in TRACE backend (server/index.js).
+
+GOAL:
+Upgrade Tier 2 (Premium) users to use the newest flagship OpenAI model instead of GPT-4o.
+
+REQUIREMENTS:
+	1.	Keep Tier 1 model as:
+	•	TRACE_PRIMARY_MODEL = “gpt-4o”
+	2.	Set Tier 2 (Premium model) as:
+	•	TRACE_TIER2_MODEL = “gpt-4.1”
+	3.	Add a helper:
+function getTraceModelForUser({ planStatus }) that returns:
+	•	“gpt-4.1” if planStatus === “premium”
+	•	otherwise “gpt-4o”
+	4.	Ensure /api/chat uses this chosen model string when calling OpenAI.
+	5.	Keep existing fallback logic:
+	•	if Tier 2 model fails, fallback to TRACE_BACKUP_MODEL (gpt-4o-mini)
+	6.	Add ONE log line before OpenAI call:
+[TRACE MODEL] plan=premium model=gpt-4.1
+
+Do NOT add debug endpoints.
+Do NOT add new packages.
+Do NOT add instrumentation.
+
+Only minimal safe code edits.
+
+RETURN:
+	•	exact code diff
+	•	exact file and line locations
