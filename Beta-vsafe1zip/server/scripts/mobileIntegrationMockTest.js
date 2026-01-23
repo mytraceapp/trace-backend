@@ -2,6 +2,79 @@
 
 const BASE_URL = process.env.API_URL || 'http://localhost:3000';
 
+async function testIdempotencyRetrySafety(baseUrl) {
+  const startedAt = Date.now();
+  const retryKey = `qa-retry-${Date.now()}`;
+
+  const payload = {
+    userId: "qa-local-test",
+    mode: "chat",
+    messages: [{ role: "user", content: "QA retry safety check." }],
+    requestId: retryKey,
+    clientMessageId: retryKey,
+    client_message_id: retryKey,
+  };
+
+  const callChat = async () => {
+    const res = await fetch(`${baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const raw = await res.text();
+    let json;
+    try {
+      json = JSON.parse(raw);
+    } catch {
+      json = { _raw: raw };
+    }
+
+    return { status: res.status, json };
+  };
+
+  const first = await callChat();
+  const second = await callChat();
+
+  const durationMs = Date.now() - startedAt;
+
+  const extractMessage = (obj) => {
+    const j = obj?.json || {};
+    if (typeof j.message === "string") return j.message;
+    if (Array.isArray(j.messages)) return j.messages[0];
+    if (typeof j.messages?.[0]?.content === "string") return j.messages[0].content;
+    return null;
+  };
+
+  const msg1 = extractMessage(first);
+  const msg2 = extractMessage(second);
+
+  const duplicateSignal =
+    !!second?.json?.duplicate ||
+    !!second?.json?.deduped ||
+    second?.json?.status === "duplicate" ||
+    /duplicate|dedup|already processed|retry/i.test(JSON.stringify(second.json));
+
+  const sameMessage = !!msg1 && !!msg2 && msg1 === msg2;
+
+  const pass = duplicateSignal || sameMessage;
+
+  return {
+    name: "Idempotency / Retry Safety",
+    pass,
+    durationMs,
+    firstStatus: first.status,
+    secondStatus: second.status,
+    duplicateSignal,
+    sameMessage,
+    msg1,
+    msg2,
+    details: pass
+      ? "Retry behavior safe (duplicate detected or deduped output)"
+      : "Retry risk: same payload produced different output (no dedup signal)",
+  };
+}
+
 async function runTests() {
   console.log('\n🧪 TRACE Mobile Integration Mock Test');
   console.log('═'.repeat(50));
@@ -49,7 +122,6 @@ async function runTests() {
     
     const data = await chatRes.json();
     
-    // TRACE API returns 'message' (singular) not 'messages' array
     if (data.message && typeof data.message === 'string' && data.message.length > 0) {
       console.log('   ✅ Chat endpoint accepts mobile payload');
       console.log(`   ✅ Response contains message (${data.message.substring(0, 50)}...)`);
@@ -148,7 +220,47 @@ async function runTests() {
     results.tests.push({ name: 'Resume Storm', status: 'FAIL', error: err.message });
   }
 
-  // 4) Final summary
+  // 4) Idempotency / Retry Safety test
+  console.log('\n📍 Test 4: Idempotency / Retry Safety');
+  try {
+    const idempotencyResult = await testIdempotencyRetrySafety(BASE_URL);
+    
+    if (idempotencyResult.pass) {
+      console.log(`   ✅ ${idempotencyResult.details}`);
+      console.log(`   ✅ Duration: ${idempotencyResult.durationMs}ms`);
+      console.log(`   ✅ First call: ${idempotencyResult.firstStatus}, Second call: ${idempotencyResult.secondStatus}`);
+      if (idempotencyResult.duplicateSignal) {
+        console.log(`   ✅ Duplicate signal detected`);
+      }
+      if (idempotencyResult.sameMessage) {
+        console.log(`   ✅ Same message returned (deduped response)`);
+      }
+      results.passed++;
+      results.tests.push({ 
+        name: 'Idempotency / Retry Safety', 
+        status: 'PASS',
+        duration: idempotencyResult.durationMs,
+        duplicateSignal: idempotencyResult.duplicateSignal,
+        sameMessage: idempotencyResult.sameMessage
+      });
+    } else {
+      console.log(`   ❌ ${idempotencyResult.details}`);
+      console.log(`   ❌ First message: ${idempotencyResult.msg1?.substring(0, 40)}...`);
+      console.log(`   ❌ Second message: ${idempotencyResult.msg2?.substring(0, 40)}...`);
+      results.failed++;
+      results.tests.push({ 
+        name: 'Idempotency / Retry Safety', 
+        status: 'FAIL', 
+        error: idempotencyResult.details 
+      });
+    }
+  } catch (err) {
+    console.log(`   ❌ Idempotency test failed: ${err.message}`);
+    results.failed++;
+    results.tests.push({ name: 'Idempotency / Retry Safety', status: 'FAIL', error: err.message });
+  }
+
+  // 5) Final summary
   console.log('\n' + '═'.repeat(50));
   console.log('📊 TEST SUMMARY');
   console.log('═'.repeat(50));
@@ -158,6 +270,12 @@ async function runTests() {
     console.log(`   ${icon} ${test.name}: ${test.status}`);
     if (test.error) {
       console.log(`      └─ ${test.error}`);
+    }
+    if (test.duration) {
+      console.log(`      └─ Duration: ${test.duration}ms`);
+    }
+    if (test.duplicateSignal !== undefined) {
+      console.log(`      └─ Duplicate signal: ${test.duplicateSignal}, Same message: ${test.sameMessage}`);
     }
   }
   

@@ -1,0 +1,122 @@
+	1.	Create a new test function named:
+
+testIdempotencyRetrySafety(baseUrl)
+	2.	The test must send the exact same payload twice to:
+
+POST ${baseUrl}/api/chat
+	3.	The payload must include:
+
+	•	userId: "qa-local-test"
+	•	mode: "chat"
+	•	messages: [{ role: "user", content: "QA retry safety check." }]
+	•	a deterministic retry ID, reused for BOTH calls:
+	•	requestId
+	•	clientMessageId
+	•	client_message_id
+
+Example retry ID:
+
+const retryKey = "qa-retry-" + Date.now();
+	4.	The test must PASS if either:
+
+	•	The backend explicitly signals duplicate processing (any of):
+	•	json.duplicate === true
+	•	json.deduped === true
+	•	json.status === "duplicate"
+	•	OR response text contains keywords: "duplicate" | "dedup" | "already processed" | "retry"
+OR
+	•	The second call returns the exact same message output as the first (deduped response)
+
+	5.	The test must FAIL if:
+
+	•	both calls succeed BUT produce different assistant messages and there is no duplicate signal
+
+	6.	Add this test to the final test runner so that the backend prints the result in the same summary format as existing tests, and affects the final PASS score.
+
+⸻
+
+✅ Implementation Code to Insert
+
+Add this new test function near the other test helpers:
+async function testIdempotencyRetrySafety(baseUrl) {
+  const startedAt = Date.now();
+  const retryKey = `qa-retry-${Date.now()}`;
+
+  const payload = {
+    userId: "qa-local-test",
+    mode: "chat",
+    messages: [{ role: "user", content: "QA retry safety check." }],
+    requestId: retryKey,
+    clientMessageId: retryKey,
+    client_message_id: retryKey,
+  };
+
+  const callChat = async () => {
+    const res = await fetch(`${baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const raw = await res.text();
+    let json;
+    try {
+      json = JSON.parse(raw);
+    } catch {
+      json = { _raw: raw };
+    }
+
+    return { status: res.status, json };
+  };
+
+  const first = await callChat();
+  const second = await callChat();
+
+  const durationMs = Date.now() - startedAt;
+
+  const extractMessage = (obj) => {
+    const j = obj?.json || {};
+    if (typeof j.message === "string") return j.message;
+    if (Array.isArray(j.messages)) return j.messages[0];
+    if (typeof j.messages?.[0]?.content === "string") return j.messages[0].content;
+    return null;
+  };
+
+  const msg1 = extractMessage(first);
+  const msg2 = extractMessage(second);
+
+  const duplicateSignal =
+    !!second?.json?.duplicate ||
+    !!second?.json?.deduped ||
+    second?.json?.status === "duplicate" ||
+    /duplicate|dedup|already processed|retry/i.test(JSON.stringify(second.json));
+
+  const sameMessage = !!msg1 && !!msg2 && msg1 === msg2;
+
+  const pass = duplicateSignal || sameMessage;
+
+  return {
+    name: "Idempotency / Retry Safety",
+    pass,
+    durationMs,
+    firstStatus: first.status,
+    secondStatus: second.status,
+    duplicateSignal,
+    sameMessage,
+    msg1,
+    msg2,
+    details: pass
+      ? "Retry behavior safe (duplicate detected or deduped output)"
+      : "Retry risk: same payload produced different output (no dedup signal)",
+  };
+}
+	7.	Add this test into the test runner sequence like:
+results.push(await testIdempotencyRetrySafety(baseUrl));
+utput Format
+
+Make sure the final summary shows:
+	•	✅ PASS or ❌ FAIL
+	•	duration
+	•	statuses
+	•	whether duplicateSignal or sameMessage triggered PASS
+Important: This test must be DEV-only like the others and must not write to production DB tables or analytics.
