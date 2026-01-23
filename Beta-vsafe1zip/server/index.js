@@ -10957,6 +10957,7 @@ function computeReliefSpotlight(mostHelpfulActivityLabel, mostHelpfulActivityCou
 app.post('/api/patterns/insights', async (req, res) => {
   try {
     const { userId, deviceId, userTimezone } = req.body;
+    console.log(`📊 [PATTERNS DEBUG] Received userId: "${userId}", deviceId: "${deviceId}"`);
     
     // Validate userTimezone - use luxon to check if it's a valid IANA timezone
     let validatedTimezone = 'UTC';
