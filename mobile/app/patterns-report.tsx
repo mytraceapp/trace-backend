@@ -186,8 +186,8 @@ export default function PatternsReport() {
     console.log('🧠 [TRACE PATTERNS] last-hour loader invoked');
 
     try {
-      if (!stableId) {
-        console.log('🧠 [TRACE PATTERNS] no stable device id yet, skipping last-hour');
+      if (!stableId || !userId) {
+        console.log('🧠 [TRACE PATTERNS] no stableId or userId yet, skipping last-hour');
         return;
       }
 
@@ -249,8 +249,8 @@ export default function PatternsReport() {
 
   const loadInsights = useCallback(async () => {
     try {
-      if (!stableId && !userId) {
-        console.log('📊 TRACE insights: no stable device id or userId yet, skipping');
+      if (!userId) {
+        console.log('📊 TRACE insights: no userId yet, skipping (userId:', userId, ')');
         return;
       }
 
