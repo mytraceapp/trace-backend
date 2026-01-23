@@ -5,7 +5,7 @@
 
 import * as Location from 'expo-location';
 
-const API_BASE = 'https://ca2fbbde-8f64-4585-bf63-4c826bcfad38-00-3cma3fqph0zq1.picard.replit.dev';
+const API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
 
 export interface WeatherContext {
   temperature: number;
