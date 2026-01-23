@@ -2145,6 +2145,27 @@ if (hasOpenAIKey) {
   console.log('No OpenAI API key found - chat will use fallback responses');
 }
 
+// ============================================================
+// OpenAI Configuration Helper (for debugging model selection)
+// ============================================================
+const TRACE_PRIMARY_MODEL = 'gpt-4o';
+const TRACE_BACKUP_MODEL = 'gpt-4o-mini';
+
+function getConfiguredModel() {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '';
+  return {
+    primaryModel: TRACE_PRIMARY_MODEL,
+    backupModel: TRACE_BACKUP_MODEL,
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || 'https://api.openai.com/v1',
+    apiKeyPrefix: apiKey.slice(0, 7) || 'none',
+    provider: 'openai',
+    hasKey: !!apiKey,
+  };
+}
+
+// Log on startup
+console.log('[OPENAI CONFIG] Startup:', JSON.stringify(getConfiguredModel()));
+
 async function saveUserMessage(userId, content, storeRaw = false) {
   if (!supabaseServer) throw new Error('Supabase not configured');
   console.log('[TRACE SAVE USER] about to insert for user:', userId);
@@ -5197,13 +5218,16 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     let rawContent = '';
     let parsed = null;
     
-    // LAYER 1: Primary model (gpt-4o) with 3 retries
+    // LAYER 1: Primary model with 3 retries
+    const cfg = getConfiguredModel();
+    console.log(`[OPENAI CONFIG] model=${cfg.primaryModel} baseURL=${cfg.baseURL}`);
+    
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         if (attempt > 1) await sleep(300 * attempt); // Exponential backoff
         
         const response = await openai.chat.completions.create({
-          model: 'gpt-4o',
+          model: TRACE_PRIMARY_MODEL,
           messages: [
             { role: 'system', content: systemPrompt },
             ...messagesWithHydration
@@ -5213,6 +5237,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
           response_format: { type: "json_object" },
         });
         
+        console.log(`[OPENAI RESPONSE] model=${response.model || 'unknown'}`);
         rawContent = response.choices[0]?.message?.content || '';
         
         if (rawContent.trim()) {
@@ -5232,15 +5257,15 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
       }
     }
     
-    // LAYER 2: Backup model (gpt-4o-mini) if primary failed
+    // LAYER 2: Backup model if primary failed
     if (!parsed) {
-      console.log('[TRACE OPENAI L2] Trying backup model gpt-4o-mini...');
+      console.log(`[OPENAI CONFIG] model=${TRACE_BACKUP_MODEL} baseURL=${cfg.baseURL} (fallback)`);
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
           if (attempt > 1) await sleep(400);
           
           const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: TRACE_BACKUP_MODEL,
             messages: [
               { role: 'system', content: systemPrompt },
               ...messagesWithHydration
@@ -5250,6 +5275,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
             response_format: { type: "json_object" },
           });
           
+          console.log(`[OPENAI RESPONSE] model=${response.model || 'unknown'} (fallback)`);
           rawContent = response.choices[0]?.message?.content || '';
           
           if (rawContent.trim()) {
@@ -5259,7 +5285,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
             const hasValidMessages = testParse.messages && Array.isArray(testParse.messages) && testParse.messages.length > 0;
             if (hasValidMessage || hasValidMessages) {
               parsed = testParse;
-              console.log('[TRACE OPENAI L2] Success with mini model', hasValidMessages ? '(multi-message)' : '');
+              console.log('[TRACE OPENAI L2] Success with backup model', hasValidMessages ? '(multi-message)' : '');
               break;
             }
           }
@@ -5990,6 +6016,31 @@ Your response:`;
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// ==================== DEBUG: MODEL CONFIGURATION ====================
+// DEV-ONLY endpoint to verify OpenAI model configuration
+app.get('/api/debug/model', (req, res) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const debugToken = process.env.TRACE_DEBUG_TOKEN;
+  const headerToken = req.headers['x-trace-debug'];
+  
+  // Guard: Only allow in non-production OR with valid debug token
+  if (isProduction && (!debugToken || headerToken !== debugToken)) {
+    return res.status(403).json({ error: 'Debug endpoint not available in production' });
+  }
+  
+  const config = getConfiguredModel();
+  
+  res.json({
+    ok: true,
+    configured: config,
+    runtime: {
+      node: process.version,
+      env: process.env.NODE_ENV || 'development',
+    },
+    time: new Date().toISOString(),
+  });
 });
 
 // ==================== CHAT BOOTSTRAP (Instant Onboarding Intro) ====================
