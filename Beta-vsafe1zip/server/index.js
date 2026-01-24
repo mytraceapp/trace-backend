@@ -87,6 +87,7 @@ const {
   detectDreamDoor,
 } = require('./traceBrain');
 const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways');
+const { processDoorways, bootstrapConversationState, DOORS } = require('./doorwaysV1');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
 const { 
@@ -5729,6 +5730,32 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     console.log('[TRACE BRAIN] signals:', JSON.stringify(brainSignals));
     
     // ============================================================
+    // DOORWAYS v1: Process doors for response shaping
+    // ============================================================
+    let doorwayUserProfile = { doorAffinity: {}, doorHitHistory: {} };
+    let doorwayConversationState = safeClientState?.doorwayState || null;
+    
+    const doorwaysResult = processDoorways(
+      userMsgForBrain,
+      doorwayConversationState,
+      doorwayUserProfile,
+      isCrisisMode
+    );
+    
+    console.log('[DOORWAYS v1] telemetry:', JSON.stringify({
+      selectedDoorId: doorwaysResult.selectedDoorId,
+      reasonCode: doorwaysResult.reasonCode,
+      scores: doorwaysResult.scores,
+      crisisActive: doorwaysResult.crisisActive,
+    }));
+    
+    // Inject door intent into system prompt if door is selected
+    if (doorwaysResult.doorIntent && !isCrisisMode) {
+      systemPrompt += `\n\n${doorwaysResult.doorIntent}`;
+      console.log('[DOORWAYS v1] Injected door intent:', doorwaysResult.selectedDoorId);
+    }
+    
+    // ============================================================
     // PREMIUM CONVERSATION ENGINE v1: Session & Memory Update
     // ============================================================
     // Apply memory cleanup to incoming client_state to enforce caps/decay
@@ -7052,6 +7079,11 @@ Your response:`;
     // Premium moment state patch
     if (premiumMomentResult.fired && premiumMomentResult.client_state_patch) {
       clientStatePatch = { ...clientStatePatch, ...premiumMomentResult.client_state_patch };
+    }
+    
+    // Doorways v1 state patch (persist conversation state across messages)
+    if (doorwaysResult?.conversationState) {
+      clientStatePatch.doorwayState = doorwaysResult.conversationState;
     }
     
     // Guided step state patch

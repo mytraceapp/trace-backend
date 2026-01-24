@@ -1,0 +1,205 @@
+REPLIT PROMPT — DOORWAYS v1 (Brain-only, No UI) — FINAL
+
+Implement a lightweight “Doorways” detection system in the backend. Doors are INTERNAL lenses that shape response tone + one follow-up question. Users never see door names.
+
+────────────────────────
+PIPELINE (run on EVERY user message in this exact order)
+────────────────────────
+1) nowISO = new Date().toISOString()
+2) normText = normalizeText(userText)
+3) userProfile = applyAffinityDecay(userProfile, nowISO)        // runs every message
+4) BOOTSTRAP (if conversationState does not exist yet):
+   conversationState = {
+     doors: {
+       currentDoorId: null,
+       lastDoorId: null,
+       activatedAtTurn: null,
+       turnsSinceActivation: 0
+     },
+     crisis: {
+       active: false,
+       triggeredAt: null,
+       lastSeenAt: null,
+       cleanTurns: 0
+     },
+     lastMessageAt: nowISO
+   }
+5) inactivity check → reset ephemeral state if needed (see CONVERSATION RESET)
+6) crisisSignals = detectCrisis(normText)
+7) SCORE DOORS ALWAYS (even during crisis) → scores = scoreDoors(normText)
+8) rank candidates → primaryCandidate, secondaryCandidate
+9) Update crisis state + apply crisis release rules
+10) If crisis.active:
+      - DO NOT select door for response
+      - DO NOT inject door prompt
+      - DO NOT unlock doors
+      - Generate crisis-safe response only
+   Else:
+      - selectedDoor = selectDoorForResponse(scores, conversationState, userProfile)
+      - Update conversationState.doors
+      - Apply unlock rules
+      - Inject door prompt ONLY if selectedDoor != null
+      - Generate normal response
+11) After door selection completes → increment turnsSinceActivation by 1  
+    (This happens even in neutral mode, so cooldown continues counting.)
+12) Log telemetry (hash only, no raw text)
+
+────────────────────────
+TEXT NORMALIZATION (canonical, used everywhere)
+────────────────────────
+normalizeText(text):
+- lowercase
+- NFKD normalize + strip diacritics
+- replace punctuation/emoji with spaces
+- collapse spaces + trim
+
+────────────────────────
+CONFIG (no magic numbers)
+────────────────────────
+DOORWAYS_CONFIG = {
+  minConfidence: 4,
+  breakawayDelta: 3,
+  hardBreakawayScore: 7,
+  thresholdFloor: 2,
+  unlockMargin: 2,
+  unlockSecondHitWindowDays: 14,
+  crisisReleaseConsecutiveTurns: 2,
+  minCrisisDurationMs: 10*60*1000,
+  conversationResetHours: 6,
+  affinityDecayDays: 30
+}
+
+────────────────────────
+CONVERSATION RESET (preserve history, reset ephemeral state)
+────────────────────────
+If inactivity ≥ conversationResetHours:
+  conversationState.doors = {
+    currentDoorId: null,
+    lastDoorId: null,
+    activatedAtTurn: null,
+    turnsSinceActivation: 0
+  }
+  conversationState.crisis = {
+    active: false,
+    triggeredAt: null,
+    lastSeenAt: null,
+    cleanTurns: 0
+  }
+
+────────────────────────
+AFFINITY DECAY (runs every message)
+────────────────────────
+If daysSince(affinity_last_decayed_at) ≥ affinityDecayDays:
+  affinity[doorId] = floor(affinity[doorId] * 0.5)
+Note: 0 → 0. Affinity regrows only via future activation logic.
+
+────────────────────────
+EFFECTIVE THRESHOLD
+────────────────────────
+effectiveThreshold = max(thresholdFloor, baseThreshold - min(2, affinityBoost))
+
+────────────────────────
+SECONDARY DOOR POLICY
+────────────────────────
+Secondary door is telemetry-only:
+- never selected for response
+- never unlocks
+
+────────────────────────
+CRISIS RULES
+────────────────────────
+- Crisis overrides door prompting.
+- Still score doors for telemetry.
+- On each message:
+    If hasCrisisKeywords(normText): cleanTurns = 0
+    Else: cleanTurns += 1
+- Release crisis ONLY if:
+    cleanTurns ≥ crisisReleaseConsecutiveTurns
+    AND timeSince(triggeredAt) ≥ minCrisisDurationMs
+- Early release path:
+    if no crisis keywords AND topScore > hardBreakawayScore AND minCrisisDurationMs elapsed:
+       crisis.active = false
+       reasonCode = "crisis_breakaway"
+- “I’m safe now” counts only as a clean turn (does not exit crisis alone).
+
+────────────────────────
+COOLDOWN TRACKING — Option A (compute fresh each turn)
+────────────────────────
+cooldownRemainingTurns = max(
+  0,
+  DOORS[lastDoorId].cooldownTurns - conversationState.doors.turnsSinceActivation
+)
+isInCooldown = cooldownRemainingTurns > 0
+Cooldown continues even in neutral mode.
+
+────────────────────────
+DOOR SELECTION
+────────────────────────
+selectDoorForResponse() returns { doorId, score } or null.
+
+Door qualifies if score ≥ effectiveThreshold AND ≥ minConfidence.
+
+During cooldown:
+  stay in last door unless breakaway:
+    if new door qualifies AND (topScore ≥ lastScore + breakawayDelta OR topScore ≥ hardBreakawayScore):
+      switch (reason="breakaway")
+    else:
+      stay (reason="cooldown_stick")
+
+If cooldown expired and no door qualifies → reason="cooldown_expired"
+If no door ever qualifies → reason="no_match"
+
+Tie-breaking:
+1) prefer lastDoorId
+2) else higher effective threshold
+3) else DOORS insertion order
+
+────────────────────────
+NEUTRAL MODE
+────────────────────────
+If selectedDoorId == null:
+  conversationState.doors.currentDoorId = null
+  (lastDoorId preserved)
+  No door prompt injected.
+
+────────────────────────
+UNLOCK RULES — HYBRID APPROACH
+────────────────────────
+Unlock immediately if:
+  score ≥ effectiveThreshold + unlockMargin
+
+Otherwise:
+  unlock on second activation within unlockSecondHitWindowDays
+
+Secondary doors never unlock.
+During crisis: no unlocks.
+
+────────────────────────
+REASON CODES
+────────────────────────
+no_match, threshold, cooldown_stick, cooldown_expired,
+breakaway, tie_lastdoor, tie_threshold, tie_order,
+crisis_override, crisis_breakaway
+
+────────────────────────
+TELEMETRY (HASH ONLY)
+────────────────────────
+Include:
+textHash, crisisActive, reasonCode,
+scores, primaryCandidate{id,score}, secondaryCandidate{id,score},
+selectedDoorId, lastDoorId, turnsSinceActivation, cooldownRemainingTurns,
+effectiveThresholds (REQUIRED for v1 tuning)
+
+────────────────────────
+DOOR INTENTS (v1 enabled)
+────────────────────────
+See "Door Prompt Contract" document.
+Enabled in v1: Dreams & Symbols, Grief, Joy/Delight.
+All others enabled=false.
+
+────────────────────────
+PROMPT INJECTION SAFETY
+────────────────────────
+doorIntent must be hardcoded (DOOR_INTENTS[doorId]).
+Never user-supplied.
+Inject door prompt only if selectedDoorId != null AND crisis.active == false.
