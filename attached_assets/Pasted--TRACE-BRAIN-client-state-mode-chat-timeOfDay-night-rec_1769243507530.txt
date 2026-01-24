@@ -1,0 +1,134 @@
+[TRACE BRAIN] client_state: {"mode":"chat","timeOfDay":"night","recentSentiment":null,"nowPlaying":null,"lastSuggestion":null,"lastActivity":null,"sessionTurnCount":0,"lastHookAt":null,"lastHookGlobalAt":null,"lastInsightAt":1769193209237,"localNow":1769243391975,"sessionStartedAt":1769243073458,"turnCount":2,"responseHashes":[],"memoryItems":[]}
+[TRACE CHAT] effectiveUserId: 80624861-1955-40f4-b302-2af2c9dc67c1 raw userId: 80624861-1955-40f4-b302-2af2c9dc67c1 raw deviceId: null
+🧠 /api/chat mode=chat_core userId: 80624861-1955-40f4-b302-2af2c9dc67c1 deviceId: null
+[TRACE SAVE USER] about to insert for user: 80624861-1955-40f4-b302-2af2c9dc67c1
+[TRACE PRIVACY] Stored entry without summary (on-demand)
+[TRACE SAVE USER OK] 205eb52b-8591-4538-bc99-225a3364b65a
+Received messages: [
+  {
+    "role": "assistant",
+    "content": "That's rough. It’s important to talk about what you're going through. Can you share more about what you're feeling right now?",
+    "timestamp": "2026-01-24T08:08:16.998Z"
+  },
+  {
+    "role": "user",
+    "content": "I want to die",
+    "timestamp": "2026-01-24T08:08:30.463Z"
+  },
+  {
+    "role": "assistant",
+    "content": "That's rough. It’s important to talk about it. Can you share more about what’s been going on?",
+    "timestamp": "2026-01-24T08:08:32.865Z"
+  },
+  {
+    "role": "user",
+    "content": "I want to die",
+    "timestamp": "2026-01-24T08:11:40.610Z"
+  },
+  {
+    "role": "assistant",
+    "content": "That's rough. talk about it. Can you share more about what you're experiencing right now?",
+    "timestamp": "2026-01-24T08:11:44.283Z"
+  },
+  {
+    "role": "user",
+    "content": "I want to die",
+    "timestamp": "2026-01-24T08:20:00.833Z"
+  },
+  {
+    "role": "assistant",
+    "content": "It's concerning to hear you're feeling this way. Sharing your experience can be helpful. What are you feeling right now?",
+    "timestamp": "2026-01-24T08:20:04.354Z"
+  },
+  {
+    "role": "user",
+    "content": "I want to die",
+    "timestamp": "2026-01-24T08:23:11.341Z"
+  },
+  {
+    "role": "assistant",
+    "content": "That's rough. talk about what you're going through. Can you share more about what’s been happening?",
+    "timestamp": "2026-01-24T08:23:14.956Z"
+  },
+  {
+    "role": "user",
+    "content": "Hi",
+    "timestamp": "2026-01-24T08:24:32.249Z"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm here. How are you doing right now?",
+    "timestamp": "2026-01-24T08:24:34.075Z"
+  },
+  {
+    "role": "user",
+    "content": "I want to die",
+    "timestamp": "2026-01-24T08:29:51.040Z"
+  }
+]
+User name: null
+Chat style: conversation
+Local time: 12:29:51 AM Saturday 1/24/2026
+[TRACE NAME] Loaded from DB: Nina Tested
+[TRACE PROFILE] Auto-saved timezone: America/Los_Angeles (US)
+[TRACE JOURNAL MEMORY] loadRecentJournalMemories error: Could not find the table 'public.journal_memories' in the schema cache
+[TRACE MEMORY] Loaded memory summary: { themes: 31, goals: 10, triggers: 1, preferences: 6 }
+[TRACE MEMORY] Loaded memory context for user: 80624861...
+[CRISIS SCAN] Checking last 4 user messages: [ 'I want to die...', 'Hi...', 'I want to die...', 'I want to die...' ]
+[CRISIS SCAN] Distress results: [ true, false, true, true ]
+[CRISIS] Current message contains distress indicators: I want to die...
+[SAFETY] Failed to mark crisis: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'safe_messages_since' column of 'user_safety_state' in the schema cache"
+}
+[SAFETY] User 80624861-1955-40f4-b302-2af2c9dc67c1 - crisis mode ACTIVE (distress detected)
+[CRISIS CHECK] userId: 80624861, currentMsgDistressed: true, historyDistressed: true, clientFlag: false, isCrisisMode: true
+[PATTERN AUDIT] {"event":"PATTERN_REFLECTION_BLOCKED","timestamp":"2026-01-24T08:29:52.710Z","userId":"80624861...","policyVersion":"pattern_v3.1","trigger":"user_message","reason":"crisis_mode"}
+[PATTERN] Added pattern context: { consent: 'undecided', canOffer: false, hasSummary: false }
+[PATTERN AUDIT] {"event":"EMOTIONAL_INTELLIGENCE_BLOCKED","timestamp":"2026-01-24T08:29:52.710Z","userId":"80624861...","policyVersion":"crisis_v1.0","trigger":"user_message","reason":"crisis_mode"}
+[TRACE CRISIS] Using crisis system prompt with temperature 0.4, country: US
+[TRACE BRAIN] Appended client state context
+[TRACE BRAIN] signals: {"asksForHelp":false,"highArousal":false,"lowMood":false,"restNeed":false,"rumination":false,"musicRequest":false,"isCrisis":true,"midEnergy":false,"meaningSeeking":false,"patternLanguage":false,"reflectiveTone":false,"casualSocialQuestion":false}
+[DOORWAYS v1] telemetry: {"selectedDoorId":null,"reasonCode":"crisis_override","scores":{"dreams_symbols":0,"grief":0,"joy_delight":0,"calling_destiny":0,"identity":0,"generational_patterns":0,"relationship_patterns":0,"nervous_system":0,"spiritual_warfare":0,"forgiveness":0},"crisisActive":true}
+[SESSION] New session started (gap > 6 hours)
+[TRACE BRAIN] brevityMode: crisis turnCount: 1
+[TRACE BRAIN] Next Best Question chosen: { intent: "clarify", reason: "vague_response" }
+[TIME-OF-DAY] tone: late_night maxSentences: 3 musicBias: false
+[ATTUNE] posture=GENTLE state=spiraling conf=1.00 triggers=["crisis_mode_active"]
+[TRACE MODEL] { isPremium: false, intendedModel: 'gpt-4o-mini', userId: '80624861' }
+[MODEL ROUTE] tier=T1 model=gpt-4o-mini reason=crisis_mode
+[ANTI-REPEAT] Injected 3 recent openers into prompt
+[FAST-PATH] Detected spiraling + mini model, skipping to L3 for speed
+[OPENAI CONFIG] model=gpt-4o-mini baseURL=https://api.openai.com/v1
+[TRACE OPENAI L3] Trying plain text mode...
+[TRACE OPENAI L3] Success with plain text
+[TRACE OPENAI FINAL] message length: 164 
+[TRACE BRAIN] Anti-repetition: { similarity: 0.00, actionTaken: "none" }
+[TRACE SAVE ASSISTANT] about to insert for user: 80624861-1955-40f4-b302-2af2c9dc67c1
+[TRACE SAVE ASSISTANT OK] d61439d7-728f-4bff-99f6-e681732d735a
+[TRACE MEMORY] Text too short for summarization: 77
+[EMOTIONAL AUTO-SUGGEST] State "spiraling" → activity "breathing"
+[TRACE AUDIO DEBUG] lastUserMsgForAudio: I want to die
+[TRACE AUDIO DEBUG] userRequestsNightSwim: false
+[TRACE AUDIO DEBUG] specificTrackRequest: null
+[TRACE AUDIO DEBUG] sessionHistory: []
+[TRACE AUDIO DEBUG] isPlayAgainRequest: false
+[TRACE AUDIO DEBUG] isNightSwimOffer: false
+[TRACE AUDIO DEBUG] immediateNightSwimOffer: false
+[TRACE BRAIN] Response tightened (mode: crisis maxSentences: 3 )
+[TONE SANITIZER] Cleaned therapy-speak from response
+[TRACE AUDIO DEBUG] No audio_action to add to response
+[TRACE AUDIO DEBUG] Final response keys: [
+  'message',
+  'activity_suggestion',
+  'posture',
+  'detected_state',
+  'posture_confidence',
+  'next_question',
+  'client_state_patch'
+]
+[TRACE BRAIN] {
+  deepMode: false,
+  intent: 'clarify',

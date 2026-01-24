@@ -6232,7 +6232,32 @@ Your response (text only, no JSON):`;
       try {
         // CRITICAL: Use crisis-aware prompt if in crisis mode
         let plainPrompt;
-        if (isCrisisMode) {
+        
+        // Check if current message contains active suicidal statements
+        const lowerContent = (lastUserContent || '').toLowerCase();
+        const isActiveSuicidal = lowerContent.includes('want to die') || 
+                                  lowerContent.includes('kill myself') || 
+                                  lowerContent.includes('end my life') ||
+                                  lowerContent.includes('hurt myself') ||
+                                  lowerContent.includes('end it all');
+        
+        if (isCrisisMode && isActiveSuicidal) {
+          // ACTIVE SUICIDAL STATEMENT - needs proper crisis response
+          console.log('[TRACE OPENAI L3] Active suicidal statement detected, using crisis protocol');
+          plainPrompt = `You are TRACE responding to someone expressing suicidal thoughts. This is CRITICAL.
+
+The user said: "${lastUserContent}"
+
+You MUST include ALL of these in your response:
+1. Acknowledge their pain (NOT "That's rough")
+2. Ask if they're safe right now
+3. ALWAYS mention 988 - say "You can call or text 988 anytime" 
+
+Example: "I hear you. That sounds incredibly heavy. Are you somewhere safe right now? You can call or text 988 anytime - they're there 24/7."
+
+Your response (MUST include safety question AND 988):`;
+        } else if (isCrisisMode) {
+          // Crisis mode but current message is a greeting/neutral
           plainPrompt = `You are TRACE in CRISIS MODE. The user has recently expressed self-harm or suicidal thoughts.
 
 CRITICAL RULES:
@@ -6277,7 +6302,18 @@ Your response:`;
       console.log('[TRACE OPENAI L4] Generating contextual AI response...');
       try {
         let contextPrompt;
-        if (isCrisisMode) {
+        
+        // Check if current message contains active suicidal statements
+        const lowerContent4 = (lastUserContent || '').toLowerCase();
+        const isActiveSuicidal4 = lowerContent4.includes('want to die') || 
+                                   lowerContent4.includes('kill myself') || 
+                                   lowerContent4.includes('end my life') ||
+                                   lowerContent4.includes('hurt myself') ||
+                                   lowerContent4.includes('end it all');
+        
+        if (isCrisisMode && isActiveSuicidal4) {
+          contextPrompt = `Someone said "${lastUserContent}". Respond with compassion, ask if they're safe, mention 988 is available 24/7. Example: "I hear you. Are you somewhere safe right now? 988 is always available if you need to talk."`;
+        } else if (isCrisisMode) {
           contextPrompt = `Generate a single warm, present response for someone in crisis who just said: "${lastUserContent}". Stay grounded and present. NEVER be cheerful or casual. Example: "I'm here. How are you doing right now?"`;
         } else {
           contextPrompt = `Generate a single warm, empathetic response (1 sentence) for someone who just said: "${lastUserContent}". Be curious and caring. Do not use cliché therapy phrases. Just respond naturally like a supportive friend would.`;
@@ -6998,7 +7034,8 @@ Your response:`;
     // ===== TONE SANITIZER =====
     // Server-side cleanup of any therapy-speak that slips through
     // Pass userId for "honestly/real talk" cooldown enforcement
-    tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId });
+    // Pass isCrisisMode to skip "That's rough" replacements during crisis
+    tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode });
     
     // ===== ARTIST CANON GUARDRAILS =====
     // Guardrail A: Ensure canonical credit line for naming/credits questions

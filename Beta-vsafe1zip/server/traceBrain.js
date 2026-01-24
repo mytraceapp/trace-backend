@@ -1289,10 +1289,17 @@ function sanitizeTone(text, options = {}) {
   if (!text) return text;
   let result = text;
   let changed = false;
+  const isCrisisMode = options.isCrisisMode || false;
   
   for (const { pattern, replacement } of THERAPY_PATTERNS) {
     // IMPORTANT: Reset regex lastIndex before each match (global regexes remember position)
     pattern.lastIndex = 0;
+    
+    // CRISIS MODE: Skip replacements that result in "That's rough" - too dismissive for crisis
+    if (isCrisisMode && replacement === "That's rough.") {
+      continue;
+    }
+    
     const before = result;
     result = result.replace(pattern, replacement);
     if (result !== before) {
