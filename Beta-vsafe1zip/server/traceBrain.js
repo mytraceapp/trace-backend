@@ -557,10 +557,42 @@ function computeSimilarity(textA, textB) {
   return overlap / (tokensA.size + tokensB.size - overlap);
 }
 
+// Server-side memory for last assistant response (mobile client may not sync back)
+const serverSideLastResponse = new Map(); // userId -> { text, hash, timestamp }
+const SERVER_RESPONSE_TTL = 60 * 60 * 1000; // 1 hour TTL
+
+function storeLastResponse(userId, text) {
+  if (!userId || !text) return;
+  const hash = computeResponseHash(text);
+  serverSideLastResponse.set(userId, { text: text.substring(0, 300), hash, timestamp: Date.now() });
+  // Clean up old entries
+  if (serverSideLastResponse.size > 1000) {
+    const now = Date.now();
+    for (const [key, val] of serverSideLastResponse) {
+      if (now - val.timestamp > SERVER_RESPONSE_TTL) {
+        serverSideLastResponse.delete(key);
+      }
+    }
+  }
+}
+
+function getLastResponse(userId) {
+  if (!userId) return null;
+  const entry = serverSideLastResponse.get(userId);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > SERVER_RESPONSE_TTL) {
+    serverSideLastResponse.delete(userId);
+    return null;
+  }
+  return entry;
+}
+
 // Check for repetition and return action
-function checkRepetition(newText, clientState) {
-  const lastHash = clientState?.lastAssistantHash;
-  const lastText = clientState?.lastAssistantText;
+function checkRepetition(newText, clientState, userId) {
+  // Try server-side memory first (more reliable than client sync)
+  const serverMemory = getLastResponse(userId);
+  const lastHash = serverMemory?.hash || clientState?.lastAssistantHash;
+  const lastText = serverMemory?.text || clientState?.lastAssistantText;
   const newHash = computeResponseHash(newText);
   
   // Exact hash match = definite repetition
@@ -572,6 +604,11 @@ function checkRepetition(newText, clientState) {
   // Similarity check
   const similarity = computeSimilarity(newText, lastText);
   if (similarity > 0.75) {
+    console.log(`[TRACE BRAIN] Anti-repetition: { similarity: ${similarity.toFixed(2)}, actionTaken: "regen_needed", source: ${serverMemory ? 'server' : 'client'} }`);
+    return { isRepeat: true, similarity, action: 'regen' };
+  }
+  
+  if (similarity > 0.5) {
     console.log(`[TRACE BRAIN] Anti-repetition: { similarity: ${similarity.toFixed(2)}, actionTaken: "log_only" }`);
     return { isRepeat: false, similarity, action: 'log' };
   }
@@ -1247,8 +1284,11 @@ function sanitizeTone(text, options = {}) {
   let changed = false;
   
   for (const { pattern, replacement } of THERAPY_PATTERNS) {
-    if (pattern.test(result)) {
-      result = result.replace(pattern, replacement);
+    // IMPORTANT: Reset regex lastIndex before each match (global regexes remember position)
+    pattern.lastIndex = 0;
+    const before = result;
+    result = result.replace(pattern, replacement);
+    if (result !== before) {
       changed = true;
     }
   }
@@ -1311,5 +1351,6 @@ module.exports = {
   computeResponseHash,
   computeSimilarity,
   checkRepetition,
+  storeLastResponse,
   detectDreamDoor,
 };

@@ -83,6 +83,7 @@ const {
   maybeFirePremiumMoment,
   computeResponseHash,
   checkRepetition,
+  storeLastResponse,
   detectDreamDoor,
 } = require('./traceBrain');
 const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways');
@@ -6150,7 +6151,7 @@ Your response:`;
     // PREMIUM CONVERSATION ENGINE v1: Anti-Repetition Check
     // ============================================================
     const originalResponse = parsed.message || '';
-    const repetitionCheck = checkRepetition(originalResponse, safeClientState);
+    const repetitionCheck = checkRepetition(originalResponse, safeClientState, effectiveUserId);
     
     if (repetitionCheck.isRepeat && repetitionCheck.action === 'regen') {
       console.log('[TRACE BRAIN] Anti-repetition: regenerating response');
@@ -6914,6 +6915,9 @@ Your response:`;
       clientStatePatch.lastAssistantHash = responseHash;
       clientStatePatch.lastAssistantText = tightenedText.substring(0, 200);
     }
+    
+    // Server-side anti-repetition memory (mobile client may not sync back)
+    storeLastResponse(effectiveUserId, tightenedText);
     
     // Store last question intent
     if (nextQuestionResult.intent) {
