@@ -3633,9 +3633,20 @@ app.post('/api/chat', async (req, res) => {
     );
     console.log('🧠 /api/chat mode=chat_core userId:', userId, 'deviceId:', deviceId);
     
-    // TRACE Studios interception - music/lyrics conversations
+    // EARLY CRISIS CHECK - block music/lyrics interception during crisis
+    // This runs before TRACE Studios to ensure crisis mode takes absolute priority
+    const earlyCrisisUserMsg = rawMessages?.filter(m => m.role === 'user').pop()?.content || '';
+    const earlyDistressCheck = isHighDistressText(earlyCrisisUserMsg);
+    const earlyCrisisState = getCrisisState(effectiveUserId);
+    const isEarlyCrisisMode = earlyCrisisState.active || earlyDistressCheck;
+    
+    if (isEarlyCrisisMode) {
+      console.log('[CRISIS] Early crisis detection - bypassing TRACE Studios interception');
+    }
+    
+    // TRACE Studios interception - music/lyrics conversations (BLOCKED in crisis mode)
     const studiosUserMsg = rawMessages?.filter(m => m.role === 'user').pop();
-    if (studiosUserMsg?.content) {
+    if (studiosUserMsg?.content && !isEarlyCrisisMode) {
       // Get last assistant message for context-aware responses
       const lastAssistantMsg = rawMessages?.filter(m => m.role === 'assistant').pop()?.content || '';
       const clientState = req.body.traceStudiosContext ? { traceStudiosContext: req.body.traceStudiosContext } : {};
