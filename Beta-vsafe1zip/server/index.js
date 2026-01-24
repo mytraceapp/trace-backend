@@ -5817,14 +5817,28 @@ If user's message contains a clear preference (style, vibe, constraint), mirror 
     let rawContent = '';
     let parsed = null;
     
-    // LAYER 1: Selected model with 3 retries
+    // ============================================================
+    // FAST-PATH: Skip to L3 plain text for emotional distress states
+    // gpt-5-mini consistently fails JSON mode, so for urgent emotional
+    // states we skip retries entirely for faster response
+    // ============================================================
+    const highArousalStates = ['spiraling', 'panicking', 'anxious', 'overwhelmed', 'stressed', 'crisis'];
+    const useL3FastPath = highArousalStates.includes(detected_state) && selectedModel.includes('mini');
+    
+    if (useL3FastPath) {
+      console.log(`[FAST-PATH] Detected ${detected_state} + mini model, skipping to L3 for speed`);
+    }
+    
+    // LAYER 1: Selected model with retries (reduced for faster fallback)
     const cfg = getConfiguredModel();
     const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
     console.log(`[OPENAI CONFIG] model=${selectedModel} baseURL=${cfg.baseURL}`);
     
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    // Reduce retries for faster response - gpt-5-mini often fails JSON mode
+    const maxL1Retries = useL3FastPath ? 0 : 2; // Skip L1 entirely for fast-path
+    for (let attempt = 1; attempt <= maxL1Retries; attempt++) {
       try {
-        if (attempt > 1) await sleep(300 * attempt); // Exponential backoff
+        if (attempt > 1) await sleep(200); // Reduced delay
         
         const openaiStart = Date.now();
         const openaiParams = {
@@ -5865,12 +5879,11 @@ If user's message contains a clear preference (style, vibe, constraint), mirror 
       }
     }
     
-    // LAYER 2: Backup model if primary failed
-    if (!parsed) {
+    // LAYER 2: Backup model if primary failed (skip for fast-path)
+    if (!parsed && !useL3FastPath) {
       console.log(`[OPENAI CONFIG] model=${TRACE_BACKUP_MODEL} baseURL=${cfg.baseURL} (fallback)`);
-      for (let attempt = 1; attempt <= 2; attempt++) {
+      for (let attempt = 1; attempt <= 1; attempt++) {
         try {
-          if (attempt > 1) await sleep(400);
           
           const openaiStart = Date.now();
           const backupParams = {
