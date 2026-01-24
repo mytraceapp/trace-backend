@@ -6192,6 +6192,46 @@ Your response:`;
     // Build activity suggestion with dreamscapeTrackId handling
     let activitySuggestion = parsed.activity_suggestion || { name: null, reason: null, should_navigate: false };
     
+    // ============================================================
+    // EMOTIONAL STATE → ACTIVITY AUTO-SUGGESTION
+    // If model didn't suggest an activity but user is in distress, auto-suggest
+    // ============================================================
+    const emotionalStateActivityMap = {
+      // High arousal states
+      'spiraling': { activity: 'breathing', reason: 'spiraling thoughts need grounding' },
+      'anxious': { activity: 'breathing', reason: 'anxiety responds to breath work' },
+      'panicking': { activity: 'breathing', reason: 'panic needs immediate calming' },
+      'panic': { activity: 'breathing', reason: 'panic needs immediate calming' },
+      'overwhelmed': { activity: 'basin', reason: 'overwhelm needs pure stillness' },
+      'stressed': { activity: 'grounding', reason: 'stress needs body-based centering' },
+      // Low energy states
+      'tired': { activity: 'rest', reason: 'fatigue needs rest' },
+      'exhausted': { activity: 'rest', reason: 'exhaustion needs deep rest' },
+      'drained': { activity: 'basin', reason: 'depletion needs stillness' },
+      // Emotional states
+      'sad': { activity: 'rising', reason: 'sadness benefits from gentle warmth' },
+      'heavy': { activity: 'rising', reason: 'heaviness lifts with slow movement' },
+      'numb': { activity: 'grounding', reason: 'numbness needs sensory reconnection' },
+      'disconnected': { activity: 'grounding', reason: 'disconnection needs body awareness' },
+      'scattered': { activity: 'drift', reason: 'scattered mind needs focus practice' },
+      'restless': { activity: 'walking', reason: 'restlessness needs movement' },
+      'angry': { activity: 'walking', reason: 'anger needs physical release' },
+    };
+    
+    // Only auto-suggest if model didn't provide an activity AND we detected a mappable state
+    if (!activitySuggestion.name && detected_state && emotionalStateActivityMap[detected_state]) {
+      const suggestion = emotionalStateActivityMap[detected_state];
+      console.log(`[EMOTIONAL AUTO-SUGGEST] State "${detected_state}" → activity "${suggestion.activity}"`);
+      
+      // Inject the activity suggestion (don't navigate automatically, just suggest)
+      activitySuggestion = {
+        name: suggestion.activity,
+        reason: suggestion.reason,
+        should_navigate: false,
+        auto_suggested: true // Flag so frontend knows this was server-injected
+      };
+    }
+    
     // Ensure dreamscapeTrackId is properly set for Dreamscape activities
     if (activitySuggestion.name && activitySuggestion.name.toLowerCase() === 'dreamscape') {
       // If AI didn't provide dreamscapeTrackId, infer from target or default
