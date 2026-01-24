@@ -2175,12 +2175,12 @@ if (hasOpenAIKey) {
 // OpenAI Configuration Helper (for debugging model selection)
 // ============================================================
 const TRACE_PRIMARY_MODEL = 'gpt-5.1';
-const TRACE_BACKUP_MODEL = 'gpt-5-mini';
+const TRACE_BACKUP_MODEL = 'gpt-4o-mini'; // gpt-5-mini has issues with JSON mode
 const TRACE_FALLBACK_MODEL_2 = 'gpt-4o'; // Strong backup fallback
 
 // Tiered Model Routing Constants
 const TRACE_TIER0_MODEL = process.env.TRACE_TIER0_MODEL || 'gpt-4o-mini';       // Fast/cheap (scripts, onboarding)
-const TRACE_TIER1_MODEL = process.env.TRACE_TIER1_MODEL || 'gpt-5-mini';        // Normal chat (non-premium)
+const TRACE_TIER1_MODEL = process.env.TRACE_TIER1_MODEL || 'gpt-4o-mini';        // Normal chat (non-premium) - gpt-5-mini has JSON mode issues
 const TRACE_TIER2_MODEL = process.env.TRACE_TIER2_MODEL || 'gpt-5.1';           // Premium moments (best model)
 
 // ============================================================
@@ -5871,7 +5871,13 @@ If user's message contains a clear preference (style, vibe, constraint), mirror 
             parsed = testParse;
             console.log('[TRACE OPENAI L1] Success on attempt', attempt, hasValidMessages ? '(multi-message)' : '');
             break;
+          } else {
+            // Log what we got instead
+            console.warn('[TRACE OPENAI L1] JSON parsed but no message field. Keys:', Object.keys(testParse).join(', '));
+            console.warn('[TRACE OPENAI L1] Raw preview:', rawContent.substring(0, 200));
           }
+        } else {
+          console.warn('[TRACE OPENAI L1] Empty response content');
         }
         console.warn('[TRACE OPENAI L1] Empty/invalid on attempt', attempt);
       } catch (err) {
