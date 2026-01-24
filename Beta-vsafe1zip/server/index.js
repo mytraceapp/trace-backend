@@ -3635,13 +3635,25 @@ app.post('/api/chat', async (req, res) => {
     
     // EARLY CRISIS CHECK - block music/lyrics interception during crisis
     // This runs before TRACE Studios to ensure crisis mode takes absolute priority
-    const earlyCrisisUserMsg = rawMessages?.filter(m => m.role === 'user').pop()?.content || '';
-    const earlyDistressCheck = isHighDistressText(earlyCrisisUserMsg);
+    // Check BOTH current message AND recent history (last 5 user messages)
+    const recentUserMsgs = (rawMessages || [])
+      .filter(m => m.role === 'user')
+      .slice(-5)
+      .map(m => m.content || '');
+    
+    const currentMsgDistress = isHighDistressText(recentUserMsgs[recentUserMsgs.length - 1] || '');
+    const historyDistress = recentUserMsgs.some(msg => isHighDistressText(msg));
     const earlyCrisisState = getCrisisState(effectiveUserId);
-    const isEarlyCrisisMode = earlyCrisisState.active || earlyDistressCheck;
+    
+    // Crisis if: current message distressed, OR any recent message distressed, OR crisis state still active
+    const isEarlyCrisisMode = earlyCrisisState.active || currentMsgDistress || historyDistress;
     
     if (isEarlyCrisisMode) {
-      console.log('[CRISIS] Early crisis detection - bypassing TRACE Studios interception');
+      // Update crisis state so it persists
+      if (currentMsgDistress || historyDistress) {
+        updateCrisisState(effectiveUserId, currentMsgDistress);
+      }
+      console.log('[CRISIS] Early crisis detection - bypassing TRACE Studios interception (history check:', historyDistress, ')');
     }
     
     // TRACE Studios interception - music/lyrics conversations (BLOCKED in crisis mode)
