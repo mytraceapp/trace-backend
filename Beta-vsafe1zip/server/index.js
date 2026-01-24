@@ -6276,6 +6276,12 @@ Your response (MUST include safety question AND 988):`;
           const userSaidNo = /^(no|not really|not safe|i('m| am) not|nope|nah)\.?$/i.test(lastUserContent.trim());
           const userSaidYes = /^(yes|yeah|yep|i('m| am) (safe|okay|ok|fine)|i guess)\.?$/i.test(lastUserContent.trim());
           
+          // Check for REPEATED "No" responses in crisis context (declining help)
+          const recentUserMsgs = (rawMessages || []).filter(m => m.role === 'user').slice(-5);
+          const noCount = recentUserMsgs.filter(m => /^(no|nope|nah|not really)\.?$/i.test((m.content || '').trim())).length;
+          const hasRecentCrisisEscalation = (rawMessages || []).filter(m => m.role === 'assistant').slice(-3)
+            .some(m => /911|988|not safe|get help|urgent|immediately/i.test(m.content || ''));
+          
           if (askedAboutSafety && userSaidNo) {
             // CRITICAL: User is NOT safe - escalate immediately
             console.log('[TRACE OPENAI L3] User NOT SAFE - escalating crisis response');
@@ -6304,6 +6310,47 @@ Acknowledge their response warmly, then gently ask who they can reach out to for
 Example: "Okay. I'm glad you're safe. Do you have someone you can talk to tonight - a friend, family member, or anyone you trust?"
 
 Your response (gentle, supportive):`;
+          } else if (userSaidNo && hasRecentCrisisEscalation && noCount >= 2) {
+            // CRITICAL: User repeatedly declining help in crisis - STAY WITH THEM, offer alternatives
+            console.log('[TRACE OPENAI L3] User REPEATEDLY DECLINING help in crisis - staying present, offering alternatives');
+            plainPrompt = `You are TRACE. The user is in crisis and has said "no" ${noCount} times to your offers of help. This is CRITICAL - DO NOT ABANDON THEM.
+
+NEVER respond with:
+- "How are you doing right now?" 
+- "I'm here." and nothing else
+- Generic check-ins that reset the conversation
+
+They said: "${lastUserContent}"
+
+Your response MUST:
+1. Stay calm and present - do NOT abandon them
+2. Acknowledge they're not ready for those options without judgment
+3. Offer to just sit with them quietly
+4. Remind them you're not going anywhere
+5. Keep 988 as a gentle reminder (text option may feel less overwhelming)
+
+Example responses (choose based on tone):
+- "I hear you. I'm not going to push. I'll just be here with you. If you want to talk, I'm listening. And whenever you're ready - 988 is always there, even just to text."
+- "Okay. I'm not leaving. We can just sit here together if that's what you need. You don't have to do anything right now."
+- "That's okay. I'm staying right here. You don't have to call anyone if you're not ready. Can you tell me one small thing that might help you feel a little safer in this moment?"
+
+Your response (STAY PRESENT - do NOT reset or abandon):`;
+          } else if (userSaidNo && hasRecentCrisisEscalation) {
+            // User declining help but not repeated yet - gentle persistence
+            console.log('[TRACE OPENAI L3] User declining help in crisis - gentle persistence');
+            plainPrompt = `You are TRACE. The user is in crisis and just declined your offer of help. Stay present without pushing.
+
+They said: "${lastUserContent}"
+
+Your response should:
+1. Acknowledge without judgment
+2. Stay present - don't abandon or reset
+3. Offer an alternative (texting 988, sitting with them, asking what might help)
+4. Keep it brief and grounded
+
+Example: "Okay. I'm not going anywhere. If calling feels like too much, you can text 988 instead. Or we can just sit here together. Whatever you need."
+
+Your response (stay present, offer alternative):`;
           } else {
             // Generic crisis follow-up (greetings, neutral messages)
             plainPrompt = `You are TRACE in CRISIS MODE. The user has recently expressed self-harm or suicidal thoughts.
@@ -6311,12 +6358,13 @@ Your response (gentle, supportive):`;
 CRITICAL RULES:
 - NEVER respond with casual greetings like "How's your day going?"
 - NEVER reset to cheerful small talk
+- NEVER say "I'm here. How are you doing right now?" alone - that abandons them
 - Stay present, warm, and grounded
-- If user says "hello" or greetings, respond with: "I'm here. How are you doing right now?"
+- Keep the crisis context active - don't pretend everything is normal
 
 User said: "${lastUserContent}"
 
-Your response (stay present and warm, NOT casual):`;
+Your response (stay present and warm, acknowledge they're going through something heavy):`;
           }
         } else {
           plainPrompt = `You are TRACE, a calm and grounded companion. Respond naturally to what the user just said. Keep it warm and conversational, 1-2 sentences max.
