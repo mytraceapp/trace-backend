@@ -6224,11 +6224,27 @@ Your response (text only, no JSON):`;
     if (!parsed) {
       console.log('[TRACE OPENAI L3] Trying plain text mode...');
       try {
-        const plainPrompt = `You are TRACE, a calm and grounded companion. Respond naturally to what the user just said. Keep it warm and conversational, 1-2 sentences max.
+        // CRITICAL: Use crisis-aware prompt if in crisis mode
+        let plainPrompt;
+        if (isCrisisMode) {
+          plainPrompt = `You are TRACE in CRISIS MODE. The user has recently expressed self-harm or suicidal thoughts.
+
+CRITICAL RULES:
+- NEVER respond with casual greetings like "How's your day going?"
+- NEVER reset to cheerful small talk
+- Stay present, warm, and grounded
+- If user says "hello" or greetings, respond with: "I'm here. How are you doing right now?"
+
+User said: "${lastUserContent}"
+
+Your response (stay present and warm, NOT casual):`;
+        } else {
+          plainPrompt = `You are TRACE, a calm and grounded companion. Respond naturally to what the user just said. Keep it warm and conversational, 1-2 sentences max.
 
 User said: "${lastUserContent}"
 
 Your response:`;
+        }
         
         const response = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
@@ -6254,7 +6270,12 @@ Your response:`;
     if (!parsed) {
       console.log('[TRACE OPENAI L4] Generating contextual AI response...');
       try {
-        const contextPrompt = `Generate a single warm, empathetic response (1 sentence) for someone who just said: "${lastUserContent}". Be curious and caring. Do not use cliché therapy phrases. Just respond naturally like a supportive friend would.`;
+        let contextPrompt;
+        if (isCrisisMode) {
+          contextPrompt = `Generate a single warm, present response for someone in crisis who just said: "${lastUserContent}". Stay grounded and present. NEVER be cheerful or casual. Example: "I'm here. How are you doing right now?"`;
+        } else {
+          contextPrompt = `Generate a single warm, empathetic response (1 sentence) for someone who just said: "${lastUserContent}". Be curious and caring. Do not use cliché therapy phrases. Just respond naturally like a supportive friend would.`;
+        }
         
         const response = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
