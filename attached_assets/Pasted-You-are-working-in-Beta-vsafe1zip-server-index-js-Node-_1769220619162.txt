@@ -1,0 +1,117 @@
+You are working in: Beta-vsafe1zip/server/index.js (Node/Express) and (if present) server/traceBrain.js
+
+GOAL
+Add a HARD safety override for "harm-to-others" (HTO) threats/intent/requests, similar to self-harm crisis mode.
+This must:
+- override ALL other systems (premium moment, insights, activity suggestions, humor, next-question logic, memory writes)
+- refuse violent instructions
+- provide de-escalation + immediate real-world help guidance
+- keep response envelope unchanged:
+  { ok, requestId, message, messages[], posture, detected_state, activity_suggestion, client_state_patch }
+
+NON-NEGOTIABLES
+- No UI changes.
+- No new dependencies.
+- Do not add new routes/endpoints.
+- Do not break existing crisis/self-harm logic.
+- If HTO triggers, DO NOT call OpenAI (or if your architecture requires it, force a local templated response and skip OpenAI).
+
+IMPLEMENTATION STEPS
+
+1) Add a new detector: detectHarmToOthers(userText)
+Create a helper (near your other signal/crisis detectors) that returns:
+{ triggered: boolean, confidence: "high"|"medium", reason: string }
+
+Use simple regex/keyword matching with intent weighting.
+TRIGGER HIGH (examples):
+- "I want to kill/hurt someone"
+- "I'm going to shoot/stab someone"
+- "Help me hurt/kill"
+- "How do I poison/kill"
+- "I have a gun and I'm going to use it"
+TRIGGER MEDIUM (examples):
+- "I'm going to make them pay"
+- "I want to beat someone up"
+But require at least one violence verb + target/intent phrase.
+
+Also add a SAFE GUARD to reduce false positives:
+- If user is discussing news/politics/media generally AND no first-person intent, do NOT trigger.
+  Example: "Gun violence is scary" => not trigger
+  Example: "How do shooters do it" => still refuse instructions, but HTO crisis template should trigger only if intent/planning is implied.
+
+2) Add HTO to the context hierarchy (must be top-level override)
+In your /api/chat flow, add HTO evaluation immediately after (or alongside) self-harm detection, before any:
+- premium moment gating
+- traceBrain routing
+- OpenAI call
+- activity suggestion decision
+- memory updates
+
+Hierarchy:
+A) Self-harm crisis (existing)
+B) Harm-to-others crisis (NEW)
+C) Everything else
+
+3) Create a local templated response builder: buildHarmToOthersResponse()
+Return a short, firm, everyday-tone response:
+
+- Refuse violence assistance
+- Encourage immediate help:
+  * "If you feel like you might act on this, call your local emergency number (911 in the U.S.) or go to the nearest ER."
+  * "If there’s a weapon nearby, move it out of reach and create distance from the person."
+  * "If someone may be in immediate danger, call emergency services now."
+- Ask one stabilizing question (not investigative):
+  * "Are you somewhere safe right now, away from the person you’re thinking about?"
+
+Keep it under ~450 chars unless your crisis template standard differs.
+
+4) Response envelope + state patch
+When HTO triggers, respond with:
+- ok: true
+- requestId: (existing)
+- message: template string
+- messages: [same template string]
+- posture: "STEADY" (or your crisis posture if you use one)
+- detected_state: "crisis" (or "high_risk" if you have it)
+- activity_suggestion: null (or {name:null,...} but MUST not navigate)
+- client_state_patch should set:
+  - crisisMode: "harm_to_others"
+  - any fields you already use to suppress other features (e.g., premiumMomentUsed unchanged, but add a "safetyOverride": true if you have it)
+IMPORTANT: Do NOT write memory topics/loops/wins on HTO turns.
+
+5) Logging (dev only)
+Add ONE concise log when HTO triggers:
+console.warn('[SAFETY] harm-to-others override', { requestId, confidence, reason });
+
+6) Curl validation (local)
+After restart, validate:
+
+A) Should trigger override:
+curl -s http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"I want to hurt someone.","clientMessageId":"hto-001"}'
+
+Expect:
+- message includes refusal + emergency guidance
+- detected_state indicates crisis/high risk
+- activity_suggestion is null
+- no OpenAI call log occurs for this request (if you log OpenAI)
+
+B) Should NOT trigger (news/general):
+curl -s http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Gun violence in the news is horrifying.","clientMessageId":"hto-002"}'
+
+Expect normal processing.
+
+C) Should refuse instruction-seeking even without intent:
+If you have a separate “violence instructions refusal” layer, keep it.
+If not, ensure at least a refusal is returned:
+curl -s http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"How do I poison someone?","clientMessageId":"hto-003"}'
+
+This should return refusal content (HTO override can trigger here with confidence=high).
+
+DELIVERABLE
+Implement the detectors + override + template response in index.js (and traceBrain.js if that’s where your safety routing lives), without changing the response contract or adding dependencies.

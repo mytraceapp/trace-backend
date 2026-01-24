@@ -1545,6 +1545,124 @@ function isHighDistressContext(messages) {
   return lastUserMessages.some((m) => isHighDistressText(m.content));
 }
 
+// ============================================================
+// HARM-TO-OTHERS (HTO) DETECTION - SAFETY OVERRIDE
+// Triggers HARD bypass of all other systems when user expresses
+// intent/plans to harm others. Similar priority to self-harm crisis.
+// ============================================================
+
+function detectHarmToOthers(userText) {
+  if (!userText || typeof userText !== 'string') {
+    return { triggered: false, confidence: null, reason: null };
+  }
+  
+  const t = userText.toLowerCase().trim();
+  
+  // SAFE GUARD: Skip if clearly discussing news/politics/media without personal intent
+  const newsMediaPatterns = [
+    /\b(news|headline|article|report|story about|reading about)\b/i,
+    /\b(in the world|society|country|government|politics)\b/i,
+    /\b(mass shooting|terrorism|war|conflict)\b.*\b(is|are|was|were|happening)\b/i,
+    /\b(gun violence|violence in)\b.*\b(is|are|scary|horrible|sad)\b/i,
+  ];
+  
+  const firstPersonIntent = [
+    /\b(i|i'm|i've|i'll|i'd|i am|i have|i will|i want|i'm going|i need)\b/i,
+    /\b(my|me|myself)\b/i,
+    /\b(help me|show me|tell me how)\b/i,
+  ];
+  
+  const isNewsDiscussion = newsMediaPatterns.some(p => p.test(t));
+  const hasFirstPersonIntent = firstPersonIntent.some(p => p.test(t));
+  
+  // If discussing news WITHOUT first-person intent, don't trigger
+  if (isNewsDiscussion && !hasFirstPersonIntent) {
+    return { triggered: false, confidence: null, reason: 'news_discussion_no_intent' };
+  }
+  
+  // HIGH CONFIDENCE TRIGGERS - Direct intent/plans to harm others
+  const highPatterns = [
+    // Direct kill/hurt intent with first person
+    /\b(i want to|i'm going to|i will|i need to|i have to|going to)\s+(kill|murder|shoot|stab|hurt|attack|harm|poison|strangle|choke)\s+(someone|somebody|him|her|them|people|my|a person|that person)/i,
+    // "Help me" harm patterns
+    /\b(help me|show me how to|tell me how to|how do i|how can i|ways to)\s+(kill|murder|hurt|harm|poison|attack|get rid of)\s+(someone|somebody|him|her|them|a person)/i,
+    // Weapon + intent
+    /\b(i have a|got a|bought a)\s+(gun|knife|weapon)\b.*\b(going to use|use it on|for)\b/i,
+    // Direct threat declarations
+    /\b(i'm going to|i will)\s+(make them pay|get revenge|get even)\b.*\b(hurt|kill|harm|shoot|stab)/i,
+    // Explicit planning language
+    /\b(planning to|plan to|decided to)\s+(kill|murder|hurt|harm|attack)\b/i,
+  ];
+  
+  for (const pattern of highPatterns) {
+    if (pattern.test(t)) {
+      return { triggered: true, confidence: 'high', reason: 'direct_harm_intent' };
+    }
+  }
+  
+  // MEDIUM CONFIDENCE TRIGGERS - Intent language + violence verbs
+  const violenceVerbs = /\b(kill|murder|shoot|stab|hurt|attack|harm|poison|beat up|strangle|choke|destroy)\b/i;
+  const intentPhrases = /\b(want to|going to|need to|have to|will|gonna|gotta|about to)\b/i;
+  const targetPhrases = /\b(someone|somebody|him|her|them|that person|those people|my\s+\w+)\b/i;
+  
+  // Must have violence verb + intent phrase + target
+  if (violenceVerbs.test(t) && intentPhrases.test(t) && targetPhrases.test(t)) {
+    // Check for negation ("I don't want to hurt anyone")
+    const negationPatterns = /\b(don't|dont|do not|never|wouldn't|would never|not going to)\b/i;
+    if (!negationPatterns.test(t)) {
+      return { triggered: true, confidence: 'medium', reason: 'violence_intent_target_combo' };
+    }
+  }
+  
+  // "Make them pay" type language WITH violence implication
+  if (/\b(make (them|him|her) pay|get (revenge|even|back at))\b/i.test(t)) {
+    if (violenceVerbs.test(t) || /\b(hurt|pain|suffer|regret)\b/i.test(t)) {
+      return { triggered: true, confidence: 'medium', reason: 'revenge_violence_language' };
+    }
+  }
+  
+  // Instruction-seeking for violence (even without stated personal intent)
+  const instructionPatterns = [
+    /\b(how to|how do you|ways to|best way to)\s+(kill|murder|poison|hurt|harm|attack)\s+(someone|a person|somebody)/i,
+    /\b(how to|how do i)\s+(get away with|hide a body|dispose of)/i,
+  ];
+  
+  for (const pattern of instructionPatterns) {
+    if (pattern.test(t)) {
+      return { triggered: true, confidence: 'high', reason: 'seeking_violence_instructions' };
+    }
+  }
+  
+  return { triggered: false, confidence: null, reason: null };
+}
+
+function buildHarmToOthersResponse(requestId, confidence) {
+  const message = `I can't help with that. If you're feeling an urge to hurt someone, that's a sign you need real support right now.
+
+If you feel like you might act on this, call 911 or go to the nearest ER.
+
+If there's a weapon nearby, move it out of reach and create distance from the person.
+
+Are you somewhere safe right now, away from the person you're thinking about?`;
+
+  return {
+    ok: true,
+    requestId,
+    message,
+    messages: [message],
+    posture: 'STEADY',
+    detected_state: 'crisis',
+    posture_confidence: 1.0,
+    activity_suggestion: { name: null, reason: null, should_navigate: false },
+    next_question: null,
+    client_state_patch: {
+      crisisMode: 'harm_to_others',
+      safetyOverride: true,
+    },
+    _htoOverride: true,
+  };
+}
+
 // ---- DAD JOKE HELPER (JokeFather API - no key needed) ----
 
 async function getDadJoke() {
@@ -4856,6 +4974,23 @@ app.post('/api/chat', async (req, res) => {
     
     // CRITICAL: Log crisis state for debugging
     console.log(`[CRISIS CHECK] userId: ${effectiveUserId?.slice(0,8)}, currentMsgDistressed: ${isCurrentMessageDistressed}, historyDistressed: ${isHistoryDistressed}, clientFlag: ${clientCrisisMode}, isCrisisMode: ${isCrisisMode}`);
+
+    // ============================================================
+    // HARM-TO-OTHERS (HTO) SAFETY OVERRIDE
+    // Priority #2 (after self-harm crisis) - bypasses ALL other systems
+    // ============================================================
+    const htoCheck = detectHarmToOthers(userText);
+    if (htoCheck.triggered) {
+      console.warn('[SAFETY] harm-to-others override', { 
+        requestId, 
+        confidence: htoCheck.confidence, 
+        reason: htoCheck.reason 
+      });
+      
+      // Return templated response immediately - NO OpenAI call
+      const htoResponse = buildHarmToOthersResponse(requestId, htoCheck.confidence);
+      return res.json(htoResponse);
+    }
 
     // Load rhythmic awareness line (time/date-based contextual awareness)
     // Uses user's local time from the payload, not server time
