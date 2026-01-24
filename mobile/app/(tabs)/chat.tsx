@@ -1873,27 +1873,36 @@ export default function ChatScreen() {
               contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 16 }}
               data={messages}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <View
-                  style={[
-                    styles.messageBubble,
-                    item.role === 'user'
-                      ? [styles.messageBubbleUser, { backgroundColor: theme.accent }]
-                      : [styles.messageBubbleAssistant, { backgroundColor: theme.surface }],
-                  ]}
-                >
-                  <Text
+              renderItem={({ item }) => {
+                const isLyrics = item.content.includes('[Verse') || item.content.includes('[Chorus') || item.content.includes('[Bridge');
+                const content = item.content
+                  .replace(/\*\*([^*]+)\*\*/g, '$1')
+                  .replace(/\*([^*]+)\*/g, '$1');
+                
+                return (
+                  <View
                     style={[
+                      styles.messageBubble,
                       item.role === 'user'
-                        ? styles.messageTextUser
-                        : [styles.messageTextAssistant, { color: theme.textPrimary }],
-                      { fontFamily: canelaFont },
+                        ? [styles.messageBubbleUser, { backgroundColor: theme.accent }]
+                        : [styles.messageBubbleAssistant, { backgroundColor: theme.surface }],
+                      isLyrics && { maxWidth: '90%' },
                     ]}
                   >
-                    {item.content}
-                  </Text>
-                </View>
-              )}
+                    <Text
+                      style={[
+                        item.role === 'user'
+                          ? styles.messageTextUser
+                          : [styles.messageTextAssistant, { color: theme.textPrimary }],
+                        { fontFamily: canelaFont },
+                        isLyrics && styles.lyricsText,
+                      ]}
+                    >
+                      {content}
+                    </Text>
+                  </View>
+                );
+              }}
               showsVerticalScrollIndicator={false}
               onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
             />
@@ -1993,6 +2002,11 @@ const styles = StyleSheet.create({
   messageTextAssistant: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  lyricsText: {
+    fontSize: 13,
+    lineHeight: 22,
+    letterSpacing: 0.2,
   },
   inputContainer: {
     flexDirection: 'row',
