@@ -1167,12 +1167,35 @@ function maybeInsight({ userId, clientState, signals }) {
 // TONE SANITIZER - Rewrite therapy-speak to Everyday Premium Voice
 // ============================================================
 const THERAPY_PATTERNS = [
+  // === FULL SENTENCE REPLACEMENTS (match complete phrases - optional punctuation) ===
+  { pattern: /I'm (really )?sorry to hear that you're feeling [^.!?]+[.,;]?/gi, replacement: "That's rough." },
+  { pattern: /I'm (really )?sorry to hear that[.,;]?/gi, replacement: "That's rough." },
+  { pattern: /I'm sorry you're feeling [^.!?]+[.,;]?/gi, replacement: "That sounds hard." },
+  { pattern: /It's completely okay to feel stressed[;,.]?/gi, replacement: "" },
+  { pattern: /It's okay to feel overwhelmed sometimes[;,.]?/gi, replacement: "" },
+  { pattern: /It's okay to feel overwhelmed[;,.]?/gi, replacement: "" },
+  { pattern: /It's okay to feel stressed[;,.]?/gi, replacement: "" },
+  { pattern: /It's okay to feel that way[;,.]?/gi, replacement: "" },
+  { pattern: /Your feelings are valid[;,.]?/gi, replacement: "" },
+  { pattern: /sometimes just talking about it can help[;,.]?/gi, replacement: "" },
+  // === GENERIC ACTIVITY SUGGESTIONS (REMOVE ENTIRE SENTENCE) ===
+  { pattern: /Would water,? a few breaths,? or a short walk support you( right now)?[.?]?/gi, replacement: "" },
+  { pattern: /Would water,? breaths,? or a walk support you( right now)?[.?]?/gi, replacement: "" },
+  { pattern: /Would you like (water|a few breaths|a short walk|some rest)[^.?]*[.?]?/gi, replacement: "" },
+  // === PHRASE REPLACEMENTS ===
+  { pattern: /Would you like to talk about what's on your mind[.?]?/gi, replacement: "What's going on?" },
+  { pattern: /Would you like to talk about what's been on your mind[.?]?/gi, replacement: "What's going on?" },
+  { pattern: /Would you like to talk about it[.?]?/gi, replacement: "Want to talk about it?" },
+  { pattern: /I'm here if you want to talk[.,;]?/gi, replacement: "I'm here." },
+  { pattern: /I'm here if you need to talk[.,;]?/gi, replacement: "I'm here." },
+  { pattern: /I'm here for you[.,;]?/gi, replacement: "I'm here." },
+  { pattern: /I'm here with you[.,;]?/gi, replacement: "I'm here." },
+  // === WORD/PHRASE SUBSTITUTIONS ===
   { pattern: /\bI hear you\b/gi, replacement: "Got it" },
-  { pattern: /\bI'm here for you\b/gi, replacement: "I'm here" },
-  { pattern: /\bI'm here with you\b/gi, replacement: "I'm here" },
   { pattern: /\bThat sounds like\b/gi, replacement: "Sounds like" },
   { pattern: /\bIt sounds like\b/gi, replacement: "Sounds like" },
-  { pattern: /\bThat must be\b/gi, replacement: "That's" },
+  { pattern: /\bThat must be really hard\./gi, replacement: "That's hard." },
+  { pattern: /\bThat must be hard\./gi, replacement: "That's hard." },
   { pattern: /\bThat can feel\b/gi, replacement: "That feels" },
   { pattern: /\bIt's interesting how\b/gi, replacement: "Yeah," },
   { pattern: /\bIt really does\b/gi, replacement: "Yeah, it" },
