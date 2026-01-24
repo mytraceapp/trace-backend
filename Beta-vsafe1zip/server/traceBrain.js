@@ -134,6 +134,9 @@ function getSignals(userText) {
     t.includes('been thinking')
   );
   
+  // Detect casual social questions about TRACE (not seeking help, just chatting)
+  const isCasualSocialQuestion = /how'?s your (day|morning|evening|night)|what'?s up with you|how are you doing|how are you|what about you|and you\??|you good\??|what have you been up to/i.test(t);
+  
   return {
     asksForHelp: /what should i do|help me|any ideas|what do you think|suggest|recommend/i.test(t),
     highArousal: highArousalCount >= 2 || /can't breathe|freaking out|spiraling/i.test(t),
@@ -146,6 +149,7 @@ function getSignals(userText) {
     meaningSeeking,
     patternLanguage,
     reflectiveTone,
+    casualSocialQuestion: isCasualSocialQuestion,
   };
 }
 
@@ -1223,6 +1227,9 @@ const THERAPY_PATTERNS = [
   { pattern: /It seems like you're experiencing [^.!?]+[.!,]?/gi, replacement: "" },
   { pattern: /It sounds like you're facing [^.!?]+[.!,]?/gi, replacement: "That sounds tough." },
   // === GENERIC ACTIVITY SUGGESTIONS (REMOVE ENTIRE SENTENCE) ===
+  { pattern: /Let me suggest an activity[^.!?]*[.!?]?/gi, replacement: "" },
+  { pattern: /How about a gentle breathing exercise[^.!?]*[.!?]?/gi, replacement: "" },
+  { pattern: /How about a calming soundscape[^.!?]*[.!?]?/gi, replacement: "" },
   { pattern: /Would water,? a few breaths,? or a short walk support you( right now)?[.?]?/gi, replacement: "" },
   { pattern: /Would water,? breaths,? or a walk support you( right now)?[.?]?/gi, replacement: "" },
   { pattern: /Would you like (water|a few breaths|a short walk|some rest)[^.?]*[.?]?/gi, replacement: "" },

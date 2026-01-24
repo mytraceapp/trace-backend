@@ -5617,6 +5617,12 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     
     // Check for Dream Door (suppress activity suggestions for dream topics)
     const isDreamDoor = detectDreamDoor(userMsgForBrain);
+    
+    // Check for casual social questions (user asking about TRACE's day, not seeking help)
+    const isCasualSocialQuestion = brainSignals.casualSocialQuestion || false;
+    if (isCasualSocialQuestion) {
+      console.log('[TRACE BRAIN] Casual social question detected, suppressing activity suggestions');
+    }
     if (isDreamDoor) {
       console.log('[TRACE BRAIN] Dream Door detected - activity suggestions will be suppressed');
     }
@@ -6426,6 +6432,15 @@ Your response:`;
     // ============================================================
     if (isDreamDoor && activitySuggestion.name) {
       console.log('[TRACE BRAIN] Dream Door gating: suppressing activity_suggestion', activitySuggestion.name);
+      activitySuggestion = { name: null, reason: null, should_navigate: false };
+    }
+    
+    // ============================================================
+    // CASUAL SOCIAL QUESTION GATING
+    // Suppress activity suggestions when user is just asking about TRACE's day
+    // ============================================================
+    if (isCasualSocialQuestion && activitySuggestion.name) {
+      console.log('[TRACE BRAIN] Casual social question gating: suppressing activity_suggestion', activitySuggestion.name);
       activitySuggestion = { name: null, reason: null, should_navigate: false };
     }
     
