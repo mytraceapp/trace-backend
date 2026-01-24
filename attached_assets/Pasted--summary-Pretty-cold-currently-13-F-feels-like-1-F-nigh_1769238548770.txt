@@ -1,0 +1,27 @@
+  "summary": "Pretty cold — currently 13°F (feels like -1°F), nighttime. Clear. Wind around 11 mph",
+  "current": {
+    "temperature": 13,
+    "feelsLike": -1,
+    "wind": 11,
+    "weatherText": "Clear",
+    "humidity": 32,
+    "uvIndex": 0,
+    "cloudCover": 2,
+    "isDayTime": false
+  }
+}
+ LOG  [TRACE Chat] 🌤️ Weather context SUCCESSFULLY prepared: {
+  "summary": "Pretty cold — currently 13°F (feels like -1°F), nighttime. Clear. Wind around 11 mph"
+}
+ LOG  [TRACE Chat] Backend URL: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev
+ LOG  [TRACE Chat] Sending to: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 13°F (feels like -1°F), nighttime. Clear. Wind around 11 mph", "temperature": undefined, "windSpeed": undefined}
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1769238530260-qg5lqh","message":"I'm here. How are you doing right now?","activity_suggestion":{"name":"breathing","reason":"spiraling thoughts need grounding","should_navigate":false,"auto_suggested":true},"posture":"GENTLE","detected_state":"spiraling","posture_confidence":1,"next_question":{"intent":"clarify","question":"Can you tell me more about that?"},"client_state_patch":{"sessionStartedAt":1769238530750,"lastUserAt":1769238530750,"sessionTurnCount":1,"lastGuidedStepTurn":0,"recentTopics":[],"activeLoops":[],"recentWins":[],"recentPhrases":[],"doorwayState":{"doors":{"currentDoorId":null,"lastDoorId":null,"activatedAtTurn":null,"turnsSinceActivation":1},"crisis":{"active":true,"triggeredAt":"2026-01-24T07:08:50.750Z","lastSeenAt":"2026-01-24T07:08:50.750Z","cleanTurns":0},"lastMessageAt":"2026-01-24T07:08:50.750Z"},"lastAssistantHash":"41332b80ddc031ab587028d083b06ecefb203f157a752e1b529d9fb679a0a5cb","lastAssistantText":"I'm here. How are you doing right now?","lastQuestionIntent":"clarify"},"messages":["I'm here. How are you doing right now?"],"deduped":false}
+ LOG  [TRACE Chat] Processed messages array: ["I'm here. How are you doing right now?"]
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Response suppressed: duplicate-hash
+ LOG  [TRACE MIRROR] Processed responses: 0
+ LOG  BACKEND_SKIP: No messages returned after processing
