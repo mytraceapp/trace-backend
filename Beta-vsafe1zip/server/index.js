@@ -3669,39 +3669,9 @@ app.post('/api/chat', async (req, res) => {
       }
     }
     
-    // ===== DOORWAYS SYSTEM: Scripted therapeutic moments =====
-    // Detect doorway triggers BEFORE OpenAI to return scripted, grounded responses
-    const studiosUserMsgForDoorway = rawMessages?.filter(m => m.role === 'user').pop();
-    if (studiosUserMsgForDoorway?.content) {
-      const doorway = detectDoorway(studiosUserMsgForDoorway.content);
-      if (doorway && passCadence(doorway, safeClientState)) {
-        const doorwayMessage = buildDoorwayResponse(doorway, studiosUserMsgForDoorway.content, effectiveUserId);
-        console.log('[DOORWAYS] Triggered:', doorway.id);
-        
-        // Log doorway_triggered event for telemetry
-        if (effectiveUserId) {
-          logEvent({
-            user_id: effectiveUserId,
-            event_name: 'doorway_triggered',
-            props: {
-              doorway_id: doorway.id,
-              triggers: doorway.triggers.slice(0, 3),
-            }
-          }).catch(() => {});
-        }
-        
-        const doorwayResponse = normalizeChatResponse({
-          message: doorwayMessage,
-          mode: 'doorway',
-          doorway: { id: doorway.id },
-          client_state_patch: {
-            doorwayState: { lastDoorwayId: doorway.id, ts: Date.now() }
-          }
-        }, requestId);
-        storeDedupResponse(dedupKey, doorwayResponse);
-        return res.json({ ...doorwayResponse, deduped: false });
-      }
-    }
+    // ===== DOORWAYS SYSTEM (LEGACY - DISABLED) =====
+    // Replaced by Doorways v1 brain-only detection in main chat pipeline
+    // See processDoorways() integration below for the new system
     
     // ===== PILLAR 11: EXIT FRICTION & WINBACK =====
     // Check if user is returning after extended absence

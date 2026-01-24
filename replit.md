@@ -60,6 +60,25 @@ The system correlates activity completions with mood check-ins to identify activ
 
 The system loads recent Dreamscape session history to enable TRACE to reference past sessions with genuine presence language, injecting contextual information into chat requests.
 
+### Doorways v1 (Brain-Only Detection)
+
+A therapeutic doorway detection system that identifies when users are entering specific emotional/psychological realms. Unlike scripted responses, Doorways v1 injects contextual intent into the system prompt, allowing OpenAI to respond naturally while staying within the therapeutic realm.
+
+**Enabled Doors:**
+- `dreams_symbols` - Dream interpretation, recurring themes, symbolic meaning
+- `grief` - Loss, absence, missing people, anniversary grief
+- `joy_delight` - Celebrating wins, anchoring positive states
+
+**Key Mechanisms:**
+- Phrase-based scoring with weighted triggers
+- Affinity decay (requires 4+ score to trigger)
+- Per-door cooldowns (2-4 turns)
+- Crisis override (doors suppressed during crisis mode)
+- Breakaway scoring for early crisis release
+- Telemetry logging with text hashing for privacy
+
+**Files:** `server/doorwaysV1.js` (config + logic), integrated in `/api/chat` pipeline in `server/index.js`
+
 ## Interactive Activities
 
 Activities are short (45 seconds to 5 minutes) and include a procedural Maze mini-game, timed Breathing Exercises, a 5-4-3-2-1 Grounding technique, and "Rising" (a full-screen WebGL shader animation). Other activities like Power Nap, Pearl Ripple, and Walking Reset are also present. All activities auto-save an entry upon completion.
