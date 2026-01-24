@@ -1308,30 +1308,6 @@ export default function ChatScreen() {
     }
   }, [stableId]);
 
-  const handleClearChat = useCallback(() => {
-    // CRITICAL: Never clear conversation in crisis mode - stay fully present
-    if (isCrisisMode) {
-      console.log('[CHAT] Crisis mode active - offering alternatives instead of clearing');
-      // Instead of clearing, offer a grounding alternative
-      const crisisAlternativeMessage: ChatMessage = {
-        id: `local-assistant-crisis-alt-${Date.now()}`,
-        role: 'assistant',
-        content: "I'm staying right here with you. How about we listen to some music together, or I can show you some lyrics? Sometimes a little distraction helps.",
-      };
-      setMessages(prev => [...prev, crisisAlternativeMessage]);
-      return;
-    }
-    
-    console.log('[CHAT] Clearing conversation history');
-    setMessages([]);
-    setClientState(prev => ({
-      ...prev,
-      sessionTurnCount: 0,
-      turnCount: 0,
-      responseHashes: [],
-      memoryItems: [],
-    }));
-  }, [isCrisisMode]);
 
   const handleSend = async () => {
     const trimmed = inputText.trim();
@@ -1855,13 +1831,6 @@ export default function ChatScreen() {
           <Text style={[styles.headerText, { color: theme.textPrimary, fontFamily: canelaFont }]}>
             TRACE
           </Text>
-          <Pressable 
-            onPress={handleClearChat}
-            style={styles.clearChatBtn}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={[styles.clearChatText, { color: theme.textSecondary }]}>New</Text>
-          </Pressable>
         </View>
 
         {/* Night Swim Player - spawns at orb position (60px below wordmark) */}
@@ -2008,20 +1977,10 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(0,0,0,0.1)',
-    position: 'relative',
   },
   headerText: {
     fontSize: 24,
     letterSpacing: 8,
-  },
-  clearChatBtn: {
-    position: 'absolute',
-    right: 16,
-    bottom: 12,
-  },
-  clearChatText: {
-    fontSize: 14,
-    opacity: 0.6,
   },
   emptyStateContainer: {
     flex: 1,
