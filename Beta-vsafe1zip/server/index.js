@@ -3644,12 +3644,19 @@ app.post('/api/chat', async (req, res) => {
       const rawClientState = req.body.client_state || {};
       const nowPlaying = rawClientState.nowPlaying || null;
       
+      // Also check recent conversation history for played tracks (fallback if nowPlaying not sent)
+      const recentAssistantMsgs = (rawMessages || [])
+        .filter(m => m.role === 'assistant')
+        .slice(-5) // Last 5 assistant messages
+        .map(m => m.content?.toLowerCase() || '');
+      
       const studiosResponse = handleTraceStudios({
         userText: studiosUserMsg.content,
         clientState,
         userId: effectiveUserId,
         lastAssistantMessage: lastAssistantMsg,
         nowPlaying, // Pass current track for lyrics context
+        recentAssistantMessages: recentAssistantMsgs, // Check history for played tracks
       });
       
       if (studiosResponse) {
@@ -7042,6 +7049,22 @@ Your response:`;
     // Pass userId for "honestly/real talk" cooldown enforcement
     // Pass isCrisisMode to skip "That's rough" replacements during crisis
     tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode });
+    
+    // ===== CRISIS 988 GUARDRAIL =====
+    // Ensure 988 is always mentioned in responses to active suicidal statements
+    const lastUserForCrisis = messages.filter(m => m.role === 'user').pop()?.content?.toLowerCase() || '';
+    const isActiveSuicidalFinal = lastUserForCrisis.includes('want to die') ||
+                                  lastUserForCrisis.includes('kill myself') ||
+                                  lastUserForCrisis.includes('end my life') ||
+                                  lastUserForCrisis.includes('hurt myself') ||
+                                  lastUserForCrisis.includes('ending it') ||
+                                  lastUserForCrisis.includes('not worth living');
+    
+    if (isCrisisMode && isActiveSuicidalFinal && !tightenedText.includes('988')) {
+      // Add 988 if missing from crisis response
+      tightenedText = tightenedText.trim() + '\n\nIf you need to talk to someone right now, you can call or text 988 anytime.';
+      console.log('[CRISIS 988] Added 988 hotline to response');
+    }
     
     // ===== ARTIST CANON GUARDRAILS =====
     // Guardrail A: Ensure canonical credit line for naming/credits questions
