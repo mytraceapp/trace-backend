@@ -1443,6 +1443,12 @@ function isHighDistressText(text) {
     t.includes('life worth it') ||  // catches "if life is worth it", "is life worth it"
     t.includes('life even worth') ||
     t.includes('worth living') ||
+    t.includes('not worth anymore') ||  // "life is not worth anymore"
+    t.includes('not worth it anymore') ||  // "life is not worth it anymore"
+    (t.includes('life') && t.includes('not worth')) ||  // "this life is not worth"
+    t.includes('life has no meaning') ||
+    t.includes('life feels meaningless') ||
+    t.includes('life is meaningless') ||
     t.includes("don't see the point") ||
     t.includes('no point in living') ||
     t.includes('no point anymore') ||
