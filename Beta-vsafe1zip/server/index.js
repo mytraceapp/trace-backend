@@ -5818,24 +5818,158 @@ If user's message contains a clear preference (style, vibe, constraint), mirror 
     let parsed = null;
     
     // ============================================================
+    // PREMIUM TIER 2: TWO-STEP APPROACH
+    // gpt-5.1 is TEXT-ONLY (no JSON mode), so we split:
+    // Step A: gpt-4o-mini for fast JSON structure
+    // Step B: gpt-5.1 for premium text (with 3500ms timeout)
+    // ============================================================
+    const isPremiumTier = selectedModel.includes('5.1') || modelRoute?.tier === 2;
+    
+    if (isPremiumTier) {
+      console.log('[TRACE T2] Premium tier detected, using two-step approach');
+      const structureStart = Date.now();
+      let structureResult = null;
+      let textResult = null;
+      let usedFallback = false;
+      
+      // STEP A: Fast structure from gpt-4o-mini
+      try {
+        const structurePrompt = `Analyze the user's emotional state and return JSON with ONLY these fields:
+{
+  "posture": "GENTLE" | "STEADY" | "DIRECTIVE",
+  "detected_state": string (e.g., "neutral", "anxious", "tired", "spiraling"),
+  "posture_confidence": number 0-1,
+  "activity_suggestion": { "name": string|null, "reason": string|null, "should_navigate": false },
+  "next_question": { "intent": string, "question": string }
+}
+
+User said: "${lastUserContent}"
+Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture: ${posture}` : 'New conversation'}`;
+
+        const structureResponse = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: structurePrompt }],
+          max_tokens: 300,
+          response_format: { type: "json_object" },
+        });
+        
+        const structureContent = structureResponse.choices[0]?.message?.content || '';
+        if (structureContent.trim()) {
+          structureResult = JSON.parse(structureContent);
+        }
+      } catch (err) {
+        console.error('[TRACE T2] Step A (structure) error:', err.message);
+      }
+      const structureLatency = Date.now() - structureStart;
+      
+      // STEP B: Premium text from gpt-5.1 (TEXT-ONLY, no JSON mode)
+      const textStart = Date.now();
+      const PREMIUM_TEXT_TIMEOUT = 3500;
+      
+      try {
+        // Use only last 6 turns for speed
+        const recentMessages = messages.slice(-6);
+        const conversationContext = recentMessages
+          .map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${m.content}`)
+          .join('\n');
+        
+        const premiumTextPrompt = `You are TRACE, a calm and grounded companion. Respond naturally to the user.
+
+VOICE RULES:
+- Warm, not gushy. Confident, not salesy.
+- NO therapy phrases ("I hear you", "It sounds like", "Would you like to explore")
+- NO emojis. NO bullet points.
+- Default 1-3 sentences. Longer only if user asks for explanation.
+- Do NOT reuse your last opening phrase.
+
+Recent conversation:
+${conversationContext}
+
+User just said: "${lastUserContent}"
+
+Your response (text only, no JSON):`;
+
+        const textController = new AbortController();
+        const textTimeout = setTimeout(() => textController.abort(), PREMIUM_TEXT_TIMEOUT);
+        
+        const textResponse = await openai.chat.completions.create({
+          model: 'gpt-5.1',
+          messages: [{ role: 'user', content: premiumTextPrompt }],
+          max_completion_tokens: 200, // gpt-5.1 uses max_completion_tokens, not max_tokens
+        }, { signal: textController.signal });
+        
+        clearTimeout(textTimeout);
+        textResult = textResponse.choices[0]?.message?.content?.trim() || '';
+        
+      } catch (err) {
+        if (err.name === 'AbortError' || err.message?.includes('abort')) {
+          console.warn('[TRACE T2] Step B timeout (>3500ms), using fallback');
+          usedFallback = true;
+        } else {
+          console.error('[TRACE T2] Step B (text) error:', err.message);
+          usedFallback = true;
+        }
+      }
+      const textLatency = Date.now() - textStart;
+      
+      // Fallback: Use gpt-4o-mini for text if gpt-5.1 failed/timed out
+      if (!textResult && usedFallback) {
+        try {
+          const fallbackResponse = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: `Respond warmly in 1-2 sentences to: "${lastUserContent}"` }],
+            max_tokens: 100,
+          });
+          textResult = fallbackResponse.choices[0]?.message?.content?.trim() || '';
+        } catch (err) {
+          console.error('[TRACE T2] Fallback text error:', err.message);
+        }
+      }
+      
+      // Log metrics
+      console.log('[TRACE T2]', {
+        textModel: usedFallback ? 'gpt-4o-mini' : 'gpt-5.1',
+        textLatencyMs: textLatency,
+        structureModel: 'gpt-4o-mini',
+        structureLatencyMs: structureLatency,
+        usedFallback
+      });
+      
+      // Merge results
+      if (textResult) {
+        parsed = {
+          message: textResult,
+          posture: structureResult?.posture || posture || 'STEADY',
+          detected_state: structureResult?.detected_state || detected_state || 'neutral',
+          posture_confidence: structureResult?.posture_confidence || postureConfidence || 0.6,
+          activity_suggestion: structureResult?.activity_suggestion || { name: null, reason: null, should_navigate: false },
+          next_question: structureResult?.next_question || null,
+        };
+        console.log('[TRACE T2] Two-step merge complete');
+      }
+    }
+    
+    // ============================================================
     // FAST-PATH: Skip to L3 plain text for emotional distress states
-    // gpt-5-mini consistently fails JSON mode, so for urgent emotional
-    // states we skip retries entirely for faster response
     // ============================================================
     const highArousalStates = ['spiraling', 'panicking', 'anxious', 'overwhelmed', 'stressed', 'crisis'];
-    const useL3FastPath = highArousalStates.includes(detected_state) && selectedModel.includes('mini');
+    const useL3FastPath = !parsed && highArousalStates.includes(detected_state) && selectedModel.includes('mini');
     
     if (useL3FastPath) {
       console.log(`[FAST-PATH] Detected ${detected_state} + mini model, skipping to L3 for speed`);
     }
     
-    // LAYER 1: Selected model with retries (reduced for faster fallback)
+    // LAYER 1: Selected model with retries (skip if premium already handled)
     const cfg = getConfiguredModel();
     const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
-    console.log(`[OPENAI CONFIG] model=${selectedModel} baseURL=${cfg.baseURL}`);
     
-    // Reduce retries for faster response - gpt-5-mini often fails JSON mode
-    const maxL1Retries = useL3FastPath ? 0 : 2; // Skip L1 entirely for fast-path
+    // Skip L1 if premium tier already produced a result
+    if (!parsed) {
+      console.log(`[OPENAI CONFIG] model=${selectedModel} baseURL=${cfg.baseURL}`);
+    }
+    
+    // Reduce retries for faster response
+    const maxL1Retries = (parsed || useL3FastPath) ? 0 : 2; // Skip if already parsed or fast-path
     for (let attempt = 1; attempt <= maxL1Retries; attempt++) {
       try {
         if (attempt > 1) await sleep(200); // Reduced delay

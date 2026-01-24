@@ -1,0 +1,65 @@
+You are working in: Beta-vsafe1zip/server/index.js (Node/Express)
+
+GOAL
+Keep Premium Tier (T2) on gpt-5.1 for the highest-quality “voice + intuition”,
+BUT remove perceived lag by NOT using gpt-5.1 for JSON mode or full envelope generation.
+
+Constraints:
+- NO UI changes
+- NO new dependencies
+- Preserve existing response envelope:
+  { ok, requestId, message, messages[], posture, detected_state, activity_suggestion, client_state_patch }
+- Preserve existing fallback chain
+- Keep current dedupe/idempotency logic
+
+PROBLEM
+gpt-5.1 is slower when used with long system prompts + large chat history + JSON mode.
+We want premium “message quality” from gpt-5.1 without paying the latency cost for structured output.
+
+SOLUTION (NON-NEGOTIABLE)
+Split Tier 2 into two internal steps:
+
+Step A (FAST STRUCTURE) — use gpt-4o-mini (or your current reliable JSON model):
+- Output ONLY these fields:
+  posture, detected_state, posture_confidence, activity_suggestion, client_state_patch
+- Keep this model’s prompt short.
+- Keep current JSON response_format here if you already rely on it.
+
+Step B (PREMIUM TEXT) — use gpt-5.1, TEXT ONLY:
+- Output ONLY the assistant message string (natural everyday TRACE voice).
+- DO NOT use response_format json_object here.
+- DO NOT ask for posture/suggestions here.
+- Keep prompt short and include:
+  - Everyday TRACE voice rules (no therapy phrases)
+  - Anti-repeat rule (“do not reuse last opener”)
+  - Brevity rule (default 1–3 sentences; deep mode only if requested)
+- Provide only the last ~6 turns of conversation (not full history) to reduce tokens.
+
+Then merge:
+- message/messages[] comes from Step B (gpt-5.1)
+- posture/detected_state/activity_suggestion/client_state_patch from Step A (fast model)
+- Return the same envelope shape as before (backward compatible)
+
+LATENCY GUARD (IMPORTANT)
+- If Step B takes > 3500ms (or times out), fall back to the fast model for message text too.
+- This ensures premium never “hangs”.
+- Log dev-only:
+  [TRACE T2] { textModel, textLatencyMs, structureModel, structureLatencyMs, usedFallback }
+
+MODEL ROUTING
+- Tier 1 (non-premium): keep your current fast/working JSON model.
+- Tier 2 (premium): Step A = gpt-4o-mini; Step B = gpt-5.1.
+
+VALIDATION
+1) Run /api/health
+2) Send a premium-tier chat request and confirm:
+   - The returned envelope is unchanged
+   - Logs show gpt-5.1 used for message text
+   - Total latency is improved vs prior T2
+3) Confirm no more “empty content” issues because gpt-5.1 is no longer in JSON mode.
+
+DO NOT
+- Add new endpoints
+- Add jq/python requirements
+- Change UI code
+- Introduce new packages
