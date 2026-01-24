@@ -614,29 +614,32 @@ function pickMusicSpace(context = {}) {
 function detectExplicitMusicSpace(messageText = '') {
   const txt = messageText.toLowerCase();
   
-  // Check for explicit "take me to X" or "go to X" patterns first
-  const takePatterns = [
-    /take\s+me\s+to\s+(drift|ground|rising)/i,
-    /go\s+to\s+(drift|ground|rising)/i,
-    /open\s+(drift|ground|rising)/i,
-    /play\s+(drift|ground|rising)/i,
-    /start\s+(drift|ground|rising)/i,
+  // CRITICAL: Only detect PLAYLIST names (album titles), NOT activity names
+  // Activities: breathing, maze, rising, drift, basin, grounding, walking, etc.
+  // Playlists: "First Light" (rising_playlist), "Rooted" (ground_playlist), "Low Orbit" (drift_playlist)
+  
+  // Explicit playlist album name requests
+  if (txt.includes('first light') || txt.includes('firstlight')) return 'rising';
+  if (txt.includes('rooted') && (txt.includes('play') || txt.includes('playlist'))) return 'ground';
+  if (txt.includes('low orbit') && (txt.includes('play') || txt.includes('playlist'))) return 'drift';
+  
+  // "play X playlist" patterns only
+  const playlistPatterns = [
+    /play\s+(the\s+)?rising\s+playlist/i,
+    /play\s+(the\s+)?drift\s+playlist/i,
+    /play\s+(the\s+)?ground\s+playlist/i,
   ];
   
-  for (const pattern of takePatterns) {
-    const match = txt.match(pattern);
-    if (match) {
-      return match[1].toLowerCase();
+  for (const pattern of playlistPatterns) {
+    if (pattern.test(txt)) {
+      if (txt.includes('rising playlist')) return 'rising';
+      if (txt.includes('drift playlist')) return 'drift';
+      if (txt.includes('ground playlist')) return 'ground';
     }
   }
   
-  // Check for standalone space names (less reliable, but still explicit)
-  // Only if the message is short and focused on the space name
-  if (txt.length < 30) {
-    if (txt.includes('drift') && !txt.includes('rising') && !txt.includes('ground')) return 'drift';
-    if (txt.includes('ground') && !txt.includes('rising') && !txt.includes('drift')) return 'ground';
-    if (txt.includes('rising') && !txt.includes('drift') && !txt.includes('ground')) return 'rising';
-  }
+  // DO NOT catch "take me to rising/drift/ground" - these are ACTIVITIES
+  // Let the AI handle activity navigation
   
   return null;
 }
@@ -3875,6 +3878,114 @@ app.post('/api/chat', async (req, res) => {
       return res.json({
         message: breathingReply,
         activity_suggestion: { name: null, reason: null, should_navigate: false },
+      });
+    }
+
+    // ACTIVITY CONFIRMATION: Check if user is confirming after activity was described
+    // This handles step 2 of the two-step navigation flow
+    const isActivityConfirmation = (text) => {
+      const txt = text.toLowerCase().trim();
+      return /^(okay|ok|yes|yeah|yep|sure|ready|let's go|lets go|yea|k|kk|go ahead|take me|alright|sounds good)$/i.test(txt);
+    };
+    
+    // Check if previous assistant message described an activity (has "Let me know when you're ready")
+    const prevAssistantContent = messages?.filter(m => m.role === 'assistant').pop()?.content || '';
+    const activityPendingConfirmation = prevAssistantContent.includes("Let me know when you're ready") || 
+                                        prevAssistantContent.includes("Ready when you are") ||
+                                        prevAssistantContent.includes("when you're ready");
+    
+    if (activityPendingConfirmation && isActivityConfirmation(userText)) {
+      // Extract which activity was mentioned in the previous message
+      const activities = ['breathing', 'maze', 'rising', 'drift', 'ripple', 'basin', 'dreamscape', 'grounding', 'walking', 'window', 'rest'];
+      let pendingActivity = null;
+      
+      for (const activity of activities) {
+        if (prevAssistantContent.toLowerCase().includes(activity)) {
+          pendingActivity = activity;
+          break;
+        }
+      }
+      
+      if (pendingActivity) {
+        console.log(`[ACTIVITY NAV] User confirmed, navigating to: ${pendingActivity}`);
+        return res.json({
+          message: "Heading there now. I'll be here when you're back.",
+          activity_suggestion: {
+            name: pendingActivity,
+            reason: `User confirmed navigation to ${pendingActivity}`,
+            should_navigate: true,
+            target: pendingActivity
+          }
+        });
+      }
+    }
+
+    // EXPLICIT ACTIVITY NAVIGATION: Handle clear "take me to X" requests
+    // This ensures activities are correctly recognized, not confused with playlists
+    const detectExplicitActivityRequest = (text) => {
+      const txt = text.toLowerCase().trim();
+      const activities = ['breathing', 'maze', 'rising', 'drift', 'ripple', 'basin', 'dreamscape', 'grounding', 'walking', 'window', 'rest'];
+      
+      for (const activity of activities) {
+        const patterns = [
+          new RegExp(`^${activity}$`),                           // Just the activity name
+          new RegExp(`take me to ${activity}\\b`),               // "take me to rising"
+          new RegExp(`go to ${activity}\\b`),                    // "go to rising"
+          new RegExp(`do ${activity}\\b`),                       // "do rising"
+          new RegExp(`open ${activity}\\b`),                     // "open rising"
+          new RegExp(`start ${activity}\\b`),                    // "start rising"
+          new RegExp(`can you take me to ${activity}\\b`),       // "can you take me to rising"
+          new RegExp(`let's do ${activity}\\b`),                 // "let's do rising"
+          new RegExp(`i want (to do )?${activity}\\b`),          // "i want rising" / "i want to do rising"
+        ];
+        
+        if (patterns.some(p => p.test(txt))) {
+          console.log(`[ACTIVITY NAV] Detected explicit request for activity: ${activity}`);
+          return activity;
+        }
+      }
+      return null;
+    };
+    
+    const requestedActivity = detectExplicitActivityRequest(userText);
+    if (requestedActivity) {
+      const activityDescriptions = {
+        breathing: "Breathing is orb-guided breath exercises — good when you need to slow everything down.",
+        maze: "Maze is finger-tracing through a path — helps channel anxious energy into focus.",
+        rising: "Rising has slow clouds with gentle music — for when things feel heavy and you need warmth.",
+        drift: "Drift is a concentration practice — for scattered, restless minds.",
+        ripple: "Ripple is water circles expanding out — for centering scattered thoughts.",
+        basin: "Basin is deep ocean stillness with no music — pure quiet when you need to settle.",
+        dreamscape: "Dreamscape is slow clouds in landscape mode — for late night, winding down.",
+        grounding: "Grounding is the 5-4-3-2-1 practice — for when things feel unreal or disconnected.",
+        walking: "Walking Reset is movement with ambient sound — for when you need to shift stuck energy.",
+        window: "Window is rain on glass — for melancholy, reflective moods.",
+        rest: "Rest is a power nap space — for when you need a quick reset."
+      };
+      
+      const exitInstructions = {
+        breathing: "Touch the orb when you're ready to come back.",
+        maze: "Press 'Finish Session' when done.",
+        rising: "Tap TRACE at the top to return.",
+        drift: "Tap TRACE at the top to return.",
+        ripple: "Tap TRACE at the top to return.",
+        basin: "Tap TRACE at the top to return.",
+        dreamscape: "Tap TRACE at the top to return.",
+        grounding: "It'll guide you through. I'll be here when you're back.",
+        walking: "Touch the orb when you're ready to come back.",
+        window: "Tap TRACE at the top to return.",
+        rest: "Touch the orb when you're ready to come back."
+      };
+      
+      console.log(`[ACTIVITY NAV] Returning navigation response for: ${requestedActivity}`);
+      return res.json({
+        message: `${activityDescriptions[requestedActivity]} ${exitInstructions[requestedActivity]} Let me know when you're ready.`,
+        activity_suggestion: {
+          name: requestedActivity,
+          reason: `User requested ${requestedActivity}`,
+          should_navigate: false,
+          target: requestedActivity
+        }
       });
     }
 
@@ -8574,6 +8685,8 @@ function detectUserRequestedMusic(messageText = '') {
   }
   
   // Only trigger for actual requests to listen/play music
+  // CRITICAL: Do NOT catch activity names (rising, drift, ground, basin, etc.)
+  // Those should be handled by the AI as activity navigation
   const isActualMusicRequest = (
     txt.includes('play music') ||
     txt.includes('play some music') ||
@@ -8583,9 +8696,10 @@ function detectUserRequestedMusic(messageText = '') {
     txt.includes('need music') ||
     txt.includes('some music') ||
     txt.includes('playlist') ||
-    txt.includes('ground') ||
-    txt.includes('drift') ||
-    txt.includes('rising') ||
+    // Explicit playlist album names only
+    txt.includes('first light') ||
+    txt.includes('rooted playlist') ||
+    txt.includes('low orbit playlist') ||
     (txt.includes('music') && txt.includes('please')) ||
     (txt.includes('song') && txt.includes('play'))
   );
