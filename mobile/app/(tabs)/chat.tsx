@@ -1305,6 +1305,18 @@ export default function ChatScreen() {
     }
   }, [stableId]);
 
+  const handleClearChat = useCallback(() => {
+    console.log('[CHAT] Clearing conversation history');
+    setMessages([]);
+    setClientState(prev => ({
+      ...prev,
+      sessionTurnCount: 0,
+      turnCount: 0,
+      responseHashes: [],
+      memoryItems: [],
+    }));
+  }, []);
+
   const handleSend = async () => {
     const trimmed = inputText.trim();
     if (!trimmed || isSending) return;
@@ -1817,6 +1829,13 @@ export default function ChatScreen() {
           <Text style={[styles.headerText, { color: theme.textPrimary, fontFamily: canelaFont }]}>
             TRACE
           </Text>
+          <Pressable 
+            onPress={handleClearChat}
+            style={styles.clearChatBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={[styles.clearChatText, { color: theme.textSecondary }]}>New</Text>
+          </Pressable>
         </View>
 
         {/* Night Swim Player - spawns at orb position (60px below wordmark) */}
@@ -1963,10 +1982,20 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(0,0,0,0.1)',
+    position: 'relative',
   },
   headerText: {
     fontSize: 24,
     letterSpacing: 8,
+  },
+  clearChatBtn: {
+    position: 'absolute',
+    right: 16,
+    bottom: 12,
+  },
+  clearChatText: {
+    fontSize: 14,
+    opacity: 0.6,
   },
   emptyStateContainer: {
     flex: 1,
