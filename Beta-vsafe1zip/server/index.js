@@ -1559,6 +1559,25 @@ function detectHarmToOthers(userText) {
   
   const t = userText.toLowerCase().trim();
   
+  // CRITICAL: SELF-HARM EXCLUSION - Must check FIRST before any HTO patterns
+  // "I want to hurt myself" is SELF-HARM, not harm-to-others
+  const selfHarmPatterns = [
+    /\b(hurt|harm|kill|cut|end|damage|destroy|injure)\s+(myself|me)\b/i,
+    /\b(myself|me)\b.*\b(hurt|harm|kill|cut|end|damage|destroy|injure)\b/i,
+    /\b(i want to|i'm going to|going to|want to|need to)\s+(hurt|harm|kill|cut|end)\s+(myself|me)\b/i,
+    /\b(hurt|harm|kill|end)\s+myself\b/i,
+    /\bhurt\s+myself\b/i,
+    /\bkill\s+myself\b/i,
+    /\bharm\s+myself\b/i,
+  ];
+  
+  for (const pattern of selfHarmPatterns) {
+    if (pattern.test(t)) {
+      console.log('[SAFETY HTO] Excluded self-harm pattern:', t.substring(0, 50) + '...');
+      return { triggered: false, confidence: null, reason: 'self_harm_not_hto' };
+    }
+  }
+  
   // SAFE GUARD: Skip if clearly discussing news/politics/media without personal intent
   const newsMediaPatterns = [
     /\b(news|headline|article|report|story about|reading about)\b/i,
@@ -1583,8 +1602,8 @@ function detectHarmToOthers(userText) {
   
   // HIGH CONFIDENCE TRIGGERS - Direct intent/plans to harm others
   const highPatterns = [
-    // Direct kill/hurt intent with first person
-    /\b(i want to|i'm going to|i will|i need to|i have to|going to)\s+(kill|murder|shoot|stab|hurt|attack|harm|poison|strangle|choke)\s+(someone|somebody|him|her|them|people|my|a person|that person)/i,
+    // Direct kill/hurt intent with first person - NOTE: "my" removed, use "my [noun]" pattern instead
+    /\b(i want to|i'm going to|i will|i need to|i have to|going to)\s+(kill|murder|shoot|stab|hurt|attack|harm|poison|strangle|choke)\s+(someone|somebody|him|her|them|people|a person|that person|my\s+\w+)\b/i,
     // "Help me" harm patterns
     /\b(help me|show me how to|tell me how to|how do i|how can i|ways to)\s+(kill|murder|hurt|harm|poison|attack|get rid of)\s+(someone|somebody|him|her|them|a person)/i,
     // Weapon + intent
