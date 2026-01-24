@@ -375,12 +375,17 @@ const PLAYLIST_NAMES = [
   "midnight underwater", "slow tides over glass"
 ];
 
-function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssistantMessage = "" }) {
+function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssistantMessage = "", nowPlaying = null }) {
   const t = norm(userText);
   const seed = `${userId}::${t}`;
   const lastMsg = (lastAssistantMessage || '').toLowerCase();
 
   const inNeonContext = clientState?.traceStudiosContext === "neon_promise";
+  
+  // Also check if user is currently playing a TRACE track (from nowPlaying state)
+  const nowPlayingTrack = nowPlaying?.trackId || nowPlaying?.title?.toLowerCase() || '';
+  const isPlayingNeonPromise = nowPlayingTrack.includes('neon') || nowPlayingTrack.includes('promise') || nowPlayingTrack === 'neon_promise';
+  const isPlayingNightSwim = nowPlayingTrack.includes('night') || nowPlayingTrack.includes('swim') || nowPlayingTrack === 'night_swim';
   
   // Check what TRACE just mentioned
   const justOfferedPlaylist = PLAYLIST_NAMES.some(p => lastMsg.includes(p));
@@ -708,7 +713,9 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       };
     }
 
-    if (looksLikeLyricsRequest(t) && (looksLikeNeonPromiseRequest(t) || inNeonContext)) {
+    // Check for lyrics request - allow if: user mentions neon promise, OR is in context, OR is currently playing it
+    if (looksLikeLyricsRequest(t) && (looksLikeNeonPromiseRequest(t) || inNeonContext || isPlayingNeonPromise)) {
+      console.log('[TRACE STUDIOS] Lyrics request detected. inContext:', inNeonContext, 'isPlaying:', isPlayingNeonPromise);
       const track = TRACKS.neon_promise;
       if (!track?.lyrics) {
         return {

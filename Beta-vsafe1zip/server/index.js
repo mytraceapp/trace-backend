@@ -3639,11 +3639,17 @@ app.post('/api/chat', async (req, res) => {
       // Get last assistant message for context-aware responses
       const lastAssistantMsg = rawMessages?.filter(m => m.role === 'assistant').pop()?.content || '';
       const clientState = req.body.traceStudiosContext ? { traceStudiosContext: req.body.traceStudiosContext } : {};
+      
+      // Get nowPlaying from client_state for lyrics context
+      const rawClientState = req.body.client_state || {};
+      const nowPlaying = rawClientState.nowPlaying || null;
+      
       const studiosResponse = handleTraceStudios({
         userText: studiosUserMsg.content,
         clientState,
         userId: effectiveUserId,
         lastAssistantMessage: lastAssistantMsg,
+        nowPlaying, // Pass current track for lyrics context
       });
       
       if (studiosResponse) {
