@@ -7348,6 +7348,9 @@ Your response:`;
       response.isCrisisMultiMessage = true;
     }
     
+    // Always return crisis mode status so client can persist and respect it
+    response.isCrisisMode = isCrisisMode;
+    
     // ===== AUTONOMY ENFORCEMENT POST-PROCESSING GUARD =====
     // Catch and rewrite any directive patterns that slipped through prompt-level enforcement
     response.message = enforceAutonomyGuard(response.message);

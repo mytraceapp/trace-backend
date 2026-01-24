@@ -134,6 +134,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
       message: data.message || "mm, I'm here.",
       messages: data.messages || null, // Multi-message array for crisis mode
       isCrisisMultiMessage: data.isCrisisMultiMessage || false,
+      isCrisisMode: data.isCrisisMode || false, // Crisis mode persistence flag
       activity_suggestion: activitySuggestion,
       pattern_metadata: patternMetadata,
       traceStudios, // Pass back for context tracking

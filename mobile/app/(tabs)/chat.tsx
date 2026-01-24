@@ -545,6 +545,9 @@ export default function ChatScreen() {
   const [showNightSwimPlayer, setShowNightSwimPlayer] = useState(false);
   const [nightSwimSession, setNightSwimSession] = useState(0); // Session counter for forcing remount
   
+  // Crisis mode persistence - NEVER clear conversation when active
+  const [isCrisisMode, setIsCrisisMode] = useState(false);
+  
   // Track TRACE Studios music reveal context to avoid playlist clash
   const [traceStudiosContext, setTraceStudiosContext] = useState<string | null>(null);
   const [nightSwimTracks, setNightSwimTracks] = useState<any[]>([]);
@@ -1306,6 +1309,19 @@ export default function ChatScreen() {
   }, [stableId]);
 
   const handleClearChat = useCallback(() => {
+    // CRITICAL: Never clear conversation in crisis mode - stay fully present
+    if (isCrisisMode) {
+      console.log('[CHAT] Crisis mode active - offering alternatives instead of clearing');
+      // Instead of clearing, offer a grounding alternative
+      const crisisAlternativeMessage: ChatMessage = {
+        id: `local-assistant-crisis-alt-${Date.now()}`,
+        role: 'assistant',
+        content: "I'm staying right here with you. How about we listen to some music together, or I can show you some lyrics? Sometimes a little distraction helps.",
+      };
+      setMessages(prev => [...prev, crisisAlternativeMessage]);
+      return;
+    }
+    
     console.log('[CHAT] Clearing conversation history');
     setMessages([]);
     setClientState(prev => ({
@@ -1315,7 +1331,7 @@ export default function ChatScreen() {
       responseHashes: [],
       memoryItems: [],
     }));
-  }, []);
+  }, [isCrisisMode]);
 
   const handleSend = async () => {
     const trimmed = inputText.trim();
@@ -1615,6 +1631,16 @@ export default function ChatScreen() {
         console.log('🚪 TRACE doorway mode:', result.doorway.id);
       }
 
+      // Track crisis mode persistence from server
+      if (result?.isCrisisMode !== undefined) {
+        if (result.isCrisisMode && !isCrisisMode) {
+          console.log('🚨 TRACE crisis mode ACTIVATED - conversation protected');
+        } else if (!result.isCrisisMode && isCrisisMode) {
+          console.log('✅ TRACE crisis mode EXITED - normal operation resumed');
+        }
+        setIsCrisisMode(result.isCrisisMode);
+      }
+      
       // Handle multi-message crisis responses (2-3 messages displayed sequentially)
       if (result?.isCrisisMultiMessage && result?.messages && result.messages.length > 1) {
         console.log('📥 TRACE crisis multi-message mode:', result.messages.length, 'messages');
