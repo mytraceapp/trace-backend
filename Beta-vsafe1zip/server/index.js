@@ -6270,8 +6270,43 @@ Example: "I hear you. That sounds incredibly heavy. Are you somewhere safe right
 
 Your response (MUST include safety question AND 988):`;
         } else if (isCrisisMode) {
-          // Crisis mode but current message is a greeting/neutral
-          plainPrompt = `You are TRACE in CRISIS MODE. The user has recently expressed self-harm or suicidal thoughts.
+          // Crisis mode but current message is neutral - check context for safety question response
+          const lastAssistantL3 = rawMessages?.filter(m => m.role === 'assistant').pop()?.content || '';
+          const askedAboutSafety = /safe|somewhere safe|are you okay|are you alright/i.test(lastAssistantL3);
+          const userSaidNo = /^(no|not really|not safe|i('m| am) not|nope|nah)\.?$/i.test(lastUserContent.trim());
+          const userSaidYes = /^(yes|yeah|yep|i('m| am) (safe|okay|ok|fine)|i guess)\.?$/i.test(lastUserContent.trim());
+          
+          if (askedAboutSafety && userSaidNo) {
+            // CRITICAL: User is NOT safe - escalate immediately
+            console.log('[TRACE OPENAI L3] User NOT SAFE - escalating crisis response');
+            plainPrompt = `You are TRACE. The user just said they are NOT SAFE. This is URGENT.
+
+You asked "Are you somewhere safe?" and they said: "${lastUserContent}"
+
+Your response MUST:
+1. Stay calm and present (no panic)
+2. Acknowledge you hear them
+3. Encourage calling 988 or 911 immediately
+4. Offer to help call someone they trust
+
+Example: "Okay. I'm staying with you. If you can, please call 911 right now. Or if you'd rather, I can help you call someone you trust. You can also call or text 988 anytime."
+
+Your response (URGENT - they are NOT safe):`;
+          } else if (askedAboutSafety && userSaidYes) {
+            // User is safe - gentle check-in
+            console.log('[TRACE OPENAI L3] User said they ARE safe - gentle follow-up');
+            plainPrompt = `You are TRACE. The user just said they ARE safe. Stay present and supportive.
+
+You asked "Are you somewhere safe?" and they said: "${lastUserContent}"
+
+Acknowledge their response warmly, then gently ask who they can reach out to for support. Keep it human and caring.
+
+Example: "Okay. I'm glad you're safe. Do you have someone you can talk to tonight - a friend, family member, or anyone you trust?"
+
+Your response (gentle, supportive):`;
+          } else {
+            // Generic crisis follow-up (greetings, neutral messages)
+            plainPrompt = `You are TRACE in CRISIS MODE. The user has recently expressed self-harm or suicidal thoughts.
 
 CRITICAL RULES:
 - NEVER respond with casual greetings like "How's your day going?"
@@ -6282,6 +6317,7 @@ CRITICAL RULES:
 User said: "${lastUserContent}"
 
 Your response (stay present and warm, NOT casual):`;
+          }
         } else {
           plainPrompt = `You are TRACE, a calm and grounded companion. Respond naturally to what the user just said. Keep it warm and conversational, 1-2 sentences max.
 
