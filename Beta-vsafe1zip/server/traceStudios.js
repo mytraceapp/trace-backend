@@ -722,9 +722,11 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       };
     }
 
-    // Check for lyrics request - allow if: user mentions neon promise, OR is in context, OR is currently playing it, OR recently played it
-    if (looksLikeLyricsRequest(t) && (looksLikeNeonPromiseRequest(t) || inNeonContext || isPlayingNeonPromise || recentlyPlayedNeonPromise)) {
-      console.log('[TRACE STUDIOS] Lyrics request detected. inContext:', inNeonContext, 'isPlaying:', isPlayingNeonPromise, 'recentlyPlayed:', recentlyPlayedNeonPromise);
+    // Check for lyrics request - ALWAYS intercept since Neon Promise is OUR song (not copyrighted third-party content)
+    // This ensures OpenAI NEVER processes lyrics requests - they go straight to our stored lyrics
+    if (looksLikeLyricsRequest(t)) {
+      console.log('[TRACE STUDIOS] Lyrics request INTERCEPTED (bypassing OpenAI). User text:', t.substring(0, 50));
+      console.log('[TRACE STUDIOS] Context: inNeonContext:', inNeonContext, 'isPlaying:', isPlayingNeonPromise, 'recentlyPlayed:', recentlyPlayedNeonPromise);
       const track = TRACKS.neon_promise;
       if (!track?.lyrics) {
         return {
