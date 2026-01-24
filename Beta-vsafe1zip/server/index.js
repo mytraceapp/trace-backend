@@ -7022,14 +7022,19 @@ Your response:`;
     
     // ===== RESPONSE TIGHTENING =====
     // Ensure concise TRACE voice with time-of-day aware sentence limits
-    // EXCEPTION: Skip tightening for lyrics requests - they need the full text
+    // EXCEPTION: Skip ALL processing for crisis mode - crisis responses have absolute priority
+    // Also skip for lyrics requests which need the full text
     const lastUserMsgLower = (messages.filter(m => m.role === 'user').pop()?.content || '').toLowerCase();
     const isLyricsRequest = /lyrics|words to|the words|show me the/.test(lastUserMsgLower) || 
                             processedAssistantText.includes('Verse') || 
                             processedAssistantText.includes('[Verse');
     
     let tightenedText;
-    if (isLyricsRequest) {
+    if (isCrisisMode) {
+      // CRISIS MODE: Skip ALL tone/persona processing - preserve the crisis response exactly
+      tightenedText = processedAssistantText;
+      console.log('[TRACE BRAIN] CRISIS MODE - skipping ALL tone/persona processing');
+    } else if (isLyricsRequest) {
       tightenedText = processedAssistantText;
       console.log('[TRACE BRAIN] Skipping tighten - lyrics request detected');
     } else {
@@ -7042,13 +7047,12 @@ Your response:`;
       if (tightenedText !== processedAssistantText) {
         console.log('[TRACE BRAIN] Response tightened (mode:', brevityMode, 'maxSentences:', todRules.maxSentences, ')');
       }
+      
+      // ===== TONE SANITIZER =====
+      // Server-side cleanup of any therapy-speak that slips through
+      // Only run for NON-crisis mode - crisis responses are preserved exactly
+      tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode: false });
     }
-    
-    // ===== TONE SANITIZER =====
-    // Server-side cleanup of any therapy-speak that slips through
-    // Pass userId for "honestly/real talk" cooldown enforcement
-    // Pass isCrisisMode to skip "That's rough" replacements during crisis
-    tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode });
     
     // ===== CRISIS 988 GUARDRAIL =====
     // Ensure 988 is always mentioned in responses to active suicidal statements
@@ -7067,15 +7071,15 @@ Your response:`;
     }
     
     // ===== ARTIST CANON GUARDRAILS =====
-    // Guardrail A: Ensure canonical credit line for naming/credits questions
+    // Skip during crisis mode - crisis has absolute priority
     const lastUserMsgForGuardrail = messages.filter(m => m.role === 'user').pop()?.content || '';
-    if (isArtistNamingQuestion(lastUserMsgForGuardrail)) {
+    if (!isCrisisMode && isArtistNamingQuestion(lastUserMsgForGuardrail)) {
       tightenedText = ensureCanonicalCreditLineOnce(tightenedText);
       console.log('[ARTIST CANON] Added canonical credit line for naming question');
     }
     
-    // Guardrail B: Boundary line for real-world stats questions
-    if (isRealWorldStatsClaimQuestion(lastUserMsgForGuardrail)) {
+    // Guardrail B: Boundary line for real-world stats questions (skip during crisis)
+    if (!isCrisisMode && isRealWorldStatsClaimQuestion(lastUserMsgForGuardrail)) {
       const boundary = realWorldStatsBoundaryLine();
       if (!tightenedText.includes(boundary)) {
         tightenedText = `${boundary}\n\n${tightenedText}`.trim();
@@ -7085,14 +7089,19 @@ Your response:`;
     
     // ===== CURIOSITY HOOKS (Pillar 8) =====
     // Non-manipulative, deterministic hooks for meaning-seeking users
-    const hookResult = maybeAddCuriosityHook({
-      userId: effectiveUserId,
-      clientState: safeClientState,
-      signals: brainSignals,
-      rules: todRules
-    });
-    const curiosityHook = hookResult?.curiosity_hook || null;
-    const hookStatePatch = hookResult?.client_state_patch || null;
+    // Skip during crisis mode - crisis has absolute priority
+    let curiosityHook = null;
+    let hookStatePatch = null;
+    if (!isCrisisMode) {
+      const hookResult = maybeAddCuriosityHook({
+        userId: effectiveUserId,
+        clientState: safeClientState,
+        signals: brainSignals,
+        rules: todRules
+      });
+      curiosityHook = hookResult?.curiosity_hook || null;
+      hookStatePatch = hookResult?.client_state_patch || null;
+    }
     
     // Build response - include messages array if crisis mode
     const response = {
