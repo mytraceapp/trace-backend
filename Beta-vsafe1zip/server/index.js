@@ -6712,8 +6712,10 @@ Your response:`;
       'angry': { activity: 'walking', reason: 'anger needs physical release' },
     };
     
-    // Only auto-suggest if model didn't provide an activity AND we detected a mappable state
-    if (!activitySuggestion.name && detected_state && emotionalStateActivityMap[detected_state]) {
+    // Only auto-suggest if:
+    // 1. Model didn't provide an activity AND we detected a mappable state
+    // 2. NOT in crisis mode (stay present, don't suggest activities)
+    if (!activitySuggestion.name && detected_state && emotionalStateActivityMap[detected_state] && !isCrisisMode) {
       const suggestion = emotionalStateActivityMap[detected_state];
       console.log(`[EMOTIONAL AUTO-SUGGEST] State "${detected_state}" → activity "${suggestion.activity}"`);
       
@@ -6724,6 +6726,8 @@ Your response:`;
         should_navigate: false,
         auto_suggested: true // Flag so frontend knows this was server-injected
       };
+    } else if (isCrisisMode && detected_state && emotionalStateActivityMap[detected_state]) {
+      console.log(`[EMOTIONAL AUTO-SUGGEST] BLOCKED in crisis mode - staying present with user`);
     }
     
     // Ensure dreamscapeTrackId is properly set for Dreamscape activities
@@ -7208,6 +7212,13 @@ Your response:`;
       });
       curiosityHook = hookResult?.curiosity_hook || null;
       hookStatePatch = hookResult?.client_state_patch || null;
+    }
+    
+    // CRISIS MODE: Block ALL activity navigation - TRACE stays fully present
+    // User should not be directed away from the conversation during crisis
+    if (isCrisisMode && activitySuggestion.name) {
+      console.log(`[CRISIS] BLOCKING activity suggestion "${activitySuggestion.name}" - staying present with user`);
+      activitySuggestion = { name: null, reason: null, should_navigate: false };
     }
     
     // Build response - include messages array if crisis mode
