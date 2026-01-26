@@ -5092,6 +5092,76 @@ app.post('/api/chat', async (req, res) => {
     console.log(`[CRISIS CHECK] userId: ${effectiveUserId?.slice(0,8)}, currentMsgDistressed: ${isCurrentMessageDistressed}, historyDistressed: ${isHistoryDistressed}, clientFlag: ${clientCrisisMode}, isCrisisMode: ${isCrisisMode}`);
 
     // ============================================================
+    // CRISIS CALL COMMAND DETECTION (MAIN CHAT)
+    // If user is in crisis and says "call X", trigger dial immediately
+    // ============================================================
+    if (isCrisisMode) {
+      const userTextLower = userText.toLowerCase().trim();
+      const userTextUpper = userText.toUpperCase().trim();
+      
+      // Detect call commands: "call 988", "call my mom", "ok call my mom", "yes call her", etc.
+      const callPatterns = [
+        /^(?:ok(?:ay)?[,.]?\s*)?call\s+988$/i,
+        /^(?:ok(?:ay)?[,.]?\s*)?call\s+911$/i,
+        /^(?:ok(?:ay)?[,.]?\s*)?call\s+(?:my\s+)?(\w+(?:\s+\w+)?)$/i,
+        /^(?:yes[,.]?\s*)?call\s+(?:my\s+)?(\w+(?:\s+\w+)?)$/i,
+        /^dial\s+988$/i,
+        /^dial\s+911$/i,
+      ];
+      
+      let callMatch = null;
+      let contactName = null;
+      
+      // Check for 988
+      if (/^(?:ok(?:ay)?[,.]?\s*)?(?:call|dial)\s+988$/i.test(userTextLower)) {
+        callMatch = '988';
+        console.log('[CRISIS CALL] Detected CALL 988 command in main chat');
+      }
+      // Check for 911
+      else if (/^(?:ok(?:ay)?[,.]?\s*)?(?:call|dial)\s+911$/i.test(userTextLower)) {
+        callMatch = '911';
+        console.log('[CRISIS CALL] Detected CALL 911 command in main chat');
+      }
+      // Check for contact name: "call my mom", "ok call sarah", "yes call her"
+      else {
+        const contactMatch = userTextLower.match(/^(?:ok(?:ay)?[,.]?\s*|yes[,.]?\s*)?call\s+(?:my\s+)?(.+)$/i);
+        if (contactMatch) {
+          contactName = contactMatch[1].trim();
+          // Filter out non-name words
+          if (contactName && !['me', 'now', 'back', 'later', 'someone', 'anyone', 'them'].includes(contactName)) {
+            callMatch = 'contact';
+            console.log('[CRISIS CALL] Detected CALL contact command:', contactName);
+          }
+        }
+      }
+      
+      if (callMatch) {
+        if (callMatch === '988') {
+          return res.json({
+            message: "Okay. I'm pulling it up now.\n\nI'll be right here when you're done.",
+            crisis_resources: { triggered: true, dial: '988' },
+            isCrisisMode: true,
+            activity_suggestion: { name: null, reason: null, should_navigate: false }
+          });
+        } else if (callMatch === '911') {
+          return res.json({
+            message: "Okay. I'm pulling it up now.\n\nI'm staying with you.",
+            crisis_resources: { triggered: true, dial: '911' },
+            isCrisisMode: true,
+            activity_suggestion: { name: null, reason: null, should_navigate: false }
+          });
+        } else if (callMatch === 'contact' && contactName) {
+          return res.json({
+            message: `Okay. I'm pulling up ${contactName} now.\n\nI'll be right here.`,
+            crisis_resources: { triggered: true, dial_contact: contactName },
+            isCrisisMode: true,
+            activity_suggestion: { name: null, reason: null, should_navigate: false }
+          });
+        }
+      }
+    }
+
+    // ============================================================
     // HARM-TO-OTHERS (HTO) SAFETY OVERRIDE
     // Priority #2 (after self-harm crisis) - bypasses ALL other systems
     // ============================================================
