@@ -236,15 +236,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     
     console.log(`[AUDIO] State change: ${currentStateRef.current} → ${payload.current} (${payload.reason || 'no reason'})`);
     
-    // PRESENCE = stop soundscape, return to global ambient
-    if (payload.current === 'presence') {
-      await stopSoundscape();
-      return;
-    }
-    
-    // Any other state = play that soundscape
+    // All 5 states are soundscapes (including presence for calm/happy/chill)
     await playState(payload.current, DEFAULT_FADE_MS);
-  }, [playState, stopSoundscape]);
+  }, [playState]);
 
   const pauseForActivity = useCallback(async () => {
     if (!soundRef.current) return;
