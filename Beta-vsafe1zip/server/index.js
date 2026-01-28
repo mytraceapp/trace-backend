@@ -7424,10 +7424,12 @@ Your response:`;
       response.premium_moment = true;
     }
     
-    // Add sound_state from Emotional Atmosphere Engine
-    if (atmosphereResult?.sound_state) {
-      response.sound_state = atmosphereResult.sound_state;
-    }
+    // Add sound_state from Emotional Atmosphere Engine (ALWAYS present per contract)
+    response.sound_state = atmosphereResult?.sound_state || {
+      current: 'presence',
+      changed: false,
+      reason: 'default'
+    };
     
     // Add Next Best Question to response (for frontend display if desired)
     if (nextQuestionResult.intent && nextQuestionResult.question) {
