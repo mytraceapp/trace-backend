@@ -109,6 +109,7 @@ const {
 } = require('./patternConsent');
 const { buildEmotionalIntelligenceContext } = require('./emotionalIntelligence');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
+const { evaluateAtmosphere } = require('./atmosphereEngine');
 const {
   detectEmotionalState,
   isUserAgreeing,
@@ -7375,6 +7376,30 @@ Your response:`;
       activitySuggestion = { name: null, reason: null, should_navigate: false };
     }
     
+    // ============================================================
+    // EMOTIONAL ATMOSPHERE ENGINE
+    // Evaluates if the app's sound environment should shift
+    // ============================================================
+    let atmosphereResult = null;
+    try {
+      const recentUserMessages = messages
+        .filter(m => m.role === 'user')
+        .slice(-3)
+        .map(m => m.content);
+      
+      atmosphereResult = evaluateAtmosphere({
+        userId: effectiveUserId,
+        current_message: userText,
+        recent_messages: recentUserMessages.slice(0, -1) // Exclude current, take last 2
+      });
+      
+      if (atmosphereResult?.sound_state?.changed) {
+        console.log(`[ATMOSPHERE] State changed to: ${atmosphereResult.sound_state.current}`);
+      }
+    } catch (err) {
+      console.error('[ATMOSPHERE] Evaluation failed:', err.message);
+    }
+    
     // Build response - include messages array if crisis mode
     const response = {
       message: tightenedText, // Tightened message with optional disclaimer
@@ -7397,6 +7422,11 @@ Your response:`;
     // Add premium moment flag if fired
     if (premiumMomentResult.fired) {
       response.premium_moment = true;
+    }
+    
+    // Add sound_state from Emotional Atmosphere Engine
+    if (atmosphereResult?.sound_state) {
+      response.sound_state = atmosphereResult.sound_state;
     }
     
     // Add Next Best Question to response (for frontend display if desired)
