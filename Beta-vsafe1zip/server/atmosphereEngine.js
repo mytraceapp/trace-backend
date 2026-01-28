@@ -27,6 +27,13 @@ const SIGNAL_TABLES = {
   insight: [
     "I understand now", "that makes sense", "I realize", "I see",
     "that helped", "I feel better", "relief", "I'm okay now"
+  ],
+  // PRESENCE signals - actively detected calm/positive states
+  presence: [
+    "I'm good", "I'm okay", "I'm fine", "feeling good", "feeling better",
+    "I'm calm", "I'm relaxed", "at peace", "content", "happy",
+    "doing well", "pretty good", "not bad", "all good", "I'm great",
+    "feeling chill", "good day", "nice day", "just chilling", "just hanging"
   ]
 };
 
@@ -34,12 +41,13 @@ const EXTREME_SPIKE_TRIGGERS = [
   "panic attack", "I can't breathe", "losing control"
 ];
 
+// Priority order: grounding (urgent) > insight > comfort > reflective > presence (calm)
 const STATE_PRIORITY = ['grounding', 'insight', 'comfort', 'reflective', 'presence'];
 
 const ALLOWED_TRANSITIONS = {
   presence: ['grounding', 'comfort', 'reflective', 'insight', 'presence'],
-  grounding: ['comfort', 'presence'],
-  comfort: ['reflective', 'insight', 'comfort'],
+  grounding: ['comfort', 'presence'],  // Can exit grounding to presence when calm
+  comfort: ['reflective', 'insight', 'comfort', 'presence'],  // Added presence
   reflective: ['insight', 'presence', 'reflective'],
   insight: ['presence', 'insight']
 };
@@ -89,7 +97,8 @@ function scoreSignals(currentMessage, recentMessages = []) {
     grounding: 0,
     comfort: 0,
     reflective: 0,
-    insight: 0
+    insight: 0,
+    presence: 0  // Actively detected calm/positive state
   };
   
   const textLower = currentMessage.toLowerCase();
