@@ -29,11 +29,16 @@ const SIGNAL_TABLES = {
     "that helped", "I feel better", "relief", "I'm okay now"
   ],
   // PRESENCE signals - actively detected calm/positive states
+  // Includes single keywords AND phrases for robust detection
   presence: [
+    // Single keywords (catch sentiment detection)
+    "calm", "relaxed", "peaceful", "content", "happy", "chill", "great", "good",
+    // Full phrases (more confident matches)
     "I'm good", "I'm okay", "I'm fine", "feeling good", "feeling better",
-    "I'm calm", "I'm relaxed", "at peace", "content", "happy",
+    "I'm calm", "I'm relaxed", "at peace", "I'm content", "I'm happy",
     "doing well", "pretty good", "not bad", "all good", "I'm great",
-    "feeling chill", "good day", "nice day", "just chilling", "just hanging"
+    "feeling chill", "good day", "nice day", "just chilling", "just hanging",
+    "things are good", "life is good", "feeling at ease", "I'm at peace"
   ]
 };
 
@@ -274,20 +279,31 @@ function evaluateAtmosphere(input) {
   
   if (current_state === 'grounding') {
     const groundingScore = scores.grounding || 0;
+    const presenceScore = scores.presence || 0;
     
-    if (groundingScore < 2.0) {
-      newGroundingClearStreak++;
+    // ACTIVE PRESENCE DETECTION: If user actively signals calm, exit grounding immediately
+    // (e.g., "I'm calm now", "feeling better", "I'm good")
+    if (presenceScore >= 1.0 && groundingScore < 1.0) {
+      candidate_state = 'presence';
+      reason = 'active_presence_detected_in_grounding';
+      console.log('[ATMOSPHERE] Exiting grounding - active presence signal detected');
+      newGroundingClearStreak = GROUNDING_CLEAR_THRESHOLD; // Mark as cleared
     } else {
-      newGroundingClearStreak = 0;
-    }
-    
-    // Check if we can exit grounding
-    if (newGroundingClearStreak >= GROUNDING_CLEAR_THRESHOLD) {
-      const dwellSatisfied = (now - last_change_timestamp) >= DWELL_TIME_MS;
-      if (dwellSatisfied) {
-        candidate_state = 'presence';
-        reason = 'grounding_clear_streak_exit';
-        console.log('[ATMOSPHERE] Exiting grounding - clear streak satisfied');
+      // Passive clear: no grounding signals
+      if (groundingScore < 2.0) {
+        newGroundingClearStreak++;
+      } else {
+        newGroundingClearStreak = 0;
+      }
+      
+      // Check if we can exit grounding via passive clear
+      if (newGroundingClearStreak >= GROUNDING_CLEAR_THRESHOLD) {
+        const dwellSatisfied = (now - last_change_timestamp) >= DWELL_TIME_MS;
+        if (dwellSatisfied) {
+          candidate_state = 'presence';
+          reason = 'grounding_clear_streak_exit';
+          console.log('[ATMOSPHERE] Exiting grounding - clear streak satisfied');
+        }
       }
     }
   }

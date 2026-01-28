@@ -1,0 +1,82 @@
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-01-28T22:29:56.115Z"}
+ LOG  [TRACE MIRROR] Session turn count: 1
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 1
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  MESSAGES_LEN_AFTER: 14 deduped from: 14
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [AudioContext.playState] ▶️ Ambient fade complete, now playing soundscape: grounding
+ LOG  [AudioContext.playState] 🎵 No current track, fading in grounding
+ LOG  [AudioContext.playState] ✅ Fade-in complete for grounding at volume 0.34
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE BRAIN] Detected sentiment: calm
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE Chat] Profile check: {"hasLat": true, "hasLon": true, "hasProfile": true, "lat": 40.7128, "lon": -74.006, "weatherEnabled": true}
+ LOG  [TRACE Chat] 🌤️ Fetching weather context for location: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] Calling getWeather with: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] 🌤️ Weather API response received: {
+  "summary": "Pretty cold — currently 22°F (feels like 13°F), nighttime. Mostly cloudy",
+  "current": {
+    "temperature": 22,
+    "feelsLike": 13,
+    "wind": 8,
+    "weatherText": "Mostly cloudy",
+    "humidity": 40,
+    "uvIndex": 0,
+    "cloudCover": 78,
+    "isDayTime": false
+  }
+}
+ LOG  [TRACE Chat] 🌤️ Weather context SUCCESSFULLY prepared: {
+  "summary": "Pretty cold — currently 22°F (feels like 13°F), nighttime. Mostly cloudy"
+}
+ LOG  [TRACE Chat] Backend URL: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev
+ LOG  [TRACE Chat] Sending to: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 22°F (feels like 13°F), nighttime. Mostly cloudy", "temperature": undefined, "windSpeed": undefined}
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1769639428464-turz2o","message":"Nice! What's been good today?","activity_suggestion":{"name":null,"should_navigate":false},"posture":"STEADY","detected_state":"neutral","posture_confidence":0.6,"sound_state":{"current":"grounding","changed":false,"reason":"no_change"},"next_question":{"intent":"clarify","question":"Can you tell me more about that?"},"client_state_patch":{"sessionStartedAt":1769639429703,"lastUserAt":1769639429703,"sessionTurnCount":1,"lastGuidedStepTurn":0,"recentTopics":[],"activeLoops":[],"recentWins":[],"recentPhrases":[],"doorwayState":{"doors":{"currentDoorId":null,"lastDoorId":null,"activatedAtTurn":null,"turnsSinceActivation":1},"crisis":{"active":false,"triggeredAt":null,"lastSeenAt":null,"cleanTurns":1},"lastMessageAt":"2026-01-28T22:30:29.703Z"},"lastAssistantHash":"878c3e75d6f395aa21b2fb28152989e97879f700ef5a8e32aff093431952c74a","lastAssistantText":"Nice! What's been good today?","lastQuestionIntent":"clarify"},"isCrisisMode":false,"messages":["Nice! What's been good today?"],"deduped":false}
+ LOG  [TRACE Chat] Processed messages array: ["Nice! What's been good today?"]
+ LOG  [TRACE Chat] Processing sound_state from backend: {"changed": false, "current": "grounding", "reason": "no_change"}
+ LOG  [useSoundStateIntegration] No mood change detected, staying on global ambient: grounding
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-01-28T22:30:29.703Z"}, "lastAssistantHash": "878c3e75d6f395aa21b2fb28152989e97879f700ef5a8e32aff093431952c74a", "lastAssistantText": "Nice! What's been good today?", "lastGuidedStepTurn": 0, "lastQuestionIntent": "clarify", "lastUserAt": 1769639429703, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1769639429703, "sessionTurnCount": 1}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-01-28T22:30:29.703Z"}
+ LOG  [TRACE MIRROR] Session turn count: 2
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 2
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  MESSAGES_LEN_AFTER: 16 deduped from: 16
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+
