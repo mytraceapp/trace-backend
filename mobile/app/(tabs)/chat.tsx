@@ -25,6 +25,7 @@ import { Spacing } from '../../constants/spacing';
 import { BodyText, FontFamily } from '../../constants/typography';
 import { useFonts } from 'expo-font';
 import { playAmbient, stopAmbient } from '../../lib/ambientAudio';
+import { handleSoundStateChange, initSoundscape, setSoundscapeEnabled } from '../../lib/soundscapeEngine';
 import { sendChatMessage, fetchWelcomeGreeting, PatternContext, WeatherContext } from '../../lib/chat';
 import { getWeather } from '../../lib/weather';
 import { getStableId } from '../../lib/stableId';
@@ -1695,6 +1696,13 @@ export default function ChatScreen() {
           type: brainSuggestion.type,
           shown_ts: Date.now(),
         };
+      }
+
+      // ===== EMOTIONAL ATMOSPHERE ENGINE: Handle sound_state changes =====
+      if (result?.sound_state) {
+        handleSoundStateChange(result.sound_state).catch((err) => {
+          console.error('[SOUNDSCAPE] Error handling state change:', err);
+        });
       }
 
       const suggestion = result?.activity_suggestion;
