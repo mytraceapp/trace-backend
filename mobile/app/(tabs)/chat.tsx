@@ -142,6 +142,9 @@ const ACTIVITY_ROUTES: Record<string, string> = {
   'Ripple': '/activities/ripple',
   'Basin': '/activities/basin',
   'Dreamscape': '/activities/dreamscape',
+  // Journal - navigate to Entries tab
+  'journal': '/(tabs)/journal',
+  'Journal': '/(tabs)/journal',
   // Spotify playlists handled separately via openSpotifyPlaylist
   'ground_playlist': 'spotify:ground',
   'drift_playlist': 'spotify:drift',
