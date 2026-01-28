@@ -168,6 +168,25 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         volume: 0,
       });
       
+      // Set up playback status listener for track completion fallback
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded) {
+          // If track finished (backup for looping failure)
+          if (status.didJustFinish && !status.isLooping) {
+            console.log('[AUDIO] Track finished, playing next...');
+            const nextState = currentStateRef.current;
+            if (nextState) {
+              playState(nextState, 800);
+            }
+          }
+          // If playback stopped unexpectedly
+          if (!status.isPlaying && !status.didJustFinish && isPlaying && !pausedByRef.current) {
+            console.warn('[AUDIO] Playback stopped unexpectedly, resuming...');
+            sound.playAsync().catch(console.error);
+          }
+        }
+      });
+      
       soundRef.current = sound;
       currentStateRef.current = state;
       setCurrentState(state);
