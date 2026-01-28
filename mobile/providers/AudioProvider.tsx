@@ -18,7 +18,8 @@ interface AudioContextType {
   pauseForOriginals: () => Promise<void>;
   resumeFromOriginals: () => Promise<void>;
   stopAll: () => Promise<void>;
-  currentState: SoundState;
+  stopSoundscape: () => Promise<void>;
+  currentState: SoundState | null;  // null = no soundscape playing (global ambient mode)
   isPlaying: boolean;
 }
 
@@ -38,7 +39,7 @@ const DEFAULT_FADE_MS = 1200;
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const soundRef = useRef<Audio.Sound | null>(null);
-  const currentStateRef = useRef<SoundState>('presence');
+  const currentStateRef = useRef<SoundState | null>(null);  // null = global ambient mode
   const playedTracksRef = useRef<Record<SoundState, number[]>>({
     presence: [],
     grounding: [],
@@ -48,7 +49,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   });
   const pausedByRef = useRef<'activity' | 'originals' | null>(null);
   const wasPlayingRef = useRef(false);
-  const [currentState, setCurrentState] = useState<SoundState>('presence');
+  const [currentState, setCurrentState] = useState<SoundState | null>(null);  // null = global ambient mode
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
@@ -202,6 +203,30 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [getNextTrack, loadTrackSource, fadeVolume]);
 
+  // Stop soundscape and return to global ambient
+  const stopSoundscape = useCallback(async () => {
+    if (!soundRef.current) {
+      console.log('[AUDIO] No soundscape playing to stop');
+      return;
+    }
+    
+    try {
+      console.log('[AUDIO] Stopping soundscape, returning to global ambient');
+      await fadeVolume(soundRef.current, DEFAULT_VOLUME, 0, DEFAULT_FADE_MS);
+      await soundRef.current.stopAsync();
+      await soundRef.current.unloadAsync();
+      soundRef.current = null;
+      currentStateRef.current = null;
+      setCurrentState(null);
+      setIsPlaying(false);
+      
+      // TODO: Signal global ambient to resume (handled by separate audio system)
+      console.log('[AUDIO] Soundscape stopped - global ambient should resume');
+    } catch (error) {
+      console.error('[AUDIO] stopSoundscape error:', error);
+    }
+  }, [fadeVolume]);
+
   const handleSoundState = useCallback(async (payload: SoundStatePayload) => {
     if (!payload.changed) return;
     if (pausedByRef.current) {
@@ -210,8 +235,16 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
     
     console.log(`[AUDIO] State change: ${currentStateRef.current} → ${payload.current} (${payload.reason || 'no reason'})`);
+    
+    // PRESENCE = stop soundscape, return to global ambient
+    if (payload.current === 'presence') {
+      await stopSoundscape();
+      return;
+    }
+    
+    // Any other state = play that soundscape
     await playState(payload.current, DEFAULT_FADE_MS);
-  }, [playState]);
+  }, [playState, stopSoundscape]);
 
   const pauseForActivity = useCallback(async () => {
     if (!soundRef.current) return;
@@ -300,6 +333,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         pauseForOriginals,
         resumeFromOriginals,
         stopAll,
+        stopSoundscape,
         currentState,
         isPlaying,
       }}
