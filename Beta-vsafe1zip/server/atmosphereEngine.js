@@ -119,8 +119,8 @@ function scoreSignals(currentMessage, recentMessages = []) {
 }
 
 function getConfidenceLevel(score) {
-  if (score >= 3.0) return 'high';
-  if (score >= 2.0) return 'medium';
+  if (score >= 2.0) return 'high';
+  if (score >= 1.0) return 'medium';  // Single keyword now triggers medium
   return 'low';
 }
 
@@ -196,6 +196,8 @@ function evaluateAtmosphere(input) {
   const maxScore = Math.max(...Object.values(scores));
   const maxConfidence = getConfidenceLevel(maxScore);
   
+  console.log(`[ATMOSPHERE] Scoring: message="${current_message.slice(0,30)}..." scores=${JSON.stringify(scores)} max=${maxScore} conf=${maxConfidence} current=${current_state}`);
+  
   // Update neutral streak and signal timestamp
   let newNeutralStreak = neutral_message_streak;
   let newSignalTimestamp = last_signal_timestamp;
@@ -227,9 +229,9 @@ function evaluateAtmosphere(input) {
   // ============================================================
   
   if (!candidate_state && maxConfidence !== 'low') {
-    // Find all states with high confidence, pick by priority
+    // Find all states with medium or high confidence, pick by priority
     const highConfidenceStates = Object.entries(scores)
-      .filter(([_, score]) => score >= 2.0)
+      .filter(([_, score]) => score >= 1.0)  // Single keyword now sufficient
       .map(([state, _]) => state);
     
     if (highConfidenceStates.length > 0) {
