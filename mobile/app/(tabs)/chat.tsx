@@ -25,7 +25,7 @@ import { Spacing } from '../../constants/spacing';
 import { BodyText, FontFamily } from '../../constants/typography';
 import { useFonts } from 'expo-font';
 import { playAmbient, stopAmbient } from '../../lib/ambientAudio';
-import { handleSoundStateChange, initSoundscape, setSoundscapeEnabled } from '../../lib/soundscapeEngine';
+import { useAudio } from '../../providers/AudioProvider';
 import { sendChatMessage, fetchWelcomeGreeting, PatternContext, WeatherContext } from '../../lib/chat';
 import { getWeather } from '../../lib/weather';
 import { getStableId } from '../../lib/stableId';
@@ -497,6 +497,7 @@ export default function ChatScreen() {
   const theme = colorScheme === 'dark' ? Colors.night : Colors.day;
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
+  const { handleSoundState } = useAudio();
   const params = useLocalSearchParams<{ 
     completedActivity?: string; 
     activityDuration?: string; 
@@ -1700,9 +1701,7 @@ export default function ChatScreen() {
 
       // ===== EMOTIONAL ATMOSPHERE ENGINE: Handle sound_state changes =====
       if (result?.sound_state) {
-        handleSoundStateChange(result.sound_state).catch((err) => {
-          console.error('[SOUNDSCAPE] Error handling state change:', err);
-        });
+        handleSoundState(result.sound_state);
       }
 
       const suggestion = result?.activity_suggestion;

@@ -6,6 +6,7 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { StyleSheet, useColorScheme } from 'react-native';
 import { Colors } from '../constants/theme';
 import { initAudioMode } from '../lib/ambientAudio';
+import { AudioProvider } from '../providers/AudioProvider';
 import { ensureAuthSession, upsertUserProfile } from '../lib/supabase';
 
 export default function RootLayout() {
@@ -35,32 +36,34 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <StatusBar style={theme === 'night' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.background },
-            animation: 'fade',
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen 
-            name="activities/ripple" 
-            options={{ 
+        <AudioProvider>
+          <StatusBar style={theme === 'night' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
+          <Stack
+            screenOptions={{
               headerShown: false,
-              presentation: 'containedTransparentModal',
+              contentStyle: { backgroundColor: colors.background },
               animation: 'fade',
-            }} 
-          />
-          <Stack.Screen 
-            name="activities/breathing" 
-            options={{ 
-              headerShown: false,
-              presentation: 'containedTransparentModal',
-              animation: 'fade',
-            }} 
-          />
-        </Stack>
+            }}
+          >
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen 
+              name="activities/ripple" 
+              options={{ 
+                headerShown: false,
+                presentation: 'containedTransparentModal',
+                animation: 'fade',
+              }} 
+            />
+            <Stack.Screen 
+              name="activities/breathing" 
+              options={{ 
+                headerShown: false,
+                presentation: 'containedTransparentModal',
+                animation: 'fade',
+              }} 
+            />
+          </Stack>
+        </AudioProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
