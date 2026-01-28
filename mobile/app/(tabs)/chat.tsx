@@ -1701,6 +1701,7 @@ export default function ChatScreen() {
 
       // ===== EMOTIONAL ATMOSPHERE ENGINE: Handle sound_state changes =====
       if (result?.sound_state) {
+        console.log('[CHAT] sound_state received:', JSON.stringify(result.sound_state));
         handleSoundState(result.sound_state);
       }
 

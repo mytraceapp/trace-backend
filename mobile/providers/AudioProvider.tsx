@@ -59,6 +59,35 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const initializeRef = useRef(false);
+  
+  useEffect(() => {
+    if (initializeRef.current) return;
+    initializeRef.current = true;
+    
+    const initSoundscape = async () => {
+      console.log('[AUDIO] Initializing with presence state...');
+      try {
+        const trackNum = Math.floor(Math.random() * TRACKS_PER_FOLDER) + 1;
+        const source = require('../assets/soundscapes/Neutral_Presence/Neutral_track_1.m4a');
+        
+        const { sound } = await Audio.Sound.createAsync(source, {
+          isLooping: true,
+          volume: DEFAULT_VOLUME,
+        });
+        
+        soundRef.current = sound;
+        await sound.playAsync();
+        setIsPlaying(true);
+        console.log('[AUDIO] Initialized - playing presence');
+      } catch (error) {
+        console.error('[AUDIO] Init failed:', error);
+      }
+    };
+    
+    setTimeout(initSoundscape, 1500);
+  }, []);
+
   const getNextTrack = useCallback((state: SoundState): number => {
     const played = playedTracksRef.current[state];
     const allTracks = Array.from({ length: TRACKS_PER_FOLDER }, (_, i) => i + 1);
