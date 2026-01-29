@@ -318,9 +318,9 @@ function enforceBrevity(text, mode = 'strict') {
   if (!text) return text;
   
   const limits = {
-    strict: { chars: 450, sentences: 3, bullets: 0 },
-    deep: { chars: 800, sentences: 5, bullets: 3 },
-    crisis: { chars: 300, sentences: 3, bullets: 2 },
+    strict: { chars: 220, sentences: 2, bullets: 0 },
+    deep: { chars: 400, sentences: 3, bullets: 2 },
+    crisis: { chars: 180, sentences: 2, bullets: 2 },
   };
   
   const limit = limits[mode] || limits.strict;
@@ -663,11 +663,11 @@ function applyTimeOfDayRules(clientState, signals) {
   }
   
   const maxSentences = {
-    'morning': 5,
-    'day': 5,
-    'evening': 4,
-    'late_night': 3
-  }[tone] || 5;
+    'morning': 3,
+    'day': 3,
+    'evening': 2,
+    'late_night': 2
+  }[tone] || 3;
   
   const emotionalContext = ['sad', 'lonely', 'reflective', 'calm'].includes(recentSentiment) || signals.reflectiveTone;
   const isPlayingMusic = mode === 'audio_player' || nowPlaying != null;

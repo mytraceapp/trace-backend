@@ -3520,6 +3520,10 @@ function pickOnboardingIntroVariant(userId, name) {
 // Anti-spiral closing: gentle grounding cue for emotional/reflective content
 
 function shouldAddReturnToLife(userText = "", assistantText = "") {
+  // DISABLED: Return-to-life cues were making responses too long
+  // The AI already asks questions naturally; adding more was redundant
+  return false;
+  
   const t = (userText + " " + assistantText).toLowerCase();
 
   // Don't add to safety redirects (crisis, violence, sexual content)
