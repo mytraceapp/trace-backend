@@ -1,0 +1,26 @@
+ LOG  [useSoundStateIntegration] 📊 Soundscape status: {"currentState": "presence", "isEmotionalSoundscape": false, "newState": "comfort", "trackExists": false, "trackPlaying": false}
+ LOG  [useSoundStateIntegration] 🎵 INITIALIZING soundscape: {"newState": "comfort", "reason": "no_change"}
+ LOG  [AudioContext.updateSoundState] 📍 State change: presence → comfort
+ LOG  [AudioContext.updateSoundState] 🔄 Sound active - queuing state change to comfort (waiting for current track to finish)
+ LOG  [useSoundStateIntegration] ✅ Soundscape activated successfully
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-01-29T07:56:02.876Z"}, "lastAssistantHash": "1acfb7b0eef2353231de9d3cabf60e3ceb2421292185a80e58c83b57059d938e", "lastAssistantText": "I've stopped the music.", "lastGuidedStepTurn": 0, "lastQuestionIntent": "clarify", "lastUserAt": 1769673362876, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1769673362876, "sessionTurnCount": 1}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-01-29T07:56:02.876Z"}
+ LOG  [TRACE MIRROR] Session turn count: 4
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 4
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  MESSAGES_LEN_AFTER: 20 deduped from: 20
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+

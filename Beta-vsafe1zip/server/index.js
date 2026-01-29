@@ -3790,7 +3790,10 @@ app.post('/api/chat', async (req, res) => {
       console.log('[CRISIS] Early crisis detection - bypassing TRACE Studios interception (history check:', historyDistress, ')');
     }
     
-    // 🎵 AUDIO CONTROL: Detect if user is asking to stop or resume music (early detection)
+    // 🎵 AUDIO CONTROL: DISABLED FOR NOW - needs debugging
+    // Feature was having issues with different code paths intercepting requests
+    // TODO: Re-enable when properly debugged
+    /*
     const userMessage = rawMessages?.length > 0 ? rawMessages[rawMessages.length - 1].content : '';
     const userMessageLower = (userMessage || '').toLowerCase();
     const stopsMusic = /stop.*music|pause.*music|turn off.*music|mute.*music|no music|stop the music|pause the music/i.test(userMessageLower);
@@ -3798,7 +3801,6 @@ app.post('/api/chat', async (req, res) => {
     
     console.log(`[AUDIO CONTROL] stopsMusic: ${stopsMusic}, resumesMusic: ${resumesMusic}`);
     
-    // 🎵 If audio control detected, return IMMEDIATELY (bypass all other flows)
     let earlyAudioAction = null;
     if (stopsMusic) {
       earlyAudioAction = {
@@ -3835,6 +3837,7 @@ app.post('/api/chat', async (req, res) => {
         sound_state: { current: 'presence', changed: true, reason: 'user_resumed' }
       });
     }
+    */
     
     // TRACE Studios interception - music/lyrics conversations (BLOCKED in crisis mode)
     const studiosUserMsg = rawMessages?.filter(m => m.role === 'user').pop();
