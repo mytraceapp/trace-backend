@@ -7726,8 +7726,8 @@ Your response:`;
       }
     }
     
-    // Add audio_action if present (earlyAudioAction takes priority for user-requested stop/resume)
-    const finalAudioAction = earlyAudioAction || audioAction;
+    // Add audio_action if present
+    const finalAudioAction = audioAction;
     if (finalAudioAction) {
       response.audio_action = finalAudioAction;
       console.log('[TRACE AUDIO DEBUG] Adding audio_action to response:', JSON.stringify(finalAudioAction));
