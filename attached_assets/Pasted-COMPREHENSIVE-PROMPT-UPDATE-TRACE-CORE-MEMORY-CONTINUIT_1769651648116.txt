@@ -1,0 +1,377 @@
+COMPREHENSIVE PROMPT UPDATE — TRACE CORE MEMORY + CONTINUITY (V3 “COMPLETE”)
+Purpose: This update closes ALL listed “Critical Gaps” so implementation doesn’t loop back. It defines in-memory schema, async job recovery, contradiction policy, continuity vector math, emotion eviction, crisis-before-greeting routing, session summary trigger, Supabase SQL defaults/indexes, Supabase-down fallback behavior, emoji greetings, conversation_id format, soft reset response logic, routing flags, concurrency limits, and token trim order.
+
+NON-NEGOTIABLE: Memory/continuity must apply to EVERY /api/chat turn — not just greetings.
+Tone: TRACE stays minimal, calm, non-verbose, mostly implicit recall.
+
+===========================================================
+A) DECISION SUMMARY (LOCKED)
+- Supabase is the source of truth when configured.
+- In-memory fallback has a SPECIFIED schema (below).
+- Async extraction + summary are resilient via DB flags:
+  extraction_pending / summary_pending set true, retried next request if still true.
+- Contradictions are LOGGED ONLY; never injected into model context.
+- Crisis detection ALWAYS runs before greeting detection.
+- Session summary trigger: on session rotation OR every 25 user messages (whichever first).
+- Token trim priority: summaries → recent window → core memory (never trim canon/user msg).
+- /api/greeting routes into /api/chat with isGreeting=true if conversation exists.
+- Greeting regex includes emojis.
+
+===========================================================
+B) IN-MEMORY FALLBACK DATA STRUCTURE (SPECIFIED)
+Implement this as the MVP fallback store:
+
+const mem = {
+  conversations: new Map(),  // Map<conversation_id, ConversationMem>
+  pendingWrites: new Map(),  // Map<conversation_id, PendingWriteQueue>
+  locks: new Map(),          // Map<conversation_id, boolean> for extraction/summary
+};
+
+type ConversationMem = {
+  conversation_id: string;
+  current_session_id: string;
+  session_started_at: string;    // ISO timestamp
+  last_activity_at: string;      // ISO timestamp
+  user_msg_count_since_extraction: number;
+  user_msg_count_since_summary: number;
+
+  // capped to last 200 messages in memory (oldest dropped)
+  messages: Array<{
+    role: "user" | "assistant" | "system";
+    content: string;
+    created_at: string;          // ISO
+    session_id: string;
+  }>;
+
+  // may be null if never extracted
+  core_memory: CoreMemory | null;
+
+  // keep last 3 session summaries
+  session_summaries: Array<{
+    session_id: string;
+    summary: string;
+    updated_at: string;          // ISO
+  }>;
+};
+
+type PendingWriteQueue = {
+  // store-only; flushed next request
+  messages: Array<{
+    conversation_id: string;
+    session_id: string;
+    role: "user"|"assistant"|"system";
+    content: string;
+    created_at: string;
+  }>;
+
+  // optional upserts to retry
+  core_memory_upsert?: CoreMemory;
+  session_summary_upserts?: Array<{ session_id: string; summary: string; updated_at: string }>;
+
+  extraction_pending?: boolean;
+  summary_pending?: boolean;
+  last_attempt_at?: string;
+  attempts?: number;
+};
+
+Rules:
+- fetchRecentMessages() uses Supabase when available, else reads from mem.conversations.get(conversation_id).messages.
+- When Supabase errors, write to pendingWrites then continue response generation.
+- Do not block the user response on any persistence operation.
+
+===========================================================
+C) SUPABASE SCHEMA (SQL) — WITH DEFAULTS, FKs, INDEXES
+Create/confirm exactly:
+
+CREATE TABLE IF NOT EXISTS trace_conversations (
+  conversation_id TEXT PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  last_activity_at TIMESTAMPTZ DEFAULT NOW(),
+
+  current_session_id TEXT,
+  session_started_at TIMESTAMPTZ,
+
+  user_msg_count_since_extraction INT DEFAULT 0,
+  user_msg_count_since_summary INT DEFAULT 0,
+
+  extraction_pending BOOLEAN DEFAULT FALSE,
+  summary_pending BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS trace_sessions (
+  session_id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL REFERENCES trace_conversations(conversation_id) ON DELETE CASCADE,
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  ended_at TIMESTAMPTZ,
+  session_summary TEXT,
+  summary_updated_at TIMESTAMPTZ,
+  CONSTRAINT valid_dates CHECK (ended_at IS NULL OR ended_at >= started_at)
+);
+
+ALTER TABLE trace_conversations
+  ADD CONSTRAINT fk_current_session
+  FOREIGN KEY (current_session_id) REFERENCES trace_sessions(session_id);
+
+CREATE TABLE IF NOT EXISTS trace_messages (
+  id BIGSERIAL PRIMARY KEY,
+  conversation_id TEXT NOT NULL REFERENCES trace_conversations(conversation_id) ON DELETE CASCADE,
+  session_id TEXT NOT NULL REFERENCES trace_sessions(session_id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('user','assistant','system')),
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_trace_messages_conversation_created_at
+  ON trace_messages(conversation_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_trace_messages_session_created_at
+  ON trace_messages(session_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_trace_sessions_conversation_started_at
+  ON trace_sessions(conversation_id, started_at DESC);
+
+CREATE TABLE IF NOT EXISTS trace_memory_core (
+  conversation_id TEXT PRIMARY KEY REFERENCES trace_conversations(conversation_id) ON DELETE CASCADE,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  core_memory JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+NOTE: RLS is Phase 2. MVP assumes single-tenant.
+
+===========================================================
+D) SUPABASE DOWN — FALLBACK STRATEGY (DEFINED)
+If Supabase WRITE fails:
+- Log error with operation + conversation_id.
+- Append attempted write to mem.pendingWrites queue.
+- Continue and return user response (do not block).
+- On next request for that conversation_id:
+  - attempt flushPendingWrites() first (best-effort, non-blocking).
+  - if flush succeeds, clear pendingWrites for that conversation_id.
+
+If Supabase READ fails:
+- fallback to mem.conversations cache if exists.
+- if none exists, proceed with minimal context (canon + current message only).
+
+===========================================================
+E) CONVERSATION_ID + SESSION_ID GENERATION (SPECIFIED)
+MVP:
+- conversation_id is server-generated UUID v4 when missing.
+- session_id is server-generated UUID v4 when starting/rotating a session.
+- If client provides conversation_id, accept only if it validates as UUID v4.
+- Otherwise generate new and return it.
+
+===========================================================
+F) CRISIS FIRST, THEN GREETING
+Order of routing for ANY incoming message:
+1) normalize user message
+2) crisis detection (highest priority)
+   - if crisis: run crisis protocol immediately; do NOT inject memory; do NOT run extraction/summary.
+3) greeting detection (regex includes emojis)
+4) route into chat pipeline with isGreeting flag if greeting
+
+Emoji greeting regex:
+greetingRegex = /^\s*(hi|hello|hey|yo|hey there|what's up|sup|greetings|👋|😊|🙂)\s*$/i
+
+===========================================================
+G) SESSION ROTATION RULES (DB-BASED)
+Store last_activity_at on every request using database NOW() (not server clock when possible).
+
+Gap rules:
+- <= 24h: keep session
+- 24–48h: rotate session
+- > 48h: rotate session
+
+On rotate:
+- end previous session: ended_at = NOW()
+- create new session row
+- update trace_conversations.current_session_id + session_started_at
+- reset per-session counters:
+  user_msg_count_since_summary = 0
+  (extraction counter is per conversation; do not reset unless extraction runs)
+
+===========================================================
+H) CORE MEMORY SCHEMA + VALIDATION (STRICT)
+CoreMemory JSON schema (enforce caps; validate after extraction):
+CoreMemory = {
+  user_facts: string[]; // max 12
+  goals: { text: string; started_at: string }[]; // max 10
+  constraints: { type: "time"|"money"|"health"|"family"|"work"|"other"; description: string }[]; // max 10
+  commitments: { text: string; date: string }[]; // max 10
+  themes: string[]; // max 5
+  emotion_timeline: { emotion: string; context: string; timestamp: string }[]; // max 5
+  contradictions?: { field: string; old: string; new: string; timestamp: string }[]; // max 10
+  updated_at: string;
+}
+
+===========================================================
+I) CONTRADICTIONS POLICY (CLOSED)
+- contradictions are for logging/audit only.
+- NEVER inject contradictions into model context.
+- When building “active memory bullets,” prefer the newest explicit fact if it clearly supersedes.
+- If unclear, keep old active and log contradiction.
+
+===========================================================
+J) EMOTION TIMELINE EVICTION RULE (CLOSED)
+When adding a new emotion entry:
+- Append.
+- If length > 5, remove oldest by timestamp (keep last 5).
+
+===========================================================
+K) CONTINUITY VECTOR (FULLY SPECIFIED)
+Inputs:
+- themes[] from core_memory
+- last 10 USER messages (not assistant messages) from recent window
+
+Algorithm:
+if themes empty -> primary_theme = "general"
+else:
+  counts = themes.map(t => ({
+    theme: t,
+    count: last10UserMsgs.filter(m => m.content.toLowerCase().includes(t.toLowerCase())).length
+  }))
+  best = counts.sort((a,b)=>b.count-a.count)[0]
+  primary_theme = best && best.count > 0 ? best.theme : "general"
+
+recent_emotion = core_memory?.emotion_timeline?.at(-1)?.emotion || null
+
+Note: do NOT auto-add new themes in MVP (e.g., “anxiety” appears but not in themes). Extraction step may add later.
+
+===========================================================
+L) ASYNC EXTRACTION + JOB LOSS HANDLING (RESILIENT: OPTION A)
+When extraction is scheduled:
+- Set trace_conversations.extraction_pending = true.
+- Fire extraction async AFTER responding.
+
+On success:
+- upsert trace_memory_core.core_memory
+- set extraction_pending=false
+- reset user_msg_count_since_extraction=0
+
+If process restarts or extraction fails:
+- extraction_pending remains true.
+- On next request: if extraction_pending=true, attempt extraction again (non-blocking).
+- Use per-conversation lock to avoid double extraction.
+
+If Supabase is NOT configured (memory-only fallback):
+- skip extraction and log warning: “MEMORY FALLBACK: skipping extraction (no persistence).”
+
+===========================================================
+M) SESSION SUMMARY TRIGGER (CLOSED)
+Generate session summary when:
+- session rotates (ENDED) OR
+- every 25 user messages within a session (whichever first)
+
+Job resilience:
+- set summary_pending=true when scheduled
+- async after response
+- clear on success
+- retry next request if still pending
+- lock per conversation to prevent duplicates
+
+===========================================================
+N) ROUTING: /api/greeting vs /api/chat (CLOSED)
+- /api/greeting:
+  - if conversation exists OR any stored memory exists:
+    - route internally to chat pipeline with { message, isGreeting:true }
+  - else:
+    - use first-time greeting behavior (existing)
+
+- /api/chat:
+  - always uses full context assembly (canon + memory + summaries + recent window)
+  - if isGreeting:true, greeting response shaping applies (below)
+
+===========================================================
+O) GREETING / SOFT RESET RESPONSE LOGIC (CONCRETE)
+No templates shown to developers; use exact deterministic logic:
+
+If isGreeting=true:
+- if gap <= 24h:
+  - if recent_emotion: respond: “Hey. Still feeling {recent_emotion}, or has it shifted?”
+  - else: respond: “Hey. I’m here.”
+- if gap > 24h:
+  - respond: “Hey. I’m here. Where do you want to start today?”
+
+Important:
+- This changes ONLY the opening line. The rest of the turn uses normal chat pipeline + context.
+- Do not explicitly reference “last time we talked.”
+
+===========================================================
+P) TOKEN BUDGET + TRIM STRATEGY (CLOSED)
+Target input context budget: ~3,000 tokens.
+
+Trim order (trim first → last):
+1) session summaries: keep most recent 1 (or 0 if needed)
+2) recent window: cap 30 → 20 → 12 as needed
+3) core memory bullets: shrink caps if needed:
+   - user_facts max 5
+   - themes max 3
+   - goals max 3
+   - constraints max 3
+   - commitments max 3
+   - emotion timeline max 3
+
+Never trim:
+- canon/system rules
+- user’s current message
+
+===========================================================
+Q) CONTEXT INJECTION MUST APPLY TO ALL TURNS (CONFIRMATION)
+On EVERY /api/chat request (greeting or not), assemble model input:
+- Canon prompt
+- Core memory bullets (no contradictions)
+- Session summaries (trimmed)
+- Recent message window (trimmed)
+- Current user message
+
+This ensures TRACE can pull context during the conversation, not only at greeting moments.
+
+===========================================================
+R) CONCURRENCY (MVP)
+- Node is single-threaded but requests can interleave via async.
+- Use in-memory lock per conversation for extraction and summary jobs only.
+- If lock is held: skip scheduling job; do not block response.
+- Document: MVP single-process; multi-worker requires DB locking (Phase 2).
+
+===========================================================
+S) ACCEPTANCE TESTS (MUST PASS)
+A) Normal turn continuity:
+User: “I’m stressed about work.”
+User: “What should I do?”
+Expect: response uses stress context without reset.
+
+B) Greeting continuity:
+User: “I’m stressed.”
+User: “hi”
+Expect: no reset; continuity opening line.
+
+C) 30h gap “soft reset”:
+User returns after 30h with “hi”
+Expect: re-entry line + core memory + last session summary included in context.
+
+D) Crisis greeting:
+User: “hey I’m thinking of harming myself”
+Expect: crisis protocol immediately; skip greeting logic; skip memory injection.
+
+E) Supabase down:
+Simulate Supabase failing once.
+Expect: response still returns; pendingWrites queues; next request attempts flush.
+
+===========================================================
+DELIVERABLE REQUEST
+Update the existing “comprehensive prompt/spec” in the Replit backend to exactly match this V3 update, then implement:
+
+- In-memory schema + pendingWrites queue
+- Supabase-down fallback and retry flush
+- extraction_pending + summary_pending resilient jobs
+- contradiction policy (not injected)
+- deterministic continuity vector
+- emotion eviction rule
+- crisis-first routing
+- session summary trigger (rotate or 25 user msgs)
+- token trim logic
+- ensure memory context is injected for ALL /api/chat turns
+
+Restart backend. Print a short implemented checklist confirming A–E.
+
+END.
