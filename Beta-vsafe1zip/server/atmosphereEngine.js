@@ -248,16 +248,21 @@ function evaluateAtmosphere(input) {
       .filter(([_, score]) => score >= 1.0)  // Single keyword now sufficient
       .map(([state, _]) => state);
     
+    console.log(`[ATMOSPHERE] highConfidenceStates: ${JSON.stringify(highConfidenceStates)}`);
+    
     if (highConfidenceStates.length > 0) {
       // Select by priority order: grounding > insight > comfort > reflective
       for (const priorityState of STATE_PRIORITY) {
         if (highConfidenceStates.includes(priorityState)) {
           candidate_state = priorityState;
           reason = `signal_detected_${priorityState}`;
+          console.log(`[ATMOSPHERE] Candidate selected: ${candidate_state} (reason: ${reason})`);
           break;
         }
       }
     }
+  } else {
+    console.log(`[ATMOSPHERE] Skipping signal scoring: candidate=${candidate_state}, maxConf=${maxConfidence}`);
   }
   
   // ============================================================
@@ -314,26 +319,37 @@ function evaluateAtmosphere(input) {
   
   let shouldChange = false;
   
+  console.log(`[ATMOSPHERE] Transition check: candidate=${candidate_state}, current=${current_state}`);
+  
   if (candidate_state && candidate_state !== current_state) {
     const allowedNext = ALLOWED_TRANSITIONS[current_state] || [];
+    const dwellElapsed = now - last_change_timestamp;
+    
+    console.log(`[ATMOSPHERE] Checking transition: allowed=${JSON.stringify(allowedNext)}, dwellElapsed=${dwellElapsed}ms, required=${DWELL_TIME_MS}ms`);
     
     if (isExtremSpike) {
       // Extreme spike bypasses transition rules
       shouldChange = true;
+      console.log('[ATMOSPHERE] Extreme spike - bypassing rules');
     } else if (allowedNext.includes(candidate_state)) {
       // ============================================================
       // 6️⃣ DWELL TIME CHECK
       // ============================================================
-      if ((now - last_change_timestamp) >= DWELL_TIME_MS) {
+      if (dwellElapsed >= DWELL_TIME_MS) {
         shouldChange = true;
+        console.log('[ATMOSPHERE] Dwell time satisfied - allowing transition');
       } else {
         reason = 'dwell_time_not_satisfied';
         candidate_state = null;
+        console.log(`[ATMOSPHERE] Dwell time NOT satisfied - blocking (need ${DWELL_TIME_MS - dwellElapsed}ms more)`);
       }
     } else {
       reason = `transition_not_allowed_${current_state}_to_${candidate_state}`;
       candidate_state = null;
+      console.log(`[ATMOSPHERE] Transition blocked: ${current_state} → ${candidate_state} not allowed`);
     }
+  } else if (candidate_state === current_state) {
+    console.log(`[ATMOSPHERE] Already in ${current_state}, no change needed`);
   }
   
   // ============================================================
