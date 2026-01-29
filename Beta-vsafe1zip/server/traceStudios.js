@@ -309,7 +309,7 @@ const TRACKS = {
   },
   tidal_house: {
     id: "tidal_house",
-    title: "Tidal Memory Glow",
+    title: "Tidal House",
     album: "Night Swim",
     index: 5,
     description: "Memories that shimmer instead of hurt. The ones you hold gently.",
