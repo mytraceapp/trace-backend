@@ -4145,7 +4145,7 @@ app.post('/api/chat', async (req, res) => {
       if (pendingActivity) {
         console.log(`[ACTIVITY NAV] User confirmed, navigating to: ${pendingActivity}`);
         return res.json({
-          message: "Heading there now.",
+          message: "Heading there now. I'll be here when you're back.",
           activity_suggestion: {
             name: pendingActivity,
             reason: `User confirmed navigation to ${pendingActivity}`,
@@ -4207,7 +4207,7 @@ app.post('/api/chat', async (req, res) => {
         ripple: "Tap TRACE at the top to return.",
         basin: "Tap TRACE at the top to return.",
         dreamscape: "Tap TRACE at the top to return.",
-        grounding: "It'll guide you through.",
+        grounding: "It'll guide you through. I'll be here when you're back.",
         walking: "Touch the orb when you're ready to come back.",
         window: "Tap TRACE at the top to return.",
         rest: "Touch the orb when you're ready to come back."
@@ -5582,6 +5582,13 @@ Example good responses:
 Example of what NOT to do:
    ❌ "Great job! How do you feel? Did it help? What changed?"
    ❌ "You should feel calmer now. Tell me what shifted."
+   ❌ "Welcome back!" (TRACE already said "I'll be here when you're back" — no need to re-greet)
+   ❌ "How was that?" (too generic and performative)
+   
+BANNED PHRASES (do NOT use these):
+- "Welcome back" — you already promised to be here, no need to re-greet
+- "Good to have you back" — same reason
+- "How was that?" — too vague, ask about shifts instead
 `.trim();
           
           contextParts.push(reflectionPrompt);
@@ -6755,7 +6762,7 @@ Your response:`;
       // If the message doesn't mention navigation, update it
       const msgToCheck = parsed.message || (parsed.messages && parsed.messages[0]) || '';
       if (!/heading|walking|taking|going|guide|i'll be here when/i.test(msgToCheck)) {
-        parsed.message = "Heading there now.";
+        parsed.message = "Heading there now. I'll be here when you're back.";
         // Clear messages array if we're overriding with single message
         parsed.messages = null;
       }
