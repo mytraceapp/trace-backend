@@ -5779,7 +5779,7 @@ CRISIS OVERRIDE:
         );
         conversationMeta = { conversation, conversationId };
         
-        sessionRotation = await sessionManager.checkAndRotateSession(supabaseServer, conversation);
+        sessionRotation = await sessionManager.checkAndRotateSession(supabaseServer, conversation, memoryStore);
         
         const [storedCoreMemory, sessionSummaries, recentStored] = await Promise.all([
           memoryStore.fetchCoreMemory(supabaseServer, conversationId),

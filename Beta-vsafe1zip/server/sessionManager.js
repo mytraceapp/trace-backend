@@ -8,15 +8,25 @@ const { v4: uuidv4 } = require('uuid');
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
-async function checkAndRotateSession(supabase, conversation) {
+function calculateGapCategory(gapHours) {
+  if (gapHours <= 24) return 'same_day';
+  if (gapHours <= 48) return 'next_day';
+  return 'extended_absence';
+}
+
+async function checkAndRotateSession(supabase, conversation, memStore) {
   const now = new Date();
   const lastActivity = new Date(conversation.last_activity_at);
   const gapMs = now - lastActivity;
+  const gapHours = Math.floor(gapMs / HOUR_MS);
+  const gapCategory = calculateGapCategory(gapHours);
 
   const result = {
     rotated: false,
     sessionId: conversation.current_session_id,
-    gapHours: Math.floor(gapMs / HOUR_MS),
+    gapHours,
+    gapCategory,
+    triggerSummary: false,
   };
 
   if (gapMs <= DAY_MS) {
@@ -29,6 +39,16 @@ async function checkAndRotateSession(supabase, conversation) {
   if (!supabase) {
     result.rotated = true;
     result.sessionId = newSessionId;
+    result.triggerSummary = true;
+    
+    if (memStore && conversation.conversation_id) {
+      const memConv = memStore.getInMemoryConversation(conversation.conversation_id);
+      if (memConv) {
+        memConv.current_session_id = newSessionId;
+        memConv.session_started_at = nowISO;
+        memConv.user_msg_count_since_summary = 0;
+      }
+    }
     return result;
   }
 
@@ -62,15 +82,10 @@ async function checkAndRotateSession(supabase, conversation) {
     console.error('[SESSION MANAGER] rotation error:', err.message);
     result.sessionId = newSessionId;
     result.rotated = true;
+    result.triggerSummary = true;
   }
 
   return result;
-}
-
-function calculateGapCategory(gapHours) {
-  if (gapHours <= 24) return 'same_day';
-  if (gapHours <= 48) return 'next_day';
-  return 'extended_absence';
 }
 
 module.exports = {

@@ -112,6 +112,16 @@ function mergeCoreMemory(existing, extracted) {
       .slice(-CORE_MEMORY_CAPS.goals);
   }
 
+  if (extracted.constraints?.length) {
+    merged.constraints = [...(existing.constraints || []), ...extracted.constraints]
+      .slice(-CORE_MEMORY_CAPS.constraints);
+  }
+
+  if (extracted.commitments?.length) {
+    merged.commitments = [...(existing.commitments || []), ...extracted.commitments]
+      .slice(-CORE_MEMORY_CAPS.commitments);
+  }
+
   if (extracted.themes?.length) {
     const newThemes = extracted.themes.filter(
       t => !existing.themes?.includes(t)
@@ -125,6 +135,11 @@ function mergeCoreMemory(existing, extracted) {
       ...(existing.emotion_timeline || []),
       ...extracted.emotion_timeline,
     ].slice(-CORE_MEMORY_CAPS.emotion_timeline);
+  }
+
+  if (extracted.contradictions?.length) {
+    merged.contradictions = [...(existing.contradictions || []), ...extracted.contradictions]
+      .slice(-CORE_MEMORY_CAPS.contradictions);
   }
 
   merged.updated_at = new Date().toISOString();
