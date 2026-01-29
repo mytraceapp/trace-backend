@@ -1819,20 +1819,26 @@ export default function ChatScreen() {
         // TRACE is offering Night Swim - just log for now, player opens on user agreement
         console.log('🎵 TRACE audio_action: recommend (waiting for user agreement)');
       } else if (audioAction?.type === 'stop') {
-        // User asked TRACE to stop the music
-        console.log('🎵 TRACE audio_action: stop - stopping all audio');
+        // User asked TRACE to stop ALL music/audio
+        console.log('🎵 TRACE audio_action: stop - stopping ALL audio sources');
         
-        // Stop soundscape if source is soundscape
-        if (audioAction.source === 'soundscape') {
-          console.log('🎵 Stopping soundscape audio via AudioProvider');
-          await stopAllAudio();
-        }
+        // Stop soundscape via AudioProvider
+        console.log('🎵 Stopping soundscape audio via AudioProvider');
+        await stopAllAudio();
         
-        // Also close Night Swim player if open
+        // Stop ambient audio (separate audio system)
+        console.log('🎵 Stopping ambient audio');
+        await stopAmbient();
+        
+        // Close Night Swim player if open
         closeNightSwimPlayer();
+        
+        // Reset all audio-related client state
         clientStateRef.current.nowPlaying = null;
         clientStateRef.current.mode = 'chat';
         clientStateRef.current.currentSoundState = null;
+        
+        console.log('🎵 All audio sources stopped');
       } else if (audioAction?.type === 'resume') {
         // User asked TRACE to resume the music
         console.log('🎵 TRACE audio_action: resume - resuming soundscape');

@@ -1,0 +1,58 @@
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [GlobalAudioCoordinator] Will resume? false
+ LOG  [ChatScreen] useFocusEffect triggered on tab return
+ LOG  [AudioContext.resumeFromActivity] 🔄 Resuming from activity, type was: ambient
+ LOG  [AudioContext.resumeFromActivity] 📋 Soundscape available: false, should resume soundscape: false
+ LOG  [AudioContext.resumeFromActivity] 🔊 Fading ambient from 0 to 0.1
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE ENTRIES] Today activity found: Walking 2026-01-29T07:37:06.693Z
+ LOG  [TRACE ENTRIES] Today activity found: Walking 2026-01-29T05:34:12.846Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T03:31:23.512Z
+ LOG  [TRACE ENTRIES] Today activity found: Grounding 2026-01-29T03:30:44.797Z
+ LOG  [TRACE ENTRIES] Today activity found: Grounding 2026-01-29T03:25:32.493Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T01:08:54.540Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:37:50.154Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-29T00:29:24.292Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:27:32.639Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:21:51.254Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:18:03.440Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:14:58.842Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:11:46.218Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:04:14.278Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:59:33.711Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:55:31.411Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:52:07.078Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:47:53.150Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:45:35.785Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:43:51.163Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:39:58.320Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:36:59.887Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:35:06.592Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:33:14.273Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:31:54.206Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:03:30.540Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:01:37.939Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T22:58:49.441Z
+ LOG  [TRACE ENTRIES] Today activity found: Rising 2026-01-28T22:50:32.988Z
+ LOG  [TRACE ENTRIES] Today activity found: Rising 2026-01-28T22:43:53.453Z
+ LOG  [TRACE ENTRIES] Today activity found: Rising 2026-01-28T22:37:54.468Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T20:39:14.580Z
+ LOG  [TRACE ENTRIES] Today activities count: 32
+ LOG  [TRACE ENTRIES] Daily sessions today: 1
+ LOG  🔑 SUPABASE USER ID: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [GlobalAudioCoordinator] 🔌 Component UNMOUNTING - NOT resuming ambient (letting isPlaying state manage it)
+ LOG  [ChatScreen] User navigated away from chat - pausing soundscape for other tabs
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [GlobalAudioCoordinator] Will resume? false
+ LOG  [ChatScreen] useFocusEffect triggered on tab return
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
