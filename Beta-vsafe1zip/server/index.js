@@ -3798,7 +3798,7 @@ app.post('/api/chat', async (req, res) => {
     
     console.log(`[AUDIO CONTROL] stopsMusic: ${stopsMusic}, resumesMusic: ${resumesMusic}`);
     
-    // 🎵 If audio control detected, prepare early audio_action response
+    // 🎵 If audio control detected, return IMMEDIATELY (bypass all other flows)
     let earlyAudioAction = null;
     if (stopsMusic) {
       earlyAudioAction = {
@@ -3806,14 +3806,34 @@ app.post('/api/chat', async (req, res) => {
         source: 'soundscape',
         reason: 'user_requested'
       };
-      console.log('[AUDIO CONTROL] Stop music detected, will return audio_action:', earlyAudioAction);
+      console.log('[AUDIO CONTROL] Stop music detected, returning early with audio_action');
+      return res.json({
+        ok: true,
+        requestId,
+        message: "Done.",
+        audio_action: earlyAudioAction,
+        activity_suggestion: { name: null, should_navigate: false },
+        posture: 'STEADY',
+        detected_state: 'neutral',
+        sound_state: { current: null, changed: false, reason: 'user_stopped' }
+      });
     } else if (resumesMusic) {
       earlyAudioAction = {
         type: 'resume',
         source: 'soundscape',
         reason: 'user_requested'
       };
-      console.log('[AUDIO CONTROL] Resume music detected, will return audio_action:', earlyAudioAction);
+      console.log('[AUDIO CONTROL] Resume music detected, returning early with audio_action');
+      return res.json({
+        ok: true,
+        requestId,
+        message: "Bringing it back now.",
+        audio_action: earlyAudioAction,
+        activity_suggestion: { name: null, should_navigate: false },
+        posture: 'STEADY',
+        detected_state: 'neutral',
+        sound_state: { current: 'presence', changed: true, reason: 'user_resumed' }
+      });
     }
     
     // TRACE Studios interception - music/lyrics conversations (BLOCKED in crisis mode)
