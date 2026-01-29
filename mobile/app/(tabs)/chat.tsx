@@ -1818,6 +1818,12 @@ export default function ChatScreen() {
       } else if (audioAction?.type === 'recommend') {
         // TRACE is offering Night Swim - just log for now, player opens on user agreement
         console.log('🎵 TRACE audio_action: recommend (waiting for user agreement)');
+      } else if (audioAction?.type === 'stop') {
+        // User asked TRACE to stop the music
+        console.log('🎵 TRACE audio_action: stop - pausing playback');
+        closeNightSwimPlayer();
+        clientStateRef.current.nowPlaying = null;
+        clientStateRef.current.mode = 'chat';
       }
     } catch (err: any) {
       console.error('❌ TRACE handleSend error:', err.message || String(err));

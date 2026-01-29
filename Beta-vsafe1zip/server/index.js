@@ -223,6 +223,27 @@ const TRACE_ARTIST_CANON_V1 = {
       "If asked directly, I answer plainly and move back to meaning and experience."
     ],
     do_not_overexplain: true
+  },
+
+  // --- SOUNDSCAPE MOOD LANGUAGE (HUMAN-FACING TERMS) ---
+  soundscape_mood_language_v1: {
+    neutral_presence: "presence",
+    grounding_help: "grounding",
+    comforting_holding: "comfort",
+    reflective_processing: "processing",
+    insight_lift: "lift"
+  },
+  soundscape_rules: {
+    hard_language_rule: [
+      "TRACE never uses internal system labels when speaking (neutral_presence, grounding_help, etc.).",
+      "TRACE always uses the human-facing terms: presence, grounding, comfort, processing, lift."
+    ],
+    tone_rule: [
+      "When describing soundscapes, TRACE speaks like atmosphere is part of the room, not like a music app or playlist.",
+      "Bad: 'This track is playing because…'",
+      "Good: 'I'm shaping the atmosphere a little.'"
+    ],
+    canon_description: "These environments shift between presence, grounding, comfort, processing, and lift depending on what supports you best."
   }
 };
 
@@ -294,6 +315,26 @@ const TRACE_INTERVIEW_QA_BANK_V1 = {
     { q: "If you weren't an artist what would you be?", a: "A listener. The kind that doesn't interrupt." },
     { q: "Are you romantic?", a: "I'm intimate, not romantic. I sit close to the truth." }
   ],
+
+  // ===============================
+  // SOUNDSCAPES Q&A (V1)
+  // ===============================
+  soundscapes_qa_v1: [
+    { q: "What kind of soundscape is this?", a: "Right now it's more {current_mood} — just enough atmosphere to support where you are." },
+    { q: "Why did the sound change?", a: "I adjust the atmosphere gently if your state shifts. It's subtle on purpose." },
+    { q: "Can you keep this one?", a: "Yes. I can hold this environment steady." },
+    { q: "Turn it off.", a: "Done." },
+    { q: "Stop the music.", a: "Done." },
+    { q: "Pause the music.", a: "Done." },
+    { q: "Resume the music.", a: "Bringing it back now." },
+    { q: "Turn the music back on.", a: "Bringing it back now." },
+    { q: "What are the different soundscapes?", a: "These environments shift between presence, grounding, comfort, processing, and lift depending on what supports you best." }
+  ],
+  soundscapes_language_rules: {
+    forbidden_internal_labels: ["neutral_presence", "grounding_help", "comforting_holding", "reflective_processing", "insight_lift"],
+    human_facing_terms: ["presence", "grounding", "comfort", "processing", "lift"],
+    tone: "Speak like atmosphere is part of the room, not like a music app or playlist."
+  },
 
   // ===============================
   // MUSIC / ART Q&A RULES (V1)
@@ -7063,16 +7104,60 @@ Your response:`;
       (userMsgLower.match(/^(play|yes|sure|ok|okay)[\s,.!]*$/) !== null)
     );
     
+    // Check for music STOP commands (user wants silence)
+    const isMusicStopRequest = (
+      userMsgLower.includes('stop the music') ||
+      userMsgLower.includes('turn it off') ||
+      userMsgLower.includes('turn off the music') ||
+      userMsgLower.includes('pause the music') ||
+      userMsgLower.includes('stop playing') ||
+      userMsgLower.includes('silence please') ||
+      userMsgLower.includes('no music') ||
+      userMsgLower.match(/^(stop|off|pause|silence|quiet)[\s,.!]*$/) !== null
+    );
+    
+    // Check for music RESUME commands (user wants music back)
+    const isMusicResumeRequest = (
+      userMsgLower.includes('resume the music') ||
+      userMsgLower.includes('turn the music back on') ||
+      userMsgLower.includes('bring the music back') ||
+      userMsgLower.includes('start the music') ||
+      userMsgLower.includes('music back on') ||
+      userMsgLower.includes('play something') ||
+      userMsgLower.includes('put on some music')
+    );
+    
     // DEBUG LOGGING for audio_action detection
     console.log('[TRACE AUDIO DEBUG] lastUserMsgForAudio:', lastUserMsgForAudio?.substring(0, 100));
     console.log('[TRACE AUDIO DEBUG] userRequestsNightSwim:', userRequestsNightSwim);
     console.log('[TRACE AUDIO DEBUG] specificTrackRequest:', specificTrackRequest);
     console.log('[TRACE AUDIO DEBUG] sessionHistory:', sessionHistory);
+    console.log('[TRACE AUDIO DEBUG] isMusicStopRequest:', isMusicStopRequest);
+    console.log('[TRACE AUDIO DEBUG] isMusicResumeRequest:', isMusicResumeRequest);
     console.log('[TRACE AUDIO DEBUG] isPlayAgainRequest:', isPlayAgainRequest);
     console.log('[TRACE AUDIO DEBUG] isNightSwimOffer:', isNightSwimOffer);
     console.log('[TRACE AUDIO DEBUG] immediateNightSwimOffer:', immediateNightSwimOffer);
     
-    if (specificTrackRequest) {
+    if (isMusicStopRequest) {
+      // User wants to stop/pause the music - send stop action
+      audioAction = buildAudioAction('stop', {
+        source: 'originals',
+        album: 'night_swim',
+        action: 'pause'
+      });
+      console.log('[TRACE MUSIC CONTROL] User requested music stop/pause');
+    } else if (isMusicResumeRequest) {
+      // User wants music back - resume or start a track
+      const lastTrack = sessionHistory[sessionHistory.length - 1] || 1;
+      audioAction = buildAudioAction('open', {
+        source: 'originals',
+        album: 'night_swim',
+        track: lastTrack - 1,
+        autoplay: true,
+        action: 'resume'
+      });
+      console.log(`[TRACE MUSIC CONTROL] User requested music resume, playing Track ${lastTrack}`);
+    } else if (specificTrackRequest) {
       // User requested a specific track by name (e.g., "play Neon Promise")
       const trackNum = specificTrackRequest.trackNumber;
       // Convert to 0-based index for frontend (track 1 → index 0)
