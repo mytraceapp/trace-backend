@@ -3790,6 +3790,32 @@ app.post('/api/chat', async (req, res) => {
       console.log('[CRISIS] Early crisis detection - bypassing TRACE Studios interception (history check:', historyDistress, ')');
     }
     
+    // 🎵 AUDIO CONTROL: Detect if user is asking to stop or resume music (early detection)
+    const userMessage = rawMessages?.length > 0 ? rawMessages[rawMessages.length - 1].content : '';
+    const userMessageLower = (userMessage || '').toLowerCase();
+    const stopsMusic = /stop.*music|pause.*music|turn off.*music|mute.*music|no music|stop the music|pause the music/i.test(userMessageLower);
+    const resumesMusic = /play.*music|resume.*music|start.*music|unpause.*music|turn on.*music|unmute.*music|play the music|resume the music|start the music/i.test(userMessageLower);
+    
+    console.log(`[AUDIO CONTROL] stopsMusic: ${stopsMusic}, resumesMusic: ${resumesMusic}`);
+    
+    // 🎵 If audio control detected, prepare early audio_action response
+    let earlyAudioAction = null;
+    if (stopsMusic) {
+      earlyAudioAction = {
+        type: 'stop',
+        source: 'soundscape',
+        reason: 'user_requested'
+      };
+      console.log('[AUDIO CONTROL] Stop music detected, will return audio_action:', earlyAudioAction);
+    } else if (resumesMusic) {
+      earlyAudioAction = {
+        type: 'resume',
+        source: 'soundscape',
+        reason: 'user_requested'
+      };
+      console.log('[AUDIO CONTROL] Resume music detected, will return audio_action:', earlyAudioAction);
+    }
+    
     // TRACE Studios interception - music/lyrics conversations (BLOCKED in crisis mode)
     const studiosUserMsg = rawMessages?.filter(m => m.role === 'user').pop();
     if (studiosUserMsg?.content && !isEarlyCrisisMode) {
@@ -7683,10 +7709,11 @@ Your response:`;
       }
     }
     
-    // Add audio_action if present
-    if (audioAction) {
-      response.audio_action = audioAction;
-      console.log('[TRACE AUDIO DEBUG] Adding audio_action to response:', JSON.stringify(audioAction));
+    // Add audio_action if present (earlyAudioAction takes priority for user-requested stop/resume)
+    const finalAudioAction = earlyAudioAction || audioAction;
+    if (finalAudioAction) {
+      response.audio_action = finalAudioAction;
+      console.log('[TRACE AUDIO DEBUG] Adding audio_action to response:', JSON.stringify(finalAudioAction));
     } else {
       console.log('[TRACE AUDIO DEBUG] No audio_action to add to response');
     }
