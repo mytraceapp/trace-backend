@@ -2585,8 +2585,9 @@ function selectTraceModel({
   let tier2Reason = null;
   
   // Check emotional depth indicators from posture detection
-  const isEmotionallyDeep = ['TENDER', 'SEARCHING', 'REFLECTIVE'].includes(posture) ||
-                            ['sad', 'anxious', 'reflective', 'vulnerable'].includes(detected_state);
+  // Note: Attunement returns 'stressed' for anxiety, 'tired' for sadness, 'spiraling' for overwhelm
+  const isEmotionallyDeep = ['TENDER', 'SEARCHING', 'REFLECTIVE', 'DIRECTIVE', 'GENTLE'].includes(posture) ||
+                            ['sad', 'anxious', 'reflective', 'vulnerable', 'stressed', 'tired', 'spiraling'].includes(detected_state);
   
   // Check for meaning-seeking keywords
   const hasKeywords = TIER2_KEYWORDS.some(kw => lowerText.includes(kw));
