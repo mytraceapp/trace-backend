@@ -7105,27 +7105,15 @@ Your response:`;
     );
     
     // Check for music STOP commands (user wants silence)
-    const isMusicStopRequest = (
-      userMsgLower.includes('stop the music') ||
-      userMsgLower.includes('turn it off') ||
-      userMsgLower.includes('turn off the music') ||
-      userMsgLower.includes('pause the music') ||
-      userMsgLower.includes('stop playing') ||
-      userMsgLower.includes('silence please') ||
-      userMsgLower.includes('no music') ||
-      userMsgLower.match(/^(stop|off|pause|silence|quiet)[\s,.!]*$/) !== null
-    );
+    // Patterns: stop music, pause music, turn off music, mute music, no music, etc.
+    const STOP_MUSIC_REGEX = /stop.*music|pause.*music|turn off.*music|mute.*music|no music|stop the music|pause the music|stop playing|silence please/i;
+    const isMusicStopRequest = STOP_MUSIC_REGEX.test(userMsgLower) || 
+      userMsgLower.match(/^(stop|off|pause|silence|quiet)[\s,.!]*$/) !== null;
     
     // Check for music RESUME commands (user wants music back)
-    const isMusicResumeRequest = (
-      userMsgLower.includes('resume the music') ||
-      userMsgLower.includes('turn the music back on') ||
-      userMsgLower.includes('bring the music back') ||
-      userMsgLower.includes('start the music') ||
-      userMsgLower.includes('music back on') ||
-      userMsgLower.includes('play something') ||
-      userMsgLower.includes('put on some music')
-    );
+    // Patterns: play music, resume music, start music, unpause music, turn on music, etc.
+    const RESUME_MUSIC_REGEX = /play.*music|resume.*music|start.*music|unpause.*music|turn on.*music|unmute.*music|play the music|resume the music|start the music|music back on|bring.*music.*back|put on.*music/i;
+    const isMusicResumeRequest = RESUME_MUSIC_REGEX.test(userMsgLower);
     
     // DEBUG LOGGING for audio_action detection
     console.log('[TRACE AUDIO DEBUG] lastUserMsgForAudio:', lastUserMsgForAudio?.substring(0, 100));
