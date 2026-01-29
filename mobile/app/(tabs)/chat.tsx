@@ -500,7 +500,7 @@ export default function ChatScreen() {
   const theme = colorScheme === 'dark' ? Colors.night : Colors.day;
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
-  const { handleSoundState } = useAudio();
+  const { handleSoundState, stopAll: stopAllAudio } = useAudio();
   const params = useLocalSearchParams<{ 
     completedActivity?: string; 
     activityDuration?: string; 
@@ -1820,10 +1820,33 @@ export default function ChatScreen() {
         console.log('🎵 TRACE audio_action: recommend (waiting for user agreement)');
       } else if (audioAction?.type === 'stop') {
         // User asked TRACE to stop the music
-        console.log('🎵 TRACE audio_action: stop - pausing playback');
+        console.log('🎵 TRACE audio_action: stop - stopping all audio');
+        
+        // Stop soundscape if source is soundscape
+        if (audioAction.source === 'soundscape') {
+          console.log('🎵 Stopping soundscape audio via AudioProvider');
+          await stopAllAudio();
+        }
+        
+        // Also close Night Swim player if open
         closeNightSwimPlayer();
         clientStateRef.current.nowPlaying = null;
         clientStateRef.current.mode = 'chat';
+        clientStateRef.current.currentSoundState = null;
+      } else if (audioAction?.type === 'resume') {
+        // User asked TRACE to resume the music
+        console.log('🎵 TRACE audio_action: resume - resuming soundscape');
+        
+        // Resume with presence state (default calm atmosphere)
+        if (audioAction.source === 'soundscape') {
+          console.log('🎵 Resuming soundscape via handleSoundState');
+          await handleSoundState({ 
+            current: 'presence', 
+            changed: true, 
+            reason: 'user_requested_resume' 
+          });
+          clientStateRef.current.currentSoundState = 'presence';
+        }
       }
     } catch (err: any) {
       console.error('❌ TRACE handleSend error:', err.message || String(err));

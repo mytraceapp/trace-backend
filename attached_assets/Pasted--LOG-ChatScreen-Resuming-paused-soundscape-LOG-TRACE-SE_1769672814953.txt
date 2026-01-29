@@ -1,0 +1,266 @@
+ LOG  [ChatScreen] ▶️ Resuming paused soundscape
+ LOG  [TRACE SESSION] lastVisitRaw: 1769672734397
+ LOG  [TRACE SESSION] Last visit date: Wed Jan 28 2026
+ LOG  [TRACE SESSION] Today date: Wed Jan 28 2026
+ LOG  [TRACE SESSION] Time since last visit (minutes): 0
+ LOG  [TRACE SESSION] Same day, within 1 hour - continuing session (no new log)
+ LOG  [CTA] Loaded history on mount: ["S_N_02", "S_N_03", "S_N_01", "S_H_01", "N_H_05", "S_N_09", "N_H_02", "S_N_08", "S_N_07", "S_H_10"]
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [PERSIST] Client state saved: {"mode": "chat", "sentiment": null, "timeOfDay": "night", "timestamp": "2026-01-29T07:45:48.731Z"}
+ LOG  [TRACE SESSION] Updated last visit time
+ LOG  [PILLAR 10] Timestamps initialized: {"lastHookAt": 1769631636279, "lastHookGlobalAt": 1769631636279, "lastInsightAt": 1769193209237}
+ LOG  [ChatScreen] ✅ Soundscape resumed
+ LOG  [AudioContext.resumeFromActivity] ✅ Unloaded soundA
+ LOG  [AudioContext.resumeFromActivity] ✅ Unloaded soundB
+ LOG  [PERSIST] Client state loaded from storage: {"mode": "chat", "sentiment": null, "timeOfDay": "night"}
+ LOG  [PERSIST] Restored client state from storage: {"lastActivity": null, "lastSuggestion": null, "mode": "chat", "nowPlaying": null, "recentSentiment": null, "timeOfDay": "night"}
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [TRACE CHAT] Auth setup - authUserId: 80624861-1955-40f4-b302-2af2c9dc67c1 deviceId: undefined
+ LOG  [TELEMETRY] Initialized for user: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  📤 [ACTIVITY SYNC] Sending to backend: {"activityType": "Rest", "deviceId": null, "durationSeconds": 6, "userId": "80624861-1955-40f4-b302-2af2c9dc67c1"}
+ LOG  [TRACE CHAT] 🎯 RESTORING HISTORY - setting hasResponded=true, messages.length= 12
+ LOG  [TRACE CHAT] ℹ️ NOT fetching greeting for old user with active conversation
+ LOG  [TRACE CHAT] ✅ Restored history (within 1 hour), count: 12
+ LOG  [TRACE CHAT] 🔧 Setting initializedUserId= 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  ✅ [ACTIVITY SYNC] Successfully synced to backend
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Logging activity to tracker...
+ LOG  [ACTIVITY VARIETY] ✅ Logged activity completion: 0.1 state: undefined
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE CHAT] Showing onboarding reflection prompt for: rest
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Awaiting onboarding reflection from user
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  INPUT_FOCUS
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [TRACE CHAT] 📝 Onboarding reflection response received: Stop music
+ LOG  [TRACE CHAT] Activity: rest
+ LOG  [TRACE CHAT] Saving reflection with userId: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ WARN  [TELEMETRY] Flush error (keeping queue): Network request failed
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Reflection response status: 200
+ LOG  [TRACE CHAT] ✅ Reflection response: {"message": "Reflection saved", "ok": true, "reflectionId": "ref_1769672773025_o31lpk", "savedToDb": true, "success": true}
+ LOG  [TRACE CHAT] ✅ Reflection saved to backend
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] 🎉 Onboarding reflection complete
+ LOG  [CTA] Skipping legacy CTA logic (backend handles via /api/chat/activity-return)
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ WARN  [TELEMETRY] Flush error (keeping queue): Network request failed
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [TRACE Chat] Profile check: {"hasLat": true, "hasLon": true, "hasProfile": true, "lat": 40.7128, "lon": -74.006, "weatherEnabled": true}
+ LOG  [TRACE Chat] 🌤️ Fetching weather context for location: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] Calling getWeather with: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] 🌤️ Weather API response received: {
+  "summary": "Pretty cold — currently 14°F (feels like 5°F), nighttime. Clear",
+  "current": {
+    "temperature": 14,
+    "feelsLike": 5,
+    "wind": 8,
+    "weatherText": "Clear",
+    "humidity": 51,
+    "uvIndex": 0,
+    "cloudCover": 0,
+    "isDayTime": false
+  }
+}
+ LOG  [TRACE Chat] 🌤️ Weather context SUCCESSFULLY prepared: {
+  "summary": "Pretty cold — currently 14°F (feels like 5°F), nighttime. Clear"
+}
+ LOG  [TRACE Chat] Backend URL: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev
+ LOG  [TRACE Chat] Sending to: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 14°F (feels like 5°F), nighttime. Clear", "temperature": undefined, "windSpeed": undefined}
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1769672785398-wcy4pp","message":"Got it, stopping the music now.","activity_suggestion":{"name":null,"should_navigate":false},"posture":"STEADY","detected_state":"neutral","posture_confidence":0.6,"sound_state":{"current":"presence","changed":false,"reason":"no_change"},"next_question":{"intent":"clarify","question":"What's the main thing bothering you?"},"client_state_patch":{"sessionStartedAt":1769672786612,"lastUserAt":1769672786612,"sessionTurnCount":1,"lastGuidedStepTurn":0,"recentTopics":[],"activeLoops":[],"recentWins":[],"recentPhrases":[],"doorwayState":{"doors":{"currentDoorId":null,"lastDoorId":null,"activatedAtTurn":null,"turnsSinceActivation":1},"crisis":{"active":false,"triggeredAt":null,"lastSeenAt":null,"cleanTurns":1},"lastMessageAt":"2026-01-29T07:46:26.611Z"},"lastAssistantHash":"bdb345d8fb7908ddae1fb381446dbfde8766674c5048f4f625e9bfe095491dd5","lastAssistantText":"Got it, stopping the music now.","lastQuestionIntent":"clarify"},"audio_action":{"type":"stop","source":"soundscape","reason":"user_requested"},"isCrisisMode":false,"messages":["Got it, stopping the music now."],"deduped":false}
+ LOG  [TRACE Chat] Processed messages array: ["Got it, stopping the music now."]
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, requestId, message, activity_suggestion, posture, detected_state, posture_confidence, sound_state, next_question, client_state_patch, audio_action, isCrisisMode, messages, deduped
+ LOG  [TRACE Chat] 🔊 Found sound_state in response: {"changed": false, "confidence": undefined, "current": "presence", "reason": "no_change"}
+ LOG  [useSoundStateIntegration] 🔍 handleSoundState called with: {"soundStateChanged": false, "soundStateConfidence": undefined, "soundStateCurrent": "presence", "soundStateExists": true}
+ LOG  [useSoundStateIntegration] 📊 Soundscape status: {"currentState": "comfort", "isEmotionalSoundscape": true, "newState": "presence", "trackExists": true, "trackPlaying": true}
+ LOG  [useSoundStateIntegration] ⏭️ Emotional soundscape already playing with same state - not re-triggering: {"changed": false, "current": "presence", "reason": "no_change"}
+ LOG  [TRACE MIRROR] Session expired, initialized new session
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-01-29T07:46:26.611Z"}, "lastAssistantHash": "bdb345d8fb7908ddae1fb381446dbfde8766674c5048f4f625e9bfe095491dd5", "lastAssistantText": "Got it, stopping the music now.", "lastGuidedStepTurn": 0, "lastQuestionIntent": "clarify", "lastUserAt": 1769672786612, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1769672786612, "sessionTurnCount": 1}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-01-29T07:46:26.611Z"}
+ LOG  [TRACE MIRROR] Session turn count: 1
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 1
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 5 msgs, 1 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  MESSAGES_LEN_AFTER: 17 deduped from: 17
+ LOG  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ LOG  🎵 AUDIO ACTION DETECTED
+ LOG  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ LOG  📋 Full audio_action payload: {"reason": "user_requested", "source": "soundscape", "type": "stop"}
+ LOG    ├─ type: stop
+ LOG    ├─ source: soundscape
+ LOG    ├─ album: undefined
+ LOG    ├─ track: undefined
+ LOG    └─ autoplay: undefined
+ LOG  ✅ ACTION TYPE: "stop" → STOPPING ALL AUDIO
+ LOG  ✅ SOURCE: "soundscape"
+ LOG  📋 Full audioAction: {"type":"stop","source":"soundscape","reason":"user_requested"}
+ LOG  🔥 Stopping all audio and resetting sound state
+ LOG  [AudioContext.stop] ✅ Stopped
+ LOG  ✅ All audio stopped and sound state reset
+ LOG  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE ENTRIES] Today activity found: Walking 2026-01-29T07:37:06.693Z
+ LOG  [TRACE ENTRIES] Today activity found: Walking 2026-01-29T05:34:12.846Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T03:31:23.512Z
+ LOG  [TRACE ENTRIES] Today activity found: Grounding 2026-01-29T03:30:44.797Z
+ LOG  [TRACE ENTRIES] Today activity found: Grounding 2026-01-29T03:25:32.493Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T01:08:54.540Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:37:50.154Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-29T00:29:24.292Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:27:32.639Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:21:51.254Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:18:03.440Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:14:58.842Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:11:46.218Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:04:14.278Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:59:33.711Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:55:31.411Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:52:07.078Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:47:53.150Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:45:35.785Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:43:51.163Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:39:58.320Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:36:59.887Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:35:06.592Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:33:14.273Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:31:54.206Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:03:30.540Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:01:37.939Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T22:58:49.441Z
+ LOG  [TRACE ENTRIES] Today activity found: Rising 2026-01-28T22:50:32.988Z
+ LOG  [TRACE ENTRIES] Today activity found: Rising 2026-01-28T22:43:53.453Z
+ LOG  [TRACE ENTRIES] Today activity found: Rising 2026-01-28T22:37:54.468Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T20:39:14.580Z
+ LOG  [TRACE ENTRIES] Today activities count: 32
+ LOG  [TRACE ENTRIES] Daily sessions today: 1
+ LOG  🔑 SUPABASE USER ID: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [GlobalAudioCoordinator] 🔌 Component UNMOUNTING - NOT resuming ambient (letting isPlaying state manage it)
+ LOG  [ChatScreen] User navigated away from chat - pausing soundscape for other tabs
+ LOG  [AudioContext.pauseForActivity] ⏸️ Pausing ambient (state: presence, soundscape exists: false)
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [GlobalAudioCoordinator] Will resume? false
+ LOG  [ChatScreen] useFocusEffect triggered on tab return
+ LOG  [AudioContext.resumeFromActivity] 🔄 Resuming from activity, type was: ambient
+ LOG  [AudioContext.resumeFromActivity] 📋 Soundscape available: false, should resume soundscape: false
+ LOG  [AudioContext.resumeFromActivity] 🔊 Fading ambient from 0 to 0.1
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": undefined, "completedActivity": undefined}
+ LOG  [TRACE ENTRIES] Today activity found: Walking 2026-01-29T07:37:06.693Z
+ LOG  [TRACE ENTRIES] Today activity found: Walking 2026-01-29T05:34:12.846Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T03:31:23.512Z
+ LOG  [TRACE ENTRIES] Today activity found: Grounding 2026-01-29T03:30:44.797Z
+ LOG  [TRACE ENTRIES] Today activity found: Grounding 2026-01-29T03:25:32.493Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T01:08:54.540Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:37:50.154Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-29T00:29:24.292Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:27:32.639Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:21:51.254Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:18:03.440Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:14:58.842Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:11:46.218Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-29T00:04:14.278Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:59:33.711Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:55:31.411Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:52:07.078Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:47:53.150Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:45:35.785Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:43:51.163Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:39:58.320Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:36:59.887Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:35:06.592Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T23:33:14.273Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:31:54.206Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:03:30.540Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T23:01:37.939Z
+ LOG  [TRACE ENTRIES] Today activity found: Maze 2026-01-28T22:58:49.441Z
+ LOG  [TRACE ENTRIES] Today activity found: Rising 2026-01-28T22:50:32.988Z
+ LOG  [TRACE ENTRIES] Today activity found: Rising 2026-01-28T22:43:53.453Z
+ LOG  [TRACE ENTRIES] Today activity found: Rising 2026-01-28T22:37:54.468Z
+ LOG  [TRACE ENTRIES] Today activity found: Basin 2026-01-28T20:39:14.580Z
+ LOG  [TRACE ENTRIES] Today activities count: 32
+ LOG  [TRACE ENTRIES] Daily sessions today: 1
+ LOG  🔑 SUPABASE USER ID: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [GlobalAudioCoordinator] 🔌 Component UNMOUNTING - NOT resuming ambient (letting isPlaying state manage it)
+ LOG  [ChatScreen] User navigated away from chat - pausing soundscape for other tabs
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [GlobalAudioCoordinator] Will resume? false
+ LOG  [ChatScreen] useFocusEffect triggered on tab return
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "rest"}
+ LOG  [SoundStateManager] 🎵 Playing "comfort" track #7 (6/7 in rotation) {"alreadyPlayed": [1, 6, 3, 5, 2], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: comfort #7
+ LOG  [SoundStateManager] 📁 Next track asset ready: comfort #7
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SoundStateManager] 🎵 Playing "comfort" track #4 (7/7 in rotation) {"alreadyPlayed": [1, 6, 3, 5, 2, 7], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: comfort #4
+ LOG  [SoundStateManager] 📁 Next track asset ready: comfort #4
+
