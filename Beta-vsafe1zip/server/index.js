@@ -317,17 +317,11 @@ const TRACE_INTERVIEW_QA_BANK_V1 = {
   ],
 
   // ===============================
-  // SOUNDSCAPES Q&A (V1)
+  // SOUNDSCAPES Q&A (V1) - Stop/resume commands disabled for now
   // ===============================
   soundscapes_qa_v1: [
     { q: "What kind of soundscape is this?", a: "Right now it's more {current_mood} — just enough atmosphere to support where you are." },
     { q: "Why did the sound change?", a: "I adjust the atmosphere gently if your state shifts. It's subtle on purpose." },
-    { q: "Can you keep this one?", a: "Yes. I can hold this environment steady." },
-    { q: "Turn it off.", a: "Done." },
-    { q: "Stop the music.", a: "Done." },
-    { q: "Pause the music.", a: "Done." },
-    { q: "Resume the music.", a: "Bringing it back now." },
-    { q: "Turn the music back on.", a: "Bringing it back now." },
     { q: "What are the different soundscapes?", a: "These environments shift between presence, grounding, comfort, processing, and lift depending on what supports you best." }
   ],
   soundscapes_language_rules: {
