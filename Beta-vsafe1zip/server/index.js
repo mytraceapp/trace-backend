@@ -4145,7 +4145,7 @@ app.post('/api/chat', async (req, res) => {
       if (pendingActivity) {
         console.log(`[ACTIVITY NAV] User confirmed, navigating to: ${pendingActivity}`);
         return res.json({
-          message: "Heading there now. I'll be here when you're back.",
+          message: "Heading there now.",
           activity_suggestion: {
             name: pendingActivity,
             reason: `User confirmed navigation to ${pendingActivity}`,
@@ -4207,7 +4207,7 @@ app.post('/api/chat', async (req, res) => {
         ripple: "Tap TRACE at the top to return.",
         basin: "Tap TRACE at the top to return.",
         dreamscape: "Tap TRACE at the top to return.",
-        grounding: "It'll guide you through. I'll be here when you're back.",
+        grounding: "It'll guide you through.",
         walking: "Touch the orb when you're ready to come back.",
         window: "Tap TRACE at the top to return.",
         rest: "Touch the orb when you're ready to come back."
@@ -6755,7 +6755,7 @@ Your response:`;
       // If the message doesn't mention navigation, update it
       const msgToCheck = parsed.message || (parsed.messages && parsed.messages[0]) || '';
       if (!/heading|walking|taking|going|guide|i'll be here when/i.test(msgToCheck)) {
-        parsed.message = "Heading there now. I'll be here when you're back.";
+        parsed.message = "Heading there now.";
         // Clear messages array if we're overriding with single message
         parsed.messages = null;
       }
