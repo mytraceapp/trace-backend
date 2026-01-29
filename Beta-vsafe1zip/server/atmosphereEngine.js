@@ -46,6 +46,12 @@ const EXTREME_SPIKE_TRIGGERS = [
   "panic attack", "I can't breathe", "losing control"
 ];
 
+const STRONG_GROUNDING_SIGNALS = [
+  "anxious", "stressed", "nervous", "overwhelmed", "spiraling",
+  "can't stop thinking", "racing thoughts", "on edge", "tense",
+  "freaking out", "panicking", "scared"
+];
+
 // Priority order: grounding (urgent) > insight > comfort > reflective > presence (calm)
 const STATE_PRIORITY = ['grounding', 'insight', 'comfort', 'reflective', 'presence'];
 
@@ -141,6 +147,11 @@ function getConfidenceLevel(score) {
 function detectExtremSpike(message) {
   const msgLower = message.toLowerCase();
   return EXTREME_SPIKE_TRIGGERS.some(trigger => msgLower.includes(trigger));
+}
+
+function detectStrongGroundingSignal(message) {
+  const msgLower = message.toLowerCase();
+  return STRONG_GROUNDING_SIGNALS.some(trigger => msgLower.includes(trigger));
 }
 
 // ============================================================
@@ -270,6 +281,8 @@ function evaluateAtmosphere(input) {
   // ============================================================
   
   const isExtremSpike = detectExtremSpike(current_message);
+  const isStrongGroundingSignal = detectStrongGroundingSignal(current_message);
+  
   if (isExtremSpike) {
     candidate_state = 'grounding';
     reason = 'extreme_spike_override';
@@ -331,6 +344,10 @@ function evaluateAtmosphere(input) {
       // Extreme spike bypasses transition rules
       shouldChange = true;
       console.log('[ATMOSPHERE] Extreme spike - bypassing rules');
+    } else if (isStrongGroundingSignal && candidate_state === 'grounding') {
+      // Strong emotional signals (anxiety/stress) bypass dwell time for grounding
+      shouldChange = true;
+      console.log('[ATMOSPHERE] Strong grounding signal - bypassing dwell time');
     } else if (allowedNext.includes(candidate_state)) {
       // ============================================================
       // 6️⃣ DWELL TIME CHECK

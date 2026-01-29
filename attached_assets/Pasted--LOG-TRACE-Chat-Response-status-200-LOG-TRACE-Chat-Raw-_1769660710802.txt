@@ -1,0 +1,55 @@
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1769660618556-3pgnbz","message":"Got you. Where is it hitting you most right now—your body, your thoughts, or both?","activity_suggestion":{"name":"breathing exercises","reason":"to help calm your nerves","should_navigate":false},"posture":"STEADY","detected_state":"stressed","posture_confidence":0.7,"sound_state":{"current":"presence","changed":false,"reason":"no_change"},"next_question":{"intent":"clarify","question":"What's the main thing bothering you?"},"client_state_patch":{"tier2CooldownUntil":1769660859697,"sessionStartedAt":1769660619696,"lastUserAt":1769660619696,"sessionTurnCount":1,"lastGuidedStepTurn":0,"recentTopics":[],"activeLoops":[],"recentWins":[],"recentPhrases":[],"doorwayState":{"doors":{"currentDoorId":null,"lastDoorId":null,"activatedAtTurn":null,"turnsSinceActivation":1},"crisis":{"active":false,"triggeredAt":null,"lastSeenAt":null,"cleanTurns":1},"lastMessageAt":"2026-01-29T04:23:39.696Z"},"lastAssistantHash":"79141d80b647c5058ebe6fb3fd2872837054ee01887a13ea76e58d08b3e24e6a","lastAssistantText":"Got you. Where is it hitting you most right now—your body, your thoughts, or both?","lastQuestionIntent":"clarify"},"isCrisisMode":false,"messages":["Got you. Where is it hitting you most right now—your body, your thoughts, or both?"],"deduped":false}
+ LOG  [TRACE Chat] Processed messages array: ["Got you. Where is it hitting you most right now—your body, your thoughts, or both?"]
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, requestId, message, activity_suggestion, posture, detected_state, posture_confidence, sound_state, next_question, client_state_patch, isCrisisMode, messages, deduped
+ LOG  [TRACE Chat] 🔊 Found sound_state in response: {"changed": false, "confidence": undefined, "current": "presence", "reason": "no_change"}
+ LOG  [useSoundStateIntegration] 🔍 handleSoundState called with: {"soundStateChanged": false, "soundStateConfidence": undefined, "soundStateCurrent": "presence", "soundStateExists": true}
+ LOG  [useSoundStateIntegration] 📊 Soundscape status: {"currentState": null, "isEmotionalSoundscape": null, "newState": "presence", "trackExists": false, "trackPlaying": null}
+ LOG  [useSoundStateIntegration] 🎵 INITIALIZING soundscape: {"newState": "presence", "reason": "no_change"}
+ LOG  [AudioContext.updateSoundState] 📍 State change: null → presence
+ LOG  [AudioContext.updateSoundState] 📍 State change to presence (still a soundscape, keeping ambient blocked)
+ LOG  [AudioContext.updateSoundState] ▶️ No active sound - applying state change immediately
+ LOG  [AudioContext.playState] 🎵 Playing state: presence
+ LOG  [SoundStateManager] Next track for "presence": 4 {"playedTracks": [4], "totalTracks": 7}
+ LOG  [SoundStateManager] Track source loaded: presence #4
+ LOG  [SoundStateManager] 🎵 Loading "presence" track 4...
+ LOG  [SoundStateManager] ✅ Track loaded: "presence" #4
+ LOG  [AudioContext.playState] 🔇 Fading out global ambient for presence (1200ms)
+ LOG  [useSoundStateIntegration] ✅ Soundscape activated successfully
+ LOG  [TRACE MIRROR] Session expired, initialized new session
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-01-29T04:23:39.696Z"}, "lastAssistantHash": "79141d80b647c5058ebe6fb3fd2872837054ee01887a13ea76e58d08b3e24e6a", "lastAssistantText": "Got you. Where is it hitting you most right now—your body, your thoughts, or both?", "lastGuidedStepTurn": 0, "lastQuestionIntent": "clarify", "lastUserAt": 1769660619696, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1769660619696, "sessionTurnCount": 1, "tier2CooldownUntil": 1769660859697}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-01-29T04:23:39.696Z"}
+ LOG  [TRACE MIRROR] Session turn count: 1
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 1
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  MESSAGES_LEN_AFTER: 14 deduped from: 14
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] Backend suggested: breathing exercises should_navigate: false
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TELEMETRY] ✅ Logged suggestion_shown: breathing exercises
+ LOG  [TRACE CHAT] 🚫 Activity suggested but should_navigate=false: breathing exercises
+ LOG  [TRACE CHAT] Waiting for user confirmation before navigating
+ LOG  [ONBOARDING] Backend suggested activity: breathing exercises
+ LOG  [ONBOARDING] User state: undefined
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [TELEMETRY] Flush error (keeping queue): Network request failed
+ LOG  [AudioContext.playState] ▶️ Ambient fade complete, now playing soundscape: presence
+ LOG  [AudioContext.playState] 🎵 No current track, fading in presence
+ LOG  [AudioContext.playState] ✅ Unloaded soundA
+ LOG  [AudioContext.playState] ✅ Unloaded soundB
+ LOG  [AudioContext.playState] ✅ Fade-in complete for presence at volume 0.34
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+
