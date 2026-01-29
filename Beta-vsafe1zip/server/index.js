@@ -136,6 +136,9 @@ const {
   getSummaryStats,
   resetSummaryStats
 } = require('./privacy');
+const memoryStore = require('./memoryStore');
+const sessionManager = require('./sessionManager');
+const coreMemory = require('./coreMemory');
 
 /**
  * Feature Flags - Panic switches for smart features
@@ -5762,6 +5765,50 @@ CRISIS OVERRIDE:
       }
     }
     
+    // ---- CORE MEMORY CONTINUITY SYSTEM ----
+    // Fetch and inject persistent memory context for every turn
+    let coreMemoryContext = '';
+    let sessionRotation = null;
+    let conversationMeta = null;
+    
+    if (effectiveUserId && !isCrisisMode) {
+      try {
+        const { conversation, conversationId } = await memoryStore.ensureConversation(
+          supabaseServer,
+          req.body.conversation_id
+        );
+        conversationMeta = { conversation, conversationId };
+        
+        sessionRotation = await sessionManager.checkAndRotateSession(supabaseServer, conversation);
+        
+        const [storedCoreMemory, sessionSummaries, recentStored] = await Promise.all([
+          memoryStore.fetchCoreMemory(supabaseServer, conversationId),
+          memoryStore.fetchSessionSummaries(supabaseServer, conversationId, 3),
+          memoryStore.fetchRecentMessages(supabaseServer, conversationId, 30),
+        ]);
+        
+        const memContext = coreMemory.buildMemoryContext(
+          storedCoreMemory,
+          sessionSummaries,
+          recentStored.length > 0 ? recentStored : messages,
+          0
+        );
+        
+        if (memContext) {
+          coreMemoryContext = memContext;
+          contextParts.push(memContext);
+          console.log('[CORE MEMORY] Injected memory context, session rotated:', sessionRotation?.rotated);
+        }
+        
+        const continuity = coreMemory.computeContinuityVector(storedCoreMemory, messages.filter(m => m.role === 'user'));
+        if (continuity.recentEmotion) {
+          console.log('[CORE MEMORY] Continuity vector:', continuity);
+        }
+      } catch (memErr) {
+        console.warn('[CORE MEMORY] Context fetch failed (continuing):', memErr.message);
+      }
+    }
+    
     const fullContext = contextParts.filter(Boolean).join('\n\n');
 
     // Check for hydration moment and optionally add hint
@@ -7608,6 +7655,44 @@ Your response:`;
     
     const finalResponse = normalizeChatResponse(response, requestId);
     storeDedupResponse(dedupKey, finalResponse);
+    
+    // ---- CORE MEMORY: Post-response async processing ----
+    // Save messages and trigger extraction/summary (non-blocking)
+    if (conversationMeta && !isCrisisMode) {
+      const { conversationId } = conversationMeta;
+      const sessionId = sessionRotation?.sessionId || conversationMeta.conversation?.current_session_id;
+      const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content;
+      
+      // Fire and forget - don't block response
+      (async () => {
+        try {
+          // Save user message
+          if (lastUserMsg) {
+            await memoryStore.saveMessage(supabaseServer, conversationId, sessionId, 'user', lastUserMsg);
+          }
+          // Save assistant response
+          if (response.message) {
+            await memoryStore.saveMessage(supabaseServer, conversationId, sessionId, 'assistant', response.message);
+          }
+          
+          // Check if extraction should run
+          const memConv = memoryStore.getInMemoryConversation(conversationId);
+          if (coreMemory.shouldExtract(memConv || conversationMeta.conversation)) {
+            const recentMsgs = await memoryStore.fetchRecentMessages(supabaseServer, conversationId, 30);
+            coreMemory.runExtraction(openai, supabaseServer, conversationId, recentMsgs);
+          }
+          
+          // Check if session summary should run
+          if (coreMemory.shouldSummarize(memConv || conversationMeta.conversation, sessionRotation?.rotated)) {
+            const recentMsgs = await memoryStore.fetchRecentMessages(supabaseServer, conversationId, 50);
+            coreMemory.runSessionSummary(openai, supabaseServer, conversationId, sessionId, recentMsgs);
+          }
+        } catch (memErr) {
+          console.warn('[CORE MEMORY] Post-response processing error:', memErr.message);
+        }
+      })();
+    }
+    
     return res.json({ ...finalResponse, deduped: false });
   } catch (error) {
     console.error('TRACE API error:', error.message || error);
