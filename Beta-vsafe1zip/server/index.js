@@ -8685,22 +8685,24 @@ Examples:
 `.trim();
 
     if (!openai) {
-      console.log('[ACTIVITY RETURN] No OpenAI, using fallback');
+      console.log('[ACTIVITY RETURN] No OpenAI client, using fallback');
       return res.json({ message: "How you feeling?" });
     }
 
+    console.log('[ACTIVITY RETURN] Making OpenAI call for activity:', activity);
+    
     const response = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `I just finished ${activity}.` },
       ],
       max_tokens: 60,
-      temperature: 0.75,
+      temperature: 0.85,
     });
 
     const message = response.choices[0]?.message?.content?.trim() || "How you feeling?";
-    console.log(`[ACTIVITY RETURN] Response: "${message}"`);
+    console.log(`[ACTIVITY RETURN] OpenAI response: "${message}"`);
     
     return res.json({ message });
   } catch (error) {
@@ -8747,12 +8749,14 @@ Examples:
 `.trim();
 
     if (!openai) {
-      console.log('[ACTIVITY ACK ALIAS] No OpenAI, using fallback');
+      console.log('[ACTIVITY ACK ALIAS] No OpenAI client, using fallback');
       return res.json({ message: "How you feeling?" });
     }
 
+    console.log('[ACTIVITY ACK ALIAS] Making OpenAI call for activity:', activity);
+    
     const response = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `I just finished ${activity}.` },
