@@ -164,11 +164,27 @@ function evaluateAtmosphere(input) {
   const {
     userId,
     current_message,
-    recent_messages = []
+    recent_messages = [],
+    client_sound_state = null // NEW: Client's current state for persistence
   } = input;
   
   const now = Date.now();
   const session = getSessionState(userId);
+  
+  // ============================================================
+  // CLIENT STATE RESTORATION (handles server restarts)
+  // If server has no record but client says it's in a specific state, restore it
+  // ============================================================
+  const VALID_STATES = ['presence', 'grounding', 'comfort', 'reflective', 'insight'];
+  if (client_sound_state && VALID_STATES.includes(client_sound_state)) {
+    // If server thinks we're at presence but client is in another state, restore client's state
+    if (session.current_state === 'presence' && client_sound_state !== 'presence' && session.last_change_timestamp === 0) {
+      console.log(`[ATMOSPHERE] Restoring client state: ${client_sound_state} (server had no record)`);
+      session.current_state = client_sound_state;
+      session.last_change_timestamp = now - 30000; // Pretend it changed 30s ago
+      session.messages_since_state_change = 3; // Some persistence already
+    }
+  }
   
   const {
     current_state,

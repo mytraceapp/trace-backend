@@ -7653,10 +7653,14 @@ Your response:`;
         .slice(-3)
         .map(m => m.content);
       
+      // Pass client's current sound state so backend can restore if session was lost
+      const clientSoundState = safeClientState?.currentSoundState || null;
+      
       atmosphereResult = evaluateAtmosphere({
         userId: effectiveUserId,
         current_message: userText,
-        recent_messages: recentUserMessages.slice(0, -1) // Exclude current, take last 2
+        recent_messages: recentUserMessages.slice(0, -1), // Exclude current, take last 2
+        client_sound_state: clientSoundState // NEW: Client's current state for persistence
       });
       
       if (atmosphereResult?.sound_state?.changed) {
