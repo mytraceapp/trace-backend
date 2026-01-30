@@ -8700,11 +8700,56 @@ Examples:
 });
 
 // Alias for backwards compatibility - some clients call this path
-// Returns empty to avoid duplicate messages (main endpoint handles it)
+// Forward to activity-return logic to generate natural response
 app.post('/api/chat/activity-acknowledgment', async (req, res) => {
-  console.log('[ACTIVITY ACK ALIAS] Skipping - main endpoint handles this');
-  // Return empty/null so client doesn't add a duplicate message
-  return res.json({ message: null, ok: true, skipped: true });
+  console.log('[ACTIVITY ACK ALIAS] Forwarding to activity-return logic');
+  
+  try {
+    const { userId, activityType, activityName } = req.body || {};
+    const activity = activityType || activityName || 'activity';
+    
+    // Build simple system prompt for natural acknowledgment - sounds like a friend, NOT a therapist
+    const systemPrompt = `
+You are TRACE, a chill friend in a wellness app. NOT a therapist.
+The user just finished "${activity}".
+
+Generate a brief, natural check-in (1 short sentence).
+- Sound like a friend, not a counselor
+- Simple everyday language
+- Ask how they're feeling or if it helped
+- NO therapy words like "shifted", "present", "space", "holding"
+- NO "I was with you" type phrases
+- NO exclamation marks
+
+Examples:
+- "How you feeling now?"
+- "That help at all?"
+- "Any better?"
+- "How was that?"
+`.trim();
+
+    if (!openai) {
+      console.log('[ACTIVITY ACK ALIAS] No OpenAI, using fallback');
+      return res.json({ message: "How you feeling?" });
+    }
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `I just finished ${activity}.` },
+      ],
+      max_tokens: 60,
+      temperature: 0.75,
+    });
+
+    const message = response?.choices?.[0]?.message?.content?.trim() || "How you feeling?";
+    console.log('[ACTIVITY ACK ALIAS] Response:', message);
+    return res.json({ message });
+  } catch (error) {
+    console.error('[ACTIVITY ACK ALIAS] Error:', error);
+    return res.json({ message: "How you feeling?" });
+  }
 });
 
 // ==================== PROFILE ENDPOINTS ====================
