@@ -1256,13 +1256,42 @@ export default function ChatScreen() {
       }
     })();
     
-    // Append subtle reflection prompt to existing conversation (not a greeting)
-    const reflectionPrompt: ChatMessage = {
-      id: `activity-reflection-${Date.now()}`,
-      role: 'assistant',
-      content: 'How was that?',
-    };
-    addMessage(reflectionPrompt);
+    // Get natural activity acknowledgment from OpenAI (not scripted)
+    try {
+      const ackRes = await fetch(`${CHAT_API_BASE}/api/activity-acknowledgment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userId,
+          activityType: activity,
+          activityCount: 1,
+          timeOfDay: new Date().getHours() < 6 || new Date().getHours() >= 22 ? 'night' : 
+                     new Date().getHours() < 12 ? 'morning' : 'afternoon',
+        }),
+      });
+      
+      let ackMessage = 'What shifted?'; // fallback
+      if (ackRes.ok) {
+        const data = await ackRes.json();
+        ackMessage = data.message || ackMessage;
+      }
+      
+      const reflectionPrompt: ChatMessage = {
+        id: `activity-reflection-${Date.now()}`,
+        role: 'assistant',
+        content: ackMessage,
+      };
+      addMessage(reflectionPrompt);
+    } catch (err) {
+      console.warn('[ACTIVITY ACK] Failed to get acknowledgment:', err);
+      // Fallback to simple message
+      const reflectionPrompt: ChatMessage = {
+        id: `activity-reflection-${Date.now()}`,
+        role: 'assistant',
+        content: 'What shifted?',
+      };
+      addMessage(reflectionPrompt);
+    }
     
     // Set state for reflection capture
     setAwaitingOnboardingReflection(true);
@@ -1387,66 +1416,30 @@ export default function ChatScreen() {
 
     console.log('📤 TRACE sending message:', trimmed);
 
-    // Onboarding reflection flow: intercept user's reflection response
+    // Onboarding reflection flow: save reflection but let OpenAI respond naturally
     if (awaitingOnboardingReflection && lastCompletedActivityName) {
       console.log('🎓 TRACE onboarding: capturing reflection for', lastCompletedActivityName);
       
-      try {
-        // POST to /api/onboarding/reflection
-        const reflectionRes = await fetch(`${CHAT_API_BASE}/api/onboarding/reflection`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: currentUserId,
-            activityName: lastCompletedActivityName,
-            reflection: trimmed,
-          }),
-        });
-        if (reflectionRes.ok) {
-          const data = await reflectionRes.json();
-          console.log('🎓 TRACE onboarding: reflection saved', data.reflectionId);
-        } else {
-          console.warn('🎓 TRACE onboarding: reflection API returned', reflectionRes.status);
-        }
-      } catch (err) {
-        console.error('🎓 TRACE onboarding: reflection save error:', err);
-      }
+      // Save reflection to backend (non-blocking)
+      fetch(`${CHAT_API_BASE}/api/onboarding/reflection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          activityName: lastCompletedActivityName,
+          reflection: trimmed,
+        }),
+      }).then(res => {
+        if (res.ok) console.log('🎓 TRACE onboarding: reflection saved');
+        else console.warn('🎓 TRACE onboarding: reflection API returned', res.status);
+      }).catch(err => console.error('🎓 TRACE onboarding: reflection save error:', err));
 
       // Clear onboarding reflection state
       setAwaitingOnboardingReflection(false);
       setLastCompletedActivityName(null);
-
-      // Add the two response messages with delay
-      setTimeout(() => {
-        const msg1: ChatMessage = {
-          id: `onboard-noted-${Date.now()}`,
-          role: 'assistant',
-          content: "Noted. I'll remember.",
-        };
-        addMessage(msg1);
-
-        setTimeout(async () => {
-          const msg2: ChatMessage = {
-            id: `onboard-followup-${Date.now()}`,
-            role: 'assistant',
-            content: "Do you want to talk about what's driving it — or do you want quiet for a bit?",
-          };
-          addMessage(msg2);
-          setIsSending(false);
-          
-          // Week 1 Payoff: Check if we should trigger after reflection ack (activity >= 3)
-          const { shouldTrigger, reason } = await shouldTriggerWeek1Payoff();
-          if (shouldTrigger && reason === 'activity') {
-            console.log('📊 WEEK1: Triggering after reflection ack (activity count >= 3)');
-            setTimeout(() => {
-              insertWeek1Hook(addMessage, messages, setAwaitingWeek1PayoffConsent);
-            }, 1200);
-          }
-        }, 800);
-      }, 400);
-
-      // Return early - do not call /api/chat for reflection message
-      return;
+      
+      // DON'T return early - let message flow through to OpenAI for natural response with context
+      console.log('🎓 TRACE: letting reflection flow through to OpenAI for natural response');
     }
 
     // ==================== WEEK 1 PAYOFF CONSENT HANDLING ====================
