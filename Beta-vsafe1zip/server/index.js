@@ -8716,9 +8716,9 @@ app.post('/api/chat/activity-acknowledgment', async (req, res) => {
   console.log('[ACTIVITY ACK] Called after user reflection');
   console.log('[ACTIVITY ACK] Body received:', JSON.stringify(req.body || {}));
   
-  const { userId, activityType, activityName, activity_name, activity_type, reflection, userMessage } = req.body || {};
+  const { userId, activityType, activityName, activity_name, activity_type, reflection, userMessage, user_reflection } = req.body || {};
   const activity = activityType || activityName || activity_name || activity_type || 'activity';
-  let userReflection = reflection || userMessage || '';
+  let userReflection = reflection || userMessage || user_reflection || '';
   
   // If no reflection provided in request, try to fetch from recent onboarding_reflections
   if (!userReflection && userId) {
