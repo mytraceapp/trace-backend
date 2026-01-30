@@ -698,8 +698,16 @@ function applyTimeOfDayRules(clientState, signals) {
 }
 
 function buildClientStateContext(clientState, rules = null) {
-  const { mode, timeOfDay, recentSentiment, nowPlaying } = clientState || {};
+  const { mode, timeOfDay, recentSentiment, nowPlaying, lastActivity } = clientState || {};
   const toneHint = rules?.toneHint || 'clear, steady';
+  
+  // Check if user just came back from an activity (within 5 minutes)
+  const recentActivityContext = (() => {
+    if (!lastActivity?.id || !lastActivity?.ts) return null;
+    const minutesAgo = (Date.now() - lastActivity.ts) / 60000;
+    if (minutesAgo > 5) return null;
+    return { activity: lastActivity.id, minutesAgo: Math.round(minutesAgo) };
+  })();
   
   let basePrompt = `You are TRACE, a calm and grounded companion.
 
@@ -774,6 +782,30 @@ Answer these naturally, not like reading from a script. Be warm, genuine, a litt
   
   if (mode === 'activity_reflection') {
     basePrompt += `\n\nUser just finished an activity. Acknowledge it gently. Don't immediately suggest another one.`;
+  }
+  
+  // POST-ACTIVITY CONTEXT: If user just completed an activity, their next message is likely a response to your check-in
+  if (recentActivityContext) {
+    const activityName = recentActivityContext.activity;
+    basePrompt += `\n\nPOST-ACTIVITY CONTEXT:
+User just finished "${activityName}" about ${recentActivityContext.minutesAgo} minute${recentActivityContext.minutesAgo === 1 ? '' : 's'} ago.
+Their message is likely responding to your check-in about how it went.
+
+If they say something brief like "fine", "okay", "good", "it helped", "yeah":
+- Respond naturally, like a friend would
+- You can move on to something else OR gently continue the conversation
+- DON'T repeat "how you feeling?" type questions
+- DON'T use therapy-speak like "what shifted?" or "what came up?"
+
+Good responses to "it's fine" / "I'm okay":
+- "Cool. Anything on your mind?"
+- "Good. You need anything?"
+- "Alright. I'm around."
+- "Nice. Gonna take it easy now?"
+
+If they share something more ("I feel calmer", "still stressed"):
+- Acknowledge briefly and naturally
+- You can ask one simple follow-up if it makes sense`;
   }
 
   if (timeOfDay === 'night' || timeOfDay === 'late_night') {
