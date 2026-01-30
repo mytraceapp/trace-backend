@@ -29,6 +29,7 @@ const {
   updateJournalMemoryConsent,
   loadDreamscapeHistory,
   formatDreamscapeHistoryForContext,
+  loadTraceLongTermMemory,
 } = require('./traceMemory');
 const {
   buildTraceSystemPrompt,
@@ -3307,13 +3308,94 @@ app.post('/api/greeting', async (req, res) => {
       return res.json({ greeting: introMessage, firstRun: true });
     }
 
-    // For returning users, use AI-generated greeting
-    const systemPrompt = buildReturningGreetingPrompt({ displayName });
+    // For returning users, gather context for personalized AI greeting
+    const { localTime, localDay, timezone } = req.body;
+    
+    // Calculate time of day from client's local time or server time
+    let timeOfDay = 'afternoon';
+    let dayOfWeek = null;
+    try {
+      if (localTime) {
+        const hour = parseInt(localTime.split(':')[0], 10);
+        if (hour >= 5 && hour < 12) timeOfDay = 'morning';
+        else if (hour >= 12 && hour < 17) timeOfDay = 'afternoon';
+        else if (hour >= 17 && hour < 21) timeOfDay = 'evening';
+        else timeOfDay = 'night';
+      }
+      if (localDay) {
+        dayOfWeek = localDay;
+      }
+    } catch (e) {
+      console.warn('[GREETING] Failed to parse time:', e.message);
+    }
+    
+    // Get last seen info
+    let lastSeenDaysAgo = null;
+    let recentActivity = null;
+    if (userId && supabaseServer) {
+      try {
+        // Get last message timestamp
+        const { data: lastMsg } = await supabaseServer
+          .from('messages')
+          .select('created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (lastMsg?.created_at) {
+          const lastSeen = new Date(lastMsg.created_at);
+          const now = new Date();
+          lastSeenDaysAgo = Math.floor((now - lastSeen) / (1000 * 60 * 60 * 24));
+        }
+        
+        // Get recent activity
+        const { data: lastActivity } = await supabaseServer
+          .from('entries')
+          .select('entry_type, metadata')
+          .eq('user_id', userId)
+          .eq('entry_type', 'session')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (lastActivity?.metadata?.activity_name) {
+          recentActivity = lastActivity.metadata.activity_name;
+        }
+      } catch (e) {
+        console.warn('[GREETING] Failed to get context:', e.message);
+      }
+    }
+    
+    // Get memory context (themes, goals, etc.)
+    let memoryContext = [];
+    if (userId && supabaseServer) {
+      try {
+        const memoryData = await loadTraceLongTermMemory(supabaseServer, userId);
+        if (memoryData?.themes) {
+          memoryContext = memoryData.themes.slice(0, 3);
+        }
+      } catch (e) {
+        console.warn('[GREETING] Failed to load memory:', e.message);
+      }
+    }
+    
+    console.log('[GREETING] Context:', { timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext: memoryContext.length });
+    
+    const systemPrompt = buildReturningGreetingPrompt({ 
+      displayName, 
+      timeOfDay, 
+      dayOfWeek, 
+      lastSeenDaysAgo, 
+      recentActivity, 
+      memoryContext 
+    });
 
     if (!openai) {
-      const fallback = displayName
-        ? `It's good to see you, ${displayName}. Take your time—we can breathe together or talk whenever you're ready.`
-        : `It's good to see you. Take your time—we can breathe together or talk whenever you're ready.`;
+      const firstName = displayName ? displayName.split(' ')[0] : null;
+      const fallback = firstName
+        ? `Hey ${firstName}. How's your ${timeOfDay} going?`
+        : `Hey. How's your ${timeOfDay} going?`;
       return res.json({ greeting: fallback, firstRun: false });
     }
 
@@ -3323,13 +3405,22 @@ app.post('/api/greeting', async (req, res) => {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: 'Generate the greeting message now.' },
       ],
-      temperature: 0.7,
-      max_tokens: 200,
+      temperature: 0.8,
+      max_tokens: 100,
     });
 
-    const greeting = completion.choices?.[0]?.message?.content?.trim() || 
-      "It's good to see you. Take your time—we can breathe together or talk whenever you're ready.";
+    let greeting = completion.choices?.[0]?.message?.content?.trim() || 
+      `Hey. How's your ${timeOfDay} going?`;
+    
+    // Parse JSON response if needed
+    try {
+      const parsed = JSON.parse(greeting);
+      if (parsed.greeting) greeting = parsed.greeting;
+    } catch (e) {
+      // Not JSON, use as-is
+    }
 
+    console.log('[GREETING] Generated:', greeting);
     res.json({ greeting, firstRun: false });
   } catch (err) {
     console.error('/api/greeting error', err);

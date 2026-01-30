@@ -492,24 +492,73 @@ Example energy: "Hey — I'm TRACE. I'm here whenever you want to breathe with m
 Return JSON: { "greeting": "your message" }`.trim();
 }
 
-function buildReturningGreetingPrompt({ displayName }) {
+function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext }) {
   const firstName = displayName ? displayName.split(' ')[0] : null;
+  
+  // Build time-aware greeting context
+  let timeContext = '';
+  if (timeOfDay === 'morning') {
+    timeContext = 'It\'s morning. You might say "Morning" or ask how their day is starting.';
+  } else if (timeOfDay === 'afternoon') {
+    timeContext = 'It\'s afternoon. You might ask how their day has been going.';
+  } else if (timeOfDay === 'evening') {
+    timeContext = 'It\'s evening. You might ask how their day was or if they\'re winding down.';
+  } else if (timeOfDay === 'night' || timeOfDay === 'late_night') {
+    timeContext = 'It\'s late. You might ask if they slept well, or gently acknowledge the late hour.';
+  }
+  
+  // Build memory context
+  let memoryHint = '';
+  if (memoryContext && memoryContext.length > 0) {
+    memoryHint = `\nYou remember these things about them (use sparingly, naturally):\n${memoryContext.slice(0, 3).map(m => `- ${m}`).join('\n')}`;
+  }
+  
+  // Build last seen context
+  let lastSeenHint = '';
+  if (lastSeenDaysAgo !== null && lastSeenDaysAgo !== undefined) {
+    if (lastSeenDaysAgo === 0) {
+      lastSeenHint = 'You saw them earlier today.';
+    } else if (lastSeenDaysAgo === 1) {
+      lastSeenHint = 'You saw them yesterday.';
+    } else if (lastSeenDaysAgo > 7) {
+      lastSeenHint = `It\'s been over a week since you saw them. Don\'t guilt-trip, just be warm.`;
+    }
+  }
+  
+  // Build recent activity context
+  let activityHint = '';
+  if (recentActivity) {
+    activityHint = `Last time they did: ${recentActivity}. You could gently reference this.`;
+  }
   
   return `You are TRACE — greeting a returning user.
 
-Generate a casual greeting (1-2 sentences).
-${firstName ? `Their name is ${firstName}.` : ''}
+Generate a casual, genuine greeting (1-2 sentences).
+${firstName ? `Their name is ${firstName}. Use it naturally.` : ''}
+
+TIME CONTEXT:
+${timeContext}
+${lastSeenHint}
+${activityHint}
+${memoryHint}
+
+GOOD EXAMPLES (vary these, don't repeat):
+- "Morning, ${firstName || 'you'}. How'd you sleep?"
+- "Hey. How's your afternoon going?"
+- "Back again. How's work been?"
+- "${firstName || 'Hey'}. How's today treating you?"
+- "Evening. Winding down or just getting started?"
 
 Rules:
-- Like seeing a familiar face
+- Sound like a friend who actually remembers you
+- Reference time of day naturally
 - Low-pressure, relaxed
 - Do NOT say "Welcome" or "Welcome back"
 - Do NOT guilt-trip for being away
 - Do NOT introduce yourself
+- Do NOT be generic - use the context provided
 
-BANNED: "Welcome", "Welcome back", "I'm TRACE", "I'm here for you", "friend"
-
-Example energy: "Hey. How's today been treating you?"
+BANNED: "Welcome", "Welcome back", "I'm TRACE", "I'm here for you", "friend", "How can I help"
 
 Return JSON: { "greeting": "your message" }`.trim();
 }
