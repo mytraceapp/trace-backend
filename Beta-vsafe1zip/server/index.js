@@ -8654,25 +8654,29 @@ app.post('/api/chat/activity-return', async (req, res) => {
     const { userId, activityType, activityName } = req.body || {};
     const activity = activityType || activityName || 'activity';
     
-    // Build simple system prompt for natural acknowledgment
+    // Build simple system prompt for natural acknowledgment - sounds like a friend, NOT a therapist
     const systemPrompt = `
-You are TRACE, a calm, grounded companion in a mental wellness app.
-The user just completed "${activity}".
+You are TRACE, a chill friend in a wellness app. NOT a therapist.
+The user just finished "${activity}".
 
-Generate a brief, natural acknowledgment (1-2 sentences max).
-- Acknowledge you were present with them
-- Invite gentle reflection ("What shifted?", "What's different?")
-- Be warm but not performative
-- NO "Welcome back" - you were already with them
+Generate a brief, natural check-in (1 short sentence).
+- Sound like a friend, not a counselor
+- Simple everyday language
+- Ask how they're feeling or if it helped
+- NO therapy words like "shifted", "present", "space", "holding"
+- NO "I was with you" type phrases
 - NO exclamation marks
-- NO "Great job" or "Well done"
 
-Example: "I was with you through that. What shifted?"
+Examples:
+- "How you feeling now?"
+- "That help at all?"
+- "Any better?"
+- "How was that?"
 `.trim();
 
     if (!openai) {
       console.log('[ACTIVITY RETURN] No OpenAI, using fallback');
-      return res.json({ message: "What shifted?" });
+      return res.json({ message: "How you feeling?" });
     }
 
     const response = await openai.chat.completions.create({
@@ -8685,63 +8689,22 @@ Example: "I was with you through that. What shifted?"
       temperature: 0.75,
     });
 
-    const message = response.choices[0]?.message?.content?.trim() || "What shifted?";
+    const message = response.choices[0]?.message?.content?.trim() || "How you feeling?";
     console.log(`[ACTIVITY RETURN] Response: "${message}"`);
     
     return res.json({ message });
   } catch (error) {
     console.error('[ACTIVITY RETURN] Error:', error.message || error);
-    return res.json({ message: "What shifted?" });
+    return res.json({ message: "How you feeling?" });
   }
 });
 
 // Alias for backwards compatibility - some clients call this path
+// Returns empty to avoid duplicate messages (main endpoint handles it)
 app.post('/api/chat/activity-acknowledgment', async (req, res) => {
-  console.log('[ACTIVITY ACK ALIAS] Redirecting to activity-return');
-  
-  try {
-    const { userId, activityType, activityName, completedActivity, duration, activityDuration } = req.body || {};
-    const activity = activityType || activityName || completedActivity || 'activity';
-    
-    // Build simple system prompt for natural acknowledgment
-    const systemPrompt = `
-You are TRACE, a calm, grounded companion in a mental wellness app.
-The user just completed "${activity}".
-
-Generate a brief, natural acknowledgment (1-2 sentences max).
-- Acknowledge you were present with them
-- Invite gentle reflection ("What shifted?", "What's different?")
-- Be warm but not performative
-- NO "Welcome back" - you were already with them
-- NO exclamation marks
-- NO "Great job" or "Well done"
-
-Example: "I was with you through that. What shifted?"
-`.trim();
-
-    if (!openai) {
-      console.log('[ACTIVITY ACK ALIAS] No OpenAI, using fallback');
-      return res.json({ message: "What shifted?", ok: true });
-    }
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `I just finished ${activity}.` },
-      ],
-      max_tokens: 60,
-      temperature: 0.75,
-    });
-
-    const message = response.choices[0]?.message?.content?.trim() || "What shifted?";
-    console.log(`[ACTIVITY ACK ALIAS] Response: "${message}"`);
-    
-    return res.json({ message, ok: true });
-  } catch (error) {
-    console.error('[ACTIVITY ACK ALIAS] Error:', error.message || error);
-    return res.json({ message: "What shifted?", ok: true });
-  }
+  console.log('[ACTIVITY ACK ALIAS] Skipping - main endpoint handles this');
+  // Return empty/null so client doesn't add a duplicate message
+  return res.json({ message: null, ok: true, skipped: true });
 });
 
 // ==================== PROFILE ENDPOINTS ====================
