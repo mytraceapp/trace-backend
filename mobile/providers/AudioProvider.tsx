@@ -69,13 +69,19 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const allTracks = Array.from({ length: TRACKS_PER_FOLDER }, (_, i) => i + 1);
     const available = allTracks.filter(t => !played.includes(t));
     
+    console.log(`[AUDIO] 🎵 Track rotation for "${state}": played=${JSON.stringify(played)}, available=${JSON.stringify(available)}`);
+    
+    let selected: number;
     if (available.length === 0) {
+      console.log(`[AUDIO] All ${TRACKS_PER_FOLDER} tracks played for "${state}", resetting rotation`);
       playedTracksRef.current[state] = [];
-      return allTracks[Math.floor(Math.random() * allTracks.length)];
+      selected = allTracks[Math.floor(Math.random() * allTracks.length)];
+    } else {
+      selected = available[Math.floor(Math.random() * available.length)];
     }
     
-    const selected = available[Math.floor(Math.random() * available.length)];
     playedTracksRef.current[state].push(selected);
+    console.log(`[AUDIO] 🎵 Selected track #${selected} for "${state}" (${playedTracksRef.current[state].length}/${TRACKS_PER_FOLDER} in rotation)`);
     return selected;
   }, []);
 

@@ -8695,6 +8695,55 @@ Example: "I was with you through that. What shifted?"
   }
 });
 
+// Alias for backwards compatibility - some clients call this path
+app.post('/api/chat/activity-acknowledgment', async (req, res) => {
+  console.log('[ACTIVITY ACK ALIAS] Redirecting to activity-return');
+  
+  try {
+    const { userId, activityType, activityName, completedActivity, duration, activityDuration } = req.body || {};
+    const activity = activityType || activityName || completedActivity || 'activity';
+    
+    // Build simple system prompt for natural acknowledgment
+    const systemPrompt = `
+You are TRACE, a calm, grounded companion in a mental wellness app.
+The user just completed "${activity}".
+
+Generate a brief, natural acknowledgment (1-2 sentences max).
+- Acknowledge you were present with them
+- Invite gentle reflection ("What shifted?", "What's different?")
+- Be warm but not performative
+- NO "Welcome back" - you were already with them
+- NO exclamation marks
+- NO "Great job" or "Well done"
+
+Example: "I was with you through that. What shifted?"
+`.trim();
+
+    if (!openai) {
+      console.log('[ACTIVITY ACK ALIAS] No OpenAI, using fallback');
+      return res.json({ message: "What shifted?", ok: true });
+    }
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `I just finished ${activity}.` },
+      ],
+      max_tokens: 60,
+      temperature: 0.75,
+    });
+
+    const message = response.choices[0]?.message?.content?.trim() || "What shifted?";
+    console.log(`[ACTIVITY ACK ALIAS] Response: "${message}"`);
+    
+    return res.json({ message, ok: true });
+  } catch (error) {
+    console.error('[ACTIVITY ACK ALIAS] Error:', error.message || error);
+    return res.json({ message: "What shifted?", ok: true });
+  }
+});
+
 // ==================== PROFILE ENDPOINTS ====================
 
 // GET /api/profile - Fetch or create user profile
