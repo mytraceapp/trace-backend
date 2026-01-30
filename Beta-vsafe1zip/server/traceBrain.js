@@ -787,6 +787,7 @@ Answer these naturally, not like reading from a script. Be warm, genuine, a litt
   // POST-ACTIVITY CONTEXT: If user just completed an activity, their next message is likely a response to your check-in
   if (recentActivityContext) {
     const activityName = recentActivityContext.activity;
+    console.log('[TRACE BRAIN] Post-activity context injected:', { activity: activityName, minutesAgo: recentActivityContext.minutesAgo });
     basePrompt += `\n\nPOST-ACTIVITY CONTEXT:
 User just finished "${activityName}" about ${recentActivityContext.minutesAgo} minute${recentActivityContext.minutesAgo === 1 ? '' : 's'} ago.
 Their message is likely responding to your check-in about how it went.

@@ -8645,6 +8645,9 @@ Respond with a single acknowledgment that invites reflection.
   }
 });
 
+// Track recent activity-return calls to prevent double acknowledgments
+const recentActivityReturnCalls = new Map(); // userId -> timestamp
+
 // POST /api/chat/activity-return - Returns natural acknowledgment after activity completion
 // This endpoint replaces any hardcoded "Welcome back" messages
 app.post('/api/chat/activity-return', async (req, res) => {
@@ -8653,6 +8656,13 @@ app.post('/api/chat/activity-return', async (req, res) => {
   try {
     const { userId, activityType, activityName } = req.body || {};
     const activity = activityType || activityName || 'activity';
+    
+    // Track this call to prevent duplicate acknowledgment from activity-acknowledgment endpoint
+    if (userId) {
+      recentActivityReturnCalls.set(userId, Date.now());
+      // Clean up old entries (older than 2 minutes)
+      setTimeout(() => recentActivityReturnCalls.delete(userId), 120000);
+    }
     
     // Build simple system prompt for natural acknowledgment - sounds like a friend, NOT a therapist
     const systemPrompt = `
@@ -8707,6 +8717,14 @@ app.post('/api/chat/activity-acknowledgment', async (req, res) => {
   try {
     const { userId, activityType, activityName } = req.body || {};
     const activity = activityType || activityName || 'activity';
+    
+    // Check if activity-return was called recently for this user (within 60 seconds)
+    // If so, skip generating a duplicate acknowledgment
+    const lastReturnCall = recentActivityReturnCalls.get(userId);
+    if (lastReturnCall && Date.now() - lastReturnCall < 60000) {
+      console.log('[ACTIVITY ACK ALIAS] Skipping - activity-return was called recently');
+      return res.json({ message: null, skipped: true, reason: 'dedup' });
+    }
     
     // Build simple system prompt for natural acknowledgment - sounds like a friend, NOT a therapist
     const systemPrompt = `
