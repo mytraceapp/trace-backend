@@ -71,16 +71,14 @@ export async function fetchActivityAcknowledgment(params: {
   const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
   
   try {
-    const response = await fetch(`${CHAT_API_BASE}/api/activity-acknowledgment`, {
+    const response = await fetch(`${CHAT_API_BASE}/api/chat/activity-return`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId: params.userId || params.deviceId,
         activityType: params.activityType,
         activityCount: params.activityCount || 1,
-        lastActivityTime: null,
         timeOfDay: getTimeOfDay(),
-        activityDuration: params.durationSeconds ? params.durationSeconds * 1000 : null,
       }),
       signal: controller.signal,
     });
