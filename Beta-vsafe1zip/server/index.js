@@ -8714,23 +8714,73 @@ Just the question, nothing else.
 // endpoint is called after the user responds to that check-in
 app.post('/api/chat/activity-acknowledgment', async (req, res) => {
   console.log('[ACTIVITY ACK] Called after user reflection');
+  console.log('[ACTIVITY ACK] Body received:', JSON.stringify(req.body || {}));
   
-  const { userId, activityType, activityName, activity_name, activity_type, reflection } = req.body || {};
+  const { userId, activityType, activityName, activity_name, activity_type, reflection, userMessage } = req.body || {};
   const activity = activityType || activityName || activity_name || activity_type || 'activity';
+  let userReflection = reflection || userMessage || '';
+  
+  // If no reflection provided in request, try to fetch from recent onboarding_reflections
+  if (!userReflection && userId) {
+    try {
+      const normalizedUserId = String(userId).split('-')[0]; // Handle both formats
+      const result = await pool.query(`
+        SELECT reflection FROM onboarding_reflections 
+        WHERE user_id = $1 
+        ORDER BY created_at DESC 
+        LIMIT 1
+      `, [normalizedUserId]);
+      
+      if (result.rows.length > 0) {
+        userReflection = result.rows[0].reflection || '';
+        console.log('[ACTIVITY ACK] Found recent reflection from DB:', userReflection);
+      }
+    } catch (dbErr) {
+      console.warn('[ACTIVITY ACK] DB lookup failed:', dbErr.message);
+    }
+  }
+  
+  console.log('[ACTIVITY ACK] Parsed: activity=', activity, 'reflection=', userReflection);
   
   // Generate a warm, natural response to the user's reflection
   if (!openai) {
-    return res.json({ message: "Glad you tried it." });
+    return res.json({ message: "Gotcha." });
+  }
+  
+  // If still no reflection, skip - let the main chat handle it
+  if (!userReflection || userReflection.trim().length === 0) {
+    console.log('[ACTIVITY ACK] No reflection found, skipping');
+    return res.json({ message: null, skipped: true, reason: 'no_reflection_content' });
   }
   
   try {
+    // Detect user's tone
+    const lowerReflection = userReflection.toLowerCase().trim();
+    const isNeutralOrNegative = ['meh', 'ok', 'okay', 'fine', 'whatever', 'not really', 'nah', 'eh', 'so-so', 'idk', 'dunno'].some(w => lowerReflection.includes(w));
+    const isPositive = ['good', 'great', 'nice', 'better', 'helped', 'relaxed', 'calm', 'yeah', 'yes'].some(w => lowerReflection.includes(w));
+    
+    let toneGuidance = '';
+    if (isNeutralOrNegative) {
+      toneGuidance = 'User seems neutral or underwhelmed. Match their vibe - be chill, not overly positive.';
+    } else if (isPositive) {
+      toneGuidance = 'User seems positive. Keep it brief and natural.';
+    } else {
+      toneGuidance = 'Read their tone and match it naturally.';
+    }
+    
     const systemPrompt = `
-You are TRACE, a chill friend. User just shared their reflection after doing ${activity}.
+You are TRACE, a chill friend. User just shared how they're feeling after doing ${activity}.
 
-Write ONE brief, warm acknowledgment (max 8 words). Be a friend, not a therapist.
+Their message: "${userReflection}"
 
-FORBIDDEN: therapy words, exclamation marks, "that's great", "I'm glad you"
-GOOD: "cool, glad it helped", "nice", "good to hear", "makes sense"
+${toneGuidance}
+
+Write ONE brief, natural response (max 10 words). Be a friend, not a therapist.
+
+CRITICAL: Match their energy. If they say "meh" or "not really" - DON'T say it was a win or great.
+
+FORBIDDEN: therapy-speak, "that's great", "sounds like a win", exclamation marks, "I'm glad", "space", "holding"
+GOOD for neutral vibes: "fair enough", "gotcha", "makes sense", "want to try something else?"
 
 Just the response, nothing else.
 `.trim();
@@ -8739,18 +8789,18 @@ Just the response, nothing else.
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: reflection || 'I did it' },
+        { role: 'user', content: userReflection },
       ],
-      max_tokens: 30,
-      temperature: 0.8,
+      max_tokens: 40,
+      temperature: 0.7,
     });
 
-    const message = response?.choices?.[0]?.message?.content?.trim() || "Cool, glad you tried it.";
+    const message = response?.choices?.[0]?.message?.content?.trim() || "Gotcha.";
     console.log('[ACTIVITY ACK] Response:', message);
     return res.json({ message });
   } catch (error) {
     console.error('[ACTIVITY ACK] Error:', error.message);
-    return res.json({ message: "Glad you tried it." });
+    return res.json({ message: "Gotcha." });
   }
 });
 
