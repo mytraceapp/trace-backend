@@ -8754,18 +8754,27 @@ app.post('/api/chat/activity-acknowledgment', async (req, res) => {
   }
   
   try {
-    // Detect user's tone
+    // Detect user's tone - more nuanced detection
     const lowerReflection = userReflection.toLowerCase().trim();
-    const isNeutralOrNegative = ['meh', 'ok', 'okay', 'fine', 'whatever', 'not really', 'nah', 'eh', 'so-so', 'idk', 'dunno'].some(w => lowerReflection.includes(w));
-    const isPositive = ['good', 'great', 'nice', 'better', 'helped', 'relaxed', 'calm', 'yeah', 'yes'].some(w => lowerReflection.includes(w));
+    const isNegative = ['not really', 'no', 'nope', 'nah', 'didn\'t help', 'worse', 'still', 'same'].some(w => lowerReflection.includes(w));
+    const isNeutral = ['meh', 'ok', 'okay', 'fine', 'whatever', 'eh', 'so-so', 'idk', 'dunno', 'kinda'].some(w => lowerReflection.includes(w));
+    const isPositive = ['good', 'great', 'nice', 'better', 'helped', 'relaxed', 'calm', 'yeah', 'yes', 'totally'].some(w => lowerReflection.includes(w));
     
     let toneGuidance = '';
-    if (isNeutralOrNegative) {
-      toneGuidance = 'User seems neutral or underwhelmed. Match their vibe - be chill, not overly positive.';
+    let exampleResponses = '';
+    
+    if (isNegative) {
+      toneGuidance = 'User said the activity DIDN\'T help. Acknowledge this gently, show you care, maybe offer something else.';
+      exampleResponses = '"what\'s going on?", "want to talk about it?", "try something else?", "that\'s okay, what would help?"';
+    } else if (isNeutral) {
+      toneGuidance = 'User seems neutral/underwhelmed. Match their vibe - be chill, not overly positive.';
+      exampleResponses = '"fair enough", "makes sense", "anything on your mind?"';
     } else if (isPositive) {
       toneGuidance = 'User seems positive. Keep it brief and natural.';
+      exampleResponses = '"nice", "cool", "glad to hear"';
     } else {
       toneGuidance = 'Read their tone and match it naturally.';
+      exampleResponses = 'anything brief and natural';
     }
     
     const systemPrompt = `
@@ -8777,10 +8786,13 @@ ${toneGuidance}
 
 Write ONE brief, natural response (max 10 words). Be a friend, not a therapist.
 
-CRITICAL: Match their energy. If they say "meh" or "not really" - DON'T say it was a win or great.
+CRITICAL: 
+- If they say "not really" or "no" = the activity DIDN'T help. Show you care, maybe ask what's up.
+- If they seem neutral = match their vibe, don't force positivity.
+- Never say the activity was good if they said it wasn't.
 
-FORBIDDEN: therapy-speak, "that's great", "sounds like a win", exclamation marks, "I'm glad", "space", "holding"
-GOOD for neutral vibes: "fair enough", "gotcha", "makes sense", "want to try something else?"
+FORBIDDEN: therapy-speak, "that's great", "sounds like a win", exclamation marks, "I'm glad", "space", "holding", "gotcha" (too dismissive when they're struggling)
+GOOD examples for their tone: ${exampleResponses}
 
 Just the response, nothing else.
 `.trim();
