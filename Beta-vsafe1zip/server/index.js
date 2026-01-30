@@ -8651,11 +8651,12 @@ const recentActivityReturnCalls = new Map(); // userId -> timestamp
 // POST /api/chat/activity-return - Returns natural acknowledgment after activity completion
 // This endpoint replaces any hardcoded "Welcome back" messages
 app.post('/api/chat/activity-return', async (req, res) => {
-  console.log('[ACTIVITY RETURN] Request received');
+  console.log('[ACTIVITY RETURN] Request received, body:', JSON.stringify(req.body));
   
   try {
     const { userId, activityType, activityName } = req.body || {};
     const activity = activityType || activityName || 'activity';
+    console.log('[ACTIVITY RETURN] Parsed: userId=', userId, 'activityType=', activityType, 'activity=', activity);
     
     // Track this call to prevent duplicate acknowledgment from activity-acknowledgment endpoint
     if (userId) {
@@ -8711,68 +8712,14 @@ Examples:
   }
 });
 
-// Alias for backwards compatibility - some clients call this path
-// Forward to activity-return logic to generate natural response
+// Alias for backwards compatibility - ALWAYS skip since activity-return handles everything
+// This prevents duplicate acknowledgment messages
 app.post('/api/chat/activity-acknowledgment', async (req, res) => {
-  console.log('[ACTIVITY ACK ALIAS] Forwarding to activity-return logic');
-  
-  try {
-    const { userId, activityType, activityName } = req.body || {};
-    const activity = activityType || activityName || 'activity';
-    
-    // Check if activity-return was called recently for this user (within 60 seconds)
-    // If so, skip generating a duplicate acknowledgment
-    const lastReturnCall = recentActivityReturnCalls.get(userId);
-    if (lastReturnCall && Date.now() - lastReturnCall < 60000) {
-      console.log('[ACTIVITY ACK ALIAS] Skipping - activity-return was called recently');
-      return res.json({ message: null, skipped: true, reason: 'dedup' });
-    }
-    
-    // Build simple system prompt for natural acknowledgment - sounds like a friend, NOT a therapist
-    const systemPrompt = `
-You are TRACE, a chill friend in a wellness app. NOT a therapist.
-The user just finished "${activity}".
-
-Generate a brief, natural check-in (1 short sentence).
-- Sound like a friend, not a counselor
-- Simple everyday language
-- Ask how they're feeling or if it helped
-- NO therapy words like "shifted", "present", "space", "holding"
-- NO "I was with you" type phrases
-- NO exclamation marks
-
-Examples:
-- "How you feeling now?"
-- "That help at all?"
-- "Any better?"
-- "How was that?"
-`.trim();
-
-    if (!openai) {
-      console.log('[ACTIVITY ACK ALIAS] No OpenAI client, using fallback');
-      return res.json({ message: "How you feeling?" });
-    }
-
-    console.log('[ACTIVITY ACK ALIAS] Making OpenAI call for activity:', activity);
-    
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `I just finished ${activity}.` },
-      ],
-      max_tokens: 60,
-      temperature: 0.75,
-    });
-
-    const message = response?.choices?.[0]?.message?.content?.trim() || "How you feeling?";
-    console.log('[ACTIVITY ACK ALIAS] Response:', message);
-    return res.json({ message });
-  } catch (error) {
-    console.error('[ACTIVITY ACK ALIAS] Error:', error);
-    return res.json({ message: "How you feeling?" });
-  }
+  console.log('[ACTIVITY ACK] Deprecated endpoint called - always skipping to prevent duplicates');
+  // Always return null/skip - activity-return is the primary endpoint
+  return res.json({ message: null, skipped: true, reason: 'deprecated_use_activity_return' });
 });
+
 
 // ==================== PROFILE ENDPOINTS ====================
 
