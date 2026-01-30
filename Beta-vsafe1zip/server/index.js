@@ -8709,12 +8709,49 @@ Just the question, nothing else.
   }
 });
 
-// Alias for backwards compatibility - ALWAYS skip since activity-return handles everything
-// This prevents duplicate acknowledgment messages
+// Alias for backwards compatibility - generate a real response
+// The activity-return endpoint already generated the first check-in, but this
+// endpoint is called after the user responds to that check-in
 app.post('/api/chat/activity-acknowledgment', async (req, res) => {
-  console.log('[ACTIVITY ACK] Deprecated endpoint called - always skipping to prevent duplicates');
-  // Always return null/skip - activity-return is the primary endpoint
-  return res.json({ message: null, skipped: true, reason: 'deprecated_use_activity_return' });
+  console.log('[ACTIVITY ACK] Called after user reflection');
+  
+  const { userId, activityType, activityName, activity_name, activity_type, reflection } = req.body || {};
+  const activity = activityType || activityName || activity_name || activity_type || 'activity';
+  
+  // Generate a warm, natural response to the user's reflection
+  if (!openai) {
+    return res.json({ message: "Glad you tried it." });
+  }
+  
+  try {
+    const systemPrompt = `
+You are TRACE, a chill friend. User just shared their reflection after doing ${activity}.
+
+Write ONE brief, warm acknowledgment (max 8 words). Be a friend, not a therapist.
+
+FORBIDDEN: therapy words, exclamation marks, "that's great", "I'm glad you"
+GOOD: "cool, glad it helped", "nice", "good to hear", "makes sense"
+
+Just the response, nothing else.
+`.trim();
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: reflection || 'I did it' },
+      ],
+      max_tokens: 30,
+      temperature: 0.8,
+    });
+
+    const message = response?.choices?.[0]?.message?.content?.trim() || "Cool, glad you tried it.";
+    console.log('[ACTIVITY ACK] Response:', message);
+    return res.json({ message });
+  } catch (error) {
+    console.error('[ACTIVITY ACK] Error:', error.message);
+    return res.json({ message: "Glad you tried it." });
+  }
 });
 
 
