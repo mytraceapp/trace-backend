@@ -67,9 +67,10 @@ const DWELL_TIME_MS = 45000;
 const OSCILLATION_WINDOW_MS = 120000;
 const OSCILLATION_THRESHOLD = 3;
 const FREEZE_DURATION_MS = 90000;
-const NEUTRAL_STREAK_THRESHOLD = 3;
-const SIGNAL_TIMEOUT_MS = 300000; // 5 minutes
-const GROUNDING_CLEAR_THRESHOLD = 2;
+const NEUTRAL_STREAK_THRESHOLD = 10; // Increased from 3 - require more neutral messages before returning to presence
+const SIGNAL_TIMEOUT_MS = 900000; // 15 minutes (was 5 minutes) - soundscapes persist longer
+const GROUNDING_CLEAR_THRESHOLD = 3; // Increased from 2 - require more clear messages
+const MIN_STATE_PERSIST_MESSAGES = 5; // Minimum messages before allowing return to presence (NEW)
 
 // ============================================================
 // SESSION STATE STORAGE (in-memory, keyed by userId)
@@ -86,7 +87,8 @@ function getSessionState(userId) {
       last_signal_timestamp: 0,
       neutral_message_streak: 0,
       grounding_clear_streak: 0,
-      freeze_until_timestamp: null
+      freeze_until_timestamp: null,
+      messages_since_state_change: 0 // NEW: Track messages in current state for persistence
     });
   }
   return sessionStates.get(userId);
@@ -175,8 +177,12 @@ function evaluateAtmosphere(input) {
     last_signal_timestamp,
     neutral_message_streak,
     grounding_clear_streak,
-    freeze_until_timestamp
+    freeze_until_timestamp,
+    messages_since_state_change
   } = session;
+  
+  // Increment message counter for current state
+  const newMessagesSinceChange = messages_since_state_change + 1;
   
   const seconds_since_last_change = Math.floor((now - last_change_timestamp) / 1000);
   
@@ -235,18 +241,26 @@ function evaluateAtmosphere(input) {
   }
   
   // ============================================================
-  // 2️⃣ RETURN-TO-PRESENCE CHECK
+  // 2️⃣ RETURN-TO-PRESENCE CHECK (with persistence protection)
   // ============================================================
   
   let candidate_state = null;
   let reason = '';
   
-  if (newNeutralStreak >= NEUTRAL_STREAK_THRESHOLD) {
-    candidate_state = 'presence';
-    reason = 'neutral_message_streak';
-  } else if (newSignalTimestamp > 0 && (now - newSignalTimestamp) >= SIGNAL_TIMEOUT_MS) {
-    candidate_state = 'presence';
-    reason = 'signal_timeout_5min';
+  // PERSISTENCE RULE: Don't allow return to presence until minimum messages have passed
+  // This prevents premature switching back after just entering a new state
+  const canReturnToPresence = current_state === 'presence' || newMessagesSinceChange >= MIN_STATE_PERSIST_MESSAGES;
+  
+  if (canReturnToPresence) {
+    if (newNeutralStreak >= NEUTRAL_STREAK_THRESHOLD) {
+      candidate_state = 'presence';
+      reason = 'neutral_message_streak';
+    } else if (newSignalTimestamp > 0 && (now - newSignalTimestamp) >= SIGNAL_TIMEOUT_MS) {
+      candidate_state = 'presence';
+      reason = 'signal_timeout_15min';
+    }
+  } else if (current_state !== 'presence') {
+    console.log(`[ATMOSPHERE] Persistence protection: ${newMessagesSinceChange}/${MIN_STATE_PERSIST_MESSAGES} messages - staying in ${current_state}`);
   }
   
   // ============================================================
@@ -379,7 +393,8 @@ function evaluateAtmosphere(input) {
   const updates = {
     neutral_message_streak: newNeutralStreak,
     last_signal_timestamp: newSignalTimestamp,
-    grounding_clear_streak: finalState === 'grounding' ? newGroundingClearStreak : 0
+    grounding_clear_streak: finalState === 'grounding' ? newGroundingClearStreak : 0,
+    messages_since_state_change: newMessagesSinceChange // Track message count
   };
   
   if (shouldChange) {
@@ -387,7 +402,10 @@ function evaluateAtmosphere(input) {
     updates.last_change_timestamp = now;
     updates.state_change_history = [...state_change_history.slice(-10), now];
     updates.freeze_until_timestamp = null;
+    updates.messages_since_state_change = 0; // Reset counter on state change
     console.log(`[ATMOSPHERE] State change: ${current_state} → ${finalState} (${reason})`);
+  } else {
+    console.log(`[ATMOSPHERE] Staying in ${finalState} (messages: ${newMessagesSinceChange}, reason: ${reason || 'no_change'})`);
   }
   
   updateSessionState(userId, updates);
