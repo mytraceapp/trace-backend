@@ -8641,6 +8641,56 @@ Respond with a single acknowledgment that invites reflection.
   }
 });
 
+// POST /api/chat/activity-return - Returns natural acknowledgment after activity completion
+// This endpoint replaces any hardcoded "Welcome back" messages
+app.post('/api/chat/activity-return', async (req, res) => {
+  console.log('[ACTIVITY RETURN] Request received');
+  
+  try {
+    const { userId, activityType, activityName } = req.body || {};
+    const activity = activityType || activityName || 'activity';
+    
+    // Build simple system prompt for natural acknowledgment
+    const systemPrompt = `
+You are TRACE, a calm, grounded companion in a mental wellness app.
+The user just completed "${activity}".
+
+Generate a brief, natural acknowledgment (1-2 sentences max).
+- Acknowledge you were present with them
+- Invite gentle reflection ("What shifted?", "What's different?")
+- Be warm but not performative
+- NO "Welcome back" - you were already with them
+- NO exclamation marks
+- NO "Great job" or "Well done"
+
+Example: "I was with you through that. What shifted?"
+`.trim();
+
+    if (!openai) {
+      console.log('[ACTIVITY RETURN] No OpenAI, using fallback');
+      return res.json({ message: "What shifted?" });
+    }
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `I just finished ${activity}.` },
+      ],
+      max_tokens: 60,
+      temperature: 0.75,
+    });
+
+    const message = response.choices[0]?.message?.content?.trim() || "What shifted?";
+    console.log(`[ACTIVITY RETURN] Response: "${message}"`);
+    
+    return res.json({ message });
+  } catch (error) {
+    console.error('[ACTIVITY RETURN] Error:', error.message || error);
+    return res.json({ message: "What shifted?" });
+  }
+});
+
 // ==================== PROFILE ENDPOINTS ====================
 
 // GET /api/profile - Fetch or create user profile
