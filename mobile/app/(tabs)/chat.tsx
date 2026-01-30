@@ -895,11 +895,28 @@ export default function ChatScreen() {
             console.log('🎯 PENDING ACTIVITY FOUND:', activity);
             await AsyncStorage.removeItem('trace:pendingActivityCompletion');
             
-            // Append "How was that?" to existing messages
+            // Get natural activity acknowledgment from OpenAI (not scripted)
+            let ackMessage = 'What shifted?'; // fallback only
+            try {
+              const hour = new Date().getHours();
+              const timeOfDay = hour < 6 || hour >= 22 ? 'night' : hour < 12 ? 'morning' : 'afternoon';
+              const ackRes = await fetch(`${CHAT_API_BASE}/api/activity-acknowledgment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, activityType: activity, timeOfDay }),
+              });
+              if (ackRes.ok) {
+                const data = await ackRes.json();
+                ackMessage = data.message || ackMessage;
+              }
+            } catch (e) {
+              console.warn('[ACTIVITY ACK] Failed:', e);
+            }
+            
             const reflectionPrompt: ChatMessage = {
               id: `activity-reflection-${Date.now()}`,
               role: 'assistant',
-              content: 'How was that?',
+              content: ackMessage,
             };
             
             setMessages(prev => {
