@@ -8654,9 +8654,10 @@ app.post('/api/chat/activity-return', async (req, res) => {
   console.log('[ACTIVITY RETURN] Request received, body:', JSON.stringify(req.body));
   
   try {
-    const { userId, activityType, activityName } = req.body || {};
-    const activity = activityType || activityName || 'activity';
-    console.log('[ACTIVITY RETURN] Parsed: userId=', userId, 'activityType=', activityType, 'activity=', activity);
+    // Accept multiple field name conventions for flexibility
+    const { userId, activityType, activityName, activity_name, activity_type } = req.body || {};
+    const activity = activityType || activityName || activity_name || activity_type || 'activity';
+    console.log('[ACTIVITY RETURN] Parsed: activity=', activity);
     
     // Track this call to prevent duplicate acknowledgment from activity-acknowledgment endpoint
     if (userId) {
@@ -8666,23 +8667,19 @@ app.post('/api/chat/activity-return', async (req, res) => {
     }
     
     // Build simple system prompt for natural acknowledgment - sounds like a friend, NOT a therapist
+    // Use random seed phrase to encourage variety
+    const varietySeeds = ['quick', 'chill', 'simple', 'casual', 'brief'];
+    const seed = varietySeeds[Math.floor(Math.random() * varietySeeds.length)];
+    
     const systemPrompt = `
-You are TRACE, a chill friend in a wellness app. NOT a therapist.
-The user just finished "${activity}".
+You are TRACE, a chill friend. User just did ${activity}.
 
-Generate a brief, natural check-in (1 short sentence).
-- Sound like a friend, not a counselor
-- Simple everyday language
-- Ask how they're feeling or if it helped
-- NO therapy words like "shifted", "present", "space", "holding"
-- NO "I was with you" type phrases
-- NO exclamation marks
+Write ONE ${seed} check-in question (max 5 words). Be a friend, not a therapist.
 
-Examples:
-- "How you feeling now?"
-- "That help at all?"
-- "Any better?"
-- "How was that?"
+FORBIDDEN: "how did that go", "how are you feeling", "how do you feel", therapy words
+GOOD: "any better?", "helped?", "you good?", "how's it now?", "feel different?"
+
+Just the question, nothing else.
 `.trim();
 
     if (!openai) {
