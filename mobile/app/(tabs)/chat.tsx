@@ -505,6 +505,9 @@ export default function ChatScreen() {
     completedActivity?: string; 
     activityDuration?: string; 
   }>();
+  
+  // Track if we've already processed route params for this navigation
+  const processedParamsRef = useRef<string | null>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
@@ -806,6 +809,23 @@ export default function ChatScreen() {
     setIsNightSwimPlaying(false);
     playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
   };
+
+  // Handle route params for activity completion (set reflection state immediately)
+  useEffect(() => {
+    const activity = params.completedActivity;
+    const duration = params.activityDuration;
+    
+    if (activity && activity !== processedParamsRef.current) {
+      processedParamsRef.current = activity;
+      console.log('🎯 ROUTE PARAMS: Activity completion detected via params:', activity, duration);
+      
+      // Set reflection state IMMEDIATELY so next message triggers reflection flow
+      setAwaitingOnboardingReflection(true);
+      setLastCompletedActivityName(activity);
+      
+      console.log('✅ ROUTE PARAMS: Set awaitingOnboardingReflection=true for', activity);
+    }
+  }, [params.completedActivity, params.activityDuration]);
 
   // SINGLE UNIFIED INIT - handles everything in one sequential flow
   useEffect(() => {
