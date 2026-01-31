@@ -5722,7 +5722,39 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
     // Post-activity reflection tracking (database-backed, 30-minute window)
     let postActivityReflectionContext = null;
     const reflectionUserId = userId || deviceId;
-    if (pool && reflectionUserId && !isCrisisMode) {
+    
+    // FALLBACK: Detect post-activity reflection from chat history patterns
+    // If we see: assistant asks "you good?/any better?" followed by short user response
+    // This handles cases where the reflection flag wasn't set (mobile caching issues)
+    if (!isCrisisMode && messages.length >= 2) {
+      const lastAssistantIdx = messages.map((m, i) => m.role === 'assistant' ? i : -1).filter(i => i >= 0).pop();
+      const lastUserIdx = messages.map((m, i) => m.role === 'user' ? i : -1).filter(i => i >= 0).pop();
+      
+      if (lastAssistantIdx !== undefined && lastUserIdx !== undefined && lastUserIdx > lastAssistantIdx) {
+        const assistantMsg = messages[lastAssistantIdx]?.content?.toLowerCase()?.trim() || '';
+        const userMsg = messages[lastUserIdx]?.content?.toLowerCase()?.trim() || '';
+        
+        // Check if assistant message looks like a post-activity check-in
+        const activityCheckInPatterns = [
+          'you good', 'any better', 'how\'s it', 'feel different', 'helped', 
+          'how you feeling', 'any changes', 'new vibe', 'hitting you', 'how did'
+        ];
+        const isPostActivityCheckIn = activityCheckInPatterns.some(p => assistantMsg.includes(p));
+        const isShortUserResponse = userMsg.length < 30;
+        
+        if (isPostActivityCheckIn && isShortUserResponse) {
+          console.log('[POST-ACTIVITY FALLBACK] Detected from chat pattern:', assistantMsg, '→', userMsg);
+          // Set a synthetic context so the intercept logic triggers
+          postActivityReflectionContext = {
+            lastActivityName: 'recent activity',
+            minutesSinceCompletion: 0,
+            fromFallback: true
+          };
+        }
+      }
+    }
+    
+    if (pool && reflectionUserId && !isCrisisMode && !postActivityReflectionContext) {
       try {
         postActivityReflectionContext = await getReflectionContext(pool, reflectionUserId);
         
