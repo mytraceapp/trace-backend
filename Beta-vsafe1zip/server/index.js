@@ -5732,6 +5732,82 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
           const { lastActivityName, minutesSinceCompletion } = postActivityReflectionContext;
           const minutesRounded = Math.round(minutesSinceCompletion);
           
+          // EARLY INTERCEPT: Generate caring friend response for post-activity reflection
+          // This prevents the main chat pipeline from generating therapy-speak responses
+          const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content?.toLowerCase()?.trim() || '';
+          const isShortReflection = lastUserMsg.length < 50; // Brief responses get special handling
+          
+          if (openai && isShortReflection) {
+            try {
+              const isNegative = ['not really', 'no', 'nope', 'nah', 'didn\'t help', 'worse', 'still', 'same', 'lol', 'meh', 'idk', 'whatever'].some(w => lastUserMsg.includes(w));
+              const isPositive = ['good', 'great', 'nice', 'better', 'helped', 'relaxed', 'calm', 'yeah', 'yes', 'totally', 'much'].some(w => lastUserMsg.includes(w));
+              
+              let toneGuidance = '';
+              if (isNegative) {
+                toneGuidance = 'User said the activity DIDN\'T help or was dismissive. Show you care, ask what\'s going on. Never dismiss with "gotcha" or "okay".';
+              } else if (isPositive) {
+                toneGuidance = 'User seems positive. Keep it brief and warm. Maybe mention you\'re glad or ask if they want to keep talking.';
+              } else {
+                toneGuidance = 'Read their tone and match it naturally. Be curious, not assumptive. Ask a gentle follow-up.';
+              }
+              
+              const caringSystemPrompt = `
+You are TRACE, a chill friend. User just shared how they're feeling after doing ${lastActivityName}.
+
+Their message: "${lastUserMsg}"
+
+${toneGuidance}
+
+Write ONE brief, natural response (max 12 words). Be a friend, not a therapist.
+
+CRITICAL: 
+- If they say "not really", "no", "lol", "meh" = the activity DIDN'T help. Ask what's up, show curiosity.
+- Never say the activity was good if they said it wasn't.
+- Don't dismiss with "gotcha" or "okay" when they're struggling.
+
+FORBIDDEN: therapy-speak, "that's great", "sounds like a win", exclamation marks, "I'm glad", "space", "holding", "shifted", "present", "grounded", "centered", "affirm"
+
+Just the response, nothing else.
+`.trim();
+
+              console.log('[POST-ACTIVITY INTERCEPT] Generating caring response for:', lastUserMsg);
+              const caringResponse = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                  { role: 'system', content: caringSystemPrompt },
+                  { role: 'user', content: lastUserMsg },
+                ],
+                max_tokens: 40,
+                temperature: 0.7,
+              });
+
+              const caringMessage = caringResponse?.choices?.[0]?.message?.content?.trim();
+              if (caringMessage) {
+                console.log('[POST-ACTIVITY INTERCEPT] Returning caring response:', caringMessage);
+                
+                // Save the response to DB
+                try {
+                  await pool.query(`
+                    INSERT INTO trace_entries (user_id, type, content, metadata, created_at)
+                    VALUES ($1, 'ai_reflection', $2, $3, NOW())
+                  `, [userId, caringMessage, JSON.stringify({ source: 'post_activity_intercept', activity: lastActivityName })]);
+                } catch (e) { /* non-critical */ }
+                
+                return res.json({
+                  message: caringMessage,
+                  activity_suggestion: null,
+                  posture: 'STEADY',
+                  detected_state: 'neutral',
+                  posture_confidence: 0.6,
+                  sound_state: 'presence',
+                  client_state_patch: {}
+                });
+              }
+            } catch (interceptErr) {
+              console.warn('[POST-ACTIVITY INTERCEPT] Error, falling back to main chat:', interceptErr.message);
+            }
+          }
+          
           const reflectionPrompt = `
 POST-ACTIVITY REFLECTION CONTEXT:
 The user just completed "${lastActivityName}" about ${minutesRounded} minute${minutesRounded === 1 ? '' : 's'} ago.
