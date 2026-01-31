@@ -9402,35 +9402,33 @@ app.post('/api/onboarding/reflection', async (req, res) => {
       try {
         const lowerReflection = reflectionText.toLowerCase().trim();
         const isNegative = ['not really', 'no', 'nope', 'nah', 'didn\'t help', 'worse', 'still', 'same', 'meh', 'idk', 'whatever'].some(w => lowerReflection.includes(w));
-        const isPositive = ['good', 'great', 'better', 'helped', 'relaxed', 'calm', 'yeah', 'yes', 'ye', 'yea', 'totally', 'def', 'for sure'].some(w => lowerReflection.includes(w));
         const isJokey = lowerReflection.includes('lol') || lowerReflection.includes('haha') || lowerReflection.includes('lmao');
         
         let toneGuidance = '';
         if (isNegative && !isJokey) {
-          toneGuidance = 'Activity didn\'t help. Show you care and be curious - ask "what\'s going on?" or "want to talk about it?"';
+          toneGuidance = 'The activity didn\'t seem to help them. Be curious about what\'s actually going on with them.';
         } else if (isJokey && isNegative) {
-          toneGuidance = 'They\'re joking but it didn\'t help. Match their vibe but check in genuinely.';
-        } else if (isPositive) {
-          toneGuidance = 'They seem positive. Acknowledge warmly and ask a caring follow-up like "how are you feeling about it?" or "what helped?"';
+          toneGuidance = 'They\'re being playful but something\'s still off. Match their energy while gently checking in.';
         } else {
-          toneGuidance = 'Unclear response. Be curious and caring - ask how they\'re feeling about it or what\'s on their mind.';
+          toneGuidance = 'Follow up naturally based on what they said. Be genuinely curious.';
         }
         
         const systemPrompt = `
-You are a caring friend checking in. They just did ${activityIdentifier} and said: "${reflectionText}"
+You're texting with a close friend. They just finished doing "${activityIdentifier}" (a calming activity) and replied: "${reflectionText}"
 
 ${toneGuidance}
 
-Write ONE short, caring response (max 10 words). Be genuinely curious about how they're doing.
+Respond like you're actually their friend who cares. Be curious. Ask a genuine follow-up based on THEIR specific words. Keep it short (under 12 words).
 
-GOOD examples: "how are you feeling about it?", "how was that for you?", "did that help at all?", "what's on your mind?", "want to talk about it?"
-For NEGATIVE responses: "what's going on?", "want to talk about it?", "what's up?"
+Rules:
+- Never repeat the same response twice
+- Never use canned phrases
+- React specifically to what THEY said, not generic check-ins
+- No therapy language (shifted, space, holding, present)
+- No exclamation marks
+- Don't be dismissive (nice, cool, gotcha)
 
-NEVER be dismissive like "nice", "cool", "gotcha", "okay". Show you actually care.
-NEVER use therapy words: "space", "holding", "shifted", "present", "I'm glad that"
-NEVER use exclamation marks.
-
-Just the response text, nothing else.
+Just the response, nothing else.
 `.trim();
 
         const response = await openai.chat.completions.create({
@@ -9440,7 +9438,7 @@ Just the response text, nothing else.
             { role: 'user', content: reflectionText },
           ],
           max_tokens: 40,
-          temperature: 0.7,
+          temperature: 0.9,
         });
 
         aiResponse = response?.choices?.[0]?.message?.content?.trim() || null;
