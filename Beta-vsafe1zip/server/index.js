@@ -9277,12 +9277,67 @@ app.post('/api/onboarding/reflection', async (req, res) => {
     }
     
     console.log('[ONBOARDING REFLECTION] Marked onboarding_completed=true and step=completed for userId:', userId.slice(0, 8));
+    
+    // Generate AI response for user's reflection (caring friend response)
+    let aiResponse = null;
+    if (openai && reflectionText) {
+      try {
+        const lowerReflection = reflectionText.toLowerCase().trim();
+        const isNegative = ['not really', 'no', 'nope', 'nah', 'didn\'t help', 'worse', 'still', 'same', 'lol', 'meh'].some(w => lowerReflection.includes(w));
+        const isPositive = ['good', 'great', 'nice', 'better', 'helped', 'relaxed', 'calm', 'yeah', 'yes', 'totally'].some(w => lowerReflection.includes(w));
+        
+        let toneGuidance = '';
+        if (isNegative) {
+          toneGuidance = 'User said the activity DIDN\'T help or was dismissive. Show you care, ask what\'s going on.';
+        } else if (isPositive) {
+          toneGuidance = 'User seems positive. Keep it brief and warm.';
+        } else {
+          toneGuidance = 'Read their tone and match it naturally. Be curious, not assumptive.';
+        }
+        
+        const systemPrompt = `
+You are TRACE, a chill friend. User just shared how they're feeling after doing ${activityIdentifier}.
+
+Their message: "${reflectionText}"
+
+${toneGuidance}
+
+Write ONE brief, natural response (max 12 words). Be a friend, not a therapist.
+
+CRITICAL: 
+- If they say "not really", "no", "lol", "meh" = the activity DIDN'T help. Ask what's up, show curiosity.
+- Never say the activity was good if they said it wasn't.
+- Don't dismiss with "gotcha" or "okay" when they're struggling.
+
+FORBIDDEN: therapy-speak, "that's great", "sounds like a win", exclamation marks, "I'm glad", "space", "holding", "shifted", "present"
+
+Just the response, nothing else.
+`.trim();
+
+        const response = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: reflectionText },
+          ],
+          max_tokens: 40,
+          temperature: 0.7,
+        });
+
+        aiResponse = response?.choices?.[0]?.message?.content?.trim() || null;
+        console.log('[ONBOARDING REFLECTION] AI response:', aiResponse);
+      } catch (aiErr) {
+        console.warn('[ONBOARDING REFLECTION] AI response error:', aiErr.message);
+      }
+    }
+    
     return res.json({ 
       success: true, 
       message: 'Reflection saved',
       reflectionId,
       savedToDb,
-      ok: true // backward compatibility
+      ok: true, // backward compatibility
+      aiResponse // New: caring AI response for client to display
     });
     
   } catch (err) {

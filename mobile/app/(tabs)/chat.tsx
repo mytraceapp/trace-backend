@@ -1452,51 +1452,40 @@ export default function ChatScreen() {
       setAwaitingOnboardingReflection(false);
       setLastCompletedActivityName(null);
       
-      // Save reflection to backend (non-blocking)
-      fetch(`${CHAT_API_BASE}/api/onboarding/reflection`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUserId,
-          activityName: activityName,
-          reflection: trimmed,
-        }),
-      }).then(res => {
-        if (res.ok) console.log('🎓 TRACE onboarding: reflection saved');
-        else console.warn('🎓 TRACE onboarding: reflection API returned', res.status);
-      }).catch(err => console.error('🎓 TRACE onboarding: reflection save error:', err));
-
-      // Call activity-acknowledgment endpoint for proper caring response
+      // Save reflection and get AI response from server
       try {
-        console.log('🎓 TRACE: calling activity-acknowledgment for reflection:', trimmed);
-        const ackRes = await fetch(`${CHAT_API_BASE}/api/chat/activity-acknowledgment`, {
+        console.log('🎓 TRACE: saving reflection and getting AI response:', trimmed);
+        const reflectionRes = await fetch(`${CHAT_API_BASE}/api/onboarding/reflection`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId: currentUserId,
-            activity_name: activityName,
-            user_reflection: trimmed,
+            activityName: activityName,
+            reflection: trimmed,
           }),
         });
         
-        if (ackRes.ok) {
-          const data = await ackRes.json();
-          if (data.message) {
-            console.log('🎓 TRACE: activity-acknowledgment response:', data.message);
+        if (reflectionRes.ok) {
+          const data = await reflectionRes.json();
+          console.log('🎓 TRACE: reflection response:', data);
+          
+          // Use the AI response from the server
+          if (data.aiResponse) {
+            console.log('🎓 TRACE: AI response for reflection:', data.aiResponse);
             addMessage({
               id: `activity-ack-${Date.now()}`,
               role: 'assistant',
-              content: data.message,
+              content: data.aiResponse,
             });
             setIsSending(false);
             return; // Don't call main chat API
           }
         }
-        console.warn('🎓 TRACE: activity-acknowledgment failed, falling back to main chat');
+        console.warn('🎓 TRACE: reflection API did not return aiResponse, falling back to main chat');
       } catch (err) {
-        console.error('🎓 TRACE: activity-acknowledgment error:', err);
+        console.error('🎓 TRACE: reflection save error:', err);
       }
-      // If activity-acknowledgment fails, continue to main chat
+      // If reflection save fails or no aiResponse, continue to main chat
     }
 
     // ==================== WEEK 1 PAYOFF CONSENT HANDLING ====================
