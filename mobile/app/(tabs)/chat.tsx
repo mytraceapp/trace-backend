@@ -506,6 +506,16 @@ export default function ChatScreen() {
     activityDuration?: string; 
   }>();
   
+  // Capture params IMMEDIATELY on first render (before Expo Router clears them)
+  const capturedParamsRef = useRef<{ activity?: string; duration?: string } | null>(null);
+  if (!capturedParamsRef.current && params.completedActivity) {
+    capturedParamsRef.current = {
+      activity: params.completedActivity,
+      duration: params.activityDuration,
+    };
+    console.log('📦 CAPTURED PARAMS on first render:', capturedParamsRef.current);
+  }
+  
   // Track if we've already processed route params for this navigation
   const processedParamsRef = useRef<string | null>(null);
 
@@ -812,18 +822,22 @@ export default function ChatScreen() {
 
   // Handle route params for activity completion (set reflection state immediately)
   useEffect(() => {
-    const activity = params.completedActivity;
-    const duration = params.activityDuration;
+    // Use captured params (from first render) OR current params (if still available)
+    const activity = capturedParamsRef.current?.activity || params.completedActivity;
+    const duration = capturedParamsRef.current?.duration || params.activityDuration;
     
     if (activity && activity !== processedParamsRef.current) {
       processedParamsRef.current = activity;
-      console.log('🎯 ROUTE PARAMS: Activity completion detected via params:', activity, duration);
+      console.log('🎯 ROUTE PARAMS: Activity completion detected:', activity, duration);
       
       // Set reflection state IMMEDIATELY so next message triggers reflection flow
       setAwaitingOnboardingReflection(true);
       setLastCompletedActivityName(activity);
       
       console.log('✅ ROUTE PARAMS: Set awaitingOnboardingReflection=true for', activity);
+      
+      // Clear captured params after processing
+      capturedParamsRef.current = null;
     }
   }, [params.completedActivity, params.activityDuration]);
 
