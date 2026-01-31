@@ -8778,6 +8778,16 @@ Just the question, nothing else.
     const message = response.choices[0]?.message?.content?.trim() || "How you feeling?";
     console.log(`[ACTIVITY RETURN] OpenAI response: "${message}"`);
     
+    // Set reflection flag so POST-ACTIVITY INTERCEPT triggers when user responds
+    if (pool && userId) {
+      try {
+        await markActivityCompletedForReflection(pool, userId, null, activity);
+        console.log('[ACTIVITY RETURN] Set reflection flag for:', activity);
+      } catch (flagErr) {
+        console.warn('[ACTIVITY RETURN] Failed to set reflection flag:', flagErr.message);
+      }
+    }
+    
     return res.json({ message });
   } catch (error) {
     console.error('[ACTIVITY RETURN] Error:', error.message || error);
