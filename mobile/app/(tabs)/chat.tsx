@@ -1442,9 +1442,15 @@ export default function ChatScreen() {
 
     console.log('📤 TRACE sending message:', trimmed);
 
-    // Onboarding reflection flow: save reflection but let OpenAI respond naturally
+    // Onboarding reflection flow: call activity-acknowledgment endpoint for proper response
     if (awaitingOnboardingReflection && lastCompletedActivityName) {
       console.log('🎓 TRACE onboarding: capturing reflection for', lastCompletedActivityName);
+      
+      const activityName = lastCompletedActivityName;
+      
+      // Clear onboarding reflection state FIRST to prevent race conditions
+      setAwaitingOnboardingReflection(false);
+      setLastCompletedActivityName(null);
       
       // Save reflection to backend (non-blocking)
       fetch(`${CHAT_API_BASE}/api/onboarding/reflection`, {
@@ -1452,7 +1458,7 @@ export default function ChatScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: currentUserId,
-          activityName: lastCompletedActivityName,
+          activityName: activityName,
           reflection: trimmed,
         }),
       }).then(res => {
@@ -1460,12 +1466,37 @@ export default function ChatScreen() {
         else console.warn('🎓 TRACE onboarding: reflection API returned', res.status);
       }).catch(err => console.error('🎓 TRACE onboarding: reflection save error:', err));
 
-      // Clear onboarding reflection state
-      setAwaitingOnboardingReflection(false);
-      setLastCompletedActivityName(null);
-      
-      // DON'T return early - let message flow through to OpenAI for natural response with context
-      console.log('🎓 TRACE: letting reflection flow through to OpenAI for natural response');
+      // Call activity-acknowledgment endpoint for proper caring response
+      try {
+        console.log('🎓 TRACE: calling activity-acknowledgment for reflection:', trimmed);
+        const ackRes = await fetch(`${CHAT_API_BASE}/api/chat/activity-acknowledgment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUserId,
+            activity_name: activityName,
+            user_reflection: trimmed,
+          }),
+        });
+        
+        if (ackRes.ok) {
+          const data = await ackRes.json();
+          if (data.message) {
+            console.log('🎓 TRACE: activity-acknowledgment response:', data.message);
+            addMessage({
+              id: `activity-ack-${Date.now()}`,
+              role: 'assistant',
+              content: data.message,
+            });
+            setIsSending(false);
+            return; // Don't call main chat API
+          }
+        }
+        console.warn('🎓 TRACE: activity-acknowledgment failed, falling back to main chat');
+      } catch (err) {
+        console.error('🎓 TRACE: activity-acknowledgment error:', err);
+      }
+      // If activity-acknowledgment fails, continue to main chat
     }
 
     // ==================== WEEK 1 PAYOFF CONSENT HANDLING ====================
