@@ -896,35 +896,44 @@ export default function ChatScreen() {
             await AsyncStorage.removeItem('trace:pendingActivityCompletion');
             
             // Get natural activity acknowledgment from OpenAI (not scripted)
+            // Use a guard to prevent duplicate calls
             try {
-              const hour = new Date().getHours();
-              const timeOfDay = hour < 6 || hour >= 22 ? 'night' : hour < 12 ? 'morning' : 'afternoon';
-              const ackRes = await fetch(`${CHAT_API_BASE}/api/chat/activity-return`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, activityType: activity, timeOfDay }),
-              });
-              if (ackRes.ok) {
-                const data = await ackRes.json();
-                // Only add message if API returned one
-                if (data.message) {
-                  const reflectionPrompt: ChatMessage = {
-                    id: `activity-reflection-${Date.now()}`,
-                    role: 'assistant',
-                    content: data.message,
-                  };
-                  
-                  setMessages(prev => {
-                    const updated = [...prev, reflectionPrompt];
-                    saveConversationToStorage(updated, userId);
-                    console.log('📱 Appended reflection, total:', updated.length, 'messages');
-                    return updated;
-                  });
+              const lastAckCall = await AsyncStorage.getItem('trace:lastActivityReturnCall');
+              const now = Date.now();
+              if (lastAckCall && (now - parseInt(lastAckCall, 10)) < 30000) {
+                console.log('📱 Skipping pending activity-return call - already called recently');
+              } else {
+                await AsyncStorage.setItem('trace:lastActivityReturnCall', now.toString());
+                
+                const ackRes = await fetch(`${CHAT_API_BASE}/api/chat/activity-return`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    userId, 
+                    activity_name: activity, 
+                    duration_minutes: Math.round((duration || 0) / 60) 
+                  }),
+                });
+                if (ackRes.ok) {
+                  const data = await ackRes.json();
+                  if (data.message) {
+                    const reflectionPrompt: ChatMessage = {
+                      id: `activity-reflection-${Date.now()}`,
+                      role: 'assistant',
+                      content: data.message,
+                    };
+                    
+                    setMessages(prev => {
+                      const updated = [...prev, reflectionPrompt];
+                      saveConversationToStorage(updated, userId);
+                      console.log('📱 Appended reflection, total:', updated.length, 'messages');
+                      return updated;
+                    });
+                  }
                 }
               }
             } catch (e) {
               console.warn('[ACTIVITY ACK] Failed:', e);
-              // Don't add fallback - let conversation flow naturally
             }
             
             // CRITICAL: Update onboarding step to reflection_pending FIRST (blocking)
@@ -1275,34 +1284,39 @@ export default function ChatScreen() {
     })();
     
     // Get natural activity acknowledgment from OpenAI (not scripted)
+    // Use a guard to prevent duplicate calls - store timestamp of last call
     try {
-      const ackRes = await fetch(`${CHAT_API_BASE}/api/chat/activity-return`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: userId,
-          activityType: activity,
-          activityCount: 1,
-          timeOfDay: new Date().getHours() < 6 || new Date().getHours() >= 22 ? 'night' : 
-                     new Date().getHours() < 12 ? 'morning' : 'afternoon',
-        }),
-      });
-      
-      if (ackRes.ok) {
-        const data = await ackRes.json();
-        // Only add message if API returned one (not null/skipped)
-        if (data.message) {
-          const reflectionPrompt: ChatMessage = {
-            id: `activity-reflection-${Date.now()}`,
-            role: 'assistant',
-            content: data.message,
-          };
-          addMessage(reflectionPrompt);
+      const lastAckCall = await AsyncStorage.getItem('trace:lastActivityReturnCall');
+      const now = Date.now();
+      if (lastAckCall && (now - parseInt(lastAckCall, 10)) < 30000) {
+        console.log('📱 Skipping activity-return call - already called recently');
+      } else {
+        await AsyncStorage.setItem('trace:lastActivityReturnCall', now.toString());
+        
+        const ackRes = await fetch(`${CHAT_API_BASE}/api/chat/activity-return`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: userId,
+            activity_name: activity,
+            duration_minutes: Math.round((duration || 0) / 60),
+          }),
+        });
+        
+        if (ackRes.ok) {
+          const data = await ackRes.json();
+          if (data.message) {
+            const reflectionPrompt: ChatMessage = {
+              id: `activity-reflection-${Date.now()}`,
+              role: 'assistant',
+              content: data.message,
+            };
+            addMessage(reflectionPrompt);
+          }
         }
       }
     } catch (err) {
       console.warn('[ACTIVITY ACK] Failed to get acknowledgment:', err);
-      // Don't add fallback - let the conversation flow naturally
     }
     
     // Set state for reflection capture
