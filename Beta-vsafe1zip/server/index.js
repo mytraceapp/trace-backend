@@ -9290,7 +9290,7 @@ app.post('/api/onboarding/reflection', async (req, res) => {
     const activityIdentifier = activityName || activity_name || activity_id;
     const reflectionText = reflection || felt_shift;
     
-    console.log('[ONBOARDING REFLECTION] Request:', { 
+    console.log('[ACTIVITY REFLECTION] Request:', { 
       userId: userId?.slice?.(0, 8), 
       activity: activityIdentifier, 
       reflection: reflectionText?.slice?.(0, 30) 
@@ -9351,7 +9351,7 @@ app.post('/api/onboarding/reflection', async (req, res) => {
       
       if (insertError) {
         // Table might not exist, try activity_reflections as fallback
-        console.log('[ONBOARDING REFLECTION] onboarding_reflections insert failed, trying fallback:', insertError.message);
+        console.log('[ACTIVITY REFLECTION] onboarding_reflections insert failed, trying fallback:', insertError.message);
         
         // Check if activity_id is a number (real DB ID) vs string (activity name)
         const numericActivityId = parseInt(activityIdentifier, 10);
@@ -9368,15 +9368,15 @@ app.post('/api/onboarding/reflection', async (req, res) => {
           
           if (!fallbackError) {
             savedToDb = true;
-            console.log('[ONBOARDING REFLECTION] Saved to activity_reflections:', { userId: userId.slice(0, 8), activity_id: numericActivityId, mood_score });
+            console.log('[ACTIVITY REFLECTION] Saved to activity_reflections:', { userId: userId.slice(0, 8), activity_id: numericActivityId, mood_score });
           }
         }
       } else {
         savedToDb = true;
-        console.log('[ONBOARDING REFLECTION] Saved to onboarding_reflections:', { userId: userId.slice(0, 8), activity: activityIdentifier, mood_score, reflectionId });
+        console.log('[ACTIVITY REFLECTION] Saved to onboarding_reflections:', { userId: userId.slice(0, 8), activity: activityIdentifier, mood_score, reflectionId });
       }
     } catch (e) {
-      console.log('[ONBOARDING REFLECTION] Insert error (non-critical):', e.message);
+      console.log('[ACTIVITY REFLECTION] Insert error (non-critical):', e.message);
     }
     
     // Update profiles set onboarding_completed=true and onboarding_step=completed
@@ -9390,46 +9390,46 @@ app.post('/api/onboarding/reflection', async (req, res) => {
       .eq('user_id', userId);
     
     if (updateError) {
-      console.error('[ONBOARDING REFLECTION] Profile update error:', updateError.message);
+      console.error('[ACTIVITY REFLECTION] Profile update error:', updateError.message);
       return res.status(500).json({ success: false, error: updateError.message });
     }
     
-    console.log('[ONBOARDING REFLECTION] Marked onboarding_completed=true and step=completed for userId:', userId.slice(0, 8));
+    console.log('[ACTIVITY REFLECTION] Saved reflection for userId:', userId.slice(0, 8));
     
-    // Generate AI response for user's reflection (caring friend response)
+    // Generate AI response for user's post-activity reflection (friend-like response)
     let aiResponse = null;
     if (openai && reflectionText) {
       try {
         const lowerReflection = reflectionText.toLowerCase().trim();
-        const isNegative = ['not really', 'no', 'nope', 'nah', 'didn\'t help', 'worse', 'still', 'same', 'lol', 'meh'].some(w => lowerReflection.includes(w));
-        const isPositive = ['good', 'great', 'nice', 'better', 'helped', 'relaxed', 'calm', 'yeah', 'yes', 'totally'].some(w => lowerReflection.includes(w));
+        const isNegative = ['not really', 'no', 'nope', 'nah', 'didn\'t help', 'worse', 'still', 'same', 'meh', 'idk', 'whatever'].some(w => lowerReflection.includes(w));
+        const isPositive = ['good', 'great', 'nice', 'better', 'helped', 'relaxed', 'calm', 'yeah', 'yes', 'ye', 'yea', 'totally', 'def', 'for sure'].some(w => lowerReflection.includes(w));
+        const isJokey = lowerReflection.includes('lol') || lowerReflection.includes('haha') || lowerReflection.includes('lmao');
         
         let toneGuidance = '';
-        if (isNegative) {
-          toneGuidance = 'User said the activity DIDN\'T help or was dismissive. Show you care, ask what\'s going on.';
+        if (isNegative && !isJokey) {
+          toneGuidance = 'Activity didn\'t help. Show you care - ask "what\'s going on?" or "want to talk about it?"';
+        } else if (isJokey && isNegative) {
+          toneGuidance = 'They\'re joking but it didn\'t help. Match their vibe but check in - "lol fair - what\'s up though?"';
         } else if (isPositive) {
-          toneGuidance = 'User seems positive. Keep it brief and warm.';
+          toneGuidance = 'They\'re good. Be brief - "nice" or "good to hear" or just acknowledge it casually.';
         } else {
-          toneGuidance = 'Read their tone and match it naturally. Be curious, not assumptive.';
+          toneGuidance = 'Neutral response. Just acknowledge naturally without probing.';
         }
         
         const systemPrompt = `
-You are TRACE, a chill friend. User just shared how they're feeling after doing ${activityIdentifier}.
-
-Their message: "${reflectionText}"
+You are texting with a friend. They just did ${activityIdentifier} and told you: "${reflectionText}"
 
 ${toneGuidance}
 
-Write ONE brief, natural response (max 12 words). Be a friend, not a therapist.
+Write ONE short response like you'd text a friend (max 8 words). 
 
-CRITICAL: 
-- If they say "not really", "no", "lol", "meh" = the activity DIDN'T help. Ask what's up, show curiosity.
-- Never say the activity was good if they said it wasn't.
-- Don't dismiss with "gotcha" or "okay" when they're struggling.
+POSITIVE examples: "nice", "good", "glad it helped", "cool"
+NEGATIVE examples: "what's going on?", "want to talk about it?", "what's up?"
+JOKEY NEGATIVE: "lol fair - what's up though?"
 
-FORBIDDEN: therapy-speak, "that's great", "sounds like a win", exclamation marks, "I'm glad", "space", "holding", "shifted", "present"
+NEVER say: "How are you feeling", "sounds like", "that's great", anything with exclamation marks, therapy words like "space", "holding", "shifted", "present", "I'm glad", "It sounds like"
 
-Just the response, nothing else.
+Just the response text, nothing else.
 `.trim();
 
         const response = await openai.chat.completions.create({
@@ -9443,9 +9443,9 @@ Just the response, nothing else.
         });
 
         aiResponse = response?.choices?.[0]?.message?.content?.trim() || null;
-        console.log('[ONBOARDING REFLECTION] AI response:', aiResponse);
+        console.log('[ACTIVITY REFLECTION] AI response:', aiResponse);
       } catch (aiErr) {
-        console.warn('[ONBOARDING REFLECTION] AI response error:', aiErr.message);
+        console.warn('[ACTIVITY REFLECTION] AI response error:', aiErr.message);
       }
     }
     
@@ -9459,7 +9459,7 @@ Just the response, nothing else.
     });
     
   } catch (err) {
-    console.error('[ONBOARDING REFLECTION] Error:', err.message);
+    console.error('[ACTIVITY REFLECTION] Error:', err.message);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

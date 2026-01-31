@@ -551,7 +551,7 @@ export default function ChatScreen() {
   const [welcomeLoading, setWelcomeLoading] = useState(false);
   // Track whether chat history has been loaded (to prevent greeting before history)
   const [historyLoaded, setHistoryLoaded] = useState(false);
-  // Onboarding reflection flow state
+  // Post-activity reflection flow state
   const [awaitingOnboardingReflection, setAwaitingOnboardingReflection] = useState(false);
   const [lastCompletedActivityName, setLastCompletedActivityName] = useState<string | null>(null);
 
@@ -1476,13 +1476,13 @@ export default function ChatScreen() {
 
     console.log('📤 TRACE sending message:', trimmed);
 
-    // Onboarding reflection flow: call activity-acknowledgment endpoint for proper response
+    // Post-activity reflection flow: call reflection endpoint for proper response
     if (awaitingOnboardingReflection && lastCompletedActivityName) {
       console.log('🎓 TRACE onboarding: capturing reflection for', lastCompletedActivityName);
       
       const activityName = lastCompletedActivityName;
       
-      // Clear onboarding reflection state FIRST to prevent race conditions
+      // Clear activity reflection state FIRST to prevent race conditions
       setAwaitingOnboardingReflection(false);
       setLastCompletedActivityName(null);
       

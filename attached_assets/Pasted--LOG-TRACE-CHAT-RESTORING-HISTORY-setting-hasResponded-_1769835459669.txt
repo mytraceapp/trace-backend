@@ -1,0 +1,58 @@
+ LOG  [TRACE CHAT] 🎯 RESTORING HISTORY - setting hasResponded=true, messages.length= 12
+ LOG  [TRACE CHAT] ℹ️ NOT fetching greeting for old user with active conversation
+ LOG  [TRACE CHAT] ✅ Restored history (within 1 hour), count: 12
+ LOG  [TRACE CHAT] 🔧 Setting initializedUserId= 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [SoundStateManager] ✅ Track loaded: "comfort" #1
+ LOG  [AudioContext.playState] 🔇 Fading out global ambient for comfort (3000ms)
+ LOG  [AudioContext] ✅ Soundscape resumed: comfort
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  ✅ [ACTIVITY SYNC] Successfully synced to backend
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [TRACE CHAT] Logging activity to tracker...
+ LOG  [ACTIVITY VARIETY] ✅ Logged activity completion: 0.1 state: undefined
+ WARN  [SIGNALS] No active signal state
+ LOG  [TELEMETRY] ✅ Logged suggestion_completed: maze
+ WARN  [TELEMETRY] Flush error (keeping queue): Network request failed
+ WARN  [TELEMETRY] Flush error (keeping queue): Network request failed
+ LOG  [TRACE CHAT] Showing onboarding reflection prompt for: maze
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [AudioContext.playState] ▶️ Ambient fade complete, now playing soundscape: comfort
+ LOG  [AudioContext.playState] ↔️ Crossfading from comfort to comfort
+ LOG  [TRACE CHAT] Got contextual return message: You good?
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [TRACE CHAT] Awaiting onboarding reflection from user
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [AudioContext.playState] ✅ New track faded in at volume 0.34
+ LOG  [AudioContext.playState] ✅ Old track faded out and unloaded
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  INPUT_FOCUS
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [TRACE CHAT] 📝 Onboarding reflection response received: Ye
+ LOG  [TRACE CHAT] Activity: maze
+ LOG  [TRACE CHAT] Saving reflection with userId: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [TRACE CHAT] Reflection response status: 200
+ LOG  [TRACE CHAT] ✅ Reflection response: {"aiResponse": "How are you feeling about it?", "message": "Reflection saved", "ok": true, "reflectionId": "ref_1769835418600_kyyllr", "savedToDb": true, "success": true}
+ LOG  [TRACE CHAT] ✅ Reflection saved to backend
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] 🎉 Onboarding reflection complete
+ LOG  [CTA] Skipping legacy CTA logic (backend handles via /api/chat/activity-return)
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2106 bytes
