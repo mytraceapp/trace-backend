@@ -1,0 +1,27 @@
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [TRACE CHAT] 📝 Onboarding reflection response received: Lol define
+ LOG  [TRACE CHAT] Activity: Basin
+ LOG  [TRACE CHAT] Saving reflection with userId: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ LOG  [TRACE CHAT] Reflection response status: 200
+ LOG  [TRACE CHAT] ✅ Reflection response: {"aiResponse": "What’s on your mind? Sounds like it didn’t help.", "message": "Reflection saved", "ok": true, "reflectionId": "ref_1769832241442_u4ko0w", "savedToDb": true, "success": true}
+ LOG  [TRACE CHAT] ✅ Reflection saved to backend
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ LOG  [TRACE CHAT] 🎉 Onboarding reflection complete
+ LOG  [CTA] Skipping legacy CTA logic (backend handles via /api/chat/activity-return)
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "Basin"}
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
