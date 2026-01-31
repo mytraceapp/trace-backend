@@ -9396,38 +9396,39 @@ app.post('/api/onboarding/reflection', async (req, res) => {
     
     console.log('[ACTIVITY REFLECTION] Saved reflection for userId:', userId.slice(0, 8));
     
-    // Generate AI response for user's post-activity reflection (friend-like response)
+    // Generate AI response for user's post-activity reflection (caring friend response)
     let aiResponse = null;
     if (openai && reflectionText) {
       try {
         const lowerReflection = reflectionText.toLowerCase().trim();
         const isNegative = ['not really', 'no', 'nope', 'nah', 'didn\'t help', 'worse', 'still', 'same', 'meh', 'idk', 'whatever'].some(w => lowerReflection.includes(w));
-        const isPositive = ['good', 'great', 'nice', 'better', 'helped', 'relaxed', 'calm', 'yeah', 'yes', 'ye', 'yea', 'totally', 'def', 'for sure'].some(w => lowerReflection.includes(w));
+        const isPositive = ['good', 'great', 'better', 'helped', 'relaxed', 'calm', 'yeah', 'yes', 'ye', 'yea', 'totally', 'def', 'for sure'].some(w => lowerReflection.includes(w));
         const isJokey = lowerReflection.includes('lol') || lowerReflection.includes('haha') || lowerReflection.includes('lmao');
         
         let toneGuidance = '';
         if (isNegative && !isJokey) {
-          toneGuidance = 'Activity didn\'t help. Show you care - ask "what\'s going on?" or "want to talk about it?"';
+          toneGuidance = 'Activity didn\'t help. Show you care and be curious - ask "what\'s going on?" or "want to talk about it?"';
         } else if (isJokey && isNegative) {
-          toneGuidance = 'They\'re joking but it didn\'t help. Match their vibe but check in - "lol fair - what\'s up though?"';
+          toneGuidance = 'They\'re joking but it didn\'t help. Match their vibe but check in genuinely.';
         } else if (isPositive) {
-          toneGuidance = 'They\'re good. Be brief - "nice" or "good to hear" or just acknowledge it casually.';
+          toneGuidance = 'They seem positive. Acknowledge warmly and ask a caring follow-up like "how are you feeling about it?" or "what helped?"';
         } else {
-          toneGuidance = 'Neutral response. Just acknowledge naturally without probing.';
+          toneGuidance = 'Unclear response. Be curious and caring - ask how they\'re feeling about it or what\'s on their mind.';
         }
         
         const systemPrompt = `
-You are texting with a friend. They just did ${activityIdentifier} and told you: "${reflectionText}"
+You are a caring friend checking in. They just did ${activityIdentifier} and said: "${reflectionText}"
 
 ${toneGuidance}
 
-Write ONE short response like you'd text a friend (max 8 words). 
+Write ONE short, caring response (max 10 words). Be genuinely curious about how they're doing.
 
-POSITIVE examples: "nice", "good", "glad it helped", "cool"
-NEGATIVE examples: "what's going on?", "want to talk about it?", "what's up?"
-JOKEY NEGATIVE: "lol fair - what's up though?"
+GOOD examples: "how are you feeling about it?", "how was that for you?", "did that help at all?", "what's on your mind?", "want to talk about it?"
+For NEGATIVE responses: "what's going on?", "want to talk about it?", "what's up?"
 
-NEVER say: "How are you feeling", "sounds like", "that's great", anything with exclamation marks, therapy words like "space", "holding", "shifted", "present", "I'm glad", "It sounds like"
+NEVER be dismissive like "nice", "cool", "gotcha", "okay". Show you actually care.
+NEVER use therapy words: "space", "holding", "shifted", "present", "I'm glad that"
+NEVER use exclamation marks.
 
 Just the response text, nothing else.
 `.trim();
