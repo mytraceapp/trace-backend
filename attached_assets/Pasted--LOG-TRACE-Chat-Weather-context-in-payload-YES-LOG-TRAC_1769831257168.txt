@@ -1,0 +1,164 @@
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 12°F (feels like -4°F), nighttime. Clear. Wind around 12 mph", "temperature": undefined, "windSpeed": undefined}
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1769831208399-aohjeq","message":"It's about holding onto something — even when you're not sure what. Neon Promise has this gentle pull to it.\n\nDo you want me to share the lyrics?","mode":"trace_studios","traceStudios":{"kind":"door_open","trackId":"neon_promise","traceStudiosContext":"neon_promise","suggestion":"lyrics_confirm"},"messages":["It's about holding onto something — even when you're not sure what. Neon Promise has this gentle pull to it.\n\nDo you want me to share the lyrics?"],"deduped":false}
+ LOG  [TRACE Chat] Processed messages array: ["It's about holding onto something — even when you're not sure what. Neon Promise has this gentle pull to it.
+
+Do you want me to share the lyrics?"]
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, requestId, message, mode, traceStudios, messages, deduped
+ LOG  [TRACE Chat] ⚠️ No sound_state in response object
+ LOG  [TRACE MIRROR] Session expired, initialized new session
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Session turn count: 1
+ LOG  [PILLAR 10] Session turn count incremented: 1
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 5 msgs, 1 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  MESSAGES_LEN_AFTER: 17 deduped from: 17
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ LOG  [TRACE Chat] Profile check: {"hasLat": true, "hasLon": true, "hasProfile": true, "lat": 40.7128, "lon": -74.006, "weatherEnabled": true}
+ LOG  [TRACE Chat] 🌤️ Fetching weather context for location: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] Calling getWeather with: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] 🌤️ Weather API response received: {
+  "summary": "Pretty cold — currently 12°F (feels like -4°F), nighttime. Clear. Wind around 12 mph",
+  "current": {
+    "temperature": 12,
+    "feelsLike": -4,
+    "wind": 12,
+    "weatherText": "Clear",
+    "humidity": 46,
+    "uvIndex": 0,
+    "cloudCover": 0,
+    "isDayTime": false
+  }
+}
+ LOG  [TRACE Chat] 🌤️ Weather context SUCCESSFULLY prepared: {
+  "summary": "Pretty cold — currently 12°F (feels like -4°F), nighttime. Clear. Wind around 12 mph"
+}
+ LOG  [TRACE Chat] Backend URL: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev
+ LOG  [TRACE Chat] Sending to: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 12°F (feels like -4°F), nighttime. Clear. Wind around 12 mph", "temperature": undefined, "windSpeed": undefined}
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1769831212686-je2hpp","message":"Here are the lyrics to Neon Promise:\n\n[Verse 1]\nNeon spills across the floor,\nLike the night can't hold its breath,\nI've been trying not to want you,\nBut I'm tired of pretending I'm fine.\n\n[Pre-Chorus]\nIf I'm honest, I still listen\nFor your name in every sound,\nLike the city's keeping secrets\nAnd it wants to let them out.\n\n[Chorus]\nMeet me where the lights are low,\nWhere the ocean air feels close,\nI don't need you to explain it—\nJust don't let me disappear.\nIf your heart is still a question,\nLet it lean into the truth,\nI'll be here, no hesitation,\nLike a neon promise—\nBurning through.\n\n[Verse 2]\nI don't miss the way it ended,\nI just miss the way it felt,\nHow you looked right through my armor\nLike you knew me better than myself.\n\n[Pre-Chorus]\nAnd the nights keep getting louder\nWhen I'm quiet on my own,\nSo I drive until the sunrise\nJust to feel like I'm not alone.\n\n[Chorus]\nMeet me where the lights are low,\nWhere the ocean air feels close,\nI don't need you to explain it—\nJust don't let me disappear.\nIf your heart is still a question,\nLet it lean into the truth,\nI'll be here, no hesitation,\nLike a neon promise—\nBurning through.\n\n[Bridge]\nSay it soft…\nI don't need a forever,\nI just need you in the moment.\nSay it slow…\nIf you're reaching, I'm already there.\n\n[Final Chorus]\nMeet me where the lights are low,\nWhere the world won't interfere,\nI don't need you to be ready—\nJust be real with me right here.\nIf your heart is still a question,\nLet it open like a door,\nI'll be here, no hesitation,\nLike a neon promise—\nWanting more.","activity_suggestion":{"name":null,"should_navigate":false,"target":null},"posture":"STEADY","detected_state":"neutral","posture_confidence":0.6,"sound_state":{"current":"presence","changed":false,"reason":"no_change"},"next_question":{"intent":"clarify","question":"Can you tell me more about that?"},"client_state_patch":{"sessionStartedAt":1769831214071,"lastUserAt":1769831214071,"sessionTurnCount":1,"lastGuidedStepTurn":0,"recentTopics":[],"activeLoops":[],"recentWins":[],"recentPhrases":[],"doorwayState":{"doors":{"currentDoorId":null,"lastDoorId":null,"activatedAtTurn":null,"turnsSinceActivation":1},"crisis":{"active":false,"triggeredAt":null,"lastSeenAt":null,"cleanTurns":1},"lastMessageAt":"2026-01-31T03:46:54.071Z"},"lastAssistantHash":"4a38a47683fff6ac025a32f954532692028d1c9bb265671b66a6d19179a6998c","lastAssistantText":"Here are the lyrics to Neon Promise:\n\n[Verse 1]\nNeon spills across the floor,\nLike the night can't hold its breath,\nI've been trying not to want you,\nBut I'm tired of pretending I'm fine.\n\n[Pre-Chorus","lastQuestionIntent":"clarify"},"isCrisisMode":false,"messages":["Here are the lyrics to Neon Promise:\n\n[Verse 1]\nNeon spills across the floor,\nLike the night can't hold its breath,\nI've been trying not to want you,\nBut I'm tired of pretending I'm fine.\n\n[Pre-Chorus]\nIf I'm honest, I still listen\nFor your name in every sound,\nLike the city's keeping secrets\nAnd it wants to let them out.\n\n[Chorus]\nMeet me where the lights are low,\nWhere the ocean air feels close,\nI don't need you to explain it—\nJust don't let me disappear.\nIf your heart is still a question,\nLet it lean into the truth,\nI'll be here, no hesitation,\nLike a neon promise—\nBurning through.\n\n[Verse 2]\nI don't miss the way it ended,\nI just miss the way it felt,\nHow you looked right through my armor\nLike you knew me better than myself.\n\n[Pre-Chorus]\nAnd the nights keep getting louder\nWhen I'm quiet on my own,\nSo I drive until the sunrise\nJust to feel like I'm not alone.\n\n[Chorus]\nMeet me where the lights are low,\nWhere the ocean air feels close,\nI don't need you to explain it—\nJust don't let me disappear.\nIf your heart is still a question,\nLet it lean into the truth,\nI'll be here, no hesitation,\nLike a neon promise—\nBurning through.\n\n[Bridge]\nSay it soft…\nI don't need a forever,\nI just need you in the moment.\nSay it slow…\nIf you're reaching, I'm already there.\n\n[Final Chorus]\nMeet me where the lights are low,\nWhere the world won't interfere,\nI don't need you to be ready—\nJust be real with me right here.\nIf your heart is still a question,\nLet it open like a door,\nI'll be here, no hesitation,\nLike a neon promise—\nWanting more."],"deduped":false}
+ LOG  [TRACE Chat] Processed messages array: ["Here are the lyrics to Neon Promise:
+
+[Verse 1]
+Neon spills across the floor,
+Like the night can't hold its breath,
+I've been trying not to want you,
+But I'm tired of pretending I'm fine.
+
+[Pre-Chorus]
+If I'm honest, I still listen
+For your name in every sound,
+Like the city's keeping secrets
+And it wants to let them out.
+
+[Chorus]
+Meet me where the lights are low,
+Where the ocean air feels close,
+I don't need you to explain it—
+Just don't let me disappear.
+If your heart is still a question,
+Let it lean into the truth,
+I'll be here, no hesitation,
+Like a neon promise—
+Burning through.
+
+[Verse 2]
+I don't miss the way it ended,
+I just miss the way it felt,
+How you looked right through my armor
+Like you knew me better than myself.
+
+[Pre-Chorus]
+And the nights keep getting louder
+When I'm quiet on my own,
+So I drive until the sunrise
+Just to feel like I'm not alone.
+
+[Chorus]
+Meet me where the lights are low,
+Where the ocean air feels close,
+I don't need you to explain it—
+Just don't let me disappear.
+If your heart is still a question,
+Let it lean into the truth,
+I'll be here, no hesitation,
+Like a neon promise—
+Burning through.
+
+[Bridge]
+Say it soft…
+I don't need a forever,
+I just need you in the moment.
+Say it slow…
+If you're reaching, I'm already there.
+
+[Final Chorus]
+Meet me where the lights are low,
+Where the world won't interfere,
+I don't need you to be ready—
+Just be real with me right here.
+If your heart is still a question,
+Let it open like a door,
+I'll be here, no hesitation,
+Like a neon promise—
+Wanting more."]
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, requestId, message, activity_suggestion, posture, detected_state, posture_confidence, sound_state, next_question, client_state_patch, isCrisisMode, messages, deduped
+ LOG  [TRACE Chat] 🔊 Found sound_state in response: {"changed": false, "confidence": undefined, "current": "presence", "reason": "no_change"}
+ LOG  [useSoundStateIntegration] 🔍 handleSoundState called with: {"soundStateChanged": false, "soundStateConfidence": undefined, "soundStateCurrent": "presence", "soundStateExists": true}
+ LOG  [useSoundStateIntegration] 📊 Soundscape status: {"currentState": "presence", "isEmotionalSoundscape": false, "newState": "presence", "trackExists": true, "trackPlaying": false}
+ LOG  [useSoundStateIntegration] 🎵 INITIALIZING soundscape: {"newState": "presence", "reason": "no_change"}
+ LOG  [AudioContext.updateSoundState] ℹ️ State unchanged: presence
+ LOG  [SoundContextManager] Soundscape deactivated
+ LOG  [useSoundStateIntegration] ✅ Soundscape activated successfully
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-01-31T03:46:54.071Z"}, "lastAssistantHash": "4a38a47683fff6ac025a32f954532692028d1c9bb265671b66a6d19179a6998c", "lastAssistantText": "Here are the lyrics to Neon Promise:
+
+[Verse 1]
+Neon spills across the floor,
+Like the night can't hold its breath,
+I've been trying not to want you,
+But I'm tired of pretending I'm fine.
+
+[Pre-Chorus", "lastGuidedStepTurn": 0, "lastQuestionIntent": "clarify", "lastUserAt": 1769831214071, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1769831214071, "sessionTurnCount": 1}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-01-31T03:46:54.071Z"}
+ LOG  [TRACE MIRROR] Session turn count: 2
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 2
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  MESSAGES_LEN_AFTER: 19 deduped from: 19
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.1", "completedActivity": "maze"}
+
