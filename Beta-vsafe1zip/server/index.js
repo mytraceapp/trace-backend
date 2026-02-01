@@ -3374,7 +3374,12 @@ app.post('/api/greeting', async (req, res) => {
         const memoryData = await loadTraceLongTermMemory(supabaseServer, userId);
         // Fixed: memory returns coreThemes, not themes
         if (memoryData?.coreThemes && memoryData.coreThemes.length > 0) {
-          memoryContext = memoryData.coreThemes.slice(0, 3);
+          // Shuffle themes and pick 1-2 random ones (not always the same)
+          const shuffled = [...memoryData.coreThemes].sort(() => Math.random() - 0.5);
+          // 50% chance to use themes at all (keeps greetings varied)
+          if (Math.random() > 0.5) {
+            memoryContext = shuffled.slice(0, Math.floor(Math.random() * 2) + 1); // 1-2 random themes
+          }
         }
         console.log('[GREETING] Memory loaded:', { themes: memoryContext.length, data: memoryContext });
       } catch (e) {
@@ -3382,7 +3387,10 @@ app.post('/api/greeting', async (req, res) => {
       }
     }
     
-    console.log('[GREETING] Context:', { timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext: memoryContext.length });
+    // Randomize greeting approach for variety
+    const greetingApproach = ['time_focus', 'theme_focus', 'simple', 'question'][Math.floor(Math.random() * 4)];
+    
+    console.log('[GREETING] Context:', { timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext: memoryContext.length, approach: greetingApproach });
     
     const systemPrompt = buildReturningGreetingPrompt({ 
       displayName, 
@@ -3390,7 +3398,8 @@ app.post('/api/greeting', async (req, res) => {
       dayOfWeek, 
       lastSeenDaysAgo, 
       recentActivity, 
-      memoryContext 
+      memoryContext,
+      greetingApproach
     });
 
     if (!openai) {

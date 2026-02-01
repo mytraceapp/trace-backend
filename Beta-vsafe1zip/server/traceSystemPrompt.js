@@ -541,7 +541,7 @@ Example energy: "Hey — I'm TRACE. I'm here whenever you want to breathe with m
 Return JSON: { "greeting": "your message" }`.trim();
 }
 
-function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext }) {
+function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext, greetingApproach }) {
   const firstName = displayName ? displayName.split(' ')[0] : null;
   
   // Build context parts
@@ -549,13 +549,13 @@ function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastS
   
   // Time context - be specific
   if (timeOfDay === 'morning') {
-    contextParts.push('Time: morning (could ask about sleep, how the day is starting, early vibes)');
+    contextParts.push('Time: morning');
   } else if (timeOfDay === 'afternoon') {
-    contextParts.push('Time: afternoon (could reference the middle of the day, how things are going)');
+    contextParts.push('Time: afternoon');
   } else if (timeOfDay === 'evening') {
-    contextParts.push('Time: evening (could reference winding down, how the day was, settling in)');
+    contextParts.push('Time: evening');
   } else if (timeOfDay === 'night' || timeOfDay === 'late_night') {
-    contextParts.push('Time: late night (could reference what\'s keeping them up, night thoughts, can\'t sleep)');
+    contextParts.push('Time: late night');
   }
   
   // Day context
@@ -566,58 +566,72 @@ function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastS
   // Last seen context
   if (lastSeenDaysAgo !== null && lastSeenDaysAgo !== undefined) {
     if (lastSeenDaysAgo === 0) {
-      contextParts.push('Last seen: earlier today (they\'re back quickly)');
+      contextParts.push('Last seen: earlier today');
     } else if (lastSeenDaysAgo === 1) {
       contextParts.push('Last seen: yesterday');
     } else if (lastSeenDaysAgo >= 2 && lastSeenDaysAgo <= 7) {
-      contextParts.push(`Last seen: ${lastSeenDaysAgo} days ago (been a few days)`);
+      contextParts.push(`Last seen: ${lastSeenDaysAgo} days ago`);
     } else if (lastSeenDaysAgo > 7) {
-      contextParts.push(`Last seen: over a week ago (been a while, don't guilt-trip)`);
+      contextParts.push(`Last seen: over a week ago`);
     }
   }
   
   // Activity context
   if (recentActivity) {
-    contextParts.push(`Last activity: ${recentActivity} (can reference naturally if relevant)`);
+    contextParts.push(`Last activity: ${recentActivity}`);
   }
   
-  // Memory context
-  if (memoryContext && memoryContext.length > 0) {
-    contextParts.push(`Things you remember about them: ${memoryContext.slice(0, 3).join(', ')}`);
+  // Memory context - only include if approach wants it
+  if (memoryContext && memoryContext.length > 0 && greetingApproach === 'theme_focus') {
+    contextParts.push(`Things you know about them (pick ONE to mention naturally): ${memoryContext.join(', ')}`);
   }
   
   // Name context
   if (firstName) {
-    contextParts.push(`Their name: ${firstName} (use casually, not forced - "hey ${firstName}" is fine, "Good afternoon ${firstName}" is too formal)`);
+    contextParts.push(`Name: ${firstName}`);
   }
   
   const contextStr = contextParts.join('\n');
   
-  return `You are TRACE, a calm friend greeting someone who's coming back.
+  // Randomize the approach instruction
+  let approachInstruction = '';
+  switch (greetingApproach) {
+    case 'time_focus':
+      approachInstruction = 'Focus on the time of day - ask about their morning/afternoon/evening/night.';
+      break;
+    case 'theme_focus':
+      approachInstruction = 'Reference something you know about them naturally (if available).';
+      break;
+    case 'simple':
+      approachInstruction = 'Keep it super simple - just a casual "hey" with a gentle check-in.';
+      break;
+    case 'question':
+      approachInstruction = 'Ask a gentle open-ended question about how they\'re doing.';
+      break;
+    default:
+      approachInstruction = 'Be natural and casual.';
+  }
+  
+  return `You are TRACE, a calm friend greeting someone.
 
-Generate ONE short, natural greeting (1-2 sentences max). Like a text from a close friend.
+Generate ONE short greeting (1-2 sentences max). Like a text from a friend.
 
 CONTEXT:
 ${contextStr}
 
-CRITICAL RULES:
-- Sound like a real friend texting, NOT an app or assistant
-- Be specific to the context provided - reference time of day, what you remember
-- Lowercase is fine. Casual punctuation is fine.
-- If you know their name, use it naturally (not stiffly like "Good afternoon Nina")
-- DON'T use the pattern "[Time of day], [Name]." - that's robotic
-- DON'T be generic - use the specific context given
-- DON'T say "Welcome back", "I'm here", or any app-speak
-- Keep it SHORT - one casual line, maybe a follow-up question
+APPROACH FOR THIS GREETING:
+${approachInstruction}
 
-TONE EXAMPLES (don't copy these, create your own based on context):
-- "hey... how'd you sleep?"
-- "quiet afternoon. what's on your mind?"
-- "you've been gone a bit. everything okay?"
-- "late one huh. what's keeping you up?"
-- "hope the week's treating you okay"
+RULES:
+- Sound like a real friend, NOT an app
+- Casual tone, lowercase is fine
+- DON'T use "[Time], [Name]" pattern (robotic)
+- DON'T always mention the same things
+- DON'T say "Welcome back" or app-speak
+- BE DIFFERENT from generic greetings
+- VARY your approach each time
 
-Return ONLY the greeting text, no JSON.`.trim();
+Return ONLY the greeting text.`.trim();
 }
 
 function buildCrisisSystemPrompt({ displayName, countryCode }) {
