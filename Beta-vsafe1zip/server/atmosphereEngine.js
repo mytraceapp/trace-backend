@@ -329,7 +329,9 @@ function evaluateAtmosphere(input) {
   const maxScore = Math.max(...Object.values(scores));
   const maxConfidence = getConfidenceLevel(maxScore);
   
-  console.log(`[ATMOSPHERE] Scoring: message="${current_message.slice(0,30)}..." scores=${JSON.stringify(scores)} max=${maxScore} conf=${maxConfidence} current=${current_state}`);
+  // 🎵 CONTINUOUS CHECK: Every message is evaluated for emotional signals
+  console.log(`[ATMOSPHERE] 🔍 CONTINUOUS CHECK: message="${current_message.slice(0,40)}..."`);
+  console.log(`[ATMOSPHERE] Scoring: scores=${JSON.stringify(scores)} max=${maxScore} conf=${maxConfidence} current=${current_state}`);
   
   // Update neutral streak and signal timestamp
   let newNeutralStreak = neutral_message_streak;
