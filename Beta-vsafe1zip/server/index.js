@@ -3403,24 +3403,29 @@ app.post('/api/greeting', async (req, res) => {
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: 'Generate the greeting message now.' },
+        { role: 'user', content: 'Generate the greeting.' },
       ],
-      temperature: 0.8,
-      max_tokens: 100,
+      temperature: 0.9, // Higher temperature for more variety
+      max_tokens: 80,
     });
 
     let greeting = completion.choices?.[0]?.message?.content?.trim() || 
-      `Hey. How's your ${timeOfDay} going?`;
+      `hey... how's it going?`;
     
-    // Parse JSON response if needed
-    try {
-      const parsed = JSON.parse(greeting);
-      if (parsed.greeting) greeting = parsed.greeting;
-    } catch (e) {
-      // Not JSON, use as-is
+    // Clean up any quotes the AI might have added
+    greeting = greeting.replace(/^["']|["']$/g, '').trim();
+    
+    // If AI returned JSON anyway, extract the greeting
+    if (greeting.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(greeting);
+        if (parsed.greeting) greeting = parsed.greeting;
+      } catch (e) {
+        // Not valid JSON, use as-is
+      }
     }
 
-    console.log('[GREETING] Generated:', greeting);
+    console.log('[GREETING] AI Generated:', greeting);
     res.json({ greeting, firstRun: false });
   } catch (err) {
     console.error('/api/greeting error', err);
