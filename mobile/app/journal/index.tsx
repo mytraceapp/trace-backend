@@ -18,6 +18,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Colors } from '../../constants/colors';
 import { FontFamily, TraceWordmark, ScreenTitle, BodyText } from '../../constants/typography';
@@ -262,6 +263,22 @@ export default function JournalScreen() {
         mood: newEntryMood,
       },
     });
+    
+    // Store check-in data for greeting context
+    const stressLevel = newEntryMood === 'calm' || newEntryMood === 'okay' ? 'low' 
+      : newEntryMood === 'heavy' ? 'medium' : 'high';
+    try {
+      await AsyncStorage.setItem('trace:lastCheckIn', JSON.stringify({
+        timestamp: Date.now(),
+        mood: newEntryMood,
+        stressLevel,
+        topic: newEntryText?.slice(0, 100) || null,
+      }));
+      console.log('[JOURNAL] Stored check-in for greeting context:', { mood: newEntryMood, stressLevel });
+    } catch (e) {
+      console.warn('[JOURNAL] Failed to store check-in:', e);
+    }
+    
     setNewEntryText('');
     setNewEntryMood('calm');
     setShowNewEntryModal(false);

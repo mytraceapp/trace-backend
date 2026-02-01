@@ -1473,6 +1473,15 @@ export default function ChatScreen() {
       console.warn('📅 WEEK1: Failed to init first_seen_at:', e);
     }
 
+    // Store topic for greeting context (only for meaningful messages)
+    if (trimmed.length > 15 && !/^(hi|hey|hello|ok|okay|thanks|thank you|yes|no|sure|yeah|yep|nope)$/i.test(trimmed)) {
+      try {
+        await AsyncStorage.setItem('trace:lastChatTopic', trimmed.slice(0, 100));
+      } catch (e) {
+        // Ignore storage errors for topic
+      }
+    }
+
     const userMessage: ChatMessage = {
       id: `local-user-${Date.now()}`,
       role: 'user',
