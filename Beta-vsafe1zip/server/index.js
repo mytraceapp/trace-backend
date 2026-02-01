@@ -7819,6 +7819,60 @@ Your response:`;
       console.error('[ATMOSPHERE] Evaluation failed:', err.message);
     }
     
+    // ============================================================
+    // ECHO OFFER LOGIC
+    // Offer Echo activity for low mood states with cooldown
+    // ============================================================
+    let echoOffer = null;
+    const ECHO_COOLDOWN_HOURS = 4;
+    const lowMoodStates = ['sad', 'anxious', 'depressed', 'vulnerable', 'stressed', 'overwhelmed', 'heavy', 'spiraling', 'tired'];
+    const echoKeywords = /\b(sad|depressed|down|low|heavy|hard|struggle|struggling|alone|lonely|empty|numb|lost|anxious|overwhelmed)\b/i;
+    
+    const shouldOfferEcho = !isCrisisMode && (
+      lowMoodStates.includes(detected_state) || 
+      echoKeywords.test(lastUserMessage)
+    );
+    
+    if (shouldOfferEcho && effectiveUserId) {
+      try {
+        // Check cooldown from user_cadence table
+        const { data: cadenceData } = await supabase
+          .from('user_cadence')
+          .select('last_echo_offer_at')
+          .eq('user_id', effectiveUserId)
+          .single();
+        
+        const lastOffer = cadenceData?.last_echo_offer_at ? new Date(cadenceData.last_echo_offer_at) : null;
+        const cooldownMs = ECHO_COOLDOWN_HOURS * 60 * 60 * 1000;
+        const canOffer = !lastOffer || (Date.now() - lastOffer.getTime() > cooldownMs);
+        
+        if (canOffer) {
+          // Set echo_offer and update activity_suggestion
+          echoOffer = { text: "Can I tell you something for a moment?" };
+          activitySuggestion = {
+            name: "echo",
+            reason: "echo_offer",
+            should_navigate: false,
+            target: "/activities/echo"
+          };
+          
+          // Update cooldown timestamp
+          await supabase
+            .from('user_cadence')
+            .upsert({ 
+              user_id: effectiveUserId, 
+              last_echo_offer_at: new Date().toISOString() 
+            }, { onConflict: 'user_id' });
+          
+          console.log(`[ECHO] Offering Echo to user ${effectiveUserId.slice(0, 8)} (state: ${detected_state})`);
+        } else {
+          console.log(`[ECHO] Cooldown active for user ${effectiveUserId.slice(0, 8)}, skipping offer`);
+        }
+      } catch (err) {
+        console.warn('[ECHO] Failed to check/update cadence:', err.message);
+      }
+    }
+    
     // Build response - include messages array if crisis mode
     const response = {
       message: tightenedText, // Tightened message with optional disclaimer
@@ -7827,6 +7881,11 @@ Your response:`;
       detected_state: detected_state,
       posture_confidence: postureConfidence,
     };
+    
+    // Add echo_offer if triggered
+    if (echoOffer) {
+      response.echo_offer = echoOffer;
+    }
     
     // Add curiosity hook if triggered (returned separately, not appended to message)
     if (curiosityHook) {
@@ -8799,6 +8858,37 @@ Respond with a single acknowledgment that invites reflection.
   } catch (error) {
     console.error('[ACTIVITY ACK] Error:', error.message || error);
     return res.json({ message: "nice — hope that felt good." });
+  }
+});
+
+// ==================== ECHO ACCEPTANCE ====================
+// Stamps last_echo_at when user accepts Echo offer
+app.post('/api/echo/accept', async (req, res) => {
+  try {
+    const { userId } = req.body || {};
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+    
+    // Update last_echo_at timestamp
+    const { error } = await supabase
+      .from('user_cadence')
+      .upsert({ 
+        user_id: userId, 
+        last_echo_at: new Date().toISOString() 
+      }, { onConflict: 'user_id' });
+    
+    if (error) {
+      console.warn('[ECHO ACCEPT] Supabase error:', error.message);
+      return res.status(500).json({ error: 'Failed to record Echo acceptance' });
+    }
+    
+    console.log(`[ECHO ACCEPT] User ${userId.slice(0, 8)} accepted Echo`);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[ECHO ACCEPT] Error:', err.message);
+    return res.status(500).json({ error: err.message });
   }
 });
 
