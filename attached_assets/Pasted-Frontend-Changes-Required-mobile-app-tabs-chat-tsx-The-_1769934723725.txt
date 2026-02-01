@@ -1,0 +1,50 @@
+Frontend Changes Required (mobile/app/(tabs)/chat.tsx)
+The frontend needs to be updated to:
+
+Remove the frontend warm-up gate - backend now handles this
+Persist cadence counts from client_state_patch
+Trust the backend's soundscapeCadenceMet flag
+Changes to make:
+1. Remove/simplify the frontend warm-up gate logic:
+
+Find and update the warm-up check around line 2315-2330. Instead of:
+
+const hasWarmUp = traceReplyCountRef.current >= 2;
+// ...blocks sound_state if !hasWarmUp && !isResumingSoundscape
+Use the backend's cadence flag from the response:
+
+// Trust backend's cadence decision - it's in sound_state.cadence.met
+const cadenceMet = clientStateRef.current?.soundscapeCadenceMet ?? false;
+2. Persist cadence counts from client_state_patch:
+
+When processing the response, save the cadence state:
+
+if (data.client_state_patch) {
+  // Include cadence tracking
+  clientStateRef.current = {
+    ...clientStateRef.current,
+    ...data.client_state_patch,
+    userMessageCount: data.client_state_patch.userMessageCount,
+    assistantMessageCount: data.client_state_patch.assistantMessageCount,
+    soundscapeCadenceMet: data.client_state_patch.soundscapeCadenceMet,
+  };
+}
+3. Remove counter reset on activity return:
+
+Find lines around 2063, 2791 that reset traceReplyCountRef.current = 0 when returning from activity. Instead, preserve the backend's cadence counts - they're already persisted in clientStateRef.current.
+
+4. In the chat request, pass cadence state:
+
+Include in the request body:
+
+client_state: {
+  ...clientStateRef.current,
+  userMessageCount: clientStateRef.current?.userMessageCount || 0,
+  assistantMessageCount: clientStateRef.current?.assistantMessageCount || 0,
+  soundscapeCadenceMet: clientStateRef.current?.soundscapeCadenceMet || false,
+}
+Key Behavior After Changes:
+New session: Soundscapes won't trigger until 2 user + 2 assistant messages
+Return from activity (cadence already met): Soundscapes can trigger immediately
+Return from activity (cadence NOT met): Continue counting until 4-message cadence is met
+Session reset: Only resets counters if session expired (>6 hours) or new day

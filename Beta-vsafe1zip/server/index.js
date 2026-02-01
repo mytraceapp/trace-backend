@@ -7876,6 +7876,7 @@ Your response:`;
     clientStatePatch.userMessageCount = currentUserMsgCount;
     clientStatePatch.assistantMessageCount = currentAssistantMsgCount + 1; // Post-response count
     clientStatePatch.soundscapeCadenceMet = currentUserMsgCount >= 2 && (currentAssistantMsgCount + 1) >= 2;
+    clientStatePatch.lastActivityTimestamp = Date.now(); // For 5-minute inactivity reset
     
     // Guided step state patch
     if (guidedStepResult.fired && guidedStepResult.client_state_patch) {

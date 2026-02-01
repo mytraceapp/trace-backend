@@ -71,6 +71,7 @@ const NEUTRAL_STREAK_THRESHOLD = 10; // Increased from 3 - require more neutral 
 const SIGNAL_TIMEOUT_MS = 900000; // 15 minutes (was 5 minutes) - soundscapes persist longer
 const GROUNDING_CLEAR_THRESHOLD = 3; // Increased from 2 - require more clear messages
 const MIN_STATE_PERSIST_MESSAGES = 5; // Minimum messages before allowing return to presence (NEW)
+const INACTIVITY_TIMEOUT_MS = 300000; // 5 minutes - return to ambient after inactivity
 
 // ============================================================
 // SESSION STATE STORAGE (in-memory, keyed by userId)
@@ -88,7 +89,8 @@ function getSessionState(userId) {
       neutral_message_streak: 0,
       grounding_clear_streak: 0,
       freeze_until_timestamp: null,
-      messages_since_state_change: 0 // NEW: Track messages in current state for persistence
+      messages_since_state_change: 0, // Track messages in current state for persistence
+      last_activity_timestamp: 0      // 🎵 Track last activity for inactivity reset
     });
   }
   return sessionStates.get(userId);
@@ -189,7 +191,40 @@ function evaluateAtmosphere(input) {
       }
     };
   }
+  
   const session = getSessionState(userId);
+  
+  // ============================================================
+  // 🎵 INACTIVITY CHECK: Return to ambient after 5 minutes of no activity
+  // ============================================================
+  const lastActivity = session.last_activity_timestamp || 0;
+  const timeSinceLastActivity = now - lastActivity;
+  
+  if (lastActivity > 0 && timeSinceLastActivity >= INACTIVITY_TIMEOUT_MS && session.current_state !== 'presence') {
+    console.log(`[ATMOSPHERE] Inactivity reset: ${Math.floor(timeSinceLastActivity / 1000)}s since last activity - returning to ambient`);
+    
+    // Reset session to ambient/presence state
+    updateSessionState(userId, {
+      current_state: 'presence',
+      last_change_timestamp: now,
+      last_activity_timestamp: now,
+      neutral_message_streak: 0,
+      grounding_clear_streak: 0,
+      messages_since_state_change: 0
+    });
+    
+    return {
+      sound_state: {
+        current: 'presence',
+        changed: true,
+        reason: 'inactivity_reset_5min',
+        cadence: { userMessageCount, assistantMessageCount, met: true }
+      }
+    };
+  }
+  
+  // Update last activity timestamp (user is active now)
+  session.last_activity_timestamp = now;
   
   // ============================================================
   // CLIENT STATE RESTORATION (handles server restarts)
@@ -430,7 +465,8 @@ function evaluateAtmosphere(input) {
     neutral_message_streak: newNeutralStreak,
     last_signal_timestamp: newSignalTimestamp,
     grounding_clear_streak: finalState === 'grounding' ? newGroundingClearStreak : 0,
-    messages_since_state_change: newMessagesSinceChange // Track message count
+    messages_since_state_change: newMessagesSinceChange, // Track message count
+    last_activity_timestamp: now // 🎵 Keep activity timestamp fresh
   };
   
   if (shouldChange) {
