@@ -1,0 +1,152 @@
+1,
+    "uvIndex": 3,
+    "cloudCover": 8,
+    "isDayTime": true
+  }
+}
+ LOG  [TRACE Chat] 🌤️ Weather context SUCCESSFULLY prepared: {
+  "summary": "Pretty cold — currently 17°F (feels like 0°F), clear skies with full sun. Sunny. Wind around 18 mph"
+}
+ LOG  [TYPING] startThinking called
+ LOG  [TRACE Chat] Backend URL: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev
+ LOG  [TRACE Chat] Sending to: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 17°F (feels like 0°F), clear skies with full sun. Sunny. Wind around 18 mph", "temperature": undefined, "windSpeed": undefined}
+ LOG  [TYPING] Timer fired - adding typing placeholder
+ LOG  [TYPING] Adding typing placeholder to messages
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1769972025859-wclc8p","message":"That sadness is real. Want to talk about what's behind it?","activity_suggestion":{"name":null,"reason":null,"should_navigate":false},"posture":"STEADY","detected_state":"neutral","posture_confidence":0.6,"sound_state":{"current":"comfort","changed":false,"reason":"no_change","cadence":{"userMessageCount":4,"assistantMessageCount":4,"met":true}},"next_question":{"intent":"clarify","question":"Can you tell me more about that?"},"client_state_patch":{"sessionStartedAt":1769972027025,"lastUserAt":1769972027025,"sessionTurnCount":1,"lastGuidedStepTurn":0,"recentTopics":[],"activeLoops":[],"recentWins":[],"recentPhrases":[],"doorwayState":{"doors":{"currentDoorId":null,"lastDoorId":null,"activatedAtTurn":null,"turnsSinceActivation":1},"crisis":{"active":false,"triggeredAt":null,"lastSeenAt":null,"cleanTurns":1},"lastMessageAt":"2026-02-01T18:53:47.024Z"},"userMessageCount":4,"assistantMessageCount":4,"soundscapeCadenceMet":true,"lastActivityTimestamp":1769972028341,"lastAssistantHash":"9d0fa6f26e3758028fa3ac35bec6440d306fd44fadd4b2e6192bf70fff4639f2","lastAssistantText":"That sadness is real. Want to talk about what's behind it?","lastQuestionIntent":"clarify"},"isCrisisMode":false,"messages":["That sadness is real. Want to talk about what's behind it?"],"deduped":false}
+ LOG  [TRACE Chat] Processed messages array: ["That sadness is real. Want to talk about what's behind it?"]
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, requestId, message, activity_suggestion, posture, detected_state, posture_confidence, sound_state, next_question, client_state_patch, isCrisisMode, messages, deduped
+ LOG  [CADENCE] 🎯 Updated cadence state BEFORE soundscape check: {"assistant": 4, "met": true, "user": 4}
+ LOG  [TRACE Chat] 🔊 Found sound_state in response: {"changed": false, "confidence": undefined, "current": "comfort", "reason": "no_change"}
+ LOG  [AUDIO_CADENCE] 🎵 Backend wants soundscape: comfort (reason: no_change)
+ LOG  [AUDIO_CADENCE] 🎯 Soundscape check conditions: {"assistantCount": 4, "cadenceMet": true, "isAppForeground": true, "isChatFocused": true, "isHardStopped": false, "isInActivity": false, "isPlayerActive": false, "isResumingSoundscape": false, "soundStateChanged": false, "soundStateCurrent": "comfort", "userCount": 4}
+ LOG  [AUDIO_CADENCE] ✅ ALLOWED - processing sound_state
+ LOG  [AUDIO_CADENCE] 🎵 sound_state=comfort -> playing specified soundscape
+ LOG  [useSoundStateIntegration] 🔍 handleSoundState called with: {"soundStateChanged": false, "soundStateConfidence": undefined, "soundStateCurrent": "comfort", "soundStateExists": true}
+ LOG  [useSoundStateIntegration] 📊 Soundscape status: {"currentState": "comfort", "isEmotionalSoundscape": true, "newState": "comfort", "trackExists": true, "trackPlaying": true}
+ LOG  [useSoundStateIntegration] ⏭️ Emotional soundscape already playing with same state - not re-triggering: {"changed": false, "current": "comfort", "reason": "no_change"}
+ LOG  [AUDIO_CADENCE] ✅ Soundscape check complete - inactivity_timer_reset reason=sound_state_applied
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "assistantMessageCount": 4, "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-01T18:53:47.024Z"}, "lastActivityTimestamp": 1769972028341, "lastAssistantHash": "9d0fa6f26e3758028fa3ac35bec6440d306fd44fadd4b2e6192bf70fff4639f2", "lastAssistantText": "That sadness is real. Want to talk about what's behind it?", "lastGuidedStepTurn": 0, "lastQuestionIntent": "clarify", "lastUserAt": 1769972027025, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1769972027025, "sessionTurnCount": 1, "soundscapeCadenceMet": true, "userMessageCount": 4}
+ LOG  [CADENCE] Updated cadence state: {"assistant": 4, "met": true, "user": 4}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-01T18:53:47.024Z"}
+ LOG  [TRACE MIRROR] Session turn count: 4
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 4
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  [AUDIO_CADENCE] trace_reply_count=4
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=trace_response
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [SoundStateManager] 🎵 Playing "comfort" track #2 (2/7 in rotation) {"alreadyPlayed": [1], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: comfort #2
+ LOG  [SoundStateManager] 📁 Next track asset ready: comfort #2
+ LOG  [SoundStateManager] 🎵 Playing "comfort" track #5 (3/7 in rotation) {"alreadyPlayed": [1, 2], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: comfort #5
+ LOG  [SoundStateManager] 📁 Next track asset ready: comfort #5
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE BRAIN] Detected sentiment: sad
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE Chat] Profile check: {"hasLat": true, "hasLon": true, "hasProfile": true, "lat": 40.7128, "lon": -74.006, "weatherEnabled": true}
+ LOG  [TRACE Chat] 🌤️ Fetching weather context for location: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] Calling getWeather with: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] 🌤️ Weather API response received: {
+  "summary": "Pretty cold — currently 17°F (feels like 7°F), clear skies with full sun. Sunny. Wind around 12 mph",
+  "current": {
+    "temperature": 17,
+    "feelsLike": 7,
+    "wind": 12,
+    "weatherText": "Sunny",
+    "humidity": 41,
+    "uvIndex": 3,
+    "cloudCover": 6,
+    "isDayTime": true
+  }
+}
+ LOG  [TRACE Chat] 🌤️ Weather context SUCCESSFULLY prepared: {
+  "summary": "Pretty cold — currently 17°F (feels like 7°F), clear skies with full sun. Sunny. Wind around 12 mph"
+}
+ LOG  [TYPING] startThinking called
+ LOG  [TRACE Chat] Backend URL: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev
+ LOG  [TRACE Chat] Sending to: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 17°F (feels like 7°F), clear skies with full sun. Sunny. Wind around 12 mph", "temperature": undefined, "windSpeed": undefined}
+ LOG  [TYPING] Timer fired - adding typing placeholder
+ LOG  [TYPING] Adding typing placeholder to messages
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1769972041213-z5ieic","message":"Sounds like you're in a really tough spot. What feels like the biggest weight right now?","activity_suggestion":{"name":null,"should_navigate":false},"posture":"STEADY","detected_state":"neutral","posture_confidence":0.6,"sound_state":{"current":"comfort","changed":false,"reason":"no_change","cadence":{"userMessageCount":5,"assistantMessageCount":5,"met":true}},"next_question":{"intent":"clarify","question":"What do you mean by that?"},"client_state_patch":{"sessionStartedAt":1769972042358,"lastUserAt":1769972042358,"sessionTurnCount":1,"lastGuidedStepTurn":0,"recentTopics":[],"activeLoops":[],"recentWins":[],"recentPhrases":[],"doorwayState":{"doors":{"currentDoorId":null,"lastDoorId":null,"activatedAtTurn":null,"turnsSinceActivation":1},"crisis":{"active":false,"triggeredAt":null,"lastSeenAt":null,"cleanTurns":1},"lastMessageAt":"2026-02-01T18:54:02.358Z"},"userMessageCount":5,"assistantMessageCount":5,"soundscapeCadenceMet":true,"lastActivityTimestamp":1769972043938,"lastAssistantHash":"e9b64353670f82a350ab3aa9c88bf87c7714defc24161e6a07e5b4f1fbb7725c","lastAssistantText":"Sounds like you're in a really tough spot. What feels like the biggest weight right now?","lastQuestionIntent":"clarify"},"isCrisisMode":false,"messages":["Sounds like you're in a really tough spot. What feels like the biggest weight right now?"],"deduped":false}
+ LOG  [TRACE Chat] Processed messages array: ["Sounds like you're in a really tough spot. What feels like the biggest weight right now?"]
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, requestId, message, activity_suggestion, posture, detected_state, posture_confidence, sound_state, next_question, client_state_patch, isCrisisMode, messages, deduped
+ LOG  [CADENCE] 🎯 Updated cadence state BEFORE soundscape check: {"assistant": 5, "met": true, "user": 5}
+ LOG  [TRACE Chat] 🔊 Found sound_state in response: {"changed": false, "confidence": undefined, "current": "comfort", "reason": "no_change"}
+ LOG  [AUDIO_CADENCE] 🎵 Backend wants soundscape: comfort (reason: no_change)
+ LOG  [AUDIO_CADENCE] 🎯 Soundscape check conditions: {"assistantCount": 5, "cadenceMet": true, "isAppForeground": true, "isChatFocused": true, "isHardStopped": false, "isInActivity": false, "isPlayerActive": false, "isResumingSoundscape": false, "soundStateChanged": false, "soundStateCurrent": "comfort", "userCount": 5}
+ LOG  [AUDIO_CADENCE] ✅ ALLOWED - processing sound_state
+ LOG  [AUDIO_CADENCE] 🎵 sound_state=comfort -> playing specified soundscape
+ LOG  [useSoundStateIntegration] 🔍 handleSoundState called with: {"soundStateChanged": false, "soundStateConfidence": undefined, "soundStateCurrent": "comfort", "soundStateExists": true}
+ LOG  [useSoundStateIntegration] 📊 Soundscape status: {"currentState": "comfort", "isEmotionalSoundscape": true, "newState": "comfort", "trackExists": true, "trackPlaying": true}
+ LOG  [useSoundStateIntegration] ⏭️ Emotional soundscape already playing with same state - not re-triggering: {"changed": false, "current": "comfort", "reason": "no_change"}
+ LOG  [AUDIO_CADENCE] ✅ Soundscape check complete - inactivity_timer_reset reason=sound_state_applied
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "assistantMessageCount": 5, "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-01T18:54:02.358Z"}, "lastActivityTimestamp": 1769972043938, "lastAssistantHash": "e9b64353670f82a350ab3aa9c88bf87c7714defc24161e6a07e5b4f1fbb7725c", "lastAssistantText": "Sounds like you're in a really tough spot. What feels like the biggest weight right now?", "lastGuidedStepTurn": 0, "lastQuestionIntent": "clarify", "lastUserAt": 1769972042358, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1769972042358, "sessionTurnCount": 1, "soundscapeCadenceMet": true, "userMessageCount": 5}
+ LOG  [CADENCE] Updated cadence state: {"assistant": 5, "met": true, "user": 5}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-01T18:54:02.358Z"}
+ LOG  [TRACE MIRROR] Session turn count: 5
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 5
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  [AUDIO_CADENCE] trace_reply_count=5
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=trace_response
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes

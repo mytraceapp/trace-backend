@@ -7835,10 +7835,10 @@ Your response:`;
     
     console.log(`[ECHO] Assessment: state=${detected_state}, stateMatch=${stateMatch}, keywordMatch=${keywordMatch}, crisis=${isCrisisMode}, shouldOffer=${shouldOfferEcho}, msg="${lastUserMessage?.slice(0, 50)}"`);
     
-    if (shouldOfferEcho && effectiveUserId) {
+    if (shouldOfferEcho && effectiveUserId && supabaseServer) {
       try {
         // Check cooldown from user_cadence table
-        const { data: cadenceData, error: cadenceError } = await supabase
+        const { data: cadenceData, error: cadenceError } = await supabaseServer
           .from('user_cadence')
           .select('last_echo_offer_at')
           .eq('user_id', effectiveUserId)
@@ -7865,7 +7865,7 @@ Your response:`;
           };
           
           // Update cooldown timestamp
-          const { error: upsertError } = await supabase
+          const { error: upsertError } = await supabaseServer
             .from('user_cadence')
             .upsert({ 
               user_id: effectiveUserId, 
@@ -7885,6 +7885,8 @@ Your response:`;
       }
     } else if (!effectiveUserId) {
       console.log('[ECHO] No effectiveUserId available, skipping');
+    } else if (!supabaseServer) {
+      console.log('[ECHO] No supabaseServer available, skipping');
     }
     
     // Build response - include messages array if crisis mode
@@ -8885,8 +8887,13 @@ app.post('/api/echo/accept', async (req, res) => {
       return res.status(400).json({ error: 'userId is required' });
     }
     
+    if (!supabaseServer) {
+      console.warn('[ECHO ACCEPT] No supabaseServer available');
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+    
     // Update last_echo_at timestamp
-    const { error } = await supabase
+    const { error } = await supabaseServer
       .from('user_cadence')
       .upsert({ 
         user_id: userId, 
