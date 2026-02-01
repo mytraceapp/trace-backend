@@ -1,0 +1,223 @@
+t.dev
+ LOG  [TRACE Chat] Sending to: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 13°F (feels like 0°F), nighttime. Partly cloudy. Wind around 11 mph", "temperature": undefined, "windSpeed": undefined}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1769936153341-7ixwq0","message":"Hey. What's on your mind?","activity_suggestion":{"name":null,"should_navigate":false},"posture":"STEADY","detected_state":"neutral","posture_confidence":0.6,"sound_state":{"current":null,"changed":false,"reason":"cadence_not_met","cadence":{"userMessageCount":1,"assistantMessageCount":1,"met":false}},"next_question":{"intent":"clarify","question":"What do you mean by that?"},"client_state_patch":{"sessionStartedAt":1769936154271,"lastUserAt":1769936154271,"sessionTurnCount":1,"lastGuidedStepTurn":0,"recentTopics":[],"activeLoops":[],"recentWins":[],"recentPhrases":[],"doorwayState":{"doors":{"currentDoorId":null,"lastDoorId":null,"activatedAtTurn":null,"turnsSinceActivation":1},"crisis":{"active":false,"triggeredAt":null,"lastSeenAt":null,"cleanTurns":1},"lastMessageAt":"2026-02-01T08:55:54.271Z"},"userMessageCount":1,"assistantMessageCount":1,"soundscapeCadenceMet":false,"lastActivityTimestamp":1769936155522,"lastAssistantHash":"fe6bb756ea1292aec905c8bb2a6b3f7fd444fa8e7e448f278fb2c0079420f3dc","lastAssistantText":"Hey. What's on your mind?","lastQuestionIntent":"clarify"},"isCrisisMode":false,"messages":["Hey. What's on your mind?"],"deduped":false}
+ LOG  [TRACE Chat] Processed messages array: ["Hey. What's on your mind?"]
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, requestId, message, activity_suggestion, posture, detected_state, posture_confidence, sound_state, next_question, client_state_patch, isCrisisMode, messages, deduped
+ LOG  [TRACE Chat] 🔊 Found sound_state in response: {"changed": false, "confidence": undefined, "current": null, "reason": "cadence_not_met"}
+ LOG  [AUDIO_CADENCE] blocked reason=cadence_not_met (user=0, assistant=0)
+ LOG  [TRACE MIRROR] Session expired, initialized new session
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "assistantMessageCount": 1, "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-01T08:55:54.271Z"}, "lastActivityTimestamp": 1769936155522, "lastAssistantHash": "fe6bb756ea1292aec905c8bb2a6b3f7fd444fa8e7e448f278fb2c0079420f3dc", "lastAssistantText": "Hey. What's on your mind?", "lastGuidedStepTurn": 0, "lastQuestionIntent": "clarify", "lastUserAt": 1769936154271, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1769936154271, "sessionTurnCount": 1, "soundscapeCadenceMet": false, "userMessageCount": 1}
+ LOG  [CADENCE] Updated cadence state: {"assistant": 1, "met": false, "user": 1}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-01T08:55:54.271Z"}
+ LOG  [TRACE MIRROR] Session turn count: 1
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 1
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=trace_response
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [AUDIO_CADENCE] trace_reply_count=1
+ LOG  MESSAGES_LEN_AFTER: 14 deduped from: 14
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE Chat] Profile check: {"hasLat": true, "hasLon": true, "hasProfile": true, "lat": 40.7128, "lon": -74.006, "weatherEnabled": true}
+ LOG  [TRACE Chat] 🌤️ Fetching weather context for location: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] Calling getWeather with: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] 🌤️ Weather API response received: {
+  "summary": "Pretty cold — currently 13°F (feels like 0°F), nighttime. Partly cloudy. Wind around 11 mph",
+  "current": {
+    "temperature": 13,
+    "feelsLike": 0,
+    "wind": 11,
+    "weatherText": "Partly cloudy",
+    "humidity": 56,
+    "uvIndex": 0,
+    "cloudCover": 41,
+    "isDayTime": false
+  }
+}
+ LOG  [TRACE Chat] 🌤️ Weather context SUCCESSFULLY prepared: {
+  "summary": "Pretty cold — currently 13°F (feels like 0°F), nighttime. Partly cloudy. Wind around 11 mph"
+}
+ LOG  [TRACE Chat] Backend URL: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev
+ LOG  [TRACE Chat] Sending to: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 13°F (feels like 0°F), nighttime. Partly cloudy. Wind around 11 mph", "temperature": undefined, "windSpeed": undefined}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1769936158538-4idgd3","message":"I'm good! Just here, ready to chat.","activity_suggestion":{"name":null,"should_navigate":false},"posture":"STEADY","detected_state":"neutral","posture_confidence":0.6,"sound_state":{"current":null,"changed":false,"reason":"no_change","cadence":{"userMessageCount":2,"assistantMessageCount":2,"met":true}},"next_question":{"intent":"clarify","question":"Can you tell me more about that?"},"client_state_patch":{"sessionStartedAt":1769936159478,"lastUserAt":1769936159478,"sessionTurnCount":1,"lastGuidedStepTurn":0,"recentTopics":[],"activeLoops":[],"recentWins":[],"recentPhrases":[],"doorwayState":{"doors":{"currentDoorId":null,"lastDoorId":null,"activatedAtTurn":null,"turnsSinceActivation":1},"crisis":{"active":false,"triggeredAt":null,"lastSeenAt":null,"cleanTurns":1},"lastMessageAt":"2026-02-01T08:55:59.478Z"},"userMessageCount":2,"assistantMessageCount":2,"soundscapeCadenceMet":true,"lastActivityTimestamp":1769936160737,"lastAssistantHash":"073933227c8d42bbf43be9a669374b10ecda546970929696264502d91b42e3f9","lastAssistantText":"I'm good! Just here, ready to chat.","lastQuestionIntent":"clarify"},"isCrisisMode":false,"messages":["I'm good! Just here, ready to chat."],"deduped":false}
+ LOG  [TRACE Chat] Processed messages array: ["I'm good! Just here, ready to chat."]
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, requestId, message, activity_suggestion, posture, detected_state, posture_confidence, sound_state, next_question, client_state_patch, isCrisisMode, messages, deduped
+ LOG  [TRACE Chat] 🔊 Found sound_state in response: {"changed": false, "confidence": undefined, "current": null, "reason": "no_change"}
+ LOG  [AUDIO_CADENCE] blocked reason=cadence_not_met (user=1, assistant=1)
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "assistantMessageCount": 2, "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-01T08:55:59.478Z"}, "lastActivityTimestamp": 1769936160737, "lastAssistantHash": "073933227c8d42bbf43be9a669374b10ecda546970929696264502d91b42e3f9", "lastAssistantText": "I'm good! Just here, ready to chat.", "lastGuidedStepTurn": 0, "lastQuestionIntent": "clarify", "lastUserAt": 1769936159478, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1769936159478, "sessionTurnCount": 1, "soundscapeCadenceMet": true, "userMessageCount": 2}
+ LOG  [CADENCE] Updated cadence state: {"assistant": 2, "met": true, "user": 2}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-01T08:55:59.478Z"}
+ LOG  [TRACE MIRROR] Session turn count: 2
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 2
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  [AUDIO_CADENCE] trace_reply_count=2
+ LOG  MESSAGES_LEN_AFTER: 16 deduped from: 16
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=trace_response
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE Chat] Profile check: {"hasLat": true, "hasLon": true, "hasProfile": true, "lat": 40.7128, "lon": -74.006, "weatherEnabled": true}
+ LOG  [TRACE Chat] 🌤️ Fetching weather context for location: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] Calling getWeather with: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] 🌤️ Weather API response received: {
+  "summary": "Pretty cold — currently 13°F (feels like 0°F), nighttime. Partly cloudy. Wind around 11 mph",
+  "current": {
+    "temperature": 13,
+    "feelsLike": 0,
+    "wind": 11,
+    "weatherText": "Partly cloudy",
+    "humidity": 56,
+    "uvIndex": 0,
+    "cloudCover": 41,
+    "isDayTime": false
+  }
+}
+ LOG  [TRACE Chat] 🌤️ Weather context SUCCESSFULLY prepared: {
+  "summary": "Pretty cold — currently 13°F (feels like 0°F), nighttime. Partly cloudy. Wind around 11 mph"
+}
+ LOG  [TRACE Chat] Backend URL: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev
+ LOG  [TRACE Chat] Sending to: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 13°F (feels like 0°F), nighttime. Partly cloudy. Wind around 11 mph", "temperature": undefined, "windSpeed": undefined}
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1769936162899-3caueg","message":"Yeah.","activity_suggestion":{"name":null,"reason":null,"should_navigate":false},"messages":["Yeah."],"deduped":false}
+ LOG  [TRACE Chat] Processed messages array: ["Yeah."]
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, requestId, message, activity_suggestion, messages, deduped
+ LOG  [TRACE Chat] ⚠️ No sound_state in response object
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Session turn count: 3
+ LOG  [PILLAR 10] Session turn count incremented: 3
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  [AUDIO_CADENCE] trace_reply_count=3
+ LOG  MESSAGES_LEN_AFTER: 18 deduped from: 18
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=trace_response
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE Chat] Profile check: {"hasLat": true, "hasLon": true, "hasProfile": true, "lat": 40.7128, "lon": -74.006, "weatherEnabled": true}
+ LOG  [TRACE Chat] 🌤️ Fetching weather context for location: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] Calling getWeather with: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] 🌤️ Weather API response received: {
+  "summary": "Pretty cold — currently 13°F (feels like 0°F), nighttime. Partly cloudy. Wind around 11 mph",
+  "current": {
+    "temperature": 13,
+    "feelsLike": 0,
+    "wind": 11,
+    "weatherText": "Partly cloudy",
+    "humidity": 56,
+    "uvIndex": 0,
+    "cloudCover": 41,
+    "isDayTime": false
+  }
+}
+ LOG  [TRACE Chat] 🌤️ Weather context SUCCESSFULLY prepared: {
+  "summary": "Pretty cold — currently 13°F (feels like 0°F), nighttime. Partly cloudy. Wind around 11 mph"
+}
+ LOG  [TRACE Chat] Backend URL: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev
+ LOG  [TRACE Chat] Sending to: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 13°F (feels like 0°F), nighttime. Partly cloudy. Wind around 11 mph", "temperature": undefined, "windSpeed": undefined}
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1769936168071-1r863d","message":"Cool. What are you up to?","activity_suggestion":{"name":null,"should_navigate":false},"posture":"STEADY","detected_state":"neutral","posture_confidence":0.6,"sound_state":{"current":null,"changed":false,"reason":"no_change","cadence":{"userMessageCount":3,"assistantMessageCount":3,"met":true}},"next_question":{"intent":"clarify","question":"Can you tell me more about that?"},"client_state_patch":{"sessionStartedAt":1769936169115,"lastUserAt":1769936169115,"sessionTurnCount":1,"lastGuidedStepTurn":0,"recentTopics":[],"activeLoops":[],"recentWins":[],"recentPhrases":[],"doorwayState":{"doors":{"currentDoorId":null,"lastDoorId":null,"activatedAtTurn":null,"turnsSinceActivation":1},"crisis":{"active":false,"triggeredAt":null,"lastSeenAt":null,"cleanTurns":1},"lastMessageAt":"2026-02-01T08:56:09.115Z"},"userMessageCount":3,"assistantMessageCount":3,"soundscapeCadenceMet":true,"lastActivityTimestamp":1769936170347,"lastAssistantHash":"4bb3084f699633d73a4282c0056e89de840c9b8b6aeda96723970c28a2aafe3d","lastAssistantText":"Cool. What are you up to?","lastQuestionIntent":"clarify"},"isCrisisMode":false,"messages":["Cool. What are you up to?"],"deduped":false}
+ LOG  [TRACE Chat] Processed messages array: ["Cool. What are you up to?"]
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, requestId, message, activity_suggestion, posture, detected_state, posture_confidence, sound_state, next_question, client_state_patch, isCrisisMode, messages, deduped
+ LOG  [TRACE Chat] 🔊 Found sound_state in response: {"changed": false, "confidence": undefined, "current": null, "reason": "no_change"}
+ LOG  [AUDIO_CADENCE] sound_state=null -> ensuring global ambient
+ LOG  [AUDIO_CADENCE] ensureAmbientPlaying skip reason=sound_state_null already_active (idempotent) isLoaded=true isPlaying=true isBuffering=false volume=0.10000000149011612
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=sound_state_applied
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "assistantMessageCount": 3, "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-01T08:56:09.115Z"}, "lastActivityTimestamp": 1769936170347, "lastAssistantHash": "4bb3084f699633d73a4282c0056e89de840c9b8b6aeda96723970c28a2aafe3d", "lastAssistantText": "Cool. What are you up to?", "lastGuidedStepTurn": 0, "lastQuestionIntent": "clarify", "lastUserAt": 1769936169115, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1769936169115, "sessionTurnCount": 1, "soundscapeCadenceMet": true, "userMessageCount": 3}
+ LOG  [CADENCE] Updated cadence state: {"assistant": 3, "met": true, "user": 3}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-01T08:56:09.115Z"}
+ LOG  [TRACE MIRROR] Session turn count: 4
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 4
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  [AUDIO_CADENCE] trace_reply_count=4
+ LOG  MESSAGES_LEN_AFTER: 20 deduped from: 20
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=trace_response
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Error sending signal on unfocus: [ReferenceError: Property 'authUserId' doesn't exist]
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {}
+ 

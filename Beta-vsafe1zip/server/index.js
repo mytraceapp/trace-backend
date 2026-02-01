@@ -4000,7 +4000,12 @@ app.post('/api/chat', async (req, res) => {
         
         const studioResponse = normalizeChatResponse(response, requestId);
         storeDedupResponse(dedupKey, studioResponse);
-        return res.json({ ...studioResponse, deduped: false });
+        // Studios responses still need sound_state
+        return res.json({ 
+          ...studioResponse, 
+          deduped: false,
+          sound_state: { current: null, changed: false, reason: 'studios_early_return' }
+        });
       }
     }
     
@@ -4038,7 +4043,8 @@ app.post('/api/chat', async (req, res) => {
       return res.json({
         message: winbackMsg,
         winback: { days: winbackCheck.days, tier: winbackCheck.tier },
-        client_state_patch: { winbackShownAt: Date.now() }
+        client_state_patch: { winbackShownAt: Date.now() },
+        sound_state: { current: null, changed: false, reason: 'winback_early_return' }
       });
     }
     
@@ -4065,6 +4071,7 @@ app.post('/api/chat', async (req, res) => {
         message: insightCheck.message,
         insight: { message: insightCheck.message, type: insightCheck.type },
         client_state_patch: insightCheck.client_state_patch,
+        sound_state: { current: null, changed: false, reason: 'insight_early_return' }
       });
     }
     
@@ -4225,6 +4232,7 @@ app.post('/api/chat', async (req, res) => {
           reason: null,
           should_navigate: false,
         },
+        sound_state: { current: null, changed: false, reason: 'boundary_early_return' }
       });
     }
     
@@ -4340,7 +4348,8 @@ app.post('/api/chat', async (req, res) => {
             reason: `User confirmed navigation to ${pendingActivity}`,
             should_navigate: true,
             target: pendingActivity
-          }
+          },
+          sound_state: { current: null, changed: false, reason: 'activity_nav_early_return' }
         });
       }
     }
@@ -5209,7 +5218,11 @@ app.post('/api/chat', async (req, res) => {
         },
       }, requestId);
       storeDedupResponse(dedupKey, closureResponse);
-      return res.json({ ...closureResponse, deduped: false });
+      return res.json({ 
+        ...closureResponse, 
+        deduped: false,
+        sound_state: { current: null, changed: false, reason: 'light_closure_early_return' }
+      });
     } else if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && traceJustAskedQuestion) {
       console.log('[TRACE CHAT] Short reply but TRACE asked question - treating as answer, not closure');
     }
