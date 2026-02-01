@@ -7824,27 +7824,35 @@ Your response:`;
     // Offer Echo activity for low mood states with cooldown
     // ============================================================
     let echoOffer = null;
-    const ECHO_COOLDOWN_HOURS = 4;
+    const ECHO_COOLDOWN_DAYS = 3;
+    const ECHO_COOLDOWN_MS = ECHO_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
     const lowMoodStates = ['sad', 'anxious', 'depressed', 'vulnerable', 'stressed', 'overwhelmed', 'heavy', 'spiraling', 'tired'];
-    const echoKeywords = /\b(sad|depressed|down|low|heavy|hard|struggle|struggling|alone|lonely|empty|numb|lost|anxious|overwhelmed)\b/i;
+    const echoKeywords = /\b(sad|depressed|down|low|heavy|hard|struggle|struggling|alone|lonely|empty|numb|lost|anxious|overwhelmed|heaviness)\b/i;
     
-    const shouldOfferEcho = !isCrisisMode && (
-      lowMoodStates.includes(detected_state) || 
-      echoKeywords.test(lastUserMessage)
-    );
+    const stateMatch = lowMoodStates.includes(detected_state);
+    const keywordMatch = echoKeywords.test(lastUserMessage);
+    const shouldOfferEcho = !isCrisisMode && (stateMatch || keywordMatch);
+    
+    console.log(`[ECHO] Assessment: state=${detected_state}, stateMatch=${stateMatch}, keywordMatch=${keywordMatch}, crisis=${isCrisisMode}, shouldOffer=${shouldOfferEcho}, msg="${lastUserMessage?.slice(0, 50)}"`);
     
     if (shouldOfferEcho && effectiveUserId) {
       try {
         // Check cooldown from user_cadence table
-        const { data: cadenceData } = await supabase
+        const { data: cadenceData, error: cadenceError } = await supabase
           .from('user_cadence')
           .select('last_echo_offer_at')
           .eq('user_id', effectiveUserId)
           .single();
         
+        if (cadenceError && cadenceError.code !== 'PGRST116') {
+          console.warn('[ECHO] Supabase cadence query error:', cadenceError.message);
+        }
+        
         const lastOffer = cadenceData?.last_echo_offer_at ? new Date(cadenceData.last_echo_offer_at) : null;
-        const cooldownMs = ECHO_COOLDOWN_HOURS * 60 * 60 * 1000;
-        const canOffer = !lastOffer || (Date.now() - lastOffer.getTime() > cooldownMs);
+        const timeSinceOffer = lastOffer ? Date.now() - lastOffer.getTime() : Infinity;
+        const canOffer = timeSinceOffer > ECHO_COOLDOWN_MS;
+        
+        console.log(`[ECHO] Cooldown check: lastOffer=${lastOffer?.toISOString() || 'never'}, timeSince=${Math.round(timeSinceOffer / 3600000)}h, cooldown=${ECHO_COOLDOWN_DAYS}d, canOffer=${canOffer}`);
         
         if (canOffer) {
           // Set echo_offer and update activity_suggestion
@@ -7857,20 +7865,26 @@ Your response:`;
           };
           
           // Update cooldown timestamp
-          await supabase
+          const { error: upsertError } = await supabase
             .from('user_cadence')
             .upsert({ 
               user_id: effectiveUserId, 
               last_echo_offer_at: new Date().toISOString() 
             }, { onConflict: 'user_id' });
           
-          console.log(`[ECHO] Offering Echo to user ${effectiveUserId.slice(0, 8)} (state: ${detected_state})`);
+          if (upsertError) {
+            console.warn('[ECHO] Failed to update cooldown:', upsertError.message);
+          }
+          
+          console.log(`[ECHO] ✅ Offering Echo to user ${effectiveUserId.slice(0, 8)} (state: ${detected_state})`);
         } else {
-          console.log(`[ECHO] Cooldown active for user ${effectiveUserId.slice(0, 8)}, skipping offer`);
+          console.log(`[ECHO] ⏳ Cooldown active for user ${effectiveUserId.slice(0, 8)}, skipping offer`);
         }
       } catch (err) {
         console.warn('[ECHO] Failed to check/update cadence:', err.message);
       }
+    } else if (!effectiveUserId) {
+      console.log('[ECHO] No effectiveUserId available, skipping');
     }
     
     // Build response - include messages array if crisis mode
