@@ -4020,13 +4020,19 @@ app.post('/api/chat', async (req, res) => {
     const winbackCheck = maybeWinback(safeClientState, winbackSignals);
     
     if (winbackCheck.shouldShow) {
-      const winbackMsg = buildWinbackMessage({
+      // Get user name for personalization
+      const userName = safeClientState?.userName || safeClientState?.displayName || null;
+      
+      // AI-generated personalized winback message
+      const winbackMsg = await buildWinbackMessage({
         days: winbackCheck.days,
         tier: winbackCheck.tier,
         clientState: safeClientState,
+        openai: openai,
+        userName: userName,
       });
       
-      console.log('[WINBACK] Triggered:', { tier: winbackCheck.tier, days: winbackCheck.days });
+      console.log('[WINBACK] Triggered:', { tier: winbackCheck.tier, days: winbackCheck.days, userName });
       
       // Log winback event for telemetry
       if (effectiveUserId) {

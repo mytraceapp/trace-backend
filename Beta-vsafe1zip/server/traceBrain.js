@@ -1057,62 +1057,107 @@ function maybeWinback(clientState, signals) {
   return { shouldShow: true, days, tier };
 }
 
-function buildWinbackMessage({ days, tier, clientState }) {
-  const tierMessages = {
-    A: [
-      "Feels like it's been a minute. Want to pick up where you left off, or start fresh tonight?",
-      "You slipped back in. What do you need right now — some space, or something to hold onto?",
-      "It's been a bit. Sometimes stepping back is what we need. What brought you here tonight?",
+// AI-generated winback messages - requires OpenAI client passed in
+async function buildWinbackMessage({ days, tier, clientState, openai, userName }) {
+  // Get time of day context
+  const hour = new Date().getHours();
+  let timeContext = 'evening';
+  if (hour >= 5 && hour < 12) timeContext = 'morning';
+  else if (hour >= 12 && hour < 17) timeContext = 'afternoon';
+  else if (hour >= 17 && hour < 21) timeContext = 'evening';
+  else timeContext = 'night';
+  
+  // Build context for AI
+  const contextParts = [];
+  contextParts.push(`Time: ${timeContext}`);
+  contextParts.push(`Days away: ${days}`);
+  if (userName) contextParts.push(`Name: ${userName}`);
+  if (clientState?.lastActivity?.name) {
+    contextParts.push(`Last activity: ${clientState.lastActivity.name}`);
+  }
+  if (clientState?.recentSentiment) {
+    contextParts.push(`Recent mood: ${clientState.recentSentiment}`);
+  }
+  if (clientState?.lastTopic) {
+    contextParts.push(`Last topic discussed: ${clientState.lastTopic}`);
+  }
+  
+  const contextStr = contextParts.join(', ');
+  
+  // Try AI generation
+  if (openai) {
+    try {
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are TRACE, a calm friend who notices when someone returns after being away. Generate ONE short, warm return message (1-2 sentences max).
+
+RULES:
+- Sound like a real friend, not a therapist or app
+- Reference the time of day naturally (morning/afternoon/evening/night)
+- If you have their name, use it casually (not forced)
+- If they were away a while, acknowledge it gently without guilt
+- If you know their last activity or topic, you can reference it naturally
+- NEVER say "Welcome back" or generic greetings
+- NEVER be formal or stiff
+- Keep it SHORT - like a text from a friend
+
+EXAMPLES OF GOOD MESSAGES:
+- "hey... how'd you sleep?"
+- "quiet afternoon huh. what's on your mind?"
+- "you've been gone a bit. everything okay?"
+- "evening vibes. just checking in."
+- "hope the week's treating you okay"
+
+Context: ${contextStr}`
+          },
+          {
+            role: 'user',
+            content: 'Generate a return message for this person.'
+          }
+        ],
+        max_tokens: 60,
+        temperature: 0.9
+      });
+      
+      const aiMessage = response.choices[0]?.message?.content?.trim();
+      if (aiMessage && aiMessage.length > 5) {
+        console.log('[WINBACK] AI-generated message:', aiMessage);
+        return aiMessage;
+      }
+    } catch (err) {
+      console.error('[WINBACK] AI generation failed, using fallback:', err.message);
+    }
+  }
+  
+  // Fallback: Simple time-based messages (not the old scripted ones)
+  const fallbacks = {
+    morning: [
+      "hey... early start?",
+      "morning. how'd you sleep?",
+      "quiet morning huh"
     ],
-    B: [
-      "You're back. No pressure — we can go small. What's the one thing you want to feel right now?",
-      "It's been a couple weeks. I'm just here. We can sit in it or move through something — your call.",
-      "Something brought you back. If you want, just tell me where you're at. One word is fine.",
+    afternoon: [
+      "hope your afternoon's going okay",
+      "hey. what's the vibe today?",
+      "checking in... how's it going?"
     ],
-    C: [
-      "A lot can shift in a month. Tell me what changed most since you were last here.",
-      "It's been a while. I've been here the whole time. What's the thing you've been carrying lately?",
-      "You're here again. That takes something. We don't have to catch up — just start from now.",
+    evening: [
+      "evening. settling in?",
+      "how's the night treating you?",
+      "quiet evening check-in"
     ],
+    night: [
+      "late one huh. what's keeping you up?",
+      "night thoughts?",
+      "can't sleep or just winding down?"
+    ]
   };
   
-  const messages = tierMessages[tier] || tierMessages.A;
-  const baseMsg = messages[Math.floor(Math.random() * messages.length)];
-  
-  // Optional personalization
-  let personalized = baseMsg;
-  
-  // If we know their last activity, gently reference it
-  if (clientState?.lastActivity?.name && tier !== 'C') {
-    const activityName = clientState.lastActivity.name;
-    const activityRefs = [
-      `Last time you did ${activityName}. Want to try that again, or something new?`,
-      `I remember ${activityName} — that seemed to help. Or we can find something else.`,
-    ];
-    // 30% chance to add activity reference
-    if (Math.random() < 0.3) {
-      personalized = activityRefs[Math.floor(Math.random() * activityRefs.length)];
-    }
-  }
-  
-  // If sentiment is calm/quiet, acknowledge it
-  if (clientState?.recentSentiment === 'calm' || clientState?.recentSentiment === 'quiet') {
-    if (Math.random() < 0.2) {
-      personalized = `Feels like a quiet return. ${baseMsg}`;
-    }
-  }
-  
-  // Add gentle easy-win offer for Tier B/C (only if not in audio mode)
-  const shouldOfferEasyWin = (tier === 'B' || tier === 'C') && 
-    !clientState?.nowPlaying && 
-    clientState?.mode !== 'audio_player' &&
-    Math.random() < 0.4;
-    
-  if (shouldOfferEasyWin) {
-    personalized += "\n\nIf you want something gentle first, I can put on something calm.";
-  }
-  
-  return personalized;
+  const options = fallbacks[timeContext] || fallbacks.evening;
+  return options[Math.floor(Math.random() * options.length)];
 }
 
 // ========== PILLAR 12: PROGRESS INSIGHTS ==========
