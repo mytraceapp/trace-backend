@@ -7856,7 +7856,7 @@ Your response:`;
         
         if (canOffer) {
           // Set echo_offer and update activity_suggestion
-          echoOffer = { text: "Can I tell you something for a moment?" };
+          echoOffer = { text: "Can I tell you something?" };
           activitySuggestion = {
             name: "echo",
             reason: "echo_offer",
