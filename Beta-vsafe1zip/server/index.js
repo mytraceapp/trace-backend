@@ -3309,13 +3309,17 @@ app.post('/api/greeting', async (req, res) => {
     }
 
     // For returning users, gather context for personalized AI greeting
-    const { localTime, localDay, timezone } = req.body;
+    const { localTime, localDay, timezone, timeOfDay: clientTimeOfDay } = req.body;
     
-    // Calculate time of day from client's local time or server time
+    // Use client's timeOfDay directly if provided, otherwise calculate from localTime
     let timeOfDay = 'afternoon';
     let dayOfWeek = null;
     try {
-      if (localTime) {
+      // Prefer client's direct timeOfDay if sent
+      if (clientTimeOfDay && ['morning', 'afternoon', 'evening', 'night'].includes(clientTimeOfDay)) {
+        timeOfDay = clientTimeOfDay;
+      } else if (localTime) {
+        // Fallback: calculate from localTime string
         const hour = parseInt(localTime.split(':')[0], 10);
         if (hour >= 5 && hour < 12) timeOfDay = 'morning';
         else if (hour >= 12 && hour < 17) timeOfDay = 'afternoon';
@@ -3328,6 +3332,8 @@ app.post('/api/greeting', async (req, res) => {
     } catch (e) {
       console.warn('[GREETING] Failed to parse time:', e.message);
     }
+    
+    console.log('[GREETING] Time context from client:', { clientTimeOfDay, localTime, localDay, resolved: timeOfDay });
     
     // Get last seen info
     let lastSeenDaysAgo = null;
