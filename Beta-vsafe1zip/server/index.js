@@ -3309,7 +3309,20 @@ app.post('/api/greeting', async (req, res) => {
     }
 
     // For returning users, gather context for personalized AI greeting
-    const { localTime, localDay, timezone, timeOfDay: clientTimeOfDay } = req.body;
+    const { 
+      localTime, 
+      localDay, 
+      timezone, 
+      timeOfDay: clientTimeOfDay,
+      // New context fields from mobile
+      hasRecentCheckIn,
+      justDidActivity,
+      recentActivityName,
+      recentTopic,
+      stressLevel
+    } = req.body;
+    
+    console.log('[GREETING] Mobile context:', { hasRecentCheckIn, justDidActivity, recentActivityName, recentTopic, stressLevel });
     
     // Use client's timeOfDay directly if provided, otherwise calculate from localTime
     let timeOfDay = 'afternoon';
@@ -3396,16 +3409,30 @@ app.post('/api/greeting', async (req, res) => {
     // Randomize greeting approach for variety
     const greetingApproach = ['time_focus', 'theme_focus', 'simple', 'question'][Math.floor(Math.random() * 4)];
     
-    console.log('[GREETING] Context:', { timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext: memoryContext.length, approach: greetingApproach });
+    // Prefer mobile-provided activity name if more recent
+    const effectiveRecentActivity = recentActivityName || recentActivity;
+    
+    console.log('[GREETING] Context:', { 
+      timeOfDay, dayOfWeek, lastSeenDaysAgo, 
+      recentActivity: effectiveRecentActivity, 
+      memoryContext: memoryContext.length, 
+      approach: greetingApproach,
+      hasRecentCheckIn, justDidActivity, recentTopic, stressLevel 
+    });
     
     const systemPrompt = buildReturningGreetingPrompt({ 
       displayName, 
       timeOfDay, 
       dayOfWeek, 
       lastSeenDaysAgo, 
-      recentActivity, 
+      recentActivity: effectiveRecentActivity, 
       memoryContext,
-      greetingApproach
+      greetingApproach,
+      // New context fields
+      hasRecentCheckIn,
+      justDidActivity,
+      recentTopic,
+      stressLevel
     });
 
     if (!openai) {

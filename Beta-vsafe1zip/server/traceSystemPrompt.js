@@ -541,7 +541,7 @@ Example energy: "Hey — I'm TRACE. I'm here whenever you want to breathe with m
 Return JSON: { "greeting": "your message" }`.trim();
 }
 
-function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext, greetingApproach }) {
+function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext, greetingApproach, hasRecentCheckIn, justDidActivity, recentTopic, stressLevel }) {
   const firstName = displayName ? displayName.split(' ')[0] : null;
   
   // Build context parts
@@ -576,9 +576,29 @@ function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastS
     }
   }
   
-  // Activity context
-  if (recentActivity) {
+  // Activity context - prioritize "just did" activity
+  if (justDidActivity && recentActivity) {
+    contextParts.push(`Just completed activity: ${recentActivity} (within last 30 minutes)`);
+  } else if (recentActivity) {
     contextParts.push(`Last activity: ${recentActivity}`);
+  }
+  
+  // Check-in and stress context
+  if (hasRecentCheckIn) {
+    if (stressLevel === 'high') {
+      contextParts.push('Recent check-in: high stress level noted');
+    } else if (stressLevel === 'medium') {
+      contextParts.push('Recent check-in: moderate stress level');
+    } else if (stressLevel === 'low') {
+      contextParts.push('Recent check-in: feeling good, low stress');
+    } else {
+      contextParts.push('Has done a check-in recently');
+    }
+  }
+  
+  // Recent topic context
+  if (recentTopic) {
+    contextParts.push(`Recent topic they mentioned: ${recentTopic}`);
   }
   
   // Memory context - only include if approach wants it

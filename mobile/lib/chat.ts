@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export interface PatternContext {
   peakWindow?: string | null;
   peakWindowConfidence?: 'high' | 'medium' | 'low' | 'insufficient' | null;
@@ -164,6 +166,74 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
 
 const TRACE_API_URL = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api';
 
+// Helper to gather user context for greeting
+
+export interface GreetingContext {
+  hasRecentCheckIn: boolean;
+  justDidActivity: boolean;
+  recentActivityName: string | null;
+  recentTopic: string | null;
+  stressLevel: 'low' | 'medium' | 'high' | null;
+}
+
+export async function gatherGreetingContext(): Promise<GreetingContext> {
+  try {
+    // Check for recent activity completion (within last 30 minutes)
+    const pendingActivityRaw = await AsyncStorage.getItem('trace:pendingActivityCompletion');
+    let justDidActivity = false;
+    let recentActivityName: string | null = null;
+    
+    if (pendingActivityRaw) {
+      const pendingActivity = JSON.parse(pendingActivityRaw);
+      const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
+      if (pendingActivity.timestamp > thirtyMinutesAgo) {
+        justDidActivity = true;
+        recentActivityName = pendingActivity.activity || null;
+      }
+    }
+    
+    // Check for last completed activity name
+    if (!recentActivityName) {
+      recentActivityName = await AsyncStorage.getItem('lastCompletedActivityName');
+    }
+    
+    // Check for recent check-in (within last 24 hours)
+    const lastCheckInRaw = await AsyncStorage.getItem('trace:lastCheckIn');
+    let hasRecentCheckIn = false;
+    let stressLevel: 'low' | 'medium' | 'high' | null = null;
+    
+    if (lastCheckInRaw) {
+      const lastCheckIn = JSON.parse(lastCheckInRaw);
+      const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+      if (lastCheckIn.timestamp > twentyFourHoursAgo) {
+        hasRecentCheckIn = true;
+        stressLevel = lastCheckIn.stressLevel || null;
+      }
+    }
+    
+    // Get recent topic from last chat message (simplified)
+    const lastTopicRaw = await AsyncStorage.getItem('trace:lastChatTopic');
+    const recentTopic = lastTopicRaw || null;
+    
+    return {
+      hasRecentCheckIn,
+      justDidActivity,
+      recentActivityName,
+      recentTopic,
+      stressLevel,
+    };
+  } catch (error) {
+    console.warn('[GREETING CONTEXT] Error gathering context:', error);
+    return {
+      hasRecentCheckIn: false,
+      justDidActivity: false,
+      recentActivityName: null,
+      recentTopic: null,
+      stressLevel: null,
+    };
+  }
+}
+
 export async function fetchWelcomeGreeting(params: {
   userName?: string | null;
   chatStyle?: string;
@@ -173,6 +243,12 @@ export async function fetchWelcomeGreeting(params: {
   userId?: string | null;
   deviceId?: string | null;
   timezone?: string | null;
+  // New context fields
+  hasRecentCheckIn?: boolean;
+  justDidActivity?: boolean;
+  recentActivityName?: string | null;
+  recentTopic?: string | null;
+  stressLevel?: 'low' | 'medium' | 'high' | null;
 }) {
   const {
     userName,
@@ -183,6 +259,11 @@ export async function fetchWelcomeGreeting(params: {
     userId,
     deviceId,
     timezone,
+    hasRecentCheckIn = false,
+    justDidActivity = false,
+    recentActivityName = null,
+    recentTopic = null,
+    stressLevel = null,
   } = params;
 
   const url = `${TRACE_API_URL}/greeting`;
@@ -192,21 +273,30 @@ export async function fetchWelcomeGreeting(params: {
   const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
+    const requestBody = {
+      userName,
+      chatStyle,
+      localTime,
+      localDay,
+      localDate,
+      userId,
+      deviceId,
+      timezone,
+      // Include context for personalized greeting
+      hasRecentCheckIn,
+      justDidActivity,
+      recentActivityName,
+      recentTopic,
+      stressLevel,
+    };
+    console.log('✨ TRACE greeting body:', JSON.stringify(requestBody));
+    
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        userName,
-        chatStyle,
-        localTime,
-        localDay,
-        localDate,
-        userId,
-        deviceId,
-        timezone,
-      }),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 

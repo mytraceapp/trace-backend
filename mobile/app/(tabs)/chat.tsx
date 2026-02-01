@@ -26,7 +26,7 @@ import { BodyText, FontFamily } from '../../constants/typography';
 import { useFonts } from 'expo-font';
 import { playAmbient, stopAmbient } from '../../lib/ambientAudio';
 import { useAudio } from '../../providers/AudioProvider';
-import { sendChatMessage, fetchWelcomeGreeting, PatternContext, WeatherContext } from '../../lib/chat';
+import { sendChatMessage, fetchWelcomeGreeting, gatherGreetingContext, PatternContext, WeatherContext } from '../../lib/chat';
 import { getWeather } from '../../lib/weather';
 import { getStableId } from '../../lib/stableId';
 import { logSuggestionAccepted, logSuggestionCompleted, logNegativeResponse } from '../../lib/telemetry';
@@ -1087,6 +1087,11 @@ export default function ChatScreen() {
       try {
         setWelcomeLoading(true);
         const now = new Date();
+        
+        // Gather user context for personalized greeting
+        const greetingContext = await gatherGreetingContext();
+        console.log('📋 TRACE greeting context:', greetingContext);
+        
         const result = await fetchWelcomeGreeting({
           userName: null,
           chatStyle: 'conversation',
@@ -1096,6 +1101,12 @@ export default function ChatScreen() {
           userId: userId,
           deviceId: deviceId,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          // Include user context
+          hasRecentCheckIn: greetingContext.hasRecentCheckIn,
+          justDidActivity: greetingContext.justDidActivity,
+          recentActivityName: greetingContext.recentActivityName,
+          recentTopic: greetingContext.recentTopic,
+          stressLevel: greetingContext.stressLevel,
         });
         
         if (!result.skipGreeting && result.text) {
@@ -1173,6 +1184,11 @@ export default function ChatScreen() {
       console.log('✨ TRACE greeting: starting fetchWelcomeGreeting');
 
       const now = new Date();
+      
+      // Gather user context for personalized greeting
+      const greetingContext = await gatherGreetingContext();
+      console.log('📋 TRACE greeting context:', greetingContext);
+      
       const result = await fetchWelcomeGreeting({
         userName: null,
         chatStyle: 'conversation',
@@ -1182,6 +1198,12 @@ export default function ChatScreen() {
         userId: authUserId ?? null,
         deviceId: stableId ?? null,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        // Include user context
+        hasRecentCheckIn: greetingContext.hasRecentCheckIn,
+        justDidActivity: greetingContext.justDidActivity,
+        recentActivityName: greetingContext.recentActivityName,
+        recentTopic: greetingContext.recentTopic,
+        stressLevel: greetingContext.stressLevel,
       });
 
       console.log('✨ TRACE greeting result:', result);
