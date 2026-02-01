@@ -1,0 +1,169 @@
+# 🎵 Soundscape Cadence Management - Backend Implementation Prompt
+
+## Problem Statement
+
+When a user arrives on chat, navigates to complete an activity first, and then returns to chat, soundscapes are not being triggered. The frontend warm-up gate (`traceReplyCountRef >= 2`) blocks soundscape triggering until 2 assistant messages are received, but this counter is reset when returning from activities.
+
+**User Requirement:**
+Soundscapes should always try to trigger after the first **4 message cadence rule** (2 from user, 2 from trace) whenever the user returns to the chat page, regardless of whether they navigated to an activity first.
+
+## Current Architecture
+
+### Frontend Logic (mobile/app/(tabs)/chat.tsx)
+- **Warm-up Gate:** Line 2315 - `const hasWarmUp = traceReplyCountRef.current >= 2;`
+- **Blocking:** Line 2330 - Blocks `sound_state` application if `!hasWarmUp && !isResumingSoundscape`
+- **Counter Reset:** Line 2063, 2791 - `traceReplyCountRef.current = 0` when returning from activity
+- **Counter Increment:** Line 2721 - Increments on each assistant message
+
+### Backend Logic (server/index.js)
+- **Sound State Evaluation:** Line 1181 - `const soundState = evaluateSoundState(userMessage, clientState, signals, signals.detectedState);`
+- **Always Sends:** Line 1210 - `sound_state: soundState` is included in every response
+- **No Cadence Gate:** Backend currently has no logic to gate sound_state based on message count
+
+## Proposed Solution: Backend-Managed Cadence
+
+### Implementation Requirements
+
+1. **Track Message Cadence in `clientState`:**
+   - Add `userMessageCount: number` - Count of user messages in current session
+   - Add `assistantMessageCount: number` - Count of assistant messages in current session
+   - Add `soundscapeCadenceMet: boolean` - Whether the 4-message cadence has been met
+   - Persist these in `client_state_patch` so frontend can track
+
+2. **Implement Cadence Gate in `evaluateSoundState()`:**
+   - **Before evaluating emotional state**, check if cadence is met:
+     ```javascript
+     const cadenceMet = (clientState?.userMessageCount || 0) >= 2 && 
+                        (clientState?.assistantMessageCount || 0) >= 2;
+     ```
+   - **If cadence NOT met:**
+     - Return `{ current: "presence", changed: false, reason: "cadence_not_met" }`
+     - This prevents soundscape triggering until 4 messages are exchanged
+   - **If cadence IS met:**
+     - Proceed with normal emotional state evaluation
+     - Allow soundscape state changes based on emotional signals
+
+3. **Increment Counters in `/api/chat` endpoint:**
+   - **User message count:** Increment when processing request (after dedupe check)
+     ```javascript
+     clientState.userMessageCount = (clientState?.userMessageCount || 0) + 1;
+     ```
+   - **Assistant message count:** Increment after generating response
+     ```javascript
+     clientState.assistantMessageCount = (clientState?.assistantMessageCount || 0) + 1;
+     ```
+   - **Update cadence flag:**
+     ```javascript
+     clientState.soundscapeCadenceMet = 
+       (clientState?.userMessageCount || 0) >= 2 && 
+       (clientState?.assistantMessageCount || 0) >= 2;
+     ```
+
+4. **Handle Activity Return Scenario:**
+   - **When user returns from activity:**
+     - Check if `clientState.soundscapeCadenceMet === true` (from previous session)
+     - If `true`: Allow soundscape triggering immediately (cadence already met)
+     - If `false`: Continue counting messages until cadence is met
+   - **Session Reset Logic:**
+     - Only reset counters if session expired (> 6 hours) OR new day
+     - If returning within same session: Preserve counters
+
+5. **Include Cadence State in Response:**
+   - Add to `client_state_patch`:
+     ```javascript
+     responseBody.client_state_patch.userMessageCount = clientState.userMessageCount;
+     responseBody.client_state_patch.assistantMessageCount = clientState.assistantMessageCount;
+     responseBody.client_state_patch.soundscapeCadenceMet = clientState.soundscapeCadenceMet;
+     ```
+
+## Implementation Details
+
+### File: `server/index.js`
+
+#### 1. Update `evaluateSoundState()` function (around line 342)
+
+```javascript
+function evaluateSoundState(userMessage, clientState, signals, detectedState) {
+  // 🎵 CADENCE GATE: Check if 4-message cadence is met (2 user + 2 assistant)
+  const userMsgCount = clientState?.userMessageCount || 0;
+  const assistantMsgCount = clientState?.assistantMessageCount || 0;
+  const cadenceMet = userMsgCount >= 2 && assistantMsgCount >= 2;
+  
+  if (!cadenceMet) {
+    console.log(`[EMOTIONAL_ATMOSPHERE] Cadence not met: user=${userMsgCount}, assistant=${assistantMsgCount} - returning presence`);
+    return {
+      current: 'presence',
+      changed: false,
+      reason: 'cadence_not_met',
+      confidence: 0,
+    };
+  }
+  
+  // Proceed with normal emotional state evaluation...
+  // (existing logic continues)
+}
+```
+
+#### 2. Update `/api/chat` endpoint (around line 656)
+
+**After dedupe check (around line 700):**
+```javascript
+// 🎵 CADENCE: Increment user message count
+clientState.userMessageCount = (clientState?.userMessageCount || 0) + 1;
+console.log(`[CADENCE] User message count: ${clientState.userMessageCount}`);
+```
+
+**After generating response (around line 1180):**
+```javascript
+// 🎵 CADENCE: Increment assistant message count
+clientState.assistantMessageCount = (clientState?.assistantMessageCount || 0) + 1;
+const cadenceMet = (clientState?.userMessageCount || 0) >= 2 && 
+                   (clientState?.assistantMessageCount || 0) >= 2;
+clientState.soundscapeCadenceMet = cadenceMet;
+console.log(`[CADENCE] Assistant message count: ${clientState.assistantMessageCount}, cadence met: ${cadenceMet}`);
+```
+
+**In `client_state_patch` (around line 1231):**
+```javascript
+// 🎵 CADENCE: Include cadence state in patch
+responseBody.client_state_patch.userMessageCount = clientState.userMessageCount;
+responseBody.client_state_patch.assistantMessageCount = clientState.assistantMessageCount;
+responseBody.client_state_patch.soundscapeCadenceMet = clientState.soundscapeCadenceMet;
+```
+
+#### 3. Session Reset Logic (around line 800-900)
+
+**When initializing new session:**
+```javascript
+// Only reset cadence counters if session expired or new day
+// If returning within same session, preserve counters
+if (hasSessionExpired || isNewDay) {
+  clientState.userMessageCount = 0;
+  clientState.assistantMessageCount = 0;
+  clientState.soundscapeCadenceMet = false;
+} else {
+  // Preserve existing counters - cadence may already be met
+  console.log(`[CADENCE] Preserving counters: user=${clientState.userMessageCount}, assistant=${clientState.assistantMessageCount}`);
+}
+```
+
+## Expected Behavior
+
+### Scenario 1: New Chat Session
+1. User sends message 1 → `userMessageCount = 1`, `assistantMessageCount = 0` → `sound_state: { current: "presence", changed: false, reason: "cadence_not_met" }`
+2. TRACE responds → `userMessageCount = 1`, `assistantMessageCount = 1` → `sound_state: { current: "presence", changed: false, reason: "cadence_not_met" }`
+3. User sends message 2 → `userMessageCount = 2`, `assistantMessageCount = 1` → `sound_state: { current: "presence", changed: false, reason: "cadence_not_met" }`
+4. TRACE responds → `userMessageCount = 2`, `assistantMessageCount = 2` → `cadenceMet = true` → **Soundscape can now trigger** → `sound_state: { current: "grounding", changed: true, reason: "emotional_change" }` (if emotional signals detected)
+
+### Scenario 2: Return from Activity (Cadence Already Met)
+1. User had 2+ user messages and 2+ assistant messages in previous session
+2. User navigates to activity, completes it, returns to chat
+3. `clientState.soundscapeCadenceMet = true` (preserved from previous session)
+4. User sends message → **Soundscape can trigger immediately** → `sound_state: { current: "grounding", changed: true }` (if emotional signals detected)
+
+### Scenario 3: Return from Activity (Cadence Not Met)
+1. User had < 2 user messages or < 2 assistant messages
+2. User navigates to activity, completes it, returns to chat
+3. `clientState.soundscapeCadenceMet = false`
+4. Continue counting until 2 user + 2 assistant messages are reached
+5. Then soundscapes can trigger

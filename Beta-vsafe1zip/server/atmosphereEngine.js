@@ -232,6 +232,32 @@ function evaluateAtmosphere(input) {
   session.last_activity_timestamp = now;
   
   // ============================================================
+  // 🎵 INITIALIZE TO PRESENCE: When cadence is met and we're still on ambient
+  // This is the "soundscape starts" moment - begin with calm baseline
+  // ============================================================
+  if (session.current_state === null || session.current_state === undefined) {
+    console.log(`[ATMOSPHERE] Cadence met, initializing to presence (calm baseline soundscape)`);
+    
+    updateSessionState(userId, {
+      current_state: 'presence',
+      last_change_timestamp: now,
+      last_activity_timestamp: now,
+      neutral_message_streak: 0,
+      grounding_clear_streak: 0,
+      messages_since_state_change: 0
+    });
+    
+    return {
+      sound_state: {
+        current: 'presence', // Start with calm baseline soundscape
+        changed: true,
+        reason: 'cadence_met_initial_presence',
+        cadence: { userMessageCount, assistantMessageCount, met: true }
+      }
+    };
+  }
+  
+  // ============================================================
   // CLIENT STATE RESTORATION (handles server restarts)
   // If server has no record but client says it's in a specific state, restore it
   // ============================================================
