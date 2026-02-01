@@ -165,10 +165,30 @@ function evaluateAtmosphere(input) {
     userId,
     current_message,
     recent_messages = [],
-    client_sound_state = null // NEW: Client's current state for persistence
+    client_sound_state = null, // Client's current state for persistence
+    userMessageCount = 0,       // NEW: Cadence tracking - user messages
+    assistantMessageCount = 0   // NEW: Cadence tracking - assistant messages
   } = input;
   
   const now = Date.now();
+  
+  // ============================================================
+  // 🎵 CADENCE GATE: Check if 4-message cadence is met (2 user + 2 assistant)
+  // Soundscapes don't trigger until conversation has warmed up
+  // ============================================================
+  const cadenceMet = userMessageCount >= 2 && assistantMessageCount >= 2;
+  
+  if (!cadenceMet) {
+    console.log(`[ATMOSPHERE] Cadence not met: user=${userMessageCount}, assistant=${assistantMessageCount} - returning presence`);
+    return {
+      sound_state: {
+        current: 'presence',
+        changed: false,
+        reason: 'cadence_not_met',
+        cadence: { userMessageCount, assistantMessageCount, met: false }
+      }
+    };
+  }
   const session = getSessionState(userId);
   
   // ============================================================
@@ -430,7 +450,8 @@ function evaluateAtmosphere(input) {
     sound_state: {
       current: finalState,
       changed: shouldChange,
-      reason: shouldChange ? reason : 'no_change'
+      reason: shouldChange ? reason : 'no_change',
+      cadence: { userMessageCount, assistantMessageCount, met: true }
     }
   };
 }

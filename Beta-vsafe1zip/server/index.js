@@ -3823,6 +3823,12 @@ app.post('/api/chat', async (req, res) => {
     // Extract client_state for context-aware responses
     const safeClientState = clientState || {};
     console.log('[TRACE BRAIN] client_state:', JSON.stringify(safeClientState));
+    
+    // 🎵 CADENCE TRACKING: Track message counts for soundscape warm-up
+    // Increment user message count (this is a new user message)
+    const currentUserMsgCount = (safeClientState.userMessageCount || 0) + 1;
+    const currentAssistantMsgCount = safeClientState.assistantMessageCount || 0;
+    console.log(`[CADENCE] User message count: ${currentUserMsgCount}, Assistant: ${currentAssistantMsgCount}`);
 
     // Filter out invalid placeholder names like "friend", "buddy", "pal"
     const invalidNames = ['friend', 'buddy', 'pal', 'user', 'guest', 'anonymous'];
@@ -7764,11 +7770,18 @@ Your response:`;
       // Pass client's current sound state so backend can restore if session was lost
       const clientSoundState = safeClientState?.currentSoundState || null;
       
+      // 🎵 CADENCE: After generating response, increment assistant message count
+      const newAssistantMsgCount = currentAssistantMsgCount + 1;
+      const cadenceMet = currentUserMsgCount >= 2 && newAssistantMsgCount >= 2;
+      console.log(`[CADENCE] Post-response: user=${currentUserMsgCount}, assistant=${newAssistantMsgCount}, cadenceMet=${cadenceMet}`);
+      
       atmosphereResult = evaluateAtmosphere({
         userId: effectiveUserId,
         current_message: userText,
         recent_messages: recentUserMessages.slice(0, -1), // Exclude current, take last 2
-        client_sound_state: clientSoundState // NEW: Client's current state for persistence
+        client_sound_state: clientSoundState, // Client's current state for persistence
+        userMessageCount: currentUserMsgCount,        // 🎵 Cadence tracking
+        assistantMessageCount: newAssistantMsgCount   // 🎵 Cadence tracking (post-response)
       });
       
       if (atmosphereResult?.sound_state?.changed) {
@@ -7858,6 +7871,11 @@ Your response:`;
     if (doorwaysResult?.conversationState) {
       clientStatePatch.doorwayState = doorwaysResult.conversationState;
     }
+    
+    // 🎵 CADENCE: Include cadence tracking in client_state_patch
+    clientStatePatch.userMessageCount = currentUserMsgCount;
+    clientStatePatch.assistantMessageCount = currentAssistantMsgCount + 1; // Post-response count
+    clientStatePatch.soundscapeCadenceMet = currentUserMsgCount >= 2 && (currentAssistantMsgCount + 1) >= 2;
     
     // Guided step state patch
     if (guidedStepResult.fired && guidedStepResult.client_state_patch) {
