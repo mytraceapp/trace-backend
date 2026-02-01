@@ -4019,45 +4019,11 @@ app.post('/api/chat', async (req, res) => {
     // See processDoorways() integration below for the new system
     
     // ===== PILLAR 11: EXIT FRICTION & WINBACK =====
-    // Check if user is returning after extended absence
+    // NOTE: Winback/return greetings are now handled ONLY by /api/greeting endpoint
+    // This is called when the user arrives on the chat page, before any messages
+    // Removing duplicate winback logic here to prevent double greetings
     const lastUserMsgText = rawMessages?.filter(m => m.role === 'user').pop()?.content || '';
     const winbackSignals = getBrainSignals(lastUserMsgText);
-    const winbackCheck = maybeWinback(safeClientState, winbackSignals);
-    
-    if (winbackCheck.shouldShow) {
-      // Get user name for personalization
-      const userName = safeClientState?.userName || safeClientState?.displayName || null;
-      
-      // AI-generated personalized winback message
-      const winbackMsg = await buildWinbackMessage({
-        days: winbackCheck.days,
-        tier: winbackCheck.tier,
-        clientState: safeClientState,
-        openai: openai,
-        userName: userName,
-      });
-      
-      console.log('[WINBACK] Triggered:', { tier: winbackCheck.tier, days: winbackCheck.days, userName });
-      
-      // Log winback event for telemetry
-      if (effectiveUserId) {
-        logEvent({
-          user_id: effectiveUserId,
-          event_name: 'winback_triggered',
-          props: {
-            tier: winbackCheck.tier,
-            days: winbackCheck.days,
-          }
-        }).catch(() => {});
-      }
-      
-      return res.json({
-        message: winbackMsg,
-        winback: { days: winbackCheck.days, tier: winbackCheck.tier },
-        client_state_patch: { winbackShownAt: Date.now() },
-        sound_state: { current: null, changed: false, reason: 'winback_early_return' }
-      });
-    }
     
     // ===== PILLAR 12: PROGRESS INSIGHTS (Early return, no OpenAI) =====
     const insightCheck = maybeInsight({
