@@ -3230,7 +3230,7 @@ app.post('/api/greeting', async (req, res) => {
       // Check if user has any chat history - this is the most reliable way to detect returning users
       try {
         const { count } = await supabaseServer
-          .from('messages')
+          .from('chat_messages')  // Fixed: was 'messages', should be 'chat_messages'
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
           .limit(1);
@@ -3336,7 +3336,7 @@ app.post('/api/greeting', async (req, res) => {
       try {
         // Get last message timestamp
         const { data: lastMsg } = await supabaseServer
-          .from('messages')
+          .from('chat_messages')  // Fixed: was 'messages', should be 'chat_messages'
           .select('created_at')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
@@ -3372,9 +3372,11 @@ app.post('/api/greeting', async (req, res) => {
     if (userId && supabaseServer) {
       try {
         const memoryData = await loadTraceLongTermMemory(supabaseServer, userId);
-        if (memoryData?.themes) {
-          memoryContext = memoryData.themes.slice(0, 3);
+        // Fixed: memory returns coreThemes, not themes
+        if (memoryData?.coreThemes && memoryData.coreThemes.length > 0) {
+          memoryContext = memoryData.coreThemes.slice(0, 3);
         }
+        console.log('[GREETING] Memory loaded:', { themes: memoryContext.length, data: memoryContext });
       } catch (e) {
         console.warn('[GREETING] Failed to load memory:', e.message);
       }
