@@ -7758,14 +7758,8 @@ Your response:`;
       console.log('[ARTIST CANON] Added canonical credit line for naming question');
     }
     
-    // Guardrail B: Boundary line for real-world stats questions (skip during crisis)
-    if (!isCrisisMode && isRealWorldStatsClaimQuestion(lastUserMsgForGuardrail)) {
-      const boundary = realWorldStatsBoundaryLine();
-      if (!tightenedText.includes(boundary)) {
-        tightenedText = `${boundary}\n\n${tightenedText}`.trim();
-        console.log('[ARTIST CANON] Added boundary line for real-world stats question');
-      }
-    }
+    // Guardrail B: REMOVED - The hardcoded stats/music boundary line was too robotic
+    // and triggered inappropriately. Let the AI handle stats questions naturally via system prompt.
     
     // ===== CURIOSITY HOOKS (Pillar 8) =====
     // Non-manipulative, deterministic hooks for meaning-seeking users
