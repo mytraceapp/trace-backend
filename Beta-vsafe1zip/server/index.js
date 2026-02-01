@@ -7816,8 +7816,10 @@ Your response:`;
     }
     
     // Add sound_state from Emotional Atmosphere Engine (ALWAYS present per contract)
+    // Default is null (global ambient - app's default audio when no soundscape active)
+    // 'presence' is a soundscape for calm/chill users, NOT the app default
     response.sound_state = atmosphereResult?.sound_state || {
-      current: 'presence',
+      current: null, // null = global ambient (no soundscape)
       changed: false,
       reason: 'default'
     };

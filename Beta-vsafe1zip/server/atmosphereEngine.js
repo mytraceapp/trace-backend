@@ -52,7 +52,9 @@ const STRONG_GROUNDING_SIGNALS = [
   "freaking out", "panicking", "scared"
 ];
 
-// Priority order: grounding (urgent) > insight > comfort > reflective > presence (calm)
+// Priority order: grounding (urgent) > insight > comfort > reflective > presence (calm baseline)
+// NOTE: 'ambient' is NOT a soundscape - it's the app's default background audio when no soundscape is active
+// 'presence' IS a soundscape for calm/chill users, used as rotation return point
 const STATE_PRIORITY = ['grounding', 'insight', 'comfort', 'reflective', 'presence'];
 
 const ALLOWED_TRANSITIONS = {
@@ -181,10 +183,10 @@ function evaluateAtmosphere(input) {
   const cadenceMet = userMessageCount >= 2 && assistantMessageCount >= 2;
   
   if (!cadenceMet) {
-    console.log(`[ATMOSPHERE] Cadence not met: user=${userMessageCount}, assistant=${assistantMessageCount} - returning presence`);
+    console.log(`[ATMOSPHERE] Cadence not met: user=${userMessageCount}, assistant=${assistantMessageCount} - staying on global ambient`);
     return {
       sound_state: {
-        current: 'presence',
+        current: null, // null = global ambient (no soundscape until cadence met)
         changed: false,
         reason: 'cadence_not_met',
         cadence: { userMessageCount, assistantMessageCount, met: false }
@@ -200,12 +202,15 @@ function evaluateAtmosphere(input) {
   const lastActivity = session.last_activity_timestamp || 0;
   const timeSinceLastActivity = now - lastActivity;
   
-  if (lastActivity > 0 && timeSinceLastActivity >= INACTIVITY_TIMEOUT_MS && session.current_state !== 'presence') {
-    console.log(`[ATMOSPHERE] Inactivity reset: ${Math.floor(timeSinceLastActivity / 1000)}s since last activity - returning to ambient`);
+  // Check if a soundscape is currently active (not ambient)
+  const hasSoundscapeActive = session.current_state && session.current_state !== null;
+  
+  if (lastActivity > 0 && timeSinceLastActivity >= INACTIVITY_TIMEOUT_MS && hasSoundscapeActive) {
+    console.log(`[ATMOSPHERE] Inactivity reset: ${Math.floor(timeSinceLastActivity / 1000)}s since last activity - returning to global ambient`);
     
-    // Reset session to ambient/presence state
+    // Reset session to ambient (no soundscape active - app's default audio)
     updateSessionState(userId, {
-      current_state: 'presence',
+      current_state: null, // null = no soundscape, global ambient kicks in
       last_change_timestamp: now,
       last_activity_timestamp: now,
       neutral_message_streak: 0,
@@ -215,7 +220,7 @@ function evaluateAtmosphere(input) {
     
     return {
       sound_state: {
-        current: 'presence',
+        current: null, // null = global ambient (no soundscape)
         changed: true,
         reason: 'inactivity_reset_5min',
         cadence: { userMessageCount, assistantMessageCount, met: true }
