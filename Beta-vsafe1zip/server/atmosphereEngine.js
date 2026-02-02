@@ -171,10 +171,39 @@ function evaluateAtmosphere(input) {
     recent_messages = [],
     client_sound_state = null, // Client's current state for persistence
     userMessageCount = 0,       // NEW: Cadence tracking - user messages
-    assistantMessageCount = 0   // NEW: Cadence tracking - assistant messages
+    assistantMessageCount = 0,  // NEW: Cadence tracking - assistant messages
+    isCrisisMode = false        // 🚨 Crisis mode forces grounding soundscape
   } = input;
   
   const now = Date.now();
+  
+  // ============================================================
+  // 🚨 CRISIS MODE OVERRIDE: Force grounding soundscape immediately
+  // When user is in crisis, they need the most supportive sound environment
+  // ============================================================
+  if (isCrisisMode) {
+    const session = getSessionState(userId);
+    const wasGrounding = session.current_state === 'grounding';
+    
+    // Force grounding state for crisis
+    updateSessionState(userId, {
+      current_state: 'grounding',
+      last_change_timestamp: wasGrounding ? session.last_change_timestamp : now,
+      last_activity_timestamp: now,
+      messages_since_state_change: wasGrounding ? session.messages_since_state_change + 1 : 0
+    });
+    
+    console.log(`[ATMOSPHERE] 🚨 CRISIS MODE - forcing grounding soundscape (was: ${session.current_state})`);
+    
+    return {
+      sound_state: {
+        current: 'grounding',
+        changed: !wasGrounding,
+        reason: 'crisis_mode_override',
+        cadence: { userMessageCount, assistantMessageCount, met: true }
+      }
+    };
+  }
   
   // ============================================================
   // 🎵 CADENCE GATE: Check if 4-message cadence is met (2 user + 2 assistant)

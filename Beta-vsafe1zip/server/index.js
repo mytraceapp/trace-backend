@@ -7809,7 +7809,8 @@ Your response:`;
         recent_messages: recentUserMessages.slice(0, -1), // Exclude current, take last 2
         client_sound_state: clientSoundState, // Client's current state for persistence
         userMessageCount: currentUserMsgCount,        // 🎵 Cadence tracking
-        assistantMessageCount: newAssistantMsgCount   // 🎵 Cadence tracking (post-response)
+        assistantMessageCount: newAssistantMsgCount,  // 🎵 Cadence tracking (post-response)
+        isCrisisMode: isCrisisMode                    // 🚨 Crisis mode forces grounding
       });
       
       if (atmosphereResult?.sound_state?.changed) {
