@@ -1,0 +1,45 @@
+ LOG  [TRACE Chat] Payload messages count: 8
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 16°F (feels like 5°F), nighttime. Mostly clear", "temperature": undefined, "windSpeed": undefined}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ LOG  [TRACE Chat] Response status: 500 
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: message
+ LOG  [TRACE Chat] ⚠️ No sound_state in response object
+ LOG  [TRACE MIRROR] Response suppressed: duplicate-hash
+ LOG  [TRACE MIRROR] Processed responses: 0
+ LOG  BACKEND_SKIP: No messages returned after processing
+ ERROR  [TRACE Chat] API error response: {"error": "Failed to get response", "message": "Something went wrong on my end. What's on your mind?", "messages": ["Something went wrong on my end. What's on your mind?"], "ok": false} 
+
+Code: chat.ts
+  172 |           errorMessage = errorData.message;
+  173 |         }
+> 174 |         console.error('[TRACE Chat] API error response:', errorData);
+      |                      ^
+  175 |       } catch (parseError) {
+  176 |         // If response body isn't JSON, use status text
+  177 |         console.error('[TRACE Chat] Could not parse error response:', parseError);
+Call Stack
+  sendChatMessage (lib/chat.ts:174:22)
+ ERROR  [TRACE Chat] Network error: Failed to get response 
+
+Code: chat.ts
+  211 |     return data;
+  212 |   } catch (error) {
+> 213 |     console.error('[TRACE Chat] Network error:', error instanceof Error ? error.message : error);
+      |                  ^
+  214 |     if (error instanceof Error) {
+  215 |       console.error('[TRACE Chat] Error details:', {
+  216 |         name: error.name,
+Call Stack
+  sendChatMessage (lib/chat.ts:213:18)
+ LOG  [TRACE CHAT] Params: {}
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [SIGNALS] Signal sent on screen unfocus
+

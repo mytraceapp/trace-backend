@@ -6463,7 +6463,18 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     console.log(`[ATTUNE] posture=${posture} state=${detected_state} conf=${postureConfidence.toFixed(2)} triggers=${JSON.stringify(postureTriggers)}`);
     
     // Check if disclaimer has been shown - if so, NEVER repeat it
-    const disclaimerAlreadyShown = await checkDisclaimerShown();
+    let disclaimerAlreadyShown = false;
+    try {
+      const { data } = await supabaseServer
+        .from('profiles')
+        .select('disclaimer_shown')
+        .eq('user_id', effectiveUserId)
+        .single();
+      disclaimerAlreadyShown = data?.disclaimer_shown || false;
+    } catch (err) {
+      disclaimerAlreadyShown = false;
+    }
+    
     if (disclaimerAlreadyShown) {
       systemPrompt += `
 
