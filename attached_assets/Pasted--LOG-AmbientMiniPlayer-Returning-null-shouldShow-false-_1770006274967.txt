@@ -1,0 +1,70 @@
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "plans", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": false, "pathname": "/plans", "segments": "(onboarding)/plans", "shouldHidePlayer": false, "shouldShow": false}
+ LOG  [ProfileProvider] no userId, skipping refresh
+ LOG  [Account Setup] Profile refreshed after delay
+ LOG  [Plans] Light plan selected, going to chat with overlay
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [SoundContextManager] Page changed: other → chat
+ LOG  [ChatScreen] 📍 Context set to: chat
+ LOG  [TRACE SESSION] useFocusEffect triggered, profile: null
+ LOG  [TRACE SESSION] ===== checkAndLogSession STARTED =====
+ LOG  [ChatScreen] 🎵 Audio startup check: {"currentState": null, "hasPausedSoundscape": null, "lastPlayingBefore": "nothing", "pausedForChat": false, "shouldResumeSoundscape": false, "soundscapeWasPlayingBeforePlayer": false, "trackExists": false, "willStartAmbient": true}
+ LOG  [ChatScreen] ▶️ No soundscape to restore - checking if ambient is already playing
+ LOG  [AUDIO_CADENCE] resumeSoundscape skip pausedForChat=false trackExists=false
+ LOG  [ChatScreen] useFocusEffect triggered on tab return
+ LOG  [AUDIO_CADENCE] resume_gate_cleared reason=activity_return_override
+ LOG  [AUDIO_CADENCE] transition_lock_acquired reason=resumeFromActivity
+ LOG  [TRACE CHAT] 🔄 Initializing chat for first time (initializedUserId: null )
+ LOG  [TRACE CHAT] Initializing chat for user: dead672f-511c-4edc-87fd-0ce99b1969f5
+ LOG  [TRACE CHAT] useEffect start - user?.id: dead672f-511c-4edc-87fd-0ce99b1969f5
+ LOG  [TRACE CHAT] Using auth user?.id: dead672f-511c-4edc-87fd-0ce99b1969f5
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "chat", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": false, "pathname": "/chat", "segments": "(tabs)/chat", "shouldHidePlayer": false, "shouldShow": false}
+ LOG  [AudioContext.resumeFromActivity] 🔄 Resuming from activity, type was: ambient, soundscapeWasBefore: false
+ LOG  [AUDIO_CADENCE] resumeFromActivity state: soundscape=false isSoundscape=false pausedForChat=false
+ LOG  [AudioContext.resumeFromActivity] 📋 Soundscape available: false, should resume soundscape: false, pausedForChat: false
+ LOG  [AudioContext.resumeFromActivity] 🔊 Fading ambient from 0 to 0.1 (returning to chat)
+ LOG  [AUDIO_CADENCE] transition_lock_released reason=resumeFromActivity
+ LOG  [AUDIO_CADENCE] resumeFromActivity finally_cleanup complete
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE SESSION] lastVisitRaw: null
+ LOG  [TRACE SESSION] First visit ever - logging first session
+ LOG  [AUDIO_CADENCE] chat_focus_fallback skipped reason=ambient_already_active isPlaying=true isBuffering=false
+ LOG  [CTA] Loaded history on mount: []
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [PERSIST] Client state saved: {"mode": "chat", "sentiment": null, "timeOfDay": "evening", "timestamp": "2026-02-02T04:24:06.990Z"}
+ LOG  [TRACE SESSIONS] Adding new session log: {"createdAt": "2026-02-02T04:24:07.185Z", "id": "session-daily-2026-02-02T04:24:07.185Z-xredtc", "kind": "daily"}
+ LOG  [PILLAR 10] Timestamps initialized: {"lastHookAt": null, "lastHookGlobalAt": null, "lastInsightAt": null}
+ LOG  [TRACE CHAT] Auth setup - authUserId: dead672f-511c-4edc-87fd-0ce99b1969f5 deviceId: anon-i45g1fj9ml4o0p3m
+ LOG  [TELEMETRY] Initialized for user: dead672f-511c-4edc-87fd-0ce99b1969f5
+ LOG  [TRACE SESSIONS] Saved. Total sessions: 1
+ LOG  [TRACE SESSION] First session logged successfully
+ LOG  [TRACE CHAT] Last visit check: lastVisit=2026-02-02T04:24:06.995Z, timeSince=0min, isRecent=true
+ LOG  [TRACE CHAT] 🎯 RESTORING HISTORY - setting hasResponded=true, messages.length= 0
+ LOG  [TRACE CHAT] ℹ️ NOT fetching greeting for old user with active conversation
+ LOG  [TRACE CHAT] ✅ Restored history (within 1 hour), count: 0
+ LOG  [TRACE CHAT] 🔧 Setting initializedUserId= dead672f-511c-4edc-87fd-0ce99b1969f5
+ LOG  [TRACE CHAT] ⚠️ SAFETY NET: Chat is empty, will fetch greeting in greeting effect
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [AUDIO_CADENCE] resumeFromActivity idempotent_return reason=already_resuming
+ LOG  [PERSIST] Client state loaded from storage: {"mode": "chat", "sentiment": null, "timeOfDay": "evening"}
+ LOG  [PERSIST] Restored client state from storage: {"lastActivity": null, "lastSuggestion": null, "mode": "chat", "nowPlaying": null, "recentSentiment": null, "timeOfDay": "evening"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [STATE_SNAPSHOT] playerActive=false soundscapeActive=false ambientStatus=loaded=true playing=true volume=0.10000000149011612 soundscapeStatus=null
+ LOG  [AUDIO_CADENCE] silence_fallback skipped reason=activity_resume_in_progress
+ LOG  [AUDIO_CADENCE] activity_resume_flag_cleared
+ LOG  [AUDIO_CADENCE] activity_resume_flag_cleared
+ LOG  [EMERGENCY GREETING] ⚠️ Chat is empty after 2s - retrying greeting fetch (no hardcoded fallback)
