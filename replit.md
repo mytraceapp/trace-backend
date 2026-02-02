@@ -26,19 +26,40 @@ TRACE employs relational language for activity acknowledgments and journal conve
 
 ### Scripted Onboarding Flow
 
-New users go through a friend-like onboarding sequence managed by a state machine:
+New users go through a friend-like onboarding sequence managed by a state machine. **This flow MUST be preserved exactly as documented.**
 
-**Step Sequence:**
-1. `intro_sent` - Bootstrap intro shown (10 deterministic variants)
-2. `waiting_ok` - After first reply, TRACE offers breathing activity
-3. `activity_in_progress` - User said "okay", auto-navigated to activity
-4. `reflection_pending` - Activity completed, awaiting reflection
-5. `completed` - Reflection captured, onboarding done
+**Step Sequence (server-side `onboarding_step` values):**
+
+| Step | State | Server Behavior | Client Behavior |
+|------|-------|-----------------|-----------------|
+| 1 | `intro_sent` | Bootstrap returns intro in `welcome_text` | Display in greeting UI (centered, not chat bubbles) |
+| 2 | User responds | Detect emotional state, suggest activity | Send message to `/api/chat` |
+| 3 | `waiting_ok:activity_name` | Wait for user to say "okay" | Display activity suggestion |
+| 4 | User says "okay" | Return `should_navigate: true` | Auto-navigate to activity |
+| 5 | `reflection_pending` | Wait for post-activity response | Display "you good?" check-in |
+| 6 | User responds to check-in | **Show disclaimer + complete onboarding** | Normal conversation begins |
+| 7 | `completed` | Regular AI conversation | Full TRACE experience |
+
+**CRITICAL: Post-Activity Reflection Flow (Step 5-6)**
+When user returns from activity and responds to "you good?":
+1. Server receives response in `reflection_pending` state
+2. Server generates caring acknowledgment based on sentiment
+3. Server appends disclaimer: "Quick note before we go further: I'm not therapy — but I can be here with you through what you're feeling."
+4. Server marks `disclaimer_shown: true` in profiles
+5. Server updates `onboarding_step` to `completed`
+6. Normal conversation begins
+
+**Server-Side Handler Location:** `server/index.js` lines ~5215-5254 (search for `reflection_pending`)
+
+**Files:**
+- Bootstrap endpoint: `/api/chat/bootstrap` in `server/index.js` (~line 8260)
+- Onboarding state machine: `server/index.js` (~lines 5012-5254)
+- Client chat init: `mobile/app/(tabs)/chat.tsx` (UNIFIED INIT block ~line 844)
 
 **Client/Server Responsibilities:**
-- Server handles: intro_sent → waiting_ok scripted responses, activity auto-navigate trigger
-- Client handles: "Welcome back" message, reflection capture via `/api/onboarding/reflection`, handoff message
-- Anonymous auth on app start with `ensureAuthSession()` and `upsertUserProfile()`
+- Server handles: All scripted responses, state transitions, disclaimer display
+- Client handles: Greeting UI display, activity navigation, sending messages
+- Auth: `ensureAuthSession()` and profile creation on app start
 
 ### Privacy by Design
 
