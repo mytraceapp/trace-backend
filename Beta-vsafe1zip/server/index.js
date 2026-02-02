@@ -5209,12 +5209,45 @@ app.post('/api/chat', async (req, res) => {
         });
       }
       
-      // STEP: reflection_pending -> Client handles this via /api/onboarding/reflection
-      // Fall through to regular chat - reflection endpoint will complete onboarding
+      // STEP: reflection_pending -> User responded to post-activity check-in
+      // Show disclaimer and complete onboarding
       if (onboardingStep === 'reflection_pending') {
-        console.log('[ONBOARDING] In reflection_pending step, falling through to AI chat');
-        // Don't intercept - let regular AI handle this message
-        // Onboarding will be completed via /api/onboarding/reflection endpoint
+        console.log('[ONBOARDING] In reflection_pending step, processing user reflection');
+        
+        // Generate a caring response to their reflection + disclaimer
+        const lowerText = userText.toLowerCase().trim();
+        const isNegative = ['not really', 'no', 'nope', 'nah', 'didn\'t help', 'worse', 'still', 'same', 'meh', 'idk', 'whatever'].some(w => lowerText.includes(w));
+        
+        let reflectionAck;
+        if (isNegative) {
+          reflectionAck = "That's okay — not everything lands the same way every time. I'm still here.";
+        } else {
+          reflectionAck = "I'm glad you tried it. Little moments like that can add up.";
+        }
+        
+        // Show disclaimer and complete onboarding
+        const disclaimerText = "\n\nQuick note before we go further: I'm not therapy — but I can be here with you through what you're feeling. What's on your mind?";
+        
+        // Mark disclaimer as shown
+        await markDisclaimerShown();
+        
+        // Update onboarding to completed
+        await updateOnboardingStep('completed');
+        
+        console.log('[ONBOARDING] Reflection processed, disclaimer shown, onboarding completed');
+        
+        return res.json({
+          message: reflectionAck + disclaimerText,
+          activity_suggestion: { 
+            name: null, 
+            userReportedState: null, 
+            should_navigate: false 
+          },
+          onboarding_complete: true,
+          posture: 'STEADY',
+          detected_state: 'neutral',
+          posture_confidence: 0.7,
+        });
       }
       
       // Fallback for any unexpected or completed step - continue to regular chat
