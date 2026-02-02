@@ -61,6 +61,13 @@ When user returns from activity and responds to "you good?":
 - Client handles: Greeting UI display, activity navigation, sending messages
 - Auth: `ensureAuthSession()` and profile creation on app start
 
+**ONE-TIME EVENTS (CRITICAL):**
+- Onboarding is a ONE-TIME flow. Once `onboarding_step = 'completed'`, it NEVER repeats.
+- The therapy disclaimer ("I'm not therapy...") is shown ONCE during onboarding.
+- `disclaimer_shown = true` is stored in profiles and checked on every chat request.
+- System prompt includes explicit instruction to NEVER repeat the disclaimer after it's been shown.
+- The `checkDisclaimerShown()` helper function gates this behavior in `/api/chat`.
+
 ### Privacy by Design
 
 By default, TRACE stores only AI-generated summaries (max 15 words, non-identifying) of user content, discarding raw text unless the user opts in. Dedicated Supabase tables (`trace_entries_summary`, `trace_entries_raw`) with RLS policies manage data storage. GDPR-compliant endpoints for data export and deletion, along with privacy settings management, are included.

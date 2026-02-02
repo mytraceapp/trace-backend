@@ -6462,6 +6462,21 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     
     console.log(`[ATTUNE] posture=${posture} state=${detected_state} conf=${postureConfidence.toFixed(2)} triggers=${JSON.stringify(postureTriggers)}`);
     
+    // Check if disclaimer has been shown - if so, NEVER repeat it
+    const disclaimerAlreadyShown = await checkDisclaimerShown();
+    if (disclaimerAlreadyShown) {
+      systemPrompt += `
+
+DISCLAIMER RULE (CRITICAL):
+The therapy disclaimer has ALREADY been shown to this user. Do NOT say any variation of:
+- "I'm not a therapist"
+- "I'm not therapy"
+- "I can't diagnose or treat anything"
+- "Quick note: I'm not..."
+This was shown during onboarding. Never repeat it. Just be present and helpful.`;
+      console.log('[DISCLAIMER] Already shown, injecting no-repeat rule');
+    }
+    
     // ============================================================
     // TIERED MODEL ROUTING
     // Select optimal model based on conversation context
