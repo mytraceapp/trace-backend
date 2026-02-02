@@ -1,3 +1,6 @@
+const CHAT_VERSION = 'v2.0.3-unified-init-2026-02-02';
+console.log('📦 [CHAT.TSX] Loading version:', CHAT_VERSION);
+
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import {
   View,

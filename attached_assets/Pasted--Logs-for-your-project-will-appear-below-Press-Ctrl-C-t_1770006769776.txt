@@ -1,0 +1,216 @@
+
+Logs for your project will appear below. Press Ctrl+C to exit.
+› Opening on iOS...
+› Opening exp+trace://expo-development-client/?url=http%3A%2F%2F192.168.12.155%3A8081 on Trace Beta
+› Press ? │ show all commands
+iOS Bundled 31796ms node_modules/expo-router/entry.js (3968 modules)
+ WARN  [expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality.
+ LOG  [Config] ✅ EXPO_PUBLIC_TRACE_BACKEND_URL loaded from Constants.expoConfig
+ LOG  [Config] ✅ EXPO_PUBLIC_SUPABASE_URL loaded from Constants.expoConfig
+ LOG  [Config] ✅ EXPO_PUBLIC_SUPABASE_ANON_KEY loaded from Constants.expoConfig
+ LOG  [SUPABASE] Initializing client...
+ LOG  [SUPABASE] URL: ✅ SET
+ LOG  [SUPABASE] ANON_KEY: ✅ SET
+ LOG  [SUPABASE] ✅ Credentials loaded successfully
+ LOG  [MONITORING] Sentry not available - running without error tracking
+ LOG  [MONITORING] Skipping Sentry initialization - module not available
+ WARN  Route "./activities/utils/mazeGenerator.ts" is missing the required default export. Ensure a React component is exported as default.
+ WARN  Route "./hooks/useBreathingAmbient.ts" is missing the required default export. Ensure a React component is exported as default.
+ WARN  Route "./hooks/useMazeAmbient.ts" is missing the required default export. Ensure a React component is exported as default.
+ LOG  [Sentry] Not available in this environment: Cannot find module 'sentry-expo'
+ WARN  [Layout children]: No route named "(onboarding)" exists in nested children: ["index.door-source", "index", "patterns", "(auth)/entrance", "(auth)/forgot-password-code", "(auth)/forgot-password", "(auth)/signin", "(onboarding)/account-setup", "(onboarding)/door", "(onboarding)/index", "(onboarding)/payment", "(onboarding)/plans", "(onboarding)/success", "(paywall)/index", "(tabs)", "activities/[id]", "activities/basin", "activities/breathing", "activities/dreamscape", "activities/drift", "activities/echo", "activities/grounding", "activities/maze", "activities/rest-complete", "activities/rest", "activities/ripple", "activities/rising", "activities/walking", "activities/window", "activities/components/InteractiveMaze", "door/entrance", "help", "journal/new"]
+ WARN  [Layout children]: No route named "(paywall)" exists in nested children: ["index.door-source", "index", "patterns", "(auth)/entrance", "(auth)/forgot-password-code", "(auth)/forgot-password", "(auth)/signin", "(onboarding)/account-setup", "(onboarding)/door", "(onboarding)/index", "(onboarding)/payment", "(onboarding)/plans", "(onboarding)/success", "(paywall)/index", "(tabs)", "activities/[id]", "activities/basin", "activities/breathing", "activities/dreamscape", "activities/drift", "activities/echo", "activities/grounding", "activities/maze", "activities/rest-complete", "activities/rest", "activities/ripple", "activities/rising", "activities/walking", "activities/window", "activities/components/InteractiveMaze", "door/entrance", "help", "journal/new"]
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [AppAudioBootstrap] Skipping boot - user not authenticated
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": undefined, "isOnBlacklistedActivity": undefined, "isOnBlacklistedActivityByPath": false, "isPlaying": false, "pathname": "/", "segments": "", "shouldHidePlayer": false, "shouldShow": false}
+ LOG  [SettingsContext] Theme state updated: {"effectiveTheme": "day", "themeMode": "day"}
+ LOG  [ProfileProvider] auth user changed {"email": undefined, "userId": null}
+ LOG  [AudioProvider] 📍 Mounted instance=1 {"isAuthLoading": true, "user": "null"}
+ LOG  [AudioProvider] 🔐 Auth state changed instance=1 {"isAuthLoading": true, "user": "null"}
+ LOG  🔄 [AudioContext] Loading ambient sounds... {"isAuthLoading": true, "user": "null"}
+ WARN  [Layout children]: No route named "(onboarding)" exists in nested children: ["index.door-source", "index", "patterns", "(auth)/entrance", "(auth)/forgot-password-code", "(auth)/forgot-password", "(auth)/signin", "(onboarding)/account-setup", "(onboarding)/door", "(onboarding)/index", "(onboarding)/payment", "(onboarding)/plans", "(onboarding)/success", "(paywall)/index", "(tabs)", "activities/[id]", "activities/basin", "activities/breathing", "activities/dreamscape", "activities/drift", "activities/echo", "activities/grounding", "activities/maze", "activities/rest-complete", "activities/rest", "activities/ripple", "activities/rising", "activities/walking", "activities/window", "activities/components/InteractiveMaze", "door/entrance", "help", "journal/new"]
+ WARN  [Layout children]: No route named "(paywall)" exists in nested children: ["index.door-source", "index", "patterns", "(auth)/entrance", "(auth)/forgot-password-code", "(auth)/forgot-password", "(auth)/signin", "(onboarding)/account-setup", "(onboarding)/door", "(onboarding)/index", "(onboarding)/payment", "(onboarding)/plans", "(onboarding)/success", "(paywall)/index", "(tabs)", "activities/[id]", "activities/basin", "activities/breathing", "activities/dreamscape", "activities/drift", "activities/echo", "activities/grounding", "activities/maze", "activities/rest-complete", "activities/rest", "activities/ripple", "activities/rising", "activities/walking", "activities/window", "activities/components/InteractiveMaze", "door/entrance", "help", "journal/new"]
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [Auth] onAuthStateChange INITIAL_SESSION {"email": undefined, "userId": undefined}
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [SettingsContext] Theme state updated: {"effectiveTheme": "night", "themeMode": "night"}
+ LOG  [ProfileProvider] auth user changed {"email": undefined, "userId": null}
+ LOG  [ProfileProvider] no userId, skipping refresh
+ LOG  [AudioProvider] 🔐 Auth state changed instance=1 {"isAuthLoading": false, "user": "null"}
+ LOG  [DoorScreen MOUNT] Auth state: {"isAuthLoading": false, "user": "null"}
+ LOG  [DoorScreen] ⏸️ Orb NOT yet activated - waiting for activation
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "door", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": false, "pathname": "/door", "segments": "(onboarding)/door", "shouldHidePlayer": false, "shouldShow": false}
+ LOG  🎵 [AudioContext] Both sounds created with shouldPlay=false (crossfade mode)
+ LOG  ✅ [AudioContext] Ambient audio loaded successfully - ready to play {"user": "null"}
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [CACHE CLEANUP] Starting automated cleanup...
+ LOG  [CACHE CLEANUP] Cleanup complete
+ LOG  [STORAGE] Total keys: 26
+ LOG  [STORAGE] Cache keys: 0
+ LOG  [STORAGE] Estimated size: 67.97 KB
+ LOG  [AUTO-CLEANUP] ✅ Initialized
+ LOG  [HEALTH CHECK] Running automated health checks...
+ WARN  [USER_CONTEXT] No authenticated user
+ LOG  [HEALTH CHECK] ⚠️ chat-api: degraded (6451ms) 
+ LOG  [HEALTH CHECK] ✅ patterns-api: healthy (267ms) 
+ LOG  [HEALTH CHECK] ✅ Completed
+ LOG  Loading wakeorb.m4a...
+ LOG  Wakeorb tone playing
+ LOG  [DoorScreen] 🎵 User IS AUTHENTICATED + ORB AWAKENED - Starting ambient audio
+ LOG  [AMBIENT_START] reason=play gate=passed hardStop=false playerActive=false soundscapeActive=false ambientLoaded=true inFlight=true appState=active route=/door
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [EntranceScreen] User not authenticated, NOT playing ambient
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "entrance", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": false, "pathname": "/entrance", "segments": "(auth)/entrance", "shouldHidePlayer": false, "shouldShow": false}
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "account-setup", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": false, "pathname": "/account-setup", "segments": "(onboarding)/account-setup", "shouldHidePlayer": false, "shouldShow": false}
+ LOG  [Account Setup] Clearing all previous account data...
+ LOG  [clearLocalTraceData] No TRACE keys found to clear.
+ LOG  [Account Setup] All previous account data cleared
+ LOG  [Auth] signUp called with email: nylalove10@gmail.com
+ LOG  [Auth] signUp successful, user ID: 40f0fa21-5039-484d-9b7d-05afd24d3972
+ LOG  [Auth] Auth state updated immediately after signUp
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [Auth] Updated AsyncStorage user_id on signUp: 40f0fa21-5039-484d-9b7d-05afd24d3972
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [AppAudioBootstrap] 🎵 App boot - starting ambient
+ LOG  [EntranceScreen] User authenticated, continuing ambient
+ LOG  [ProfileProvider] auth user changed {"email": "nylalove10@gmail.com", "userId": "40f0fa21-5039-484d-9b7d-05afd24d3972"}
+ LOG  [ProfileProvider] calling getOrCreateProfile with {"userId": "40f0fa21-5039-484d-9b7d-05afd24d3972"}
+ LOG  [TRACE Profile] Fetching profile from: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/profile?userId=40f0fa21-5039-484d-9b7d-05afd24d3972
+ LOG  [AudioProvider] 🔐 Auth state changed instance=1 {"isAuthLoading": false, "user": "40f0fa21-5039-484d-9b7d-05afd24d3972"}
+ LOG  [AUDIO_CADENCE] ensureAmbientPlaying skip reason=app_boot already_active (idempotent) isLoaded=true isPlaying=true isBuffering=false volume=0.10000000149011612
+ LOG  [AUDIO_CADENCE] ensureAmbientPlaying skip reason=play already_active (idempotent) isLoaded=true isPlaying=true isBuffering=false volume=0.10000000149011612
+ LOG  [TRACE Profile] Response status: 200
+ LOG  [TRACE Profile] Profile loaded successfully: {"displayName": null, "email": null, "planStatus": "free", "userId": "40f0fa21-5039-484d-9b7d-05afd24d3972"}
+ LOG  [ProfileProvider] Received profile data: {"displayName": null, "email": null, "planStatus": "free", "userId": "40f0fa21-5039-484d-9b7d-05afd24d3972"}
+ LOG  [Account Setup] Attempting to save profile: {"displayName": "Nina", "email": "nylalove10@gmail.com", "userId": "40f0fa21-5039-484d-9b7d-05afd24d3972"}
+ LOG  [TRACE Profile] Updating profile at: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/profile/update
+ LOG  [TRACE Profile] Payload: {
+  "userId": "40f0fa21-5039-484d-9b7d-05afd24d3972",
+  "displayName": "Nina",
+  "email": "nylalove10@gmail.com"
+}
+ LOG  [TRACE Profile] Update response status: 200
+ LOG  [TRACE Profile] Profile updated successfully: {"displayName": "Nina", "email": "nylalove10@gmail.com", "userId": "40f0fa21-5039-484d-9b7d-05afd24d3972"}
+ LOG  [Account Setup] Profile saved successfully via backend: {"displayName": "Nina", "email": "nylalove10@gmail.com"}
+ LOG  [Account Setup] Profile context set manually
+ LOG  [Account Setup] Profile cached in AsyncStorage
+ LOG  [Account Setup] Stored userId in AsyncStorage: 40f0fa21-5039-484d-9b7d-05afd24d3972
+ LOG  [Account Setup] Requesting location for weather...
+ LOG  [Weather] Using fallback location (NYC) for testing
+ LOG  [TRACE Profile] Updating profile at: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/profile/update
+ LOG  [TRACE Profile] Payload: {
+  "userId": "40f0fa21-5039-484d-9b7d-05afd24d3972",
+  "lat": 40.7128,
+  "lon": -74.006
+}
+ LOG  [TRACE Profile] Update response status: 200
+ LOG  [TRACE Profile] Profile updated successfully: {"displayName": "Nina", "email": "nylalove10@gmail.com", "userId": "40f0fa21-5039-484d-9b7d-05afd24d3972"}
+ LOG  [Weather] Location saved to profile: {"latitude": 40.7128, "longitude": -74.006}
+ LOG  [Account Setup] Account created, redirecting to plan selection with userId: 40f0fa21-5039-484d-9b7d-05afd24d3972
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "plans", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": false, "pathname": "/plans", "segments": "(onboarding)/plans", "shouldHidePlayer": false, "shouldShow": false}
+ LOG  [ProfileProvider] no userId, skipping refresh
+ LOG  [Account Setup] Profile refreshed after delay
+ LOG  [Plans] Light plan selected, going to chat with overlay
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [SoundContextManager] Page changed: other → chat
+ LOG  [ChatScreen] 📍 Context set to: chat
+ LOG  [TRACE SESSION] useFocusEffect triggered, profile: null
+ LOG  [TRACE SESSION] ===== checkAndLogSession STARTED =====
+ LOG  [ChatScreen] 🎵 Audio startup check: {"currentState": null, "hasPausedSoundscape": null, "lastPlayingBefore": "nothing", "pausedForChat": false, "shouldResumeSoundscape": false, "soundscapeWasPlayingBeforePlayer": false, "trackExists": false, "willStartAmbient": true}
+ LOG  [ChatScreen] ▶️ No soundscape to restore - checking if ambient is already playing
+ LOG  [AUDIO_CADENCE] resumeSoundscape skip pausedForChat=false trackExists=false
+ LOG  [ChatScreen] useFocusEffect triggered on tab return
+ LOG  [AUDIO_CADENCE] resume_gate_cleared reason=activity_return_override
+ LOG  [AUDIO_CADENCE] transition_lock_acquired reason=resumeFromActivity
+ LOG  [TRACE CHAT] 🔄 Initializing chat for first time (initializedUserId: null )
+ LOG  [TRACE CHAT] Initializing chat for user: 40f0fa21-5039-484d-9b7d-05afd24d3972
+ LOG  [TRACE CHAT] useEffect start - user?.id: 40f0fa21-5039-484d-9b7d-05afd24d3972
+ LOG  [TRACE CHAT] Using auth user?.id: 40f0fa21-5039-484d-9b7d-05afd24d3972
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "chat", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": false, "pathname": "/chat", "segments": "(tabs)/chat", "shouldHidePlayer": false, "shouldShow": false}
+ LOG  [AudioContext.resumeFromActivity] 🔄 Resuming from activity, type was: ambient, soundscapeWasBefore: false
+ LOG  [AUDIO_CADENCE] resumeFromActivity state: soundscape=false isSoundscape=false pausedForChat=false
+ LOG  [AudioContext.resumeFromActivity] 📋 Soundscape available: false, should resume soundscape: false, pausedForChat: false
+ LOG  [AudioContext.resumeFromActivity] 🔊 Fading ambient from 0 to 0.1 (returning to chat)
+ LOG  [AUDIO_CADENCE] transition_lock_released reason=resumeFromActivity
+ LOG  [AUDIO_CADENCE] resumeFromActivity finally_cleanup complete
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE SESSION] lastVisitRaw: null
+ LOG  [TRACE SESSION] First visit ever - logging first session
+ LOG  [AUDIO_CADENCE] chat_focus_fallback skipped reason=ambient_already_active isPlaying=true isBuffering=false
+ LOG  [CTA] Loaded history on mount: []
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [PERSIST] Client state saved: {"mode": "chat", "sentiment": null, "timeOfDay": "evening", "timestamp": "2026-02-02T04:31:59.510Z"}
+ LOG  [TRACE SESSIONS] Adding new session log: {"createdAt": "2026-02-02T04:31:59.715Z", "id": "session-daily-2026-02-02T04:31:59.715Z-ievsf9", "kind": "daily"}
+ LOG  [PILLAR 10] Timestamps initialized: {"lastHookAt": null, "lastHookGlobalAt": null, "lastInsightAt": null}
+ LOG  [TRACE CHAT] Auth setup - authUserId: 40f0fa21-5039-484d-9b7d-05afd24d3972 deviceId: anon-2ydenlk9ml4oatpg
+ LOG  [TELEMETRY] Initialized for user: 40f0fa21-5039-484d-9b7d-05afd24d3972
+ LOG  [TRACE SESSIONS] Saved. Total sessions: 1
+ LOG  [TRACE SESSION] First session logged successfully
+ LOG  [TRACE CHAT] Last visit check: lastVisit=2026-02-02T04:31:59.517Z, timeSince=0min, isRecent=true
+ LOG  [TRACE CHAT] 🎯 RESTORING HISTORY - setting hasResponded=true, messages.length= 0
+ LOG  [TRACE CHAT] ℹ️ NOT fetching greeting for old user with active conversation
+ LOG  [TRACE CHAT] ✅ Restored history (within 1 hour), count: 0
+ LOG  [TRACE CHAT] 🔧 Setting initializedUserId= 40f0fa21-5039-484d-9b7d-05afd24d3972
+ LOG  [TRACE CHAT] ⚠️ SAFETY NET: Chat is empty, will fetch greeting in greeting effect
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [AUDIO_CADENCE] resumeFromActivity idempotent_return reason=already_resuming
+ LOG  [PERSIST] Client state loaded from storage: {"mode": "chat", "sentiment": null, "timeOfDay": "evening"}
+ LOG  [PERSIST] Restored client state from storage: {"lastActivity": null, "lastSuggestion": null, "mode": "chat", "nowPlaying": null, "recentSentiment": null, "timeOfDay": "evening"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [TRACE CHAT] Params: {"showWelcome": "true"}
+ LOG  [STATE_SNAPSHOT] playerActive=false soundscapeActive=false ambientStatus=loaded=true playing=true volume=0.10000000149011612 soundscapeStatus=null
+ LOG  [AUDIO_CADENCE] silence_fallback skipped reason=activity_resume_in_progress
+ LOG  [AUDIO_CADENCE] activity_resume_flag_cleared
+ LOG  [AUDIO_CADENCE] activity_resume_flag_cleared
+ LOG  [EMERGENCY GREETING] ⚠️ Chat is empty after 2s - retrying greeting fetch (no hardcoded fallback)
