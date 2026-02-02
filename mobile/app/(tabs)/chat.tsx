@@ -1059,19 +1059,18 @@ export default function ChatScreen() {
               // Mark bootstrap as shown
               await AsyncStorage.setItem(`trace:bootstrapShown:${userId}`, 'true');
               
-              const bootstrapMessages: ChatMessage[] = data.messages.map(
-                (m: { role: string; content: string }, idx: number) => ({
-                  id: `bootstrap-${idx}-${Date.now()}`,
-                  role: (m.role === 'assistant' ? 'assistant' : 'user') as ChatRole,
-                  content: m.content,
-                })
-              );
+              // ARCHITECTURAL FIX: Onboarding intro goes to GREETING UI (welcomeText)
+              // NOT to messages array. This ensures it renders in the same location
+              // as welcome/return messages (the centered greeting area), not as message bubbles.
+              const onboardingIntro = data.messages[0]?.content;
+              if (onboardingIntro) {
+                setWelcomeText(onboardingIntro);
+                console.log('✅ UNIFIED INIT: Onboarding intro set to greeting UI');
+              }
               
-              setMessages(bootstrapMessages);
-              saveConversationToStorage(bootstrapMessages, userId);
-              if (bootstrapMessages[0]) setWelcomeText(bootstrapMessages[0].content);
+              // Keep messages empty so greeting UI shows (not FlatList)
+              // When user responds, the intro will be added to conversation history
               
-              console.log('✅ UNIFIED INIT: Bootstrap shown');
               setWelcomeLoading(false);
               setHistoryLoaded(true);
               setChatInitialized(true);
@@ -1501,7 +1500,19 @@ export default function ChatScreen() {
 
     const previousMessages = messages;
 
-    addMessage(userMessage);
+    // If this is the first user message and we have an onboarding intro in welcomeText,
+    // add it to messages first so it appears in the conversation UI
+    if (messages.length === 0 && welcomeText) {
+      const introMessage: ChatMessage = {
+        id: `onboarding-intro-${Date.now()}`,
+        role: 'assistant',
+        content: welcomeText,
+      };
+      setMessages([introMessage, userMessage]);
+      console.log('📤 TRACE: Added onboarding intro + user message to conversation');
+    } else {
+      addMessage(userMessage);
+    }
     setInputText('');
     setIsSending(true);
 
@@ -1619,7 +1630,20 @@ export default function ChatScreen() {
     try {
       const now = new Date();
 
-      const payloadMessages = [...previousMessages, userMessage].map((m) => ({
+      // Build payload messages - inject onboarding intro as first assistant message
+      // if messages is empty but welcomeText contains the onboarding intro
+      let baseMessages = previousMessages;
+      if (previousMessages.length === 0 && welcomeText) {
+        // Inject the onboarding intro as the first assistant message for context
+        baseMessages = [{
+          id: 'onboarding-intro',
+          role: 'assistant' as ChatRole,
+          content: welcomeText,
+        }];
+        console.log('📤 TRACE injecting onboarding intro into conversation context');
+      }
+      
+      const payloadMessages = [...baseMessages, userMessage].map((m) => ({
         role: m.role,
         content: m.content,
       }));
