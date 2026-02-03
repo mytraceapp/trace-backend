@@ -2541,6 +2541,20 @@ function getTokenParams(model, limit = 500) {
   return { max_tokens: limit };
 }
 
+// Detect if user is asking for long-form content (recipes, stories, lists, etc.)
+function detectLongFormRequest(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+  const longFormPatterns = [
+    /recipe/i, /full recipe/i, /how to make/i, /how do i make/i, /ingredients/i,
+    /tell me a story/i, /story about/i, /once upon/i, /write me a story/i,
+    /full list/i, /complete list/i, /all the steps/i, /step by step/i,
+    /explain in detail/i, /detailed/i, /give me the full/i, /don't cut off/i,
+    /entire/i, /whole thing/i, /from start to finish/i
+  ];
+  return longFormPatterns.some(p => p.test(t));
+}
+
 /**
  * Helper to check if model supports custom temperature
  * GPT-5-mini and o1/o3 models only support temperature=1
@@ -5267,7 +5281,7 @@ app.post('/api/chat', async (req, res) => {
     ).length >= 1;
     
     // Check if user is re-greeting mid-conversation (hi/hello/hey after substantive exchange)
-    const isReGreeting = /^(hi|hello|hey|yo|sup)$/i.test((lastUserMsg?.content || '').trim());
+    const isReGreeting = /^(hi|hello|hey|yo|sup|heya|hiya|heyy|hii)$/i.test((lastUserMsg?.content || '').trim());
     
     if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && !traceJustAskedQuestion && !hasSubstantiveConversation && !isReGreeting) {
       console.log('[TRACE CHAT] Light closure detected (no prior context), sending short ack:', lastUserMsg.content);
@@ -6300,11 +6314,27 @@ CRITICAL - CONVERSATION CONTINUITY:
 - Focus on answering or gently reflecting on the user's latest message.
 
 CONTEXT PRESERVATION - SHORT MESSAGES:
-- If user says "hi", "hello", "okay", "yeah", or other short replies, do NOT restart the conversation.
+- If user says "hi", "hello", "hey", "okay", "yeah", or other short replies, do NOT restart the conversation.
 - Reference what you were previously discussing. Continue the thread naturally.
 - NEVER ask "What's been on your mind lately?" if you already know what's on their mind from prior messages.
 - Short acknowledgments like "ok" or "yeah" are often responses to what you just said—acknowledge and continue.
-- If they re-greet mid-conversation ("hi" again), warmly acknowledge and pick up where you left off.`;
+- If they re-greet mid-conversation ("hi" or "hey" again), warmly acknowledge and pick up where you left off.
+
+LONG-FORM CONTENT - RECIPES, STORIES, LISTS:
+- When asked for a recipe, give the COMPLETE recipe with all ingredients and steps. Do not cut off.
+- When asked to tell a story, tell the FULL story from beginning to end.
+- When asked for a list or steps, give ALL items/steps without truncating.
+- If content is long, that's okay—the user asked for it. Complete the response.`;
+      
+      // Add extra instruction for long-form requests
+      if (isLongFormRequest) {
+        systemPrompt += `
+
+IMPORTANT - LONG-FORM REQUEST DETECTED:
+The user is asking for detailed content (recipe, story, list, etc.). 
+Give a COMPLETE response. Do NOT cut off mid-sentence or skip steps.
+Include all necessary details. The response can be long—that's what they want.`;
+      }
 
       // Feedback loop adaptation - adjust prompt based on user's learned preferences
       if (pool && effectiveUserId) {
@@ -6471,6 +6501,9 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     // ============================================================
     const lastUserContent = messages.filter(m => m.role === 'user').pop()?.content || '';
     const recentMessages = messages.slice(-6);
+    
+    // Detect if user wants long-form content (recipes, stories, detailed explanations)
+    const isLongFormRequest = detectLongFormRequest(lastUserContent);
     
     const postureResult = detectPosture(lastUserContent, recentMessages, isCrisisMode);
     const { posture, detected_state, confidence: postureConfidence, triggers: postureTriggers } = postureResult;
@@ -6794,6 +6827,13 @@ Your response (text only, no JSON):`;
     const cfg = getConfiguredModel();
     const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
     
+    // Token limit for long-form content (recipes, stories, detailed explanations)
+    const tokenLimit = isLongFormRequest ? 1200 : 500; // Increase for recipes/stories
+    
+    if (isLongFormRequest) {
+      console.log('[TRACE CHAT] Long-form request detected, using extended token limit:', tokenLimit);
+    }
+    
     // Skip L1 if premium tier already produced a result
     if (!parsed) {
       console.log(`[OPENAI CONFIG] model=${selectedModel} baseURL=${cfg.baseURL}`);
@@ -6813,7 +6853,7 @@ Your response (text only, no JSON):`;
             { role: 'system', content: systemPrompt },
             ...messagesWithHydration
           ],
-          ...getTokenParams(selectedModel, 500),
+          ...getTokenParams(selectedModel, tokenLimit),
           response_format: { type: "json_object" },
         };
         if (supportsCustomTemperature(selectedModel)) {
@@ -6864,7 +6904,7 @@ Your response (text only, no JSON):`;
               { role: 'system', content: systemPrompt },
               ...messagesWithHydration
             ],
-            ...getTokenParams(TRACE_BACKUP_MODEL, 500),
+            ...getTokenParams(TRACE_BACKUP_MODEL, tokenLimit),
             response_format: { type: "json_object" },
           };
           if (supportsCustomTemperature(TRACE_BACKUP_MODEL)) {
