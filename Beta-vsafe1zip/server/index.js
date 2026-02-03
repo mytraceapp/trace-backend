@@ -6829,7 +6829,7 @@ Your response (text only, no JSON):`;
         const textResponse = await openai.chat.completions.create({
           model: 'gpt-5.1',
           messages: [{ role: 'user', content: premiumTextPrompt }],
-          max_completion_tokens: 200, // gpt-5.1 uses max_completion_tokens, not max_tokens
+          max_completion_tokens: 600, // gpt-5.1 uses max_completion_tokens, not max_tokens - raised for deeper conversations
         }, { signal: textController.signal });
         
         clearTimeout(textTimeout);
@@ -6898,7 +6898,7 @@ Your response (text only, no JSON):`;
     const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
     
     // Token limit for long-form content (recipes, stories, detailed explanations)
-    const tokenLimit = isLongFormRequest ? 1200 : 500; // Increase for recipes/stories
+    const tokenLimit = isLongFormRequest ? 1200 : 800; // Increase for recipes/stories, raised default for deeper conversations
     
     if (isLongFormRequest) {
       console.log('[TRACE CHAT] Long-form request detected, using extended token limit:', tokenLimit);
@@ -7143,7 +7143,7 @@ Your response:`;
         const response = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
           messages: [{ role: 'user', content: plainPrompt }],
-          max_tokens: 150,
+          max_tokens: 400,
           temperature: 0.8,
         });
         
@@ -7187,7 +7187,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         const response = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
           messages: [{ role: 'user', content: contextPrompt }],
-          max_tokens: 100,
+          max_tokens: 300,
           temperature: 0.9,
         });
         
