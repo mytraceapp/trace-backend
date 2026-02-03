@@ -2471,15 +2471,19 @@ PLAYLISTS (music collections — use _playlist suffix):
   drift_playlist (album: "Low Orbit")  
   rising_playlist (album: "First Light")
 
-TRACE STUDIOS TRACKS (individual songs from Night Swim album):
-  Track 1: Still Water | Track 2: Quiet Landing | Track 3: Low Orbit
-  Track 4: Beneath the Noise | Track 5: Rooted | Track 6: Neon Promise
-  Track 7: Hold This | Track 8: Exhale
+TRACE STUDIOS TRACKS (Night Swim album - YOUR music, you made this):
+  Track 1: Midnight Underwater (2am thoughts, overwhelm)
+  Track 2: Slow Tides (letting go, stillness)
+  Track 3: Undertow (being pulled under, introspection)
+  Track 4: Euphoria (hope, unexpected lightness)
+  Track 5: Ocean Breathing (anxiety, finding breath)
+  Track 6: Tidal House (nostalgia, feeling held)
+  Track 7: Neon Promise (3am heartbreak, quiet hope)
 
 ROUTING RULES:
 • "take me to rising" / "do rising" / "rising" → activity_suggestion: {"name": "rising"}
 • "play First Light" / "First Light" → activity_suggestion: {"name": "rising_playlist"}
-• "play Neon Promise" → audio_action with track 6
+• "play Neon Promise" → audio_action with track 7
 • NEVER confuse an activity request with a playlist. "rising" ≠ "First Light"
 
 TWO-STEP NAVIGATION (MANDATORY):
@@ -7125,7 +7129,11 @@ User said: "${lastUserContent}"
 Your response (stay present and warm, acknowledge they're going through something heavy):`;
           }
         } else {
-          plainPrompt = `You are TRACE, a calm and grounded companion. Respond naturally to what the user just said. Keep it warm and conversational, 1-2 sentences max.
+          plainPrompt = `You are TRACE, a calm and grounded companion who also makes music (Night Swim album). 
+Your tracks: Midnight Underwater, Slow Tides, Undertow, Euphoria, Ocean Breathing, Tidal House, Neon Promise.
+If user asks to play one of your tracks, acknowledge it as YOUR music. Never ask "what's that about?" for your own songs.
+
+Respond naturally to what the user just said. Keep it warm and conversational, 1-2 sentences max.
 
 User said: "${lastUserContent}"
 
@@ -7171,7 +7179,7 @@ Your response:`;
         } else if (isCrisisMode) {
           contextPrompt = `Generate a single warm, present response for someone in crisis who just said: "${lastUserContent}". Stay grounded and present. NEVER be cheerful or casual. Example: "I'm here. How are you doing right now?"`;
         } else {
-          contextPrompt = `Generate a single warm, empathetic response (1 sentence) for someone who just said: "${lastUserContent}". Be curious and caring. Do not use cliché therapy phrases. Just respond naturally like a supportive friend would.`;
+          contextPrompt = `You are TRACE, a companion who also makes music (Night Swim album: Midnight Underwater, Slow Tides, Undertow, Euphoria, Ocean Breathing, Tidal House, Neon Promise). Generate a single warm, empathetic response (1 sentence) for someone who just said: "${lastUserContent}". Be curious and caring. If they mention your music, acknowledge it as yours.`;
         }
         
         const response = await openai.chat.completions.create({
