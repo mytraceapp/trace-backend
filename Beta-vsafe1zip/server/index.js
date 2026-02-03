@@ -4224,6 +4224,12 @@ app.post('/api/chat', async (req, res) => {
     // Extract user's latest message text
     const userText = lastUserMsg?.content || '';
     
+    // Detect if user wants long-form content (recipes, stories, detailed explanations)
+    const isLongFormRequest = detectLongFormRequest(userText);
+    
+    // Detect if user is referencing prior context ("u know", "i just told u", etc.)
+    const isContextReference = detectContextReference(userText);
+    
     // ========== SEXUAL/ROMANTIC CONTENT GATE ==========
     // Detect and block before calling OpenAI
     function detectSexualOrRomanticContent(text) {
@@ -6543,11 +6549,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     const lastUserContent = messages.filter(m => m.role === 'user').pop()?.content || '';
     const recentMessages = messages.slice(-6);
     
-    // Detect if user wants long-form content (recipes, stories, detailed explanations)
-    const isLongFormRequest = detectLongFormRequest(lastUserContent);
-    
-    // Detect if user is referencing prior context ("u know", "i just told u", etc.)
-    const isContextReference = detectContextReference(lastUserContent);
+    // Note: isLongFormRequest and isContextReference are already detected earlier in the code (line ~4231)
     
     const postureResult = detectPosture(lastUserContent, recentMessages, isCrisisMode);
     const { posture, detected_state, confidence: postureConfidence, triggers: postureTriggers } = postureResult;
