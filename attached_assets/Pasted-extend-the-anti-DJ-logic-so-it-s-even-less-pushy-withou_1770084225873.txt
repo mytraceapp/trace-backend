@@ -1,0 +1,68 @@
+extend the anti-DJ logic so it’s even less pushy—without killing the moments where it should offer.
+
+1) Add a “soft offer ladder” (escalation rules)
+
+Instead of every offer being equally “forward,” make it escalate only when signals are strong.
+
+Level 0 — Seed (no offer)
+	•	“I have something that fits this mood if you want it.”
+	•	No title, no link, no CTA.
+
+Level 1 — Gentle offer (default)
+	•	“Want a track that matches this?”
+	•	Only if user says yes do you reveal the track/playlist.
+
+Level 2 — Direct offer (rare)
+	•	You name the track/playlist only when:
+	•	it’s late night + loneliness/insomnia/panic
+	•	OR they explicitly ask for music
+	•	OR they previously accepted music in this session
+
+This alone makes it feel unpushy, because most offers stop at “do you want something?” rather than “play Neon Promise now.”
+
+2) Make declines “sticky” by type + session
+
+Right now you have “after user declines: 30 min.” Good—make it smarter:
+	•	Decline TRACK → block TRACK for 60 min
+	•	Decline PLAYLIST → block PLAYLIST for 90 min
+	•	Decline ALBUM → block ALBUM for 24 hours (album offers are big)
+
+And: if they decline twice in a session, stop offering music entirely until next session (or unless they ask).
+
+3) Add a “no-repeat” memory window
+
+Even with cooldowns, repetition can feel salesy.
+	•	Don’t offer the same track/playlist again for 7 days unless user requests it.
+	•	Don’t offer any music more than once in the last N turns (e.g., 8–12 turns) even if time cooldown expires.
+
+4) Add a “user intent weight” score
+
+Make music offers depend on a simple score that includes the vibe but also permission signals:
+
+Permission signals (add points):
+	•	user mentions music, songs, playlists, headphones
+	•	user asks “what should I do,” “help me calm down,” “what can help”
+	•	they accepted a prior offer recently
+
+Resistance signals (subtract points):
+	•	user is venting intensely (needs presence first)
+	•	they’re asking practical questions (logistics mode)
+	•	they previously declined this session/day
+	•	conversation is fast-paced (back-and-forth troubleshooting)
+
+Only offer when score crosses threshold and the “2–3 turns later” rule is satisfied.
+
+5) Add “offer cap by intensity”
+
+You have max 3/session. You can soften it further:
+	•	If user is in crisis/high distress, cap at 1 offer per session (because it can feel like coping spam).
+	•	If user is stable/reflective, cap at 2–3.
+
+6) Make offers feel like care, not content
+
+Micro-copy patterns that keep it human:
+	•	“If it would help, I can put something on in the background.”
+	•	“No pressure—just an option.”
+	•	“We can also just stay here and talk.”
+
+That last line matters: it communicates that the relationship is the product, not the music.
