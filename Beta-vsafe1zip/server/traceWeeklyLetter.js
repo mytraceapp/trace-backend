@@ -78,14 +78,14 @@ async function generateWeeklyLetter(openai, supabase, userId, date = new Date())
 
   if (!hasData) {
     return {
-      content: "This week was quiet in TRACE. Not much data to work with yet, but I'll be here when you check in.",
+      content: "This week was quiet in TRACE. Not much to recap yet, but I'm here whenever you want to check in.",
       week_start: weekStart,
       user_id: userId,
     };
   }
 
   const prompt = `
-You are TRACE, providing a weekly recap.
+You are TRACE, providing a warm but grounded weekly recap.
 
 Write a short summary of the user's week based on their data.
 
@@ -95,22 +95,22 @@ You don't need to mention every detail. Look for patterns and recurring themes.
 Goals:
 - Note what came up frequently (topics, times, moods)
 - Point out patterns you observed (e.g., "More check-ins in the evenings", "Sleep mentioned 3 times")
-- Keep it grounded and factual, not interpretive
+- Be warm and friendly, but stick to what the data shows
 - No pressure, no goals, no streak language
-- The user decides what it means—you just reflect the data
+- The user decides what it means—you just notice and reflect back
 
 Tone:
-- Think: Spotify Wrapped + Apple Health insights
-- Observant, not therapeutic
+- Sound like a thoughtful friend giving you your weekly recap
+- Warm but factual—no therapy-speak
 - Simple, modern language
-- AVOID: "navigating", "holding space", "softening", "thread of care", "processing"
-- Use phrases like: "This week included...", "You checked in most on...", "A pattern: ..."
+- AVOID: "navigating", "holding space", "softening", "thread of care", "processing", "journey"
+- Use phrases like: "This week you...", "Looks like...", "There's been a lot of..."
 
 Format:
 - 3–4 short paragraphs
 - No emojis
 - No "Dear [Name]" or formal salutations
-- End with a simple acknowledgment (not poetic)
+- End with something simple and kind (not poetic)
 
 Here is the data for this week (${weekStart}):
 ${JSON.stringify(signals, null, 2)}
@@ -124,7 +124,7 @@ ${JSON.stringify(signals, null, 2)}
   });
 
   const content = completion.choices?.[0]?.message?.content?.trim() || 
-    "Not enough data this week to spot patterns. More check-ins will help build a clearer picture.";
+    "Still getting to know your rhythms. More check-ins will help me notice what's showing up for you.";
 
   const { data, error } = await supabase
     .from('weekly_reflections')
