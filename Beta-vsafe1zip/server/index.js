@@ -5257,12 +5257,20 @@ app.post('/api/chat', async (req, res) => {
 
     // ===== LIGHT CLOSURE DETECTION =====
     // Handle short acknowledgment messages with quick responses (only for non-onboarding users)
-    // BUT: If TRACE just asked a question, user's short reply is an ANSWER, not a closure!
+    // BUT: If TRACE just asked a question OR there's substantive conversation context, don't break the flow!
     const lastAssistantMsg = messages.filter(m => m.role === 'assistant').pop();
     const traceJustAskedQuestion = lastAssistantMsg?.content?.includes('?') || false;
     
-    if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && !traceJustAskedQuestion) {
-      console.log('[TRACE CHAT] Light closure detected, sending short ack:', lastUserMsg.content);
+    // Check if there's substantive conversation history (not just greetings/acks)
+    const hasSubstantiveConversation = messages.filter(m => 
+      m.role === 'user' && m.content && m.content.length > 25
+    ).length >= 1;
+    
+    // Check if user is re-greeting mid-conversation (hi/hello/hey after substantive exchange)
+    const isReGreeting = /^(hi|hello|hey|yo|sup)$/i.test((lastUserMsg?.content || '').trim());
+    
+    if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && !traceJustAskedQuestion && !hasSubstantiveConversation && !isReGreeting) {
+      console.log('[TRACE CHAT] Light closure detected (no prior context), sending short ack:', lastUserMsg.content);
       const closureResponse = normalizeChatResponse({
         message: pickRandomNoRepeat(LIGHT_ACKS, effectiveUserId),
         activity_suggestion: {
@@ -5277,8 +5285,14 @@ app.post('/api/chat', async (req, res) => {
         deduped: false,
         sound_state: { current: null, changed: false, reason: 'light_closure_early_return' }
       });
-    } else if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && traceJustAskedQuestion) {
-      console.log('[TRACE CHAT] Short reply but TRACE asked question - treating as answer, not closure');
+    } else if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content)) {
+      if (traceJustAskedQuestion) {
+        console.log('[TRACE CHAT] Short reply but TRACE asked question - treating as answer, not closure');
+      } else if (hasSubstantiveConversation) {
+        console.log('[TRACE CHAT] Short reply but has prior conversation - maintaining context');
+      } else if (isReGreeting) {
+        console.log('[TRACE CHAT] Re-greeting mid-conversation - continuing with context');
+      }
     }
 
     // Load return warmth line (for users returning after time away)
@@ -6279,11 +6293,18 @@ It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${local
       // Add no-greeting directive for ongoing conversations
       systemPrompt += `
 
-CRITICAL - NO GREETINGS IN ONGOING CHAT:
+CRITICAL - CONVERSATION CONTINUITY:
 - Assume the user has already seen a short welcome message from TRACE.
 - Do NOT start responses with generic greetings like "Hi", "Hey there", "Hello", "How are you today?"
 - Respond as if you've already said hello and are in the middle of a conversation.
-- Focus on answering or gently reflecting on the user's latest message.`;
+- Focus on answering or gently reflecting on the user's latest message.
+
+CONTEXT PRESERVATION - SHORT MESSAGES:
+- If user says "hi", "hello", "okay", "yeah", or other short replies, do NOT restart the conversation.
+- Reference what you were previously discussing. Continue the thread naturally.
+- NEVER ask "What's been on your mind lately?" if you already know what's on their mind from prior messages.
+- Short acknowledgments like "ok" or "yeah" are often responses to what you just said—acknowledge and continue.
+- If they re-greet mid-conversation ("hi" again), warmly acknowledge and pick up where you left off.`;
 
       // Feedback loop adaptation - adjust prompt based on user's learned preferences
       if (pool && effectiveUserId) {
