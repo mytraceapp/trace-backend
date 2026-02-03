@@ -46,9 +46,11 @@ async function summarizeContent(openai, text, source = 'chat') {
 Rules:
 - Maximum 15 words
 - Remove all names, places, specific details
-- Focus on emotional theme only (e.g., "discussed work stress", "reflected on relationship")
+- Focus on topic and pattern only (e.g., "mentioned work and deadlines", "talked about sleep issues")
+- Use grounded, observational language—not therapeutic or poetic
+- AVOID: "navigating", "processing", "exploring", "reflecting on", "holding space"
 - Never include quotes or specific content
-- Return JSON: {"summary": "...", "tags": ["emotion1", "emotion2"], "sentiment": "positive|negative|neutral|mixed"}`
+- Return JSON: {"summary": "...", "tags": ["topic1", "topic2"], "sentiment": "positive|negative|neutral|mixed"}`
         },
         {
           role: 'user',

@@ -68,6 +68,38 @@ When user returns from activity and responds to "you good?":
 - System prompt includes explicit instruction to NEVER repeat the disclaimer after it's been shown.
 - The `checkDisclaimerShown()` helper function gates this behavior in `/api/chat`.
 
+### Summary Tone Guidelines
+
+All TRACE summaries use a grounded, observational tone—not therapeutic or poetic. Think: Spotify Wrapped + Apple Health insights.
+
+**Style Rules:**
+- Sound observant, not interpretive
+- Focus on patterns, themes, and behavioral signals
+- Use simple, modern, emotionally neutral language
+- User decides meaning—TRACE only reflects
+
+**Good Phrases:**
+- "You've been spending time with..."
+- "Your recent check-ins included..."
+- "A pattern emerging is..."
+- "There's been a mix of..."
+- "Stress showed up more on weekdays"
+
+**Avoid:**
+- "You've been navigating..."
+- "A thread of care..."
+- "Softening into..."
+- "Holding space..."
+- "What's been moving through you..."
+- "Quiet strength", "meaningful step", "tender"
+
+**Files Updated:**
+- `server/index.js`: Last-hour recap, patterns-reflection, full-reflection, stress-echoes, and all pattern fallback messages
+- `server/privacy.js`: Privacy-preserving summarizer
+- `server/traceWeeklyLetter.js`: Weekly letter
+- `server/coreMemory.js`: Session summary
+- `server/traceSystemPrompt.js`: Patterns engine prompt
+
 ### Privacy by Design
 
 By default, TRACE stores only AI-generated summaries (max 15 words, non-identifying) of user content, discarding raw text unless the user opts in. Dedicated Supabase tables (`trace_entries_summary`, `trace_entries_raw`) with RLS policies manage data storage. GDPR-compliant endpoints for data export and deletion, along with privacy settings management, are included.

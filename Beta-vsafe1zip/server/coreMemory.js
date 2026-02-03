@@ -228,7 +228,7 @@ async function runSessionSummary(openai, supabase, conversationId, sessionId, me
       return;
     }
 
-    const prompt = `Summarize this conversation session in 2-3 sentences. Focus on key topics discussed, user's emotional state, and any decisions or realizations. Keep it warm but concise.`;
+    const prompt = `Summarize this conversation session in 2-3 sentences. Focus on key topics discussed and any patterns or recurring themes. Use grounded, observational language—avoid therapeutic terms like "navigating", "processing", "holding space". Just note what came up.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',

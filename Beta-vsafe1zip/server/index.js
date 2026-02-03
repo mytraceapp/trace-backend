@@ -10912,31 +10912,31 @@ app.post('/api/patterns/last-hour', async (req, res) => {
     const contextSummary = `User messages: ${userMessageCount}` +
       (emotionalKeywords.length ? `\nEmotional themes detected: ${emotionalKeywords.join(', ')}` : '');
 
-    const systemPrompt = `You are TRACE, a calm and emotionally intelligent companion. You're providing a brief reflection on what the user has been sharing in their recent conversation.
+    const systemPrompt = `You are TRACE, providing a brief recap of what the user has been sharing.
 
-Your task: Write 2-3 gentle, observational sentences summarizing the emotional patterns, themes, and insights from this conversation.
+Your task: Write 2-3 grounded, observational sentences noting the themes and patterns in this conversation.
 
 Style:
-- Observational and validating, not advisory
-- Specific to what they actually shared (not generic)
-- Notice recurring themes, emotional undercurrents, or shifts in feeling
-- Use phrases like "You've been navigating...", "There's a thread of...", "It sounds like...", "I notice..."
-- Do NOT ask questions
-- Do NOT give advice or instructions
-- Do NOT mention time frames like "last hour" or "recently"
-- Keep it warm and grounding
+- Sound observant, not interpretive
+- Focus on patterns, themes, and behavioral signals
+- Simple, modern language—emotionally neutral
+- Use phrases like: "You've been spending time with...", "Your recent check-ins included...", "A pattern emerging is...", "There's been a mix of..."
+- AVOID: "navigating", "thread of care", "softening", "holding space", "what's been moving through you", "quiet strength", "meaningful step"
+- Do NOT assume feelings or inner states
+- Do NOT ask questions or give advice
+- The user decides meaning—TRACE only reflects
 
 Example good outputs:
-- "You've been navigating feelings of stress around work deadlines. There's a thread of wanting more balance, and you're noticing how your energy shifts throughout the day."
-- "It sounds like you're holding a lot right now—between family expectations and your own needs. There's a quiet strength in how you're processing it all."
-- "I notice a mix of tiredness and hope in what you've shared. You're being honest about where you are, and that's a meaningful step."`;
+- "You've been spending time with work stress and sleep. There's a pattern of low energy in the mornings and more focus in the evenings."
+- "Your recent check-ins included family stuff and money concerns. Both came up more than once."
+- "There's been a mix of tired and okay this session. You mentioned deadlines a few times."`;
 
     const userPrompt = `${contextSummary}
 
 Conversation:
 ${convoText}
 
-Write 2-3 gentle, observational sentences reflecting on the emotional patterns and themes in this conversation.`;
+Write 2-3 grounded, observational sentences noting the patterns and themes in this conversation.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -10950,7 +10950,7 @@ Write 2-3 gentle, observational sentences reflecting on the emotional patterns a
 
     const summaryText =
       completion?.choices?.[0]?.message?.content?.trim() ||
-      "You've been holding a lot. It's okay to soften here and notice how you're feeling.";
+      "Not enough conversation yet to see patterns. Keep checking in when you're ready.";
 
     console.log('🧠 /api/patterns/last-hour generated summary:', summaryText.slice(0, 100) + '...');
 
@@ -11197,24 +11197,24 @@ app.post('/api/patterns-reflection', async (req, res) => {
       ? contextParts.join('; ')
       : 'starting to establish patterns';
 
-    const systemPrompt = `You are TRACE, a compassionate emotional wellness companion.
-
-You are creating a brief, grounded weekly reflection based on behavioral patterns.
+    const systemPrompt = `You are TRACE, providing a brief weekly pattern recap.
 
 Your reflection should:
-- Acknowledge what you notice with warmth and curiosity
+- Sound observant, not interpretive
 - Speak in 2-3 sentences max
-- Avoid clinical language or diagnosis
-- Frame patterns as information, not judgment
-- Use "you're" instead of "you are" for a softer tone
+- Focus on what the data shows (times, frequencies, patterns)
+- Use simple, modern language—emotionally neutral
+- Use phrases like: "This week included...", "A pattern: ...", "Most activity happened..."
+- AVOID: "tuning into", "sweet spot", "gentle nudge", "valuable insights", "showing up for yourself"
+- The user decides meaning—you just report the data
 
-Keep it real, warm, and brief.`;
+Think: Spotify Wrapped + Apple Health insights.`;
 
     const userPrompt = `This week's pattern snapshot:
 
 ${weekContext}
 
-Write a gentle 2-3 sentence reflection that acknowledges what's emerging in their patterns this week.`;
+Write a grounded 2-3 sentence recap noting what the data shows. Just the facts, no interpretation.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -11228,7 +11228,7 @@ Write a gentle 2-3 sentence reflection that acknowledges what's emerging in thei
 
     const reflection =
       completion?.choices?.[0]?.message?.content?.trim() ||
-      "You're building your rhythm in the ways that work for you. That consistency matters.";
+      "This week's data is still building. More check-ins will help surface patterns.";
 
     console.log('✅ Patterns reflection generated:', reflection);
 
@@ -11240,7 +11240,7 @@ Write a gentle 2-3 sentence reflection that acknowledges what's emerging in thei
     console.error('❌ /api/patterns-reflection error:', err);
     return res.json({
       ok: true,
-      reflection: "You've been showing up this week. Even noticing your patterns is its own kind of care.",
+      reflection: "Not enough data this week to generate a pattern recap.",
     });
   }
 });
@@ -11332,25 +11332,26 @@ app.post('/api/patterns/full-reflection', async (req, res) => {
       ? `This week's ${userMessages.length} message(s): ${userMessages.slice(-10).map(m => m.content?.slice(0, 80)).join(' | ')}`
       : 'No messages this week.';
 
-    const systemPrompt = `You are TRACE, a compassionate emotional wellness companion.
+    const systemPrompt = `You are TRACE, providing grounded pattern recaps.
 
-Generate three brief reflections based on the user's recent chat history:
+Generate three brief recaps based on the user's recent chat history:
 
-1. TODAY: Reflect on the overall shape or arc of today—themes, energy, or mood across the day
-2. LAST HOUR: Focus on the most recent emotional temperature—what's immediately present right now
-3. YOUR WEEK: Identify broader patterns, rhythms, or recurring themes across the week
+1. TODAY: Note what topics or themes came up today
+2. LAST HOUR: Note what the most recent check-ins included
+3. YOUR WEEK: Identify patterns, recurring topics, or frequencies across the week
 
-CRITICAL: Each reflection MUST cover DIFFERENT aspects. Avoid redundancy:
-- TODAY = big picture of the day's journey
-- LAST HOUR = the immediate moment, what's freshest
+CRITICAL: Each recap MUST cover DIFFERENT aspects. Avoid redundancy:
+- TODAY = summary of what today included
+- LAST HOUR = what came up most recently
 - WEEK = patterns over time, not a repeat of today
 
 Guidelines:
-- Keep each reflection to 2-3 sentences
-- Be specific when patterns are clear; be gentle when data is sparse
-- Validate emotions without diagnosing
-- Use "you" language directly to the user
-- If a time period is quiet, acknowledge that meaningfully
+- Keep each recap to 2-3 sentences
+- Sound observant, not interpretive
+- Focus on patterns, themes, and behavioral signals
+- Use phrases like: "Today included...", "This week saw...", "A pattern: ..."
+- AVOID: "navigating", "holding space", "journey", "arc", "temperature", "gentle"
+- If a time period is quiet, just note that simply
 
 Return ONLY valid JSON with no markdown:
 {"todayText": "...", "lastHourText": "...", "weekText": "..."}`;
@@ -11413,7 +11414,7 @@ app.post('/api/patterns/stress-echoes', async (req, res) => {
     hasPattern: false,
     clusterLabel: null,
     strength: 0,
-    insightText: "When heavier moments return around similar times, TRACE will highlight that here."
+    insightText: "Not enough data yet to detect stress patterns. More check-ins will help."
   };
   
   console.log('🔮 [STRESS ECHOES] Analyzing', journalEntries?.length || 0, 'entries for userId:', userId || deviceId);
@@ -11501,7 +11502,7 @@ app.get('/api/patterns/insights', async (req, res) => {
   };
   
   const fallbackActivity = {
-    label: "Once you've tried a few activities, I'll start noticing which ones you return to the most.",
+    label: "Not enough activity data yet. More usage will reveal patterns.",
     topActivity: null,
     percentage: null,
   };
@@ -12151,8 +12152,8 @@ function buildPatternExplainability(patternType, data) {
       break;
       
     case 'softening':
-      explainability.title = 'Softening Days';
-      explainability.insight = data.label || 'When calm tends to appear';
+      explainability.title = 'Calm Days';
+      explainability.insight = data.label || 'When calm tends to show up';
       explainability.signals_used = [
         `journal_entries:${data.journalCount || 0}`,
         `calm_moods:${data.totalSoftEntries || 0}`
@@ -12160,7 +12161,7 @@ function buildPatternExplainability(patternType, data) {
       explainability.confidence = data.totalSoftEntries >= 5 ? 'high' :
                                    data.totalSoftEntries >= 3 ? 'moderate' : 'low';
       explainability.verify_next = [
-        'Does this day feel lighter to you?'
+        'Does this pattern match what you notice?'
       ];
       break;
       
@@ -12960,7 +12961,7 @@ function computeSofteningDay(journals = []) {
 
   if (!totalSoft) {
     return {
-      label: "I haven't seen a clear softening pattern yet, but when those calmer days cluster, I'll reflect that back to you.",
+      label: "Not enough data yet to spot when calm days tend to cluster. More check-ins will help.",
       topDayIndex: null,
       percentage: null,
       totalSoftEntries: 0,
@@ -13082,7 +13083,7 @@ function buildTrendLabel(kind, thisWeek, lastWeek, dir) {
   if (dir === "down") {
     return `↓ Fewer overwhelmed or stressed entries than last week (${thisWeek} vs ${lastWeek}). Even tiny shifts like that are worth noticing.`;
   }
-  return `↔ About the same number of heavy-feeling entries as last week (${thisWeek}). This might be a season of holding a lot.`;
+  return `↔ About the same number of stress entries as last week (${thisWeek}). The pattern is steady.`;
 }
 
 function computeWeeklyMoodTrend(journals = []) {
@@ -13593,8 +13594,8 @@ app.post('/api/patterns/insights', async (req, res) => {
       if (inCrisis) {
         console.log('📊 [PATTERNS INSIGHTS POST] Crisis mode active for user, returning soft response');
         // Use tailored crisis copy per insight card type
-        const crisisCore = "When things feel really intense, patterns can become blurry — and that's okay. Right now the most important thing is how you're feeling in this moment.";
-        const crisisActivity = "Whatever you need right now is enough.";
+        const crisisCore = "Patterns are paused during intense periods. Focus is on right now.";
+        const crisisActivity = "Patterns paused. Focus on right now.";
         
         // PATTERN PERSISTENCE: Even in crisis mode, preserve cached peakWindow data
         // The UI can still show the time range while displaying softer messaging elsewhere
@@ -13665,26 +13666,26 @@ app.post('/api/patterns/insights', async (req, res) => {
     };
     
     const fallbackActivity = {
-      label: "Once you've tried a few activities, I'll start noticing which ones you return to the most.",
+      label: "Not enough activity data yet. More usage will reveal patterns.",
       count: 0,
     };
     
     const fallbackStressEchoes = {
-      label: "As you journal more, I'll start noticing which days tend to echo the heaviest pressure.",
+      label: "Not enough journal data yet to spot when stress tends to show up.",
       topDayIndex: null,
       stressCount: 0,
       totalStressEntries: 0,
     };
     
     const fallbackEnergyFlow = {
-      label: "As you use activities more, I'll start noticing which days your energy reaches for TRACE the most.",
+      label: "Not enough activity data yet to see energy patterns.",
       topDayIndex: null,
       percentage: null,
       totalActivities: 0,
     };
     
     const fallbackSoftening = {
-      label: "As more calm moments show up in your journal, I'll notice where in the week things tend to soften a little.",
+      label: "Not enough data yet to see when calm days tend to cluster.",
       topDayIndex: null,
       percentage: null,
       totalSoftEntries: 0,
@@ -13766,7 +13767,7 @@ app.post('/api/patterns/insights', async (req, res) => {
     if (totalDataPoints < MIN_DATA_THRESHOLD) {
       console.log(`📊 [PATTERNS] Insufficient data (${totalDataPoints} < ${MIN_DATA_THRESHOLD}), returning "still learning" response`);
       
-      const stillLearningCore = "I'm still getting to know your rhythms. As you use TRACE more, patterns will start to emerge.";
+      const stillLearningCore = "Not enough data yet to spot patterns. More check-ins will help build a clearer picture.";
       const lastCalculatedAtNow = new Date().toISOString();
       
       const stillLearningResponse = {
@@ -14351,10 +14352,10 @@ app.post('/api/patterns/insights', async (req, res) => {
     }
     
     // No cached data - return fallback
-    const fallbackEnergy = "As you use activities more, I'll start noticing which days your energy reaches for TRACE the most.";
-    const fallbackStress = "As you journal more, I'll start noticing which days tend to echo the heaviest pressure.";
-    const fallbackRelief = "As more calm moments show up in your journal, I'll notice where in the week things tend to soften a little.";
-    const fallbackActivity = "Once you've tried a few activities, I'll start noticing which ones you return to the most.";
+    const fallbackEnergy = "Not enough activity data yet to see patterns. More usage will help.";
+    const fallbackStress = "Not enough journal data yet to spot when stress tends to show up.";
+    const fallbackRelief = "Not enough data yet to see when calm days tend to cluster.";
+    const fallbackActivity = "Not enough activity data yet. More usage will reveal patterns.";
     const lastCalculatedAtNow = new Date().toISOString();
     
     return res.json({
