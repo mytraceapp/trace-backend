@@ -5851,31 +5851,45 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
               if (isNegative) {
                 toneGuidance = 'User said the activity DIDN\'T help or was dismissive. Show you care, ask what\'s going on. Never dismiss with "gotcha" or "okay".';
               } else if (isPositive) {
-                toneGuidance = 'User seems positive. Keep it brief and warm. Maybe mention you\'re glad or ask if they want to keep talking.';
+                toneGuidance = 'User seems positive. Keep it brief and warm. Continue the prior conversation thread naturally.';
               } else {
-                toneGuidance = 'Read their tone and match it naturally. Be curious, not assumptive. Ask a gentle follow-up.';
+                toneGuidance = 'Read their tone and match it naturally. Be curious, not assumptive. Continue the prior conversation naturally.';
               }
               
+              // Get the last 5 messages before the activity for context continuity
+              const priorContext = messages.slice(-7, -2); // Get messages before the "you good?" check-in
+              const priorContextText = priorContext.length > 0
+                ? priorContext.map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${(m.content || '').slice(0, 200)}`).join('\n')
+                : '';
+              
               const caringSystemPrompt = `
-You are TRACE, a chill friend. User just shared how they're feeling after doing ${lastActivityName}.
+You are TRACE, a chill friend. User just came back from doing ${lastActivityName} and you asked "you good?". They responded.
 
-Their message: "${lastUserMsg}"
+${priorContextText ? `IMPORTANT - This is what you were talking about BEFORE the activity:\n${priorContextText}\n\nYou MUST continue this conversation thread naturally. Don't restart with generic questions.` : ''}
+
+Their post-activity response: "${lastUserMsg}"
 
 ${toneGuidance}
 
-Write ONE brief, natural response (max 12 words). Be a friend, not a therapist.
+Write ONE brief, natural response (max 15 words). Be a friend, not a therapist.
 
 CRITICAL: 
 - If they say "not really", "no", "lol", "meh" = the activity DIDN'T help. Ask what's up, show curiosity.
 - Never say the activity was good if they said it wasn't.
 - Don't dismiss with "gotcha" or "okay" when they're struggling.
+- If there was a prior conversation topic (like a dream, work stress, etc.), acknowledge it or pick it back up naturally.
+- NEVER ask "What's been on your mind lately?" if you already know what's on their mind.
 
-FORBIDDEN: therapy-speak, "that's great", "sounds like a win", exclamation marks, "I'm glad", "space", "holding", "shifted", "present", "grounded", "centered", "affirm"
+FORBIDDEN: therapy-speak, "that's great", "sounds like a win", exclamation marks, "I'm glad", "space", "holding", "shifted", "present", "grounded", "centered", "affirm", "What's been on your mind"
 
 Just the response, nothing else.
 `.trim();
 
               console.log('[POST-ACTIVITY INTERCEPT] Generating caring response for:', lastUserMsg);
+              console.log('[POST-ACTIVITY INTERCEPT] Prior context messages:', priorContext.length);
+              if (priorContextText) {
+                console.log('[POST-ACTIVITY INTERCEPT] Context preview:', priorContextText.slice(0, 200) + '...');
+              }
               const caringResponse = await openai.chat.completions.create({
                 model: 'gpt-4o-mini',
                 messages: [

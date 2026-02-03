@@ -61,6 +61,13 @@ When user returns from activity and responds to "you good?":
 - Client handles: Greeting UI display, activity navigation, sending messages
 - Auth: `ensureAuthSession()` and profile creation on app start
 
+**Post-Activity Conversation Continuity:**
+When user returns from activity and responds to "you good?", the API now:
+1. Extracts the last 5 messages from before the activity
+2. Injects this context into the system prompt
+3. Generates a response that continues the prior conversation thread
+This prevents TRACE from asking "What's been on your mind?" when it already knows what they were discussing.
+
 **ONE-TIME EVENTS (CRITICAL):**
 - Onboarding is a ONE-TIME flow. Once `onboarding_step = 'completed'`, it NEVER repeats.
 - The therapy disclaimer ("I'm not therapy...") is shown ONCE during onboarding.
