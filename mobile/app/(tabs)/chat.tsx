@@ -1901,7 +1901,9 @@ export default function ChatScreen() {
         }
       }
       
-      // Handle TRACE audio_action (Night Swim originals or Spotify fallback)
+      // Handle TRACE audio_action (unified playbackMode system)
+      // playbackMode: 'audio_player' → Night Swim in native player
+      // playbackMode: 'spotify_journal' → Playlists open Spotify via journal
       const audioAction = result?.audio_action;
       if (audioAction?.type === 'open') {
         console.log('🎵 TRACE audio_action: open', audioAction);
@@ -1912,13 +1914,17 @@ export default function ChatScreen() {
           'Ocean Breathing', 'Tidal House', 'Neon Promise'
         ];
         
-        if (audioAction.source === 'originals') {
+        // Determine playback mode (prefer new field, fallback to legacy source)
+        const playbackMode = audioAction.playbackMode || 
+          (audioAction.source === 'spotify' ? 'spotify_journal' : 'audio_player');
+        
+        if (playbackMode === 'audio_player') {
           // TRACE Originals (Night Swim) - spawn inline player on chat page
-          console.log('🎵 Opening TRACE Originals (Night Swim) player');
+          console.log('🎵 Opening audio_player for Night Swim');
           
           // Update client_state so backend knows what's playing
           const trackIndex = audioAction.track || 0;
-          const trackTitle = NIGHT_SWIM_TRACKS[trackIndex] || 'Night Swim';
+          const trackTitle = audioAction.trackName || NIGHT_SWIM_TRACKS[trackIndex] || 'Night Swim';
           clientStateRef.current.nowPlaying = {
             trackId: `night_swim_${trackIndex}`,
             title: trackTitle,
@@ -1933,18 +1939,29 @@ export default function ChatScreen() {
               audioAction.track || 0
             );
           }, 600);
-        } else if (audioAction.source === 'spotify') {
-          // Spotify fallback - open Spotify app/web
-          console.log('🎵 Opening Spotify playlist:', audioAction.album);
+        } else if (playbackMode === 'spotify_journal') {
+          // Playlists - open Spotify via journal modal
+          const playlistId = audioAction.playlistId || audioAction.album;
+          console.log('🎵 Opening spotify_journal for playlist:', playlistId);
+          
           // Track that user is leaving for Spotify
-          leftForSpotifyRef.current = { left: true, trackTitle: audioAction.album, leftAt: Date.now() };
+          leftForSpotifyRef.current = { left: true, trackTitle: playlistId, leftAt: Date.now() };
           setTimeout(async () => {
-            const mood = audioAction.album as MoodSpace;
+            // Map playlist IDs to mood spaces
+            const playlistToMood: Record<string, MoodSpace> = {
+              'ground_playlist': 'ground',
+              'drift_playlist': 'drift',
+              'rising_playlist': 'rising',
+              'ground': 'ground',
+              'drift': 'drift',
+              'rising': 'rising'
+            };
+            const mood = playlistToMood[playlistId] || (playlistId as MoodSpace);
             await openSpotifyPlaylist(mood);
           }, 600);
         } else {
-          // Default to originals if source not specified
-          console.log('🎵 No source specified, defaulting to Originals');
+          // Unknown playbackMode - default to audio_player
+          console.log('🎵 Unknown playbackMode, defaulting to audio_player');
           setTimeout(() => {
             openNightSwimPlayer(
               audioAction.autoplay !== false,

@@ -236,23 +236,39 @@ function parseTimeHour(localTime) {
  * @param {string} type - 'recommend' or 'open'
  * @param {Object} options - Configuration options
  * @returns {Object} Audio action payload
+ * 
+ * PLAYBACK MODES (v2):
+ * - 'audio_player' → Night Swim tracks play in native app audio player
+ * - 'spotify_journal' → Playlists open Spotify via journal modal play button
+ * 
+ * Legacy 'source' field is maintained for backwards compatibility
  */
 function buildAudioAction(type, options = {}) {
   const {
     source = 'originals',
+    playbackMode = 'audio_player',  // NEW: 'audio_player' | 'spotify_journal'
     album = 'night_swim',
     track = 0,
+    trackName = null,
+    playlistId = null,
     autoplay = true,
-    message = null
+    message = null,
+    offerLevel = null,              // NEW: 'SEED' | 'GENTLE' | 'DIRECT'
+    revealName = true               // NEW: whether to show track/playlist name
   } = options;
   
   return {
     type,
-    source,
+    source,                         // Legacy field for backwards compat
+    playbackMode,                   // NEW: preferred playback mode
     album,
     track,
+    ...(trackName && { trackName }),
+    ...(playlistId && { playlistId }),
     autoplay: type === 'open' ? autoplay : false,
-    ...(message && { message })
+    ...(message && { message }),
+    ...(offerLevel && { offerLevel }),
+    ...(revealName !== undefined && { revealName })
   };
 }
 
