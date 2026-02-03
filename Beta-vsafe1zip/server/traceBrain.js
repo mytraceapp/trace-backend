@@ -698,9 +698,10 @@ function applyTimeOfDayRules(clientState, signals) {
 }
 
 function buildClientStateContext(clientState, rules = null) {
-  const { mode, timeOfDay, recentSentiment, nowPlaying, lastActivity, lastSuggestion, currentSoundState } = clientState || {};
+  const { mode, timeOfDay, recentSentiment, nowPlaying, lastActivity, lastSuggestion, currentSoundState, lastSoundState } = clientState || {};
   const toneHint = rules?.toneHint || 'clear, steady';
-  const soundStateLabel = currentSoundState || 'ambient';
+  // Prefer client's current sound (what user hears) > last known state > ambient
+  const soundStateLabel = currentSoundState || lastSoundState || 'ambient';
   
   // Check if user just came back from an activity (within 5 minutes)
   const recentActivityContext = (() => {
@@ -713,7 +714,7 @@ function buildClientStateContext(clientState, rules = null) {
   let basePrompt = `You are TRACE, a calm and grounded companion.
 
 TONE: ${toneHint}
-Detected sound_state: ${soundStateLabel}. Match your tone to this state.
+Detected sound_state: ${soundStateLabel}. Subtly align pacing and emotional temperature to this state while keeping your core voice.
 
 Your voice is:
 - Concise: 2-5 sentences max unless user asks for more
