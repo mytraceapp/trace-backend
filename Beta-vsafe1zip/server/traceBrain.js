@@ -698,7 +698,7 @@ function applyTimeOfDayRules(clientState, signals) {
 }
 
 function buildClientStateContext(clientState, rules = null) {
-  const { mode, timeOfDay, recentSentiment, nowPlaying, lastActivity } = clientState || {};
+  const { mode, timeOfDay, recentSentiment, nowPlaying, lastActivity, lastSuggestion } = clientState || {};
   const toneHint = rules?.toneHint || 'clear, steady';
   
   // Check if user just came back from an activity (within 5 minutes)
@@ -778,6 +778,22 @@ Answer these naturally, not like reading from a script. Be warm, genuine, a litt
 
   if (mode === 'audio_player' && nowPlaying) {
     basePrompt += `\n\nIMPORTANT: User is listening to "${nowPlaying.title}". Answer their question naturally but don't suggest activities or pivot away from the music moment. You can acknowledge the track softly.`;
+  }
+  
+  // LAST SUGGESTION CONTEXT: If you just suggested/played something for the user
+  if (lastSuggestion && lastSuggestion.ts) {
+    const minutesSinceSuggestion = (Date.now() - lastSuggestion.ts) / 60000;
+    if (minutesSinceSuggestion < 5) {
+      const suggestionType = lastSuggestion.type || 'something';
+      const suggestionId = lastSuggestion.id || lastSuggestion.suggestion_id || '';
+      console.log('[TRACE BRAIN] Last suggestion context injected:', { type: suggestionType, id: suggestionId, minutesAgo: Math.round(minutesSinceSuggestion) });
+      basePrompt += `\n\nLAST ACTION CONTEXT:
+You just ${suggestionType === 'track' ? 'played' : 'suggested'} "${suggestionId}" for the user about ${Math.round(minutesSinceSuggestion)} minute${Math.round(minutesSinceSuggestion) === 1 ? '' : 's'} ago.
+Their next message is likely a response to that action.
+- If they say "thanks" / "nice" / "this is good" → acknowledge briefly, can ask what draws them to it
+- If they ask about the track → answer genuinely about it
+- If they change topic → follow their lead naturally`;
+    }
   }
   
   if (mode === 'activity_reflection') {
