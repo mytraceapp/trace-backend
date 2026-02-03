@@ -2555,6 +2555,22 @@ function detectLongFormRequest(text) {
   return longFormPatterns.some(p => p.test(t));
 }
 
+// Detect if user is referencing prior context (frustrated that TRACE doesn't remember)
+function detectContextReference(text) {
+  if (!text) return false;
+  const t = text.toLowerCase().trim();
+  const contextPatterns = [
+    /^u know$/i, /^you know$/i, /^ya know$/i, /^yk$/i,
+    /i just told (u|you)/i, /i already told (u|you)/i, /i said/i,
+    /you already know/i, /u already know/i,
+    /we just talked about/i, /i mentioned/i, /remember\??$/i,
+    /weren't you listening/i, /you forgot/i, /you're not listening/i,
+    /same thing/i, /same stuff/i, /what i said/i, /like i said/i,
+    /i literally just/i, /i just said/i
+  ];
+  return contextPatterns.some(p => p.test(t));
+}
+
 /**
  * Helper to check if model supports custom temperature
  * GPT-5-mini and o1/o3 models only support temperature=1
@@ -6324,7 +6340,13 @@ LONG-FORM CONTENT - RECIPES, STORIES, LISTS:
 - When asked for a recipe, give the COMPLETE recipe with all ingredients and steps. Do not cut off.
 - When asked to tell a story, tell the FULL story from beginning to end.
 - When asked for a list or steps, give ALL items/steps without truncating.
-- If content is long, that's okay—the user asked for it. Complete the response.`;
+- If content is long, that's okay—the user asked for it. Complete the response.
+
+CONTEXT REFERENCES - "U KNOW", "I JUST TOLD U":
+- If user says "u know", "you know", "I just told you", "I already said", etc., they are FRUSTRATED that you're not remembering.
+- NEVER respond with generic phrases like "Got it. Let me know what you need."
+- You MUST look at the conversation history and reference SPECIFIC things they mentioned.
+- Acknowledge what they said earlier and continue that thread.`;
       
       // Add extra instruction for long-form requests
       if (isLongFormRequest) {
@@ -6334,6 +6356,25 @@ IMPORTANT - LONG-FORM REQUEST DETECTED:
 The user is asking for detailed content (recipe, story, list, etc.). 
 Give a COMPLETE response. Do NOT cut off mid-sentence or skip steps.
 Include all necessary details. The response can be long—that's what they want.`;
+      }
+      
+      // Add extra instruction when user references prior context
+      if (isContextReference) {
+        // Build a summary of what the user actually talked about
+        const userMsgs = messages.filter(m => m.role === 'user').slice(-5);
+        const priorTopics = userMsgs.map(m => m.content?.slice(0, 100)).filter(Boolean).join(' | ');
+        
+        systemPrompt += `
+
+CRITICAL - USER IS REFERENCING PRIOR CONTEXT:
+The user just said something like "u know" or "I just told you" - they expect you to remember.
+Here are their recent messages: "${priorTopics}"
+
+You MUST:
+1. Reference SPECIFIC things from their prior messages
+2. Show that you remember what they said
+3. NEVER give generic responses like "Got it" or "What's on your mind?"
+4. Pick up the conversation thread from what they already shared`;
       }
 
       // Feedback loop adaptation - adjust prompt based on user's learned preferences
@@ -6504,6 +6545,9 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     
     // Detect if user wants long-form content (recipes, stories, detailed explanations)
     const isLongFormRequest = detectLongFormRequest(lastUserContent);
+    
+    // Detect if user is referencing prior context ("u know", "i just told u", etc.)
+    const isContextReference = detectContextReference(lastUserContent);
     
     const postureResult = detectPosture(lastUserContent, recentMessages, isCrisisMode);
     const { posture, detected_state, confidence: postureConfidence, triggers: postureTriggers } = postureResult;
