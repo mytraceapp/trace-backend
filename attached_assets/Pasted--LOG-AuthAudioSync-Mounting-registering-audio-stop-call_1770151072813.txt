@@ -1,0 +1,55 @@
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [SoundContextManager] Page changed: other → activity
+ LOG  [ActivitiesScreen] 📍 Context set to: activity
+ LOG  [AUDIO_CADENCE] ensureAmbientPlaying throttled (global) reason=activities_menu_focus lastCall=app_ambience_enabled 1188ms ago
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "activities", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": false, "pathname": "/activities", "segments": "(tabs)/activities", "shouldHidePlayer": false, "shouldShow": false}
+ LOG  [AUDIO_CADENCE] ambienceEnabled permission changed: true
+ LOG  [AUDIO_CADENCE] App ambience permission GRANTED - checking if should start ambient
+ LOG  [AudioContext] 🚪 Chat screen exit detected
+ LOG  [AUDIO_CADENCE] Chat exit - cleared soundscape_active flag and unblocked ambient (soundscapes only on chat)
+ LOG  [AudioContext] 🔄 Navigating to other screen - returning to global ambient
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [AUDIO_CADENCE] App ambience permission GRANTED - ensuring ambient is playing
+ LOG  [AUDIO_CADENCE] ensureAmbientPlaying skip reason=app_ambience_enabled already_active (idempotent) isLoaded=true isPlaying=true isBuffering=false volume=0.10000000149011612
+ LOG  [AudioContext.returnToGlobalAmbient] 🔄 Returning to global ambient (chat_exit)
+ LOG  [AudioContext.returnToGlobalAmbient] 🔓 UNBLOCKED ambient - ready to play
+ LOG  [AUDIO_CADENCE] ensureAmbientPlaying throttled (global) reason=returnToGlobalAmbient_chat_exit lastCall=app_ambience_enabled 50ms ago
+ LOG  [STATE_SNAPSHOT] playerActive=false soundscapeActive=false ambientStatus=loaded=true playing=true volume=0.10000000149011612 soundscapeStatus=null
+ LOG  [AUDIO_CADENCE] silence_fallback skipped reason=activity_resume_in_progress
+ LOG  [AUDIO_CADENCE] activity_resume_flag_cleared
+ LOG  [PRELOAD] Marked video for preload: local
+ LOG  ⚠️ [expo-av]: Video component from `expo-av` is deprecated in favor of `expo-video`. See the documentation at https://docs.expo.dev/versions/latest/sdk/video/ for the new API reference.
+ LOG  [SoundStateManager] Pending state: null
+ LOG  [ActivitiesScreen] User navigated away from activities - updating context
+ LOG  [SoundContextManager] Page changed: activity → other
+ LOG  [TRACE CHAT] Params: {}
+ LOG  🔑 SUPABASE USER ID: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [AmbientMiniPlayer] On blacklisted activity - returning null immediately
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "basin", "isOnBlacklistedActivity": true, "isOnBlacklistedActivityByPath": true, "isPlaying": false, "pathname": "/activities/basin", "segments": "activities/basin", "shouldHidePlayer": true, "shouldShow": false}
+ LOG  [AUDIO_CADENCE] ambienceEnabled permission changed: true
+ LOG  [AUDIO_CADENCE] App ambience permission GRANTED - checking if should start ambient
+ LOG  [AUDIO_CADENCE] App ambience permission GRANTED but skipping start reason=on_individual_activity_page
+ LOG  [TRACE CHAT] Params: {}
+ LOG  🔑 SUPABASE USER ID: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [AmbientMiniPlayer] On blacklisted activity - returning null immediately
+ LOG  [Basin] Video loaded
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [Basin] Ocean waves audio loaded
+ LOG  [AUDIO_CADENCE] stop_all executed
+ LOG  [AudioContext.stop] ✅ Stopped
+ LOG  [TRACE CHAT] Params: {}
+ LOG  🔑 SUPABASE USER ID: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [AmbientMiniPlayer] On blacklisted activity - returning null immediately
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  🔥🔥🔥 [ACTIVITY LOG] Logging new activity: {"createdAt": "2026-02-03T20:37:29.728Z", "durationMinutes": 0, "energyShift": null, "id": "activity-2026-02-03T20:37:29.728Z-3bp7m7", "kind": "audio", "label": "Basin", "sourceScreen": "basin"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0", "completedActivity": "Basin"}
+
