@@ -10019,12 +10019,12 @@ app.post('/api/journal/reflection', async (req, res) => {
       contextPrompt += `\n\nThey've completed ${activitiesCount} wellness activity/activities this week.`;
     }
 
-    contextPrompt += `\n\nGenerate a brief, warm reflection (1-2 sentences) that acknowledges their journey. Be observant and affirming, not generic.`;
+    contextPrompt += `\n\nGenerate a brief recap (1-2 sentences) noting the patterns or themes you see. Sound observant, not interpretive. Use phrases like "Recent entries touched on..." or "A pattern: ...". AVOID: "journey", "navigating", "holding space".`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'You are TRACE. Generate warm, personal reflections based on user context. Be concise and genuine.' },
+        { role: 'system', content: 'You are TRACE. Generate grounded, factual recaps based on user context. Sound observant, not therapeutic. Think: Spotify Wrapped + Apple Health insights.' },
         { role: 'user', content: contextPrompt },
       ],
       temperature: 0.7,
@@ -14522,7 +14522,7 @@ app.post('/api/journal-reflection', async (req, res) => {
     if (!entries || !Array.isArray(entries) || entries.length === 0) {
       return res.json({
         ok: true,
-        reflection: "This page is still quiet. Whenever it feels right to write, I'll be here to notice what's unfolding with you.",
+        reflection: "No journal entries yet. Once you start writing, patterns will start to show up here.",
       });
     }
 
@@ -14558,20 +14558,22 @@ app.post('/api/journal-reflection', async (req, res) => {
     if (localDate) contextParts.push(`Date: ${localDate}`);
     const contextLine = contextParts.length ? contextParts.join(', ') : '';
 
-    const systemPrompt = `You are TRACE, offering a 1–2 sentence reflection on the emotional themes in recent journal entries.
+    const systemPrompt = `You are TRACE, providing a 1–2 sentence recap of patterns in recent journal entries.
 mode: journal_reflection
 
-Tone: gentle, validating, non-directive.
+Tone: grounded, observational, factual.
 - No advice, no questions.
 - No clinical labels. Never mention "symptoms" or "treatment".
-- Focus on emotional themes, pacing, and what seems to matter to the user.
-- Just noticing and validation.`;
+- Focus on topics, themes, and recurring patterns.
+- Sound observant, not interpretive.
+- Use phrases like: "Recent entries touched on...", "A pattern: ...", "Topics included..."
+- AVOID: "navigating", "holding space", "emotional landscape", "unfolding", "journey"`;
 
     const userPrompt = `${contextLine ? contextLine + '\n' : ''}${timeSpan ? timeSpan + '\n' : ''}
 Recent journal entries:
 ${entrySummary}
 
-In 1–2 sentences, gently reflect what you notice about this person's recent emotional landscape. No questions, no advice, just noticing and validation.`;
+In 1–2 sentences, note what patterns or themes you see in these entries. Just the facts, no interpretation.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -14585,7 +14587,7 @@ In 1–2 sentences, gently reflect what you notice about this person's recent em
 
     const reflection =
       completion?.choices?.[0]?.message?.content?.trim() ||
-      "You're showing up for yourself in small, brave ways. That matters.";
+      "Not enough journal data yet to spot patterns. More entries will help.";
 
     console.log('✅ Journal reflection generated');
     return res.json({
@@ -14596,7 +14598,7 @@ In 1–2 sentences, gently reflect what you notice about this person's recent em
     console.error('❌ /api/journal-reflection error:', err);
     return res.json({
       ok: true,
-      reflection: "You've been carrying a lot. Even noticing your patterns is an act of care.",
+      reflection: "Couldn't generate a journal recap right now. Try again later.",
     });
   }
 });

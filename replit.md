@@ -94,7 +94,7 @@ All TRACE summaries use a grounded, observational tone—not therapeutic or poet
 - "Quiet strength", "meaningful step", "tender"
 
 **Files Updated:**
-- `server/index.js`: Last-hour recap, patterns-reflection, full-reflection, stress-echoes, and all pattern fallback messages
+- `server/index.js`: Last-hour recap, patterns-reflection, full-reflection, stress-echoes, journal/reflection, journal-reflection, and all pattern fallback messages
 - `server/privacy.js`: Privacy-preserving summarizer
 - `server/traceWeeklyLetter.js`: Weekly letter
 - `server/coreMemory.js`: Session summary
