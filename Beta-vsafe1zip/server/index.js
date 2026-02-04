@@ -109,6 +109,7 @@ const {
   getUserPatternStats
 } = require('./patternConsent');
 const { buildEmotionalIntelligenceContext } = require('./emotionalIntelligence');
+const { processIntent: processCoginitiveIntent, gateScript } = require('./cognitiveEngine');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
 const { evaluateAtmosphere } = require('./atmosphereEngine');
 const {
@@ -4163,6 +4164,24 @@ app.post('/api/chat', async (req, res) => {
     // EARLY AUDIO CONTROL - Stop/Resume music commands bypass LLM for instant response
     const userMessage = rawMessages?.length > 0 ? rawMessages[rawMessages.length - 1].content : '';
     const userMessageLower = (userMessage || '').toLowerCase().trim();
+    
+    // ============================================================
+    // 🧠 COGNITIVE ENGINE: Pre-process intent before response generation
+    // Detects topic shifts, gates scripts, maintains context continuity
+    // ============================================================
+    const cognitiveIntent = processCoginitiveIntent({
+      currentMessage: userMessage,
+      conversationHistory: rawMessages || [],
+      sessionState: {
+        mode: isEarlyCrisisMode ? 'crisis' : 'normal',
+        last_activity: safeClientState.lastActivity || null,
+        awaiting_reflection: safeClientState.awaitingReflection || false,
+        conversation_phase: safeClientState.conversationPhase || 'active',
+        soundscape_state: safeClientState.soundState || 'presence',
+        user_sentiment_recent: safeClientState.userSentiment || null
+      }
+    });
+    console.log('[COGNITIVE ENGINE] Intent:', JSON.stringify(cognitiveIntent));
     const stopsMusic = /^stop\s*(the\s*)?(music|audio|sound|playing)|^pause\s*(the\s*)?(music|audio)|^turn\s*off\s*(the\s*)?(music|audio)|^mute|^silence|^quiet$/i.test(userMessageLower);
     const resumesMusic = /^resume\s*(the\s*)?(music|audio)|^play\s*(the\s*)?(music|audio)|^unpause|^unmute|^turn\s*on\s*(the\s*)?(music|audio)|^start\s*(the\s*)?(music|audio)/i.test(userMessageLower);
     
