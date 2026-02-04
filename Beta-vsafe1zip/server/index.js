@@ -110,6 +110,7 @@ const {
 } = require('./patternConsent');
 const { buildEmotionalIntelligenceContext } = require('./emotionalIntelligence');
 const { processIntent: processCoginitiveIntent, gateScript } = require('./cognitiveEngine');
+const { buildVoicePromptInjection, validateResponse } = require('./voiceEngine');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
 const { evaluateAtmosphere } = require('./atmosphereEngine');
 const {
@@ -6592,6 +6593,8 @@ CONTEXT PRESERVATION - SHORT MESSAGES:
 - NEVER ask "What's been on your mind lately?" if you already know what's on their mind from prior messages.
 - Short acknowledgments like "ok" or "yeah" are often responses to what you just said—acknowledge and continue.
 - If they re-greet mid-conversation ("hi" or "hey" again), warmly acknowledge and pick up where you left off.
+
+${buildVoicePromptInjection(cognitiveIntent, rawMessages)}
 
 LONG-FORM CONTENT - RECIPES, STORIES, LISTS:
 - When asked for a recipe, give the COMPLETE recipe with all ingredients and steps. Do not cut off.
