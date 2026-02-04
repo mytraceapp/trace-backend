@@ -319,6 +319,27 @@ function detectSpecificTrackRequest(message) {
   
   const lowerMsg = message.toLowerCase();
   
+  // CRITICAL: Require explicit PLAY INTENT before matching track names
+  // This prevents "I felt euphoria today" from triggering audio playback
+  const PLAY_INTENT_PATTERNS = [
+    /^play\s/,                    // "play euphoria"
+    /^put on\s/,                  // "put on neon promise"  
+    /^can you play\s/,            // "can you play slow tides"
+    /^play me\s/,                 // "play me undertow"
+    /^start\s/,                   // "start tidal house"
+    /^let me hear\s/,             // "let me hear ocean breathing"
+    /^i want to hear\s/,          // "i want to hear midnight underwater"
+    /^i want\s.*\splaying/,       // "i want euphoria playing"
+    /play\s.*(?:track|song)/,     // "play that track" or "play the song"
+  ];
+  
+  const hasPlayIntent = PLAY_INTENT_PATTERNS.some(pattern => pattern.test(lowerMsg));
+  
+  // If no play intent, don't match track names (prevents false positives)
+  if (!hasPlayIntent) {
+    return null;
+  }
+  
   // Check for direct track name mentions
   for (const [alias, trackNumber] of Object.entries(TRACK_NAME_ALIASES)) {
     if (lowerMsg.includes(alias)) {
