@@ -254,7 +254,8 @@ function buildAudioAction(type, options = {}) {
     autoplay = true,
     message = null,
     offerLevel = null,              // NEW: 'SEED' | 'GENTLE' | 'DIRECT'
-    revealName = true               // NEW: whether to show track/playlist name
+    revealName = true,              // NEW: whether to show track/playlist name
+    action = null                   // 'pause' | 'resume' | null
   } = options;
   
   return {
@@ -268,7 +269,8 @@ function buildAudioAction(type, options = {}) {
     autoplay: type === 'open' ? autoplay : false,
     ...(message && { message }),
     ...(offerLevel && { offerLevel }),
-    ...(revealName !== undefined && { revealName })
+    ...(revealName !== undefined && { revealName }),
+    ...(action && { action })       // Include action for stop/resume
   };
 }
 
