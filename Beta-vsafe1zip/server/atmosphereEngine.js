@@ -72,7 +72,7 @@ const FREEZE_DURATION_MS = 90000;
 const NEUTRAL_STREAK_THRESHOLD = 10; // Increased from 3 - require more neutral messages before returning to presence
 const SIGNAL_TIMEOUT_MS = 900000; // 15 minutes (was 5 minutes) - soundscapes persist longer
 const GROUNDING_CLEAR_THRESHOLD = 3; // Increased from 2 - require more clear messages
-const MIN_STATE_PERSIST_MESSAGES = 5; // Minimum messages before allowing return to presence (NEW)
+const MIN_STATE_PERSIST_MESSAGES = 14; // Minimum messages before allowing return to presence (7 tracks * 2 msgs per track avg)
 const INACTIVITY_TIMEOUT_MS = 300000; // 5 minutes - return to ambient after inactivity
 
 // ============================================================
@@ -261,14 +261,35 @@ function evaluateAtmosphere(input) {
   session.last_activity_timestamp = now;
   
   // ============================================================
-  // 🎵 INITIALIZE TO PRESENCE: When cadence is met and we're still on ambient
-  // This is the "soundscape starts" moment - begin with calm baseline
+  // 🎵 INITIALIZE SOUNDSCAPE: When cadence is met and we're still on ambient
+  // BASELINE DETECTION: Score the first message to determine starting soundscape
   // ============================================================
   if (session.current_state === null || session.current_state === undefined) {
-    console.log(`[ATMOSPHERE] Cadence met, initializing to presence (calm baseline soundscape)`);
+    // Score the current message to detect emotional baseline
+    const baselineScores = scoreSignals(currentMessage);
+    console.log(`[ATMOSPHERE] Baseline detection scores: ${JSON.stringify(baselineScores)}`);
+    
+    // Find the highest scoring state (if any signal detected)
+    let initialState = 'presence'; // Default to presence if no strong signals
+    let maxScore = 0;
+    let reason = 'cadence_met_initial_presence';
+    
+    // Priority order: grounding > comfort > reflective > insight > presence
+    const BASELINE_PRIORITY = ['grounding', 'comfort', 'reflective', 'insight'];
+    
+    for (const state of BASELINE_PRIORITY) {
+      const score = baselineScores[state] || 0;
+      if (score > maxScore && score >= 0.5) { // Require at least 0.5 to trigger
+        maxScore = score;
+        initialState = state;
+        reason = `baseline_detected_${state}`;
+      }
+    }
+    
+    console.log(`[ATMOSPHERE] Cadence met, initializing to ${initialState} (baseline: ${reason})`);
     
     updateSessionState(userId, {
-      current_state: 'presence',
+      current_state: initialState,
       last_change_timestamp: now,
       last_activity_timestamp: now,
       neutral_message_streak: 0,
@@ -278,9 +299,9 @@ function evaluateAtmosphere(input) {
     
     return {
       sound_state: {
-        current: 'presence', // Start with calm baseline soundscape
+        current: initialState, // Start with detected baseline soundscape
         changed: true,
-        reason: 'cadence_met_initial_presence',
+        reason: reason,
         cadence: { userMessageCount, assistantMessageCount, met: true }
       }
     };
