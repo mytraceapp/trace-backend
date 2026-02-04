@@ -3947,6 +3947,7 @@ app.post('/api/chat', async (req, res) => {
       deviceId
     );
     console.log('🧠 /api/chat mode=chat_core userId:', userId, 'deviceId:', deviceId);
+    const requestStartTime = Date.now();
     
     // EARLY CRISIS CHECK - block music/lyrics interception during crisis
     // This runs before TRACE Studios to ensure crisis mode takes absolute priority
@@ -6894,6 +6895,9 @@ Your response (text only, no JSON):`;
     }
     
     // LAYER 1: Selected model with retries (skip if premium already handled)
+    const preprocessTime = Date.now() - requestStartTime;
+    console.log(`[TIMING] Pre-processing took ${preprocessTime}ms`);
+    
     const cfg = getConfiguredModel();
     const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
     
@@ -6930,6 +6934,8 @@ Your response (text only, no JSON):`;
           openaiParams.temperature = chatTemperature;
         }
         const response = await openai.chat.completions.create(openaiParams);
+        const openaiDuration = Date.now() - openaiStart;
+        console.log(`[TIMING] OpenAI L1 call took ${openaiDuration}ms (attempt ${attempt})`);
         
         recordOpenAICall(selectedModel, response, chatRequestId, openaiStart);
         if (process.env.NODE_ENV !== 'production') {
@@ -8350,6 +8356,9 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         }
       })();
     }
+    
+    const totalRequestTime = Date.now() - requestStartTime;
+    console.log(`[TIMING] Total chat request took ${totalRequestTime}ms`);
     
     return res.json({ ...finalResponse, deduped: false });
   } catch (error) {
