@@ -8144,6 +8144,10 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     } else if (isLyricsRequest) {
       tightenedText = processedAssistantText;
       console.log('[TRACE BRAIN] Skipping tighten - lyrics request detected');
+    } else if (isLongFormRequest) {
+      // LONG-FORM MODE: Skip tightening for recipes, stories, detailed content
+      tightenedText = processedAssistantText;
+      console.log('[TRACE BRAIN] Skipping tighten - long-form request (recipe/story/list)');
     } else {
       // Apply original tightenResponse for sentence limits
       tightenedText = tightenResponse(processedAssistantText, { maxSentences: todRules.maxSentences });
