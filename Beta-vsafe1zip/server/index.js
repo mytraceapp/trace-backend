@@ -2566,6 +2566,192 @@ function detectLongFormRequest(text) {
   return longFormPatterns.some(p => p.test(t));
 }
 
+// ========== REVELATION-STRUCTURE STORY MODE ==========
+// Detect if user is specifically asking for a story (not sharing their own story)
+function detectStoryRequest(text) {
+  if (!text) return false;
+  const t = text.toLowerCase().trim();
+  
+  // Patterns that REQUEST a story (user wants TRACE to tell one)
+  const storyRequestPatterns = [
+    /^tell me a story/i,
+    /^tell me another story/i,
+    /^can you tell me a story/i,
+    /^i want (to hear )?a story/i,
+    /^give me a story/i,
+    /^story\s*(?:please|pls)?$/i,
+    /^write me a story/i,
+    /^share a story/i,
+    /^got a story/i,
+    /^another story/i,
+    /^one more story/i
+  ];
+  
+  // Patterns where user is SHARING their own story (NOT a request)
+  const userSharingPatterns = [
+    /^my story/i,
+    /^here'?s my story/i,
+    /^the story of my/i,
+    /^let me tell you (my|a) story/i,
+    /^i have a story/i,
+    /^so the story is/i,
+    /^long story short/i,
+    /^funny story/i,
+    /^sad story/i,
+    /^crazy story/i
+  ];
+  
+  // If user is sharing their own story, NOT a story request
+  if (userSharingPatterns.some(p => p.test(t))) {
+    return false;
+  }
+  
+  return storyRequestPatterns.some(p => p.test(t));
+}
+
+// Detect if user has used explicit faith language recently
+function detectFaithLanguage(messages, lookback = 10) {
+  if (!messages || !Array.isArray(messages)) return false;
+  
+  const userMsgs = messages
+    .filter(m => m.role === 'user')
+    .slice(-lookback)
+    .map(m => (m.content || '').toLowerCase());
+  
+  const faithPatterns = [
+    /\bgod\b/i, /\bjesus\b/i, /\bchrist\b/i, /\bbible\b/i, /\bscripture\b/i,
+    /\bpray\b/i, /\bprayer\b/i, /\bfaith\b/i, /\bchurch\b/i, /\bworship\b/i,
+    /\bspiritual\b/i, /\bblessed\b/i, /\bbelieve in\b/i, /\bholy spirit\b/i,
+    /\blord\b/i, /\bamen\b/i, /\bgospel\b/i
+  ];
+  
+  return userMsgs.some(msg => faithPatterns.some(p => p.test(msg)));
+}
+
+// Story theme archetypes (maps to spiritual patterns without naming them)
+const STORY_THEME_ARCHETYPES = [
+  {
+    id: 'thirst',
+    name: 'The Well',
+    description: 'thirst/living water - seeking something that never satisfies',
+    scenes: ['coffee shop', 'late-night scrolling', 'endless shopping', 'dating apps'],
+    needs: ['belonging', 'fulfillment', 'being known'],
+    copingLoop: 'keeps returning to the same source expecting different results'
+  },
+  {
+    id: 'burden',
+    name: 'The Weight',
+    description: 'burden/yoke - carrying too much alone',
+    scenes: ['commute', 'home office', 'hospital hallway', 'single parent morning'],
+    needs: ['rest', 'relief', 'shared weight'],
+    copingLoop: 'keeps pushing harder, believing strength means silence'
+  },
+  {
+    id: 'lost',
+    name: 'The Search',
+    description: 'lost/found - wandering, needing to be truly seen',
+    scenes: ['new city', 'crowded party feeling alone', 'job that feels wrong', 'night drive'],
+    needs: ['direction', 'being found', 'identity'],
+    copingLoop: 'keeps moving, running, changing locations but nothing fits'
+  },
+  {
+    id: 'forgiveness',
+    name: 'The Debt',
+    description: 'forgiveness/release - holding onto something that holds you back',
+    scenes: ['family dinner', 'old photograph', 'text left on read', 'apology never given'],
+    needs: ['release', 'peace', 'closure'],
+    copingLoop: 'replays the moment, rehearses the conversation that never happens'
+  },
+  {
+    id: 'seed',
+    name: 'The Seed',
+    description: 'seed/growth - unseen change, hidden transformation',
+    scenes: ['garden', 'new habit', 'small kindness', 'waiting room'],
+    needs: ['patience', 'trust', 'hope'],
+    copingLoop: 'keeps digging up the seed to check if it\'s growing'
+  }
+];
+
+// Select story theme based on user emotion or rotate
+function selectStoryTheme(recentEmotion, themeHistory = []) {
+  // Map emotions to themes
+  const emotionToTheme = {
+    'anxious': 'burden',
+    'stressed': 'burden',
+    'overwhelmed': 'burden',
+    'tired': 'burden',
+    'lonely': 'lost',
+    'disconnected': 'lost',
+    'lost': 'lost',
+    'empty': 'thirst',
+    'unfulfilled': 'thirst',
+    'restless': 'thirst',
+    'stuck': 'seed',
+    'waiting': 'seed',
+    'frustrated': 'forgiveness',
+    'resentful': 'forgiveness',
+    'bitter': 'forgiveness',
+    'angry': 'forgiveness'
+  };
+  
+  // Try to match emotion
+  if (recentEmotion) {
+    const emotionLower = recentEmotion.toLowerCase();
+    for (const [emotion, themeId] of Object.entries(emotionToTheme)) {
+      if (emotionLower.includes(emotion)) {
+        return STORY_THEME_ARCHETYPES.find(t => t.id === themeId);
+      }
+    }
+  }
+  
+  // Rotate through themes if no emotion match
+  const usedIds = themeHistory.slice(-3);
+  const available = STORY_THEME_ARCHETYPES.filter(t => !usedIds.includes(t.id));
+  const pool = available.length > 0 ? available : STORY_THEME_ARCHETYPES;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// Build the revelation-structure story prompt
+function buildRevelationStoryPrompt(theme, faithAllowed) {
+  return `
+=== STORY MODE: REVELATION-STRUCTURE PARABLE ===
+
+You are telling a story. This is NOT advice-giving or emotional support. This is STORYTELLING.
+
+STRUCTURE (follow this exactly):
+1. ORDINARY SCENE: Start in a mundane, relatable setting (${theme.scenes.join(' / ')}).
+2. THE THIRST: The character has a need (${theme.needs.join(' / ')}).
+3. THE LOOP: They keep returning to the same coping mechanism that never truly satisfies (${theme.copingLoop}).
+4. THE ENCOUNTER: A quiet stranger (not magical, not preachy) asks a simple question that lingers.
+5. THE SHIFT: The turning point is NOT advice—it's a shift in seeing. The character realizes something about what they were really seeking.
+6. THE REVEAL: One line at the end that reframes the whole story through metaphor. This is the "aha" moment.
+   - Example: "It wasn't the water that changed. It was what she was really thirsty for."
+7. THE MORAL: 1 sentence only. Coded as quiet insight, not instruction. No preaching.
+8. REFLECTION: Exactly 2 questions, subtle and open-ended.
+9. TINY STEP: 1 small, concrete practice the listener could try.
+
+LANGUAGE RULES (CRITICAL):
+- NO religious vocabulary: No Jesus, God, Bible, scripture, salvation, sin, prayer, worship, church, Holy Spirit, gospel, blessed, amen.
+- NO quoting or referencing religious texts.
+- NO spiritual buzzwords. Keep it HUMAN.
+- The moral must NOT sound like a sermon. It should sound like quiet clarity.
+- The reveal must feel like it could be missed if you're not paying attention.
+
+TONE:
+- Tell the story simply, like a friend sharing something that happened.
+- Let the story breathe. Don't rush.
+- The power is in what's left unsaid.
+
+${faithAllowed ? `
+OPTIONAL FAITH BRIDGE (only add if appropriate):
+Since this user has used faith language recently, you MAY add ONE final line after the tiny step:
+"If you want a faith lens, I can tell you what this echoes."
+Do NOT provide the reference unless they explicitly ask.
+` : ''}
+
+Now tell a story using the "${theme.name}" archetype. Begin directly—no preamble like "Here's a story" or "Let me tell you about...". Just start.`;
+}
+
 // Detect if user is referencing prior context (frustrated that TRACE doesn't remember)
 function detectContextReference(text) {
   if (!text) return false;
@@ -4242,6 +4428,24 @@ app.post('/api/chat', async (req, res) => {
     
     // Detect if user is referencing prior context ("u know", "i just told u", etc.)
     const isContextReference = detectContextReference(userText);
+    
+    // ========== REVELATION-STRUCTURE STORY MODE ==========
+    // Detect if user is specifically requesting a story (not sharing their own)
+    const isStoryRequest = detectStoryRequest(userText);
+    const faithAllowed = isStoryRequest ? detectFaithLanguage(rawMessages, 10) : false;
+    
+    // Select story theme based on recent emotion or rotate
+    let storyMode = null;
+    let selectedTheme = null;
+    if (isStoryRequest && !isCrisisMode) {
+      // Get recent emotion from client state or messages
+      const recentEmotion = req.body.client_state?.recentSentiment || 
+                           req.body.client_state?.detected_state || 
+                           null;
+      selectedTheme = selectStoryTheme(recentEmotion);
+      storyMode = 'revelation_parable';
+      console.log(`[STORY_MODE] revelation_parable theme=${selectedTheme.id} faithAllowed=${faithAllowed}`);
+    }
     
     // ========== SEXUAL/ROMANTIC CONTENT GATE ==========
     // Detect and block before calling OpenAI
@@ -6390,6 +6594,14 @@ IMPORTANT - LONG-FORM REQUEST DETECTED:
 The user is asking for detailed content (recipe, story, list, etc.). 
 Give a COMPLETE response. Do NOT cut off mid-sentence or skip steps.
 Include all necessary details. The response can be long—that's what they want.`;
+      }
+      
+      // ========== REVELATION-STRUCTURE STORY MODE ==========
+      // Inject special story prompt when user requests a story
+      if (storyMode === 'revelation_parable' && selectedTheme) {
+        const storyPrompt = buildRevelationStoryPrompt(selectedTheme, faithAllowed);
+        systemPrompt += storyPrompt;
+        console.log('[STORY_MODE] Injected revelation-structure prompt for theme:', selectedTheme.name);
       }
       
       // Add extra instruction when user references prior context

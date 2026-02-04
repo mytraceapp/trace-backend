@@ -1,0 +1,51 @@
+tell me what your current story handler is called (or paste the current story prompt block
+
+In the Replit backend, update TRACE’s story responses so that when a user asks “tell me a story”, TRACE generates an ultra-subtle “revelation-structure” parable.
+
+Constraints:
+- Do NOT change audio cadence, activity logic, navigation transitions, chat initialization, or any non-story responses.
+- Only modify story generation behavior when a user requests a story.
+- Preserve existing safety/crisis handling: if crisis intent is detected, do not tell a story; follow existing crisis flow.
+
+Goal:
+Stories should feel like ordinary human narratives first. The “meaning” should only become clear at the end through a subtle reveal—without religious vocabulary. The user should be able to miss it if they’re not listening for it.
+
+Story spec (Revelation-Structure):
+1) Ordinary scene (coffee shop, laundromat, night drive, hospital hallway, shoreline, checkout line).
+2) A “thirst” or need (belonging, peace, relief, being seen).
+3) A repeated coping loop (same well/jar/route) that never satisfies.
+4) A quiet encounter with a “stranger” who asks a simple question (not preachy).
+5) The turning point is NOT advice; it’s a shift in seeing.
+6) Reveal ending: one line that reframes the whole story via metaphor, but still secular.
+   - Example structure: “It wasn’t the water that changed. It was what she was really thirsty for.”
+7) Moral: 1 sentence, coded as insight (not instruction), without naming theology.
+8) Reflection: 2 questions max, subtle.
+9) Tiny step: 1 small practice.
+
+Language rules:
+- No mention of Jesus, God, Bible, scripture, salvation, sin, prayer, worship, church, etc.
+- No quoting or referencing verses.
+- Avoid “spiritual” buzzwords. Keep it human.
+- The “moral” must not sound like a sermon. It should sound like quiet clarity.
+
+Optional deeper reveal (only if user invites it):
+- If the user has used explicit faith language in the last 10 messages (e.g., “God”, “Jesus”, “Bible”, “pray”), then add ONE optional final line:
+  “If you want a faith lens, I can tell you what this echoes.”
+But do not provide the reference unless the user explicitly asks.
+
+Implementation:
+A) Find where stories are generated (likely server/traceBrain.js). Search for story intent routing keywords.
+B) Add a dedicated generator prompt template for this mode: STORY_MODE="revelation_parable".
+C) Implement theme archetypes that map to Jesus-style patterns without naming them:
+   - thirst/“living water” -> modern thirst loop + encounter + reframe
+   - burden/yoke -> carrying too much + shared weight + reframe
+   - lost/found -> being known + reframe
+   - forgiveness/debt -> release + reframe
+   - seed/growth -> unseen change + reframe
+D) Theme selection:
+   - Infer theme from recent user emotion if available; otherwise rotate themes.
+E) Add debug log: [STORY_MODE] revelation_parable theme=<theme> faithAllowed=<bool>
+
+Deliverables:
+- Provide diffs with exact edits and file names.
+- Confirm story routing does not trigger when user says “my story is…” (avoid false positives).
