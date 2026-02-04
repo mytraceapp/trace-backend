@@ -72,8 +72,9 @@ const FREEZE_DURATION_MS = 90000;
 const NEUTRAL_STREAK_THRESHOLD = 10; // Increased from 3 - require more neutral messages before returning to presence
 const SIGNAL_TIMEOUT_MS = 900000; // 15 minutes (was 5 minutes) - soundscapes persist longer
 const GROUNDING_CLEAR_THRESHOLD = 3; // Increased from 2 - require more clear messages
-const MIN_STATE_PERSIST_MESSAGES = 14; // Minimum messages before allowing return to presence (7 tracks * 2 msgs per track avg)
+const MIN_STATE_PERSIST_MESSAGES = 14; // Minimum messages before allowing state switch (7 tracks * 2 msgs per track avg)
 const INACTIVITY_TIMEOUT_MS = 300000; // 5 minutes - return to ambient after inactivity
+const BASELINE_WINDOW_MESSAGES = 4; // Accumulate signals over first 4 messages before making initial switch
 
 // ============================================================
 // SESSION STATE STORAGE (in-memory, keyed by userId)
@@ -92,7 +93,11 @@ function getSessionState(userId) {
       grounding_clear_streak: 0,
       freeze_until_timestamp: null,
       messages_since_state_change: 0, // Track messages in current state for persistence
-      last_activity_timestamp: 0      // 🎵 Track last activity for inactivity reset
+      last_activity_timestamp: 0,     // 🎵 Track last activity for inactivity reset
+      // Baseline detection: accumulate signals over first few messages
+      baseline_window_active: true,   // True until first intelligent switch made
+      baseline_message_count: 0,      // Messages since session start
+      accumulated_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0 } // Accumulated scores
     });
   }
   return sessionStates.get(userId);
@@ -262,46 +267,28 @@ function evaluateAtmosphere(input) {
   
   // ============================================================
   // 🎵 INITIALIZE SOUNDSCAPE: When cadence is met and we're still on ambient
-  // BASELINE DETECTION: Score the first message to determine starting soundscape
+  // Start at presence - accumulate signals over first few messages
   // ============================================================
   if (session.current_state === null || session.current_state === undefined) {
-    // Score the current message to detect emotional baseline
-    const baselineScores = scoreSignals(currentMessage);
-    console.log(`[ATMOSPHERE] Baseline detection scores: ${JSON.stringify(baselineScores)}`);
-    
-    // Find the highest scoring state (if any signal detected)
-    let initialState = 'presence'; // Default to presence if no strong signals
-    let maxScore = 0;
-    let reason = 'cadence_met_initial_presence';
-    
-    // Priority order: grounding > comfort > reflective > insight > presence
-    const BASELINE_PRIORITY = ['grounding', 'comfort', 'reflective', 'insight'];
-    
-    for (const state of BASELINE_PRIORITY) {
-      const score = baselineScores[state] || 0;
-      if (score > maxScore && score >= 0.5) { // Require at least 0.5 to trigger
-        maxScore = score;
-        initialState = state;
-        reason = `baseline_detected_${state}`;
-      }
-    }
-    
-    console.log(`[ATMOSPHERE] Cadence met, initializing to ${initialState} (baseline: ${reason})`);
+    console.log(`[ATMOSPHERE] Cadence met, initializing to presence (baseline window open for ${BASELINE_WINDOW_MESSAGES} messages)`);
     
     updateSessionState(userId, {
-      current_state: initialState,
+      current_state: 'presence',
       last_change_timestamp: now,
       last_activity_timestamp: now,
       neutral_message_streak: 0,
       grounding_clear_streak: 0,
-      messages_since_state_change: 0
+      messages_since_state_change: 0,
+      baseline_window_active: true,
+      baseline_message_count: 0,
+      accumulated_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0 }
     });
     
     return {
       sound_state: {
-        current: initialState, // Start with detected baseline soundscape
+        current: 'presence', // Start calm - will switch if signals accumulate
         changed: true,
-        reason: reason,
+        reason: 'cadence_met_initial_presence',
         cadence: { userMessageCount, assistantMessageCount, met: true }
       }
     };
@@ -330,7 +317,10 @@ function evaluateAtmosphere(input) {
     neutral_message_streak,
     grounding_clear_streak,
     freeze_until_timestamp,
-    messages_since_state_change
+    messages_since_state_change,
+    baseline_window_active,
+    baseline_message_count,
+    accumulated_signals
   } = session;
   
   // Increment message counter for current state
@@ -392,6 +382,84 @@ function evaluateAtmosphere(input) {
   } else {
     newNeutralStreak = 0;
     newSignalTimestamp = now;
+  }
+  
+  // ============================================================
+  // 🎯 BASELINE WINDOW: Accumulate signals over first few messages
+  // Make intelligent switch once we have enough emotional context
+  // ============================================================
+  
+  if (baseline_window_active && current_state === 'presence') {
+    const newBaselineCount = (baseline_message_count || 0) + 1;
+    
+    // Accumulate this message's scores
+    const newAccumulated = { ...accumulated_signals };
+    for (const state of ['grounding', 'comfort', 'reflective', 'insight']) {
+      newAccumulated[state] = (newAccumulated[state] || 0) + (scores[state] || 0);
+    }
+    
+    console.log(`[ATMOSPHERE] 📊 Baseline window: message ${newBaselineCount}/${BASELINE_WINDOW_MESSAGES}, accumulated=${JSON.stringify(newAccumulated)}`);
+    
+    // Check if we should make an intelligent switch
+    // Can trigger early if strong signal detected, otherwise wait for window to complete
+    const hasStrongSignal = maxScore >= 2.0; // Strong enough for immediate switch
+    const windowComplete = newBaselineCount >= BASELINE_WINDOW_MESSAGES;
+    
+    if (hasStrongSignal || windowComplete) {
+      // Find highest accumulated signal
+      let bestState = null;
+      let bestScore = 0;
+      const BASELINE_PRIORITY = ['grounding', 'comfort', 'reflective', 'insight'];
+      
+      for (const state of BASELINE_PRIORITY) {
+        const accumulated = newAccumulated[state] || 0;
+        // Require minimum accumulated score to trigger (1.0 = at least one keyword match)
+        if (accumulated > bestScore && accumulated >= 1.0) {
+          bestScore = accumulated;
+          bestState = state;
+        }
+      }
+      
+      if (bestState) {
+        console.log(`[ATMOSPHERE] 🎯 Baseline switch: ${current_state} → ${bestState} (accumulated: ${bestScore.toFixed(1)})`);
+        
+        updateSessionState(userId, {
+          current_state: bestState,
+          last_change_timestamp: now,
+          messages_since_state_change: 0,
+          baseline_window_active: false, // Window closes after switch
+          baseline_message_count: newBaselineCount,
+          accumulated_signals: newAccumulated,
+          neutral_message_streak: 0,
+          last_signal_timestamp: now,
+          state_change_history: [...state_change_history.slice(-10), now]
+        });
+        
+        return {
+          sound_state: {
+            current: bestState,
+            changed: true,
+            reason: `baseline_detected_${bestState}`,
+            accumulated_score: bestScore,
+            cadence: { userMessageCount, assistantMessageCount, met: true }
+          }
+        };
+      } else if (windowComplete) {
+        // No emotional signals detected, close window and stay in presence
+        console.log(`[ATMOSPHERE] 📊 Baseline window complete: no signals detected, staying in presence`);
+        updateSessionState(userId, {
+          baseline_window_active: false,
+          baseline_message_count: newBaselineCount,
+          accumulated_signals: newAccumulated
+        });
+      }
+    } else {
+      // Still collecting, update counters
+      updateSessionState(userId, {
+        baseline_message_count: newBaselineCount,
+        accumulated_signals: newAccumulated
+      });
+    }
   }
   
   // ============================================================
