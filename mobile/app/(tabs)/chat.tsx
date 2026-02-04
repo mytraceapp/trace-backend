@@ -1995,10 +1995,10 @@ export default function ChatScreen() {
         console.log('🎵 All audio sources stopped');
       } else if (audioAction?.type === 'resume') {
         // User asked TRACE to resume the music
-        console.log('🎵 TRACE audio_action: resume - resuming soundscape');
+        console.log('🎵 TRACE audio_action: resume - resuming audio');
         
-        // Resume with presence state (default calm atmosphere)
-        if (audioAction.source === 'soundscape') {
+        // Resume last played audio or default to presence soundscape
+        if (audioAction.source === 'last_played' || audioAction.source === 'soundscape') {
           console.log('🎵 Resuming soundscape via handleSoundState');
           await handleSoundState({ 
             current: 'presence', 

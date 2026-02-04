@@ -3974,52 +3974,53 @@ app.post('/api/chat', async (req, res) => {
     
     // 🎵 AUDIO CONTROL: DISABLED FOR NOW - needs debugging
     // Feature was having issues with different code paths intercepting requests
-    // TODO: Re-enable when properly debugged
-    /*
+    // EARLY AUDIO CONTROL - Stop/Resume music commands bypass LLM for instant response
     const userMessage = rawMessages?.length > 0 ? rawMessages[rawMessages.length - 1].content : '';
-    const userMessageLower = (userMessage || '').toLowerCase();
-    const stopsMusic = /stop.*music|pause.*music|turn off.*music|mute.*music|no music|stop the music|pause the music/i.test(userMessageLower);
-    const resumesMusic = /play.*music|resume.*music|start.*music|unpause.*music|turn on.*music|unmute.*music|play the music|resume the music|start the music/i.test(userMessageLower);
+    const userMessageLower = (userMessage || '').toLowerCase().trim();
+    const stopsMusic = /^stop\s*(the\s*)?(music|audio|sound|playing)|^pause\s*(the\s*)?(music|audio)|^turn\s*off\s*(the\s*)?(music|audio)|^mute|^silence|^quiet$/i.test(userMessageLower);
+    const resumesMusic = /^resume\s*(the\s*)?(music|audio)|^play\s*(the\s*)?(music|audio)|^unpause|^unmute|^turn\s*on\s*(the\s*)?(music|audio)|^start\s*(the\s*)?(music|audio)/i.test(userMessageLower);
     
-    console.log(`[AUDIO CONTROL] stopsMusic: ${stopsMusic}, resumesMusic: ${resumesMusic}`);
+    if (stopsMusic || resumesMusic) {
+      console.log(`[AUDIO CONTROL] stopsMusic: ${stopsMusic}, resumesMusic: ${resumesMusic}`);
+    }
     
-    let earlyAudioAction = null;
     if (stopsMusic) {
-      earlyAudioAction = {
+      const stopAudioAction = {
         type: 'stop',
-        source: 'soundscape',
+        action: 'pause',
+        source: 'all',
         reason: 'user_requested'
       };
-      console.log('[AUDIO CONTROL] Stop music detected, returning early with audio_action');
+      console.log('[AUDIO CONTROL] Stop music detected - stopping ALL audio immediately');
       return res.json({
         ok: true,
         requestId,
         message: "Done.",
-        audio_action: earlyAudioAction,
+        audio_action: stopAudioAction,
         activity_suggestion: { name: null, should_navigate: false },
         posture: 'STEADY',
         detected_state: 'neutral',
-        sound_state: { current: null, changed: false, reason: 'user_stopped' }
+        sound_state: { current: null, changed: true, reason: 'user_stopped' }
       });
     } else if (resumesMusic) {
-      earlyAudioAction = {
+      const resumeAudioAction = {
         type: 'resume',
-        source: 'soundscape',
+        action: 'resume',
+        source: 'last_played',
         reason: 'user_requested'
       };
-      console.log('[AUDIO CONTROL] Resume music detected, returning early with audio_action');
+      console.log('[AUDIO CONTROL] Resume music detected - resuming last played audio');
       return res.json({
         ok: true,
         requestId,
-        message: "Bringing it back now.",
-        audio_action: earlyAudioAction,
+        message: "Playing.",
+        audio_action: resumeAudioAction,
         activity_suggestion: { name: null, should_navigate: false },
         posture: 'STEADY',
         detected_state: 'neutral',
         sound_state: { current: 'presence', changed: true, reason: 'user_resumed' }
       });
     }
-    */
     
     // TRACE Studios interception - music/lyrics conversations (BLOCKED in crisis mode)
     const studiosUserMsg = rawMessages?.filter(m => m.role === 'user').pop();
