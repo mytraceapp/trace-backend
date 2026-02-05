@@ -6918,7 +6918,7 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
     // ============================================================
     // CONVERSATION STATE LAYER: Track stage + move type to prevent repetitive probing
     // ============================================================
-    const convoState = conversationState.getState(visitorId);
+    const convoState = conversationState.getState(effectiveUserId);
     const userHadContent = conversationState.advanceStage(convoState, lastUserContent);
     
     console.log(`[CONVO_STATE] Before: { stage: ${convoState.stage}, lastMove: ${convoState.lastMoveType}, topics: [${convoState.lastTopicKeywords.join(', ')}], userHadContent: ${userHadContent} }`);
@@ -8591,7 +8591,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     // ============================================================
     // CONVERSATION STATE: Validate response and enforce rules
     // ============================================================
-    if (response.message && visitorId) {
+    if (response.message && effectiveUserId) {
       // Check if response violates probe rules
       const violatesRules = conversationState.violatesProbeRules(response.message, convoState, userHadContent);
       
@@ -8601,8 +8601,8 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
       
       // Update state after response
-      conversationState.updateStateAfterResponse(visitorId, response.message);
-      conversationState.saveState(visitorId, convoState);
+      conversationState.updateStateAfterResponse(effectiveUserId, response.message);
+      conversationState.saveState(effectiveUserId, convoState);
     }
     
     // VOICE ENGINE POST-PROCESSING: Additional cleanup
