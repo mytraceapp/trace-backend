@@ -36,6 +36,21 @@ const BANNED_PHRASES = [
   'in terms of', 'at the end of the day'
 ];
 
+// CRITICAL: Lazy/generic questions that reset conversations
+// These destroy intimacy and make TRACE feel like a chatbot
+const LAZY_GENERIC_QUESTIONS = [
+  'what\'s on your mind',
+  'what\'s been on your mind',
+  'what are you thinking',
+  'what brings you here',
+  'how are you feeling today',
+  'what would you like to talk about',
+  'is there anything you\'d like to share',
+  'what\'s going on with you',
+  'tell me more about how you\'re feeling',
+  'how can I support you'
+];
+
 // TRACE voice characteristics
 const VOICE_MARKERS = {
   // Grounded openers (not "hi!" energy)
@@ -79,6 +94,79 @@ const RESPONSE_TONE_MAP = {
 function containsBannedPhrases(text) {
   const lower = text.toLowerCase();
   return BANNED_PHRASES.filter(phrase => lower.includes(phrase.toLowerCase()));
+}
+
+/**
+ * Check if response contains lazy generic questions
+ */
+function containsLazyQuestion(text) {
+  const lower = text.toLowerCase();
+  return LAZY_GENERIC_QUESTIONS.filter(phrase => lower.includes(phrase));
+}
+
+/**
+ * Extract meaningful topics from recent conversation history
+ * Returns array of topic snippets that TRACE can reference
+ */
+function extractRecentTopics(recentHistory = []) {
+  if (!recentHistory || recentHistory.length < 2) return [];
+  
+  const topics = [];
+  const userMessages = recentHistory
+    .filter(m => m.role === 'user')
+    .slice(-5) // Last 5 user messages
+    .map(m => m.content || '');
+  
+  // Extract key phrases/topics from user messages
+  for (const msg of userMessages) {
+    const lower = msg.toLowerCase();
+    
+    // Skip very short messages
+    if (msg.length < 10) continue;
+    
+    // Look for emotional content
+    if (/feeling|felt|feel\s/i.test(msg)) {
+      const match = msg.match(/(?:feeling|felt|feel)\s+(\w+(?:\s+\w+)?)/i);
+      if (match) topics.push(`feeling ${match[1]}`);
+    }
+    
+    // Look for topics they mentioned
+    if (/about\s+(my|the|a)\s+/i.test(msg)) {
+      const match = msg.match(/about\s+(my|the|a)\s+(\w+(?:\s+\w+)?)/i);
+      if (match) topics.push(match[0]);
+    }
+    
+    // Work/job mentions
+    if (/work|job|boss|coworker|office/i.test(msg)) {
+      topics.push('work');
+    }
+    
+    // Relationship mentions
+    if (/mom|dad|parent|brother|sister|friend|partner|boyfriend|girlfriend|wife|husband/i.test(msg)) {
+      const match = msg.match(/\b(mom|dad|parent|brother|sister|friend|partner|boyfriend|girlfriend|wife|husband)\b/i);
+      if (match) topics.push(match[1].toLowerCase());
+    }
+    
+    // Sleep mentions
+    if (/sleep|tired|exhausted|insomnia|can't sleep|couldn't sleep/i.test(msg)) {
+      topics.push('sleep');
+    }
+    
+    // Anxiety/stress mentions
+    if (/anxious|anxiety|stressed|overwhelmed|worried/i.test(msg)) {
+      topics.push('stress/anxiety');
+    }
+    
+    // Specific events
+    if (/yesterday|today|this morning|last night|earlier/i.test(msg)) {
+      const match = msg.match(/(yesterday|today|this morning|last night|earlier)[\s,]+(.{10,40})/i);
+      if (match) topics.push(`${match[1]}: ${match[2].trim()}`);
+    }
+  }
+  
+  // Deduplicate and limit
+  const unique = [...new Set(topics)].slice(0, 4);
+  return unique;
 }
 
 /**
@@ -173,6 +261,10 @@ function buildVoicePromptInjection(intent, recentHistory = []) {
   const { response_type, is_short_message, topic_shift, primary_emotional_context } = intent;
   const tone = RESPONSE_TONE_MAP[response_type] || RESPONSE_TONE_MAP.presence;
   
+  // Extract topics they've been discussing
+  const recentTopics = extractRecentTopics(recentHistory);
+  const hasConversationContext = recentHistory && recentHistory.length >= 4;
+  
   let voiceGuidance = `
 VOICE STYLE:
 - Speak grounded, not upbeat
@@ -183,10 +275,38 @@ VOICE STYLE:
 - Never use therapist phrases like "I hear you", "that sounds like", "let's explore"
 `;
 
+  // CRITICAL: Anti-lazy-question guidance
+  if (hasConversationContext) {
+    voiceGuidance += `
+CRITICAL - CONVERSATION MEMORY:
+You are mid-conversation. DO NOT ask generic questions like:
+- "What's on your mind?"
+- "What's been on your mind?"
+- "How are you feeling today?"
+- "What would you like to talk about?"
+
+These questions destroy intimacy. You already KNOW what's on their mind from prior messages.
+Instead, REFERENCE what they've been sharing. Continue the thread.
+`;
+
+    if (recentTopics.length > 0) {
+      voiceGuidance += `
+TOPICS THEY'VE MENTIONED: ${recentTopics.join(', ')}
+Reference these naturally. Ask about specifics, not generics.
+Instead of "What's on your mind?" try:
+- "how's that going?" (referencing what they mentioned)
+- "still thinking about that?"
+- "did anything change with [topic]?"
+- Or just... continue the thought. No question needed.
+`;
+    }
+  }
+
   if (is_short_message) {
     voiceGuidance += `
 - User sent a short message - treat as continuation, not a new topic
 - Respond briefly, stay in current emotional thread
+- Do NOT ask "What's on your mind?" - they just said something, respond to it
 `;
   }
 
@@ -233,10 +353,21 @@ function validateResponse(response, intent, recentHistory = []) {
   const issues = [];
   let corrected = response;
   
+  const hasConversationContext = recentHistory && recentHistory.length >= 4;
+  
   // Check for banned phrases
   const banned = containsBannedPhrases(response);
   if (banned.length > 0) {
     issues.push(`Contains banned phrases: ${banned.join(', ')}`);
+  }
+  
+  // Check for lazy generic questions (only flag if we have conversation context)
+  if (hasConversationContext) {
+    const lazy = containsLazyQuestion(response);
+    if (lazy.length > 0) {
+      issues.push(`Contains lazy generic question: "${lazy[0]}" - should reference prior conversation instead`);
+      console.log(`[VOICE] ⚠️ LAZY QUESTION DETECTED: "${lazy[0]}" - TRACE should reference what user already shared`);
+    }
   }
   
   // Check for conversation restart
@@ -268,7 +399,10 @@ module.exports = {
   validateResponse,
   isConversationRestart,
   containsBannedPhrases,
+  containsLazyQuestion,
+  extractRecentTopics,
   BANNED_PHRASES,
+  LAZY_GENERIC_QUESTIONS,
   VOICE_MARKERS,
   RESPONSE_TONE_MAP
 };
