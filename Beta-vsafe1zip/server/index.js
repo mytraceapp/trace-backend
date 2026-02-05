@@ -8346,15 +8346,15 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
 
       // Phase 4.5: Structured metrics (guarded by TRACE_INTENT_LOG=1)
       if (process.env.TRACE_INTENT_LOG === '1') {
-        const schemaRan = schemaResult && !schemaResult.skipped;
-        const schemaFailed = schemaRan && !schemaResult.ok;
-        const rewriteAttempted = schemaFailed && schemaEnforcementActive;
+        const _schemaRan = schemaResult && !schemaResult.skipped;
+        const _schemaFailed = _schemaRan && !schemaResult.ok;
+        const _rewriteAttempted = _schemaFailed && schemaEnforcementActive;
         const metrics = buildSchemaMetrics({
           requestId: chatRequestId,
           userId: effectiveUserId,
-          schemaRan,
-          schemaFailed,
-          rewriteAttempted,
+          schemaRan: _schemaRan,
+          schemaFailed: _schemaFailed,
+          rewriteAttempted: _rewriteAttempted,
           rewriteSucceeded: schemaRewriteUsed,
           violations: schemaResult.violations,
           severity: schemaResult.severity,
@@ -8367,15 +8367,44 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     }
 
+    // ===== PHASE 4.6: Per-request schema context =====
+    const schemaRan = !!(schemaResult && !schemaResult.skipped);
+    const schemaPassed = schemaRan && schemaResult.ok;
+    const schemaRewriteAttempted = schemaRan && !schemaResult?.ok && schemaEnforcementActive;
+    const schemaCtx = {
+      schemaEligible: useV2 && !isCrisisMode && !isOnboardingActive,
+      schemaEnforcementEnabled: schemaEnforcementMasterOn,
+      schemaGatePassed: schemaEnforcementActive,
+      schemaRan,
+      schemaPassed,
+      rewriteAttempted: schemaRewriteAttempted,
+      rewriteSucceeded: schemaRewriteUsed,
+    };
+
+    // schemaRanSuccessfully = schema actually ran AND passed (no violations)
+    // Used to gate retirement flags for tighten/sanitize
+    const schemaRanSuccessfully = schemaRan && schemaPassed;
+
     // ===== TONE DRIFT LOCK - One-Shot Validator =====
-    // PHASE 4: Skip Drift Lock when schema enforcement is the active rewrite path
-    // Guard: only skip if schema actually ran (schemaResult exists and wasn't skipped)
-    const schemaRanSuccessfully = schemaResult && !schemaResult.skipped;
-    const skipDriftLock = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_DRIFT_LOCK_WHEN_SCHEMA === '1';
+    // PHASE 4.6: NO DOUBLE REWRITE — if schema ran and either rewrote or passed,
+    // Drift Lock must not run (prevents latency stacking)
+    const noDoubleRewrite = schemaRan && (schemaRewriteAttempted || schemaPassed);
+    const skipDriftLockRetirement = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_DRIFT_LOCK_WHEN_SCHEMA === '1';
+    const skipDriftLock = noDoubleRewrite || skipDriftLockRetirement;
+    let driftLockRan = false;
+
     if (!skipDriftLock) {
+      // Phase 4.6: Double-rewrite detection (dev warning)
+      if (schemaRewriteUsed && process.env.NODE_ENV !== 'production') {
+        console.warn('[SCHEMA] DOUBLE_REWRITE_DETECTED', {
+          requestId: chatRequestId, useV2, tier: modelRoute?.tier, model: selectedModel
+        });
+      }
+
       const driftCheck = checkDriftViolations(processedAssistantText);
       
       if (driftCheck.hasViolation && openai) {
+        driftLockRan = true;
         console.log('[DRIFT LOCK] Violations detected:', driftCheck.violations);
         try {
           const rewritePrompt = buildRewritePrompt(processedAssistantText);
@@ -8415,7 +8444,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         }
       }
     } else {
-      console.log('[DRIFT LOCK] Skipped — schema enforcement active');
+      console.log('[DRIFT LOCK] Skipped —', noDoubleRewrite ? 'no-double-rewrite rule' : 'retirement flag');
     }
     
     // ===== TRACE BRAIN SUGGESTION LOGIC =====
@@ -8485,6 +8514,8 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     const applyTighten = !(useV2 && shouldSkipTighten);
     
     let tightenedText;
+    let tightenPairRan = false;
+    let sanitizeToneRan = false;
     if (isCrisisMode) {
       // CRISIS MODE: Skip ALL tone/persona processing - preserve the crisis response exactly
       tightenedText = processedAssistantText;
@@ -8503,8 +8534,10 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
 
       if (skipTightenPair) {
         tightenedText = processedAssistantText;
+        tightenPairRan = false;
         console.log('[TRACE BRAIN] Skipping tighten pair — schema enforcement active');
       } else {
+        tightenPairRan = true;
         tightenedText = tightenResponse(processedAssistantText, { maxSentences: todRules.maxSentences });
         tightenedText = enforceBrevity(tightenedText, brevityMode);
         
@@ -8514,8 +8547,10 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
       
       if (skipSanitizeTone) {
+        sanitizeToneRan = false;
         console.log('[TRACE BRAIN] Skipping sanitizeTone — schema enforcement active');
       } else {
+        sanitizeToneRan = true;
         tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode: false });
       }
     }
@@ -8983,6 +9018,23 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       })();
     }
     
+    // Phase 4.6: Condensed end-of-request log (no PHI)
+    if (process.env.TRACE_INTENT_LOG === '1') {
+      console.log('[PHASE4]', JSON.stringify({
+        requestId: chatRequestId,
+        useV2,
+        tier: modelRoute?.tier ?? null,
+        model: selectedModel,
+        schema_ran: schemaCtx.schemaRan,
+        schema_failed: schemaCtx.schemaRan && !schemaCtx.schemaPassed,
+        rewrite_attempted: schemaCtx.rewriteAttempted,
+        rewrite_succeeded: schemaCtx.rewriteSucceeded,
+        driftLock_ran: driftLockRan,
+        tightenPair_ran: tightenPairRan,
+        sanitizeTone_ran: sanitizeToneRan,
+      }));
+    }
+
     const totalRequestTime = Date.now() - requestStartTime;
     console.log(`[TIMING] Total chat request took ${totalRequestTime}ms`);
     

@@ -1,0 +1,46 @@
+PHASE 4.6 — Single Rewrite Path + Post-Processing Retirement Wiring
+
+Goal:
+Prevent latency stacking and ensure schema enforcement becomes the ONE rewrite path for V2 traffic, while legacy behavior remains unchanged.
+
+Tasks:
+
+1) Add a per-request context object in /api/chat after schema validation runs, e.g.:
+   const schemaCtx = {
+     schemaEligible: useV2 && !isCrisisMode && !isOnboardingActive,
+     schemaEnforcementEnabled: process.env.TRACE_SCHEMA_ENFORCEMENT === "1",
+     schemaGatePassed: shouldUseSchemaEnforcement(effectiveUserId),
+     schemaRan: <bool>,
+     schemaPassed: <bool>,
+     rewriteAttempted: <bool>,
+     rewriteSucceeded: <bool>
+   };
+
+2) Enforce “NO DOUBLE REWRITE”:
+   - If schemaRan === true AND (rewriteAttempted === true OR schemaPassed === true), then Drift Lock must NOT run.
+   - Add a dev-only warning log if both schema rewrite and Drift Lock run in the same request:
+     console.warn("[SCHEMA] DOUBLE_REWRITE_DETECTED", { requestId, useV2, tier, model });
+
+3) Respect retirement flags ONLY when schema ran successfully:
+   - Define schemaRanSuccessfully = (schemaRan === true && schemaPassed === true)
+   - If schemaRanSuccessfully:
+       - If TRACE_DISABLE_DRIFT_LOCK_WHEN_SCHEMA=1 → skip Drift Lock entirely
+       - If TRACE_DISABLE_TIGHTEN_PAIR_WHEN_SCHEMA=1 → skip BOTH tightenResponse AND enforceBrevity
+       - If TRACE_DISABLE_SANITIZE_TONE_WHEN_SCHEMA=1 → skip sanitizeTone
+   - Otherwise keep all legacy post-processing exactly as-is.
+
+4) Crisis + onboarding hard bypass:
+   - Ensure schema enforcement, schema rewrite, and retirement flags NEVER apply in crisis mode or during onboarding flows.
+   - Add skip_reason values in [SCHEMA METRICS] when bypassed: "crisis", "onboarding", "legacy", "useV2=false".
+
+5) Add one condensed end-of-request log line when TRACE_INTENT_LOG=1:
+   [PHASE4] { requestId, useV2, tier, model, schema_ran, schema_failed, rewrite_attempted, rewrite_succeeded, driftLock_ran, tightenPair_ran, sanitizeTone_ran }
+   IMPORTANT: do NOT log user text/PHI.
+
+Acceptance Criteria:
+- No request ever runs BOTH schema rewrite and Drift Lock.
+- Retirement flags only change behavior when schemaRanSuccessfully is true.
+- Crisis + onboarding unchanged.
+- Logs confirm which layers ran and which were skipped.
+
+If TRACE_DISABLE_TIGHTEN_PAIR_WHEN_SCHEMA=1, longform requests should never be trimmed; verify shouldSkipTighten remains true for traceIntent.mode=longform.
