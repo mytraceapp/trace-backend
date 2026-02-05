@@ -1,0 +1,99 @@
+Phase 3: Remove legacy injections (safe sequence)
+
+Phase 3.0 — Add guardrails first (10 minutes)
+
+Before removing anything, add two counters/logs so you can prove you actually reduced prompt bloat:
+	•	legacyPromptTokenEstimate (rough word count is fine)
+	•	injectionCount + which injections applied
+
+Log them only when TRACE_INTENT_LOG=1.
+
+This prevents “we removed stuff but forgot and it’s still there.”
+
+⸻
+
+Phase 3.1 — Remove the Tier 2 “manifesto” block (lowest risk, highest clarity)
+
+Why first: It’s the one most likely to override voice rules because it’s late + specific.
+
+Replace with: routing only (model choice) and at most one line in the directive like:
+	•	“If premium: allow slightly richer language, but stay natural.”
+
+No long constitution.
+
+✅ Expected outcome: fewer “T2 overrides canon” cases immediately.
+
+⸻
+
+Phase 3.2 — Remove Doorways catalog injection
+
+You already proved doorways triggers correctly via doorwayHint: "dreams_symbols".
+
+Do:
+	•	Delete doorwaysContext injection entirely (the catalog/list).
+	•	Keep processDoorways() (signal).
+	•	In V2 directive, keep only:
+	•	Doorway hint (optional): dreams_symbols (1 line)
+
+Important: Don’t inject options (catalog). Only inject the chosen hint.
+
+✅ Expected outcome: less prompt noise, more consistent doorway behavior.
+
+⸻
+
+Phase 3.3 — Remove Emotional Intelligence paragraphs
+
+Same pattern as doorways:
+	•	Keep emotionalIntelligence module as signals only
+	•	Convert to 1–3 bullet lines only if relevant, e.g.:
+	•	“Emotional arc: low mood + high arousal”
+	•	“Tone: steady, grounding”
+
+Put those into traceIntent.signals or selectedContext bullets (capped).
+
+✅ Expected outcome: fewer conflicts with “micro” mode.
+
+⸻
+
+Phase 3.4 — Remove Conversation State probe rules injection (highest behavior risk)
+
+This is the only one I’d do last because it impacts your “probe rules” enforcement.
+
+But you already have a post-step enforcement (violatesProbeRules() + fallback) which is better than prompt rules anyway.
+
+Do:
+	•	Keep conversationState.updateStateAfterResponse() ✅
+	•	Keep violatesProbeRules() enforcement ✅
+	•	Delete buildStatePromptInjection() (prompt rules)
+	•	Instead, set traceIntent.constraints.allowQuestions based on stage and probe count (you already have these signals)
+
+Example: if probeCount high, set allowQuestions: 0.
+
+✅ Expected outcome: you stop “prompting the model to behave” and start “deciding what it’s allowed to do.”
+
+⸻
+
+After Phase 3: what remains in the prompt?
+
+Only:
+	•	core identity (short)
+	•	directive (traceIntent-driven, last)
+	•	anti-repetition openers list (short)
+	•	disclaimer flag (short)
+	•	a few context bullets (capped)
+
+Everything else becomes signals and server-side constraints.
+
+⸻
+
+Rollout strategy (don’t spike risk)
+
+Do Phase 3 behind a separate flag:
+	•	TRACE_V2_STRIP_INJECTIONS=0/1
+
+So you can:
+	1.	keep V2 prompt active
+	2.	toggle “injection stripping” independently
+	3.	roll stripping from 10% → 50% → 100%
+
+This makes failures easy to isolate.
