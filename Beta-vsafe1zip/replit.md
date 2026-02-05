@@ -70,7 +70,21 @@ The `/api/chat` endpoint uses a "Synthesis Gate" pattern to consolidate all brai
 }
 ```
 
-### Phase 1 Status
+### Phase 1 Status (Complete)
 - **Implemented**: traceIntent object creation + logging (env: TRACE_INTENT_LOG=1)
-- **Not yet enforced**: Prompt building still uses legacy injections
-- **Next phases**: Replace prompt injections with traceIntent-driven directives
+- **Architecture**: traceIntent synthesizes signals from cognitiveIntent, brainSignals, doorwaysResult, and context
+
+### Phase 2 Status (Complete)
+- **V2 Prompt System**: Two-layer architecture with stable core + dynamic directive
+- **Files**: 
+  - `server/prompts/traceCoreV2.js` - Faith-aware core identity (~15 lines)
+  - `server/prompts/traceDirectiveV2.js` - Mode-aware turn directive
+  - `server/prompts/buildTracePromptV2.js` - Assembles final V2 prompt
+  - `server/brain/contextBullets.js` - Extracts bullets from memory, patterns, activities, dreamscape
+- **Rollout Control**: `TRACE_PROMPT_V2_PCT` env var (0-100) controls percentage of users on V2
+- **Safety Guards**: Onboarding bypass, crisis mode exclusion, traceIntent null fallback
+- **Skip Tighten**: Respects traceIntent.mode === 'longform' or mustNotTruncate constraint
+
+### Next Phases
+- **Phase 3**: Remove legacy prompt injections (pattern context, activity context directly into prompt)
+- **Phase 4**: Add schema validation for traceIntent object

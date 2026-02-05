@@ -115,6 +115,14 @@ const conversationState = require('./conversationState');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
 const { evaluateAtmosphere } = require('./atmosphereEngine');
 const { brainSynthesis, logTraceIntent } = require('./brain/brainSynthesis');
+const { 
+  pickMemoryBullets, 
+  pickPatternBullets, 
+  pickActivityBullets, 
+  formatDreamBullet,
+  extractRecentOpeners,
+} = require('./brain/contextBullets');
+const { buildTracePromptV2 } = require('./prompts/buildTracePromptV2');
 const {
   detectEmotionalState,
   isUserAgreeing,
@@ -6065,18 +6073,20 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
     }
     
     // Get activity outcomes learning (mood correlation patterns)
+    // Declared at higher scope for brainSynthesis context bullets
+    let activityOutcomesData = [];
     if (supabaseServer && !isCrisisMode) {
       try {
-        const outcomes = await getActivityOutcomes(
+        activityOutcomesData = await getActivityOutcomes(
           supabaseServer,
           userId,
           deviceId
-        );
-        if (outcomes?.length) {
-          const outcomesContext = formatActivityOutcomesForContext(outcomes);
+        ) || [];
+        if (activityOutcomesData.length) {
+          const outcomesContext = formatActivityOutcomesForContext(activityOutcomesData);
           if (outcomesContext) {
             contextParts.push(outcomesContext);
-            console.log('[TRACE] Added activity outcomes context:', outcomes.length, 'helpful activities found');
+            console.log('[TRACE] Added activity outcomes context:', activityOutcomesData.length, 'helpful activities found');
           }
         }
       } catch (outErr) {
@@ -6515,6 +6525,10 @@ CRISIS OVERRIDE:
       console.log('[TRACE] Hydration hint added to conversation');
     }
 
+    // traceIntent and V2 selection will be handled after all signals are computed
+    let traceIntent = null;
+    let useV2 = false;
+
     // Build system prompt - use crisis prompt if in crisis mode
     let systemPrompt;
     let chatTemperature = 0.7;
@@ -6530,7 +6544,7 @@ CRISIS OVERRIDE:
       chatTemperature = 0.4; // Calmer, more grounded responses
       console.log('[TRACE CRISIS] Using crisis system prompt with temperature 0.4, country:', userCountry || 'unknown');
     } else {
-      // Normal mode: full personality with all context
+      // Legacy mode: full personality with all context
       systemPrompt = buildTraceSystemPrompt({
         displayName: displayName || null,
         contextSnapshot: fullContext || null,
@@ -6745,10 +6759,95 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
       crisisActive: doorwaysResult.crisisActive,
     }));
     
-    // Inject door intent into system prompt if door is selected
-    if (doorwaysResult.doorIntent && !isCrisisMode) {
+    // Inject door intent into system prompt if door is selected (LEGACY only)
+    if (doorwaysResult.doorIntent && !isCrisisMode && !useV2) {
       systemPrompt += `\n\n${doorwaysResult.doorIntent}`;
       console.log('[DOORWAYS v1] Injected door intent:', doorwaysResult.selectedDoorId);
+    }
+    
+    // ============================================================
+    // BRAIN SYNTHESIS (Phase 2: After all signals are computed)
+    // Consolidates all module signals into traceIntent object
+    // ============================================================
+    try {
+      const convoStateObj = conversationState.getState(effectiveUserId);
+      
+      // Extract context bullets using the contextBullets helper
+      const memoryBullets = pickMemoryBullets(memoryContext);
+      const patternBullets = pickPatternBullets(patternReflectionContext);
+      const activityBullets = pickActivityBullets(activityOutcomesData, postActivityReflectionContext);
+      const dreamBullet = formatDreamBullet(dreamscapeHistory);
+      const antiRepetitionOpeners = extractRecentOpeners(messages);
+      
+      traceIntent = brainSynthesis({
+        currentMessage: userMsgForBrain,
+        historyMessages: messages,
+        localTime,
+        tonePreference: tonePreference || 'neutral',
+        
+        isEarlyCrisisMode,
+        cognitiveIntent,
+        conversationState: convoStateObj,
+        traceBrainSignals: brainSignals,
+        attunement: { posture, detected_state, postureConfidence },
+        doorwaysResult,
+        atmosphereResult: null, // Not yet computed - added post-response
+        disclaimerShown: disclaimerAlreadyShown,
+        
+        memoryBullets,
+        patternBullets,
+        dreamBullet,
+        activityBullets
+      });
+      
+      // Store anti-repetition openers on traceIntent for V2 prompt building
+      if (traceIntent) {
+        traceIntent.antiRepetitionOpeners = antiRepetitionOpeners;
+      }
+    } catch (synthErr) {
+      console.error('[BRAIN SYNTHESIS] Failed (continuing with legacy):', synthErr.message);
+    }
+
+    // ============================================================
+    // V2 PROMPT SELECTION (Phase 2)
+    // Deterministic rollout: stable per user, controlled by TRACE_PROMPT_V2_PCT
+    // ============================================================
+    const isOnboardingActive = userProfile && 
+      (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null) &&
+      userProfile.onboarding_step && userProfile.onboarding_step !== 'completed';
+    
+    function shouldUsePromptV2(userId) {
+      const pct = Number(process.env.TRACE_PROMPT_V2_PCT || '0');
+      if (!pct) return false;
+      
+      // Cheap stable hash
+      let hash = 0;
+      const s = String(userId || '');
+      for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+      return (hash % 100) < pct;
+    }
+    
+    useV2 = !isOnboardingActive && !isCrisisMode && shouldUsePromptV2(effectiveUserId) && traceIntent !== null;
+    
+    if (process.env.TRACE_INTENT_LOG === '1') {
+      console.log('[promptVersion]', { 
+        requestId: req.requestId || `req-${Date.now()}`,
+        useV2, 
+        pct: process.env.TRACE_PROMPT_V2_PCT || '0',
+        isOnboardingActive,
+        isCrisisMode,
+        traceIntentAvailable: traceIntent !== null
+      });
+    }
+    
+    // V2: Replace entire system prompt with clean two-layer version
+    if (useV2 && traceIntent) {
+      systemPrompt = buildTracePromptV2({
+        tonePreference: tonePreference || 'neutral',
+        traceIntent,
+        antiRepetitionOpeners: traceIntent.antiRepetitionOpeners || [],
+      });
+      console.log('[TRACE V2] Using V2 system prompt (mode:', traceIntent.mode, 'intentType:', traceIntent.intentType, ')');
     }
     
     // ============================================================
@@ -8191,6 +8290,20 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
                             processedAssistantText.includes('Verse') || 
                             processedAssistantText.includes('[Verse');
     
+    // Check if traceIntent indicates we should skip tightening
+    const shouldSkipTighten = traceIntent?.mode === 'longform' || traceIntent?.constraints?.mustNotTruncate;
+    if (process.env.TRACE_INTENT_LOG === '1') {
+      console.log('[tighten]', { 
+        requestId: req.requestId || `req-${Date.now()}`, 
+        shouldSkipTighten, 
+        mode: traceIntent?.mode,
+        mustNotTruncate: traceIntent?.constraints?.mustNotTruncate 
+      });
+    }
+    
+    // Apply tighten skip only for V2 traffic
+    const applyTighten = !(useV2 && shouldSkipTighten);
+    
     let tightenedText;
     if (isCrisisMode) {
       // CRISIS MODE: Skip ALL tone/persona processing - preserve the crisis response exactly
@@ -8199,10 +8312,11 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     } else if (isLyricsRequest) {
       tightenedText = processedAssistantText;
       console.log('[TRACE BRAIN] Skipping tighten - lyrics request detected');
-    } else if (isLongFormRequest) {
+    } else if (isLongFormRequest || (useV2 && shouldSkipTighten)) {
       // LONG-FORM MODE: Skip tightening for recipes, stories, detailed content
+      // V2: Also skip if traceIntent says mustNotTruncate
       tightenedText = processedAssistantText;
-      console.log('[TRACE BRAIN] Skipping tighten - long-form request (recipe/story/list)');
+      console.log('[TRACE BRAIN] Skipping tighten - long-form request (recipe/story/list)', useV2 ? '(V2)' : '');
     } else {
       // Apply original tightenResponse for sentence limits
       tightenedText = tightenResponse(processedAssistantText, { maxSentences: todRules.maxSentences });
@@ -8307,34 +8421,18 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     }
     
     // ============================================================
-    // BRAIN SYNTHESIS (Phase 1: Log only, no behavior change)
-    // Consolidates all module signals into traceIntent object
+    // POST-RESPONSE: Update traceIntent with atmosphere and log
+    // (brainSynthesis was already called before prompt building)
     // ============================================================
-    let traceIntent = null;
+    if (traceIntent && atmosphereResult) {
+      // Update atmosphere signal now that it's computed
+      traceIntent.signals.atmosphere = {
+        sound_state: atmosphereResult.sound_state || null
+      };
+    }
+    
+    // Log the final traceIntent with all signals
     try {
-      const convoStateObj = conversationState.getState(effectiveUserId);
-      
-      traceIntent = brainSynthesis({
-        currentMessage: lastUserMessage,
-        historyMessages: messages,
-        localTime,
-        tonePreference: tonePreference || 'neutral',
-        
-        isEarlyCrisisMode,
-        cognitiveIntent,
-        conversationState: convoStateObj,
-        traceBrainSignals: brainSignals,
-        attunement: { posture, detected_state, postureConfidence },
-        doorwaysResult,
-        atmosphereResult,
-        disclaimerShown: disclaimerAlreadyShown,
-        
-        memoryBullets: null,
-        patternBullets: null,
-        dreamBullet: dreamscapeHistory ? `Last visited Dreamscape ${dreamscapeHistory.daysAgo === 0 ? 'today' : dreamscapeHistory.daysAgo === 1 ? 'yesterday' : dreamscapeHistory.daysAgo + ' days ago'}` : null,
-        activityBullets: null
-      });
-      
       logTraceIntent({
         requestId: req.requestId || `req-${Date.now()}`,
         effectiveUserId,
@@ -8342,8 +8440,8 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         model: selectedModel,
         route: isPremiumTier ? 'premium' : 'standard'
       });
-    } catch (err) {
-      console.error('[BRAIN SYNTHESIS] Failed:', err.message);
+    } catch (logErr) {
+      console.error('[BRAIN SYNTHESIS] Log failed:', logErr.message);
     }
     
     // ============================================================

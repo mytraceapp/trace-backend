@@ -1,0 +1,160 @@
+ere’s the clean patch plan that keeps Phase 2 safe.
+
+⸻
+
+1) Populate selectedContext (wire real bullets in Phase 1/2)
+
+Right now brainSynthesis() accepts bullets but you’re not producing them. Don’t make brainSynthesis reach into DB directly—keep it pure.
+
+Add a tiny “bullet extractor” right after your existing context calls
+
+You already have these objects in /api/chat:
+	•	memoryContext from buildMemoryContext()
+	•	safePatternContext from getSafePatternContext()
+	•	activityOutcomes from getActivityOutcomes()
+	•	reflectionContext from getReflectionContext()
+	•	dreamscapeHistory from loadDreamscapeHistory()
+
+Create a helper in server/brain/contextBullets.js:
+
+// server/brain/contextBullets.js
+
+function pickMemoryBullets(memoryContext) {
+  if (!memoryContext) return [];
+  // adapt these keys to your actual shape
+  if (Array.isArray(memoryContext.bullets)) return memoryContext.bullets;
+  if (typeof memoryContext === "string") return [memoryContext].slice(0, 6);
+  if (Array.isArray(memoryContext.facts)) return memoryContext.facts.map(String);
+  return [];
+}
+
+function pickPatternBullets(patternContext) {
+  if (!patternContext) return [];
+  if (Array.isArray(patternContext.bullets)) return patternContext.bullets;
+  // If patternContext is structured: pick only top signals
+  const out = [];
+  if (patternContext.peaks?.length) out.push(`Peaks: ${patternContext.peaks.slice(0,2).join(", ")}`);
+  if (patternContext.stress_echoes?.length) out.push(`Stress echoes: ${patternContext.stress_echoes.slice(0,2).join(", ")}`);
+  if (patternContext.rhythm) out.push(`Rhythm: ${patternContext.rhythm}`);
+  return out;
+}
+
+function pickActivityBullets(activityOutcomes, reflectionContext) {
+  const out = [];
+  if (activityOutcomes?.mostHelpful?.length) {
+    out.push(`Helpful recently: ${activityOutcomes.mostHelpful.slice(0,2).join(", ")}`);
+  }
+  if (reflectionContext?.postActivityState) {
+    out.push(`Post-activity: ${String(reflectionContext.postActivityState)}`);
+  }
+  return out;
+}
+
+function formatDreamBullet(dreamscapeHistory) {
+  if (!dreamscapeHistory) return null;
+  // keep it ONE line
+  const track = dreamscapeHistory.track || dreamscapeHistory.lastTrack || null;
+  const days = dreamscapeHistory.daysAgo ?? dreamscapeHistory.days_ago ?? null;
+  if (!track && days == null) return null;
+  if (track && days != null) return `Dreamscape: ${track} (${days}d ago)`;
+  if (track) return `Dreamscape: ${track}`;
+  return `Dreamscape: (${days}d ago)`;
+}
+
+module.exports = {
+  pickMemoryBullets,
+  pickPatternBullets,
+  pickActivityBullets,
+  formatDreamBullet,
+};
+
+Then in /api/chat, right before brainSynthesis():
+const {
+  pickMemoryBullets,
+  pickPatternBullets,
+  pickActivityBullets,
+  formatDreamBullet,
+} = require("./brain/contextBullets");
+
+const memoryBullets = pickMemoryBullets(memoryContext).slice(0, 6);
+const patternBullets = pickPatternBullets(safePatternContext).slice(0, 4);
+const activityBullets = pickActivityBullets(activityOutcomes, reflectionContext).slice(0, 2);
+const dreamBullet = formatDreamBullet(dreamscapeHistory);
+
+…and pass those into brainSynthesis (which you already support).
+
+✅ This fixes “selectedContext empty” without touching DB logic.
+
+⸻
+
+2) Preserve scripted onboarding bypass (must happen BEFORE V2 selection)
+
+You already have onboarding handler at step 14 that EARLY RETURNS. That must remain above any V2 logic.
+
+So the rule is simple:
+	•	Only compute useV2 after onboarding handler has had a chance to early-return.
+
+If you currently compute useV2 earlier, move it to after onboarding returns.
+
+Also, add a safety guard: if onboarding step is not completed, force legacy.
+const isOnboardingActive =
+  onboardingState && onboardingState.step && onboardingState.step !== "completed";
+
+const useV2 = !isOnboardingActive && shouldUsePromptV2(effectiveUserId);
+
+Even if this is redundant with early returns, it prevents edge cases.
+
+⸻
+
+3) Source antiRepetitionOpeners from existing logic
+
+You already have “recentOpenersToAvoid”. Don’t reinvent it.
+
+Just rename the variable when calling V2:
+const antiRepetitionOpeners = recentOpenersToAvoid || [];
+And in V2 directive, cap to 8 like I showed.
+
+⸻
+
+4) Load tonePreference from profile
+
+You’re already loading profile at step 10. Define it once:
+const tonePreference =
+  profile?.tone_preference ||
+  profile?.faith_preference ||
+  profile?.tonePreference ||
+  "neutral";
+(Use the actual field name you store; the point is: one authoritative read.)
+
+Pass that into:
+	•	brainSynthesis() (optional)
+	•	buildTracePromptV2() (required)
+
+⸻
+
+5) Respect skipTighten for longform using traceIntent.mode
+
+You already have partial “Skipping tighten” logs.
+
+Do this without altering behavior for legacy traffic:
+const shouldSkipTighten =
+  traceIntent?.mode === "longform" || traceIntent?.constraints?.mustNotTruncate;
+
+if (process.env.TRACE_INTENT_LOG === "1") {
+  console.log("[tighten]", { requestId, shouldSkipTighten, mode: traceIntent?.mode });
+}
+Then (Phase 2) apply the skip only when V2 is enabled:
+const applyTighten = !(useV2 && shouldSkipTighten);
+
+So legacy remains identical.
+
+⸻
+
+Summary: the “address this first” patch list
+
+Do these before you ship V2:
+	1.	Add contextBullets.js + wire bullets into brainSynthesis
+	2.	Ensure onboarding early-return happens before V2 selection + add guard
+	3.	Feed antiRepetitionOpeners from recentOpenersToAvoid
+	4.	Standardize tonePreference from profile
+	5.	Add shouldSkipTighten keyed off traceIntent.mode (and only apply skip for V2 traffic)
