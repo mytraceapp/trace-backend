@@ -7056,36 +7056,50 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
     
     console.log(`[CONVO_STATE] Before: { stage: ${convoState.stage}, lastMove: ${convoState.lastMoveType}, topics: [${convoState.lastTopicKeywords.join(', ')}], userHadContent: ${userHadContent} }`);
     
-    // Inject conversation state rules into system prompt
-    const convoStateInjection = conversationState.buildStatePromptInjection(convoState, userHadContent);
-    systemPrompt += convoStateInjection;
+    // ============================================================
+    // PHASE 3 CHOKE-POINT: Legacy injection stripping for V2
+    // When strip=true, V2 prompt stays clean — no legacy appends.
+    // When strip=false OR legacy mode, all injections still apply.
+    // ============================================================
+    const stripLegacyInjections = useV2 && process.env.TRACE_V2_STRIP_INJECTIONS === '1';
     
-    // ============================================================
-    // ANTI-REPETITION: Extract recent assistant openers to avoid
-    // ============================================================
+    const convoStateInjection = conversationState.buildStatePromptInjection(convoState, userHadContent);
+    
     const recentAssistantMessages = messages
       .filter(m => m.role === 'assistant')
-      .slice(-3) // Last 3 assistant responses
+      .slice(-3)
       .map(m => {
         const content = m.content || '';
-        // Extract first sentence/line as "opener" (up to 80 chars)
         const opener = content.split(/[.!?\n]/)[0]?.trim()?.slice(0, 80) || '';
         return opener;
       })
       .filter(Boolean);
     
-    if (recentAssistantMessages.length > 0) {
-      systemPrompt += `
+    const skippedInjections = [];
+    
+    if (stripLegacyInjections) {
+      // V2 STRIP MODE: Do NOT append legacy injections to the clean V2 prompt.
+      // ConvoState probe rules → handled server-side by violatesProbeRules()
+      // Anti-repetition → already in V2 directive via antiRepetitionOpeners
+      // T2 manifesto → V2 directive handles mode/voice; model routing gives T2 the better model
+      if (convoStateInjection) skippedInjections.push('convoState_probe_rules');
+      if (recentAssistantMessages.length > 0) skippedInjections.push('anti_repetition_openers');
+      if (modelRoute.tier === 2 && !isCrisisMode) skippedInjections.push('t2_manifesto');
+    } else {
+      // LEGACY MODE: Append all injections as before
+      systemPrompt += convoStateInjection;
+      
+      if (recentAssistantMessages.length > 0) {
+        systemPrompt += `
 
 RESPONSE HISTORY (DO NOT REPEAT THESE OPENERS):
 ${recentAssistantMessages.map((o, i) => `- "${o}"`).join('\n')}
 Vary your opening. Use a different rhythm than above.`;
-      console.log(`[ANTI-REPEAT] Injected ${recentAssistantMessages.length} recent openers into prompt`);
-    }
-    
-    // Tier 2 enhancement: Premium Experience Mode
-    if (modelRoute.tier === 2 && !isCrisisMode) {
-      systemPrompt += `
+        console.log(`[ANTI-REPEAT] Injected ${recentAssistantMessages.length} recent openers into prompt`);
+      }
+      
+      if (modelRoute.tier === 2 && !isCrisisMode) {
+        systemPrompt += `
 
 TIER 2: PREMIUM EXPERIENCE MODE
 
@@ -7140,6 +7154,37 @@ Default to 40–120 words. Longer only if user asks for a plan, steps, or explan
 VOICE CONSTRAINTS
 - Stay steady. Warm, not gushy. Confident, not salesy.
 If user's message contains a clear preference (style, vibe, constraint), mirror it once in your next reply.`;
+      }
+    }
+    
+    // ============================================================
+    // PHASE 3 GUARDRAILS: Log prompt metrics + injection status
+    // ============================================================
+    if (process.env.TRACE_INTENT_LOG === '1' || process.env.NODE_ENV !== 'production') {
+      const promptWordEstimate = systemPrompt.split(/\s+/).length;
+      console.log('[PHASE3]', {
+        requestId,
+        useV2,
+        strip: stripLegacyInjections,
+        promptChars: systemPrompt.length,
+        promptWords: promptWordEstimate,
+        skippedInjections: skippedInjections.length > 0 ? skippedInjections : 'none',
+        tier: modelRoute.tier,
+      });
+    }
+    
+    // DEV-ONLY SENTINEL: Verify V2 prompt is clean when strip=true
+    if (stripLegacyInjections && process.env.NODE_ENV !== 'production') {
+      const LEGACY_SENTINELS = [
+        'TIER 2: PREMIUM EXPERIENCE MODE',
+        'PREMIUM INTUITION LOOP',
+        'RESPONSE HISTORY (DO NOT REPEAT THESE OPENERS)',
+      ];
+      for (const sentinel of LEGACY_SENTINELS) {
+        if (systemPrompt.includes(sentinel)) {
+          console.error(`[PHASE3 SENTINEL FAIL] Legacy injection "${sentinel}" found in V2 prompt despite strip=true! requestId=${requestId}`);
+        }
+      }
     }
     
     // ============================================================
