@@ -346,13 +346,60 @@ Instead of "What's on your mind?" try:
 }
 
 /**
- * AGGRESSIVELY strip lazy questions from response
- * This runs AFTER GPT response and forcibly removes generic questions
+ * Generate a contextual continuation based on conversation context
+ * Instead of stripping lazy questions, we REPLACE them with something that continues the thread
  */
-function stripLazyQuestions(response, recentHistory = []) {
-  let result = response;
+function generateContextualContinuation(response, recentHistory = []) {
+  // Extract what was happening in the conversation
+  const recentUserMsgs = recentHistory.filter(m => m.role === 'user').slice(-5);
+  const recentAssistantMsgs = recentHistory.filter(m => m.role === 'assistant').slice(-3);
+  const allRecentContent = [...recentUserMsgs, ...recentAssistantMsgs].map(m => m.content?.toLowerCase() || '').join(' ');
   
-  // Patterns to completely remove (question + any leading connector)
+  // Detect conversation context
+  const contexts = {
+    music: /music|play|song|track|album|night swim|slow tides|euphoria|resume|stop music|pause/i.test(allRecentContent),
+    positive: /good|nice|yeah|yep|okay|fine|better|thanks|great/i.test(recentUserMsgs.slice(-1)[0]?.content || ''),
+    activity: /breathing|grounding|maze|pearl|walking|exercise|activity/i.test(allRecentContent),
+    emotional: /sad|tired|stressed|anxious|overwhelmed|lonely|upset/i.test(allRecentContent),
+    casual: /hi|hey|hello|sup|yo/i.test(recentUserMsgs.slice(-1)[0]?.content || ''),
+  };
+  
+  // Contextual continuations (no questions, just presence)
+  const musicContinuations = [
+    "let it play.",
+    "this one's nice for just sitting with.",
+    "mm. good choice.",
+    "here with you.",
+  ];
+  
+  const positiveContinuations = [
+    "good.",
+    "mm.",
+    "here.",
+    "nice.",
+  ];
+  
+  const emotionalContinuations = [
+    "still here.",
+    "mm.",
+    "take your time.",
+    "no rush.",
+  ];
+  
+  const casualContinuations = [
+    "hey.",
+    "here.",
+    "mm.",
+  ];
+  
+  // Pick based on context
+  let continuations = positiveContinuations;
+  if (contexts.music) continuations = musicContinuations;
+  else if (contexts.emotional) continuations = emotionalContinuations;
+  else if (contexts.casual) continuations = casualContinuations;
+  
+  // Extract the non-lazy part of the response if there is one
+  let cleanPart = response;
   const lazyPatterns = [
     /[\.\,\s]*(so\s+)?what['']?s\s+(been\s+)?on\s+your\s+mind\s*\??/gi,
     /[\.\,\s]*(so\s+)?what\s+would\s+you\s+like\s+to\s+talk\s+about\s*\??/gi,
@@ -367,26 +414,20 @@ function stripLazyQuestions(response, recentHistory = []) {
   ];
   
   for (const pattern of lazyPatterns) {
-    if (pattern.test(result)) {
-      console.log(`[VOICE] 🔧 STRIPPING lazy question: "${result.match(pattern)?.[0]}"`);
-      result = result.replace(pattern, '');
-    }
+    cleanPart = cleanPart.replace(pattern, '');
+  }
+  cleanPart = cleanPart.replace(/\s{2,}/g, ' ').trim();
+  
+  // If clean part is substantial, keep it
+  if (cleanPart.length >= 8) {
+    console.log(`[VOICE] 🔧 Kept clean part: "${cleanPart}"`);
+    return cleanPart;
   }
   
-  // Clean up any orphaned punctuation or double spaces
-  result = result.replace(/\s{2,}/g, ' ').trim();
-  result = result.replace(/^\.\s*/, '').replace(/\s*\.\s*$/, '.').trim();
-  
-  // If we stripped everything or left something too short, return a continuation phrase
-  if (result.length < 5 && recentHistory && recentHistory.length > 0) {
-    const lastUserMsg = recentHistory.filter(m => m.role === 'user').pop();
-    if (lastUserMsg) {
-      // Simple acknowledgment without a question
-      result = "mm.";
-    }
-  }
-  
-  return result;
+  // Otherwise, use a contextual continuation
+  const continuation = continuations[Math.floor(Math.random() * continuations.length)];
+  console.log(`[VOICE] 🔧 Using contextual continuation: "${continuation}" (context: ${Object.entries(contexts).filter(([k,v]) => v).map(([k]) => k).join(', ') || 'default'})`);
+  return continuation;
 }
 
 /**
@@ -405,13 +446,13 @@ function validateResponse(response, intent, recentHistory = []) {
     issues.push(`Contains banned phrases: ${banned.join(', ')}`);
   }
   
-  // AGGRESSIVE: Strip lazy generic questions (if we have conversation context)
+  // CONTEXTUAL REPLACEMENT: If lazy question detected, replace with contextual continuation
   if (hasConversationContext) {
     const lazy = containsLazyQuestion(corrected);
     if (lazy.length > 0) {
-      issues.push(`Contains lazy generic question: "${lazy[0]}" - STRIPPING`);
-      console.log(`[VOICE] ⚠️ LAZY QUESTION DETECTED: "${lazy[0]}" - stripping from response`);
-      corrected = stripLazyQuestions(corrected, recentHistory);
+      issues.push(`Contains lazy generic question: "${lazy[0]}" - REPLACING with context-aware response`);
+      console.log(`[VOICE] ⚠️ LAZY QUESTION DETECTED: "${lazy[0]}" - replacing with contextual continuation`);
+      corrected = generateContextualContinuation(corrected, recentHistory);
     }
   }
   
@@ -446,7 +487,7 @@ module.exports = {
   containsBannedPhrases,
   containsLazyQuestion,
   extractRecentTopics,
-  stripLazyQuestions,
+  generateContextualContinuation,
   BANNED_PHRASES,
   LAZY_GENERIC_QUESTIONS,
   VOICE_MARKERS,
