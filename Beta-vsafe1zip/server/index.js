@@ -8575,6 +8575,16 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       });
     }
     
+    // VOICE ENGINE POST-PROCESSING: Strip lazy questions
+    // This is the last line of defense - catches anything GPT slipped through
+    if (response.message && messages && messages.length >= 4) {
+      const voiceValidation = validateResponse(response.message, nextQuestionResult || {}, messages);
+      if (!voiceValidation.valid) {
+        console.log('[VOICE] Post-processing issues:', voiceValidation.issues);
+        response.message = voiceValidation.corrected;
+      }
+    }
+    
     const finalResponse = normalizeChatResponse(response, requestId);
     storeDedupResponse(dedupKey, finalResponse);
     
@@ -8624,7 +8634,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     res.status(500).json(normalizeChatResponse({ 
       ok: false, 
       error: 'Failed to get response', 
-      message: "Something went wrong on my end. What's on your mind?" 
+      message: "something went wrong on my end. give me a sec." 
     }, req.body?.requestId));
   }
 });

@@ -346,6 +346,50 @@ Instead of "What's on your mind?" try:
 }
 
 /**
+ * AGGRESSIVELY strip lazy questions from response
+ * This runs AFTER GPT response and forcibly removes generic questions
+ */
+function stripLazyQuestions(response, recentHistory = []) {
+  let result = response;
+  
+  // Patterns to completely remove (question + any leading connector)
+  const lazyPatterns = [
+    /[\.\,\s]*(so\s+)?what['']?s\s+(been\s+)?on\s+your\s+mind\s*\??/gi,
+    /[\.\,\s]*(so\s+)?what\s+would\s+you\s+like\s+to\s+talk\s+about\s*\??/gi,
+    /[\.\,\s]*(so\s+)?what\s+brings\s+you\s+here\s+(today\s*)?\??/gi,
+    /[\.\,\s]*(so\s+)?how\s+are\s+you\s+feeling\s+(today\s*)?\??/gi,
+    /[\.\,\s]*(so\s+)?what\s+are\s+you\s+feeling\s+(right\s+now\s*)?\??/gi,
+    /[\.\,\s]*(so\s+)?how\s+can\s+I\s+support\s+you\s*\??/gi,
+    /[\.\,\s]*(so\s+)?what['']?s\s+going\s+on\s+(with\s+you\s*)?\??/gi,
+    /[\.\,\s]*(so\s+)?tell\s+me\s+(more\s+)?about\s+what['']?s\s+happening\s*\.?/gi,
+    /[\.\,\s]*(so\s+)?I['']?m\s+here\s+(for\s+you\s*)?if\s+you\s+want\s+to\s+talk\.?/gi,
+    /[\.\,\s]*(so\s+)?anything\s+(else\s+)?on\s+your\s+mind\s*\??/gi,
+  ];
+  
+  for (const pattern of lazyPatterns) {
+    if (pattern.test(result)) {
+      console.log(`[VOICE] 🔧 STRIPPING lazy question: "${result.match(pattern)?.[0]}"`);
+      result = result.replace(pattern, '');
+    }
+  }
+  
+  // Clean up any orphaned punctuation or double spaces
+  result = result.replace(/\s{2,}/g, ' ').trim();
+  result = result.replace(/^\.\s*/, '').replace(/\s*\.\s*$/, '.').trim();
+  
+  // If we stripped everything or left something too short, return a continuation phrase
+  if (result.length < 5 && recentHistory && recentHistory.length > 0) {
+    const lastUserMsg = recentHistory.filter(m => m.role === 'user').pop();
+    if (lastUserMsg) {
+      // Simple acknowledgment without a question
+      result = "mm.";
+    }
+  }
+  
+  return result;
+}
+
+/**
  * Validate a response before sending
  * Returns { valid: boolean, issues: string[], corrected: string }
  */
@@ -361,12 +405,13 @@ function validateResponse(response, intent, recentHistory = []) {
     issues.push(`Contains banned phrases: ${banned.join(', ')}`);
   }
   
-  // Check for lazy generic questions (only flag if we have conversation context)
+  // AGGRESSIVE: Strip lazy generic questions (if we have conversation context)
   if (hasConversationContext) {
-    const lazy = containsLazyQuestion(response);
+    const lazy = containsLazyQuestion(corrected);
     if (lazy.length > 0) {
-      issues.push(`Contains lazy generic question: "${lazy[0]}" - should reference prior conversation instead`);
-      console.log(`[VOICE] ⚠️ LAZY QUESTION DETECTED: "${lazy[0]}" - TRACE should reference what user already shared`);
+      issues.push(`Contains lazy generic question: "${lazy[0]}" - STRIPPING`);
+      console.log(`[VOICE] ⚠️ LAZY QUESTION DETECTED: "${lazy[0]}" - stripping from response`);
+      corrected = stripLazyQuestions(corrected, recentHistory);
     }
   }
   
@@ -376,13 +421,13 @@ function validateResponse(response, intent, recentHistory = []) {
   }
   
   // Check for over-enthusiasm
-  if ((response.match(/!/g) || []).length > 1) {
+  if ((corrected.match(/!/g) || []).length > 1) {
     issues.push('Too many exclamation marks');
     corrected = corrected.replace(/!/g, '.');
   }
   
   // Check for therapist-like questions
-  if (/how does that make you feel/i.test(response)) {
+  if (/how does that make you feel/i.test(corrected)) {
     issues.push('Contains therapist-style question');
   }
   
@@ -401,6 +446,7 @@ module.exports = {
   containsBannedPhrases,
   containsLazyQuestion,
   extractRecentTopics,
+  stripLazyQuestions,
   BANNED_PHRASES,
   LAZY_GENERIC_QUESTIONS,
   VOICE_MARKERS,
