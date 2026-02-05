@@ -375,7 +375,7 @@ function generateContextualContinuation(response, recentHistory = []) {
   const positiveContinuations = [
     "good.",
     "mm.",
-    "here.",
+    "I'm here.",
     "nice.",
   ];
   
@@ -388,7 +388,7 @@ function generateContextualContinuation(response, recentHistory = []) {
   
   const casualContinuations = [
     "hey.",
-    "here.",
+    "I'm here.",
     "mm.",
   ];
   
