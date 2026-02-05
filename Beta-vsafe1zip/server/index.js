@@ -6757,7 +6757,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     const cleanedMemory = cleanupMemory(safeClientState);
     const cleanedClientState = { ...safeClientState, ...cleanedMemory };
     
-    const sessionUpdate = updateSessionState(cleanedClientState);
+    const sessionUpdate = updateSessionState(cleanedClientState, messages);
     const memoryUpdate = updateMemory(cleanedClientState, userMsgForBrain);
     const turnCount = sessionUpdate.sessionTurnCount;
     

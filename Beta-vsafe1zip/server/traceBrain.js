@@ -158,13 +158,33 @@ function getSignals(userText) {
 // ============================================================
 
 // Session management: update session state on each user message
-function updateSessionState(clientState = {}) {
+function updateSessionState(clientState = {}, messages = []) {
   const now = Date.now();
-  const lastUserAt = clientState.lastUserAt || 0;
+  
+  // Try to get lastUserAt from: 1) clientState, 2) most recent user message timestamp, 3) sessionStartedAt
+  let lastUserAt = clientState.lastUserAt || 0;
+  
+  // If no lastUserAt in clientState, try to find from messages
+  if (!lastUserAt && messages && messages.length > 1) {
+    // Find the second-to-last user message (the previous one, not current)
+    const userMessages = messages.filter(m => m.role === 'user');
+    if (userMessages.length > 1) {
+      const prevUserMsg = userMessages[userMessages.length - 2];
+      if (prevUserMsg.timestamp) {
+        lastUserAt = new Date(prevUserMsg.timestamp).getTime();
+      }
+    }
+  }
+  
+  // Fallback: if still no lastUserAt but we have sessionStartedAt, use that
+  if (!lastUserAt && clientState.sessionStartedAt) {
+    lastUserAt = clientState.sessionStartedAt;
+  }
+  
   const sessionStartedAt = clientState.sessionStartedAt || now;
   
   // Check if this is a new session (gap > 6 hours)
-  const isNewSession = (now - lastUserAt) > SESSION_GAP_MS;
+  const isNewSession = lastUserAt > 0 ? (now - lastUserAt) > SESSION_GAP_MS : false;
   
   if (isNewSession) {
     console.log('[SESSION] New session started (gap > 6 hours)');
@@ -172,7 +192,6 @@ function updateSessionState(clientState = {}) {
       sessionStartedAt: now,
       lastUserAt: now,
       sessionTurnCount: 1,
-      // Reset per-session gates
       lastGuidedStepTurn: 0,
     };
   }
