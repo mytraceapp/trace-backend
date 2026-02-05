@@ -1548,6 +1548,12 @@ export default function ChatScreen() {
           const data = await reflectionRes.json();
           console.log('🎓 TRACE: reflection response:', data);
           
+          // Handle audio_action if present (e.g., "play night swim")
+          if (data.audio_action) {
+            console.log('[TRACE Chat] 🎵 Handling audio_action from reflection:', data.audio_action);
+            handleAudioAction(data.audio_action);
+          }
+          
           // Use the AI response from the server
           if (data.aiResponse) {
             console.log('🎓 TRACE: AI response for reflection:', data.aiResponse);
