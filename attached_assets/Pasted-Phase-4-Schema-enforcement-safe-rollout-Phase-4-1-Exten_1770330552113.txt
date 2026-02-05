@@ -1,0 +1,92 @@
+Phase 4: Schema enforcement (safe rollout)
+
+Phase 4.1 — Extend the JSON response format to include meta
+
+You already use JSON response_format in Tier 1 and a two-step in Tier 2. Keep the existing message field so the client doesn’t change.
+
+Add a meta object the client can ignore:
+
+Minimal meta (start here):
+	•	mode_used: "micro" | "normal" | "longform" | "crisis"
+	•	sentence_count: number
+	•	question_count: number
+	•	activity_offered: boolean
+	•	sections_present: string[] (only relevant in longform)
+	•	has_truncation_language: boolean
+
+This lets you validate without guessing.
+
+✅ No behavior change yet — just log meta.
+
+⸻
+
+Phase 4.2 — Add validateResponse(traceIntent, modelJson) (log-only at first)
+
+Create a validator that checks:
+
+If traceIntent.mode === "micro"
+	•	sentence_count ≤ (maxSentences or 2)
+	•	question_count ≤ allowQuestions
+	•	activity_offered matches allowActivities
+	•	no banned therapy phrases (optional later)
+
+If mode === "longform"
+	•	mustNotTruncate === true implies has_truncation_language === false
+	•	required sections present (ingredients/steps/story arcs)
+
+If mode === "crisis"
+	•	keep your existing crisis bypass (still no synthesis here)
+
+For the first pass: only log violations with promptVersion + model.
+
+⸻
+
+Phase 4.3 — Implement rewrite-on-fail (flagged)
+
+Add a new env flag:
+	•	TRACE_SCHEMA_REWRITE_ON_FAIL=0/1 (default 0)
+
+When enabled:
+	1.	Generate JSON
+	2.	Validate
+	3.	If invalid → call a rewrite prompt using the same model:
+	•	“Rewrite the message to comply with these constraints. Do not add new info. Keep meaning.”
+
+Limit to one rewrite to prevent loops.
+
+✅ This replaces your “contextual continuation fallback” with a better fix.
+
+⸻
+
+Phase 4.4 — Gradually retire regex post-processing (voiceEngine becomes schema checks)
+
+Once rewrite success rate is good, you can:
+	•	stop tightenResponse() for micro (schema handles it)
+	•	stop “sanitizeTone” regex replacement (use validation + rewrite)
+	•	keep autonomy guard as a separate validator rule (it’s not just style)
+
+Do this behind flags:
+	•	TRACE_DISABLE_TIGHTEN_WHEN_SCHEMA=1
+	•	TRACE_DISABLE_VOICEENGINE_REPLACER=1
+
+⸻
+
+Rollout strategy
+
+Use the same approach you used successfully:
+	1.	TRACE_PROMPT_V2_PCT=10 + TRACE_V2_STRIP_INJECTIONS=1
+	2.	Phase 4.1 + 4.2: meta + validate log only (safe)
+	3.	Turn on rewrite for V2 traffic only:
+	•	if (useV2 && TRACE_SCHEMA_REWRITE_ON_FAIL=1) rewrite
+	4.	Watch:
+	•	rewrite rate
+	•	fallback rate
+	•	latency impact
+	•	voiceEngine violation rate (should drop)
+
+⸻
+
+Definition of “Phase 4 done”
+	•	Validator catches real failures (not noisy)
+	•	Rewrite fixes >80–90% of violations in one pass
+	•	You can disable at least one legacy post-processing layer for V2 traffic without regressions
