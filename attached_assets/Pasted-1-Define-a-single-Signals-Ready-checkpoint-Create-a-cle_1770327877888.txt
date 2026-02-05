@@ -1,0 +1,106 @@
+1) Define a single “Signals Ready” checkpoint
+
+Create a clear boundary in /api/chat:
+
+Checkpoint = after these exist:
+	•	cognitiveIntent
+	•	stateObj (conversationState)
+	•	attunement
+	•	brainSignals (traceBrain.getBrainSignals)
+	•	doorwaysResult
+	•	atmosphereResult
+	•	disclaimerShown
+	•	(optional) context bullets
+
+Only after this checkpoint do you call:
+	•	brainSynthesis()
+	•	useV2 decision
+	•	buildTracePromptV2()
+
+If you don’t already have it, add a small comment block like:
+// === SIGNALS READY CHECKPOINT ===
+// cognitiveIntent, stateObj, attunement, brainSignals, doorwaysResult, atmosphereResult are now defined.
+// Safe to call brainSynthesis + decide prompt version.
+
+2) Make lastUserMessage deterministic and local
+
+Do not reference messages[messages.length-1] ad hoc in multiple places.
+
+Do this once near “Filter messages”:
+
+const lastUserMessage =
+  [...messages].reverse().find(m => m?.role === "user" && m?.content)?.content || "";
+
+Then every module gets currentMessage: lastUserMessage.
+
+This also fixes “order” issues where some modules were using a different “current message” definition.
+
+⸻
+
+3) Ensure V2 prompt replacement happens in one place only
+
+You said: “V2 now replaces the entire systemPrompt after synthesis is complete.” ✅
+
+Keep this pattern:
+	•	Build legacy systemPromptLegacy as before (or delay building it)
+	•	Compute traceIntent
+	•	Decide useV2
+	•	Set final systemPrompt exactly once:
+let systemPrompt = systemPromptLegacy;
+
+if (useV2) {
+  systemPrompt = buildTracePromptV2(...);
+}
+
+Avoid building V2 early or sprinkling V2 checks inside injection code. That’s how you end up with half-legacy/half-v2 Frankenstein prompts.
+
+⸻
+
+4) Your “legacy-only door intent injection” guard is correct
+
+This is the right idea:
+
+Added guard so door intent injection only happens in legacy mode (!useV2)
+
+Keep it strict: if useV2, no injections. Period.
+
+If you still need doorways, it must come from traceIntent.selectedContext.doorwayHint in the directive.
+
+⸻
+
+5) Add a runtime assert for ordering (dev only)
+
+This catches regressions instantly.
+
+Right before brainSynthesis():
+if (process.env.NODE_ENV !== "production") {
+  const missing = [];
+  if (!cognitiveIntent) missing.push("cognitiveIntent");
+  if (!stateObj) missing.push("stateObj");
+  if (!attunement) missing.push("attunement");
+  if (!brainSignals) missing.push("brainSignals");
+  if (!doorwaysResult) missing.push("doorwaysResult");
+  if (!atmosphereResult) missing.push("atmosphereResult");
+
+  if (missing.length) {
+    console.warn("[traceIntent] missing prerequisites:", missing);
+  }
+}
+
+6) One last thing to verify: onboarding bypass precedes V2
+
+Even if backend “runs without errors,” make sure this stays true:
+	•	scripted onboarding returns before useV2 is evaluated
+
+And also add the guard you mentioned earlier:
+const isOnboardingActive = onboardingState?.step && onboardingState.step !== "completed";
+const useV2 = !isOnboardingActive && shouldUsePromptV2(effectiveUserId);
+
+7) Testing checklist for this restructuring (fast) do a curl test
+
+With TRACE_PROMPT_V2_PCT=50 in dev:
+	1.	A recipe request → traceIntent.mode=longform, useV2 sometimes true, and no legacy doorways catalog injection
+	2.	A dream message → intentType=dream, doorwayHint present
+	3.	A normal check-in → mode=micro
+	4.	Scripted onboarding step → always bypass, never reaches V2
+	5.	No runtime warnings from the prerequisites assert

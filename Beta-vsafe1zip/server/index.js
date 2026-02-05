@@ -6734,9 +6734,14 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
       console.log('[TRACE BRAIN] Appended client state context');
     }
     
+    // ============================================================
+    // DETERMINISTIC LAST USER MESSAGE
+    // Define once, use everywhere - prevents order inconsistencies
+    // ============================================================
+    const lastUserMessage = [...messages].reverse().find(m => m?.role === 'user' && m?.content)?.content || '';
+    
     // Get emotional signals from user message for suggestion logic
-    const userMsgForBrain = messages.filter(m => m.role === 'user').pop()?.content || '';
-    const brainSignals = getBrainSignals(userMsgForBrain);
+    const brainSignals = getBrainSignals(lastUserMessage);
     console.log('[TRACE BRAIN] signals:', JSON.stringify(brainSignals));
     
     // ============================================================
@@ -6746,7 +6751,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     let doorwayConversationState = safeClientState?.doorwayState || null;
     
     const doorwaysResult = processDoorways(
-      userMsgForBrain,
+      lastUserMessage,
       doorwayConversationState,
       doorwayUserProfile,
       isCrisisMode
@@ -6759,97 +6764,6 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
       crisisActive: doorwaysResult.crisisActive,
     }));
     
-    // Inject door intent into system prompt if door is selected (LEGACY only)
-    if (doorwaysResult.doorIntent && !isCrisisMode && !useV2) {
-      systemPrompt += `\n\n${doorwaysResult.doorIntent}`;
-      console.log('[DOORWAYS v1] Injected door intent:', doorwaysResult.selectedDoorId);
-    }
-    
-    // ============================================================
-    // BRAIN SYNTHESIS (Phase 2: After all signals are computed)
-    // Consolidates all module signals into traceIntent object
-    // ============================================================
-    try {
-      const convoStateObj = conversationState.getState(effectiveUserId);
-      
-      // Extract context bullets using the contextBullets helper
-      const memoryBullets = pickMemoryBullets(memoryContext);
-      const patternBullets = pickPatternBullets(patternReflectionContext);
-      const activityBullets = pickActivityBullets(activityOutcomesData, postActivityReflectionContext);
-      const dreamBullet = formatDreamBullet(dreamscapeHistory);
-      const antiRepetitionOpeners = extractRecentOpeners(messages);
-      
-      traceIntent = brainSynthesis({
-        currentMessage: userMsgForBrain,
-        historyMessages: messages,
-        localTime,
-        tonePreference: tonePreference || 'neutral',
-        
-        isEarlyCrisisMode,
-        cognitiveIntent,
-        conversationState: convoStateObj,
-        traceBrainSignals: brainSignals,
-        attunement: { posture, detected_state, postureConfidence },
-        doorwaysResult,
-        atmosphereResult: null, // Not yet computed - added post-response
-        disclaimerShown: disclaimerAlreadyShown,
-        
-        memoryBullets,
-        patternBullets,
-        dreamBullet,
-        activityBullets
-      });
-      
-      // Store anti-repetition openers on traceIntent for V2 prompt building
-      if (traceIntent) {
-        traceIntent.antiRepetitionOpeners = antiRepetitionOpeners;
-      }
-    } catch (synthErr) {
-      console.error('[BRAIN SYNTHESIS] Failed (continuing with legacy):', synthErr.message);
-    }
-
-    // ============================================================
-    // V2 PROMPT SELECTION (Phase 2)
-    // Deterministic rollout: stable per user, controlled by TRACE_PROMPT_V2_PCT
-    // ============================================================
-    const isOnboardingActive = userProfile && 
-      (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null) &&
-      userProfile.onboarding_step && userProfile.onboarding_step !== 'completed';
-    
-    function shouldUsePromptV2(userId) {
-      const pct = Number(process.env.TRACE_PROMPT_V2_PCT || '0');
-      if (!pct) return false;
-      
-      // Cheap stable hash
-      let hash = 0;
-      const s = String(userId || '');
-      for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
-      return (hash % 100) < pct;
-    }
-    
-    useV2 = !isOnboardingActive && !isCrisisMode && shouldUsePromptV2(effectiveUserId) && traceIntent !== null;
-    
-    if (process.env.TRACE_INTENT_LOG === '1') {
-      console.log('[promptVersion]', { 
-        requestId: req.requestId || `req-${Date.now()}`,
-        useV2, 
-        pct: process.env.TRACE_PROMPT_V2_PCT || '0',
-        isOnboardingActive,
-        isCrisisMode,
-        traceIntentAvailable: traceIntent !== null
-      });
-    }
-    
-    // V2: Replace entire system prompt with clean two-layer version
-    if (useV2 && traceIntent) {
-      systemPrompt = buildTracePromptV2({
-        tonePreference: tonePreference || 'neutral',
-        traceIntent,
-        antiRepetitionOpeners: traceIntent.antiRepetitionOpeners || [],
-      });
-      console.log('[TRACE V2] Using V2 system prompt (mode:', traceIntent.mode, 'intentType:', traceIntent.intentType, ')');
-    }
-    
     // ============================================================
     // PREMIUM CONVERSATION ENGINE v1: Session & Memory Update
     // ============================================================
@@ -6858,7 +6772,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     const cleanedClientState = { ...safeClientState, ...cleanedMemory };
     
     const sessionUpdate = updateSessionState(cleanedClientState, messages);
-    const memoryUpdate = updateMemory(cleanedClientState, userMsgForBrain);
+    const memoryUpdate = updateMemory(cleanedClientState, lastUserMessage);
     const turnCount = sessionUpdate.sessionTurnCount;
     
     // Build last user texts for pause detection
@@ -6868,12 +6782,12 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
       .slice(-5);
     
     // Check for deep mode (longer responses allowed)
-    const deepModeActive = isDeepMode(userMsgForBrain);
+    const deepModeActive = isDeepMode(lastUserMessage);
     const brevityMode = isCrisisMode ? 'crisis' : (deepModeActive ? 'deep' : 'strict');
     console.log('[TRACE BRAIN] brevityMode:', brevityMode, 'turnCount:', turnCount);
     
     // Check for Dream Door (suppress activity suggestions for dream topics)
-    const isDreamDoor = detectDreamDoor(userMsgForBrain);
+    const isDreamDoor = detectDreamDoor(lastUserMessage);
     
     // Check for casual social questions (user asking about TRACE's day, not seeking help)
     const isCasualSocialQuestion = brainSignals.casualSocialQuestion || false;
@@ -6888,7 +6802,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     // PREMIUM CONVERSATION ENGINE v1: Premium Moment Check
     // ============================================================
     const premiumMomentResult = maybeFirePremiumMoment({
-      userText: userMsgForBrain,
+      userText: lastUserMessage,
       turnCount,
       signals: brainSignals,
       clientState: safeClientState
@@ -6901,7 +6815,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     let guidedStepResult = { fired: false };
     if (!isCrisisMode && !premiumMomentResult.fired) {
       guidedStepResult = maybeGuidedStep({
-        userText: userMsgForBrain,
+        userText: lastUserMessage,
         turnCount,
         clientState: safeClientState,
         signals: brainSignals,
@@ -6913,7 +6827,7 @@ Only offer once in this conversation. Frame it personally, not prescriptively.`;
     // PREMIUM CONVERSATION ENGINE v1: Next Best Question
     // ============================================================
     const nextQuestionResult = pickNextQuestion({
-      userText: userMsgForBrain,
+      userText: lastUserMessage,
       signals: brainSignals,
       turnCount,
       lastUserTexts
@@ -6982,6 +6896,125 @@ The therapy disclaimer has ALREADY been shown to this user. Do NOT say any varia
 - "Quick note: I'm not..."
 This was shown during onboarding. Never repeat it. Just be present and helpful.`;
       console.log('[DISCLAIMER] Already shown, injecting no-repeat rule');
+    }
+    
+    // ============================================================
+    // === SIGNALS READY CHECKPOINT ===
+    // All signals now available: cognitiveIntent, conversationState, 
+    // brainSignals, doorwaysResult, posture, detected_state
+    // atmosphereResult is computed post-response but included as null.
+    // Safe to call brainSynthesis + decide prompt version.
+    // ============================================================
+    
+    // Runtime assert for ordering (dev only) - catches regressions instantly
+    if (process.env.NODE_ENV !== 'production') {
+      const missing = [];
+      if (!cognitiveIntent) missing.push('cognitiveIntent');
+      if (!conversationState) missing.push('conversationState');
+      if (posture === undefined) missing.push('attunement.posture');
+      if (!brainSignals) missing.push('brainSignals');
+      if (!doorwaysResult) missing.push('doorwaysResult');
+      if (missing.length) {
+        console.warn('[SIGNALS CHECKPOINT] Missing prerequisites:', missing.join(', '));
+      }
+    }
+    
+    const convoStateObj = conversationState.getState(effectiveUserId);
+    const attunement = { posture, detected_state, postureConfidence };
+    
+    // ============================================================
+    // BRAIN SYNTHESIS (Phase 2: After all signals are computed)
+    // Consolidates all module signals into traceIntent object
+    // ============================================================
+    try {
+      // Extract context bullets using the contextBullets helper
+      const memoryBullets = pickMemoryBullets(memoryContext);
+      const patternBullets = pickPatternBullets(patternReflectionContext);
+      const activityBullets = pickActivityBullets(activityOutcomesData, postActivityReflectionContext);
+      const dreamBullet = formatDreamBullet(dreamscapeHistory);
+      const antiRepetitionOpeners = extractRecentOpeners(messages);
+      
+      traceIntent = brainSynthesis({
+        currentMessage: lastUserMessage,
+        historyMessages: messages,
+        localTime,
+        tonePreference: tonePreference || 'neutral',
+        
+        isEarlyCrisisMode,
+        cognitiveIntent,
+        conversationState: convoStateObj,
+        traceBrainSignals: brainSignals,
+        attunement,
+        doorwaysResult,
+        atmosphereResult: null, // Not yet computed - added post-response
+        disclaimerShown: disclaimerAlreadyShown,
+        
+        memoryBullets,
+        patternBullets,
+        dreamBullet,
+        activityBullets
+      });
+      
+      // Store anti-repetition openers on traceIntent for V2 prompt building
+      if (traceIntent) {
+        traceIntent.antiRepetitionOpeners = antiRepetitionOpeners;
+      }
+    } catch (synthErr) {
+      console.error('[BRAIN SYNTHESIS] Failed (continuing with legacy):', synthErr.message);
+    }
+
+    // ============================================================
+    // V2 PROMPT SELECTION (Phase 2)
+    // Deterministic rollout: stable per user, controlled by TRACE_PROMPT_V2_PCT
+    // ============================================================
+    const isOnboardingActive = userProfile && 
+      (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null) &&
+      userProfile.onboarding_step && userProfile.onboarding_step !== 'completed';
+    
+    function shouldUsePromptV2(userId) {
+      const pct = Number(process.env.TRACE_PROMPT_V2_PCT || '0');
+      if (!pct) return false;
+      
+      // Cheap stable hash
+      let hash = 0;
+      const s = String(userId || '');
+      for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+      return (hash % 100) < pct;
+    }
+    
+    // Onboarding bypass MUST precede V2 - scripted flow never uses V2
+    useV2 = !isOnboardingActive && !isCrisisMode && shouldUsePromptV2(effectiveUserId) && traceIntent !== null;
+    
+    if (process.env.TRACE_INTENT_LOG === '1') {
+      console.log('[promptVersion]', { 
+        requestId: req.requestId || `req-${Date.now()}`,
+        useV2, 
+        pct: process.env.TRACE_PROMPT_V2_PCT || '0',
+        isOnboardingActive,
+        isCrisisMode,
+        traceIntentAvailable: traceIntent !== null
+      });
+    }
+    
+    // ============================================================
+    // FINAL PROMPT DECISION (V2 or Legacy)
+    // V2: Replace entire system prompt with clean two-layer version
+    // Legacy: Keep existing prompt + inject door intent
+    // ============================================================
+    if (useV2 && traceIntent) {
+      // V2 mode: Complete replacement, no legacy injections
+      systemPrompt = buildTracePromptV2({
+        tonePreference: tonePreference || 'neutral',
+        traceIntent,
+        antiRepetitionOpeners: traceIntent.antiRepetitionOpeners || [],
+      });
+      console.log('[TRACE V2] Using V2 system prompt (mode:', traceIntent.mode, 'intentType:', traceIntent.intentType, ')');
+    } else {
+      // Legacy mode: Inject door intent into existing prompt
+      if (doorwaysResult.doorIntent && !isCrisisMode) {
+        systemPrompt += `\n\n${doorwaysResult.doorIntent}`;
+        console.log('[DOORWAYS v1] Injected door intent:', doorwaysResult.selectedDoorId);
+      }
     }
     
     // ============================================================
@@ -7649,7 +7682,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     // SERVER-SIDE TWO-STEP CONFIRMATION ENFORCEMENT
     // ============================================================
     // Detect if user is confirming after an activity was offered
-    const lastUserMessage = messages.filter(m => m.role === 'user').pop()?.content?.toLowerCase().trim() || '';
+    const lastUserMessageLower = lastUserMessage.toLowerCase().trim();
     const confirmationPatterns = [
       /^yes[.!]?$/i,
       /^yes please[.!]?$/i,
@@ -7667,7 +7700,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       /^i'?d like (to|that)[.!]?$/i,
     ];
     
-    const isConfirmation = confirmationPatterns.some(pattern => pattern.test(lastUserMessage));
+    const isConfirmation = confirmationPatterns.some(pattern => pattern.test(lastUserMessageLower));
     
     // Look for activity offer in previous assistant messages
     let pendingActivity = null;

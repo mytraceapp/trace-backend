@@ -104,3 +104,4 @@ TRACE_RISING_URL = "https://open.spotify.com/playlist/7LHWpQChAU89LqBO7bVYeU"
 
 [userenv.development]
 TRACE_INTENT_LOG = "1"
+TRACE_PROMPT_V2_PCT = "100"
