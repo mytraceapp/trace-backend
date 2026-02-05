@@ -1,0 +1,232 @@
+The core change: Insert a “Synthesis Gate” between modules and the prompt
+
+Where to put it
+
+Right after all your signals are computed (you already compute them), and before buildTraceSystemPrompt() and all injections.
+
+In your flow, that’s between:
+	•	18–22 BRAIN MODULES (traceBrain, conversationState, attunement, atmosphere, doorways)
+and
+	•	16–17 SYSTEM PROMPT BUILDING + INJECTIONS
+
+What it does
+
+It produces a single object like:
+
+traceIntent = {
+  mode: "micro" | "normal" | "longform" | "crisis",
+  intentType: "presence" | "clarify" | "recipe" | "story" | "steps" | "music" | "dream" | ...,
+  posture: "GENTLE" | "STEADY" | "DIRECTIVE",
+  constraints: {
+    maxSentences?: 2,
+    allowQuestions: 0 | 1,
+    allowActivities: "never" | "ifAsked" | "allowed",
+    banTherapySpeak: true,
+    mustNotTruncate: true,
+    requiredSections?: string[]
+  },
+  selectedContext: {
+    memoryBullets: string[],
+    patternBullets: string[],
+    doorwayHint?: string,
+    dreamHint?: string
+  }
+}
+
+Everything else is downstream of this.
+
+⸻
+
+1) Stop building the “wall of text” prompt. Build a prompt from traceIntent.
+
+Replace buildTraceSystemPrompt() with two layers
+
+Layer A: stable core (small)
+	•	TRACE identity
+	•	voice style in 10–20 lines, not 50+
+	•	safety/disclaimer baseline
+	•	a short “don’t be a therapist” line
+	•	banned phrases as a short list or category names, not a novel
+
+Layer B: turn directive (dynamic, tiny but specific)
+	•	“MODE: MICRO / LONGFORM”
+	•	“Allowed moves: …”
+	•	“Required structure: …”
+	•	“Use these context bullets: …”
+	•	“Avoid: …”
+
+This alone solves your “most recent block wins” problem, because now there is only one “most recent” instruction, and it’s the synthesized directive.
+
+What to do with your current injections
+	•	Keep: attunement result (as 1–2 lines), disclaimer no-repeat (as a flag), anti-repetition (as a list of openers to avoid)
+	•	Remove from prompt: conversation state probe rules, doorways catalogs, emotional intelligence paragraphs, “Tier2 premium manifesto”, etc.
+	•	Convert to traceIntent fields (so they’re enforced structurally)
+
+⸻
+
+2) Your brevity requirement becomes a mode switch (solves “recipes shouldn’t be cut off”)
+
+You already have tightenResponse() + enforceBrevity(). The fix is to make those conditional:
+
+Micro mode (default)
+	•	max 1–2 sentences
+	•	max 1 question (or 0, depending)
+	•	no lists unless asked
+
+Normal mode
+	•	no sentence cap
+	•	still avoids rambling and therapy-speak
+
+Longform mode (recipes, steps, stories)
+	•	mustNotTruncate = true
+	•	requires sections (so it can’t “half answer”)
+	•	validator checks that sections exist
+
+Key point: Don’t “tightenResponse” in longform mode. Ever. Tightening is what causes “cut off”.
+
+⸻
+
+3) Turn post-processing from “band-aids” into “schema enforcement”
+
+You already do JSON response formats in Tier 1 and premium two-step.
+
+Leverage that.
+
+Make the model return BOTH:
+	•	message (the user-facing text)
+	•	meta (what it believes it did)
+
+Example:
+
+{
+  "message": "...",
+  "meta": {
+    "mode_used": "longform",
+    "intentType": "recipe",
+    "sections_present": ["ingredients","steps"],
+    "question_count": 0,
+    "activity_offered": false
+  }
+}
+
+Then your validator is deterministic. If it fails:
+	•	do a rewrite pass (same model is fine) with: “Rewrite to comply; keep meaning; do not add new info.”
+
+This is way better than replacing with a generic continuation.
+
+⸻
+
+4) Fix fragmentation by forbidding modules from injecting prompt text
+
+Right now, modules “compete” by writing rules into the prompt. That’s the fragmentation.
+
+New rule:
+
+Modules can only output signals, never “prompt content”.
+	•	conversationState outputs: stage, topicEstablished, lastMoveType, probeCount
+	•	traceBrain outputs: asksForHelp, highArousal, lowMood, recentTopics
+	•	cognitiveEngine outputs: topic_shift, is_short_message, etc.
+	•	doorways outputs: doorwayCandidates[]
+	•	atmosphere outputs: sound_state
+
+Then brainSynthesis() selects one:
+	•	which doorway (if any)
+	•	whether a question is allowed
+	•	whether to be micro vs longform
+	•	whether to offer activity (and under what condition)
+	•	what 5–10 bullets to include (not 200 lines)
+
+No more committee prompt writing.
+
+⸻
+
+5) Concrete reorder of your existing flow (minimal disruption)
+
+Keep your early intercepts exactly as-is
+
+Crisis check, audio stop/resume, Trace Studios, scripted onboarding — all good.
+
+Change the order for the “GPT path”
+
+After step 22:
+
+NEW Step 22.5: Synthesis Gate
+	•	Input: outputs from cognitiveEngine + traceBrain + conversationState + attunement + doorways + patterns + memory retrieval summary
+	•	Output: traceIntent
+
+Step 16 becomes: buildTracePrompt(core + traceIntentDirective + selectedContextBullets)
+
+Step 17 injections mostly disappear (or become tiny fields in the directive)
+
+Post-processing becomes:
+	•	validate JSON meta vs traceIntent
+	•	if fail → rewrite
+	•	then apply repetition checks and autonomy guard (still useful)
+
+⸻
+
+6) Reduce your memory payload immediately (this is a fast win)
+
+Right now you build memory context, dreamscape history, patterns, outcomes, reflection context… and inject a lot.
+
+Instead:
+
+Retrieval contract
+
+Have one function:
+
+retrieveContext(traceState, currentMessage) -> { memoryBullets[], patternBullets[], dreamBullet?, activityBullet? }
+
+Hard cap:
+	•	memoryBullets: max 6
+	•	patternBullets: max 4
+	•	dream: max 1
+	•	activity outcomes: max 2
+
+This keeps your total instruction block stable and prevents “attention dilution.”
+
+⸻
+
+7) Fix “Tier 2 overrides voice” without killing Tier 2
+
+Your diagnosis is correct: recency wins.
+
+So stop having a separate Tier2 “block” of rules.
+
+Tier2 should change:
+	•	model choice
+	•	timeout
+	•	allowed modes (deep dive allowed)
+	•	maybe a single line like “You may be warmer / more poetic”
+
+Not a new constitution.
+
+⸻
+
+8) Implementation sequence that won’t break everything
+
+Do it in this order:
+	1.	Introduce traceIntent object (even if initially dumb)
+	2.	Change prompt build to use traceIntentDirective at the end (last thing model sees)
+	3.	Turn off most injections (doorways catalog, EI block, conversation state probe rules) and move their outputs into traceIntent
+	4.	Update validators to branch by traceIntent.mode (micro vs longform)
+	5.	Replace fallback continuation with rewrite-on-fail
+	6.	Refactor module outputs to signals-only (remove prompt-writing helpers gradually)
+
+You’ll see behavior improve before you finish the cleanup.
+
+⸻
+
+What I would change in your exact list (surgical)
+
+Convert these to signals-only (no prompt)
+	•	Emotional intelligence context
+	•	Doorways v1 context
+	•	Conversation state rules
+	•	Tier 2 premium block (reduce to 1–2 lines or eliminate)
+	•	Voice engine prompt injection (keep voice engine as validator, not prompt writer)
+
+Keep as tiny directive fields
+	•	posture + detected_state (1 line)
+	•	disclaimer shown flag (1 line)
+	•	anti-repetition openers (list, but capped)
