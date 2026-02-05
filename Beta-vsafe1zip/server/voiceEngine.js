@@ -36,6 +36,23 @@ const BANNED_PHRASES = [
   'in terms of', 'at the end of the day'
 ];
 
+// UNSOLICITED ACTIVITY OFFERS - these break the therapeutic container
+// TRACE should NEVER offer activities/soundscapes unless user asks for help
+const UNSOLICITED_ACTIVITY_OFFERS = [
+  'let me suggest an activity',
+  'how about a breathing exercise',
+  'how about a calming soundscape',
+  'how about a gentle breathing',
+  'would you like a breathing',
+  'want to try a breathing',
+  'want to try an activity',
+  'i can suggest an activity',
+  'let me offer you',
+  'perhaps a soundscape',
+  'maybe a breathing exercise',
+  'a calming soundscape might help',
+];
+
 // CRITICAL: Lazy/generic questions that reset conversations
 // These destroy intimacy and make TRACE feel like a chatbot
 const LAZY_GENERIC_QUESTIONS = [
@@ -102,6 +119,15 @@ function containsBannedPhrases(text) {
 function containsLazyQuestion(text) {
   const lower = text.toLowerCase();
   return LAZY_GENERIC_QUESTIONS.filter(phrase => lower.includes(phrase));
+}
+
+/**
+ * Check if response contains unsolicited activity/soundscape offers
+ * These should be blocked unless user explicitly asked for help
+ */
+function containsUnsolicitedOffer(text) {
+  const lower = text.toLowerCase();
+  return UNSOLICITED_ACTIVITY_OFFERS.filter(phrase => lower.includes(phrase));
 }
 
 /**
@@ -444,6 +470,14 @@ function validateResponse(response, intent, recentHistory = []) {
   const banned = containsBannedPhrases(response);
   if (banned.length > 0) {
     issues.push(`Contains banned phrases: ${banned.join(', ')}`);
+  }
+  
+  // Check for unsolicited activity/soundscape offers - these should be blocked
+  const unsolicitedOffers = containsUnsolicitedOffer(corrected);
+  if (unsolicitedOffers.length > 0) {
+    issues.push(`Contains unsolicited activity offer: "${unsolicitedOffers[0]}" - REPLACING`);
+    console.log(`[VOICE] ⚠️ UNSOLICITED OFFER DETECTED: "${unsolicitedOffers[0]}" - replacing with contextual continuation`);
+    corrected = generateContextualContinuation(corrected, recentHistory);
   }
   
   // CONTEXTUAL REPLACEMENT: If lazy question detected, replace with contextual continuation
