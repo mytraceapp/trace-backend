@@ -111,6 +111,7 @@ const {
 const { buildEmotionalIntelligenceContext } = require('./emotionalIntelligence');
 const { processIntent: processCoginitiveIntent, gateScript } = require('./cognitiveEngine');
 const { buildVoicePromptInjection, validateResponse } = require('./voiceEngine');
+const conversationState = require('./conversationState');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
 const { evaluateAtmosphere } = require('./atmosphereEngine');
 const {
@@ -6915,6 +6916,18 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
     }
     
     // ============================================================
+    // CONVERSATION STATE LAYER: Track stage + move type to prevent repetitive probing
+    // ============================================================
+    const convoState = conversationState.getState(visitorId);
+    const userHadContent = conversationState.advanceStage(convoState, lastUserContent);
+    
+    console.log(`[CONVO_STATE] Before: { stage: ${convoState.stage}, lastMove: ${convoState.lastMoveType}, topics: [${convoState.lastTopicKeywords.join(', ')}], userHadContent: ${userHadContent} }`);
+    
+    // Inject conversation state rules into system prompt
+    const convoStateInjection = conversationState.buildStatePromptInjection(convoState, userHadContent);
+    systemPrompt += convoStateInjection;
+    
+    // ============================================================
     // ANTI-REPETITION: Extract recent assistant openers to avoid
     // ============================================================
     const recentAssistantMessages = messages
@@ -8575,8 +8588,24 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       });
     }
     
-    // VOICE ENGINE POST-PROCESSING: Strip lazy questions
-    // This is the last line of defense - catches anything GPT slipped through
+    // ============================================================
+    // CONVERSATION STATE: Validate response and enforce rules
+    // ============================================================
+    if (response.message && visitorId) {
+      // Check if response violates probe rules
+      const violatesRules = conversationState.violatesProbeRules(response.message, convoState, userHadContent);
+      
+      if (violatesRules) {
+        console.log('[CONVO_GUARD] Response violates probe rules - using fallback');
+        response.message = conversationState.generateFallbackResponse(convoState);
+      }
+      
+      // Update state after response
+      conversationState.updateStateAfterResponse(visitorId, response.message);
+      conversationState.saveState(visitorId, convoState);
+    }
+    
+    // VOICE ENGINE POST-PROCESSING: Additional cleanup
     if (response.message && messages && messages.length >= 4) {
       const voiceValidation = validateResponse(response.message, nextQuestionResult || {}, messages);
       if (!voiceValidation.valid) {

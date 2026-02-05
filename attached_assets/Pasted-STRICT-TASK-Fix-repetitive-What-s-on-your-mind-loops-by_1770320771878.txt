@@ -1,0 +1,90 @@
+STRICT TASK: Fix repetitive “What’s on your mind?” loops by adding a Conversation State Layer (stage + move tracking) in the backend orchestration. Do NOT change UI. Do NOT refactor audio/cadence. Backend-only.
+
+TARGET FILES:
+- server/traceBrain.js (primary)
+- server/index.js ONLY if you must pass/store conversation state
+
+PROBLEM:
+TRACE repeatedly asks opening/probing questions (“What’s on your mind?”, “Want to share more?”) because the orchestration is not advancing state after the user responds. The model is being called without “stage” / “lastMoveType” / “topicEstablished” signals.
+
+GOAL:
+Implement a lightweight “Conversation State Layer” that:
+1) Tracks stage: ARRIVAL | OPENING | SHARING | EXPLORING | PROCESSING | INTEGRATING | CLOSING
+2) Tracks lastMoveType: OPEN_PROBE | REFLECT | SPECIFIC_FOLLOWUP | VALIDATE | SUMMARIZE | SUGGEST | CHECKIN
+3) Detects when user has provided content (non-trivial response) and advances stage from OPENING -> SHARING (or EXPLORING).
+4) Enforces a HARD RULE: never allow two OPEN_PROBE moves in a row.
+   - If lastMoveType was OPEN_PROBE and the user responded with content, the next move must be REFLECT or SPECIFIC_FOLLOWUP (tied to user content).
+5) Adds a “variety guard” so that if the last assistant message contains any of these probe intents, the next assistant message must NOT ask another generic probe:
+   - “What’s on your mind?”
+   - “How are you feeling?”
+   - “Want to share more?”
+   - “Anything else?”
+   Treat these as the same category (OPEN_PROBE).
+
+CONSTRAINTS:
+- Keep the existing “brain engine” / GPT call path. Do not replace the model.
+- Do not add new external dependencies.
+- Do not alter audio, cadence, soundscapes, activities logic.
+- Keep changes minimal, reversible, and well-logged.
+- Must be deterministic and testable.
+
+IMPLEMENTATION DETAILS:
+A) Add a small state object that can be persisted per conversation/session. If you already have session/user storage, reuse it. Otherwise:
+   - Keep an in-memory Map keyed by userId for now (acceptable for dev), with TTL cleanup.
+   - State fields:
+     {
+       stage: 'ARRIVAL' | 'OPENING' | 'SHARING' | 'EXPLORING' | 'PROCESSING' | 'INTEGRATING' | 'CLOSING',
+       lastMoveType: 'OPEN_PROBE' | 'REFLECT' | 'SPECIFIC_FOLLOWUP' | 'VALIDATE' | 'SUMMARIZE' | 'SUGGEST' | 'CHECKIN',
+       lastAssistantIntentSignature: string, // e.g., 'OPEN_PROBE_GENERIC'
+       topicEstablished: boolean,
+       turnCount: number
+     }
+
+B) Add a simple user-content detector:
+   - userHasContent = (trimmedLength >= 12) OR (contains punctuation/keywords) OR (more than 2 words)
+   - Treat short replies like “yes”, “ok”, “ty”, “fine” as NOT content.
+
+C) Stage advancement rules:
+   - If stage in {ARRIVAL, OPENING} AND userHasContent => stage = SHARING; topicEstablished = true
+   - If stage == SHARING AND userHasContent => stage = EXPLORING
+   - If stage == EXPLORING AND user expresses emotion (sad/anxious/overwhelmed/etc) => stage = PROCESSING
+   - Keep simple; do not over-engineer.
+
+D) Prompt injection into the model:
+   - Add a system or developer instruction block that includes:
+     - current stage
+     - lastMoveType
+     - rule: NEVER output another generic probe if lastMoveType was OPEN_PROBE
+     - required next move type (when needed): REFLECT or SPECIFIC_FOLLOWUP
+   - The SPECIFIC_FOLLOWUP must reference the user’s last message content (not generic).
+
+E) After receiving model output:
+   - Classify the assistant reply move type:
+     - If it contains a generic “what’s on your mind / how are you feeling / want to share more / anything else” => OPEN_PROBE
+     - If it mirrors user emotion + summarizes => REFLECT
+     - If it asks a specific question referencing user content => SPECIFIC_FOLLOWUP
+   - Update state.lastMoveType accordingly
+   - Increment turnCount
+
+F) HARD GUARDRAIL:
+   - If the model output is OPEN_PROBE and lastMoveType was OPEN_PROBE and userHasContent == true:
+     - Automatically rewrite the assistant response by re-calling the model ONCE with a correction instruction:
+       “Do not ask a generic open-ended question. Provide a reflection + one specific follow-up tied to the user’s message.”
+     - If the second attempt still violates, fallback to a local deterministic response:
+       “I hear you. [brief reflection]. What part of that feels strongest right now—[two options]?”
+
+LOGGING:
+Add logs like:
+[CONVO_STATE] before { ... }
+[CONVO_STATE] after { ... }
+[CONVO_GUARD] violated_open_probe_repeat -> regenerating
+
+TESTS (manual OK):
+Provide 3 example inputs and show expected stage + move transitions:
+1) assistant asks “what’s on your mind?”, user responds with real content => next assistant must reflect + specific follow-up
+2) user responds “ok” => assistant may ask a single probe but must vary
+3) multiple turns: ensure no repeated probe loop
+
+DELIVERABLE:
+Commit changes with a message like:
+"Add conversation stage + move guards to prevent repetitive open probes"
