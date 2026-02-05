@@ -136,7 +136,7 @@ Multi-phase refactoring to address systemic prompt fragmentation through a clean
   - `TRACE_DISABLE_SANITIZE_TONE_WHEN_SCHEMA=0/1` — Skip sanitizeTone
 
 ### Phase 4.6: Single Rewrite Path + Layer Tracking (Complete)
-- **NO DOUBLE REWRITE rule**: If schema ran AND (rewrite was attempted OR schema passed), Drift Lock is unconditionally skipped. Prevents latency stacking.
+- **NO DOUBLE REWRITE rule**: If `schemaEnforcementActive` AND schema ran AND (rewrite was attempted OR schema passed), Drift Lock is skipped. Users outside the enforcement percentage bucket keep Drift Lock as a safety net.
 - **Per-request `schemaCtx` object**: Tracks schemaEligible, schemaEnforcementEnabled, schemaGatePassed, schemaRan, schemaPassed, rewriteAttempted, rewriteSucceeded.
 - **`schemaRanSuccessfully` redefined**: `schemaRan && schemaPassed` (ran AND passed). Used to gate retirement flags (distinct from NO DOUBLE REWRITE rule).
 - **Layer tracking booleans**: `driftLockRan`, `tightenPairRan`, `sanitizeToneRan` for observability.
