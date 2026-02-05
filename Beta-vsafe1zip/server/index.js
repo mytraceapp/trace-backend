@@ -8386,9 +8386,10 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     const schemaRanSuccessfully = schemaRan && schemaPassed;
 
     // ===== TONE DRIFT LOCK - One-Shot Validator =====
-    // PHASE 4.6: NO DOUBLE REWRITE — if schema ran and either rewrote or passed,
-    // Drift Lock must not run (prevents latency stacking)
-    const noDoubleRewrite = schemaRan && (schemaRewriteAttempted || schemaPassed);
+    // PHASE 4.6: NO DOUBLE REWRITE — only applies when user is in the enforcement bucket.
+    // If enforcement is active and schema either rewrote or passed, skip Drift Lock.
+    // Users outside the enforcement bucket keep Drift Lock as a safety net.
+    const noDoubleRewrite = schemaEnforcementActive && schemaRan && (schemaRewriteAttempted || schemaPassed);
     const skipDriftLockRetirement = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_DRIFT_LOCK_WHEN_SCHEMA === '1';
     const skipDriftLock = noDoubleRewrite || skipDriftLockRetirement;
     let driftLockRan = false;

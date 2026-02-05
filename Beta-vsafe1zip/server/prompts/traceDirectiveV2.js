@@ -28,10 +28,12 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [] }) {
       ? `Required sections: ${c.requiredSections.join(', ')}.`
       : '';
 
-  // Questions constraint
+  // Questions constraint — explicit language to reduce violations
   const questionsRule =
     typeof c.allowQuestions === 'number'
-      ? `Questions allowed: ${c.allowQuestions}.`
+      ? c.allowQuestions === 0
+        ? 'Ask no questions.'
+        : `Ask at most ${c.allowQuestions} question.`
       : '';
 
   // Activity suggestion constraint

@@ -1,0 +1,54 @@
+Two important corrections + the next concrete moves:
+
+1) Correction: Drift Lock should not be skipped when schema merely “ran”
+
+Your Phase 4.6 rule was: skip Drift Lock only when schema ran AND (rewrite attempted OR schema passed).
+
+But the log you described says Drift Lock was skipped just because schema ran (even though enforcement didn’t run for that user). That would remove a safety net for the 90% who are not being rewritten.
+
+What you want:
+	•	If user is outside enforcement bucket → schema can log, but Drift Lock stays on (unless you’re explicitly retiring it later).
+	•	If user is inside enforcement bucket and rewrite happens or schema passes → Drift Lock skipped to prevent stacking.
+
+So verify the skip condition is using schemaEnforcementActive / schemaGatePassed, not simply schema_ran.
+
+If your [PHASE4] log shows schema_ran: true and rewrite_attempted: false and schema_failed: true, Drift Lock should be true for that request (until Step 3).
+
+2) Confirm gating behavior: “outside 10% → rewrite not attempted” is correct
+
+That part is correct. Logging violations for everyone while enforcing for 10% is exactly what you want.
+
+⸻
+
+What to do next (right now)
+
+A) Fix/confirm the Drift Lock skip condition (small but crucial)
+
+Ask Replit to adjust it to:
+	•	skipDriftLock = schemaEnforcementActive && (rewriteAttempted || schemaPassed)
+	•	where schemaEnforcementActive = useV2 && TRACE_SCHEMA_ENFORCEMENT=1 && gatePassed && !crisis && !onboarding
+
+This keeps safety layers for the 90% not enforced.
+
+B) Add one directive tweak to reduce question overflow (cheap win)
+
+Since question overflow is already appearing, add this line to the V2 directive when allowQuestions=1:
+	•	“Ask at most one question.”
+
+And when allowQuestions=0:
+	•	“Ask no questions.”
+
+This reduces rewrite rate and keeps latency down.
+
+⸻
+
+How long to stay in Step 2
+
+Don’t change retirement flags yet.
+
+Stay here until you can answer:
+	•	Rewrite success rate? (for the 10% enforced)
+	•	Rewrite attempt rate? (how often it triggers)
+	•	Top 2 violations? (sounds like question overflow is one)
+
+Once rewrite success is solid and the top violations are predictable, then Step 3 is safe.
