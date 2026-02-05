@@ -126,6 +126,7 @@ const { buildTracePromptV2 } = require('./prompts/buildTracePromptV2');
 const { computeMeta } = require('./validation/computeMeta');
 const { validateTraceResponseSchema } = require('./validation/validateTraceResponseSchema');
 const { rewriteToSchema } = require('./validation/rewriteToSchema');
+const { shouldUseSchemaEnforcement, buildSchemaMetrics } = require('./validation/schemaRollout');
 const {
   detectEmotionalState,
   isUserAgreeing,
@@ -8274,11 +8275,18 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     }
     
     // ===== PHASE 4: SCHEMA VALIDATION + SINGLE REWRITE PATH =====
-    const schemaEnforcementActive = useV2 && process.env.TRACE_SCHEMA_ENFORCEMENT === '1';
+    // Phase 4.5: Percentage-based rollout via shouldUseSchemaEnforcement()
+    const schemaEnforcementMasterOn = process.env.TRACE_SCHEMA_ENFORCEMENT === '1';
+    const schemaUserEligible = useV2 && !isCrisisMode && !isOnboardingActive && schemaEnforcementMasterOn
+      && shouldUseSchemaEnforcement(effectiveUserId);
+    const schemaEnforcementActive = schemaUserEligible;
+
     let processedAssistantText = finalAssistantText;
     let schemaMeta = null;
     let schemaResult = null;
     let schemaRewriteUsed = false;
+    const schemaStartMs = Date.now();
+    let schemaRewriteLatencyMs = 0;
 
     if (useV2 && traceIntent) {
       schemaMeta = computeMeta(finalAssistantText, traceIntent);
@@ -8315,6 +8323,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
           tier: schemaTier,
           model: selectedModel,
         });
+        schemaRewriteLatencyMs = rewriteResult.latencyMs || 0;
 
         if (rewriteResult.success && rewriteResult.rewritten) {
           const rewriteMeta = computeMeta(rewriteResult.rewritten, traceIntent);
@@ -8333,6 +8342,28 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         } else if (rewriteResult.error !== 'no_rewrite_needed') {
           console.warn('[SCHEMA REWRITE] Failed:', rewriteResult.error, `(${rewriteResult.latencyMs}ms)`);
         }
+      }
+
+      // Phase 4.5: Structured metrics (guarded by TRACE_INTENT_LOG=1)
+      if (process.env.TRACE_INTENT_LOG === '1') {
+        const schemaRan = schemaResult && !schemaResult.skipped;
+        const schemaFailed = schemaRan && !schemaResult.ok;
+        const rewriteAttempted = schemaFailed && schemaEnforcementActive;
+        const metrics = buildSchemaMetrics({
+          requestId: chatRequestId,
+          userId: effectiveUserId,
+          schemaRan,
+          schemaFailed,
+          rewriteAttempted,
+          rewriteSucceeded: schemaRewriteUsed,
+          violations: schemaResult.violations,
+          severity: schemaResult.severity,
+          latencyMsTotal: Date.now() - schemaStartMs,
+          latencyMsModel: 0,
+          latencyMsRewrite: schemaRewriteLatencyMs,
+          skipReason: schemaResult.skipped ? (schemaResult.reason || 'unknown') : null,
+        });
+        console.log('[SCHEMA METRICS]', JSON.stringify(metrics));
       }
     }
 
