@@ -114,6 +114,7 @@ const { buildVoicePromptInjection, validateResponse } = require('./voiceEngine')
 const conversationState = require('./conversationState');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
 const { evaluateAtmosphere } = require('./atmosphereEngine');
+const { brainSynthesis, logTraceIntent } = require('./brain/brainSynthesis');
 const {
   detectEmotionalState,
   isUserAgreeing,
@@ -8303,6 +8304,46 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     } catch (err) {
       console.error('[ATMOSPHERE] Evaluation failed:', err.message);
+    }
+    
+    // ============================================================
+    // BRAIN SYNTHESIS (Phase 1: Log only, no behavior change)
+    // Consolidates all module signals into traceIntent object
+    // ============================================================
+    let traceIntent = null;
+    try {
+      const convoStateObj = conversationState.getState(effectiveUserId);
+      
+      traceIntent = brainSynthesis({
+        currentMessage: lastUserMessage,
+        historyMessages: messages,
+        localTime,
+        tonePreference: tonePreference || 'neutral',
+        
+        isEarlyCrisisMode,
+        cognitiveIntent,
+        conversationState: convoStateObj,
+        traceBrainSignals: brainSignals,
+        attunement: { posture, detected_state, postureConfidence },
+        doorwaysResult,
+        atmosphereResult,
+        disclaimerShown: disclaimerAlreadyShown,
+        
+        memoryBullets: null,
+        patternBullets: null,
+        dreamBullet: dreamscapeHistory ? `Last visited Dreamscape ${dreamscapeHistory.daysAgo === 0 ? 'today' : dreamscapeHistory.daysAgo === 1 ? 'yesterday' : dreamscapeHistory.daysAgo + ' days ago'}` : null,
+        activityBullets: null
+      });
+      
+      logTraceIntent({
+        requestId: req.requestId || `req-${Date.now()}`,
+        effectiveUserId,
+        traceIntent,
+        model: selectedModel,
+        route: isPremiumTier ? 'premium' : 'standard'
+      });
+    } catch (err) {
+      console.error('[BRAIN SYNTHESIS] Failed:', err.message);
     }
     
     // ============================================================

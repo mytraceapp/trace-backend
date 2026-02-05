@@ -101,3 +101,6 @@ TRACE_RISING_URI = "spotify:playlist:7LHWpQChAU89LqBO7bVYeU"
 TRACE_GROUND_URL = "https://open.spotify.com/playlist/5cAoML12eNgt4J1XAXYU77"
 TRACE_DRIFT_URL = "https://open.spotify.com/playlist/5ahaGLZi7wB40G2PQFfdvt"
 TRACE_RISING_URL = "https://open.spotify.com/playlist/7LHWpQChAU89LqBO7bVYeU"
+
+[userenv.development]
+TRACE_INTENT_LOG = "1"

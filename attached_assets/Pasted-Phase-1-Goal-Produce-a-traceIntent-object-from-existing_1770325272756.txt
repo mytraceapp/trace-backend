@@ -1,0 +1,359 @@
+Phase 1 Goal
+
+✅ Produce a traceIntent object from existing signals
+✅ Log it (dev + optional Supabase table)
+✅ Do not change prompt building, routing, post-processing, or response shape
+
+⸻
+
+Step 1 — Create traceIntent structure (new file)
+
+Create:
+
+server/brain/traceIntent.js
+
+// server/brain/traceIntent.js
+
+function createEmptyTraceIntent() {
+  return {
+    version: "v1",
+    createdAt: new Date().toISOString(),
+
+    // High-level behavior mode (Phase 1: just classify; no enforcement yet)
+    mode: "micro", // micro | normal | longform | crisis
+
+    // Primary intent type (Phase 1: best-effort)
+    intentType: "presence", // presence | clarify | recipe | story | steps | dream | music | info | crisis | other
+
+    // Posture and state (from attunement)
+    posture: null,          // GENTLE | STEADY | DIRECTIVE
+    detected_state: null,   // anxious | tired | neutral | etc.
+
+    // Constraints (Phase 1: fill, but don't apply)
+    constraints: {
+      maxSentences: 2,
+      allowQuestions: 1,
+      allowActivities: "ifAsked", // never | ifAsked | allowed
+      banTherapySpeak: true,
+      mustNotTruncate: false,
+      requiredSections: null, // e.g. ["ingredients","steps"]
+      disclaimerShown: null,  // true/false
+    },
+
+    // Selected context (Phase 1: small bullets only; not used yet)
+    selectedContext: {
+      memoryBullets: [],
+      patternBullets: [],
+      dreamBullet: null,
+      activityBullets: [],
+      doorwayHint: null,
+    },
+
+    // Debug / provenance
+    signals: {
+      // filled with summarized signals so you can inspect decisions later
+      crisis: null,
+      cognitive: null,
+      conversationState: null,
+      traceBrain: null,
+      doorways: null,
+      atmosphere: null,
+    }
+  };
+}
+
+module.exports = { createEmptyTraceIntent };
+
+Step 2 — Implement brainSynthesis() (new file)
+
+Create:
+
+server/brain/brainSynthesis.js
+
+This reads your existing outputs (no new detectors) and populates traceIntent.
+// server/brain/brainSynthesis.js
+const { createEmptyTraceIntent } = require("./traceIntent");
+
+// Very lightweight heuristics for Phase 1.
+// We can refine later — the point is: consistent structure + provenance.
+function brainSynthesis({
+  currentMessage,
+  historyMessages,
+  localTime,
+  tonePreference,
+
+  // existing outputs (pass whatever you already compute)
+  isEarlyCrisisMode,
+  cognitiveIntent,        // from cognitiveEngine.processCognitiveIntent(...)
+  conversationState,      // from conversationState.getState(...)
+  traceBrainSignals,      // from traceBrain.getBrainSignals(...)
+  attunement,             // from detectPosture(...)
+  doorwaysResult,         // from processDoorways(...)
+  atmosphereResult,       // from evaluateAtmosphere(...)
+  disclaimerShown,        // from profile / onboarding
+  memoryBullets,          // (Phase 1 optional) from your memory builder trimmed
+  patternBullets,         // (Phase 1 optional)
+  dreamBullet,            // (Phase 1 optional)
+  activityBullets,        // (Phase 1 optional)
+}) {
+  const intent = createEmptyTraceIntent();
+
+  // --- provenance / debug ---
+  intent.signals.crisis = { isEarlyCrisisMode: !!isEarlyCrisisMode };
+  intent.signals.cognitive = summarizeCognitive(cognitiveIntent);
+  intent.signals.conversationState = summarizeConvoState(conversationState);
+  intent.signals.traceBrain = summarizeTraceBrain(traceBrainSignals);
+  intent.signals.doorways = summarizeDoorways(doorwaysResult);
+  intent.signals.atmosphere = summarizeAtmosphere(atmosphereResult);
+
+  // --- posture ---
+  if (attunement) {
+    intent.posture = attunement.posture || attunement.detectedPosture || null;
+    intent.detected_state = attunement.detected_state || attunement.detectedState || null;
+  }
+
+  // --- disclaimer flag ---
+  intent.constraints.disclaimerShown = disclaimerShown ?? null;
+
+  // --- context bullets (not used yet) ---
+  intent.selectedContext.memoryBullets = Array.isArray(memoryBullets) ? memoryBullets.slice(0, 6) : [];
+  intent.selectedContext.patternBullets = Array.isArray(patternBullets) ? patternBullets.slice(0, 4) : [];
+  intent.selectedContext.dreamBullet = dreamBullet || null;
+  intent.selectedContext.activityBullets = Array.isArray(activityBullets) ? activityBullets.slice(0, 2) : [];
+  intent.selectedContext.doorwayHint = pickDoorwayHint(doorwaysResult);
+
+  // --- mode selection (Phase 1 only classification) ---
+  if (isEarlyCrisisMode) {
+    intent.mode = "crisis";
+    intent.intentType = "crisis";
+    intent.constraints.maxSentences = null;       // crisis path uses special format anyway
+    intent.constraints.allowQuestions = 0;
+    intent.constraints.allowActivities = "never";
+    return intent;
+  }
+
+  // Determine longform intent types (recipes, stories, steps)
+  const inferred = inferIntentType({ currentMessage, cognitiveIntent, doorwaysResult, traceBrainSignals });
+
+  intent.intentType = inferred.intentType;
+  intent.mode = inferred.mode;
+
+  // --- constraints by mode ---
+  if (intent.mode === "micro") {
+    intent.constraints.maxSentences = 2;
+    intent.constraints.allowQuestions = 1;
+    intent.constraints.mustNotTruncate = false;
+    intent.constraints.requiredSections = null;
+  } else if (intent.mode === "normal") {
+    intent.constraints.maxSentences = null;
+    intent.constraints.allowQuestions = 1;
+    intent.constraints.mustNotTruncate = false;
+    intent.constraints.requiredSections = null;
+  } else if (intent.mode === "longform") {
+    intent.constraints.maxSentences = null;
+    intent.constraints.allowQuestions = 0; // usually no questions in recipes/steps unless asked
+    intent.constraints.mustNotTruncate = true;
+    intent.constraints.requiredSections = inferred.requiredSections || null;
+  }
+
+  return intent;
+}
+
+function inferIntentType({ currentMessage, cognitiveIntent, doorwaysResult, traceBrainSignals }) {
+  const text = (currentMessage || "").toLowerCase();
+
+  // explicit longform asks
+  if (looksLikeRecipeAsk(text)) {
+    return { intentType: "recipe", mode: "longform", requiredSections: ["ingredients", "steps"] };
+  }
+  if (looksLikeStepsAsk(text)) {
+    return { intentType: "steps", mode: "longform", requiredSections: ["steps"] };
+  }
+  if (looksLikeStoryAsk(text)) {
+    return { intentType: "story", mode: "longform", requiredSections: ["beginning", "middle", "end"] };
+  }
+
+  // dream hint
+  if (looksLikeDream(text) || pickDoorwayHint(doorwaysResult) === "dreams_symbols") {
+    return { intentType: "dream", mode: "normal" };
+  }
+
+  // fallback using cognitiveIntent if available
+  if (cognitiveIntent?.asks_for_help) return { intentType: "clarify", mode: "micro" };
+  if (cognitiveIntent?.emotional_context && cognitiveIntent.emotional_context !== "neutral") {
+    return { intentType: "presence", mode: "micro" };
+  }
+
+  return { intentType: "other", mode: "micro" };
+}
+
+function looksLikeRecipeAsk(t) {
+  return /\b(recipe|ingredients|how do i make|how to make|cook|bake)\b/.test(t);
+}
+function looksLikeStepsAsk(t) {
+  return /\b(step by step|steps|walk me through|how do i|instructions)\b/.test(t);
+}
+function looksLikeStoryAsk(t) {
+  return /\b(tell me a story|story time|write a story|can you narrate)\b/.test(t);
+}
+function looksLikeDream(t) {
+  return /\b(i had a dream|dreamt|weird dream|in my dream)\b/.test(t);
+}
+
+function pickDoorwayHint(doorwaysResult) {
+  // You likely have a structure like { triggeredDoor: 'dreams_symbols', ... } or candidates
+  if (!doorwaysResult) return null;
+  return doorwaysResult.triggeredDoor || doorwaysResult.doorway || (doorwaysResult.candidates?.[0] || null);
+}
+
+function summarizeCognitive(ci) {
+  if (!ci) return null;
+  return {
+    emotional_context: ci.emotional_context,
+    topic_shift: ci.topic_shift,
+    is_short_message: ci.is_short_message,
+    asks_for_help: ci.asks_for_help,
+  };
+}
+function summarizeConvoState(cs) {
+  if (!cs) return null;
+  return {
+    stage: cs.stage,
+    lastMoveType: cs.lastMoveType,
+    topicEstablished: cs.topicEstablished,
+    probeCount: cs.probeCount,
+  };
+}
+function summarizeTraceBrain(tb) {
+  if (!tb) return null;
+  return {
+    asksForHelp: tb.asksForHelp,
+    highArousal: tb.highArousal,
+    lowMood: tb.lowMood,
+    reflectiveTone: tb.reflectiveTone,
+  };
+}
+function summarizeDoorways(dw) {
+  if (!dw) return null;
+  return {
+    triggeredDoor: dw.triggeredDoor || dw.doorway || null,
+    candidates: dw.candidates ? dw.candidates.slice(0, 3) : null,
+  };
+}
+function summarizeAtmosphere(atm) {
+  if (!atm) return null;
+  return {
+    sound_state: atm.sound_state || atm.recommendedSoundState || null,
+  };
+}
+
+module.exports = { brainSynthesis };
+
+Step 3 — Wire Phase 1 into /api/chat (log only)
+
+In your /api/chat handler, after you compute the existing signals (your steps 18–22), do:
+const { brainSynthesis } = require("./brain/brainSynthesis");
+
+...
+
+// After traceBrainSignals, conversationState, attunement, doorwaysResult, atmosphereResult exist:
+const traceIntent = brainSynthesis({
+  currentMessage,
+  historyMessages: messages,
+  localTime,
+  tonePreference,
+
+  isEarlyCrisisMode,
+  cognitiveIntent,
+  conversationState: stateObj,
+  traceBrainSignals,
+  attunement,
+  doorwaysResult,
+  atmosphereResult,
+  disclaimerShown: profile?.disclaimer_shown,
+
+  // optional Phase 1: small bullets if you already have them
+  memoryBullets: memoryContext?.bullets,
+  patternBullets: safePatternContext?.bullets,
+  dreamBullet: dreamscapeHistory ? formatDreamBullet(dreamscapeHistory) : null,
+  activityBullets: activityOutcomes?.bullets
+});
+
+// LOG ONLY — no behavior change
+logTraceIntent({
+  requestId,
+  effectiveUserId,
+  traceIntent,
+  model: selectedModel,
+  route: "standard" // or "premium", etc
+});
+
+Add a simple logger:
+function logTraceIntent({ requestId, effectiveUserId, traceIntent, model, route }) {
+  // Keep logs small—this is Phase 1 observability, not data dumping
+  const summary = {
+    requestId,
+    userId: effectiveUserId,
+    route,
+    model,
+    mode: traceIntent.mode,
+    intentType: traceIntent.intentType,
+    posture: traceIntent.posture,
+    detected_state: traceIntent.detected_state,
+    doorwayHint: traceIntent.selectedContext.doorwayHint,
+    constraints: traceIntent.constraints,
+    signals: traceIntent.signals
+  };
+
+  // Gate with env var so prod logs don't explode
+  if (process.env.TRACE_INTENT_LOG === "1") {
+    console.log("[traceIntent]", JSON.stringify(summary));
+  }
+}
+
+Important: Do not include full message text in logs unless you’re sure you want that in server logs. Keep it metadata-only.
+
+⸻
+
+Step 4 — Add a “Synthesis Health Check” log (super useful)
+
+In Phase 1 you want to catch nonsense classification early.
+
+Add:
+if (process.env.TRACE_INTENT_LOG === "1") {
+  const weird =
+    !traceIntent.mode ||
+    !traceIntent.intentType ||
+    (traceIntent.mode === "longform" && !traceIntent.constraints.mustNotTruncate);
+
+  if (weird) {
+    console.warn("[traceIntent] WEIRD_INTENT", {
+      requestId,
+      mode: traceIntent.mode,
+      intentType: traceIntent.intentType,
+      constraints: traceIntent.constraints
+    });
+  }
+}
+
+Step 5 — Define Phase 1 “Done” criteria (so you know it worked) do a curl test
+
+Run the app normally and watch logs for ~50 conversations.
+
+You’re looking for:
+	•	mode=longform when you ask for recipes/steps/stories
+	•	mode=micro for emotional check-ins
+	•	mode=crisis only when crisis intercept triggers
+	•	posture/detected_state present when attunement ran
+	•	doorwayHint present only when doorways triggered
+
+If any of those are off, we tune the heuristics (still Phase 1).
+
+don’t touch your prompt yet
+
+In Phase 1, you do not pass traceIntent into:
+	•	buildTraceSystemPrompt
+	•	Tier selection
+	•	post-processing
+
+Just compute + log

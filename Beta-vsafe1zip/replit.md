@@ -33,3 +33,44 @@ Beta is a mental wellness and self-care mobile app prototype designed to provide
 The current prototype does not explicitly integrate with external services beyond the front-end development tools. Future plans anticipate integration with:
 - **Supabase**: For backend user data and plan management.
 - **Stripe**: For handling subscriptions and payments.
+
+## Brain Synthesis Architecture (Phase 1)
+
+### Overview
+The `/api/chat` endpoint uses a "Synthesis Gate" pattern to consolidate all brain module outputs into a single `traceIntent` object before prompt building. This addresses architectural fragmentation where 14+ modules were competing to inject rules into the system prompt.
+
+### Files
+- `server/brain/traceIntent.js` - Defines the traceIntent structure
+- `server/brain/brainSynthesis.js` - Synthesizes module signals into traceIntent
+
+### traceIntent Structure
+```javascript
+{
+  mode: "micro" | "normal" | "longform" | "crisis",
+  intentType: "presence" | "clarify" | "recipe" | "story" | "steps" | "dream" | "music" | "crisis" | "other",
+  posture: "GENTLE" | "STEADY" | "DIRECTIVE",
+  detected_state: "neutral" | "anxious" | "tired" | etc,
+  constraints: {
+    maxSentences: number | null,
+    allowQuestions: 0 | 1,
+    allowActivities: "never" | "ifAsked" | "allowed",
+    banTherapySpeak: true,
+    mustNotTruncate: boolean,
+    requiredSections: string[] | null,
+    disclaimerShown: boolean | null
+  },
+  selectedContext: {
+    memoryBullets: string[],
+    patternBullets: string[],
+    dreamBullet: string | null,
+    activityBullets: string[],
+    doorwayHint: string | null
+  },
+  signals: { /* debug provenance from all modules */ }
+}
+```
+
+### Phase 1 Status
+- **Implemented**: traceIntent object creation + logging (env: TRACE_INTENT_LOG=1)
+- **Not yet enforced**: Prompt building still uses legacy injections
+- **Next phases**: Replace prompt injections with traceIntent-driven directives
