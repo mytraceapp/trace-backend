@@ -1,0 +1,223 @@
+Phase 2 goal
+
+Replace the “wall of injections” with:
+	1.	Stable core identity (small, constant)
+	2.	Dynamic directive (tiny, traceIntent-driven, always last)
+
+…and roll it out gradually (10% → 25% → 50% → 100%).
+
+⸻
+
+Phase 2.1 — Create buildTracePromptV2(core + directive) (new files)
+
+New file: server/prompts/traceCoreV2.js
+
+Keep it short. This should not mention doorways catalogs, EI paragraphs, state machines, etc. It’s just “who TRACE is” + safety baseline.
+
+// server/prompts/traceCoreV2.js
+function buildTraceCoreV2({ tonePreference }) {
+  const faithLine =
+    tonePreference === "faith"
+      ? `Faith is allowed when the user invites it. Keep it gentle, never preachy.`
+      : `Do not introduce spiritual framing unless the user invites it.`;
+
+  return `
+You are TRACE — a steady, human-feeling companion. Your job is to be with the user, not fix them.
+
+Voice:
+- Natural, grounded, warm. No therapy jargon. No “I’m here for you” loops.
+- Say less, but land it. Avoid rambling.
+
+Safety:
+- You are not a therapist. If crisis/self-harm appears, shift to safety-first support and encourage professional help.
+
+Autonomy:
+- Do not command or pressure. Offer choices, not directives.
+
+${faithLine}
+`.trim();
+}
+
+module.exports = { buildTraceCoreV2 };
+
+New file: server/prompts/traceDirectiveV2.js
+
+This converts traceIntent into explicit turn instructions.
+// server/prompts/traceDirectiveV2.js
+function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [] }) {
+  const c = traceIntent?.constraints || {};
+  const mode = traceIntent?.mode || "micro";
+  const intentType = traceIntent?.intentType || "other";
+
+  const modeBlock =
+    mode === "micro"
+      ? `MODE: MICRO. Keep it to ${c.maxSentences || 2} sentences max.`
+      : mode === "longform"
+      ? `MODE: LONGFORM. Be complete. Do NOT truncate.`
+      : mode === "crisis"
+      ? `MODE: CRISIS. Use safety-first guidance.`
+      : `MODE: NORMAL. Be appropriately concise but complete.`;
+
+  const structure =
+    mode === "longform" && Array.isArray(c.requiredSections) && c.requiredSections.length
+      ? `Required sections: ${c.requiredSections.join(", ")}.`
+      : "";
+
+  const questionsRule =
+    typeof c.allowQuestions === "number"
+      ? `Questions allowed: ${c.allowQuestions}.`
+      : "";
+
+  const activityRule =
+    c.allowActivities ? `Activity suggestions: ${c.allowActivities}.` : "";
+
+  const doorwayHint = traceIntent?.selectedContext?.doorwayHint
+    ? `Doorway hint (optional): ${traceIntent.selectedContext.doorwayHint}.`
+    : "";
+
+  const contextBullets = [
+    ...(traceIntent?.selectedContext?.memoryBullets || []),
+    ...(traceIntent?.selectedContext?.patternBullets || []),
+    ...(traceIntent?.selectedContext?.activityBullets || []),
+  ].slice(0, 10);
+
+  const contextBlock = contextBullets.length
+    ? `Use these context bullets if relevant:\n- ${contextBullets.join("\n- ")}`
+    : `No extra context needed.`;
+
+  const antiRepeat =
+    antiRepetitionOpeners.length
+      ? `Avoid repeating these openers:\n- ${antiRepetitionOpeners.slice(0, 8).join("\n- ")}`
+      : "";
+
+  return `
+TURN DIRECTIVE
+Intent type: ${intentType}
+${modeBlock}
+${structure}
+${questionsRule}
+${activityRule}
+Avoid therapy-speak. Avoid banned phrases.
+${doorwayHint}
+
+${contextBlock}
+
+${antiRepeat}
+Output only the user-facing message.
+`.trim();
+}
+
+module.exports = { buildTraceDirectiveV2 };
+
+New file: server/prompts/buildTracePromptV2.js
+// server/prompts/buildTracePromptV2.js
+const { buildTraceCoreV2 } = require("./traceCoreV2");
+const { buildTraceDirectiveV2 } = require("./traceDirectiveV2");
+
+function buildTracePromptV2({
+  tonePreference,
+  traceIntent,
+  antiRepetitionOpeners,
+}) {
+  const core = buildTraceCoreV2({ tonePreference });
+  const directive = buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners });
+
+  // IMPORTANT: directive must be last
+  return `${core}\n\n${directive}`;
+}
+
+module.exports = { buildTracePromptV2 };
+Phase 2.2 — Feature flag & 10% rollout
+
+In /api/chat, after you compute traceIntent:
+const { buildTracePromptV2 } = require("./prompts/buildTracePromptV2");
+
+function shouldUsePromptV2(effectiveUserId) {
+  // deterministic rollout: stable per user
+  const pct = Number(process.env.TRACE_PROMPT_V2_PCT || "0"); // 0..100
+  if (!pct) return false;
+
+  // cheap stable hash
+  let hash = 0;
+  const s = String(effectiveUserId || "");
+  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+  return (hash % 100) < pct;
+}
+
+// ...
+const useV2 = shouldUsePromptV2(effectiveUserId);
+
+const systemPrompt = useV2
+  ? buildTracePromptV2({
+      tonePreference,
+      traceIntent,
+      antiRepetitionOpeners: recentOpenersToAvoid,
+    })
+  : legacySystemPrompt; // your existing buildTraceSystemPrompt + injections
+
+if (process.env.TRACE_INTENT_LOG === "1") {
+  console.log("[promptVersion]", { requestId, useV2, pct: process.env.TRACE_PROMPT_V2_PCT });
+}
+
+Set:
+	•	TRACE_PROMPT_V2_PCT=10 in dev → test → then staging → then prod.
+
+⸻
+
+Phase 2.3 — Compare response quality (what to log)
+
+Since Phase 4 schema enforcement isn’t on yet, log cheap “compliance signals” you already compute:
+	•	sentence count
+	•	question count
+	•	whether activity was offered
+	•	voiceEngine violations
+	•	autonomyGuard violations
+	•	repetition hits
+	•	fallback usage
+
+Log them with prompt version:
+logQualityMetrics({
+  requestId,
+  promptVersion: useV2 ? "v2" : "legacy",
+  model: selectedModel,
+  sentenceCount,
+  questionCount,
+  voiceViolations: voiceValidation?.violations?.length || 0,
+  autonomyViolations: autonomy?.violations?.length || 0,
+  repetitionTriggered: repetitionResult?.triggered || false,
+  usedFallback: didFallback || false
+});
+Success criteria for V2 at 10%:
+	•	fewer voiceEngine rewrites
+	•	fewer tightenResponse interventions in micro mode
+	•	fewer “Tier2 overrides canon” weirdness (you’ll feel this immediately)
+	•	equal or better user satisfaction (qualitative)
+
+⸻
+
+Phase 2.4 — Keep legacy behavior but reduce prompt bulk immediately
+
+Even before Phase 3 removal, you can start shrinking injections safely by moving content into traceIntent.selectedContext bullets (cap them).
+
+A very safe intermediate step:
+	•	keep legacy prompt
+	•	replace the largest injections with short bullet summaries only when V2 is enabled
+	•	this protects you from a “big bang” failure
+
+⸻
+
+A key guardrail for your “never cut off recipes/stories”
+
+In V2, for mode=longform the directive says “Do NOT truncate.”
+Then you must ensure you don’t run tightenResponse() on longform turns (later Phase 3/4), but even in Phase 2 you can add:
+const skipTighten = traceIntent?.mode === "longform";
+…and just log it for now (don’t change behavior yet) to validate it.
+
+⸻
+
+Your Phase 2 checklist
+	•	Add buildTracePromptV2 core + directive
+	•	Add deterministic rollout function
+	•	Log promptVersion + basic quality metrics
+	•	Enable at 10% (dev → staging → prod)
+	•	Review logs for 24–48 hours worth of traffic and compare
