@@ -97,7 +97,9 @@ function getSessionState(userId) {
       // Baseline detection: accumulate signals over first few messages
       baseline_window_active: true,   // True until first intelligent switch made
       baseline_message_count: 0,      // Messages since session start
-      accumulated_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0 } // Accumulated scores
+      accumulated_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0 }, // Baseline scores
+      // Continuous assessment: rolling signals for reassessment after persistence
+      continuous_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0 }   // Rolling scores
     });
   }
   return sessionStates.get(userId);
@@ -463,17 +465,94 @@ function evaluateAtmosphere(input) {
   }
   
   // ============================================================
-  // 2️⃣ RETURN-TO-PRESENCE CHECK (with persistence protection)
+  // 🔄 CONTINUOUS SIGNAL ACCUMULATION (even after baseline window)
+  // Track rolling signals for reassessment at persistence boundary
+  // ============================================================
+  
+  const newContinuousAccumulated = { ...session.continuous_signals || { grounding: 0, comfort: 0, reflective: 0, insight: 0 } };
+  for (const state of ['grounding', 'comfort', 'reflective', 'insight']) {
+    // Decay old signals slightly, add new ones
+    newContinuousAccumulated[state] = (newContinuousAccumulated[state] * 0.85) + (scores[state] || 0);
+  }
+  
+  console.log(`[ATMOSPHERE] 📊 Continuous signals: ${JSON.stringify(newContinuousAccumulated)}`);
+  
+  // ============================================================
+  // 2️⃣ PERSISTENCE + REASSESSMENT LOGIC
   // ============================================================
   
   let candidate_state = null;
   let reason = '';
   
-  // PERSISTENCE RULE: Don't allow return to presence until minimum messages have passed
-  // This prevents premature switching back after just entering a new state
-  const canReturnToPresence = current_state === 'presence' || newMessagesSinceChange >= MIN_STATE_PERSIST_MESSAGES;
+  const persistenceWindowComplete = newMessagesSinceChange >= MIN_STATE_PERSIST_MESSAGES;
+  const isInNonPresenceState = current_state !== 'presence';
   
-  if (canReturnToPresence) {
+  // Priority order for detecting "more urgent" states
+  const STATE_URGENCY = { grounding: 4, insight: 3, comfort: 2, reflective: 1, presence: 0 };
+  const currentUrgency = STATE_URGENCY[current_state] || 0;
+  
+  if (persistenceWindowComplete && isInNonPresenceState) {
+    // ============================================================
+    // 🎯 REASSESSMENT POINT: Persistence window complete
+    // Look at accumulated signals to decide next state
+    // ============================================================
+    console.log(`[ATMOSPHERE] 🎯 REASSESSMENT: ${newMessagesSinceChange} messages complete, evaluating next state`);
+    
+    // Find best state from continuous accumulation
+    let bestState = 'presence'; // Default to presence if no signals
+    let bestScore = 0;
+    
+    for (const state of STATE_PRIORITY) {
+      const accumulated = newContinuousAccumulated[state] || 0;
+      if (accumulated > bestScore && accumulated >= 1.0) {
+        bestScore = accumulated;
+        bestState = state;
+      }
+    }
+    
+    if (bestState !== current_state) {
+      candidate_state = bestState;
+      reason = `reassessment_${bestState}_score_${bestScore.toFixed(1)}`;
+      console.log(`[ATMOSPHERE] 🔄 Reassessment suggests: ${current_state} → ${bestState}`);
+    } else {
+      // Stay in current state, reset persistence counter
+      console.log(`[ATMOSPHERE] 🔄 Reassessment: staying in ${current_state}, resetting persistence window`);
+    }
+    
+    // Reset continuous signals for next window
+    for (const state of ['grounding', 'comfort', 'reflective', 'insight']) {
+      newContinuousAccumulated[state] = 0;
+    }
+  } else if (!persistenceWindowComplete && isInNonPresenceState) {
+    // ============================================================
+    // 🛡️ PERSISTENCE PROTECTION: Block downgrades, allow urgent upgrades
+    // ============================================================
+    console.log(`[ATMOSPHERE] 🛡️ Persistence: ${newMessagesSinceChange}/${MIN_STATE_PERSIST_MESSAGES} - locked in ${current_state}`);
+    
+    // Check for URGENT UPGRADES only (higher priority states can interrupt)
+    if (maxConfidence !== 'low') {
+      const highConfidenceStates = Object.entries(scores)
+        .filter(([_, score]) => score >= 1.5) // Require stronger signal for mid-persistence upgrade
+        .map(([state, _]) => state);
+      
+      for (const priorityState of STATE_PRIORITY) {
+        if (highConfidenceStates.includes(priorityState)) {
+          const candidateUrgency = STATE_URGENCY[priorityState] || 0;
+          if (candidateUrgency > currentUrgency) {
+            candidate_state = priorityState;
+            reason = `urgent_upgrade_${priorityState}`;
+            console.log(`[ATMOSPHERE] ⚡ Urgent upgrade: ${current_state} → ${priorityState} (urgency ${currentUrgency} → ${candidateUrgency})`);
+          }
+          break;
+        }
+      }
+    }
+  } else {
+    // ============================================================
+    // 3️⃣ NORMAL SIGNAL DETECTION (presence state or no persistence active)
+    // ============================================================
+    
+    // Check for return to presence via neutral streak
     if (newNeutralStreak >= NEUTRAL_STREAK_THRESHOLD) {
       candidate_state = 'presence';
       reason = 'neutral_message_streak';
@@ -481,36 +560,30 @@ function evaluateAtmosphere(input) {
       candidate_state = 'presence';
       reason = 'signal_timeout_15min';
     }
-  } else if (current_state !== 'presence') {
-    console.log(`[ATMOSPHERE] Persistence protection: ${newMessagesSinceChange}/${MIN_STATE_PERSIST_MESSAGES} messages - staying in ${current_state}`);
-  }
-  
-  // ============================================================
-  // 3️⃣ SIGNAL SCORING + CONFLICT RESOLUTION
-  // ============================================================
-  
-  if (!candidate_state && maxConfidence !== 'low') {
-    // Find all states with medium or high confidence, pick by priority
-    const highConfidenceStates = Object.entries(scores)
-      .filter(([_, score]) => score >= 1.0)  // Single keyword now sufficient
-      .map(([state, _]) => state);
     
-    console.log(`[ATMOSPHERE] highConfidenceStates: ${JSON.stringify(highConfidenceStates)}`);
-    
-    if (highConfidenceStates.length > 0) {
-      // Select by priority order: grounding > insight > comfort > reflective
-      for (const priorityState of STATE_PRIORITY) {
-        if (highConfidenceStates.includes(priorityState)) {
-          candidate_state = priorityState;
-          reason = `signal_detected_${priorityState}`;
-          console.log(`[ATMOSPHERE] Candidate selected: ${candidate_state} (reason: ${reason})`);
-          break;
+    // Signal-based state detection
+    if (!candidate_state && maxConfidence !== 'low') {
+      const highConfidenceStates = Object.entries(scores)
+        .filter(([_, score]) => score >= 1.0)
+        .map(([state, _]) => state);
+      
+      console.log(`[ATMOSPHERE] highConfidenceStates: ${JSON.stringify(highConfidenceStates)}`);
+      
+      if (highConfidenceStates.length > 0) {
+        for (const priorityState of STATE_PRIORITY) {
+          if (highConfidenceStates.includes(priorityState)) {
+            candidate_state = priorityState;
+            reason = `signal_detected_${priorityState}`;
+            console.log(`[ATMOSPHERE] Candidate selected: ${candidate_state} (reason: ${reason})`);
+            break;
+          }
         }
       }
     }
-  } else {
-    console.log(`[ATMOSPHERE] Skipping signal scoring: candidate=${candidate_state}, maxConf=${maxConfidence}`);
   }
+  
+  // Store continuous signals for next evaluation
+  session.continuous_signals = newContinuousAccumulated;
   
   // ============================================================
   // EXTREME SPIKE OVERRIDE (bypasses dwell + transition, NOT freeze)
