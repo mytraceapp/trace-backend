@@ -1,0 +1,192 @@
+Phase 4 (Revised): Deterministic schema enforcement with single rewrite path
+
+Core principles (updated)
+	1.	Meta is computed server-side from the final text, not model-reported. (Models lie / drift.)
+	2.	One rewrite system only when V2 is active: schema rewrite replaces Drift Lock (not stacked).
+	3.	Never run schema validation or rewrite in crisis or onboarding.
+	4.	Tier differences:
+	•	T1: JSON output already → keep JSON, compute meta server-side
+	•	T2: Step A is JSON structure, Step B is plain text → compute meta from Step B final text; optionally validate against Step A intent/shape
+
+⸻
+
+4.1 Meta: server-side, consistent across Tier 1 and Tier 2
+
+What changes
+	•	Keep model response schema as-is ({ message: "..." }).
+	•	Add meta computed after you have the final message string.
+
+Meta fields (deterministic)
+
+Compute from the final text:
+	•	mode_expected (from traceIntent.mode)
+	•	mode_used (optional heuristic; or just keep expected)
+	•	sentence_count
+	•	question_count
+	•	has_truncation_language (regex: in short|to keep it brief|long story short|anyway|etc\. etc.)
+	•	sections_present (only in longform + if you enforce sections later)
+	•	activity_offered (boolean derived from your existing activity-offer detection OR a simple regex)
+
+Where it lives
+	•	Attach to response object returned to client (client ignores unknown keys).
+	•	Also log it with promptVersion + model + tier.
+
+✅ Works for T1 and T2 because it runs after the final text exists.
+
+⸻
+
+4.2 New validator: avoid collision with voiceEngine.validateResponse()
+
+Name it something distinct:
+	•	validateTraceResponseSchema() or validateSchemaV2()
+
+Input
+	•	traceIntent
+	•	finalText
+	•	meta (computed server-side)
+	•	context: { useV2, isCrisisMode, isOnboardingActive, tier, model }
+
+Output
+	•	{ ok: boolean, violations: string[], severity: "low"|"med"|"high" }
+
+What it validates (start small)
+
+Micro mode
+	•	sentence_count ≤ maxSentences (default 2)
+	•	question_count ≤ allowQuestions
+	•	no activity offer if allowActivities = never/ifAsked (you already have detection logic)
+
+Longform mode
+	•	if mustNotTruncate: has_truncation_language === false
+	•	(optional later) requiredSections present — don’t enforce this on day 1 unless you’re already reliably outputting structure
+
+Crisis/onboarding
+	•	validator returns { ok: true, skipped: true }
+
+✅ This avoids stepping on voiceEngine’s existing validateResponse.
+
+⸻
+
+4.3 Rewrite-on-fail: integrate with Drift Lock (no stacking)
+
+You already have Drift Lock (tone rewrite). Phase 4 introduces schema rewrite. They must not both fire.
+
+New control policy
+
+When V2 is active:
+	•	Schema rewrite is the only rewrite path
+	•	Drift Lock is disabled for that request
+
+When V2 is not active:
+	•	Drift Lock continues unchanged
+
+Add flag
+	•	TRACE_SCHEMA_ENFORCEMENT=0/1 (default 0)
+	•	Optional: TRACE_SCHEMA_ENFORCEMENT_PCT to roll independently
+
+Rewrite conditions
+
+Run rewrite only if:
+	•	TRACE_SCHEMA_ENFORCEMENT=1
+	•	useV2 === true
+	•	!isCrisisMode
+	•	!isOnboardingActive
+	•	schema validator fails
+	•	and you haven’t already rewritten once
+
+Rewrite prompt (structure-focused, not tone-focused)
+
+Key requirement: rewrite must be constrained and non-expansive:
+	•	“Rewrite to comply with constraints. Don’t add new ideas. Preserve meaning. Keep same intent.”
+
+Also pass explicit constraints:
+	•	maxSentences
+	•	allowQuestions
+	•	allowActivities
+	•	mustNotTruncate
+	•	requiredSections (if enforcing)
+
+Which model to rewrite with
+	•	Use the same model tier where possible:
+	•	T1: gpt-4o-mini rewrite
+	•	T2: rewrite with gpt-4o-mini OR gpt-5.1 depending on latency budget
+	•	Practical: rewrite with gpt-4o-mini for speed and deterministic compliance
+
+✅ This prevents “two extra calls” because Drift Lock won’t also fire.
+
+⸻
+
+4.4 Retiring layers: flags and exact mapping to your pipeline
+
+You correctly identified the current order:
+	1.	Drift Lock
+	2.	tightenResponse
+	3.	enforceBrevity
+	4.	sanitizeTone
+
+Revised flags (explicit mapping)
+
+A) Disable Drift Lock when schema enforcement is active
+	•	TRACE_DISABLE_DRIFT_LOCK_WHEN_SCHEMA=1
+Behavior:
+	•	If useV2 && TRACE_SCHEMA_ENFORCEMENT=1 → skip Drift Lock entirely.
+
+B) Disable tighten pair when schema enforcement is active
+	•	Replace earlier suggestion with one correct flag:
+	•	TRACE_DISABLE_TIGHTEN_PAIR_WHEN_SCHEMA=1
+Behavior:
+	•	If useV2 && TRACE_SCHEMA_ENFORCEMENT=1 → skip both tightenResponse AND enforceBrevity.
+
+C) Disable sanitizeTone when schema enforcement is active
+	•	TRACE_DISABLE_SANITIZE_TONE_WHEN_SCHEMA=1
+Behavior:
+	•	If useV2 && TRACE_SCHEMA_ENFORCEMENT=1 → skip sanitizeTone.
+	•	BUT: you may keep a light banned-phrase remover as a “safety scrub” if you want; just don’t do heavy regex rewriting.
+
+Ordering recommendation
+
+Roll retirements in this order:
+	1.	Start with schema validate log-only (no rewrites, no disables)
+	2.	Enable schema rewrite (still keep tighten/sanitize for now)
+	3.	Disable Drift Lock for schema requests (prevents double rewrite)
+	4.	Disable tighten pair for schema requests (prevents longform cutoffs)
+	5.	Disable sanitizeTone for schema requests (replace with rewrite)
+
+⸻
+
+Missing items you flagged (now explicitly handled)
+
+Crisis bypass (explicit)
+	•	Schema validate + rewrite must never run in crisis mode.
+	•	Add a hard guard at the top of schema module:
+	•	if (isCrisisMode) return { ok:true, skipped:true }
+
+Onboarding bypass (explicit)
+	•	Same guard:
+	•	if (isOnboardingActive) return { ok:true, skipped:true }
+
+T2 handling (explicit)
+	•	Meta + validation are computed from Step B final text
+	•	Step A JSON can optionally be used to set expected intent/constraints, but enforcement is still based on final text output.
+	•	Rewrite uses gpt-4o-mini for speed unless you explicitly want gpt-5.1.
+
+Server-side meta vs model self-report (explicit)
+	•	Models are not asked to report counts.
+	•	Server computes counts from final text.
+
+⸻
+
+Minimal implementation blueprint (so you can land this safely)
+
+New files
+	•	server/validation/computeMeta.js
+	•	server/validation/validateTraceResponseSchema.js
+	•	server/validation/rewriteToSchema.js
+
+Integration points
+
+After final text exists (after Tier 1 parse or Tier 2 Step B):
+	1.	meta = computeMeta(finalText, traceIntent)
+	2.	schema = validateTraceResponseSchema(finalText, meta, traceIntent, ctx)
+	3.	if fail + flags → rewrite once → recompute meta → revalidate
+	4.	only then proceed to post-processing, with skip flags when schema active

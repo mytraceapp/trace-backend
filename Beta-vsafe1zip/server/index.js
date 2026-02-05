@@ -123,6 +123,9 @@ const {
   extractRecentOpeners,
 } = require('./brain/contextBullets');
 const { buildTracePromptV2 } = require('./prompts/buildTracePromptV2');
+const { computeMeta } = require('./validation/computeMeta');
+const { validateTraceResponseSchema } = require('./validation/validateTraceResponseSchema');
+const { rewriteToSchema } = require('./validation/rewriteToSchema');
 const {
   detectEmotionalState,
   isUserAgreeing,
@@ -8270,50 +8273,118 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       messagesArray[0] = finalAssistantText;
     }
     
-    // ===== TONE DRIFT LOCK - One-Shot Validator =====
-    // Check for drift violations and optionally rewrite
+    // ===== PHASE 4: SCHEMA VALIDATION + SINGLE REWRITE PATH =====
+    const schemaEnforcementActive = useV2 && process.env.TRACE_SCHEMA_ENFORCEMENT === '1';
     let processedAssistantText = finalAssistantText;
-    const driftCheck = checkDriftViolations(processedAssistantText);
-    
-    if (driftCheck.hasViolation && openai) {
-      console.log('[DRIFT LOCK] Violations detected:', driftCheck.violations);
-      try {
-        const rewritePrompt = buildRewritePrompt(processedAssistantText);
-        const rewriteResponse = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: 'You are a voice editor. Rewrite text to match TRACE voice: grounded, calm, concise, no therapy-template language.' },
-            { role: 'user', content: rewritePrompt }
-          ],
-          max_tokens: 400,
-          temperature: 0.5,
+    let schemaMeta = null;
+    let schemaResult = null;
+    let schemaRewriteUsed = false;
+
+    if (useV2 && traceIntent) {
+      schemaMeta = computeMeta(finalAssistantText, traceIntent);
+      const schemaTier = modelRoute?.tier ?? null;
+      schemaResult = validateTraceResponseSchema(finalAssistantText, schemaMeta, traceIntent, {
+        useV2,
+        isCrisisMode,
+        isOnboardingActive,
+        tier: schemaTier,
+        model: selectedModel,
+        requestId: chatRequestId,
+      });
+
+      if (process.env.TRACE_INTENT_LOG === '1' || process.env.NODE_ENV !== 'production') {
+        console.log('[SCHEMA META]', {
+          requestId: chatRequestId,
+          ...schemaMeta,
+          tier: schemaTier,
+          model: selectedModel,
         });
-        const rewritten = rewriteResponse.choices?.[0]?.message?.content?.trim();
-        if (rewritten && rewritten.length > 10) {
-          const rewriteDriftCheck = checkDriftViolations(rewritten);
-          if (!rewriteDriftCheck.hasViolation) {
-            processedAssistantText = rewritten;
-            console.log('[DRIFT LOCK] Successfully rewrote response');
-            
-            // ===== TELEMETRY: Log drift_rewrite_used event =====
-            if (effectiveUserId) {
-              logEvent({
-                user_id: effectiveUserId,
-                event_name: 'drift_rewrite_used',
-                props: {
-                  rewrite_count: 1,
-                  reason: 'validator_hit',
-                  violations: driftCheck.violations,
-                }
-              }).catch(() => {});
-            }
-          } else {
-            console.log('[DRIFT LOCK] Rewrite still has violations, keeping original');
-          }
-        }
-      } catch (rewriteErr) {
-        console.error('[DRIFT LOCK] Rewrite failed:', rewriteErr.message);
+        console.log('[SCHEMA VALIDATE]', {
+          requestId: chatRequestId,
+          ok: schemaResult.ok,
+          violations: schemaResult.violations,
+          severity: schemaResult.severity,
+          skipped: schemaResult.skipped,
+          reason: schemaResult.reason || 'validated',
+        });
       }
+
+      if (schemaEnforcementActive && !schemaResult.ok && !schemaResult.skipped) {
+        const rewriteResult = await rewriteToSchema(openai, processedAssistantText, schemaResult, traceIntent, {
+          requestId: chatRequestId,
+          tier: schemaTier,
+          model: selectedModel,
+        });
+
+        if (rewriteResult.success && rewriteResult.rewritten) {
+          const rewriteMeta = computeMeta(rewriteResult.rewritten, traceIntent);
+          const revalidation = validateTraceResponseSchema(rewriteResult.rewritten, rewriteMeta, traceIntent, {
+            useV2, isCrisisMode, isOnboardingActive, tier: schemaTier, model: selectedModel, requestId: chatRequestId,
+          });
+
+          if (revalidation.ok) {
+            processedAssistantText = rewriteResult.rewritten;
+            schemaMeta = rewriteMeta;
+            schemaRewriteUsed = true;
+            console.log('[SCHEMA REWRITE] Success — violations fixed in', rewriteResult.latencyMs, 'ms');
+          } else {
+            console.log('[SCHEMA REWRITE] Rewrite still violates:', revalidation.violations, '— keeping original');
+          }
+        } else if (rewriteResult.error !== 'no_rewrite_needed') {
+          console.warn('[SCHEMA REWRITE] Failed:', rewriteResult.error, `(${rewriteResult.latencyMs}ms)`);
+        }
+      }
+    }
+
+    // ===== TONE DRIFT LOCK - One-Shot Validator =====
+    // PHASE 4: Skip Drift Lock when schema enforcement is the active rewrite path
+    // Guard: only skip if schema actually ran (schemaResult exists and wasn't skipped)
+    const schemaRanSuccessfully = schemaResult && !schemaResult.skipped;
+    const skipDriftLock = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_DRIFT_LOCK_WHEN_SCHEMA === '1';
+    if (!skipDriftLock) {
+      const driftCheck = checkDriftViolations(processedAssistantText);
+      
+      if (driftCheck.hasViolation && openai) {
+        console.log('[DRIFT LOCK] Violations detected:', driftCheck.violations);
+        try {
+          const rewritePrompt = buildRewritePrompt(processedAssistantText);
+          const rewriteResponse = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: 'You are a voice editor. Rewrite text to match TRACE voice: grounded, calm, concise, no therapy-template language.' },
+              { role: 'user', content: rewritePrompt }
+            ],
+            max_tokens: 400,
+            temperature: 0.5,
+          });
+          const rewritten = rewriteResponse.choices?.[0]?.message?.content?.trim();
+          if (rewritten && rewritten.length > 10) {
+            const rewriteDriftCheck = checkDriftViolations(rewritten);
+            if (!rewriteDriftCheck.hasViolation) {
+              processedAssistantText = rewritten;
+              console.log('[DRIFT LOCK] Successfully rewrote response');
+              
+              if (effectiveUserId) {
+                logEvent({
+                  user_id: effectiveUserId,
+                  event_name: 'drift_rewrite_used',
+                  props: {
+                    rewrite_count: 1,
+                    reason: 'validator_hit',
+                    violations: driftCheck.violations,
+                  }
+                }).catch(() => {});
+              }
+            } else {
+              console.log('[DRIFT LOCK] Rewrite still has violations, keeping original');
+            }
+          }
+        } catch (rewriteErr) {
+          console.error('[DRIFT LOCK] Rewrite failed:', rewriteErr.message);
+        }
+      }
+    } else {
+      console.log('[DRIFT LOCK] Skipped — schema enforcement active');
     }
     
     // ===== TRACE BRAIN SUGGESTION LOGIC =====
@@ -8396,20 +8467,26 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       tightenedText = processedAssistantText;
       console.log('[TRACE BRAIN] Skipping tighten - long-form request (recipe/story/list)', useV2 ? '(V2)' : '');
     } else {
-      // Apply original tightenResponse for sentence limits
-      tightenedText = tightenResponse(processedAssistantText, { maxSentences: todRules.maxSentences });
-      
-      // Apply enforceBrevity based on mode (strict/deep/crisis)
-      tightenedText = enforceBrevity(tightenedText, brevityMode);
-      
-      if (tightenedText !== processedAssistantText) {
-        console.log('[TRACE BRAIN] Response tightened (mode:', brevityMode, 'maxSentences:', todRules.maxSentences, ')');
+      const skipTightenPair = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_TIGHTEN_PAIR_WHEN_SCHEMA === '1';
+      const skipSanitizeTone = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_SANITIZE_TONE_WHEN_SCHEMA === '1';
+
+      if (skipTightenPair) {
+        tightenedText = processedAssistantText;
+        console.log('[TRACE BRAIN] Skipping tighten pair — schema enforcement active');
+      } else {
+        tightenedText = tightenResponse(processedAssistantText, { maxSentences: todRules.maxSentences });
+        tightenedText = enforceBrevity(tightenedText, brevityMode);
+        
+        if (tightenedText !== processedAssistantText) {
+          console.log('[TRACE BRAIN] Response tightened (mode:', brevityMode, 'maxSentences:', todRules.maxSentences, ')');
+        }
       }
       
-      // ===== TONE SANITIZER =====
-      // Server-side cleanup of any therapy-speak that slips through
-      // Only run for NON-crisis mode - crisis responses are preserved exactly
-      tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode: false });
+      if (skipSanitizeTone) {
+        console.log('[TRACE BRAIN] Skipping sanitizeTone — schema enforcement active');
+      } else {
+        tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode: false });
+      }
     }
     
     // ===== CRISIS 988 GUARDRAIL =====
@@ -8832,6 +8909,10 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     }
     
     const finalResponse = normalizeChatResponse(response, requestId);
+    if (schemaMeta) {
+      finalResponse._schema_meta = schemaMeta;
+      if (schemaRewriteUsed) finalResponse._schema_rewrite = true;
+    }
     storeDedupResponse(dedupKey, finalResponse);
     
     // ---- CORE MEMORY: Post-response async processing ----
