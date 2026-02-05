@@ -9983,6 +9983,47 @@ app.post('/api/onboarding/reflection', async (req, res) => {
       return res.status(400).json({ success: false, error: 'reflection is required' });
     }
     
+    // Check for TRACE music requests (e.g., "play neon promise") - redirect to music handler
+    const studiosResponse = handleTraceStudios({
+      userText: reflectionText,
+      clientState: {},
+      userId: userId,
+      lastAssistantMessage: '',
+      nowPlaying: null,
+      recentAssistantMessages: [],
+    });
+    
+    if (studiosResponse) {
+      console.log('[ACTIVITY REFLECTION] Intercepted TRACE Studios request:', studiosResponse.traceStudios?.kind);
+      
+      const response = {
+        success: true,
+        ok: true,
+        message: studiosResponse.assistant_message,
+        aiResponse: studiosResponse.assistant_message,
+        mode: studiosResponse.mode,
+        traceStudios: studiosResponse.traceStudios,
+      };
+      
+      // Add audio_action if present
+      if (studiosResponse.traceStudios?.audio_action) {
+        const TRACK_INDEX_MAP = {
+          'midnight_underwater': 0, 'slow_tides': 1, 'undertow': 2, 'euphoria': 3,
+          'ocean_breathing': 4, 'tidal_house': 5, 'neon_promise': 6, 'night_swim': 0,
+        };
+        const trackIndex = TRACK_INDEX_MAP[studiosResponse.traceStudios.audio_action.trackId] ?? 0;
+        response.audio_action = {
+          type: 'open',
+          source: 'originals',
+          album: 'night_swim',
+          track: trackIndex,
+          autoplay: true,
+        };
+      }
+      
+      return res.json(response);
+    }
+    
     // Validate UUID format
     const validation = validateUserId(userId, null);
     if (!validation.valid) {
