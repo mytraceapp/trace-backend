@@ -1,0 +1,91 @@
+1) Baseline week: learn your failure modes (still log-only)
+
+Keep:
+	•	TRACE_SCHEMA_ENFORCEMENT=0
+	•	TRACE_PROMPT_V2_PCT at whatever you’re comfortable with
+	•	TRACE_V2_STRIP_INJECTIONS=1
+
+Watch [SCHEMA METRICS] and tally (mentally is fine at first):
+	•	top violations (likely micro sentence overage / too many questions)
+	•	severity distribution
+	•	how often violations occur in micro vs longform
+
+If violations are mostly “low” and repetitive, you’re ready to enforce.
+
+⸻
+
+2) Turn on enforcement for a tiny slice
+
+Set:
+	•	TRACE_SCHEMA_ENFORCEMENT=1
+	•	TRACE_SCHEMA_ENFORCEMENT_PCT=5 (or 10)
+Keep ALL retirement flags OFF for now:
+	•	TRACE_DISABLE_DRIFT_LOCK_WHEN_SCHEMA=0
+	•	TRACE_DISABLE_TIGHTEN_PAIR_WHEN_SCHEMA=0
+	•	TRACE_DISABLE_SANITIZE_TONE_WHEN_SCHEMA=0
+
+What you’re verifying:
+	•	rewrite attempts happen only when needed
+	•	rewrite succeeds in one pass most of the time
+	•	latency doesn’t spike (you’ll see it in your metrics)
+	•	fallback rate doesn’t increase
+
+If rewrite success is strong, proceed.
+
+⸻
+
+3) Retire Drift Lock first (for schema traffic only)
+
+Set:
+	•	TRACE_DISABLE_DRIFT_LOCK_WHEN_SCHEMA=1
+
+You already have “no double rewrite,” so this mostly reduces wasted work / complexity.
+
+Watch:
+	•	any tone regressions (if they appear, slightly strengthen the rewrite prompt with 2–3 tone constraints — not a whole canon)
+
+⸻
+
+4) Retire tighten pair next (this prevents longform truncation)
+
+Set:
+	•	TRACE_DISABLE_TIGHTEN_PAIR_WHEN_SCHEMA=1
+
+This is where longform finally becomes “never cut off” in practice.
+
+Watch:
+	•	micro responses: do they get too long without tighten?
+If yes, schema rewrite should fix; if not, consider keeping tighten pair for micro only (but ideally schema handles it).
+
+⸻
+
+5) Retire sanitizeTone last
+
+Set:
+	•	TRACE_DISABLE_SANITIZE_TONE_WHEN_SCHEMA=1
+
+Only do this once rewrite success is consistently high, otherwise sanitizeTone is still acting as a safety net.
+
+⸻
+
+6) Increase enforcement pct gradually
+
+Once steps 2–5 are stable at 5–10%:
+	•	move to 25%
+	•	then 50%
+	•	then 100% (still only for V2 traffic)
+
+And separately, you can ramp:
+	•	TRACE_PROMPT_V2_PCT → 100% once you’re confident.
+
+⸻
+
+7) The one “next improvement” worth doing now: tune the directive to reduce rewrites
+
+Look at the top 2 violations and adjust the V2 directive so the model complies more often without rewrite.
+
+Common fixes:
+	•	If it keeps asking questions when allowQuestions=0: add “Do not ask any questions in this reply.”
+	•	If it keeps going 3 sentences in micro: add “Hard cap: 2 sentences. No extra sentence.”
+
+This reduces rewrite rate, which reduces latency.
