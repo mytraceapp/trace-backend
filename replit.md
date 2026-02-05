@@ -114,3 +114,36 @@ A multi-phase refactoring implemented a two-layer V2 prompt system to address pr
 
 -   **localStorage**: Client-side persistence.
 -   **PostgreSQL**: Server-side relational database via Drizzle ORM and `pg` client library.
+
+## Synthesis Gate — Prompt Architecture Refactoring
+
+Multi-phase refactoring to address systemic prompt fragmentation through a clean two-layer V2 prompt system.
+
+### Phase 3: Legacy Injection Stripping (Complete)
+- Single choke-point controlled by `TRACE_V2_STRIP_INJECTIONS` env flag
+- When enabled with V2: strips ConvoState probe rules, anti-repetition openers, T2 manifesto from prompt
+- Server-side `violatesProbeRules()` still enforces question limits regardless of strip status
+
+### Phase 4: Schema Enforcement (Complete)
+- **Files:** `server/validation/computeMeta.js`, `server/validation/validateTraceResponseSchema.js`, `server/validation/rewriteToSchema.js`
+- **Meta:** Server-side deterministic computation (sentence count, question count, truncation detection, activity offers). Models never self-report.
+- **Validator:** Checks micro mode limits. Hard bypasses for crisis, onboarding, and legacy mode.
+- **Rewrite:** Single-attempt gpt-4o-mini rewrite when schema fails. Replaces Drift Lock for V2 traffic (not stacked).
+- **Retirement flags** (all default off, AND-gated with schema enforcement + schema-ran-successfully):
+  - `TRACE_SCHEMA_ENFORCEMENT=0/1` — Enable schema rewrite-on-fail
+  - `TRACE_DISABLE_DRIFT_LOCK_WHEN_SCHEMA=0/1` — Skip Drift Lock when schema active
+  - `TRACE_DISABLE_TIGHTEN_PAIR_WHEN_SCHEMA=0/1` — Skip tightenResponse + enforceBrevity
+  - `TRACE_DISABLE_SANITIZE_TONE_WHEN_SCHEMA=0/1` — Skip sanitizeTone
+
+### Phase 4.5: Rollout Controller (Complete)
+- **File:** `server/validation/schemaRollout.js`
+- `shouldUseSchemaEnforcement(userId)` — deterministic per-user hash, gated by `TRACE_SCHEMA_ENFORCEMENT_PCT` (0–100, default 100)
+- Pre-conditions: useV2 + !crisis + !onboarding + master switch + percentage gate
+- Structured `[SCHEMA METRICS]` JSON logging (guarded by `TRACE_INTENT_LOG=1`) with: schema_ran, schema_failed, rewrite_attempted, rewrite_succeeded, violations, latency_ms_total, latency_ms_rewrite
+
+### V2 Rollout Controls
+- `TRACE_PROMPT_V2_PCT` — Percentage of users on V2 (deterministic per-user hash)
+- `TRACE_V2_STRIP_INJECTIONS` — Strip legacy injections for V2 users
+- `TRACE_SCHEMA_ENFORCEMENT` — Master switch for schema enforcement
+- `TRACE_SCHEMA_ENFORCEMENT_PCT` — Percentage of V2 users who get enforcement (0–100)
+- All flags default to safe (off/legacy behavior). Instant rollback via env var flip.
