@@ -4814,6 +4814,8 @@ app.post('/api/chat', async (req, res) => {
           moodSpace: space,
           message: text,
           activity_suggestion: { name: null, reason: null, should_navigate: false },
+          sound_state: { current: null, changed: false, reason: 'music_invite_suppressed' },
+          _provenance: { path: 'music_invite', moodSpace: space, requestId, ts: Date.now() }
         });
       } else {
         console.log('[TRACE CHAT] Music request detected but blocked:', {
@@ -5761,9 +5763,8 @@ app.post('/api/chat', async (req, res) => {
         reason: htoCheck.reason 
       });
       
-      // Return templated response immediately - NO OpenAI call
       const htoResponse = buildHarmToOthersResponse(requestId, htoCheck.confidence);
-      return res.json(htoResponse);
+      return res.json({ ...htoResponse, _provenance: { path: 'safety_redirect', category: 'HARM_TO_OTHERS', requestId, ts: Date.now() } });
     }
 
     // Load rhythmic awareness line (time/date-based contextual awareness)
@@ -6975,19 +6976,29 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
         traceIntent.antiRepetitionOpeners = antiRepetitionOpeners;
       }
 
-      // Suppress soundscape/activity offers when music intent or Studios context active
-      if (traceIntent && (traceIntent.intentType === 'music' || brainSignals?.musicRequest)) {
-        traceIntent.constraints = traceIntent.constraints || {};
-        traceIntent.constraints.allowActivities = 'never';
-        traceIntent.constraints.suppressSoundscapes = true;
-        console.log('[STUDIOS]', JSON.stringify({
-          suppress_soundscapes: true,
-          requestId: req.requestId || `req-${Date.now()}`,
-          intentType: traceIntent.intentType
-        }));
-      }
     } catch (synthErr) {
       console.error('[BRAIN SYNTHESIS] Failed (continuing with legacy):', synthErr.message);
+    }
+    
+    // ============================================================
+    // MUSIC CONTEXT GATE (single source of truth)
+    // When music intent is active, suppress soundscapes AND activity offers.
+    // This flag is checked downstream at atmosphere engine + response assembly.
+    // ============================================================
+    const isMusicContext = !!(
+      (traceIntent && traceIntent.intentType === 'music') ||
+      brainSignals?.musicRequest
+    );
+    
+    if (isMusicContext && traceIntent) {
+      traceIntent.constraints = traceIntent.constraints || {};
+      traceIntent.constraints.allowActivities = 'never';
+      traceIntent.constraints.suppressSoundscapes = true;
+      console.log('[MUSIC GATE] Suppressing soundscapes + activities', JSON.stringify({
+        requestId: req.requestId || `req-${Date.now()}`,
+        intentType: traceIntent?.intentType,
+        musicRequest: !!brainSignals?.musicRequest
+      }));
     }
 
     // ============================================================
@@ -7962,7 +7973,8 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     // Only auto-suggest if:
     // 1. Model didn't provide an activity AND we detected a mappable state
     // 2. NOT in crisis mode (stay present, don't suggest activities)
-    if (!activitySuggestion.name && detected_state && emotionalStateActivityMap[detected_state] && !isCrisisMode) {
+    // 3. NOT in music context (Studios/music conversations don't get activity offers)
+    if (!activitySuggestion.name && detected_state && emotionalStateActivityMap[detected_state] && !isCrisisMode && !isMusicContext) {
       const suggestion = emotionalStateActivityMap[detected_state];
       console.log(`[EMOTIONAL AUTO-SUGGEST] State "${detected_state}" → activity "${suggestion.activity}"`);
       
@@ -8683,18 +8695,25 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       const cadenceMet = currentUserMsgCount >= 2 && newAssistantMsgCount >= 2;
       console.log(`[CADENCE] Post-response: user=${currentUserMsgCount}, assistant=${newAssistantMsgCount}, cadenceMet=${cadenceMet}`);
       
-      atmosphereResult = evaluateAtmosphere({
-        userId: effectiveUserId,
-        current_message: userText,
-        recent_messages: recentUserMessages.slice(0, -1), // Exclude current, take last 2
-        client_sound_state: clientSoundState, // Client's current state for persistence
-        userMessageCount: currentUserMsgCount,        // 🎵 Cadence tracking
-        assistantMessageCount: newAssistantMsgCount,  // 🎵 Cadence tracking (post-response)
-        isCrisisMode: isCrisisMode                    // 🚨 Crisis mode forces grounding
-      });
-      
-      if (atmosphereResult?.sound_state?.changed) {
-        console.log(`[ATMOSPHERE] State changed to: ${atmosphereResult.sound_state.current}`);
+      if (isMusicContext) {
+        atmosphereResult = {
+          sound_state: { current: null, changed: false, reason: 'music_context_suppressed' }
+        };
+        console.log('[ATMOSPHERE] Skipped — music context active (isMusicContext=true)');
+      } else {
+        atmosphereResult = evaluateAtmosphere({
+          userId: effectiveUserId,
+          current_message: userText,
+          recent_messages: recentUserMessages.slice(0, -1),
+          client_sound_state: clientSoundState,
+          userMessageCount: currentUserMsgCount,
+          assistantMessageCount: newAssistantMsgCount,
+          isCrisisMode: isCrisisMode
+        });
+        
+        if (atmosphereResult?.sound_state?.changed) {
+          console.log(`[ATMOSPHERE] State changed to: ${atmosphereResult.sound_state.current}`);
+        }
       }
     } catch (err) {
       console.error('[ATMOSPHERE] Evaluation failed:', err.message);
@@ -8794,9 +8813,15 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       console.log('[ECHO] No supabaseServer available, skipping');
     }
     
+    // MUSIC GATE enforcement: wipe activity_suggestion when music context active
+    if (isMusicContext && activitySuggestion?.name) {
+      console.log('[MUSIC GATE] Suppressed activity_suggestion:', activitySuggestion.name);
+      activitySuggestion = { name: null, reason: null, should_navigate: false };
+    }
+    
     // Build response - include messages array if crisis mode
     const response = {
-      message: tightenedText, // Tightened message with optional disclaimer
+      message: tightenedText,
       activity_suggestion: activitySuggestion,
       posture: posture,
       detected_state: detected_state,
