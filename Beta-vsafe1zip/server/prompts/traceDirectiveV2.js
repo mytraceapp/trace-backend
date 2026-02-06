@@ -22,10 +22,17 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [] }) {
       ? `MODE: CRISIS. Use safety-first guidance.`
       : `MODE: NORMAL. Be appropriately concise but complete.`;
 
-  // Required sections for longform content
+  // Longform structure contract — semantic presence, not formatting headers
   const structure =
-    mode === 'longform' && Array.isArray(c.requiredSections) && c.requiredSections.length
-      ? `Required sections: ${c.requiredSections.join(', ')}.`
+    mode === 'longform'
+      ? `STRUCTURE REQUIREMENT (MANDATORY):
+Respond in three distinct parts:
+- Beginning: establish context or set the scene.
+- Middle: develop the main events, ideas, or progression.
+- End: provide resolution or conclusion.
+All three parts must be present. Do not omit any part.
+Do not use section headers or labels. Write in natural narrative flow.
+Do not ask any questions in this response.`
       : '';
 
   // Questions constraint — unmistakable language to eliminate question_overflow
