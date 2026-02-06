@@ -4128,7 +4128,7 @@ app.post('/api/chat', async (req, res) => {
       const cachedResponse = getCachedDedup(dedupKey);
       if (cachedResponse) {
         res.set('X-Trace-Dedup', '1');
-        return res.json(cachedResponse);
+        return res.json({ ...cachedResponse, _provenance: { path: 'dedup_cache', requestId, ts: Date.now() } });
       }
       console.log(`[DEDUP] MISS dedupKey=${dedupKey}`);
     }
@@ -4157,7 +4157,8 @@ app.post('/api/chat', async (req, res) => {
       return res.status(401).json(normalizeChatResponse({ 
         ok: false,
         error: 'Authentication required',
-        message: "mm, I lost you for a second. Try again?" 
+        message: "mm, I lost you for a second. Try again?",
+        _provenance: { path: 'auth_failure', requestId, ts: Date.now() }
       }, clientRequestId));
     }
 
@@ -4241,7 +4242,8 @@ app.post('/api/chat', async (req, res) => {
         activity_suggestion: { name: null, should_navigate: false },
         posture: 'STEADY',
         detected_state: 'neutral',
-        sound_state: { current: null, changed: true, reason: 'user_stopped' }
+        sound_state: { current: null, changed: true, reason: 'user_stopped' },
+        _provenance: { path: 'audio_stop', requestId, ts: Date.now() }
       });
     } else if (resumesMusic) {
       const resumeAudioAction = {
@@ -4259,7 +4261,8 @@ app.post('/api/chat', async (req, res) => {
         activity_suggestion: { name: null, should_navigate: false },
         posture: 'STEADY',
         detected_state: 'neutral',
-        sound_state: { current: 'presence', changed: true, reason: 'user_resumed' }
+        sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
+        _provenance: { path: 'audio_resume', requestId, ts: Date.now() }
       });
     }
     
@@ -4333,11 +4336,11 @@ app.post('/api/chat', async (req, res) => {
         
         const studioResponse = normalizeChatResponse(response, requestId);
         storeDedupResponse(dedupKey, studioResponse);
-        // Studios responses still need sound_state
         return res.json({ 
           ...studioResponse, 
           deduped: false,
-          sound_state: { current: null, changed: false, reason: 'studios_early_return' }
+          sound_state: { current: null, changed: false, reason: 'studios_early_return' },
+          _provenance: { path: 'studios_intercept', kind: studiosResponse.traceStudios?.kind, requestId, ts: Date.now() }
         });
       }
     }
@@ -4376,7 +4379,8 @@ app.post('/api/chat', async (req, res) => {
         message: insightCheck.message,
         insight: { message: insightCheck.message, type: insightCheck.type },
         client_state_patch: insightCheck.client_state_patch,
-        sound_state: { current: null, changed: false, reason: 'insight_early_return' }
+        sound_state: { current: null, changed: false, reason: 'insight_early_return' },
+        _provenance: { path: 'pillar12_insight', type: insightCheck.type, requestId, ts: Date.now() }
       });
     }
     
@@ -4561,7 +4565,8 @@ app.post('/api/chat', async (req, res) => {
           reason: null,
           should_navigate: false,
         },
-        sound_state: { current: null, changed: false, reason: 'boundary_early_return' }
+        sound_state: { current: null, changed: false, reason: 'boundary_early_return' },
+        _provenance: { path: 'boundary_redirect', category: 'SEXUAL_OR_ROMANTIC', requestId, ts: Date.now() }
       });
     }
     
@@ -4606,6 +4611,7 @@ app.post('/api/chat', async (req, res) => {
           reason: null,
           should_navigate: false,
         },
+        _provenance: { path: 'safety_redirect', category: 'VIOLENCE_OR_THREAT', requestId, ts: Date.now() }
       });
     }
     // ========== END VIOLENCE/THREAT GATE ==========
@@ -4620,6 +4626,7 @@ app.post('/api/chat', async (req, res) => {
         return res.json({
           message: "Let's take a breath together.\n\nBreathe in slowly...\n\nHold for a moment...\n\nNow let it out gently.\n\nThere's nothing you have to do next. We can stay quiet, or you can tell me what's on your mind.",
           activity_suggestion: { name: null, reason: null, should_navigate: false },
+          _provenance: { path: 'breathing_fallback', requestId, ts: Date.now() }
         });
       }
 
@@ -4640,6 +4647,7 @@ app.post('/api/chat', async (req, res) => {
       return res.json({
         message: breathingReply,
         activity_suggestion: { name: null, reason: null, should_navigate: false },
+        _provenance: { path: 'breathing_mode', requestId, ts: Date.now() }
       });
     }
 
@@ -5591,7 +5599,8 @@ app.post('/api/chat', async (req, res) => {
       return res.json({ 
         ...closureResponse, 
         deduped: false,
-        sound_state: { current: null, changed: false, reason: 'light_closure_early_return' }
+        sound_state: { current: null, changed: false, reason: 'light_closure_early_return' },
+        _provenance: { path: 'light_closure', requestId, ts: Date.now() }
       });
     } else if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content)) {
       if (traceJustAskedQuestion) {
@@ -9072,9 +9081,11 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     if (process.env.TRACE_INTENT_LOG === '1') {
       console.log('[PHASE4]', JSON.stringify({
         requestId: chatRequestId,
+        provenance: 'ai_pipeline',
         useV2,
         tier: modelRoute?.tier ?? null,
         model: selectedModel,
+        latency_ms: Date.now() - requestStartTime,
         schema_ran: schemaCtx.schemaRan,
         schema_failed: schemaCtx.schemaRan && !schemaCtx.schemaPassed,
         rewrite_attempted: schemaCtx.rewriteAttempted,
@@ -9088,13 +9099,35 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     const totalRequestTime = Date.now() - requestStartTime;
     console.log(`[TIMING] Total chat request took ${totalRequestTime}ms`);
     
-    return res.json({ ...finalResponse, deduped: false });
+    const _provenance = {
+      path: 'ai_pipeline',
+      requestId: chatRequestId,
+      ts: Date.now(),
+      latency_ms: totalRequestTime,
+      tier: modelRoute?.tier ?? null,
+      model: selectedModel,
+      useV2,
+      schema: {
+        ran: schemaCtx.schemaRan,
+        passed: schemaCtx.schemaPassed,
+        rewrite_attempted: schemaCtx.rewriteAttempted,
+        rewrite_succeeded: schemaCtx.rewriteSucceeded,
+      },
+      layers: {
+        driftLock: driftLockRan,
+        tightenPair: tightenPairRan,
+        sanitizeTone: sanitizeToneRan,
+      },
+    };
+    
+    return res.json({ ...finalResponse, deduped: false, _provenance });
   } catch (error) {
     console.error('TRACE API error:', error.message || error);
     res.status(500).json(normalizeChatResponse({ 
       ok: false, 
       error: 'Failed to get response', 
-      message: "something went wrong on my end. give me a sec." 
+      message: "something went wrong on my end. give me a sec.",
+      _provenance: { path: 'error_fallback', requestId: req.body?.requestId, ts: Date.now(), error: (error.message || '').slice(0, 100) }
     }, req.body?.requestId));
   }
 });
