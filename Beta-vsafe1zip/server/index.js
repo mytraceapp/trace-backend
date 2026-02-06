@@ -8525,10 +8525,21 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       tightenedText = processedAssistantText;
       console.log('[TRACE BRAIN] Skipping tighten - lyrics request detected');
     } else if (isLongFormRequest || (useV2 && shouldSkipTighten)) {
-      // LONG-FORM MODE: Skip tightening for recipes, stories, detailed content
-      // V2: Also skip if traceIntent says mustNotTruncate
       tightenedText = processedAssistantText;
-      console.log('[TRACE BRAIN] Skipping tighten - long-form request (recipe/story/list)', useV2 ? '(V2)' : '');
+      tightenPairRan = false;
+      console.log('[LONGFORM]', JSON.stringify({
+        requestId: req.requestId || `req-${Date.now()}`,
+        skip_tighten_pair: true,
+        mode: traceIntent?.mode || (isLongFormRequest ? 'longform_legacy' : 'unknown'),
+        mustNotTruncate: !!traceIntent?.constraints?.mustNotTruncate
+      }));
+      const skipSanitizeToneLF = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_SANITIZE_TONE_WHEN_SCHEMA === '1';
+      if (skipSanitizeToneLF) {
+        sanitizeToneRan = false;
+      } else {
+        sanitizeToneRan = true;
+        tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode: false });
+      }
     } else {
       const skipTightenPair = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_TIGHTEN_PAIR_WHEN_SCHEMA === '1';
       const skipSanitizeTone = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_SANITIZE_TONE_WHEN_SCHEMA === '1';
