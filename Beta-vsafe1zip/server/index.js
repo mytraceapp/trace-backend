@@ -7375,7 +7375,7 @@ Your response (text only, no JSON):`;
     const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
     
     // Token limit for long-form content (recipes, stories, detailed explanations)
-    const tokenLimit = isLongFormRequest ? 1200 : 800; // Increase for recipes/stories, raised default for deeper conversations
+    const tokenLimit = isLongFormRequest ? 3000 : 800;
     
     if (isLongFormRequest) {
       console.log('[TRACE CHAT] Long-form request detected, using extended token limit:', tokenLimit);
@@ -7386,8 +7386,9 @@ Your response (text only, no JSON):`;
       console.log(`[OPENAI CONFIG] model=${selectedModel} baseURL=${cfg.baseURL}`);
     }
     
-    // Reduce retries for faster response
-    const maxL1Retries = (parsed || useL3FastPath) ? 0 : 2; // Skip if already parsed or fast-path
+    // Reduce retries for faster response (longform only needs 1 attempt since timeout is extended)
+    const isLongformL1 = isLongFormRequest || traceIntent?.mode === 'longform';
+    const maxL1Retries = (parsed || useL3FastPath) ? 0 : (isLongformL1 ? 1 : 2);
     for (let attempt = 1; attempt <= maxL1Retries; attempt++) {
       try {
         if (attempt > 1) await sleep(200); // Reduced delay
@@ -7406,7 +7407,8 @@ Your response (text only, no JSON):`;
         if (supportsCustomTemperature(selectedModel)) {
           openaiParams.temperature = chatTemperature;
         }
-        const response = await openai.chat.completions.create(openaiParams);
+        const l1RequestOptions = (isLongFormRequest || traceIntent?.mode === 'longform') ? { timeout: 60000 } : {};
+        const response = await openai.chat.completions.create(openaiParams, l1RequestOptions);
         const openaiDuration = Date.now() - openaiStart;
         console.log(`[TIMING] OpenAI L1 call took ${openaiDuration}ms (attempt ${attempt})`);
         
@@ -7459,7 +7461,8 @@ Your response (text only, no JSON):`;
           if (supportsCustomTemperature(TRACE_BACKUP_MODEL)) {
             backupParams.temperature = chatTemperature;
           }
-          const response = await openai.chat.completions.create(backupParams);
+          const l2RequestOptions = (isLongFormRequest || traceIntent?.mode === 'longform') ? { timeout: 60000 } : {};
+          const response = await openai.chat.completions.create(backupParams, l2RequestOptions);
           
           recordOpenAICall(TRACE_BACKUP_MODEL, response, chatRequestId, openaiStart);
           console.log(`[OPENAI RESPONSE] model=${response.model || 'unknown'} (fallback)`);
@@ -7609,6 +7612,16 @@ User said: "${lastUserContent}"
 
 Your response (stay present and warm, acknowledge they're going through something heavy):`;
           }
+        } else if (isLongFormRequest || traceIntent?.mode === 'longform') {
+          plainPrompt = `${TRACE_IDENTITY_COMPACT}
+
+The user is asking for longform content. Write the FULL, COMPLETE content they asked for.
+Do NOT truncate, summarize, or cut off. Do not ask any questions.
+Respond in three distinct parts (beginning, middle, end) with natural narrative flow — no section headers.
+
+User said: "${lastUserContent}"
+
+Your complete response:`;
         } else {
           plainPrompt = `${TRACE_IDENTITY_COMPACT}
 
@@ -7619,10 +7632,11 @@ User said: "${lastUserContent}"
 Your response:`;
         }
         
+        const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : 400;
         const response = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
           messages: [{ role: 'user', content: plainPrompt }],
-          max_tokens: 400,
+          max_tokens: l3MaxTokens,
           temperature: 0.8,
         });
         
