@@ -1,0 +1,62 @@
+You are working in my Node/Express backend (Replit) for TRACE. Goal: confirm whether verse-push backend already exists and then hook it up to OneSignal properly.
+
+Do the following carefully and show me exactly what you find + what you changed:
+
+A) CONFIRM EXISTING VERSE BACKEND
+1. Search the server codebase for anything related to:
+   - "verse", "scripture", "devotional", "daily", "notification", "push", "onesignal", "external_id"
+   - endpoints like "/api/verse", "/api/send-verse", "/api/test-push", "/api/push"
+2. List the relevant files + functions you found and summarize what each does.
+3. If a verse-notification job/endpoint already exists, identify:
+   - how it selects the verse
+   - how it chooses the target user(s)
+   - how it schedules timing/timezone
+   - whether it already calls OneSignal or something else
+
+B) VERIFY ONESIGNAL CONFIG ON BACKEND
+4. Check whether these environment variables exist in Replit and are used:
+   - ONESIGNAL_APP_ID
+   - ONESIGNAL_REST_API_KEY (or ONESIGNAL_API_KEY)
+   - (optional) ONESIGNAL_USER_AUTH_KEY
+5. If missing, add safe guardrails: backend should throw a clear error if keys are not set.
+
+C) IMPLEMENT A REAL SEND VERSE PUSH ENDPOINT (IF NOT ALREADY DONE)
+6. Add a new endpoint (or fix the existing one) at:
+   POST /api/send-verse-push
+   Body:
+   {
+     "userId": "<supabase-uuid>",
+     "title": "Daily Check-In",
+     "body": "Your verse…",
+     "deepLink": "trace://entries"  (or "trace://chat")
+   }
+
+7. The endpoint should send a OneSignal push targeted by external_id = userId (NOT by playerId).
+   Use OneSignal v1 REST API:
+   POST https://onesignal.com/api/v1/notifications
+   Payload should include:
+     - app_id
+     - include_external_user_ids: [userId]
+     - headings: { en: title }
+     - contents: { en: body }
+     - data: { deepLink }
+     - ios_badgeType: "Increase"
+     - ios_badgeCount: 1
+
+8. Return JSON with:
+   - ok: true/false
+   - onesignalResponse (sanitized)
+   - any errors
+
+D) ADD A SIMPLE “SMOKE TEST”
+9. Add GET /api/push-health that returns:
+   - ok
+   - whether ONESIGNAL keys are present (boolean only)
+   - server timestamp
+
+E) IMPORTANT
+10. Do NOT break existing endpoints.
+11. Add console logs prefixed with [PUSH] so I can see the flow in Replit logs.
+12. If you find an existing verse system, integrate into it instead of duplicating—BUT still ensure we have a direct manual test endpoint that sends to a userId.
+
+After changes, tell me exactly how to test from my phone/simulator using curl with my backend base URL.

@@ -11424,42 +11424,90 @@ function getPersonalizedCheckinMessage(date, firstName) {
   }
 }
 
-async function sendPushNotificationToUser(userId, message) {
-  const appId = process.env.VITE_ONESIGNAL_APP_ID || process.env.ONESIGNAL_APP_ID;
+function getOneSignalConfig() {
+  const appId = process.env.ONESIGNAL_APP_ID;
   const apiKey = process.env.ONESIGNAL_API_KEY;
-  
-  if (!appId || !apiKey) {
-    console.log("[TRACE PUSH] OneSignal not configured - skipping notification");
-    return;
+  if (!appId || !apiKey) return null;
+  return { appId, apiKey };
+}
+
+async function sendOneSignalNotification(payload, label) {
+  const cfg = getOneSignalConfig();
+  if (!cfg) {
+    console.log(`[PUSH] ${label}: OneSignal not configured - skipping`);
+    return { ok: false, error: 'not_configured' };
   }
-  
-  try {
-    const response = await fetch('https://api.onesignal.com/notifications', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Key ${apiKey}`
-      },
-      body: JSON.stringify({
-        app_id: appId,
-        include_aliases: {
-          external_id: [userId]
-        },
-        target_channel: 'push',
-        contents: { en: message },
-        headings: { en: 'TRACE' }
-      })
-    });
-    
-    const result = await response.json();
-    
-    if (result.errors) {
-      console.error("[TRACE PUSH] OneSignal error:", result.errors);
-    } else {
-      console.log("[TRACE PUSH] Sent to user", userId, "- ID:", result.id);
+
+  const hasExternalId = payload.include_aliases?.external_id;
+
+  const endpoints = [
+    {
+      url: 'https://api.onesignal.com/notifications',
+      auth: `Key ${cfg.apiKey}`,
+      transform: (p) => ({ app_id: cfg.appId, ...p })
+    },
+    {
+      url: 'https://onesignal.com/api/v1/notifications',
+      auth: `Basic ${cfg.apiKey}`,
+      transform: (p) => {
+        const out = { app_id: cfg.appId, ...p };
+        if (hasExternalId) {
+          out.include_external_user_ids = hasExternalId;
+          delete out.include_aliases;
+          delete out.target_channel;
+        }
+        return out;
+      }
     }
-  } catch (err) {
-    console.error("[TRACE PUSH] Failed to send notification:", err.message);
+  ];
+
+  for (const ep of endpoints) {
+    try {
+      const body = ep.transform(payload);
+      const response = await fetch(ep.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': ep.auth
+        },
+        body: JSON.stringify(body)
+      });
+
+      const result = await response.json();
+
+      if (result.errors && Array.isArray(result.errors) &&
+          result.errors.some(e => typeof e === 'string' && e.toLowerCase().includes('access denied'))) {
+        console.log(`[PUSH] ${label}: auth failed on ${ep.url}, trying next`);
+        continue;
+      }
+
+      if (result.errors) {
+        console.log(`[PUSH] ${label}: OneSignal errors:`, JSON.stringify(result.errors));
+        return { ok: false, errors: result.errors };
+      }
+
+      console.log(`[PUSH] ${label}: success via ${ep.url}, id: ${result.id}`);
+      return { ok: true, id: result.id, recipients: result.recipients };
+    } catch (err) {
+      console.error(`[PUSH] ${label}: fetch failed (${ep.url}):`, err.message);
+    }
+  }
+
+  return { ok: false, error: 'all_endpoints_failed' };
+}
+
+async function sendPushNotificationToUser(userId, message) {
+  const result = await sendOneSignalNotification({
+    include_aliases: { external_id: [userId] },
+    target_channel: 'push',
+    contents: { en: message },
+    headings: { en: 'TRACE' },
+    ios_badgeType: 'Increase',
+    ios_badgeCount: 1
+  }, 'scheduler');
+
+  if (!result.ok) {
+    console.error("[PUSH] scheduler: failed for user", userId);
   }
 }
 
@@ -11572,39 +11620,21 @@ app.post('/api/test-push-direct', async (req, res) => {
     return res.status(400).json({ error: 'subscriptionId is required' });
   }
   
-  const appId = process.env.VITE_ONESIGNAL_APP_ID || process.env.ONESIGNAL_APP_ID;
-  const apiKey = process.env.ONESIGNAL_API_KEY;
-  
-  if (!appId || !apiKey) {
+  if (!getOneSignalConfig()) {
     return res.status(500).json({ error: 'OneSignal not configured' });
   }
   
-  try {
-    const response = await fetch('https://api.onesignal.com/notifications', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Key ${apiKey}`
-      },
-      body: JSON.stringify({
-        app_id: appId,
-        include_subscription_ids: [subscriptionId],
-        contents: { en: message || 'Direct test from TRACE!' },
-        headings: { en: 'TRACE' }
-      })
-    });
-    
-    const result = await response.json();
-    console.log('[TRACE PUSH DIRECT] Response:', JSON.stringify(result));
-    
-    if (result.errors) {
-      return res.status(400).json({ error: result.errors });
-    }
-    
-    res.json({ success: true, id: result.id, result });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const result = await sendOneSignalNotification({
+    include_subscription_ids: [subscriptionId],
+    contents: { en: message || 'Direct test from TRACE!' },
+    headings: { en: 'TRACE' }
+  }, 'test-push-direct');
+
+  if (!result.ok) {
+    return res.status(400).json({ error: result.errors || result.error });
   }
+
+  res.json({ success: true, id: result.id, recipients: result.recipients });
 });
 
 // Test endpoint to trigger verse checkin manually
@@ -11622,6 +11652,70 @@ app.post('/api/test-verse-checkin', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ============================================
+// POST /api/send-verse-push — Manual verse push via OneSignal
+// ============================================
+app.post('/api/send-verse-push', async (req, res) => {
+  const { userId, title, body, deepLink } = req.body;
+
+  if (!userId) {
+    console.log('[PUSH] send-verse-push: missing userId');
+    return res.status(400).json({ ok: false, error: 'userId is required' });
+  }
+  if (!body) {
+    console.log('[PUSH] send-verse-push: missing body');
+    return res.status(400).json({ ok: false, error: 'body is required' });
+  }
+
+  if (!getOneSignalConfig()) {
+    console.log('[PUSH] send-verse-push: OneSignal keys not configured');
+    return res.status(500).json({ ok: false, error: 'OneSignal not configured on server' });
+  }
+
+  const result = await sendOneSignalNotification({
+    include_aliases: { external_id: [userId] },
+    target_channel: 'push',
+    headings: { en: title || 'Daily Check-In' },
+    contents: { en: body },
+    data: { deepLink: deepLink || 'trace://chat' },
+    ios_badgeType: 'Increase',
+    ios_badgeCount: 1
+  }, 'send-verse-push');
+
+  if (!result.ok) {
+    return res.status(result.errors ? 400 : 500).json({
+      ok: false,
+      error: result.error || 'OneSignal rejected the request',
+      onesignalErrors: result.errors || undefined
+    });
+  }
+
+  return res.json({
+    ok: true,
+    notificationId: result.id,
+    recipients: result.recipients
+  });
+});
+
+// ============================================
+// GET /api/push-health — Smoke test for push config
+// ============================================
+app.get('/api/push-health', (req, res) => {
+  const hasAppId = !!process.env.ONESIGNAL_APP_ID;
+  const hasApiKey = !!process.env.ONESIGNAL_API_KEY;
+
+  console.log('[PUSH] push-health check: appId=' + hasAppId + ' apiKey=' + hasApiKey);
+
+  return res.json({
+    ok: hasAppId && hasApiKey,
+    keys: {
+      ONESIGNAL_APP_ID: hasAppId,
+      ONESIGNAL_API_KEY: hasApiKey
+    },
+    serverTimestamp: new Date().toISOString()
+  });
 });
 
 app.get('/api/ping', (req, res) => {
