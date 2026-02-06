@@ -154,7 +154,7 @@ function looksLikeStepsAsk(t) {
 }
 
 function looksLikeStoryAsk(t) {
-  return /\b(tell me a story|story time|write a story|can you narrate)\b/.test(t);
+  return /\b(tell\s+me\s+a\s+(\w+\s+){0,3}story|story\s+time|write\s+(me\s+)?a\s+(\w+\s+){0,3}story|can\s+you\s+narrate|short\s+story|complete\s+story)\b/.test(t);
 }
 
 function looksLikeDream(t) {

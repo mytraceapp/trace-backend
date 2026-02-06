@@ -2593,10 +2593,12 @@ function detectLongFormRequest(text) {
   const t = text.toLowerCase();
   const longFormPatterns = [
     /recipe/i, /full recipe/i, /how to make/i, /how do i make/i, /ingredients/i,
-    /tell me a story/i, /story about/i, /once upon/i, /write me a story/i,
+    /tell\s+me\s+a\s+(\w+\s+){0,3}story/i, /story\s+about/i, /once upon/i, /write\s+(me\s+)?a\s+(\w+\s+){0,3}story/i,
+    /short\s+story/i, /complete\s+story/i,
     /full list/i, /complete list/i, /all the steps/i, /step by step/i,
-    /explain in detail/i, /detailed/i, /give me the full/i, /don't cut off/i,
-    /entire/i, /whole thing/i, /from start to finish/i
+    /explain in detail/i, /detailed/i, /give me the full/i, /don't cut off/i, /do not cut/i, /don't summarize/i, /do not summarize/i,
+    /entire/i, /whole thing/i, /from start to finish/i,
+    /\d{2,}\s*(words|sentences|paragraphs)/i
   ];
   return longFormPatterns.some(p => p.test(t));
 }
@@ -7262,7 +7264,8 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
       
       // STEP B: Premium text from gpt-5.1 (TEXT-ONLY, no JSON mode)
       const textStart = Date.now();
-      const PREMIUM_TEXT_TIMEOUT = 3500;
+      const isLongformT2 = isLongFormRequest || traceIntent?.mode === 'longform';
+      const PREMIUM_TEXT_TIMEOUT = isLongformT2 ? 25000 : 3500;
       
       try {
         // Use only last 6 turns for speed
@@ -7271,10 +7274,14 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
           .map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${m.content}`)
           .join('\n');
         
+        const voiceRules = isLongformT2
+          ? `- This is a LONGFORM request. Write the FULL content the user asked for.\n- Do NOT truncate, summarize, or cut off. Complete the entire piece.\n- Match the length the user requested.`
+          : `- Default 1-3 sentences. Longer only if user asks for explanation.`;
+
         const premiumTextPrompt = `${TRACE_IDENTITY_COMPACT}
 
 VOICE RULES:
-- Default 1-3 sentences. Longer only if user asks for explanation.
+${voiceRules}
 - Do NOT reuse your last opening phrase.
 - NO emojis. NO bullet points.
 
@@ -7288,10 +7295,11 @@ Your response (text only, no JSON):`;
         const textController = new AbortController();
         const textTimeout = setTimeout(() => textController.abort(), PREMIUM_TEXT_TIMEOUT);
         
+        const premiumMaxTokens = isLongformT2 ? 2000 : 600;
         const textResponse = await openai.chat.completions.create({
           model: 'gpt-5.1',
           messages: [{ role: 'user', content: premiumTextPrompt }],
-          max_completion_tokens: 600, // gpt-5.1 uses max_completion_tokens, not max_tokens - raised for deeper conversations
+          max_completion_tokens: premiumMaxTokens,
         }, { signal: textController.signal });
         
         clearTimeout(textTimeout);
@@ -7311,10 +7319,14 @@ Your response (text only, no JSON):`;
       // Fallback: Use gpt-4o-mini for text if gpt-5.1 failed/timed out
       if (!textResult && usedFallback) {
         try {
+          const fallbackPrompt = isLongformT2
+            ? `Write the FULL content the user asked for. Do NOT truncate or summarize. Complete the entire piece.\n\nUser said: "${lastUserContent}"`
+            : `Respond warmly in 1-2 sentences to: "${lastUserContent}"`;
+          const fallbackMaxTokens = isLongformT2 ? 2000 : 100;
           const fallbackResponse = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: `Respond warmly in 1-2 sentences to: "${lastUserContent}"` }],
-            max_tokens: 100,
+            messages: [{ role: 'user', content: fallbackPrompt }],
+            max_tokens: fallbackMaxTokens,
           });
           textResult = fallbackResponse.choices[0]?.message?.content?.trim() || '';
         } catch (err) {
