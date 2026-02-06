@@ -28,17 +28,21 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [] }) {
       ? `Required sections: ${c.requiredSections.join(', ')}.`
       : '';
 
-  // Questions constraint — explicit language to reduce violations
+  // Questions constraint — unmistakable language to eliminate question_overflow
   const questionsRule =
     typeof c.allowQuestions === 'number'
       ? c.allowQuestions === 0
-        ? 'Ask no questions.'
-        : `Ask at most ${c.allowQuestions} question.`
+        ? 'Ask zero questions. Do not include any question marks.'
+        : `Ask exactly one question at the end. Do not ask any other questions.`
       : '';
 
   // Activity suggestion constraint
   const activityRule =
-    c.allowActivities ? `Activity suggestions: ${c.allowActivities}.` : '';
+    c.allowActivities === 'never'
+      ? (c.suppressSoundscapes
+          ? 'Do not suggest activities. Do not mention soundscapes; only discuss album/tracks/playlists.'
+          : 'Do not suggest activities.')
+      : c.allowActivities ? `Activity suggestions: ${c.allowActivities}.` : '';
 
   // Doorway hint (optional therapeutic realm)
   const doorwayHint = traceIntent?.selectedContext?.doorwayHint

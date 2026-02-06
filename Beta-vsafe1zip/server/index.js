@@ -6963,6 +6963,18 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
       if (traceIntent) {
         traceIntent.antiRepetitionOpeners = antiRepetitionOpeners;
       }
+
+      // Suppress soundscape/activity offers when music intent or Studios context active
+      if (traceIntent && (traceIntent.intentType === 'music' || brainSignals?.musicRequest)) {
+        traceIntent.constraints = traceIntent.constraints || {};
+        traceIntent.constraints.allowActivities = 'never';
+        traceIntent.constraints.suppressSoundscapes = true;
+        console.log('[STUDIOS]', JSON.stringify({
+          suppress_soundscapes: true,
+          requestId: req.requestId || `req-${Date.now()}`,
+          intentType: traceIntent.intentType
+        }));
+      }
     } catch (synthErr) {
       console.error('[BRAIN SYNTHESIS] Failed (continuing with legacy):', synthErr.message);
     }
