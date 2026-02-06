@@ -142,6 +142,7 @@ Multi-phase refactoring to address systemic prompt fragmentation through a clean
 - **Layer tracking booleans**: `driftLockRan`, `tightenPairRan`, `sanitizeToneRan` for observability.
 - **`[PHASE4]` condensed log**: End-of-request JSON with all layer tracking (guarded by `TRACE_INTENT_LOG=1`, no PHI).
 - **Drift Lock skip reason**: Log now reports whether skipped due to no-double-rewrite rule or retirement flag.
+- **Response provenance tracking**: Every `res.json()` return path in `/api/chat` includes a `_provenance` object with `path` (e.g. `ai_pipeline`, `dedup_cache`, `auth_failure`, `studios_intercept`, `pillar12_insight`, `light_closure`, `boundary_redirect`, `safety_redirect`, `breathing_mode`, `audio_stop`, `audio_resume`, `error_fallback`), `requestId`, and `ts`. The `ai_pipeline` path additionally includes `latency_ms`, `tier`, `model`, `useV2`, `schema` (ran/passed/rewrite_attempted/rewrite_succeeded), and `layers` (driftLock/tightenPair/sanitizeTone).
 
 ### Phase 4.5: Rollout Controller (Complete)
 - **File:** `server/validation/schemaRollout.js`
