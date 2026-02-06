@@ -46,9 +46,10 @@ export async function initOneSignal(userId: string | null): Promise<void> {
           console.log("[OneSignal] Requesting notification permission...");
           const permission = await OneSignal.Notifications.requestPermission();
           console.log("[OneSignal] Permission result:", permission);
-          
-          const subscriptionId = OneSignal.User?.PushSubscription?.id;
-          console.log("[OneSignal] Subscription ID:", subscriptionId);
+
+          console.log("[OneSignal] push opted in?", OneSignal.User?.pushSubscription?.getOptedIn?.() ?? OneSignal.User?.PushSubscription?.optedIn);
+          console.log("[OneSignal] push token?", OneSignal.User?.pushSubscription?.getToken?.() ?? OneSignal.User?.PushSubscription?.token);
+          console.log("[OneSignal] subscription id?", OneSignal.User?.pushSubscription?.getId?.() ?? OneSignal.User?.PushSubscription?.id);
         } catch (err: any) {
           console.error("[OneSignal] Init error inside deferred:", err?.message || err);
         }
