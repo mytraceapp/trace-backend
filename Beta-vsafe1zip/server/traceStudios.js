@@ -479,7 +479,9 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
   
   // Simple affirmative responses (yes, sure, okay, etc.)
   const isAffirmative = includesAny(t, [
-    "yes", "yeah", "sure", "okay", "ok", "yep", "yup", "please", "do it", "go ahead"
+    "yes", "yeah", "sure", "okay", "ok", "yep", "yup", "please", "do it", "go ahead",
+    "ready", "i'm ready", "im ready", "let's go", "lets go", "sounds good", "that sounds good",
+    "open it", "show me", "take me there", "let's hear it", "lets hear it"
   ]);
   
   // PRIORITY 0: Direct album play request - "play night swim", "can you play night swim"
@@ -487,60 +489,57 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     (includesAny(t, ["play", "put on", "start"]) && t.includes("night swim") && !requestedTrack);
   
   if (directAlbumPlay) {
-    console.log('[TRACE STUDIOS] Direct album play request for Night Swim');
+    console.log('[TRACE STUDIOS] Direct album play request for Night Swim — offering first');
     const responses = [
-      "Playing Night Swim.",
-      "Here's Night Swim.",
-      "Putting on Night Swim.",
-      "Night Swim. Here you go.",
+      "Night Swim is my album — seven tracks I wrote, each one a different kind of still. Want me to put it on?",
+      "Night Swim. It's something I made — underwater textures, slow movement. Ready to hear it?",
+      "I've got an album called Night Swim — it's all mood and quiet motion. Want to listen?",
     ];
     const msg = pickRotating(responses, seed);
     return {
       assistant_message: msg,
       mode: "trace_studios",
-      ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: 'Night Swim', trackId: 'night_swim', trackIndex: 0, album: 'night_swim', source: 'trace' }),
+      ui_action: null,
       traceStudios: {
-        kind: "play_night_swim",
+        kind: "offer_night_swim",
         traceStudiosContext: "night_swim",
-        audio_action: {
-          action: "play",
-          trackId: "night_swim",
-          source: "trace_originals",
-        },
       },
     };
   }
   
-  // PRIORITY 1: Direct play request with track name - just play immediately
+  // PRIORITY 1: Direct play request with track name — offer first, wait for confirmation
   if (directPlayRequest) {
-    console.log('[TRACE STUDIOS] Direct play request for:', requestedTrack.title);
-    const responses = getTrackPlayResponses(requestedTrack);
-    const msg = pickRotating(responses, seed);
+    console.log('[TRACE STUDIOS] Direct play request for:', requestedTrack.title, '— offering first');
+    const track = requestedTrack;
+    const offerResponses = [
+      `${track.title} — ${track.description || 'one of my tracks'}. Ready to hear it?`,
+      `That's ${track.title}. ${track.description || 'A good one.'}. Want me to play it?`,
+      `${track.title}. ${track.mood ? 'It carries ' + track.mood.split(',')[0].trim() + '.' : ''} Let me know when you're ready.`,
+    ];
+    const msg = pickRotating(offerResponses, seed);
     return {
       assistant_message: msg,
       mode: "trace_studios",
-      ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: requestedTrack.title, trackId: requestedTrack.id, trackIndex: requestedTrack.index || 0, album: 'night_swim', source: 'trace' }),
+      ui_action: null,
       traceStudios: {
-        kind: `play_${requestedTrack.id}`,
-        traceStudiosContext: requestedTrack.id,
-        audio_action: {
-          action: "play",
-          trackId: requestedTrack.id,
-          source: "trace_originals",
-        },
+        kind: `offer_${track.id}`,
+        traceStudiosContext: track.id,
       },
     };
   }
   
-  // PRIORITY 2: Context-based play requests
-  if ((wantsToPlay || (isAffirmative && contextTrack)) && (justMentionedNightSwim || justMentionedNeonPromise || inNeonContext || mentionedTrack || contextTrack)) {
-    console.log('[TRACE STUDIOS] Context-based play request detected');
+  // PRIORITY 2: Context-based play requests (user confirmed after offer)
+  // Also fires when contextTrackId is 'night_swim' (album-level offer) 
+  const isAlbumContext = contextTrackId === 'night_swim';
+  const hasPlayableContext = contextTrack || isAlbumContext || mentionedTrack || inNeonContext || justMentionedNightSwim || justMentionedNeonPromise;
+  
+  if ((wantsToPlay || (isAffirmative && (contextTrack || isAlbumContext))) && hasPlayableContext) {
+    console.log('[TRACE STUDIOS] Confirmed play request detected — sending ui_action');
     
-    // Priority: TRACE's last mention > context track > neon promise context
+    // Priority: TRACE's last mention > context track > album context > neon promise context
     const trackToPlay = mentionedTrack || contextTrack || (inNeonContext ? TRACKS.neon_promise : null);
     
     if (trackToPlay) {
-      // Play specific track
       console.log('[TRACE STUDIOS] Playing specific track:', trackToPlay.title);
       const responses = getTrackPlayResponses(trackToPlay);
       const msg = pickRotating(responses, seed);
@@ -559,7 +558,6 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
         },
       };
     } else {
-      // Play Night Swim album from the beginning
       console.log('[TRACE STUDIOS] Playing Night Swim album');
       const responses = [
         "Putting on Night Swim for you.",

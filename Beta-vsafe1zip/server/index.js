@@ -4812,6 +4812,47 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
+    // PLAYLIST OFFER CONFIRMATION: Check if user confirmed a pending playlist offer
+    // If TRACE offered a playlist/journal space and the user said "ready"/"yes", send the actual ui_action now
+    if (effectiveUserId) {
+      const musicState = getMusicState(effectiveUserId);
+      if (musicState.pendingPlaylistOffer) {
+        const confirmLower = userText.toLowerCase().trim();
+        const playlistAffirmatives = [
+          'yes', 'yeah', 'sure', 'okay', 'ok', 'yep', 'yup', 'please',
+          'ready', "i'm ready", 'im ready', "let's go", 'lets go',
+          'sounds good', 'that sounds good', 'open it', 'show me',
+          'take me there', 'do it', 'go ahead', "let's hear it", 'lets hear it'
+        ];
+        const isPlaylistConfirm = playlistAffirmatives.some(p => confirmLower.includes(p));
+        
+        if (isPlaylistConfirm) {
+          const pendingAction = musicState.pendingPlaylistOffer;
+          musicState.pendingPlaylistOffer = null;
+          console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: pendingAction.type, source: pendingAction.source, title: pendingAction.title, path: 'playlist_offer_confirmed' }));
+          
+          const confirmResponses = [
+            "Here you go.",
+            "Opening it up for you.",
+            "Let's go.",
+          ];
+          const confirmMsg = confirmResponses[Math.floor(Math.random() * confirmResponses.length)];
+          
+          return res.json({
+            type: 'music_invite_confirmed',
+            message: confirmMsg,
+            activity_suggestion: { name: null, reason: null, should_navigate: false },
+            sound_state: { current: null, changed: false, reason: 'playlist_confirmed' },
+            response_source: 'studios',
+            ui_action: pendingAction,
+            _provenance: { path: 'playlist_offer_confirmed', primaryMode: 'studios', requestId, ts: Date.now(), ui_action_type: pendingAction.type }
+          });
+        } else {
+          musicState.pendingPlaylistOffer = null;
+        }
+      }
+    }
+    
     // MUSIC MODE: Intercept music requests with hard guardrail
     // Only invites once per session, only if user explicitly asks
     // Skip if we're in traceStudios music context (avoid clashing with music reveal)
@@ -4854,19 +4895,19 @@ app.post('/api/chat', async (req, res) => {
       const allowedMusic = canInviteMusic(musicState, musicContext);
       
       if (allowedMusic) {
-        console.log('[TRACE CHAT] Music invite allowed, returning templated response');
+        console.log('[TRACE CHAT] Music invite allowed — offering first (no immediate ui_action)');
         musicState.musicInviteUsed = true;
         musicState.lastInviteTimestamp = Date.now();
         
         const space = pickMusicSpace(musicContext);
         const text = MUSIC_TEMPLATES[space];
         
-        const musicInviteUiAction = {
+        musicState.pendingPlaylistOffer = {
           type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
           title: space,
           source: 'trace',
         };
-        console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: musicInviteUiAction.type, source: musicInviteUiAction.source, trackId: null }));
+        console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: 'offer_playlist', source: 'trace', space, path: 'music_invite_offer' }));
         return res.json({
           type: 'music_invite',
           moodSpace: space,
@@ -4874,8 +4915,8 @@ app.post('/api/chat', async (req, res) => {
           activity_suggestion: { name: null, reason: null, should_navigate: false },
           sound_state: { current: null, changed: false, reason: 'music_invite_suppressed' },
           response_source: 'studios',
-          ui_action: musicInviteUiAction,
-          _provenance: { path: 'music_invite', primaryMode: 'studios', moodSpace: space, requestId, ts: Date.now(), ui_action_type: musicInviteUiAction.type }
+          ui_action: null,
+          _provenance: { path: 'music_invite_offer', primaryMode: 'studios', moodSpace: space, requestId, ts: Date.now() }
         });
       } else {
         console.log('[TRACE CHAT] Music request detected but blocked:', {
@@ -9225,8 +9266,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     };
     
     // Post-processing: detect playlist mentions in AI-generated responses
-    // When the model mentions a playlist (ground_playlist, drift_playlist, rising_playlist, Rooted, Low Orbit, First Light),
-    // attach a ui_action so the client knows to navigate the user to the journal/playlist area
+    // When the model mentions a playlist, store as pending offer (user must confirm before we open journal modal)
     let pipelineUiAction = null;
     const finalMsgText = (finalResponse.message || '').toLowerCase();
     const playlistMentions = [
@@ -9236,13 +9276,17 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     ];
     for (const pl of playlistMentions) {
       if (pl.patterns.some(p => finalMsgText.includes(p))) {
-        pipelineUiAction = {
+        const pendingAction = {
           type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
           title: pl.album,
           playlistId: pl.name,
           source: 'trace',
         };
-        console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId: chatRequestId, type: pipelineUiAction.type, source: pipelineUiAction.source, playlistId: pl.name, path: 'ai_pipeline_postprocess' }));
+        if (effectiveUserId) {
+          const mState = getMusicState(effectiveUserId);
+          mState.pendingPlaylistOffer = pendingAction;
+        }
+        console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId: chatRequestId, type: 'offer_playlist', source: pendingAction.source, playlistId: pl.name, path: 'ai_pipeline_postprocess_offer' }));
         break;
       }
     }
@@ -11336,6 +11380,7 @@ function getMusicState(userId) {
       userRequestedMusic: false,
       musicDeclined: false,
       lastInviteTimestamp: null,
+      pendingPlaylistOffer: null,
     });
   }
   return sessionMusicState.get(userId);
