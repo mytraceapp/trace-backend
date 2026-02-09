@@ -337,9 +337,9 @@ function enforceBrevity(text, mode = 'strict') {
   if (!text) return text;
   
   const limits = {
-    strict: { chars: 220, sentences: 2, bullets: 0 },
-    deep: { chars: 400, sentences: 3, bullets: 2 },
-    crisis: { chars: 180, sentences: 2, bullets: 2 },
+    strict: { chars: 300, sentences: 3, bullets: 0 },
+    deep: { chars: 400, sentences: 4, bullets: 2 },
+    crisis: { chars: 200, sentences: 2, bullets: 2 },
   };
   
   const limit = limits[mode] || limits.strict;
@@ -944,10 +944,11 @@ function tightenResponse(text, options = {}) {
   result = cleanedLines.join('\n').trim();
   
   const questionMarks = (result.match(/\?/g) || []).length;
-  if (questionMarks > 1) {
-    const firstQIndex = result.indexOf('?');
-    if (firstQIndex !== -1) {
-      result = result.substring(0, firstQIndex + 1).trim();
+  if (questionMarks > 2) {
+    // Only truncate if 3+ questions (allow statement + follow-up question pattern)
+    const secondQIndex = result.indexOf('?', result.indexOf('?') + 1);
+    if (secondQIndex !== -1) {
+      result = result.substring(0, secondQIndex + 1).trim();
     }
   }
   
@@ -1420,6 +1421,10 @@ function sanitizeTone(text, options = {}) {
     result = result.replace(pattern, replacement);
     if (result !== before) {
       changed = true;
+      if (replacement === '') {
+        // Ensure a space exists where text was removed to prevent word merging
+        result = result.replace(/([a-z])([A-Z])/g, '$1. $2');
+      }
     }
   }
   
@@ -1439,6 +1444,11 @@ function sanitizeTone(text, options = {}) {
     }
   }
   
+  // Clean up artifacts from pattern removal
+  // Remove orphaned punctuation from removed sentences (e.g., ". ." or ", ,")
+  result = result.replace(/[.,;]\s*[.,;]/g, '.');
+  // Remove empty sentence fragments
+  result = result.replace(/\.\s*\./g, '.');
   // Clean up double spaces and leading punctuation
   result = result.replace(/\s{2,}/g, ' ').trim();
   result = result.replace(/^\s*[,\.]\s*/, '');
