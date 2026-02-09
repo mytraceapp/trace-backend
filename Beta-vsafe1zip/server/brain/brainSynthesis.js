@@ -93,7 +93,11 @@ function brainSynthesis({
   if (intent.primaryMode === "studios") {
     intent.constraints.allowActivities = "never";
     intent.constraints.suppressSoundscapes = true;
-    intent.constraints.studiosDirective = "Do not mention soundscapes. Only album/tracks/playlists/visual concepts.";
+    intent.constraints.studiosDirective = `Do not mention soundscapes. Only album/tracks/playlists/visual concepts.
+CAPABILITY-AWARE ACTIONS:
+- If recommending a TRACE track/album: use PLAY_IN_APP_TRACK. You may say "Playing…" or "Here's…".
+- If recommending Spotify content: use OPEN_JOURNAL_MODAL (preferred) or OPEN_EXTERNAL_URL. Never say "Playing…" for Spotify. Use "Check this out…" or "You might like…".
+- Never mix sources in one response. One action per response.`;
   }
 
   // --- constraints by mode ---

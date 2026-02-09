@@ -3,6 +3,8 @@
 // Tiny "relationship texture" router for TRACE Studios (no menus, no tool mentions).
 // Purpose: natural conversational doorway into Night Swim / Neon Promise.
 
+const { createUiAction, UI_ACTION_TYPES } = require('./brain/traceIntent');
+
 // ============================================================
 // STUDIOS ANTI-REPETITION
 // Rolling list of recent response hashes per user (in-memory, max 10)
@@ -496,6 +498,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     return {
       assistant_message: msg,
       mode: "trace_studios",
+      ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: 'Night Swim', trackId: 'night_swim', source: 'trace' }),
       traceStudios: {
         kind: "play_night_swim",
         traceStudiosContext: "night_swim",
@@ -516,6 +519,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     return {
       assistant_message: msg,
       mode: "trace_studios",
+      ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: requestedTrack.title, trackId: requestedTrack.id, source: 'trace' }),
       traceStudios: {
         kind: `play_${requestedTrack.id}`,
         traceStudiosContext: requestedTrack.id,
@@ -543,6 +547,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       return {
         assistant_message: msg,
         mode: "trace_studios",
+        ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: trackToPlay.title, trackId: trackToPlay.id, source: 'trace' }),
         traceStudios: {
           kind: `play_${trackToPlay.id}`,
           traceStudiosContext: trackToPlay.id,
@@ -565,6 +570,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       return {
         assistant_message: msg,
         mode: "trace_studios",
+        ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: 'Night Swim', trackId: 'night_swim', source: 'trace' }),
         traceStudios: {
           kind: "play_night_swim",
           traceStudiosContext: "night_swim",
@@ -609,6 +615,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     return {
       assistant_message: msg,
       mode: "trace_studios",
+      ui_action: null,
       traceStudios: {
         kind: "track_description",
         traceStudiosContext: track.id,
@@ -632,6 +639,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     return {
       assistant_message: msg + followUp,
       mode: "trace_studios",
+      ui_action: null,
       traceStudios: {
         kind: "track_description",
         traceStudiosContext: track.id,
@@ -646,6 +654,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     return {
       assistant_message: `${reveal}\n\n${follow}`,
       mode: "trace_studios",
+      ui_action: null,
       traceStudios: {
         kind: "identity_reveal",
         traceStudiosContext: "music_general",
@@ -690,9 +699,10 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       return {
         assistant_message: description,
         mode: "trace_studios",
+        ui_action: null,
         traceStudios: {
           kind: "playlist_description",
-          traceStudiosContext: null, // Don't continue music reveal flow
+          traceStudiosContext: null,
         },
       };
     }
@@ -728,6 +738,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     return {
       assistant_message: msg,
       mode: "trace_studios",
+      ui_action: null,
       traceStudios: {
         kind: "album_reveal",
         traceStudiosContext: "neon_promise",
@@ -752,6 +763,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       return {
         assistant_message: msg,
         mode: "trace_studios",
+        ui_action: null,
         traceStudios: {
           kind: "album_reveal",
           traceStudiosContext: "neon_promise",
@@ -764,6 +776,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       return {
         assistant_message: msg,
         mode: "trace_studios",
+        ui_action: null,
         traceStudios: {
           kind: "how_made",
           trackId: "neon_promise",
@@ -772,8 +785,6 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       };
     }
 
-    // Check for lyrics request - ALWAYS intercept since Neon Promise is OUR song (not copyrighted third-party content)
-    // This ensures OpenAI NEVER processes lyrics requests - they go straight to our stored lyrics
     if (looksLikeLyricsRequest(t)) {
       console.log('[TRACE STUDIOS] Lyrics request INTERCEPTED (bypassing OpenAI). User text:', t.substring(0, 50));
       console.log('[TRACE STUDIOS] Context: inNeonContext:', inNeonContext, 'isPlaying:', isPlayingNeonPromise, 'recentlyPlayed:', recentlyPlayedNeonPromise);
@@ -783,6 +794,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
           assistant_message:
             "I can share them — I just don't have the words loaded in my library right this second. If you paste them once, I'll keep them here and you can ask anytime.",
           mode: "trace_studios",
+          ui_action: null,
           traceStudios: {
             kind: "missing_lyrics",
             trackId: "neon_promise",
@@ -795,6 +807,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       return {
         assistant_message: `${formatLyricsBlock(track)}\n\n${after}`,
         mode: "trace_studios",
+        ui_action: null,
         traceStudios: {
           kind: "lyrics_shared",
           trackId: "neon_promise",
@@ -803,9 +816,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       };
     }
 
-    // Handle Neon Promise specific questions - DON'T combine with Night Swim intro
     if (looksLikeNeonPromiseRequest(t)) {
-      // Specific track responses - describe the track directly
       const neonPromiseDescriptions = [
         "Neon Promise is a track on Night Swim. It carries this quiet kind of hope — the feeling when you're not okay but you know you will be.",
         "Neon Promise… that one means a lot to me. It's the track people tend to find when they need it most.",
@@ -818,6 +829,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       return {
         assistant_message: `${desc}\n\n${soften}`,
         mode: "trace_studios",
+        ui_action: null,
         traceStudios: {
           kind: "door_open",
           trackId: "neon_promise",
@@ -827,7 +839,6 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       };
     }
     
-    // General Night Swim requests (not Neon Promise specific)
     if (looksLikeNightSwimRequest(t) || inNeonContext) {
       const door = pickRotating(MUSIC_DOOR_OPENERS, seed);
       const intro = pickRotating(NEON_PROMISE_INTROS, seed + "::intro");
@@ -836,6 +847,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       return {
         assistant_message: `${door}\n\n${intro}\n\n${soften}`,
         mode: "trace_studios",
+        ui_action: null,
         traceStudios: {
           kind: "door_open",
           trackId: "neon_promise",
@@ -851,6 +863,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       return {
         assistant_message: `${door}\n\n${follow}`,
         mode: "trace_studios",
+        ui_action: null,
         traceStudios: {
           kind: "music_general",
           traceStudiosContext: "music_general",
@@ -867,4 +880,5 @@ module.exports = {
   TRACKS,
   checkStudiosRepeat,
   recordStudiosVisual,
+  UI_ACTION_TYPES,
 };

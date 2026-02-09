@@ -7,6 +7,29 @@
  * Phase 1: Create structure + log (no enforcement yet)
  */
 
+const UI_ACTION_TYPES = {
+  OPEN_JOURNAL_MODAL: 'OPEN_JOURNAL_MODAL',
+  OPEN_EXTERNAL_URL: 'OPEN_EXTERNAL_URL',
+  PLAY_IN_APP_TRACK: 'PLAY_IN_APP_TRACK',
+  SHOW_PLAYLIST_CHOOSER: 'SHOW_PLAYLIST_CHOOSER',
+};
+
+function createEmptyUiAction() {
+  return null;
+}
+
+function createUiAction({ type, title, url, playlistId, trackId, source }) {
+  if (!type || !UI_ACTION_TYPES[type]) return null;
+  return {
+    type,
+    ...(title && { title }),
+    ...(url && { url }),
+    ...(playlistId && { playlistId }),
+    ...(trackId && { trackId }),
+    source: source || 'trace',
+  };
+}
+
 function createEmptyTraceIntent() {
   return {
     version: "v1",
@@ -18,6 +41,8 @@ function createEmptyTraceIntent() {
 
     posture: null,          // GENTLE | STEADY | DIRECTIVE
     detected_state: null,   // anxious | tired | neutral | etc.
+
+    ui_action: null,
 
     constraints: {
       maxSentences: 2,
@@ -50,4 +75,4 @@ function createEmptyTraceIntent() {
   };
 }
 
-module.exports = { createEmptyTraceIntent };
+module.exports = { createEmptyTraceIntent, createUiAction, UI_ACTION_TYPES };

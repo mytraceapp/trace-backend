@@ -42,7 +42,7 @@ const {
 } = require('./traceSystemPrompt');
 const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
-const { handleTraceStudios, TRACKS, checkStudiosRepeat, recordStudiosVisual } = require('./traceStudios');
+const { handleTraceStudios, TRACKS, checkStudiosRepeat, recordStudiosVisual, UI_ACTION_TYPES } = require('./traceStudios');
 const {
   storeSignal,
   getOrAnalyzeLearnings,
@@ -4297,6 +4297,7 @@ app.post('/api/chat', async (req, res) => {
         
         let studiosMsg = studiosResponse.assistant_message;
         let studiosRegenerated = false;
+        let studiosUiAction = studiosResponse.ui_action || null;
         
         if (checkStudiosRepeat(effectiveUserId, studiosMsg, requestId)) {
           const altSeed = `${effectiveUserId}::${Date.now()}`;
@@ -4311,6 +4312,7 @@ app.post('/api/chat', async (req, res) => {
           if (altResponse?.assistant_message && altResponse.assistant_message !== studiosMsg) {
             studiosMsg = altResponse.assistant_message;
             studiosResponse.traceStudios = altResponse.traceStudios || studiosResponse.traceStudios;
+            studiosUiAction = altResponse.ui_action || studiosUiAction;
             studiosRegenerated = true;
           }
           console.log('[STUDIOS_REPEAT]', JSON.stringify({ requestId, regenerated: studiosRegenerated }));
@@ -4318,10 +4320,38 @@ app.post('/api/chat', async (req, res) => {
         
         recordStudiosVisual(effectiveUserId, studiosMsg);
         
+        // ============================================================
+        // SERVER-SIDE GUARDRAIL: ui_action + audio_action consistency
+        // If ui_action.source === "spotify" → block audio_action (no in-app player)
+        // If ui_action.type === PLAY_IN_APP_TRACK → block external URL actions
+        // ============================================================
+        const hasAudioAction = !!studiosResponse.traceStudios?.audio_action;
+        
+        if (studiosUiAction?.source === 'spotify' && hasAudioAction) {
+          console.log('[STUDIOS GUARDRAIL] Blocked audio_action — ui_action.source is spotify');
+          delete studiosResponse.traceStudios.audio_action;
+        }
+        
+        if (studiosUiAction?.type === 'PLAY_IN_APP_TRACK' && studiosUiAction?.url) {
+          console.log('[STUDIOS GUARDRAIL] Stripped url from PLAY_IN_APP_TRACK ui_action');
+          delete studiosUiAction.url;
+        }
+        
+        // [STUDIOS_ACTION] observability log
+        if (studiosUiAction) {
+          console.log('[STUDIOS_ACTION]', JSON.stringify({
+            requestId,
+            type: studiosUiAction.type,
+            source: studiosUiAction.source,
+            trackId: studiosUiAction.trackId || null,
+          }));
+        }
+        
         const response = {
           message: studiosMsg,
           mode: studiosResponse.mode,
           traceStudios: studiosResponse.traceStudios,
+          ui_action: studiosUiAction,
         };
         
         if (studiosResponse.traceStudios?.audio_action) {
@@ -4361,7 +4391,8 @@ app.post('/api/chat', async (req, res) => {
           deduped: false,
           sound_state: { current: null, changed: false, reason: 'studios_early_return' },
           response_source: 'studios',
-          _provenance: { path: 'studios_intercept', primaryMode: 'studios', kind: studiosResponse.traceStudios?.kind, requestId, ts: Date.now(), studiosRegenerated }
+          ui_action: studiosUiAction,
+          _provenance: { path: 'studios_intercept', primaryMode: 'studios', kind: studiosResponse.traceStudios?.kind, requestId, ts: Date.now(), studiosRegenerated, ui_action_type: studiosUiAction?.type || null }
         });
       }
     }
@@ -4830,6 +4861,12 @@ app.post('/api/chat', async (req, res) => {
         const space = pickMusicSpace(musicContext);
         const text = MUSIC_TEMPLATES[space];
         
+        const musicInviteUiAction = {
+          type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
+          title: space,
+          source: 'trace',
+        };
+        console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: musicInviteUiAction.type, source: musicInviteUiAction.source, trackId: null }));
         return res.json({
           type: 'music_invite',
           moodSpace: space,
@@ -4837,7 +4874,8 @@ app.post('/api/chat', async (req, res) => {
           activity_suggestion: { name: null, reason: null, should_navigate: false },
           sound_state: { current: null, changed: false, reason: 'music_invite_suppressed' },
           response_source: 'studios',
-          _provenance: { path: 'music_invite', primaryMode: 'studios', moodSpace: space, requestId, ts: Date.now() }
+          ui_action: musicInviteUiAction,
+          _provenance: { path: 'music_invite', primaryMode: 'studios', moodSpace: space, requestId, ts: Date.now(), ui_action_type: musicInviteUiAction.type }
         });
       } else {
         console.log('[TRACE CHAT] Music request detected but blocked:', {
@@ -10526,6 +10564,11 @@ app.post('/api/onboarding/reflection', async (req, res) => {
     if (studiosResponse) {
       console.log('[ACTIVITY REFLECTION] Intercepted TRACE Studios request:', studiosResponse.traceStudios?.kind);
       
+      const reflectionUiAction = studiosResponse.ui_action || null;
+      if (reflectionUiAction) {
+        console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId: `reflection-${Date.now()}`, type: reflectionUiAction.type, source: reflectionUiAction.source, trackId: reflectionUiAction.trackId || null }));
+      }
+      
       const response = {
         success: true,
         ok: true,
@@ -10533,22 +10576,26 @@ app.post('/api/onboarding/reflection', async (req, res) => {
         aiResponse: studiosResponse.assistant_message,
         mode: studiosResponse.mode,
         traceStudios: studiosResponse.traceStudios,
+        ui_action: reflectionUiAction,
       };
       
-      // Add audio_action if present
       if (studiosResponse.traceStudios?.audio_action) {
-        const TRACK_INDEX_MAP = {
-          'midnight_underwater': 0, 'slow_tides': 1, 'undertow': 2, 'euphoria': 3,
-          'ocean_breathing': 4, 'tidal_house': 5, 'neon_promise': 6, 'night_swim': 0,
-        };
-        const trackIndex = TRACK_INDEX_MAP[studiosResponse.traceStudios.audio_action.trackId] ?? 0;
-        response.audio_action = {
-          type: 'open',
-          source: 'originals',
-          album: 'night_swim',
-          track: trackIndex,
-          autoplay: true,
-        };
+        if (reflectionUiAction?.source === 'spotify') {
+          console.log('[STUDIOS GUARDRAIL] Blocked audio_action in reflection — spotify source');
+        } else {
+          const TRACK_INDEX_MAP = {
+            'midnight_underwater': 0, 'slow_tides': 1, 'undertow': 2, 'euphoria': 3,
+            'ocean_breathing': 4, 'tidal_house': 5, 'neon_promise': 6, 'night_swim': 0,
+          };
+          const trackIndex = TRACK_INDEX_MAP[studiosResponse.traceStudios.audio_action.trackId] ?? 0;
+          response.audio_action = {
+            type: 'open',
+            source: 'originals',
+            album: 'night_swim',
+            track: trackIndex,
+            autoplay: true,
+          };
+        }
       }
       
       return res.json(response);

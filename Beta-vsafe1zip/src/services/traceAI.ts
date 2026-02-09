@@ -95,9 +95,21 @@ function cleanConversationHistory(history: ChatMessage[]): ChatMessage[] {
 conversationHistory = cleanConversationHistory(conversationHistory);
 saveConversationHistory(conversationHistory);
 
+export type UiActionType = 'OPEN_JOURNAL_MODAL' | 'OPEN_EXTERNAL_URL' | 'PLAY_IN_APP_TRACK' | 'SHOW_PLAYLIST_CHOOSER';
+
+export interface UiAction {
+  type: UiActionType;
+  title?: string;
+  url?: string;
+  playlistId?: string;
+  trackId?: string;
+  source: 'spotify' | 'trace';
+}
+
 export interface TraceResponse {
   message: string;
   activity_suggestion: ActivitySuggestion;
+  ui_action?: UiAction | null;
 }
 
 export async function sendMessageToTrace(userMessage: string, userName?: string | null, chatStyle: 'minimal' | 'conversation' = 'conversation'): Promise<TraceResponse> {
@@ -145,6 +157,7 @@ export async function sendMessageToTrace(userMessage: string, userName?: string 
       reason: null,
       should_navigate: false
     };
+    const uiAction: UiAction | null = data.ui_action || null;
 
     // Store the activity suggestion for later reference
     lastActivitySuggestion = activitySuggestion;
@@ -169,7 +182,8 @@ export async function sendMessageToTrace(userMessage: string, userName?: string 
 
     return {
       message: assistantMessage,
-      activity_suggestion: activitySuggestion
+      activity_suggestion: activitySuggestion,
+      ui_action: uiAction,
     };
   } catch (error: any) {
     console.error('TRACE AI error:', error?.message || error);
