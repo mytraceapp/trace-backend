@@ -476,30 +476,6 @@ export function ChatScreen({
     }
   }, [onNavigateToBreathing, onNavigateToGrounding, onNavigateToWalking, onNavigateToMaze, onNavigateToPowerNap, onNavigateToPearlRipple, onNavigateToRest, onNavigateToWindow, onNavigateToEcho]);
 
-  const handleUiAction = React.useCallback((action: UiAction) => {
-    switch (action.type) {
-      case 'OPEN_JOURNAL_MODAL':
-        if (onNavigateToJournal) {
-          onNavigateToJournal();
-        }
-        break;
-      case 'OPEN_EXTERNAL_URL':
-        if (action.url) {
-          window.open(action.url, '_blank', 'noopener,noreferrer');
-        }
-        break;
-      case 'PLAY_IN_APP_TRACK':
-        break;
-      case 'SHOW_PLAYLIST_CHOOSER':
-        if (onNavigateToJournal) {
-          onNavigateToJournal();
-        }
-        break;
-      default:
-        break;
-    }
-  }, [onNavigateToJournal]);
-
   const handleSend = async () => {
     if (message.trim() && !isThinking) {
       const userMsg = message.trim();
@@ -568,11 +544,7 @@ export function ChatScreen({
         // Get real response from TRACE AI (now returns object with message and activity_suggestion)
         const chatStyle = (currentProfile?.chat_style as 'minimal' | 'conversation') || 'conversation';
         const traceResponse = await sendMessageToTrace(userMsg, userName, chatStyle);
-        const { message: responseMessage, activity_suggestion, ui_action } = traceResponse;
-        
-        if (ui_action) {
-          handleUiAction(ui_action);
-        }
+        const { message: responseMessage, activity_suggestion } = traceResponse;
         
         // Detect emotion and animate orb accordingly
         const emotion = detectEmotion(responseMessage);
