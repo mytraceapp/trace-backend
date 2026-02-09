@@ -1548,10 +1548,64 @@ export default function ChatScreen() {
           const data = await reflectionRes.json();
           console.log('🎓 TRACE: reflection response:', data);
           
-          // Handle audio_action if present (e.g., "play night swim")
+          // Handle audio_action if present (e.g., "play neon promise", "play night swim")
           if (data.audio_action) {
             console.log('[TRACE Chat] 🎵 Handling audio_action from reflection:', data.audio_action);
-            handleAudioAction(data.audio_action);
+            const reflectionAudio = data.audio_action;
+            if (reflectionAudio.type === 'open') {
+              const NIGHT_SWIM_TRACKS = [
+                'Midnight Underwater', 'Slow Tides', 'Undertow', 'Euphoria',
+                'Ocean Breathing', 'Tidal House', 'Neon Promise'
+              ];
+              const playbackMode = reflectionAudio.playbackMode || 
+                (reflectionAudio.source === 'spotify' ? 'spotify_journal' : 'audio_player');
+              
+              if (playbackMode === 'audio_player') {
+                const trackIndex = reflectionAudio.track || 0;
+                const trackTitle = reflectionAudio.trackName || NIGHT_SWIM_TRACKS[trackIndex] || 'Night Swim';
+                clientStateRef.current.nowPlaying = {
+                  trackId: `night_swim_${trackIndex}`,
+                  title: trackTitle,
+                  album: 'night_swim'
+                };
+                clientStateRef.current.mode = 'audio_player';
+                console.log('🎵 Reflection: Opening audio_player for', trackTitle);
+                setTimeout(() => {
+                  openNightSwimPlayer(
+                    reflectionAudio.autoplay !== false,
+                    reflectionAudio.track || 0
+                  );
+                }, 600);
+              } else if (playbackMode === 'spotify_journal') {
+                const playlistId = reflectionAudio.playlistId || reflectionAudio.album;
+                console.log('🎵 Reflection: Opening spotify_journal for playlist:', playlistId);
+                leftForSpotifyRef.current = { left: true, trackTitle: playlistId, leftAt: Date.now() };
+                setTimeout(async () => {
+                  const playlistToMood: Record<string, MoodSpace> = {
+                    'ground_playlist': 'ground', 'drift_playlist': 'drift', 'rising_playlist': 'rising',
+                    'ground': 'ground', 'drift': 'drift', 'rising': 'rising'
+                  };
+                  const mood = playlistToMood[playlistId] || (playlistId as MoodSpace);
+                  await openSpotifyPlaylist(mood);
+                }, 600);
+              } else {
+                console.log('🎵 Reflection: Unknown playbackMode, defaulting to audio_player');
+                setTimeout(() => {
+                  openNightSwimPlayer(
+                    reflectionAudio.autoplay !== false,
+                    reflectionAudio.track || 0
+                  );
+                }, 600);
+              }
+            } else if (reflectionAudio.type === 'stop') {
+              console.log('🎵 Reflection: stop audio');
+              await stopAllAudio();
+              await stopAmbient();
+              closeNightSwimPlayer();
+              clientStateRef.current.nowPlaying = null;
+              clientStateRef.current.mode = 'chat';
+              clientStateRef.current.currentSoundState = null;
+            }
           }
           
           // Use the AI response from the server
