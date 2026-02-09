@@ -42,7 +42,7 @@ const {
 } = require('./traceSystemPrompt');
 const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
-const { handleTraceStudios, TRACKS } = require('./traceStudios');
+const { handleTraceStudios, TRACKS, checkStudiosRepeat, recordStudiosVisual } = require('./traceStudios');
 const {
   storeSignal,
   getOrAnalyzeLearnings,
@@ -4295,18 +4295,38 @@ app.post('/api/chat', async (req, res) => {
       if (studiosResponse) {
         console.log('[TRACE STUDIOS] Intercepted:', studiosResponse.traceStudios?.kind);
         
-        // Build response with audio_action at top level (mobile expects this format)
+        let studiosMsg = studiosResponse.assistant_message;
+        let studiosRegenerated = false;
+        
+        if (checkStudiosRepeat(effectiveUserId, studiosMsg, requestId)) {
+          const altSeed = `${effectiveUserId}::${Date.now()}`;
+          const altResponse = handleTraceStudios({
+            userText: studiosUserMsg.content + ' ' + altSeed,
+            clientState,
+            userId: effectiveUserId,
+            lastAssistantMessage: lastAssistantMsg,
+            nowPlaying,
+            recentAssistantMessages: recentAssistantMsgs,
+          });
+          if (altResponse?.assistant_message && altResponse.assistant_message !== studiosMsg) {
+            studiosMsg = altResponse.assistant_message;
+            studiosResponse.traceStudios = altResponse.traceStudios || studiosResponse.traceStudios;
+            studiosRegenerated = true;
+          }
+          console.log('[STUDIOS_REPEAT]', JSON.stringify({ requestId, regenerated: studiosRegenerated }));
+        }
+        
+        recordStudiosVisual(effectiveUserId, studiosMsg);
+        
         const response = {
-          message: studiosResponse.assistant_message,
+          message: studiosMsg,
           mode: studiosResponse.mode,
           traceStudios: studiosResponse.traceStudios,
         };
         
-        // If traceStudios has audio_action, send to frontend with album/track info
         if (studiosResponse.traceStudios?.audio_action) {
           const studioAction = studiosResponse.traceStudios.audio_action;
           
-          // Map track IDs to track indices (matches trace_originals_tracks in Supabase)
           const TRACK_INDEX_MAP = {
             'midnight_underwater': 0,
             'slow_tides': 1,
@@ -4319,7 +4339,7 @@ app.post('/api/chat', async (req, res) => {
             'tidal_house': 5,
             'tidal_memory_glow': 5,
             'neon_promise': 6,
-            'night_swim': 0, // Default to first track when album requested
+            'night_swim': 0,
           };
           
           const trackIndex = TRACK_INDEX_MAP[studioAction.trackId] ?? 0;
@@ -4340,7 +4360,8 @@ app.post('/api/chat', async (req, res) => {
           ...studioResponse, 
           deduped: false,
           sound_state: { current: null, changed: false, reason: 'studios_early_return' },
-          _provenance: { path: 'studios_intercept', kind: studiosResponse.traceStudios?.kind, requestId, ts: Date.now() }
+          response_source: 'studios',
+          _provenance: { path: 'studios_intercept', primaryMode: 'studios', kind: studiosResponse.traceStudios?.kind, requestId, ts: Date.now(), studiosRegenerated }
         });
       }
     }
@@ -4815,7 +4836,8 @@ app.post('/api/chat', async (req, res) => {
           message: text,
           activity_suggestion: { name: null, reason: null, should_navigate: false },
           sound_state: { current: null, changed: false, reason: 'music_invite_suppressed' },
-          _provenance: { path: 'music_invite', moodSpace: space, requestId, ts: Date.now() }
+          response_source: 'studios',
+          _provenance: { path: 'music_invite', primaryMode: 'studios', moodSpace: space, requestId, ts: Date.now() }
         });
       } else {
         console.log('[TRACE CHAT] Music request detected but blocked:', {
@@ -6950,6 +6972,11 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
       const dreamBullet = formatDreamBullet(dreamscapeHistory);
       const antiRepetitionOpeners = extractRecentOpeners(messages);
       
+      const isActivityRequest = /\b(take me to|do|start|try|open|let'?s do)\s+(rising|breathing|grounding|maze|pearl|nap|walking|echo)\b/i.test(lastUserMessage);
+      const isOnboardingScripted = !!(userProfile && 
+        (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null) &&
+        userProfile.onboarding_step && userProfile.onboarding_step !== 'completed');
+
       traceIntent = brainSynthesis({
         currentMessage: lastUserMessage,
         historyMessages: messages,
@@ -6962,13 +6989,15 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
         traceBrainSignals: brainSignals,
         attunement,
         doorwaysResult,
-        atmosphereResult: null, // Not yet computed - added post-response
+        atmosphereResult: null,
         disclaimerShown: disclaimerAlreadyShown,
         
         memoryBullets,
         patternBullets,
         dreamBullet,
-        activityBullets
+        activityBullets,
+        isOnboardingScripted,
+        isActivityRequest,
       });
       
       // Store anti-repetition openers on traceIntent for V2 prompt building
@@ -6981,11 +7010,12 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
     }
     
     // ============================================================
-    // MUSIC CONTEXT GATE (single source of truth)
-    // When music intent is active, suppress soundscapes AND activity offers.
-    // This flag is checked downstream at atmosphere engine + response assembly.
+    // PRIMARY MODE GATE (single source of truth)
+    // When primaryMode==="studios", suppress soundscapes AND activity offers.
+    // brainSynthesis already sets constraints; isMusicContext is read-only alias.
     // ============================================================
     const isMusicContext = !!(
+      traceIntent?.primaryMode === 'studios' ||
       (traceIntent && traceIntent.intentType === 'music') ||
       brainSignals?.musicRequest
     );
@@ -6994,8 +7024,9 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
       traceIntent.constraints = traceIntent.constraints || {};
       traceIntent.constraints.allowActivities = 'never';
       traceIntent.constraints.suppressSoundscapes = true;
-      console.log('[MUSIC GATE] Suppressing soundscapes + activities', JSON.stringify({
+      console.log('[PRIMARY MODE GATE] studios active — suppressing soundscapes + activities', JSON.stringify({
         requestId: req.requestId || `req-${Date.now()}`,
+        primaryMode: traceIntent?.primaryMode,
         intentType: traceIntent?.intentType,
         musicRequest: !!brainSignals?.musicRequest
       }));
@@ -7055,6 +7086,14 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
       }
     }
     
+    // ============================================================
+    // STUDIOS DIRECTIVE INJECTION
+    // When primaryMode==="studios", append hard gate directive to prompt
+    // ============================================================
+    if (traceIntent?.constraints?.studiosDirective) {
+      systemPrompt += `\n\nMODE GATE (STUDIOS):\n${traceIntent.constraints.studiosDirective}`;
+    }
+
     // ============================================================
     // TIERED MODEL ROUTING
     // Select optimal model based on conversation context
@@ -9107,6 +9146,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       console.log('[PHASE4]', JSON.stringify({
         requestId: chatRequestId,
         provenance: 'ai_pipeline',
+        primaryMode: traceIntent?.primaryMode || 'conversation',
         useV2,
         tier: modelRoute?.tier ?? null,
         model: selectedModel,
@@ -9126,6 +9166,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     
     const _provenance = {
       path: 'ai_pipeline',
+      primaryMode: traceIntent?.primaryMode || 'conversation',
       requestId: chatRequestId,
       ts: Date.now(),
       latency_ms: totalRequestTime,
@@ -9145,7 +9186,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       },
     };
     
-    return res.json({ ...finalResponse, deduped: false, _provenance });
+    return res.json({ ...finalResponse, deduped: false, response_source: traceIntent?.primaryMode || 'conversation', _provenance });
   } catch (error) {
     console.error('TRACE API error:', error.message || error);
     res.status(500).json(normalizeChatResponse({ 

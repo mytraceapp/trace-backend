@@ -3,6 +3,56 @@
 // Tiny "relationship texture" router for TRACE Studios (no menus, no tool mentions).
 // Purpose: natural conversational doorway into Night Swim / Neon Promise.
 
+// ============================================================
+// STUDIOS ANTI-REPETITION
+// Rolling list of recent response hashes per user (in-memory, max 10)
+// ============================================================
+const _recentStudiosVisuals = new Map();
+const STUDIOS_VISUAL_CAP = 10;
+
+function simpleHash(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return h;
+}
+
+function bigramSet(text) {
+  const t = text.toLowerCase().replace(/[^a-z0-9 ]/g, '');
+  const words = t.split(/\s+/).filter(Boolean);
+  const bg = new Set();
+  for (let i = 0; i < words.length - 1; i++) bg.add(words[i] + ' ' + words[i + 1]);
+  return bg;
+}
+
+function bigramSimilarity(a, b) {
+  const setA = bigramSet(a);
+  const setB = bigramSet(b);
+  if (!setA.size || !setB.size) return 0;
+  let overlap = 0;
+  for (const bg of setA) if (setB.has(bg)) overlap++;
+  return overlap / Math.max(setA.size, setB.size);
+}
+
+function checkStudiosRepeat(userId, text, requestId) {
+  const recents = _recentStudiosVisuals.get(userId) || [];
+  const hash = simpleHash(text);
+  let tooSimilar = false;
+  for (const entry of recents) {
+    if (entry.hash === hash || bigramSimilarity(text, entry.text) > 0.7) {
+      tooSimilar = true;
+      break;
+    }
+  }
+  return tooSimilar;
+}
+
+function recordStudiosVisual(userId, text) {
+  let recents = _recentStudiosVisuals.get(userId) || [];
+  recents.push({ hash: simpleHash(text), text: text.substring(0, 120) });
+  if (recents.length > STUDIOS_VISUAL_CAP) recents = recents.slice(-STUDIOS_VISUAL_CAP);
+  _recentStudiosVisuals.set(userId, recents);
+}
+
 function norm(s = "") {
   return String(s).toLowerCase().trim();
 }
@@ -815,4 +865,6 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
 module.exports = {
   handleTraceStudios,
   TRACKS,
+  checkStudiosRepeat,
+  recordStudiosVisual,
 };

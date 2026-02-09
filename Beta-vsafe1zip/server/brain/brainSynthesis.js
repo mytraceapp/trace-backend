@@ -17,19 +17,20 @@ function brainSynthesis({
   localTime,
   tonePreference,
 
-  // existing outputs (pass whatever you already compute)
   isEarlyCrisisMode,
-  cognitiveIntent,        // from cognitiveEngine.processCognitiveIntent(...)
-  conversationState,      // from conversationState.getState(...)
-  traceBrainSignals,      // from traceBrain.getBrainSignals(...)
-  attunement,             // from detectPosture(...)
-  doorwaysResult,         // from processDoorways(...)
-  atmosphereResult,       // from evaluateAtmosphere(...)
-  disclaimerShown,        // from profile / onboarding
-  memoryBullets,          // (Phase 1 optional) from memory builder trimmed
-  patternBullets,         // (Phase 1 optional)
-  dreamBullet,            // (Phase 1 optional)
-  activityBullets,        // (Phase 1 optional)
+  cognitiveIntent,
+  conversationState,
+  traceBrainSignals,
+  attunement,
+  doorwaysResult,
+  atmosphereResult,
+  disclaimerShown,
+  memoryBullets,
+  patternBullets,
+  dreamBullet,
+  activityBullets,
+  isOnboardingScripted,
+  isActivityRequest,
 }) {
   const intent = createEmptyTraceIntent();
 
@@ -61,17 +62,39 @@ function brainSynthesis({
   if (isEarlyCrisisMode) {
     intent.mode = "crisis";
     intent.intentType = "crisis";
-    intent.constraints.maxSentences = null;       // crisis path uses special format anyway
+    intent.primaryMode = "crisis";
+    intent.constraints.maxSentences = null;
     intent.constraints.allowQuestions = 0;
     intent.constraints.allowActivities = "never";
     return intent;
   }
 
-  // Determine longform intent types (recipes, stories, steps)
   const inferred = inferIntentType({ currentMessage, cognitiveIntent, doorwaysResult, traceBrainSignals });
 
   intent.intentType = inferred.intentType;
   intent.mode = inferred.mode;
+
+  // --- primaryMode: single authoritative mode per response ---
+  const doorwayHint = pickDoorwayHint(doorwaysResult);
+
+  if (intent.intentType === "music" || traceBrainSignals?.musicRequest) {
+    intent.primaryMode = "studios";
+  } else if (isOnboardingScripted) {
+    intent.primaryMode = "onboarding";
+  } else if (doorwayHint === "dreams_symbols" || intent.intentType === "dream") {
+    intent.primaryMode = "dream";
+  } else if (isActivityRequest) {
+    intent.primaryMode = "activity";
+  } else {
+    intent.primaryMode = "conversation";
+  }
+
+  // --- enforce studios hard gate ---
+  if (intent.primaryMode === "studios") {
+    intent.constraints.allowActivities = "never";
+    intent.constraints.suppressSoundscapes = true;
+    intent.constraints.studiosDirective = "Do not mention soundscapes. Only album/tracks/playlists/visual concepts.";
+  }
 
   // --- constraints by mode ---
   if (intent.mode === "micro") {
@@ -86,7 +109,7 @@ function brainSynthesis({
     intent.constraints.requiredSections = null;
   } else if (intent.mode === "longform") {
     intent.constraints.maxSentences = null;
-    intent.constraints.allowQuestions = 0; // usually no questions in recipes/steps unless asked
+    intent.constraints.allowQuestions = 0;
     intent.constraints.mustNotTruncate = true;
     intent.constraints.requiredSections = inferred.requiredSections || null;
   }
@@ -227,6 +250,7 @@ function logTraceIntent({ requestId, effectiveUserId, traceIntent, model, route 
     route,
     model,
     mode: traceIntent.mode,
+    primaryMode: traceIntent.primaryMode,
     intentType: traceIntent.intentType,
     posture: traceIntent.posture,
     detected_state: traceIntent.detected_state,

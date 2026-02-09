@@ -52,6 +52,10 @@ The system correlates activity completions with mood check-ins to identify activ
 
 Recent Dreamscape session history is loaded to allow TRACE to reference past sessions contextually.
 
+### Primary Mode Gating
+
+`traceIntent.primaryMode` enforces a single authoritative mode per response to prevent cross-module leakage ("jumbled brain"). Allowed values: `studios | conversation | dream | activity | crisis | onboarding`. Populated in `brainSynthesis` based on intercepts/signals. When `primaryMode === "studios"`: soundscapes suppressed, activities blocked (`allowActivities: "never"`), system prompt receives `MODE GATE (STUDIOS)` directive. A Studios anti-repetition system (`checkStudiosRepeat` / `recordStudiosVisual`) keeps a rolling in-memory list (max 10) of recent Studios response hashes per user, using bigram similarity (>70% threshold) to trigger a single regeneration attempt. `[STUDIOS_REPEAT]` log emitted with requestId and whether regen occurred. `response_source` and `primaryMode` appear in the response payload and `_provenance` for observability.
+
 ### Doorways v1 (Brain-Only Detection)
 
 A system to detect when users are entering specific emotional/psychological realms (e.g., `dreams_symbols`, `grief`, `joy_delight`). It injects contextual intent into the system prompt for natural AI responses within the therapeutic realm. Mechanisms include phrase-based scoring with weighted triggers, affinity decay, per-door cooldowns, crisis override, and telemetry logging with text hashing for privacy.
