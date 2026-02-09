@@ -18,7 +18,7 @@ function createEmptyUiAction() {
   return null;
 }
 
-function createUiAction({ type, title, url, playlistId, trackId, source }) {
+function createUiAction({ type, title, url, playlistId, trackId, trackIndex, album, source }) {
   if (!type || !UI_ACTION_TYPES[type]) return null;
   return {
     type,
@@ -26,6 +26,8 @@ function createUiAction({ type, title, url, playlistId, trackId, source }) {
     ...(url && { url }),
     ...(playlistId && { playlistId }),
     ...(trackId && { trackId }),
+    ...(trackIndex !== undefined && trackIndex !== null && { trackIndex }),
+    ...(album && { album }),
     source: source || 'trace',
   };
 }

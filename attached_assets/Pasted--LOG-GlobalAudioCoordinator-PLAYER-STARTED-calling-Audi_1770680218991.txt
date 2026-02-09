@@ -1,0 +1,30 @@
+ LOG  [GlobalAudioCoordinator] 🎵 PLAYER STARTED - calling AudioContext.startPlayer
+ LOG  [AUDIO_CADENCE] startPlayer reason=player_start
+ LOG  [AUDIO_CADENCE] stopAmbientHard called reason=player_start_player_start instanceId=1
+ LOG  [AmbientMiniPlayer] State: {"currentActivityName": "chat", "isOnBlacklistedActivity": false, "isOnBlacklistedActivityByPath": false, "isPlaying": true, "pathname": "/chat", "segments": "(tabs)/chat", "shouldHidePlayer": false, "shouldShow": true}
+ LOG  [AMBIENT_INSTANCE] stop id=1 sound=soundA reason=player_start_player_start
+ LOG  [AMBIENT_INSTANCE] stop id=1 sound=soundB reason=player_start_player_start
+ LOG  [AUDIO_CADENCE] stopAmbientHard soundA stopped reason=player_start_player_start instanceId=1
+ LOG  [AUDIO_CADENCE] stopAmbientHard soundB stopped reason=player_start_player_start instanceId=1
+ LOG  [AUDIO_CADENCE] stopAmbientHard complete reason=player_start_player_start isPlaying=false
+ LOG  [AUDIO_CADENCE] startPlayer complete reason=player_start savedMode=ambient savedSoundscape=presence
+ LOG  [ORIGINALS] Fetched 7 tracks for album "night_swim"
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.8", "completedActivity": "Drift"}
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ LOG  [AmbientMiniPlayer] Rendering player - shouldShow: true fadeAnim._value: 0.4888754321383378
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.8", "completedActivity": "Drift"}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.8", "completedActivity": "Drift"}
+ LOG  [AudioPlayer] Now playing: Neon Promise
+ LOG  ✅ playOriginals() completed - player should now be visible
+ LOG  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.8", "completedActivity": "Drift"}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.8", "completedActivity": "Drift"}
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [TRACE CHAT] Params: {"activityDuration": "0.8", "completedActivity": "Drift"}
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+

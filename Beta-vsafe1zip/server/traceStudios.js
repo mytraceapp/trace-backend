@@ -498,7 +498,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     return {
       assistant_message: msg,
       mode: "trace_studios",
-      ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: 'Night Swim', trackId: 'night_swim', source: 'trace' }),
+      ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: 'Night Swim', trackId: 'night_swim', trackIndex: 0, album: 'night_swim', source: 'trace' }),
       traceStudios: {
         kind: "play_night_swim",
         traceStudiosContext: "night_swim",
@@ -519,7 +519,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     return {
       assistant_message: msg,
       mode: "trace_studios",
-      ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: requestedTrack.title, trackId: requestedTrack.id, source: 'trace' }),
+      ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: requestedTrack.title, trackId: requestedTrack.id, trackIndex: requestedTrack.index || 0, album: 'night_swim', source: 'trace' }),
       traceStudios: {
         kind: `play_${requestedTrack.id}`,
         traceStudiosContext: requestedTrack.id,
@@ -547,7 +547,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       return {
         assistant_message: msg,
         mode: "trace_studios",
-        ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: trackToPlay.title, trackId: trackToPlay.id, source: 'trace' }),
+        ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: trackToPlay.title, trackId: trackToPlay.id, trackIndex: trackToPlay.index || 0, album: 'night_swim', source: 'trace' }),
         traceStudios: {
           kind: `play_${trackToPlay.id}`,
           traceStudiosContext: trackToPlay.id,
@@ -570,7 +570,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       return {
         assistant_message: msg,
         mode: "trace_studios",
-        ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: 'Night Swim', trackId: 'night_swim', source: 'trace' }),
+        ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: 'Night Swim', trackId: 'night_swim', trackIndex: 0, album: 'night_swim', source: 'trace' }),
         traceStudios: {
           kind: "play_night_swim",
           traceStudiosContext: "night_swim",
