@@ -9224,7 +9224,30 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       },
     };
     
-    return res.json({ ...finalResponse, deduped: false, response_source: traceIntent?.primaryMode || 'conversation', _provenance });
+    // Post-processing: detect playlist mentions in AI-generated responses
+    // When the model mentions a playlist (ground_playlist, drift_playlist, rising_playlist, Rooted, Low Orbit, First Light),
+    // attach a ui_action so the client knows to navigate the user to the journal/playlist area
+    let pipelineUiAction = null;
+    const finalMsgText = (finalResponse.message || '').toLowerCase();
+    const playlistMentions = [
+      { patterns: ['ground_playlist', 'rooted playlist', 'playing rooted', 'play rooted'], name: 'ground_playlist', album: 'Rooted' },
+      { patterns: ['drift_playlist', 'low orbit playlist', 'playing low orbit', 'play low orbit'], name: 'drift_playlist', album: 'Low Orbit' },
+      { patterns: ['rising_playlist', 'first light playlist', 'playing first light', 'play first light'], name: 'rising_playlist', album: 'First Light' },
+    ];
+    for (const pl of playlistMentions) {
+      if (pl.patterns.some(p => finalMsgText.includes(p))) {
+        pipelineUiAction = {
+          type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
+          title: pl.album,
+          playlistId: pl.name,
+          source: 'trace',
+        };
+        console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId: chatRequestId, type: pipelineUiAction.type, source: pipelineUiAction.source, playlistId: pl.name, path: 'ai_pipeline_postprocess' }));
+        break;
+      }
+    }
+    
+    return res.json({ ...finalResponse, deduped: false, response_source: traceIntent?.primaryMode || 'conversation', ui_action: pipelineUiAction, _provenance });
   } catch (error) {
     console.error('TRACE API error:', error.message || error);
     res.status(500).json(normalizeChatResponse({ 
