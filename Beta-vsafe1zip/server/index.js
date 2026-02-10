@@ -99,7 +99,7 @@ const {
 } = require('./safety');
 const { getSuggestionContext, getTimeAwarenessContext, ACTIVITY_LABELS } = require('./activityCorrelation');
 const { getActivityOutcomes, formatActivityOutcomesForContext } = require('./activityOutcomes');
-const { markActivityCompletedForReflection, getReflectionContext, clearReflectionFlag } = require('./reflectionTracking');
+const { markActivityCompletedForReflection, getReflectionContext, clearReflectionFlag, isReflectionAnswer } = require('./reflectionTracking');
 const { 
   getSafePatternContext, 
   isRevokingPatternConsent, 
@@ -6333,12 +6333,11 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
     }
     
     // Post-activity reflection tracking (database-backed, 30-minute window)
+    // Phase 1: Detect and store pendingFollowup — actual gating happens AFTER brainSynthesis
     let postActivityReflectionContext = null;
     const reflectionUserId = userId || deviceId;
     
     // FALLBACK: Detect post-activity reflection from chat history patterns
-    // If we see: assistant asks "you good?/any better?" followed by short user response
-    // This handles cases where the reflection flag wasn't set (mobile caching issues)
     if (!isCrisisMode && messages.length >= 2) {
       const lastAssistantIdx = messages.map((m, i) => m.role === 'assistant' ? i : -1).filter(i => i >= 0).pop();
       const lastUserIdx = messages.map((m, i) => m.role === 'user' ? i : -1).filter(i => i >= 0).pop();
@@ -6347,7 +6346,6 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
         const assistantMsg = messages[lastAssistantIdx]?.content?.toLowerCase()?.trim() || '';
         const userMsg = messages[lastUserIdx]?.content?.toLowerCase()?.trim() || '';
         
-        // Check if assistant message looks like a post-activity check-in
         const activityCheckInPatterns = [
           'you good', 'any better', 'how\'s it', 'feel different', 'helped', 
           'how you feeling', 'any changes', 'new vibe', 'hitting you', 'how did'
@@ -6355,9 +6353,8 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
         const isPostActivityCheckIn = activityCheckInPatterns.some(p => assistantMsg.includes(p));
         const isShortUserResponse = userMsg.length < 30;
         
-        if (isPostActivityCheckIn && isShortUserResponse) {
-          console.log('[POST-ACTIVITY FALLBACK] Detected from chat pattern:', assistantMsg, '→', userMsg);
-          // Set a synthetic context so the intercept logic triggers
+        if (isPostActivityCheckIn && isShortUserResponse && isReflectionAnswer(userMsg)) {
+          console.log('[POST-ACTIVITY FALLBACK] Detected from chat pattern');
           postActivityReflectionContext = {
             lastActivityName: 'recent activity',
             minutesSinceCompletion: 0,
@@ -6372,162 +6369,7 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
         postActivityReflectionContext = await getReflectionContext(pool, reflectionUserId);
         
         if (postActivityReflectionContext) {
-          await clearReflectionFlag(pool, reflectionUserId);
-          
-          const { lastActivityName, minutesSinceCompletion } = postActivityReflectionContext;
-          const minutesRounded = Math.round(minutesSinceCompletion);
-          
-          // EARLY INTERCEPT: Generate caring friend response for post-activity reflection
-          // This prevents the main chat pipeline from generating therapy-speak responses
-          const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content?.toLowerCase()?.trim() || '';
-          const isShortReflection = lastUserMsg.length < 50; // Brief responses get special handling
-          
-          if (openai && isShortReflection) {
-            try {
-              const isNegative = ['not really', 'no', 'nope', 'nah', 'didn\'t help', 'worse', 'still', 'same', 'lol', 'meh', 'idk', 'whatever'].some(w => lastUserMsg.includes(w));
-              const isPositive = ['good', 'great', 'nice', 'better', 'helped', 'relaxed', 'calm', 'yeah', 'yes', 'totally', 'much'].some(w => lastUserMsg.includes(w));
-              
-              let toneGuidance = '';
-              if (isNegative) {
-                toneGuidance = 'User said the activity DIDN\'T help or was dismissive. Show you care, ask what\'s going on. Never dismiss with "gotcha" or "okay".';
-              } else if (isPositive) {
-                toneGuidance = 'User seems positive. Keep it brief and warm. Continue the prior conversation thread naturally.';
-              } else {
-                toneGuidance = 'Read their tone and match it naturally. Be curious, not assumptive. Continue the prior conversation naturally.';
-              }
-              
-              // Get the last 5 messages before the activity for context continuity
-              const priorContext = messages.slice(-7, -2); // Get messages before the "you good?" check-in
-              const priorContextText = priorContext.length > 0
-                ? priorContext.map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${(m.content || '').slice(0, 200)}`).join('\n')
-                : '';
-              
-              // Determine if activity has music
-              const activitiesWithoutMusic = ['dreamscape', 'grounding', 'walking', 'echo'];
-              const activityHasNoMusic = activitiesWithoutMusic.includes(lastActivityName?.toLowerCase());
-              
-              const caringSystemPrompt = `${TRACE_IDENTITY_COMPACT}
-
-User just came back from doing ${lastActivityName} and you asked "you good?". They responded.
-
-${priorContextText ? `IMPORTANT - This is what you were talking about BEFORE the activity:\n${priorContextText}\n\nYou MUST continue this conversation thread naturally. Don't restart with generic questions.` : ''}
-
-Their post-activity response: "${lastUserMsg}"
-
-${toneGuidance}
-
-Write ONE brief, natural response (max 15 words). Be a friend, not a therapist.
-
-ACTIVITY CONTEXT:
-${activityHasNoMusic ? `- ${lastActivityName} does NOT have music. It has dreamy visuals/storytelling. Do NOT mention music.` : '- This activity may have ambient sounds, but never call it "music" explicitly.'}
-
-CRITICAL: 
-- If they say "not really", "no", "lol", "meh" = the activity DIDN'T help. Ask what's up, show curiosity.
-- Never say the activity was good if they said it wasn't.
-- Don't dismiss with "gotcha" or "okay" when they're struggling.
-- If there was a prior conversation topic (like a dream, work stress, etc.), acknowledge it or pick it back up naturally.
-- NEVER ask "What's been on your mind lately?" if you already know what's on their mind.
-- NEVER ask "Did the music help?" for activities that don't have music.
-
-FORBIDDEN: therapy-speak, "that's great", "sounds like a win", exclamation marks, "I'm glad", "space", "holding", "shifted", "present", "grounded", "centered", "affirm", "What's been on your mind", "Did the music help"
-
-Just the response, nothing else.
-`.trim();
-
-              console.log('[POST-ACTIVITY INTERCEPT] Generating caring response for:', lastUserMsg);
-              console.log('[POST-ACTIVITY INTERCEPT] Prior context messages:', priorContext.length);
-              if (priorContextText) {
-                console.log('[POST-ACTIVITY INTERCEPT] Context preview:', priorContextText.slice(0, 200) + '...');
-              }
-              const caringResponse = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
-                messages: [
-                  { role: 'system', content: caringSystemPrompt },
-                  { role: 'user', content: lastUserMsg },
-                ],
-                max_tokens: 40,
-                temperature: 0.7,
-              });
-
-              const caringMessage = caringResponse?.choices?.[0]?.message?.content?.trim();
-              if (caringMessage) {
-                console.log('[POST-ACTIVITY INTERCEPT] Returning caring response:', caringMessage);
-                
-                // Save the response to DB
-                try {
-                  await pool.query(`
-                    INSERT INTO trace_entries (user_id, type, content, metadata, created_at)
-                    VALUES ($1, 'ai_reflection', $2, $3, NOW())
-                  `, [userId, caringMessage, JSON.stringify({ source: 'post_activity_intercept', activity: lastActivityName })]);
-                } catch (e) { /* non-critical */ }
-                
-                console.log('[RESPONSE_SOURCE]', 'model', requestId);
-                return res.json({
-                  message: caringMessage,
-                  activity_suggestion: null,
-                  posture: 'STEADY',
-                  detected_state: 'neutral',
-                  posture_confidence: 0.6,
-                  sound_state: 'presence',
-                  client_state_patch: {},
-                  response_source: 'model'
-                });
-              }
-            } catch (interceptErr) {
-              console.warn('[POST-ACTIVITY INTERCEPT] Error, falling back to main chat:', interceptErr.message);
-            }
-          }
-          
-          const reflectionPrompt = `
-POST-ACTIVITY REFLECTION CONTEXT:
-The user just completed "${lastActivityName}" about ${minutesRounded} minute${minutesRounded === 1 ? '' : 's'} ago.
-
-Behavior for this response:
-1. Gently acknowledge they completed the activity. Use calm, neutral language:
-   - "I've saved this session with ${lastActivityName} for you."
-   
-2. Follow with at most ONE soft invitation to notice any shift. Choose based on activity type:
-   
-   For calming activities (Rising, Rest, Breathing, Ripple, Window, Basin, Dreamscape):
-   - "If you feel like sharing, what feels even 1% different right now?"
-   - "Sometimes the shift is small — a tiny bit more air in your chest, or a little less noise in your mind. If you want to, you can put a few words to it."
-   
-   For focus activities (Maze, Echo, Walking):
-   - "If you want to capture it while it's fresh, what feels a bit clearer or more manageable now?"
-   
-   For grounding/body activities (Grounding, Rest):
-   - "No pressure to answer, but if anything feels even slightly softer or clearer, you can put a few words here."
-
-3. IMPORTANT BOUNDARIES:
-   - Do not ask multiple reflection questions
-   - If user is already talking about something else, prioritize THEIR topic
-   - Never force the conversation back to the activity
-   - Never imply the activity "should" have helped
-   - If user says nothing changed or feels worse → validate their experience, do not minimize
-
-4. ACTIVITY-SPECIFIC NOTES (CRITICAL):
-   - Dreamscape: This is TRACE storytelling with dreamy visuals (slow clouds). It has NO MUSIC. Do NOT ask about music for Dreamscape.
-   - Rising, Breathing, Ripple, Basin, Window: These have ambient sounds/tones, not "music"
-   - Maze, Walking, Grounding, Echo: These may have soundscapes, not traditional music
-   - NEVER say "Did the music help with your [activity] experience?" for activities that don't have music
-
-Example good responses:
-   "I've saved this session with Rising for you. If you feel like sharing, what feels even 1% different right now?"
-   
-Example of what NOT to do:
-   ❌ "Great job! How do you feel? Did it help? What changed?"
-   ❌ "You should feel calmer now. Tell me what shifted."
-   ❌ "Welcome back!" (TRACE already said "I'll be here when you're back" — no need to re-greet)
-   ❌ "How was that?" (too generic and performative)
-   
-BANNED PHRASES (do NOT use these):
-- "Welcome back" — you already promised to be here, no need to re-greet
-- "Good to have you back" — same reason
-- "How was that?" — too vague, ask about shifts instead
-`.trim();
-          
-          contextParts.push(reflectionPrompt);
-          console.log('[TRACE] Post-activity reflection context added for:', lastActivityName);
+          console.log('[TRACE] Reflection context detected for:', postActivityReflectionContext.lastActivityName);
         }
       } catch (reflErr) {
         console.warn('[TRACE] Reflection context failed:', reflErr.message);
@@ -7213,6 +7055,203 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
 
     } catch (synthErr) {
       console.error('[BRAIN SYNTHESIS] Failed (continuing with legacy):', synthErr.message);
+    }
+    
+    // ============================================================
+    // FOLLOWUP OVERRIDE GATE (post-brainSynthesis)
+    // Checks pendingFollowup and decides whether to allow reflection
+    // or clear it because the user pivoted to studios/music
+    // ============================================================
+    if (postActivityReflectionContext && !isCrisisMode) {
+      const pMode = traceIntent?.primaryMode || 'conversation';
+      const iType = traceIntent?.intentType || 'other';
+      const isUserPivot = (
+        pMode === 'studios' ||
+        iType === 'music' ||
+        brainSignals?.musicRequest === true
+      );
+      const userIsReflecting = isReflectionAnswer(lastUserMessage);
+      const isOnboarding = !!(userProfile && 
+        (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null) &&
+        userProfile.onboarding_step && userProfile.onboarding_step !== 'completed');
+      
+      const followupAllowed = !isUserPivot && !isOnboarding && userIsReflecting;
+      
+      console.log('[FOLLOWUP_STATE]', JSON.stringify({
+        requestId: requestId || `req-${Date.now()}`,
+        pending: true,
+        expired: false,
+        allowed: followupAllowed,
+        primaryMode: pMode,
+        intentType: iType,
+        isUserPivot,
+        userIsReflecting
+      }));
+      
+      if (isUserPivot) {
+        console.log('[FOLLOWUP_OVERRIDE]', JSON.stringify({
+          requestId: requestId || `req-${Date.now()}`,
+          cleared: true,
+          reason: 'user_pivot_to_studios'
+        }));
+        if (pool && reflectionUserId) {
+          clearReflectionFlag(pool, reflectionUserId).catch(() => {});
+        }
+        postActivityReflectionContext = null;
+      } else if (!followupAllowed) {
+        const overrideReason = isOnboarding ? 'onboarding_active' : 'not_reflection_answer';
+        console.log('[FOLLOWUP_OVERRIDE]', JSON.stringify({
+          requestId: requestId || `req-${Date.now()}`,
+          cleared: overrideReason === 'onboarding_active' ? false : false,
+          deferred: true,
+          reason: overrideReason
+        }));
+        postActivityReflectionContext = null;
+      } else {
+        const { lastActivityName, minutesSinceCompletion } = postActivityReflectionContext;
+        const minutesRounded = Math.round(minutesSinceCompletion || 0);
+        const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content?.toLowerCase()?.trim() || '';
+        const isShortReflection = lastUserMsg.length < 50;
+        
+        if (openai && isShortReflection) {
+          try {
+            const isNegative = ['not really', 'no', 'nope', 'nah', 'didn\'t help', 'worse', 'still', 'same', 'lol', 'meh', 'idk', 'whatever'].some(w => lastUserMsg.includes(w));
+            const isPositive = ['good', 'great', 'nice', 'better', 'helped', 'relaxed', 'calm', 'yeah', 'yes', 'totally', 'much'].some(w => lastUserMsg.includes(w));
+            
+            let toneGuidance = '';
+            if (isNegative) {
+              toneGuidance = 'User said the activity DIDN\'T help or was dismissive. Show you care, ask what\'s going on. Never dismiss with "gotcha" or "okay".';
+            } else if (isPositive) {
+              toneGuidance = 'User seems positive. Keep it brief and warm. Continue the prior conversation thread naturally.';
+            } else {
+              toneGuidance = 'Read their tone and match it naturally. Be curious, not assumptive. Continue the prior conversation naturally.';
+            }
+            
+            const priorContext = messages.slice(-7, -2);
+            const priorContextText = priorContext.length > 0
+              ? priorContext.map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${(m.content || '').slice(0, 200)}`).join('\n')
+              : '';
+            
+            const activitiesWithoutMusic = ['dreamscape', 'grounding', 'walking', 'echo'];
+            const activityHasNoMusic = activitiesWithoutMusic.includes(lastActivityName?.toLowerCase());
+            
+            const caringSystemPrompt = `${TRACE_IDENTITY_COMPACT}
+
+User just came back from doing ${lastActivityName} and you asked "you good?". They responded.
+
+${priorContextText ? `IMPORTANT - This is what you were talking about BEFORE the activity:\n${priorContextText}\n\nYou MUST continue this conversation thread naturally. Don't restart with generic questions.` : ''}
+
+Their post-activity response: "${lastUserMsg}"
+
+${toneGuidance}
+
+Write ONE brief, natural response (max 15 words). Be a friend, not a therapist.
+
+ACTIVITY CONTEXT:
+${activityHasNoMusic ? `- ${lastActivityName} does NOT have music. It has dreamy visuals/storytelling. Do NOT mention music.` : '- This activity may have ambient sounds, but never call it "music" explicitly.'}
+
+CRITICAL: 
+- If they say "not really", "no", "lol", "meh" = the activity DIDN'T help. Ask what's up, show curiosity.
+- Never say the activity was good if they said it wasn't.
+- Don't dismiss with "gotcha" or "okay" when they're struggling.
+- If there was a prior conversation topic (like a dream, work stress, etc.), acknowledge it or pick it back up naturally.
+- NEVER ask "What's been on your mind lately?" if you already know what's on their mind.
+- NEVER ask "Did the music help?" for activities that don't have music.
+
+FORBIDDEN: therapy-speak, "that's great", "sounds like a win", exclamation marks, "I'm glad", "space", "holding", "shifted", "present", "grounded", "centered", "affirm", "What's been on your mind", "Did the music help"
+
+Just the response, nothing else.
+`.trim();
+
+            console.log('[POST-ACTIVITY INTERCEPT] Generating caring response (followup allowed)');
+            const caringResponse = await openai.chat.completions.create({
+              model: 'gpt-4o-mini',
+              messages: [
+                { role: 'system', content: caringSystemPrompt },
+                { role: 'user', content: lastUserMsg },
+              ],
+              max_tokens: 40,
+              temperature: 0.7,
+            });
+
+            const caringMessage = caringResponse?.choices?.[0]?.message?.content?.trim();
+            if (caringMessage) {
+              console.log('[POST-ACTIVITY INTERCEPT] Returning caring response:', caringMessage);
+              
+              if (pool && reflectionUserId) {
+                clearReflectionFlag(pool, reflectionUserId).catch(() => {});
+              }
+              
+              try {
+                await pool.query(`
+                  INSERT INTO trace_entries (user_id, type, content, metadata, created_at)
+                  VALUES ($1, 'ai_reflection', $2, $3, NOW())
+                `, [userId, caringMessage, JSON.stringify({ source: 'post_activity_intercept', activity: lastActivityName })]);
+              } catch (e) { /* non-critical */ }
+              
+              console.log('[RESPONSE_SOURCE]', 'model', requestId);
+              return res.json({
+                message: caringMessage,
+                activity_suggestion: null,
+                posture: 'STEADY',
+                detected_state: 'neutral',
+                posture_confidence: 0.6,
+                sound_state: 'presence',
+                client_state_patch: {},
+                response_source: 'model'
+              });
+            }
+          } catch (interceptErr) {
+            console.warn('[POST-ACTIVITY INTERCEPT] Error, falling back to main chat:', interceptErr.message);
+          }
+        }
+        
+        const reflectionPrompt = `
+POST-ACTIVITY REFLECTION CONTEXT:
+The user just completed "${lastActivityName}" about ${minutesRounded} minute${minutesRounded === 1 ? '' : 's'} ago.
+
+Behavior for this response:
+1. Gently acknowledge they completed the activity. Use calm, neutral language:
+   - "I've saved this session with ${lastActivityName} for you."
+   
+2. Follow with at most ONE soft invitation to notice any shift. Choose based on activity type:
+   
+   For calming activities (Rising, Rest, Breathing, Ripple, Window, Basin, Dreamscape):
+   - "If you feel like sharing, what feels even 1% different right now?"
+   
+   For focus activities (Maze, Echo, Walking):
+   - "If you want to capture it while it's fresh, what feels a bit clearer or more manageable now?"
+   
+   For grounding/body activities (Grounding, Rest):
+   - "No pressure to answer, but if anything feels even slightly softer or clearer, you can put a few words here."
+
+3. IMPORTANT BOUNDARIES:
+   - Do not ask multiple reflection questions
+   - If user is already talking about something else, prioritize THEIR topic
+   - Never force the conversation back to the activity
+   - Never imply the activity "should" have helped
+   - If user says nothing changed or feels worse → validate their experience, do not minimize
+
+4. ACTIVITY-SPECIFIC NOTES (CRITICAL):
+   - Dreamscape: This is TRACE storytelling with dreamy visuals (slow clouds). It has NO MUSIC.
+   - Rising, Breathing, Ripple, Basin, Window: These have ambient sounds/tones, not "music"
+   - Maze, Walking, Grounding, Echo: These may have soundscapes, not traditional music
+   - NEVER say "Did the music help?" for activities without music
+
+BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
+`.trim();
+        
+        contextParts.push(reflectionPrompt);
+        console.log('[TRACE] Post-activity reflection context added for:', lastActivityName);
+      }
+    } else if (!postActivityReflectionContext) {
+      console.log('[FOLLOWUP_STATE]', JSON.stringify({
+        requestId: requestId || `req-${Date.now()}`,
+        pending: false,
+        expired: false,
+        allowed: false,
+        primaryMode: traceIntent?.primaryMode || 'conversation'
+      }));
     }
     
     // ============================================================

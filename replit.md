@@ -48,6 +48,10 @@ High-level themes from journal entries are extracted and, with user consent, fed
 
 The system correlates activity completions with mood check-ins to identify mood-improving activities, suggesting them with warm, tentative phrases.
 
+### Post-Activity Followup Override
+
+Scripted post-activity reflection follow-ups are gated by `brainSynthesis` output to prevent overriding user intent pivots. When an activity completes and a reflection follow-up is scheduled (via `activity_reflection_state` DB table), the system defers the intercept until AFTER `brainSynthesis` runs. If the user pivots to studios/music (`primaryMode==="studios"` OR `intentType==="music"` OR `musicRequest===true`), the reflection is cleared and normal routing continues. `isReflectionAnswer(text)` in `reflectionTracking.js` distinguishes reflection answers from music/pivot requests. Safety: crisis mode and onboarding always bypass reflection. Observability: `[FOLLOWUP_STATE]` logs pending/allowed/primaryMode per request; `[FOLLOWUP_OVERRIDE]` logs when cleared with reason (`user_pivot_to_studios`, `onboarding_active`, `not_reflection_answer`). Files: `conversationState.js` (pendingFollowup state), `reflectionTracking.js` (isReflectionAnswer helper), `index.js` (followup override gate after brainSynthesis).
+
 ### Dreamscape Presence Memory
 
 Recent Dreamscape session history is loaded to allow TRACE to reference past sessions contextually.

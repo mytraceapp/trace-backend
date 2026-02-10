@@ -91,9 +91,36 @@ async function clearReflectionFlag(pool, userId) {
   }
 }
 
+const REFLECTION_ANSWER_PATTERNS = [
+  /\b(it helped|that helped|felt (good|better|calmer|lighter|nice)|i feel|much better|a bit better|a little better)\b/i,
+  /\b(calmer|relaxed|relieved|peaceful|settled|grounded|clearer|rested)\b/i,
+  /\b(still (anxious|stressed|tired|tense|worried|overwhelmed|sad|off))\b/i,
+  /\b(not really|didn't help|didn't do (much|anything)|same|worse|meh|idk|whatever|nah)\b/i,
+  /\b(yeah|yes|yep|totally|definitely|for sure)\b/i,
+  /\b(no|nope|not really)\b/i,
+];
+
+const PIVOT_AWAY_PATTERNS = [
+  /\b(play|put on|listen to|queue|start)\b/i,
+  /\b(spotify|apple music|playlist|album|track|song|neon promise|undertow|euphoria|ocean breathing|tidal house|midnight underwater|night swim|slow tides|afterglow)\b/i,
+  /\b(trace studios|your music|your album)\b/i,
+  /\b(reel|concept|visual|video)\b/i,
+];
+
+function isReflectionAnswer(text) {
+  if (!text || typeof text !== 'string') return false;
+  const t = text.trim().toLowerCase();
+  if (t.length > 120) return false;
+  if (PIVOT_AWAY_PATTERNS.some(p => p.test(t))) return false;
+  if (REFLECTION_ANSWER_PATTERNS.some(p => p.test(t))) return true;
+  if (t.length < 30 && !/\b(play|track|album|song|music|spotify|reel)\b/i.test(t)) return true;
+  return false;
+}
+
 module.exports = {
   markActivityCompletedForReflection,
   getReflectionContext,
   clearReflectionFlag,
+  isReflectionAnswer,
   REFLECTION_WINDOW_MINUTES,
 };

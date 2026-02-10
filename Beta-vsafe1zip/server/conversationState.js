@@ -71,6 +71,8 @@ function getState(visitorId) {
   return state;
 }
 
+const FOLLOWUP_DEFAULT_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 function createDefaultState() {
   return {
     stage: STAGES.ARRIVAL,
@@ -82,8 +84,35 @@ function createDefaultState() {
     consecutiveProbes: 0,
     lastTopicKeywords: [],
     topicAnchor: null,
-    lastPrimaryMode: null
+    lastPrimaryMode: null,
+    pendingFollowup: null
   };
+}
+
+function setPendingFollowup(state, { activityId, activityName, ttlMs }) {
+  state.pendingFollowup = {
+    type: 'activity_reflection',
+    expectedIntent: 'reflection_answer',
+    activityId: activityId || null,
+    activityName: activityName || 'an activity',
+    createdAtMs: Date.now(),
+    ttlMs: ttlMs || FOLLOWUP_DEFAULT_TTL_MS
+  };
+}
+
+function getPendingFollowup(state) {
+  if (!state?.pendingFollowup) return null;
+  const pf = state.pendingFollowup;
+  const elapsed = Date.now() - pf.createdAtMs;
+  if (elapsed > pf.ttlMs) {
+    state.pendingFollowup = null;
+    return { ...pf, expired: true };
+  }
+  return { ...pf, expired: false };
+}
+
+function clearPendingFollowup(state) {
+  state.pendingFollowup = null;
 }
 
 function saveState(visitorId, state) {
@@ -376,5 +405,9 @@ module.exports = {
   violatesProbeRules,
   generateFallbackResponse,
   updateStateAfterResponse,
-  OPEN_PROBE_PATTERNS
+  OPEN_PROBE_PATTERNS,
+  setPendingFollowup,
+  getPendingFollowup,
+  clearPendingFollowup,
+  FOLLOWUP_DEFAULT_TTL_MS
 };
