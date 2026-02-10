@@ -6332,47 +6332,76 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
       }
     }
     
-    // Post-activity reflection tracking (database-backed, 30-minute window)
-    // Phase 1: Detect and store pendingFollowup — actual gating happens AFTER brainSynthesis
+    // Post-activity reflection tracking
+    // Phase 1: Check pendingFollowup from session state (primary, TTL-based)
+    //          then fall back to DB and chat-pattern detection.
+    //          Actual gating happens AFTER brainSynthesis (Phase 2).
     let postActivityReflectionContext = null;
     const reflectionUserId = userId || deviceId;
+    let pendingFollowupRef = null; // track for Phase 2 clearing
     
-    // FALLBACK: Detect post-activity reflection from chat history patterns
-    if (!isCrisisMode && messages.length >= 2) {
-      const lastAssistantIdx = messages.map((m, i) => m.role === 'assistant' ? i : -1).filter(i => i >= 0).pop();
-      const lastUserIdx = messages.map((m, i) => m.role === 'user' ? i : -1).filter(i => i >= 0).pop();
+    if (!isCrisisMode && reflectionUserId) {
+      // 1. Primary: in-memory session state with TTL
+      const convoStateForFollowup = conversationState.getState(reflectionUserId);
+      const pf = conversationState.getPendingFollowup(convoStateForFollowup);
       
-      if (lastAssistantIdx !== undefined && lastUserIdx !== undefined && lastUserIdx > lastAssistantIdx) {
-        const assistantMsg = messages[lastAssistantIdx]?.content?.toLowerCase()?.trim() || '';
-        const userMsg = messages[lastUserIdx]?.content?.toLowerCase()?.trim() || '';
-        
-        const activityCheckInPatterns = [
-          'you good', 'any better', 'how\'s it', 'feel different', 'helped', 
-          'how you feeling', 'any changes', 'new vibe', 'hitting you', 'how did'
-        ];
-        const isPostActivityCheckIn = activityCheckInPatterns.some(p => assistantMsg.includes(p));
-        const isShortUserResponse = userMsg.length < 30;
-        
-        if (isPostActivityCheckIn && isShortUserResponse && isReflectionAnswer(userMsg)) {
-          console.log('[POST-ACTIVITY FALLBACK] Detected from chat pattern');
-          postActivityReflectionContext = {
-            lastActivityName: 'recent activity',
-            minutesSinceCompletion: 0,
-            fromFallback: true
-          };
+      if (pf && !pf.expired) {
+        postActivityReflectionContext = {
+          lastActivityName: pf.activityName || 'an activity',
+          minutesSinceCompletion: (Date.now() - pf.createdAtMs) / (1000 * 60),
+          activityId: pf.activityId,
+          fromSessionState: true
+        };
+        pendingFollowupRef = { state: convoStateForFollowup, userId: reflectionUserId };
+        console.log('[TRACE] Reflection context from session state for:', pf.activityName);
+      } else if (pf && pf.expired) {
+        console.log('[FOLLOWUP_STATE]', JSON.stringify({
+          requestId: requestId || `req-${Date.now()}`,
+          pending: false,
+          expired: true,
+          allowed: false,
+          primaryMode: 'unknown'
+        }));
+        conversationState.saveState(reflectionUserId, convoStateForFollowup);
+      }
+      
+      // 2. Fallback: DB-backed reflection state (30-minute window)
+      if (!postActivityReflectionContext && pool) {
+        try {
+          postActivityReflectionContext = await getReflectionContext(pool, reflectionUserId);
+          if (postActivityReflectionContext) {
+            console.log('[TRACE] Reflection context from DB for:', postActivityReflectionContext.lastActivityName);
+          }
+        } catch (reflErr) {
+          console.warn('[TRACE] Reflection context failed:', reflErr.message);
         }
       }
-    }
-    
-    if (pool && reflectionUserId && !isCrisisMode && !postActivityReflectionContext) {
-      try {
-        postActivityReflectionContext = await getReflectionContext(pool, reflectionUserId);
+      
+      // 3. Fallback: chat history pattern detection
+      if (!postActivityReflectionContext && messages.length >= 2) {
+        const lastAssistantIdx = messages.map((m, i) => m.role === 'assistant' ? i : -1).filter(i => i >= 0).pop();
+        const lastUserIdx = messages.map((m, i) => m.role === 'user' ? i : -1).filter(i => i >= 0).pop();
         
-        if (postActivityReflectionContext) {
-          console.log('[TRACE] Reflection context detected for:', postActivityReflectionContext.lastActivityName);
+        if (lastAssistantIdx !== undefined && lastUserIdx !== undefined && lastUserIdx > lastAssistantIdx) {
+          const assistantMsg = messages[lastAssistantIdx]?.content?.toLowerCase()?.trim() || '';
+          const userMsg = messages[lastUserIdx]?.content?.toLowerCase()?.trim() || '';
+          
+          const activityCheckInPatterns = [
+            'you good', 'any better', 'how\'s it', 'feel different', 'helped', 
+            'how you feeling', 'any changes', 'new vibe', 'hitting you', 'how did'
+          ];
+          const isPostActivityCheckIn = activityCheckInPatterns.some(p => assistantMsg.includes(p));
+          const isShortUserResponse = userMsg.length < 30;
+          
+          if (isPostActivityCheckIn && isShortUserResponse && isReflectionAnswer(userMsg)) {
+            console.log('[POST-ACTIVITY FALLBACK] Detected from chat pattern');
+            postActivityReflectionContext = {
+              lastActivityName: 'recent activity',
+              minutesSinceCompletion: 0,
+              fromFallback: true
+            };
+          }
         }
-      } catch (reflErr) {
-        console.warn('[TRACE] Reflection context failed:', reflErr.message);
       }
     }
     
@@ -7060,15 +7089,19 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
     // ============================================================
     // FOLLOWUP OVERRIDE GATE (post-brainSynthesis)
     // Checks pendingFollowup and decides whether to allow reflection
-    // or clear it because the user pivoted to studios/music
+    // or clear it because the user pivoted to studios/music.
+    // Uses traceIntent (computed by brainSynthesis) as the source of truth.
     // ============================================================
     if (postActivityReflectionContext && !isCrisisMode) {
       const pMode = traceIntent?.primaryMode || 'conversation';
       const iType = traceIntent?.intentType || 'other';
+      const lastUserMsg = (lastUserMessage || '').toLowerCase();
       const isUserPivot = (
         pMode === 'studios' ||
         iType === 'music' ||
-        brainSignals?.musicRequest === true
+        brainSignals?.musicRequest === true ||
+        /\b(play|put on|listen to|queue|start)\b/.test(lastUserMsg) ||
+        /\b(spotify|playlist|album|track|song)\b/.test(lastUserMsg)
       );
       const userIsReflecting = isReflectionAnswer(lastUserMessage);
       const isOnboarding = !!(userProfile && 
@@ -7092,8 +7125,13 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
         console.log('[FOLLOWUP_OVERRIDE]', JSON.stringify({
           requestId: requestId || `req-${Date.now()}`,
           cleared: true,
-          reason: 'user_pivot_to_studios'
+          reason: 'pivot_to_studios'
         }));
+        // Clear both session state and DB flag
+        if (pendingFollowupRef) {
+          conversationState.clearPendingFollowup(pendingFollowupRef.state);
+          conversationState.saveState(pendingFollowupRef.userId, pendingFollowupRef.state);
+        }
         if (pool && reflectionUserId) {
           clearReflectionFlag(pool, reflectionUserId).catch(() => {});
         }
@@ -7102,10 +7140,11 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
         const overrideReason = isOnboarding ? 'onboarding_active' : 'not_reflection_answer';
         console.log('[FOLLOWUP_OVERRIDE]', JSON.stringify({
           requestId: requestId || `req-${Date.now()}`,
-          cleared: overrideReason === 'onboarding_active' ? false : false,
+          cleared: false,
           deferred: true,
           reason: overrideReason
         }));
+        // Don't clear session state or DB flag — user may answer next turn
         postActivityReflectionContext = null;
       } else {
         const { lastActivityName, minutesSinceCompletion } = postActivityReflectionContext;
@@ -7178,6 +7217,11 @@ Just the response, nothing else.
             if (caringMessage) {
               console.log('[POST-ACTIVITY INTERCEPT] Returning caring response:', caringMessage);
               
+              // Followup delivered — clear both session state and DB flag
+              if (pendingFollowupRef) {
+                conversationState.clearPendingFollowup(pendingFollowupRef.state);
+                conversationState.saveState(pendingFollowupRef.userId, pendingFollowupRef.state);
+              }
               if (pool && reflectionUserId) {
                 clearReflectionFlag(pool, reflectionUserId).catch(() => {});
               }
@@ -10308,6 +10352,18 @@ Just the question, nothing else.
       }
     }
     
+    // Set pendingFollowup in conversation session state (TTL-based, in-memory)
+    if (userId) {
+      const convoState = conversationState.getState(userId);
+      conversationState.setPendingFollowup(convoState, {
+        activityId: null,
+        activityName: activity,
+        ttlMs: conversationState.FOLLOWUP_DEFAULT_TTL_MS
+      });
+      conversationState.saveState(userId, convoState);
+      console.log('[ACTIVITY RETURN] Set pendingFollowup in session state for:', activity);
+    }
+    
     return res.json({ message });
   } catch (error) {
     console.error('[ACTIVITY RETURN] Error:', error.message || error);
@@ -13209,6 +13265,18 @@ app.post('/api/activity-log', async (req, res) => {
         activityType,
         activityType
       );
+    }
+    
+    // Set pendingFollowup in conversation session state (TTL-based, in-memory)
+    if (reflectionId) {
+      const convoState = conversationState.getState(reflectionId);
+      conversationState.setPendingFollowup(convoState, {
+        activityId: activityType,
+        activityName: activityType,
+        ttlMs: conversationState.FOLLOWUP_DEFAULT_TTL_MS
+      });
+      conversationState.saveState(reflectionId, convoState);
+      console.log('[ACTIVITY LOG] Set pendingFollowup in session state for:', activityType);
     }
     
     return res.json({ ok: true, logged: result.rows?.[0] });
