@@ -58,6 +58,20 @@ Scripted post-activity reflection follow-ups are gated to prevent overriding use
 
 Safety: crisis mode and onboarding always bypass reflection. Observability: `[FOLLOWUP_STATE]` logs pending/expired/allowed/primaryMode per request; `[FOLLOWUP_OVERRIDE]` logs when cleared with reason (`pivot_to_studios`, `onboarding_active`, `not_reflection_answer`). Files: `conversationState.js` (pendingFollowup state with TTL), `reflectionTracking.js` (isReflectionAnswer helper), `index.js` (early-return override in Studios/music_invite paths + post-brainSynthesis gate).
 
+### Continuity Guard
+
+Prevents conversation resets when response sources change (model fallback, scripted intercept, Studios pivot). Two-layer approach:
+
+1. **V2 Prompt Directive**: When `traceIntent.continuity.required` is true, `buildTracePromptV2.js` injects `CONTINUITY: Continue the current thread. Do not reset or reintroduce yourself.` into the system prompt, handled by the AI model for natural continuity.
+
+2. **Server-Side Bridges**: For non-AI responses (model fallbacks, scripted returns), `buildContinuityBridge(continuity)` prepends a 6-12 word contextual bridge (e.g., "Still with you on this —", "Back to the music —") using domain-specific phrases from `CONTINUITY_BRIDGES`. Bridges are NOT applied during crisis mode or to Studios responses (already contextual).
+
+`buildContinuity(traceIntent, sessionState)` in `brainSynthesis.js` computes continuity requirements based on `topicAnchor`, `topicEstablished`, `primaryMode`, or `pendingFollowup`. The result is stored in `traceIntent.continuity` with fields: `required`, `reason`, `topicAnchor`, `sessionSummary`.
+
+**Anchor Persistence**: During early Studio intercepts, the previous non-music `topicAnchor` is saved to `stState.previousAnchor` so the user's original conversation thread can be recovered after a music pivot.
+
+Observability: `[CONTINUITY]` logs fire on every response path with `requestId`, `required`, `reason`, `source` (trace_studios, model, model_fallback). Files: `index.js` (bridge logic + logging), `brainSynthesis.js` (buildContinuity), `traceDirectiveV2.js` (CONTINUITY directive), `buildTracePromptV2.js` (injection).
+
 ### Dreamscape Presence Memory
 
 Recent Dreamscape session history is loaded to allow TRACE to reference past sessions contextually.

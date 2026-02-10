@@ -32,6 +32,7 @@ function brainSynthesis({
   isOnboardingScripted,
   isActivityRequest,
   previousAnchor,
+  getPendingFollowupFn,
 }) {
   const intent = createEmptyTraceIntent();
 
@@ -141,6 +142,15 @@ CAPABILITY-AWARE ACTIONS:
     doorwaysResult,
     currentMessage,
     previousAnchor: previousAnchor || null,
+  });
+
+  intent.continuity = buildContinuity({
+    topicAnchor: intent.topicAnchor,
+    previousAnchor,
+    conversationState,
+    cognitiveIntent,
+    primaryMode: intent.primaryMode,
+    getPendingFollowup: getPendingFollowupFn,
   });
 
   return intent;
@@ -386,6 +396,42 @@ function logTraceIntent({ requestId, effectiveUserId, traceIntent, model, route 
       constraints: traceIntent.constraints
     });
   }
+}
+
+function buildContinuity({ topicAnchor, previousAnchor, conversationState, cognitiveIntent, primaryMode, getPendingFollowup }) {
+  const noTopicShift = !cognitiveIntent?.topic_shift;
+  const anchorExists = !!topicAnchor && topicAnchor.domain !== 'conversation';
+  const topicEstablished = !!conversationState?.topicEstablished;
+  const pf = typeof getPendingFollowup === 'function' ? getPendingFollowup(conversationState) : null;
+  const hasPendingFollowup = pf && !pf.expired;
+  const studiosContinuation = primaryMode === 'studios' && topicAnchor?.domain === 'music';
+
+  let required = false;
+  let reason = 'no_prior_context';
+
+  if (anchorExists && noTopicShift) {
+    required = true;
+    reason = 'anchor_active';
+  } else if (topicEstablished) {
+    required = true;
+    reason = 'topic_established';
+  } else if (studiosContinuation) {
+    required = true;
+    reason = 'studios_continuation';
+  } else if (hasPendingFollowup) {
+    required = true;
+    reason = 'pending_followup';
+  } else if (previousAnchor && noTopicShift && previousAnchor.domain !== 'conversation') {
+    required = true;
+    reason = 'previous_anchor_active';
+  }
+
+  return {
+    required,
+    reason,
+    topicAnchor: topicAnchor ? { domain: topicAnchor.domain, label: topicAnchor.label } : null,
+    sessionSummary: null,
+  };
 }
 
 /**

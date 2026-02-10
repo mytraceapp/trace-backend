@@ -48,6 +48,13 @@ function createEmptyTraceIntent() {
 
     topicAnchor: null,
 
+    continuity: {
+      required: false,
+      reason: 'no_prior_context',
+      topicAnchor: null,
+      sessionSummary: null,
+    },
+
     constraints: {
       maxSentences: 2,
       allowQuestions: 1,

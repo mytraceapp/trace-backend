@@ -4026,6 +4026,42 @@ function addReturnToLifeCue(assistantText) {
   return `${assistantText.trim()}\n\n${cue}`;
 }
 
+const CONTINUITY_BRIDGES = {
+  music: [
+    "Still with the music —",
+    "On that note —",
+    "Staying in the sound —",
+    "Keeping the vibe going —",
+    "Still in the listening space —",
+  ],
+  dreams: [
+    "Still in that dream space —",
+    "Holding onto that thread —",
+    "Staying with what surfaced —",
+  ],
+  activity: [
+    "Coming back from that —",
+    "Still settling in from that —",
+  ],
+  conversation: [
+    "Picking that back up —",
+    "Still here with that —",
+    "Staying with what you said —",
+  ],
+  default: [
+    "Still with you on this —",
+    "Continuing from there —",
+  ],
+};
+
+function buildContinuityBridge(continuity) {
+  if (!continuity?.required) return null;
+  const domain = continuity.topicAnchor?.domain || 'default';
+  const bridges = CONTINUITY_BRIDGES[domain] || CONTINUITY_BRIDGES.default;
+  const idx = Date.now() % bridges.length;
+  return bridges[idx];
+}
+
 // Normalize chat response for consistent mobile-friendly envelope
 function normalizeChatResponse(payload, requestId) {
   const msg =
@@ -4414,6 +4450,9 @@ app.post('/api/chat', async (req, res) => {
         if (effectiveUserId) {
           const stState = conversationState.getState(effectiveUserId);
           const prevAnchor = stState.topicAnchor;
+          if (prevAnchor && prevAnchor.domain !== 'music') {
+            stState.previousAnchor = prevAnchor;
+          }
           const musicEntities = [];
           const msgLower = (studiosUserMsg.content || '').toLowerCase();
           if (/night\s*swim/i.test(msgLower)) musicEntities.push('Night Swim');
@@ -4468,6 +4507,14 @@ app.post('/api/chat', async (req, res) => {
             }));
           }
         }
+        
+        const earlyContReq = effectiveUserId && conversationState.getState(effectiveUserId)?.topicEstablished;
+        console.log('[CONTINUITY]', JSON.stringify({
+          requestId,
+          required: !!earlyContReq,
+          reason: earlyContReq ? 'topic_established' : 'no_prior_context',
+          source: 'trace_studios'
+        }));
         
         const studioResponse = normalizeChatResponse(response, requestId);
         storeDedupResponse(dedupKey, studioResponse);
@@ -5060,6 +5107,13 @@ app.post('/api/chat', async (req, res) => {
             }));
           }
         }
+        const miContReq = effectiveUserId && conversationState.getState(effectiveUserId)?.topicEstablished;
+        console.log('[CONTINUITY]', JSON.stringify({
+          requestId,
+          required: !!miContReq,
+          reason: miContReq ? 'topic_established' : 'no_prior_context',
+          source: 'music_invite'
+        }));
         console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
         return res.json({
           type: 'music_invite',
@@ -7165,6 +7219,7 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
         isOnboardingScripted,
         isActivityRequest,
         previousAnchor: convoStateObj?.topicAnchor || null,
+        getPendingFollowupFn: conversationState.getPendingFollowup,
       });
       
       // Store anti-repetition openers on traceIntent for V2 prompt building
@@ -7189,6 +7244,16 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
           console.log(`[MODE_LOCK] ● ${curr} (initial)`);
         }
         if (convoStateObj) convoStateObj.lastPrimaryMode = curr;
+      }
+
+      // Continuity guard log
+      if (traceIntent?.continuity) {
+        console.log('[CONTINUITY]', JSON.stringify({
+          requestId: requestId || `req-${Date.now()}`,
+          required: traceIntent.continuity.required,
+          reason: traceIntent.continuity.reason,
+          source: 'brainSynthesis'
+        }));
       }
 
     } catch (synthErr) {
@@ -7322,8 +7387,10 @@ Just the response, nothing else.
               temperature: 0.7,
             });
 
-            const caringMessage = caringResponse?.choices?.[0]?.message?.content?.trim();
+            let caringMessage = caringResponse?.choices?.[0]?.message?.content?.trim();
             if (caringMessage) {
+              const contLog = { requestId, required: !!traceIntent?.continuity?.required, reason: traceIntent?.continuity?.reason || 'post_activity', source: 'model' };
+              console.log('[CONTINUITY]', JSON.stringify(contLog));
               console.log('[POST-ACTIVITY INTERCEPT] Returning caring response:', caringMessage);
               
               // Followup delivered — clear both session state and DB flag
@@ -7474,6 +7541,9 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
       if (sessionSummary) {
         const anchor = traceIntent.topicAnchor;
         console.log('[SESSION_SUMMARY]', JSON.stringify({ requestId: requestId || `req-${Date.now()}`, word_count: sessionSummary.split(/\s+/).length, domain: anchor?.domain || null, label: anchor?.label || null }));
+        if (traceIntent.continuity) {
+          traceIntent.continuity.sessionSummary = sessionSummary;
+        }
       }
 
       // V2 mode: Complete replacement, no legacy injections
@@ -9486,7 +9556,15 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       
       if (violatesRules) {
         console.log('[CONVO_GUARD] Response violates probe rules - using fallback');
-        response.message = conversationState.generateFallbackResponse(convoState);
+        let fallbackMsg = conversationState.generateFallbackResponse(convoState);
+        if (traceIntent?.continuity?.required && !isCrisisMode) {
+          const bridge = buildContinuityBridge(traceIntent.continuity);
+          if (bridge) {
+            fallbackMsg = `${bridge} ${fallbackMsg}`;
+            console.log('[CONTINUITY]', JSON.stringify({ requestId, required: true, reason: traceIntent.continuity.reason, source: 'model_fallback' }));
+          }
+        }
+        response.message = fallbackMsg;
       }
       
       // Update state after response
@@ -9619,6 +9697,14 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     }
     
+    if (traceIntent?.continuity) {
+      console.log('[CONTINUITY]', JSON.stringify({
+        requestId,
+        required: !!traceIntent.continuity.required,
+        reason: traceIntent.continuity.reason || 'none',
+        source: 'model'
+      }));
+    }
     console.log('[RESPONSE_SOURCE]', 'model', requestId);
     return res.json({ ...finalResponse, deduped: false, response_source: 'model', ui_action: pipelineUiAction, _provenance });
   } catch (error) {

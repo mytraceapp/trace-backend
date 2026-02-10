@@ -82,10 +82,15 @@ Do not ask any questions in this response.`
     ? `SESSION SUMMARY: ${sessionSummary}`
     : '';
 
+  const continuityLine = traceIntent?.continuity?.required
+    ? 'CONTINUITY: Continue the current thread. Do not reset or reintroduce yourself.'
+    : '';
+
   return `
 TURN DIRECTIVE
 Intent type: ${intentType}
 ${summaryLine}
+${continuityLine}
 ${modeBlock}
 ${structure}
 ${questionsRule}
