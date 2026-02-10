@@ -64,6 +64,10 @@ Maintains context stability during creative music exploration sessions by keepin
 
 `applyContinuityBridge()` in `index.js` wraps any non-model early-return message (onboarding_script, trace_studios, insight, activity_followup) with a 6–12 word continuity bridge when `traceIntent.continuity.required === true` and the response source is not `crisis`. Studios mode uses studios-toned bridges (no soundscapes/activities); conversation mode uses domain-matched bridges from `CONTINUITY_BRIDGES`. Logging: `[CONTINUITY_BRIDGE]` with requestId, applied, source, mode. Files: `index.js`.
 
+## Return-to-Chat Pivot Hardening (Phase 6 Step 3)
+
+When FOLLOWUP_OVERRIDE fires with `pivot_to_studios`: (1) forces `traceIntent.continuity.required = true` with reason `"override_applied"`, (2) sets `topicAnchor = { domain:"studios", label:"Studios run (music exploration)" }` if missing or stale, (3) clears pendingFollowup immediately. Activity follow-up context is quarantined on override: `activityOutcomesData` zeroed, `activityBullets` in `selectedContext` cleared, activity outcomes removed from `contextParts`, and post-activity scripted questions blocked. All early-return responses use `overrideFired` to ensure `continuity.required = true` for continuity bridge application. Enhanced `[FOLLOWUP_OVERRIDE]` logging includes `continuity_forced`, `anchor_set`, and `activity_quarantined` fields. Files: `index.js`.
+
 ## Doorways v1 (Brain-Only Detection)
 
 Detects user entry into specific emotional/psychological realms to inject contextual intent into the system prompt.

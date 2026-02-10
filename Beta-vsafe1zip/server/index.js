@@ -4496,6 +4496,7 @@ app.post('/api/chat', async (req, res) => {
           console.log('[TRACE STUDIOS] Sending audio_action to frontend:', response.audio_action);
         }
         
+        let overrideFired = false;
         if (effectiveUserId) {
           const stState = conversationState.getState(effectiveUserId);
           const prevAnchor = stState.topicAnchor;
@@ -4526,16 +4527,24 @@ app.post('/api/chat', async (req, res) => {
           const pf = conversationState.getPendingFollowup(stState);
           if (pf && !pf.expired) {
             conversationState.clearPendingFollowup(stState);
+            const anchorStale = !stState.topicAnchor || stState.topicAnchor.domain !== 'studios';
+            if (anchorStale) {
+              stState.topicAnchor = { domain: 'studios', label: 'Studios run (music exploration)', entities: [], turnAge: 0, carried: false };
+            }
             conversationState.saveState(effectiveUserId, stState);
             if (pool) {
               clearReflectionFlag(pool, effectiveUserId).catch(() => {});
             }
+            overrideFired = true;
             console.log('[FOLLOWUP_OVERRIDE]', JSON.stringify({
               requestId,
               cleared: true,
               reason: 'pivot_to_studios',
               path: 'studios_intercept',
-              activity: pf.activityName
+              activity: pf.activityName,
+              continuity_forced: true,
+              anchor_set: anchorStale,
+              activity_quarantined: false
             }));
             console.log('[FOLLOWUP_STATE]', JSON.stringify({
               requestId,
@@ -4559,11 +4568,11 @@ app.post('/api/chat', async (req, res) => {
           }
         }
         
-        const earlyContReq = effectiveUserId && conversationState.getState(effectiveUserId)?.topicEstablished;
+        const earlyContReq = overrideFired || (effectiveUserId && conversationState.getState(effectiveUserId)?.topicEstablished);
         console.log('[CONTINUITY]', JSON.stringify({
           requestId,
-          required: !!earlyContReq,
-          reason: earlyContReq ? 'topic_established' : 'no_prior_context',
+          required: true,
+          reason: overrideFired ? 'override_applied' : (earlyContReq ? 'topic_established' : 'no_prior_context'),
           source: 'trace_studios'
         }));
         
@@ -4581,7 +4590,7 @@ app.post('/api/chat', async (req, res) => {
         const earlyState = effectiveUserId ? conversationState.getState(effectiveUserId) : null;
         const earlyTraceIntent = {
           primaryMode: 'studios',
-          continuity: { required: !!earlyContReq, topicAnchor: earlyState?.topicAnchor || null },
+          continuity: { required: overrideFired || !!earlyContReq, reason: overrideFired ? 'override_applied' : (earlyContReq ? 'topic_established' : 'no_prior_context'), topicAnchor: earlyState?.topicAnchor || null },
           topicAnchor: earlyState?.topicAnchor || null,
         };
         studioResponse.message = applyContinuityBridge({ traceIntent: earlyTraceIntent, response_source: 'trace_studios', messageText: studioResponse.message, requestId });
@@ -5135,6 +5144,7 @@ app.post('/api/chat', async (req, res) => {
           source: 'trace',
         };
         console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: 'offer_playlist', source: 'trace', space, path: 'music_invite_offer' }));
+        let miOverrideFired = false;
         if (effectiveUserId) {
           const stState = conversationState.getState(effectiveUserId);
           const prevAnchor = stState.topicAnchor;
@@ -5156,16 +5166,24 @@ app.post('/api/chat', async (req, res) => {
           const pf = conversationState.getPendingFollowup(stState);
           if (pf && !pf.expired) {
             conversationState.clearPendingFollowup(stState);
+            const anchorStale = !stState.topicAnchor || stState.topicAnchor.domain !== 'studios';
+            if (anchorStale) {
+              stState.topicAnchor = { domain: 'studios', label: 'Studios run (music exploration)', entities: [], turnAge: 0, carried: false };
+            }
             conversationState.saveState(effectiveUserId, stState);
             if (pool) {
               clearReflectionFlag(pool, effectiveUserId).catch(() => {});
             }
+            miOverrideFired = true;
             console.log('[FOLLOWUP_OVERRIDE]', JSON.stringify({
               requestId,
               cleared: true,
               reason: 'pivot_to_studios',
               path: 'music_invite_offer',
-              activity: pf.activityName
+              activity: pf.activityName,
+              continuity_forced: true,
+              anchor_set: anchorStale,
+              activity_quarantined: false
             }));
             console.log('[FOLLOWUP_STATE]', JSON.stringify({
               requestId,
@@ -5188,11 +5206,11 @@ app.post('/api/chat', async (req, res) => {
             }));
           }
         }
-        const miContReq = effectiveUserId && conversationState.getState(effectiveUserId)?.topicEstablished;
+        const miContReq = miOverrideFired || (effectiveUserId && conversationState.getState(effectiveUserId)?.topicEstablished);
         console.log('[CONTINUITY]', JSON.stringify({
           requestId,
-          required: !!miContReq,
-          reason: miContReq ? 'topic_established' : 'no_prior_context',
+          required: true,
+          reason: miOverrideFired ? 'override_applied' : (miContReq ? 'topic_established' : 'no_prior_context'),
           source: 'music_invite'
         }));
         console.log('[ACTION_CONTRACT]', JSON.stringify({
@@ -5204,7 +5222,7 @@ app.post('/api/chat', async (req, res) => {
           external: false,
         }));
         const inviteState = effectiveUserId ? conversationState.getState(effectiveUserId) : null;
-        const inviteIntent = { primaryMode: 'studios', continuity: { required: !!inviteState?.topicEstablished, topicAnchor: inviteState?.topicAnchor || null }, topicAnchor: inviteState?.topicAnchor || null };
+        const inviteIntent = { primaryMode: 'studios', continuity: { required: miOverrideFired || !!inviteState?.topicEstablished, reason: miOverrideFired ? 'override_applied' : 'topic_established', topicAnchor: inviteState?.topicAnchor || null }, topicAnchor: inviteState?.topicAnchor || null };
         console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
         return res.json({
           type: 'music_invite',
@@ -6569,6 +6587,7 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
           const outcomesContext = formatActivityOutcomesForContext(activityOutcomesData);
           if (outcomesContext) {
             contextParts.push(outcomesContext);
+            contextParts._activityOutcomesIdx = contextParts.length - 1;
             console.log('[TRACE] Added activity outcomes context:', activityOutcomesData.length, 'helpful activities found');
           }
         }
@@ -7605,27 +7624,65 @@ CAPABILITY-AWARE ACTIONS:
       }));
       
       if (isUserPivot) {
-        console.log('[FOLLOWUP_OVERRIDE]', JSON.stringify({
-          requestId: requestId || `req-${Date.now()}`,
-          cleared: true,
-          reason: 'pivot_to_studios'
-        }));
-        // Clear both session state and DB flag
         if (pendingFollowupRef) {
           conversationState.clearPendingFollowup(pendingFollowupRef.state);
+          const anchorStale = !pendingFollowupRef.state.topicAnchor || pendingFollowupRef.state.topicAnchor.domain !== 'studios';
+          if (anchorStale) {
+            pendingFollowupRef.state.topicAnchor = { domain: 'studios', label: 'Studios run (music exploration)', entities: [], turnAge: 0, carried: false };
+          }
           conversationState.saveState(pendingFollowupRef.userId, pendingFollowupRef.state);
+          if (traceIntent) {
+            traceIntent.continuity = traceIntent.continuity || {};
+            traceIntent.continuity.required = true;
+            traceIntent.continuity.reason = 'override_applied';
+            if (anchorStale) {
+              traceIntent.topicAnchor = pendingFollowupRef.state.topicAnchor;
+            }
+          }
+          console.log('[FOLLOWUP_OVERRIDE]', JSON.stringify({
+            requestId: requestId || `req-${Date.now()}`,
+            cleared: true,
+            reason: 'pivot_to_studios',
+            continuity_forced: true,
+            anchor_set: anchorStale,
+            activity_quarantined: true
+          }));
+        } else {
+          console.log('[FOLLOWUP_OVERRIDE]', JSON.stringify({
+            requestId: requestId || `req-${Date.now()}`,
+            cleared: true,
+            reason: 'pivot_to_studios',
+            continuity_forced: !!traceIntent,
+            anchor_set: false,
+            activity_quarantined: true
+          }));
+          if (traceIntent) {
+            traceIntent.continuity = traceIntent.continuity || {};
+            traceIntent.continuity.required = true;
+            traceIntent.continuity.reason = 'override_applied';
+          }
         }
         if (pool && reflectionUserId) {
           clearReflectionFlag(pool, reflectionUserId).catch(() => {});
         }
         postActivityReflectionContext = null;
+        activityOutcomesData = [];
+        if (traceIntent?.selectedContext) {
+          traceIntent.selectedContext.activityBullets = [];
+        }
+        if (typeof contextParts._activityOutcomesIdx === 'number') {
+          contextParts[contextParts._activityOutcomesIdx] = '';
+        }
       } else if (!followupAllowed) {
         const overrideReason = isOnboarding ? 'onboarding_active' : 'not_reflection_answer';
         console.log('[FOLLOWUP_OVERRIDE]', JSON.stringify({
           requestId: requestId || `req-${Date.now()}`,
           cleared: false,
           deferred: true,
-          reason: overrideReason
+          reason: overrideReason,
+          continuity_forced: false,
+          anchor_set: false,
+          activity_quarantined: false
         }));
         // Don't clear session state or DB flag — user may answer next turn
         postActivityReflectionContext = null;
