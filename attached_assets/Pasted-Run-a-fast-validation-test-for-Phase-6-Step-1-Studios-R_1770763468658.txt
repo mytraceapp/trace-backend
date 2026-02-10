@@ -1,0 +1,64 @@
+Run a fast validation test for Phase 6 Step 1: Studios Run Mode (sticky session) + pivot handling.
+
+Do NOT change any env vars or code. This is a curl-only test.
+Assume server is running at: http://localhost:5000/api/chat
+
+Use a single stable user across the whole run:
+effectiveUserId = 00000001-0000-0000-0000-000000007777
+displayName = Nina
+localTime = 2026-02-06T05:30:00-08:00
+
+1) In Replit Shell, run the following bash script exactly (sequential requests):
+
+BASE=http://localhost:5000/api/chat
+UID=00000001-0000-0000-0000-000000007777
+TIME="2026-02-06T05:30:00-08:00"
+
+send () {
+  MSG="$1"
+  curl -sS "$BASE" -H "Content-Type: application/json" -d "{
+    \"effectiveUserId\":\"$UID\",
+    \"displayName\":\"Nina\",
+    \"localTime\":\"$TIME\",
+    \"messages\":[{\"role\":\"user\",\"content\":\"$MSG\"}],
+    \"client_state\":{},
+    \"patternContext\":{}
+  }" | head -c 240
+  echo ""
+  echo "----"
+}
+
+# A) Start studios run (should set activeRun=studios)
+send "Give me a reel concept for Midnight Underwater."
+
+# B) 5 studios follow-ups (should DEFAULT to studios via activeRun, no resets)
+send "Okay now one for Neon Promise."
+send "Make that one more cinematic."
+send "Now something minimal for Track 4."
+send "Give me a hook idea for Track 2."
+send "Now a visual edit concept for the album teaser."
+
+# C) Pivot OUT (should override run-mode)
+send "Actually I feel really tired today."
+
+# D) Stay OUT (second non-studios turn should clear activeRun per spec)
+send "It’s been like this all week."
+
+# E) Pivot back IN (should re-enter studios and set activeRun again)
+send "Okay back to music — play Midnight Underwater."
+
+# F) Confirm studios continuity
+send "Give me another reel idea for Neon Promise."
+
+2) After the run, verify logs (workflow console output) contain these lines (no user text needed):
+- [ACTIVE_RUN] on every request
+- For turns B1–B5: defaultedMode:true and mode:"studios"
+- For turn C: defaultedMode:false with reason indicating pivot_to_conversation (or similar)
+- For turn D: cleared:true with reason "two_turn_nonstudios" (or similar)
+- For turn E: activeRun re-created/refreshed with mode:"studios"
+- Also confirm:
+  • No activities/soundscapes leak during studios turns
+  • Spotify playlist requests (if any) still open journal modal, not in-app player
+  • response_source stays consistent (trace_studios/model) during studios turns
+
+If any of the expected ACTIVE_RUN transitions are missing, print the 10 most recent [ACTIVE_RUN] lines from the console output for review.
