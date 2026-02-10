@@ -77,7 +77,9 @@ function createEmptyTraceIntent() {
       memoryBullets: [],
       patternBullets: [],
       dreamBullet: null,
+      dreamBullets: [],
       activityBullets: [],
+      studiosBullets: [],
       doorwayHint: null,
     },
 

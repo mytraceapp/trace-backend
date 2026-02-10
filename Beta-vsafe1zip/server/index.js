@@ -122,6 +122,7 @@ const {
   pickActivityBullets, 
   formatDreamBullet,
   extractRecentOpeners,
+  buildSelectedContextV2,
 } = require('./brain/contextBullets');
 const { buildTracePromptV2 } = require('./prompts/buildTracePromptV2');
 const { computeMeta } = require('./validation/computeMeta');
@@ -7442,6 +7443,54 @@ CAPABILITY-AWARE ACTIONS:
             }));
           }
         }
+      }
+
+      // ============================================================
+      // CTX_BUDGET: Mode-scoped context filtering (Phase 6 Step 2A)
+      // ============================================================
+      if (traceIntent && !isEarlyCrisisMode && !isOnboardingScripted) {
+        const rawMem = traceIntent.selectedContext.memoryBullets || [];
+        const rawPat = traceIntent.selectedContext.patternBullets || [];
+        const rawAct = traceIntent.selectedContext.activityBullets || [];
+        const rawDream = traceIntent.selectedContext.dreamBullet || null;
+
+        const studiosCtx = traceIntent.primaryMode === 'studios' ? {
+          actionContractReminder: traceIntent.constraints.studiosDirective ? 'Follow capability-aware action rules for music sources.' : null,
+          albumHint: traceIntent.topicAnchor?.entities?.length ? `Current focus: ${traceIntent.topicAnchor.entities.join(', ')}` : null,
+          trackHint: null,
+          recentOutput: null,
+        } : null;
+
+        const scoped = buildSelectedContextV2({
+          primaryMode: traceIntent.primaryMode,
+          topicAnchor: traceIntent.topicAnchor,
+          memoryBullets: rawMem,
+          patternBullets: rawPat,
+          activityBullets: rawAct,
+          dreamBullet: rawDream,
+          studiosContext: studiosCtx,
+        });
+
+        traceIntent.selectedContext.memoryBullets = scoped.memoryBullets;
+        traceIntent.selectedContext.patternBullets = scoped.patternBullets;
+        traceIntent.selectedContext.activityBullets = scoped.activityBullets;
+        traceIntent.selectedContext.dreamBullets = scoped.dreamBullets;
+        traceIntent.selectedContext.dreamBullet = scoped.dreamBullets.length > 0 ? scoped.dreamBullets[0] : null;
+        traceIntent.selectedContext.studiosBullets = scoped.studiosBullets;
+
+        console.log('[CTX_BUDGET]', JSON.stringify({
+          requestId,
+          mode: traceIntent.primaryMode,
+          counts: {
+            mem: scoped.memoryBullets.length,
+            pattern: scoped.patternBullets.length,
+            activity: scoped.activityBullets.length,
+            dream: scoped.dreamBullets.length,
+            studios: scoped.studiosBullets.length,
+          },
+          anchorDomain: traceIntent.topicAnchor?.domain || null,
+          anchorLabel: traceIntent.topicAnchor?.label || null,
+        }));
       }
 
     } catch (synthErr) {

@@ -53,7 +53,6 @@ function brainSynthesis({
   // --- disclaimer flag ---
   intent.constraints.disclaimerShown = disclaimerShown ?? null;
 
-  // --- context bullets (not used yet) ---
   intent.selectedContext.memoryBullets = Array.isArray(memoryBullets) ? memoryBullets.slice(0, 6) : [];
   intent.selectedContext.patternBullets = Array.isArray(patternBullets) ? patternBullets.slice(0, 4) : [];
   intent.selectedContext.dreamBullet = dreamBullet || null;

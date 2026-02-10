@@ -56,6 +56,10 @@ Enforces action-response consistency for music/studios requests by classifying u
 
 Maintains context stability during creative music exploration sessions by keeping `primaryMode` defaulted to `studios` unless the user makes a clear emotional/dream/crisis/onboarding pivot. `conversationState.activeRun` stores `{ mode, anchorLabel, startedAtMs, lastTouchedAtMs, ttlMs: 720000 }` (12-minute TTL refreshed on each studios interaction). Pre-routing check detects pivots (emotional disclosure, dream disclosure, crisis, onboarding) and clears the run, overriding `primaryMode` from `studios` to `conversation`. If the user stays in non-studios for 2 consecutive turns, `activeRun` is cleared automatically. Observability: `[ACTIVE_RUN]` logs with `requestId`, `active`, `mode`, `expired`, `defaultedMode`, `cleared`, `reason`. Files: `conversationState.js`, `index.js`.
 
+## Retrieval Budget + Mode-Scoped Context (Phase 6 Step 2A)
+
+`buildSelectedContextV2()` in `contextBullets.js` enforces strict mode-scoped context filtering based on `traceIntent.primaryMode` and `topicAnchor`. Studios mode: memoryBullets max 2 (music-related only), patternBullets/activityBullets/dreamBullets zeroed, studiosBullets max 4. Conversation mode: studiosBullets zeroed, memoryBullets max 3 (topic-anchor-matched), patternBullets max 2, activityBullets max 2. Crisis and onboarding bypass all filtering. Logging: `[CTX_BUDGET]` with requestId, mode, counts, anchorDomain, anchorLabel. Files: `contextBullets.js`, `traceIntent.js`, `traceDirectiveV2.js`, `index.js`.
+
 ## Doorways v1 (Brain-Only Detection)
 
 Detects user entry into specific emotional/psychological realms to inject contextual intent into the system prompt.

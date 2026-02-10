@@ -56,11 +56,13 @@ Do not ask any questions in this response.`
     ? `Doorway hint (optional): ${traceIntent.selectedContext.doorwayHint}.`
     : '';
 
-  // Context bullets from memory, patterns, activities
+  const sc = traceIntent?.selectedContext || {};
   const contextBullets = [
-    ...(traceIntent?.selectedContext?.memoryBullets || []),
-    ...(traceIntent?.selectedContext?.patternBullets || []),
-    ...(traceIntent?.selectedContext?.activityBullets || []),
+    ...(sc.memoryBullets || []),
+    ...(sc.patternBullets || []),
+    ...(sc.activityBullets || []),
+    ...(sc.dreamBullets || []),
+    ...(sc.studiosBullets || []),
   ].slice(0, 10);
 
   const contextBlock = contextBullets.length

@@ -178,10 +178,61 @@ function extractRecentOpeners(messages) {
     .filter(Boolean);
 }
 
+const MUSIC_KEYWORDS = /\b(music|album|track|song|night swim|neon|playlist|listen|play|studio|soundscape|dreamscape|reel|lyrics|hook|beat|melody|bass|drop|vibe|mix|remix)\b/i;
+
+function buildSelectedContextV2({ primaryMode, topicAnchor, memoryBullets, patternBullets, activityBullets, dreamBullet, studiosContext }) {
+  const anchorDomain = topicAnchor?.domain || 'conversation';
+  const anchorLabel = topicAnchor?.label || '';
+
+  if (primaryMode === 'studios') {
+    const musicMemory = (memoryBullets || []).filter(b => MUSIC_KEYWORDS.test(b)).slice(0, 2);
+
+    const sBullets = [];
+    if (studiosContext?.actionContractReminder) sBullets.push(studiosContext.actionContractReminder);
+    if (studiosContext?.recentOutput) sBullets.push(studiosContext.recentOutput);
+    if (studiosContext?.albumHint) sBullets.push(studiosContext.albumHint);
+    if (studiosContext?.trackHint) sBullets.push(studiosContext.trackHint);
+
+    return {
+      memoryBullets: musicMemory,
+      patternBullets: [],
+      activityBullets: [],
+      dreamBullets: [],
+      studiosBullets: sBullets.slice(0, 4),
+    };
+  }
+
+  const anchorText = (anchorLabel + ' ' + anchorDomain).toLowerCase();
+  let filteredMemory = memoryBullets || [];
+  const anchorWords = anchorText.split(/\s+/).filter(w => w.length > 2);
+  if (anchorWords.length > 0) {
+    const relevant = filteredMemory.filter(b => {
+      const lower = b.toLowerCase();
+      return anchorWords.some(w => lower.includes(w));
+    });
+    filteredMemory = relevant.length > 0 ? relevant.slice(0, 3) : filteredMemory.slice(0, 3);
+  } else {
+    filteredMemory = filteredMemory.slice(0, 3);
+  }
+
+  const filteredPattern = (patternBullets || []).slice(0, 2);
+  const filteredActivity = (activityBullets || []).slice(0, 2);
+  const filteredDream = dreamBullet ? [dreamBullet] : [];
+
+  return {
+    memoryBullets: filteredMemory.slice(0, 3),
+    patternBullets: filteredPattern,
+    activityBullets: filteredActivity,
+    dreamBullets: filteredDream,
+    studiosBullets: [],
+  };
+}
+
 module.exports = {
   pickMemoryBullets,
   pickPatternBullets,
   pickActivityBullets,
   formatDreamBullet,
   extractRecentOpeners,
+  buildSelectedContextV2,
 };
