@@ -1548,6 +1548,12 @@ export default function ChatScreen() {
           const data = await reflectionRes.json();
           console.log('🎓 TRACE: reflection response:', data);
           
+          // Update TRACE Studios context from reflection response (for offer-then-confirm cadence)
+          if (data?.traceStudios?.traceStudiosContext) {
+            setTraceStudiosContext(data.traceStudios.traceStudiosContext);
+            console.log('🎵 Reflection: Set traceStudiosContext:', data.traceStudios.traceStudiosContext);
+          }
+          
           // Handle audio_action if present (e.g., "play neon promise", "play night swim")
           if (data.audio_action) {
             console.log('[TRACE Chat] 🎵 Handling audio_action from reflection:', data.audio_action);
