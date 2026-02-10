@@ -4411,6 +4411,29 @@ app.post('/api/chat', async (req, res) => {
           console.log('[TRACE STUDIOS] Sending audio_action to frontend:', response.audio_action);
         }
         
+        if (effectiveUserId) {
+          const stState = conversationState.getState(effectiveUserId);
+          const prevAnchor = stState.topicAnchor;
+          const musicEntities = [];
+          const msgLower = (studiosUserMsg.content || '').toLowerCase();
+          if (/night\s*swim/i.test(msgLower)) musicEntities.push('Night Swim');
+          if (/midnight\s*underwater/i.test(msgLower)) musicEntities.push('Midnight Underwater');
+          if (/neon\s*promise/i.test(msgLower)) musicEntities.push('Neon Promise');
+          if (/spotify/i.test(msgLower)) musicEntities.push('Spotify');
+          const carried = prevAnchor?.domain === 'music';
+          stState.topicAnchor = {
+            domain: 'music',
+            label: 'music exploration',
+            entities: musicEntities.length > 0 ? musicEntities : (carried && prevAnchor?.entities?.length ? prevAnchor.entities : []),
+            turnAge: carried ? (prevAnchor.turnAge || 0) + 1 : 0,
+            carried,
+          };
+          stState.lastPrimaryMode = 'studios';
+          conversationState.saveState(effectiveUserId, stState);
+          const a = stState.topicAnchor;
+          console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}" turnAge=${a.turnAge} carried=${a.carried} (studios_intercept)`);
+        }
+        
         const studioResponse = normalizeChatResponse(response, requestId);
         storeDedupResponse(dedupKey, studioResponse);
         console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
@@ -4951,6 +4974,22 @@ app.post('/api/chat', async (req, res) => {
           source: 'trace',
         };
         console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: 'offer_playlist', source: 'trace', space, path: 'music_invite_offer' }));
+        if (effectiveUserId) {
+          const stState = conversationState.getState(effectiveUserId);
+          const prevAnchor = stState.topicAnchor;
+          const carried = prevAnchor?.domain === 'music';
+          stState.topicAnchor = {
+            domain: 'music',
+            label: 'music exploration',
+            entities: carried && prevAnchor?.entities?.length ? prevAnchor.entities : [],
+            turnAge: carried ? (prevAnchor.turnAge || 0) + 1 : 0,
+            carried,
+          };
+          stState.lastPrimaryMode = 'studios';
+          conversationState.saveState(effectiveUserId, stState);
+          const a = stState.topicAnchor;
+          console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}" turnAge=${a.turnAge} carried=${a.carried} (music_invite)`);
+        }
         console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
         return res.json({
           type: 'music_invite',

@@ -85,8 +85,14 @@ function brainSynthesis({
   // --- primaryMode: single authoritative mode per response ---
   const doorwayHint = pickDoorwayHint(doorwaysResult);
 
+  const noTopicShift = !cognitiveIntent?.topic_shift;
+  const prevDomainIsMusic = previousAnchor?.domain === 'music';
+
   if (intent.intentType === "music" || traceBrainSignals?.musicRequest) {
     intent.primaryMode = "studios";
+  } else if (noTopicShift && prevDomainIsMusic) {
+    intent.primaryMode = "studios";
+    console.log('[ANCHOR] Carrying studios mode — previous domain=music, no topic_shift');
   } else if (isOnboardingScripted) {
     intent.primaryMode = "onboarding";
   } else if (doorwayHint === "dreams_symbols" || intent.intentType === "dream") {
