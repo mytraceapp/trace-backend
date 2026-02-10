@@ -58,7 +58,7 @@ Recent Dreamscape session history is loaded to allow TRACE to reference past ses
 
 ### Topic Anchoring
 
-This feature prevents conversation context drift by computing a `topicAnchor` for each turn, including `domain`, `label`, `entities`, `turnAge`, and `carried` status. The anchor is persisted and carried forward, resetting upon topic shifts. A V2 directive ensures the model stays grounded in the current topic.
+Prevents context drift across conversation turns. `brainSynthesis` computes a `topicAnchor` per turn with `domain` (music/dreams/crisis/activity/onboarding/conversation), `label`, `entities`, `turnAge`, and `carried`. Persisted in `conversationState` and carried forward via `previousAnchor`; resets on `cognitiveIntent.topic_shift`. The V2 directive injects `TOPIC ANCHOR:` and `SESSION SUMMARY:` lines. `buildSessionSummary(traceIntent, sessionState)` produces a max-18-word, no-user-quotes summary from anchor + session stage to prevent context loss when history is trimmed (V2-only). Always-on logs: `[ANCHOR]` (topic tracking), `[MODE_LOCK]` (primaryMode transitions), `[SESSION_SUMMARY]` (requestId, summary_len, domain, label). Files: `brainSynthesis.js`, `traceDirectiveV2.js`, `buildTracePromptV2.js`, `conversationState.js`, `traceIntent.js`.
 
 ### Doorways v1 (Brain-Only Detection)
 

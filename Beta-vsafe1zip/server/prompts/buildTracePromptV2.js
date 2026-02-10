@@ -15,9 +15,10 @@ function buildTracePromptV2({
   tonePreference,
   traceIntent,
   antiRepetitionOpeners,
+  sessionSummary,
 }) {
   const core = buildTraceCoreV2({ tonePreference });
-  const directive = buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners });
+  const directive = buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners, sessionSummary });
 
   // IMPORTANT: directive must be last for maximum instruction following
   return `${core}\n\n${directive}`;

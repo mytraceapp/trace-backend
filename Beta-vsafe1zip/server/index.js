@@ -114,7 +114,7 @@ const { buildVoicePromptInjection, validateResponse } = require('./voiceEngine')
 const conversationState = require('./conversationState');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
 const { evaluateAtmosphere } = require('./atmosphereEngine');
-const { brainSynthesis, logTraceIntent } = require('./brain/brainSynthesis');
+const { brainSynthesis, logTraceIntent, buildSessionSummary } = require('./brain/brainSynthesis');
 const { 
   pickMemoryBullets, 
   pickPatternBullets, 
@@ -7277,11 +7277,19 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
     // Legacy: Keep existing prompt + inject door intent
     // ============================================================
     if (useV2 && traceIntent) {
+      // Build session summary from topicAnchor for context preservation
+      const sessionSummary = buildSessionSummary(traceIntent, convoStateObj);
+      if (sessionSummary) {
+        const anchor = traceIntent.topicAnchor;
+        console.log('[SESSION_SUMMARY]', JSON.stringify({ requestId: chatRequestId, summary_len: sessionSummary.split(/\s+/).length, domain: anchor?.domain || null, label: anchor?.label || null }));
+      }
+
       // V2 mode: Complete replacement, no legacy injections
       systemPrompt = buildTracePromptV2({
         tonePreference: tonePreference || 'neutral',
         traceIntent,
         antiRepetitionOpeners: traceIntent.antiRepetitionOpeners || [],
+        sessionSummary,
       });
       console.log('[TRACE V2] Using V2 system prompt (mode:', traceIntent.mode, 'intentType:', traceIntent.intentType, ')');
     } else {

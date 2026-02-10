@@ -7,7 +7,7 @@
  * Design: Always placed LAST in the system prompt for maximum instruction following.
  */
 
-function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [] }) {
+function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessionSummary = null }) {
   const c = traceIntent?.constraints || {};
   const mode = traceIntent?.mode || 'micro';
   const intentType = traceIntent?.intentType || 'other';
@@ -78,9 +78,14 @@ Do not ask any questions in this response.`
     ? `TOPIC ANCHOR: Stay grounded in "${anchor.label}"${anchor.entities?.length ? ` (${anchor.entities.join(', ')})` : ''}. ${anchor.carried ? `Continued from previous turn (turn ${anchor.turnAge}).` : 'New topic.'} Do not drift to unrelated subjects unless the user shifts.`
     : '';
 
+  const summaryLine = sessionSummary
+    ? `SESSION SUMMARY: ${sessionSummary}`
+    : '';
+
   return `
 TURN DIRECTIVE
 Intent type: ${intentType}
+${summaryLine}
 ${modeBlock}
 ${structure}
 ${questionsRule}

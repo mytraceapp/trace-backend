@@ -382,4 +382,58 @@ function logTraceIntent({ requestId, effectiveUserId, traceIntent, model, route 
   }
 }
 
-module.exports = { brainSynthesis, logTraceIntent };
+/**
+ * Build a max-18-word session summary from topicAnchor + session state.
+ * No user quotes. Generic enough for logging. Preserves context when history is trimmed.
+ */
+function buildSessionSummary(traceIntent, sessionState) {
+  const anchor = traceIntent?.topicAnchor;
+  if (!anchor) return null;
+
+  const domain = anchor.domain || 'conversation';
+  const label = anchor.label || 'open conversation';
+  const entity = anchor.entities?.[0] || null;
+  const turnAge = anchor.turnAge || 0;
+  const stage = sessionState?.stage || null;
+  const turnCount = sessionState?.turnCount || 0;
+
+  let parts = [];
+
+  if (domain === 'crisis') {
+    parts.push('User in safety support mode.');
+  } else if (domain === 'music') {
+    parts.push(`Exploring ${label}`);
+    if (entity) parts.push(`around ${entity}`);
+  } else if (domain === 'dreams') {
+    parts.push('Reflecting on a dream experience.');
+  } else if (domain === 'onboarding') {
+    parts.push('Initial onboarding conversation.');
+  } else if (domain === 'activity') {
+    parts.push('Engaged with an activity.');
+  } else {
+    parts.push(`Discussing ${label}`);
+  }
+
+  if (turnAge > 0 && domain !== 'crisis') {
+    parts.push(`(${turnAge + 1} turns on this topic)`);
+  }
+
+  if (stage && stage !== 'arrival' && domain !== 'crisis' && domain !== 'onboarding') {
+    const stageLabel = stage === 'sharing' ? 'sharing openly'
+      : stage === 'exploring' ? 'exploring deeper'
+      : stage === 'processing' ? 'processing emotions'
+      : null;
+    if (stageLabel) parts.push(`— ${stageLabel}`);
+  }
+
+  let summary = parts.join(' ');
+
+  const words = summary.split(/\s+/);
+  if (words.length > 18) {
+    summary = words.slice(0, 18).join(' ');
+  }
+
+  return summary.replace(/\.\s*$/, '') + '.';
+}
+
+module.exports = { brainSynthesis, logTraceIntent, buildSessionSummary };
