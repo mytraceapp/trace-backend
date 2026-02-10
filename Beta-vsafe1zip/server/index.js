@@ -4128,7 +4128,8 @@ app.post('/api/chat', async (req, res) => {
       const cachedResponse = getCachedDedup(dedupKey);
       if (cachedResponse) {
         res.set('X-Trace-Dedup', '1');
-        return res.json({ ...cachedResponse, _provenance: { path: 'dedup_cache', requestId, ts: Date.now() } });
+        console.log('[RESPONSE_SOURCE]', 'dedup_cache', requestId);
+        return res.json({ ...cachedResponse, response_source: 'dedup_cache', _provenance: { path: 'dedup_cache', requestId, ts: Date.now() } });
       }
       console.log(`[DEDUP] MISS dedupKey=${dedupKey}`);
     }
@@ -4234,6 +4235,7 @@ app.post('/api/chat', async (req, res) => {
         reason: 'user_requested'
       };
       console.log('[AUDIO CONTROL] Stop music detected - stopping ALL audio immediately');
+      console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
       return res.json({
         ok: true,
         requestId,
@@ -4243,6 +4245,7 @@ app.post('/api/chat', async (req, res) => {
         posture: 'STEADY',
         detected_state: 'neutral',
         sound_state: { current: null, changed: true, reason: 'user_stopped' },
+        response_source: 'audio_control',
         _provenance: { path: 'audio_stop', requestId, ts: Date.now() }
       });
     } else if (resumesMusic) {
@@ -4253,6 +4256,7 @@ app.post('/api/chat', async (req, res) => {
         reason: 'user_requested'
       };
       console.log('[AUDIO CONTROL] Resume music detected - resuming last played audio');
+      console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
       return res.json({
         ok: true,
         requestId,
@@ -4262,6 +4266,7 @@ app.post('/api/chat', async (req, res) => {
         posture: 'STEADY',
         detected_state: 'neutral',
         sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
+        response_source: 'audio_control',
         _provenance: { path: 'audio_resume', requestId, ts: Date.now() }
       });
     }
@@ -4387,11 +4392,12 @@ app.post('/api/chat', async (req, res) => {
         
         const studioResponse = normalizeChatResponse(response, requestId);
         storeDedupResponse(dedupKey, studioResponse);
+        console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
         return res.json({ 
           ...studioResponse, 
           deduped: false,
           sound_state: { current: null, changed: false, reason: 'studios_early_return' },
-          response_source: 'studios',
+          response_source: 'trace_studios',
           ui_action: studiosUiAction,
           _provenance: { path: 'studios_intercept', primaryMode: 'studios', kind: studiosResponse.traceStudios?.kind, requestId, ts: Date.now(), studiosRegenerated, ui_action_type: studiosUiAction?.type || null }
         });
@@ -4428,11 +4434,13 @@ app.post('/api/chat', async (req, res) => {
         }).catch(() => {});
       }
       
+      console.log('[RESPONSE_SOURCE]', 'insight', requestId);
       return res.json({
         message: insightCheck.message,
         insight: { message: insightCheck.message, type: insightCheck.type },
         client_state_patch: insightCheck.client_state_patch,
         sound_state: { current: null, changed: false, reason: 'insight_early_return' },
+        response_source: 'insight',
         _provenance: { path: 'pillar12_insight', type: insightCheck.type, requestId, ts: Date.now() }
       });
     }
@@ -4609,6 +4617,7 @@ app.post('/api/chat', async (req, res) => {
       
       const boundaryMessage = "I'm here with you — but I can't do sexual or romantic roleplay. If you want, we can talk about what you're feeling underneath this (loneliness, stress, craving connection), and I'll support you through it.";
       
+      console.log('[RESPONSE_SOURCE]', 'model', requestId);
       return res.json({
         mode: 'BOUNDARY_REDIRECT',
         category: 'SEXUAL_OR_ROMANTIC',
@@ -4619,6 +4628,7 @@ app.post('/api/chat', async (req, res) => {
           should_navigate: false,
         },
         sound_state: { current: null, changed: false, reason: 'boundary_early_return' },
+        response_source: 'model',
         _provenance: { path: 'boundary_redirect', category: 'SEXUAL_OR_ROMANTIC', requestId, ts: Date.now() }
       });
     }
@@ -4654,6 +4664,7 @@ app.post('/api/chat', async (req, res) => {
       
       const violenceMessage = "I can't help with anything that involves harming someone. If you feel like you might act on these thoughts, please seek immediate help.\n\nIf you're in the U.S. and there's imminent danger, call **911**. If you can, step away from anything that could be used to hurt someone and reach out to a trusted person or a local crisis service.\n\nIf you want, tell me what's going on right before these urges spike — we can work on a safer plan to get through the moment.";
       
+      console.log('[RESPONSE_SOURCE]', 'model', requestId);
       return res.json({
         mode: 'SAFETY_REDIRECT',
         category: 'VIOLENCE_OR_THREAT',
@@ -4664,6 +4675,7 @@ app.post('/api/chat', async (req, res) => {
           reason: null,
           should_navigate: false,
         },
+        response_source: 'model',
         _provenance: { path: 'safety_redirect', category: 'VIOLENCE_OR_THREAT', requestId, ts: Date.now() }
       });
     }
@@ -4676,9 +4688,11 @@ app.post('/api/chat', async (req, res) => {
       console.log('[TRACE CHAT] Breathing mode detected');
       
       if (!openai) {
+        console.log('[RESPONSE_SOURCE]', 'model', requestId);
         return res.json({
           message: "Let's take a breath together.\n\nBreathe in slowly...\n\nHold for a moment...\n\nNow let it out gently.\n\nThere's nothing you have to do next. We can stay quiet, or you can tell me what's on your mind.",
           activity_suggestion: { name: null, reason: null, should_navigate: false },
+          response_source: 'model',
           _provenance: { path: 'breathing_fallback', requestId, ts: Date.now() }
         });
       }
@@ -4697,9 +4711,11 @@ app.post('/api/chat', async (req, res) => {
       const breathingReply = completion.choices?.[0]?.message?.content?.trim() ||
         "Let's take a breath together.\n\nBreathe in slowly...\n\nHold for a moment...\n\nNow let it out gently.\n\nThere's nothing you have to do next.";
 
+      console.log('[RESPONSE_SOURCE]', 'model', requestId);
       return res.json({
         message: breathingReply,
         activity_suggestion: { name: null, reason: null, should_navigate: false },
+        response_source: 'model',
         _provenance: { path: 'breathing_mode', requestId, ts: Date.now() }
       });
     }
@@ -4731,6 +4747,7 @@ app.post('/api/chat', async (req, res) => {
       
       if (pendingActivity) {
         console.log(`[ACTIVITY NAV] User confirmed, navigating to: ${pendingActivity}`);
+        console.log('[RESPONSE_SOURCE]', 'model', requestId);
         return res.json({
           message: "Heading there now. I'll be here when you're back.",
           activity_suggestion: {
@@ -4739,7 +4756,8 @@ app.post('/api/chat', async (req, res) => {
             should_navigate: true,
             target: pendingActivity
           },
-          sound_state: { current: null, changed: false, reason: 'activity_nav_early_return' }
+          sound_state: { current: null, changed: false, reason: 'activity_nav_early_return' },
+          response_source: 'model'
         });
       }
     }
@@ -4802,6 +4820,7 @@ app.post('/api/chat', async (req, res) => {
       };
       
       console.log(`[ACTIVITY NAV] Returning navigation response for: ${requestedActivity}`);
+      console.log('[RESPONSE_SOURCE]', 'model', requestId);
       return res.json({
         message: `${activityDescriptions[requestedActivity]} ${exitInstructions[requestedActivity]} Let me know when you're ready.`,
         activity_suggestion: {
@@ -4809,7 +4828,8 @@ app.post('/api/chat', async (req, res) => {
           reason: `User requested ${requestedActivity}`,
           should_navigate: false,
           target: requestedActivity
-        }
+        },
+        response_source: 'model'
       });
     }
 
@@ -4839,12 +4859,13 @@ app.post('/api/chat', async (req, res) => {
           ];
           const confirmMsg = confirmResponses[Math.floor(Math.random() * confirmResponses.length)];
           
+          console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
           return res.json({
             type: 'music_invite_confirmed',
             message: confirmMsg,
             activity_suggestion: { name: null, reason: null, should_navigate: false },
             sound_state: { current: null, changed: false, reason: 'playlist_confirmed' },
-            response_source: 'studios',
+            response_source: 'trace_studios',
             ui_action: pendingAction,
             _provenance: { path: 'playlist_offer_confirmed', primaryMode: 'studios', requestId, ts: Date.now(), ui_action_type: pendingAction.type }
           });
@@ -4909,13 +4930,14 @@ app.post('/api/chat', async (req, res) => {
           source: 'trace',
         };
         console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: 'offer_playlist', source: 'trace', space, path: 'music_invite_offer' }));
+        console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
         return res.json({
           type: 'music_invite',
           moodSpace: space,
           message: text,
           activity_suggestion: { name: null, reason: null, should_navigate: false },
           sound_state: { current: null, changed: false, reason: 'music_invite_suppressed' },
-          response_source: 'studios',
+          response_source: 'trace_studios',
           ui_action: null,
           _provenance: { path: 'music_invite_offer', primaryMode: 'studios', moodSpace: space, requestId, ts: Date.now() }
         });
@@ -4935,6 +4957,7 @@ app.post('/api/chat', async (req, res) => {
       
       if (fact?.name) {
         console.log('[TRACE CHAT] Returning dynamic fact:', fact.name);
+        console.log('[RESPONSE_SOURCE]', 'model', requestId);
         return res.json({
           message: `The president of the United States is ${fact.name}.`,
           activity_suggestion: {
@@ -4942,8 +4965,10 @@ app.post('/api/chat', async (req, res) => {
             reason: null,
             should_navigate: false,
           },
+          response_source: 'model',
         });
       } else {
+        console.log('[RESPONSE_SOURCE]', 'model', requestId);
         return res.json({
           message: "I'm not completely sure who is serving as president at this exact moment, and I don't want to guess.",
           activity_suggestion: {
@@ -4951,6 +4976,7 @@ app.post('/api/chat', async (req, res) => {
             reason: null,
             should_navigate: false,
           },
+          response_source: 'model',
         });
       }
     }
@@ -4976,6 +5002,7 @@ app.post('/api/chat', async (req, res) => {
     if (!openai) {
       const fallback = getFallbackResponse();
       console.log('TRACE says (fallback):', fallback);
+      console.log('[RESPONSE_SOURCE]', 'model', requestId);
       return res.json({
         message: fallback,
         activity_suggestion: {
@@ -4983,6 +5010,7 @@ app.post('/api/chat', async (req, res) => {
           reason: null,
           should_navigate: false,
         },
+        response_source: 'model',
       });
     }
 
@@ -5220,6 +5248,7 @@ app.post('/api/chat', async (req, res) => {
         await updateOnboardingStep(`activity_in_progress:${activity}`);
         
         console.log('[ONBOARDING] Mobile suggestion detected in history, user confirmed - navigating to:', activity);
+        console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
         return res.json({
           message: "Good. I'll be here when you get back.",
           activity_suggestion: {
@@ -5228,6 +5257,7 @@ app.post('/api/chat', async (req, res) => {
             should_navigate: true,
             route: route,
           },
+          response_source: 'onboarding_script',
         });
       }
       
@@ -5268,9 +5298,11 @@ app.post('/api/chat', async (req, res) => {
       if (isCrisisStep && tUpperGlobal === 'CALL 988') {
         await updateOnboardingStep('crisis_post_dial');
         console.log('[CRISIS] CALL 988 command from step:', onboardingStep);
+        console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
         return res.json({
           message: "Okay. I'm pulling it up now.",
-          crisis_resources: { triggered: true, dial: '988' }
+          crisis_resources: { triggered: true, dial: '988' },
+          response_source: 'crisis'
         });
       }
       
@@ -5278,9 +5310,11 @@ app.post('/api/chat', async (req, res) => {
         const contactName = tUpperGlobal.replace('CALL ', '');
         await updateOnboardingStep('crisis_post_dial');
         console.log('[CRISIS] CALL contact command from step:', onboardingStep, 'contact:', contactName);
+        console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
         return res.json({
           message: "Okay. I'm pulling it up now.",
-          crisis_resources: { triggered: true, dial_contact: contactName }
+          crisis_resources: { triggered: true, dial_contact: contactName },
+          response_source: 'crisis'
         });
       }
       
@@ -5292,12 +5326,14 @@ app.post('/api/chat', async (req, res) => {
         // Update step to crisis_safety_check
         await updateOnboardingStep('crisis_safety_check');
         
+        console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
         return res.json({
           message: "Thank you for telling me. I'm here.\n\nAre you safe right now?",
           crisis_resources: {
             triggered: true,
             severity: crisisDetected.severity
-          }
+          },
+          response_source: 'crisis'
         });
       }
       
@@ -5326,9 +5362,11 @@ app.post('/api/chat', async (req, res) => {
         
         await updateOnboardingStep('crisis_trusted_contact');
         
+        console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
         return res.json({
           message: responseMsg,
-          crisis_resources: { triggered: true, awaiting_contact: true }
+          crisis_resources: { triggered: true, awaiting_contact: true },
+          response_source: 'crisis'
         });
       }
       
@@ -5338,9 +5376,11 @@ app.post('/api/chat', async (req, res) => {
         
         // User mentions 988 without CALL
         if (t === '988' || t.includes('988')) {
+          console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
           return res.json({
             message: "Okay. Type CALL 988 and I'll pull it up.",
-            crisis_resources: { triggered: true, awaiting_contact: true }
+            crisis_resources: { triggered: true, awaiting_contact: true },
+            response_source: 'crisis'
           });
         }
         
@@ -5350,9 +5390,11 @@ app.post('/api/chat', async (req, res) => {
         
         if (hasRoleLabel) {
           await updateOnboardingStep('crisis_contact_name_needed');
+          console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
           return res.json({
             message: "What name should I look for in your contacts?",
-            crisis_resources: { triggered: true, awaiting_contact_name: true }
+            crisis_resources: { triggered: true, awaiting_contact_name: true },
+            response_source: 'crisis'
           });
         }
         
@@ -5361,16 +5403,20 @@ app.post('/api/chat', async (req, res) => {
         if (nameMatch) {
           const contactName = nameMatch[1].toUpperCase();
           await updateOnboardingStep('crisis_call_confirmation');
+          console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
           return res.json({
             message: `Okay. I can do that.\n\nIf you want me to pull up a call to ${nameMatch[1]}, type CALL ${contactName}.`,
-            crisis_resources: { triggered: true, pending_contact: contactName }
+            crisis_resources: { triggered: true, pending_contact: contactName },
+            response_source: 'crisis'
           });
         }
         
         // Fallback - re-prompt
+        console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
         return res.json({
           message: "Tell me who you'd like to call, or type CALL 988 for the crisis line.",
-          crisis_resources: { triggered: true, awaiting_contact: true }
+          crisis_resources: { triggered: true, awaiting_contact: true },
+          response_source: 'crisis'
         });
       }
       
@@ -5380,18 +5426,22 @@ app.post('/api/chat', async (req, res) => {
         const contactName = t.toUpperCase();
         
         await updateOnboardingStep('crisis_call_confirmation');
+        console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
         return res.json({
           message: `Okay. Type CALL ${contactName} and I'll look them up.`,
-          crisis_resources: { triggered: true, pending_contact: contactName }
+          crisis_resources: { triggered: true, pending_contact: contactName },
+          response_source: 'crisis'
         });
       }
       
       // STEP: crisis_call_confirmation -> Awaiting CALL command
       if (onboardingStep === 'crisis_call_confirmation') {
         // Not a CALL command - re-prompt (CALL commands handled by global handler above)
+        console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
         return res.json({
           message: "When you're ready, type CALL followed by the name or CALL 988.",
-          crisis_resources: { triggered: true, awaiting_call_command: true }
+          crisis_resources: { triggered: true, awaiting_call_command: true },
+          response_source: 'crisis'
         });
       }
       
@@ -5406,25 +5456,31 @@ app.post('/api/chat', async (req, res) => {
         if (stabilized.some(k => t.includes(k))) {
           // Transition back to normal - complete crisis flow
           await updateOnboardingStep('conversation_started');
+          console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
           return res.json({
             message: "I'm glad. I'm still here if you need me.\n\nTake it easy. No rush.",
-            crisis_resources: { triggered: false, resolved: true }
+            crisis_resources: { triggered: false, resolved: true },
+            response_source: 'crisis'
           });
         }
         
         if (stillCrisis.some(k => t.includes(k))) {
           // Still in crisis - offer alternatives
           await updateOnboardingStep('crisis_trusted_contact');
+          console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
           return res.json({
             message: "I'm still here.\n\nWould you like to try someone else, or type CALL 988?",
-            crisis_resources: { triggered: true, awaiting_contact: true }
+            crisis_resources: { triggered: true, awaiting_contact: true },
+            response_source: 'crisis'
           });
         }
         
         // Default check-in
+        console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
         return res.json({
           message: "I'm here. Are you still with me?",
-          crisis_resources: { triggered: true, post_dial_check: true }
+          crisis_resources: { triggered: true, post_dial_check: true },
+          response_source: 'crisis'
         });
       }
       
@@ -5441,6 +5497,7 @@ app.post('/api/chat', async (req, res) => {
           await updateOnboardingStep(`waiting_ok:${detected.activity}`);
           
           console.log('[ONBOARDING] Detected state:', detected.state, '- suggesting:', detected.activity);
+          console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
           return res.json({
             message: detected.message,
             activity_suggestion: {
@@ -5449,6 +5506,7 @@ app.post('/api/chat', async (req, res) => {
               should_navigate: false,
               reason: detected.reason
             },
+            response_source: 'onboarding_script',
           });
         }
         
@@ -5474,6 +5532,7 @@ app.post('/api/chat', async (req, res) => {
         }
         
         console.log('[ONBOARDING] Conversation started - disclaimerShown:', disclaimerShown);
+        console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
         return res.json({
           message: chatMessage,
           activity_suggestion: { 
@@ -5482,6 +5541,7 @@ app.post('/api/chat', async (req, res) => {
             should_navigate: false, 
             reason: 'User exploring naturally' 
           },
+          response_source: 'onboarding_script',
         });
       }
       
@@ -5495,6 +5555,7 @@ app.post('/api/chat', async (req, res) => {
           await updateOnboardingStep(`waiting_ok:${detected.activity}`);
           
           console.log('[ONBOARDING] Detected state:', detected.state, '- suggesting:', detected.activity);
+          console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
           return res.json({
             message: detected.message,
             activity_suggestion: {
@@ -5503,6 +5564,7 @@ app.post('/api/chat', async (req, res) => {
               should_navigate: false,
               reason: detected.reason
             },
+            response_source: 'onboarding_script',
           });
         }
         
@@ -5522,6 +5584,7 @@ app.post('/api/chat', async (req, res) => {
         }
         
         console.log('[ONBOARDING] Conversation started from rapport_building - disclaimerShown:', disclaimerShown);
+        console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
         return res.json({
           message: chatMessage,
           activity_suggestion: { 
@@ -5530,6 +5593,7 @@ app.post('/api/chat', async (req, res) => {
             should_navigate: false, 
             reason: 'User exploring naturally' 
           },
+          response_source: 'onboarding_script',
         });
       }
       
@@ -5543,6 +5607,7 @@ app.post('/api/chat', async (req, res) => {
           await updateOnboardingStep(`waiting_ok:${detected.activity}`);
           
           console.log('[ONBOARDING] Distress detected in conversation - suggesting:', detected.activity);
+          console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
           return res.json({
             message: detected.message,
             activity_suggestion: {
@@ -5551,6 +5616,7 @@ app.post('/api/chat', async (req, res) => {
               should_navigate: false,
               reason: detected.reason
             },
+            response_source: 'onboarding_script',
           });
         }
         
@@ -5596,6 +5662,7 @@ app.post('/api/chat', async (req, res) => {
           await updateOnboardingStep(`activity_in_progress:${pendingActivity}`);
           
           console.log('[ONBOARDING] User affirmed, triggering auto-navigate to:', pendingActivity);
+          console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
           return res.json({
             message: "Good. I'll be here when you get back.",
             activity_suggestion: {
@@ -5604,10 +5671,12 @@ app.post('/api/chat', async (req, res) => {
               should_navigate: true,
               route: pendingRoute,
             },
+            response_source: 'onboarding_script',
           });
         } else {
           // User didn't say okay - gently re-prompt
           console.log('[ONBOARDING] User did not affirm, re-prompting for:', pendingActivity);
+          console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
           return res.json({
             message: `No pressure. When you're ready, just say okay and we'll start ${activityLabel} together.`,
             activity_suggestion: {
@@ -5615,6 +5684,7 @@ app.post('/api/chat', async (req, res) => {
               reason: 'Ready when you are',
               should_navigate: false,
             },
+            response_source: 'onboarding_script',
           });
         }
       }
@@ -5623,9 +5693,11 @@ app.post('/api/chat', async (req, res) => {
       // If user somehow sends a chat message while activity is in progress, just hold
       if (onboardingStep.startsWith('activity_in_progress')) {
         console.log('[ONBOARDING] Activity still in progress, holding');
+        console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
         return res.json({
           message: "Take your time. I'm here.",
           activity_suggestion: { name: null, reason: null, should_navigate: false },
+          response_source: 'onboarding_script',
         });
       }
       
@@ -5656,6 +5728,7 @@ app.post('/api/chat', async (req, res) => {
         
         console.log('[ONBOARDING] Reflection processed, disclaimer shown, onboarding completed');
         
+        console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
         return res.json({
           message: reflectionAck + disclaimerText,
           activity_suggestion: { 
@@ -5667,6 +5740,7 @@ app.post('/api/chat', async (req, res) => {
           posture: 'STEADY',
           detected_state: 'neutral',
           posture_confidence: 0.7,
+          response_source: 'onboarding_script',
         });
       }
       
@@ -5700,10 +5774,12 @@ app.post('/api/chat', async (req, res) => {
         },
       }, requestId);
       storeDedupResponse(dedupKey, closureResponse);
+      console.log('[RESPONSE_SOURCE]', 'model', requestId);
       return res.json({ 
         ...closureResponse, 
         deduped: false,
         sound_state: { current: null, changed: false, reason: 'light_closure_early_return' },
+        response_source: 'model',
         _provenance: { path: 'light_closure', requestId, ts: Date.now() }
       });
     } else if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content)) {
@@ -5829,25 +5905,31 @@ app.post('/api/chat', async (req, res) => {
       
       if (callMatch) {
         if (callMatch === '988') {
+          console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
           return res.json({
             message: "Okay. I'm pulling it up now.\n\nI'll be right here when you're done.",
             crisis_resources: { triggered: true, dial: '988' },
             isCrisisMode: true,
-            activity_suggestion: { name: null, reason: null, should_navigate: false }
+            activity_suggestion: { name: null, reason: null, should_navigate: false },
+            response_source: 'crisis'
           });
         } else if (callMatch === '911') {
+          console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
           return res.json({
             message: "Okay. I'm pulling it up now.\n\nI'm staying with you.",
             crisis_resources: { triggered: true, dial: '911' },
             isCrisisMode: true,
-            activity_suggestion: { name: null, reason: null, should_navigate: false }
+            activity_suggestion: { name: null, reason: null, should_navigate: false },
+            response_source: 'crisis'
           });
         } else if (callMatch === 'contact' && contactName) {
+          console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
           return res.json({
             message: `Okay. I'm pulling up ${contactName} now.\n\nI'll be right here.`,
             crisis_resources: { triggered: true, dial_contact: contactName },
             isCrisisMode: true,
-            activity_suggestion: { name: null, reason: null, should_navigate: false }
+            activity_suggestion: { name: null, reason: null, should_navigate: false },
+            response_source: 'crisis'
           });
         }
       }
@@ -5866,7 +5948,8 @@ app.post('/api/chat', async (req, res) => {
       });
       
       const htoResponse = buildHarmToOthersResponse(requestId, htoCheck.confidence);
-      return res.json({ ...htoResponse, _provenance: { path: 'safety_redirect', category: 'HARM_TO_OTHERS', requestId, ts: Date.now() } });
+      console.log('[RESPONSE_SOURCE]', 'crisis', requestId);
+      return res.json({ ...htoResponse, response_source: 'crisis', _provenance: { path: 'safety_redirect', category: 'HARM_TO_OTHERS', requestId, ts: Date.now() } });
     }
 
     // Load rhythmic awareness line (time/date-based contextual awareness)
@@ -6357,6 +6440,7 @@ Just the response, nothing else.
                   `, [userId, caringMessage, JSON.stringify({ source: 'post_activity_intercept', activity: lastActivityName })]);
                 } catch (e) { /* non-critical */ }
                 
+                console.log('[RESPONSE_SOURCE]', 'model', requestId);
                 return res.json({
                   message: caringMessage,
                   activity_suggestion: null,
@@ -6364,7 +6448,8 @@ Just the response, nothing else.
                   detected_state: 'neutral',
                   posture_confidence: 0.6,
                   sound_state: 'presence',
-                  client_state_patch: {}
+                  client_state_patch: {},
+                  response_source: 'model'
                 });
               }
             } catch (interceptErr) {
@@ -9292,13 +9377,16 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     }
     
-    return res.json({ ...finalResponse, deduped: false, response_source: traceIntent?.primaryMode || 'conversation', ui_action: pipelineUiAction, _provenance });
+    console.log('[RESPONSE_SOURCE]', 'model', requestId);
+    return res.json({ ...finalResponse, deduped: false, response_source: 'model', ui_action: pipelineUiAction, _provenance });
   } catch (error) {
     console.error('TRACE API error:', error.message || error);
+    console.log('[RESPONSE_SOURCE]', 'model', req.body?.requestId);
     res.status(500).json(normalizeChatResponse({ 
       ok: false, 
       error: 'Failed to get response', 
       message: "something went wrong on my end. give me a sec.",
+      response_source: 'model',
       _provenance: { path: 'error_fallback', requestId: req.body?.requestId, ts: Date.now(), error: (error.message || '').slice(0, 100) }
     }, req.body?.requestId));
   }
