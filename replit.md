@@ -60,6 +60,10 @@ Maintains context stability during creative music exploration sessions by keepin
 
 `buildSelectedContextV2()` in `contextBullets.js` enforces strict mode-scoped context filtering based on `traceIntent.primaryMode` and `topicAnchor`. Studios mode: memoryBullets max 2 (music-related only), patternBullets/activityBullets/dreamBullets zeroed, studiosBullets max 4. Conversation mode: studiosBullets zeroed, memoryBullets max 3 (topic-anchor-matched), patternBullets max 2, activityBullets max 2. Crisis and onboarding bypass all filtering. Logging: `[CTX_BUDGET]` with requestId, mode, counts, anchorDomain, anchorLabel. Files: `contextBullets.js`, `traceIntent.js`, `traceDirectiveV2.js`, `index.js`.
 
+## Continuity Bridge for Non-Model Responses (Phase 6 Step 2B)
+
+`applyContinuityBridge()` in `index.js` wraps any non-model early-return message (onboarding_script, trace_studios, insight, activity_followup) with a 6–12 word continuity bridge when `traceIntent.continuity.required === true` and the response source is not `crisis`. Studios mode uses studios-toned bridges (no soundscapes/activities); conversation mode uses domain-matched bridges from `CONTINUITY_BRIDGES`. Logging: `[CONTINUITY_BRIDGE]` with requestId, applied, source, mode. Files: `index.js`.
+
 ## Doorways v1 (Brain-Only Detection)
 
 Detects user entry into specific emotional/psychological realms to inject contextual intent into the system prompt.

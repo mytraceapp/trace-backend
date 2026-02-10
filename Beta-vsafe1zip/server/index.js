@@ -4064,6 +4064,53 @@ function buildContinuityBridge(continuity) {
   return bridges[idx];
 }
 
+const STUDIOS_BRIDGES = [
+  "Still in the studio with you on this —",
+  "Keeping the sound going from where we were —",
+  "Back to the music, picking up right here —",
+  "Still on this vibe, staying with the flow —",
+  "Staying in the mix right where we left off —",
+];
+const CONVO_BRIDGES = [
+  "Still here with you, picking this back up —",
+  "Right where we left off on this thread —",
+  "Staying with what you were sharing just now —",
+  "Still on this with you, coming back around —",
+  "Carrying this forward from where we were —",
+];
+
+function applyContinuityBridge({ traceIntent, response_source, messageText, requestId }) {
+  if (!traceIntent?.continuity?.required || response_source === 'crisis' || !messageText) {
+    console.log('[CONTINUITY_BRIDGE]', JSON.stringify({
+      requestId: requestId || null,
+      applied: false,
+      source: response_source || null,
+      mode: traceIntent?.primaryMode || null,
+    }));
+    return messageText;
+  }
+
+  const mode = traceIntent.primaryMode || 'conversation';
+  let pool;
+  if (mode === 'studios') {
+    pool = STUDIOS_BRIDGES;
+  } else {
+    pool = CONVO_BRIDGES;
+  }
+
+  const bridge = pool[Date.now() % pool.length];
+  const bridged = bridge + ' ' + messageText;
+
+  console.log('[CONTINUITY_BRIDGE]', JSON.stringify({
+    requestId: requestId || null,
+    applied: true,
+    source: response_source || null,
+    mode,
+  }));
+
+  return bridged;
+}
+
 // Normalize chat response for consistent mobile-friendly envelope
 function normalizeChatResponse(payload, requestId) {
   const msg =
@@ -4531,6 +4578,13 @@ app.post('/api/chat', async (req, res) => {
         }));
         
         const studioResponse = normalizeChatResponse(response, requestId);
+        const earlyState = effectiveUserId ? conversationState.getState(effectiveUserId) : null;
+        const earlyTraceIntent = {
+          primaryMode: 'studios',
+          continuity: { required: !!earlyContReq, topicAnchor: earlyState?.topicAnchor || null },
+          topicAnchor: earlyState?.topicAnchor || null,
+        };
+        studioResponse.message = applyContinuityBridge({ traceIntent: earlyTraceIntent, response_source: 'trace_studios', messageText: studioResponse.message, requestId });
         storeDedupResponse(dedupKey, studioResponse);
         console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
         return res.json({ 
@@ -4575,10 +4629,18 @@ app.post('/api/chat', async (req, res) => {
         }).catch(() => {});
       }
       
+      const insightState = effectiveUserId ? conversationState.getState(effectiveUserId) : null;
+      const insightContReq = insightState?.topicEstablished || false;
+      const insightTraceIntent = {
+        primaryMode: 'conversation',
+        continuity: { required: insightContReq, topicAnchor: insightState?.topicAnchor || null },
+        topicAnchor: insightState?.topicAnchor || null,
+      };
+      const insightMsg = applyContinuityBridge({ traceIntent: insightTraceIntent, response_source: 'insight', messageText: insightCheck.message, requestId });
       console.log('[RESPONSE_SOURCE]', 'insight', requestId);
       return res.json({
-        message: insightCheck.message,
-        insight: { message: insightCheck.message, type: insightCheck.type },
+        message: insightMsg,
+        insight: { message: insightMsg, type: insightCheck.type },
         client_state_patch: insightCheck.client_state_patch,
         sound_state: { current: null, changed: false, reason: 'insight_early_return' },
         response_source: 'insight',
@@ -5000,10 +5062,12 @@ app.post('/api/chat', async (req, res) => {
           ];
           const confirmMsg = confirmResponses[Math.floor(Math.random() * confirmResponses.length)];
           
+          const confirmState = effectiveUserId ? conversationState.getState(effectiveUserId) : null;
+          const confirmIntent = { primaryMode: 'studios', continuity: { required: !!confirmState?.topicEstablished, topicAnchor: confirmState?.topicAnchor || null }, topicAnchor: confirmState?.topicAnchor || null };
           console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
           return res.json({
             type: 'music_invite_confirmed',
-            message: confirmMsg,
+            message: applyContinuityBridge({ traceIntent: confirmIntent, response_source: 'trace_studios', messageText: confirmMsg, requestId }),
             activity_suggestion: { name: null, reason: null, should_navigate: false },
             sound_state: { current: null, changed: false, reason: 'playlist_confirmed' },
             response_source: 'trace_studios',
@@ -5139,11 +5203,13 @@ app.post('/api/chat', async (req, res) => {
           action_name: 'music_invite',
           external: false,
         }));
+        const inviteState = effectiveUserId ? conversationState.getState(effectiveUserId) : null;
+        const inviteIntent = { primaryMode: 'studios', continuity: { required: !!inviteState?.topicEstablished, topicAnchor: inviteState?.topicAnchor || null }, topicAnchor: inviteState?.topicAnchor || null };
         console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
         return res.json({
           type: 'music_invite',
           moodSpace: space,
-          message: text,
+          message: applyContinuityBridge({ traceIntent: inviteIntent, response_source: 'trace_studios', messageText: text, requestId }),
           activity_suggestion: { name: null, reason: null, should_navigate: false },
           sound_state: { current: null, changed: false, reason: 'music_invite_suppressed' },
           response_source: 'trace_studios',
@@ -5267,6 +5333,12 @@ app.post('/api/chat', async (req, res) => {
     
     if (isInOnboarding && supabaseServer && effectiveUserId) {
       console.log('[ONBOARDING STATE MACHINE] Active - step:', onboardingStep, 'userText:', userText?.slice(0, 40));
+      
+      const onboardBridge = (msg) => {
+        const obState = conversationState.getState(effectiveUserId);
+        const obIntent = { primaryMode: 'conversation', continuity: { required: !!obState?.topicEstablished, topicAnchor: obState?.topicAnchor || null }, topicAnchor: obState?.topicAnchor || null };
+        return applyContinuityBridge({ traceIntent: obIntent, response_source: 'onboarding_script', messageText: msg, requestId });
+      };
       
       // Helper to update onboarding_step
       const updateOnboardingStep = async (newStep) => {
@@ -5460,7 +5532,7 @@ app.post('/api/chat', async (req, res) => {
         console.log('[ONBOARDING] Mobile suggestion detected in history, user confirmed - navigating to:', activity);
         console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
         return res.json({
-          message: "Good. I'll be here when you get back.",
+          message: onboardBridge("Good. I'll be here when you get back."),
           activity_suggestion: {
             name: activity,
             reason: `Starting activity`,
@@ -5709,7 +5781,7 @@ app.post('/api/chat', async (req, res) => {
           console.log('[ONBOARDING] Detected state:', detected.state, '- suggesting:', detected.activity);
           console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
           return res.json({
-            message: detected.message,
+            message: onboardBridge(detected.message),
             activity_suggestion: {
               name: detected.activity,
               userReportedState: detected.state,
@@ -5744,7 +5816,7 @@ app.post('/api/chat', async (req, res) => {
         console.log('[ONBOARDING] Conversation started - disclaimerShown:', disclaimerShown);
         console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
         return res.json({
-          message: chatMessage,
+          message: onboardBridge(chatMessage),
           activity_suggestion: { 
             name: null, 
             userReportedState: null, 
@@ -5767,7 +5839,7 @@ app.post('/api/chat', async (req, res) => {
           console.log('[ONBOARDING] Detected state:', detected.state, '- suggesting:', detected.activity);
           console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
           return res.json({
-            message: detected.message,
+            message: onboardBridge(detected.message),
             activity_suggestion: {
               name: detected.activity,
               userReportedState: detected.state,
@@ -5796,7 +5868,7 @@ app.post('/api/chat', async (req, res) => {
         console.log('[ONBOARDING] Conversation started from rapport_building - disclaimerShown:', disclaimerShown);
         console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
         return res.json({
-          message: chatMessage,
+          message: onboardBridge(chatMessage),
           activity_suggestion: { 
             name: null, 
             userReportedState: null, 
@@ -5819,7 +5891,7 @@ app.post('/api/chat', async (req, res) => {
           console.log('[ONBOARDING] Distress detected in conversation - suggesting:', detected.activity);
           console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
           return res.json({
-            message: detected.message,
+            message: onboardBridge(detected.message),
             activity_suggestion: {
               name: detected.activity,
               userReportedState: detected.state,
@@ -5874,7 +5946,7 @@ app.post('/api/chat', async (req, res) => {
           console.log('[ONBOARDING] User affirmed, triggering auto-navigate to:', pendingActivity);
           console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
           return res.json({
-            message: "Good. I'll be here when you get back.",
+            message: onboardBridge("Good. I'll be here when you get back."),
             activity_suggestion: {
               name: pendingActivity,
               reason: `Starting ${activityLabel}`,
@@ -5888,7 +5960,7 @@ app.post('/api/chat', async (req, res) => {
           console.log('[ONBOARDING] User did not affirm, re-prompting for:', pendingActivity);
           console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
           return res.json({
-            message: `No pressure. When you're ready, just say okay and we'll start ${activityLabel} together.`,
+            message: onboardBridge(`No pressure. When you're ready, just say okay and we'll start ${activityLabel} together.`),
             activity_suggestion: {
               name: pendingActivity,
               reason: 'Ready when you are',
@@ -5905,7 +5977,7 @@ app.post('/api/chat', async (req, res) => {
         console.log('[ONBOARDING] Activity still in progress, holding');
         console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
         return res.json({
-          message: "Take your time. I'm here.",
+          message: onboardBridge("Take your time. I'm here."),
           activity_suggestion: { name: null, reason: null, should_navigate: false },
           response_source: 'onboarding_script',
         });
@@ -5940,7 +6012,7 @@ app.post('/api/chat', async (req, res) => {
         
         console.log('[RESPONSE_SOURCE]', 'onboarding_script', requestId);
         return res.json({
-          message: reflectionAck + disclaimerText,
+          message: onboardBridge(reflectionAck + disclaimerText),
           activity_suggestion: { 
             name: null, 
             userReportedState: null, 
@@ -7628,6 +7700,7 @@ Just the response, nothing else.
             if (caringMessage) {
               const contLog = { requestId, required: !!traceIntent?.continuity?.required, reason: traceIntent?.continuity?.reason || 'post_activity', source: 'model' };
               console.log('[CONTINUITY]', JSON.stringify(contLog));
+              caringMessage = applyContinuityBridge({ traceIntent, response_source: 'activity_followup', messageText: caringMessage, requestId });
               console.log('[POST-ACTIVITY INTERCEPT] Returning caring response:', caringMessage);
               
               // Followup delivered — clear both session state and DB flag
