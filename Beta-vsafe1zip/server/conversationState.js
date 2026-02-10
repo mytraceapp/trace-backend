@@ -80,7 +80,8 @@ function createDefaultState() {
     turnCount: 0,
     lastAccessed: Date.now(),
     consecutiveProbes: 0,
-    lastTopicKeywords: []
+    lastTopicKeywords: [],
+    topicAnchor: null
   };
 }
 

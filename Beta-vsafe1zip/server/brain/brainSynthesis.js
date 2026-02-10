@@ -31,6 +31,7 @@ function brainSynthesis({
   activityBullets,
   isOnboardingScripted,
   isActivityRequest,
+  previousAnchor,
 }) {
   const intent = createEmptyTraceIntent();
 
@@ -66,6 +67,13 @@ function brainSynthesis({
     intent.constraints.maxSentences = null;
     intent.constraints.allowQuestions = 0;
     intent.constraints.allowActivities = "never";
+    intent.topicAnchor = {
+      domain: 'crisis',
+      label: 'safety support',
+      entities: [],
+      turnAge: (previousAnchor?.domain === 'crisis') ? (previousAnchor.turnAge || 0) + 1 : 0,
+      carried: previousAnchor?.domain === 'crisis',
+    };
     return intent;
   }
 
@@ -117,6 +125,17 @@ CAPABILITY-AWARE ACTIONS:
     intent.constraints.mustNotTruncate = true;
     intent.constraints.requiredSections = inferred.requiredSections || null;
   }
+
+  // --- topic anchor: prevent context drift across turns ---
+  intent.topicAnchor = buildTopicAnchor({
+    primaryMode: intent.primaryMode,
+    intentType: intent.intentType,
+    conversationState,
+    cognitiveIntent,
+    doorwaysResult,
+    currentMessage,
+    previousAnchor: previousAnchor || null,
+  });
 
   return intent;
 }
@@ -244,6 +263,84 @@ function summarizeAtmosphere(atm) {
   };
 }
 
+// --- Topic Anchor Builder ---
+
+const DOMAIN_MAP = {
+  studios: 'music',
+  dream: 'dreams',
+  activity: 'activity',
+  crisis: 'crisis',
+  onboarding: 'onboarding',
+};
+
+function buildTopicAnchor({
+  primaryMode,
+  intentType,
+  conversationState,
+  cognitiveIntent,
+  doorwaysResult,
+  currentMessage,
+  previousAnchor,
+}) {
+  const domain = DOMAIN_MAP[primaryMode] || 'conversation';
+  const topicKeywords = conversationState?.lastTopicKeywords || [];
+
+  let label = '';
+  const entities = [];
+
+  if (domain === 'music') {
+    label = 'music exploration';
+    const musicEntities = extractMusicEntities(currentMessage);
+    entities.push(...musicEntities);
+  } else if (domain === 'dreams') {
+    label = 'dream reflection';
+  } else if (domain === 'crisis') {
+    label = 'safety support';
+  } else if (domain === 'onboarding') {
+    label = 'getting to know you';
+  } else if (domain === 'activity') {
+    label = 'activity';
+  } else {
+    if (topicKeywords.length > 0) {
+      label = topicKeywords.slice(0, 2).join(' & ');
+    } else if (cognitiveIntent?.emotional_context && cognitiveIntent.emotional_context !== 'neutral') {
+      label = cognitiveIntent.emotional_context;
+    } else if (previousAnchor?.label) {
+      label = previousAnchor.label;
+    } else {
+      label = 'open conversation';
+    }
+  }
+
+  const doorHint = pickDoorwayHint(doorwaysResult);
+  if (doorHint && domain === 'conversation') {
+    label = doorHint.replace(/_/g, ' ');
+  }
+
+  const topicShift = !!(cognitiveIntent?.topic_shift);
+  const carried = !topicShift && previousAnchor?.domain === domain;
+
+  return {
+    domain,
+    label,
+    entities: entities.length > 0 ? entities : (carried && previousAnchor?.entities?.length ? previousAnchor.entities : []),
+    turnAge: carried ? (previousAnchor.turnAge || 0) + 1 : 0,
+    carried,
+  };
+}
+
+function extractMusicEntities(message) {
+  if (!message) return [];
+  const entities = [];
+  const nightSwimMatch = message.match(/\bnight\s*swim\b/i);
+  if (nightSwimMatch) entities.push('Night Swim');
+  const trackMatch = message.match(/\b(track|song)\s+(?:called?\s+)?["']?([^"',]+)["']?/i);
+  if (trackMatch) entities.push(trackMatch[2].trim());
+  const spotifyMatch = message.match(/\bspotify\b/i);
+  if (spotifyMatch) entities.push('Spotify');
+  return entities;
+}
+
 /**
  * Log traceIntent for Phase 1 observability
  */
@@ -259,6 +356,7 @@ function logTraceIntent({ requestId, effectiveUserId, traceIntent, model, route 
     posture: traceIntent.posture,
     detected_state: traceIntent.detected_state,
     doorwayHint: traceIntent.selectedContext.doorwayHint,
+    topicAnchor: traceIntent.topicAnchor,
     constraints: traceIntent.constraints,
     signals: traceIntent.signals
   };

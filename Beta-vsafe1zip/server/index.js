@@ -7184,11 +7184,20 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
         activityBullets,
         isOnboardingScripted,
         isActivityRequest,
+        previousAnchor: convoStateObj?.topicAnchor || null,
       });
       
       // Store anti-repetition openers on traceIntent for V2 prompt building
       if (traceIntent) {
         traceIntent.antiRepetitionOpeners = antiRepetitionOpeners;
+      }
+      
+      // Persist topic anchor in conversation state for next turn carry-forward
+      if (traceIntent?.topicAnchor && convoStateObj) {
+        convoStateObj.topicAnchor = traceIntent.topicAnchor;
+        if (process.env.TRACE_INTENT_LOG === '1') {
+          console.log('[TOPIC_ANCHOR]', JSON.stringify({ requestId: req.requestId || `req-${Date.now()}`, ...traceIntent.topicAnchor }));
+        }
       }
 
     } catch (synthErr) {
@@ -9359,6 +9368,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       tier: modelRoute?.tier ?? null,
       model: selectedModel,
       useV2,
+      topicAnchor: traceIntent?.topicAnchor ? { domain: traceIntent.topicAnchor.domain, label: traceIntent.topicAnchor.label, carried: traceIntent.topicAnchor.carried, turnAge: traceIntent.topicAnchor.turnAge } : null,
       schema: {
         ran: schemaCtx.schemaRan,
         passed: schemaCtx.schemaPassed,

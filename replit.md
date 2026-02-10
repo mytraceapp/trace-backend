@@ -1,6 +1,6 @@
 # Overview
 
-TRACE is a mental wellness and emotional support application providing a calm, grounded companion experience. It offers interactive activities, AI-powered conversations, journaling, pattern tracking, and mindfulness exercises within a safe, non-judgmental space. The application aims to help users reflect and achieve emotional clarity, featuring an aesthetic inspired by the iPhone 15 Pro. Key capabilities include real-time AI chat, interactive mini-games, a comprehensive journaling system with calendar views, and emotional pattern recognition to understand mental and emotional rhythms. The project's vision is to offer a personalized, supportive digital companion for daily emotional well-being.
+TRACE is a mental wellness and emotional support application designed to provide a calm, grounded companion experience. It integrates interactive activities, AI-powered conversations, journaling, and mindfulness exercises within a safe, non-judgmental digital space. The application aims to help users achieve emotional clarity and reflect on their well-being. Key features include real-time AI chat, interactive mini-games, a comprehensive journaling system with calendar views, and emotional pattern recognition to understand and support mental and emotional rhythms. The project's overarching vision is to deliver a personalized and supportive digital companion for daily emotional well-being, with an aesthetic inspired by modern smartphone design.
 
 # User Preferences
 
@@ -8,45 +8,45 @@ Preferred communication style: Simple, everyday language.
 
 # System Architecture
 
-## Frontend Architecture
+## Frontend
 
-The application uses React 18 with TypeScript and Vite, employing Framer Motion for animations and Tailwind CSS v4 with custom design tokens for styling. It features a screen-based architecture with dedicated components, using the React Context API for global state management (user, entries, theme data) and local component state. Client-side routing is handled by a bottom navigation bar for primary screens and modal overlays for secondary flows.
+The application is built with React 18, TypeScript, and Vite, utilizing Framer Motion for animations and Tailwind CSS v4 for styling with custom design tokens. It follows a screen-based architecture with dedicated components. State management is handled by React Context API for global states (user, entries, theme) and local component state. Navigation uses a bottom bar for primary screens and modal overlays for secondary flows.
 
 ## Audio & Sensory Design
 
-Custom tone generators, built with the Web Audio API, create dynamic, procedurally generated ambient soundscapes. Audio profiles adapt to screen navigation.
+Custom tone generators, built using the Web Audio API, create dynamic, procedurally generated ambient soundscapes that adapt to screen navigation.
 
 ## AI Integration
 
-An Express server acts as a proxy to the OpenAI API, defining TRACE AI's personality via system prompts. Client-side conversation history maintains context. An Emotional Intelligence Module analyzes mood trajectories, detects user absence, and provides check-backs. An audit logging system tracks AI interactions and decisions, including consent for pattern reflections. Bug guardrails ensure graceful degradation if AI components fail. A system confidence level dynamically adjusts AI responses based on internal context reliability. Feature flags (`PATTERN_REFLECTIONS_ENABLED`, `EMOTIONAL_INTELLIGENCE_ENABLED`, `CONSENT_SYSTEM_ENABLED`, `ACTIVITY_SUGGESTIONS_ENABLED`, `LONG_TERM_MEMORY_ENABLED`) allow for disabling smart features.
+An Express server proxies requests to the OpenAI API, defining TRACE AI's personality through system prompts. Client-side conversation history maintains context. An Emotional Intelligence Module analyzes mood trajectories and user engagement, prompting check-backs when needed. An audit logging system tracks AI interactions and decisions, including consent for pattern reflections. Bug guardrails ensure graceful degradation. A system confidence level dynamically adjusts AI responses based on internal context reliability. Feature flags (`PATTERN_REFLECTIONS_ENABLED`, `EMOTIONAL_INTELLIGENCE_ENABLED`, `CONSENT_SYSTEM_ENABLED`, `ACTIVITY_SUGGESTIONS_ENABLED`, `LONG_TERM_MEMORY_ENABLED`) allow for granular control over smart features.
 
 ### Presence Enhancements
 
-TRACE uses relational language for activity acknowledgments and journal conversation invitations. It integrates Spotify for playlist suggestions and offers original ambient music. Features are introduced contextually.
+TRACE uses relational language for activity acknowledgments and journal conversation invitations, integrates Spotify for playlist suggestions, and offers original ambient music. Features are introduced contextually.
 
-### Scripted Onboarding Flow
+### Scripted Onboarding
 
-New users complete a friend-like onboarding sequence managed by a state machine, which includes an introduction, activity suggestion, auto-navigation to an activity, a post-activity check-in, and a critical, one-time therapy disclaimer. Once `onboarding_step` is `completed` and `disclaimer_shown` is `true`, this flow does not repeat. Post-activity, the AI extracts recent chat context to ensure conversation continuity.
+A state machine manages a friend-like onboarding sequence, which includes an introduction, activity suggestion, auto-navigation to an activity, a post-activity check-in, and a critical, one-time therapy disclaimer. This flow completes after the disclaimer is shown. Post-activity, the AI extracts recent chat context for conversation continuity.
 
-### Summary Tone Guidelines
+### Summary Tone
 
-All TRACE summaries maintain a warm but grounded tone, akin to a thoughtful friend noticing patterns. The style focuses on factual observations of patterns, themes, and topics from actual user data, avoiding therapeutic jargon.
+All TRACE summaries maintain a warm, grounded tone, focusing on factual observations of user-generated patterns and themes without therapeutic jargon.
 
 ### Privacy by Design
 
-TRACE primarily stores AI-generated summaries (max 15 words, non-identifying) of user content by default, discarding raw text unless the user opts in. Data is stored in dedicated Supabase tables (`trace_entries_summary`, `trace_entries_raw`) with Row Level Security (RLS). GDPR-compliant endpoints for data export and deletion, along with privacy settings management, are included.
+TRACE primarily stores AI-generated, non-identifying summaries (max 15 words) of user content, discarding raw text unless the user explicitly opts in. Data is stored in Supabase with Row Level Security (RLS). GDPR-compliant endpoints for data export and deletion, and privacy settings management, are included.
 
 ### Reliability & Graceful Degradation
 
-The backend provides relational fallback messages when OpenAI retries fail. Spotify integration includes a triple safety net, falling back to web players if the app is unavailable. All network requests use AbortController timeouts to prevent hanging, with graceful degradation for activity logs and music configurations.
+The backend provides relational fallback messages if OpenAI retries fail. Spotify integration includes a triple safety net with fallbacks to web players. All network requests use AbortController timeouts to prevent hanging, with graceful degradation for activity logs and music configurations.
 
 ### Journal Memory Integration
 
-High-level themes from journal entries are extracted and stored. With user consent, these themes are fed into chat context, allowing TRACE to reference past entries using hedging language.
+High-level themes from journal entries are extracted and, with user consent, fed into chat context, allowing TRACE to reference past entries using hedging language.
 
 ### Activity Outcomes Learning
 
-The system correlates activity completions with mood check-ins to identify activities that improve user mood, suggesting them with warm, tentative phrases.
+The system correlates activity completions with mood check-ins to identify mood-improving activities, suggesting them with warm, tentative phrases.
 
 ### Dreamscape Presence Memory
 
@@ -54,11 +54,15 @@ Recent Dreamscape session history is loaded to allow TRACE to reference past ses
 
 ### Primary Mode Gating
 
-`traceIntent.primaryMode` enforces a single authoritative mode per response to prevent cross-module leakage ("jumbled brain"). Allowed values: `studios | conversation | dream | activity | crisis | onboarding`. Populated in `brainSynthesis` based on intercepts/signals. When `primaryMode === "studios"`: soundscapes suppressed, activities blocked (`allowActivities: "never"`), system prompt receives `MODE GATE (STUDIOS)` directive. A Studios anti-repetition system (`checkStudiosRepeat` / `recordStudiosVisual`) keeps a rolling in-memory list (max 10) of recent Studios response hashes per user, using bigram similarity (>70% threshold) to trigger a single regeneration attempt. `[STUDIOS_REPEAT]` log emitted with requestId and whether regen occurred. `response_source` and `primaryMode` appear in the response payload and `_provenance` for observability.
+`traceIntent.primaryMode` enforces a single authoritative mode per response (e.g., `studios`, `conversation`, `dream`, `activity`, `crisis`, `onboarding`) to prevent mixed responses. For example, in `studios` mode, soundscapes are suppressed and activities are blocked. An anti-repetition system for Studios prevents repetitive responses.
+
+### Topic Anchoring
+
+This feature prevents conversation context drift by computing a `topicAnchor` for each turn, including `domain`, `label`, `entities`, `turnAge`, and `carried` status. The anchor is persisted and carried forward, resetting upon topic shifts. A V2 directive ensures the model stays grounded in the current topic.
 
 ### Doorways v1 (Brain-Only Detection)
 
-A system to detect when users are entering specific emotional/psychological realms (e.g., `dreams_symbols`, `grief`, `joy_delight`). It injects contextual intent into the system prompt for natural AI responses within the therapeutic realm. Mechanisms include phrase-based scoring with weighted triggers, affinity decay, per-door cooldowns, crisis override, and telemetry logging with text hashing for privacy.
+A system to detect user entry into specific emotional/psychological realms (e.g., `dreams_symbols`, `grief`) and inject contextual intent into the system prompt for natural AI responses. It uses phrase-based scoring, affinity decay, per-door cooldowns, and crisis override.
 
 ## Interactive Activities
 
@@ -66,7 +70,7 @@ Activities are short (45 seconds to 5 minutes) and include a procedural Maze min
 
 ## Journal & Entries System
 
-A unified `Entry` interface supports five types: `session`, `emotional_note`, `ai_reflection`, `check_in`, and `pattern`. Entries are timestamped with metadata and visualized in a calendar. AI-generated daily reflections summarize user activity. Data is managed via an in-memory React context with localStorage persistence.
+A unified `Entry` interface supports five types: `session`, `emotional_note`, `ai_reflection`, `check_in`, and `pattern`. Entries are timestamped, include metadata, and are visualized in a calendar. AI-generated daily reflections summarize user activity. Data is managed via an in-memory React context with localStorage persistence.
 
 ## Patterns Feature
 
@@ -74,7 +78,7 @@ The system identifies three pattern types: Peak Window, Energy Tides, and Stress
 
 ## Authentication & Subscription Management
 
-The app supports email/password authentication (with Face ID placeholder) and an onboarding flow for plan selection (Light/Free, Premium, Studio). Subscription plans are managed globally via UserProvider for feature gating.
+The app supports email/password authentication (with Face ID placeholder) and an onboarding flow for plan selection (Light/Free, Premium, Studio). Subscription plans are managed globally via `UserProvider` for feature gating.
 
 ## Design System
 
@@ -82,7 +86,7 @@ The app employs distinct Day (sage greens, warm earth tones) and Night (deep oli
 
 ## Synthesis Gate — Prompt Architecture Refactoring
 
-A multi-phase refactoring implemented a two-layer V2 prompt system to address prompt fragmentation. Phase 3 (Legacy Injection Stripping) reduces prompt size by stripping ConvoState probe rules, anti-repetition openers, and the T2 manifesto. Phase 4 (Schema Enforcement) uses server-side deterministic computation for meta-data (sentence count, question count, activity offers) and a validator to check micro mode limits. It includes a single-attempt `gpt-4o-mini` rewrite if schema validation fails, with various retirement flags to disable legacy prompt adjustments when schema enforcement is active. V2 rollout is controlled by `TRACE_PROMPT_V2_PCT` (percentage of users on V2), `TRACE_V2_STRIP_INJECTIONS`, and `TRACE_SCHEMA_ENFORCEMENT` environment flags, allowing for instant rollback.
+A multi-phase refactoring implemented a two-layer V2 prompt system to address prompt fragmentation. This includes stripping legacy injections, server-side deterministic computation of meta-data, schema enforcement with a single-attempt `gpt-4o-mini` rewrite for validation failures, and various retirement flags to disable legacy prompt adjustments when schema enforcement is active. V2 rollout is controlled by environment flags (`TRACE_PROMPT_V2_PCT`, `TRACE_V2_STRIP_INJECTIONS`, `TRACE_SCHEMA_ENFORCEMENT`) allowing for instant rollback.
 
 # External Dependencies
 
@@ -117,46 +121,4 @@ A multi-phase refactoring implemented a two-layer V2 prompt system to address pr
 ## Storage
 
 -   **localStorage**: Client-side persistence.
--   **PostgreSQL**: Server-side relational database via Drizzle ORM and `pg` client library.
-
-## Synthesis Gate — Prompt Architecture Refactoring
-
-Multi-phase refactoring to address systemic prompt fragmentation through a clean two-layer V2 prompt system.
-
-### Phase 3: Legacy Injection Stripping (Complete)
-- Single choke-point controlled by `TRACE_V2_STRIP_INJECTIONS` env flag
-- When enabled with V2: strips ConvoState probe rules, anti-repetition openers, T2 manifesto from prompt
-- Server-side `violatesProbeRules()` still enforces question limits regardless of strip status
-
-### Phase 4: Schema Enforcement (Complete)
-- **Files:** `server/validation/computeMeta.js`, `server/validation/validateTraceResponseSchema.js`, `server/validation/rewriteToSchema.js`
-- **Meta:** Server-side deterministic computation (sentence count, question count, truncation detection, activity offers). Models never self-report.
-- **Validator:** Checks micro mode limits. Hard bypasses for crisis, onboarding, and legacy mode.
-- **Rewrite:** Single-attempt gpt-4o-mini rewrite when schema fails. Replaces Drift Lock for V2 traffic (not stacked).
-- **Retirement flags** (all default off, AND-gated with schema enforcement + schema-ran-successfully):
-  - `TRACE_SCHEMA_ENFORCEMENT=0/1` — Enable schema rewrite-on-fail
-  - `TRACE_DISABLE_DRIFT_LOCK_WHEN_SCHEMA=0/1` — Skip Drift Lock when schema active
-  - `TRACE_DISABLE_TIGHTEN_PAIR_WHEN_SCHEMA=0/1` — Skip tightenResponse + enforceBrevity
-  - `TRACE_DISABLE_SANITIZE_TONE_WHEN_SCHEMA=0/1` — Skip sanitizeTone
-
-### Phase 4.6: Single Rewrite Path + Layer Tracking (Complete)
-- **NO DOUBLE REWRITE rule**: If `schemaEnforcementActive` AND schema ran AND (rewrite was attempted OR schema passed), Drift Lock is skipped. Users outside the enforcement percentage bucket keep Drift Lock as a safety net.
-- **Per-request `schemaCtx` object**: Tracks schemaEligible, schemaEnforcementEnabled, schemaGatePassed, schemaRan, schemaPassed, rewriteAttempted, rewriteSucceeded.
-- **`schemaRanSuccessfully` redefined**: `schemaRan && schemaPassed` (ran AND passed). Used to gate retirement flags (distinct from NO DOUBLE REWRITE rule).
-- **Layer tracking booleans**: `driftLockRan`, `tightenPairRan`, `sanitizeToneRan` for observability.
-- **`[PHASE4]` condensed log**: End-of-request JSON with all layer tracking (guarded by `TRACE_INTENT_LOG=1`, no PHI).
-- **Drift Lock skip reason**: Log now reports whether skipped due to no-double-rewrite rule or retirement flag.
-- **Response provenance tracking**: Every `res.json()` return path in `/api/chat` includes a `_provenance` object with `path` (e.g. `ai_pipeline`, `dedup_cache`, `auth_failure`, `studios_intercept`, `pillar12_insight`, `light_closure`, `boundary_redirect`, `safety_redirect`, `breathing_mode`, `audio_stop`, `audio_resume`, `error_fallback`), `requestId`, and `ts`. The `ai_pipeline` path additionally includes `latency_ms`, `tier`, `model`, `useV2`, `schema` (ran/passed/rewrite_attempted/rewrite_succeeded), and `layers` (driftLock/tightenPair/sanitizeTone).
-
-### Phase 4.5: Rollout Controller (Complete)
-- **File:** `server/validation/schemaRollout.js`
-- `shouldUseSchemaEnforcement(userId)` — deterministic per-user hash, gated by `TRACE_SCHEMA_ENFORCEMENT_PCT` (0–100, default 100)
-- Pre-conditions: useV2 + !crisis + !onboarding + master switch + percentage gate
-- Structured `[SCHEMA METRICS]` JSON logging (guarded by `TRACE_INTENT_LOG=1`) with: schema_ran, schema_failed, rewrite_attempted, rewrite_succeeded, violations, latency_ms_total, latency_ms_rewrite
-
-### V2 Rollout Controls
-- `TRACE_PROMPT_V2_PCT` — Percentage of users on V2 (deterministic per-user hash)
-- `TRACE_V2_STRIP_INJECTIONS` — Strip legacy injections for V2 users
-- `TRACE_SCHEMA_ENFORCEMENT` — Master switch for schema enforcement
-- `TRACE_SCHEMA_ENFORCEMENT_PCT` — Percentage of V2 users who get enforcement (0–100)
-- All flags default to safe (off/legacy behavior). Instant rollback via env var flip.
+-   **PostgreSQL**: Server-side relational database.

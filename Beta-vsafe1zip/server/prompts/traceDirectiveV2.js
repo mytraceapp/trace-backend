@@ -73,6 +73,11 @@ Do not ask any questions in this response.`
       ? `Avoid repeating these openers:\n- ${antiRepetitionOpeners.slice(0, 8).join('\n- ')}`
       : '';
 
+  const anchor = traceIntent?.topicAnchor;
+  const anchorLine = anchor?.label
+    ? `TOPIC ANCHOR: Stay grounded in "${anchor.label}"${anchor.entities?.length ? ` (${anchor.entities.join(', ')})` : ''}. ${anchor.carried ? `Continued from previous turn (turn ${anchor.turnAge}).` : 'New topic.'} Do not drift to unrelated subjects unless the user shifts.`
+    : '';
+
   return `
 TURN DIRECTIVE
 Intent type: ${intentType}
@@ -81,6 +86,7 @@ ${structure}
 ${questionsRule}
 ${activityRule}
 Avoid therapy-speak. Avoid banned phrases.
+${anchorLine}
 ${doorwayHint}
 
 ${contextBlock}
