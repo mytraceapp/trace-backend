@@ -81,7 +81,8 @@ function createDefaultState() {
     lastAccessed: Date.now(),
     consecutiveProbes: 0,
     lastTopicKeywords: [],
-    topicAnchor: null
+    topicAnchor: null,
+    lastPrimaryMode: null
   };
 }
 

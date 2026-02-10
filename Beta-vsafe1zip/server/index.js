@@ -7195,9 +7195,20 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
       // Persist topic anchor in conversation state for next turn carry-forward
       if (traceIntent?.topicAnchor && convoStateObj) {
         convoStateObj.topicAnchor = traceIntent.topicAnchor;
-        if (process.env.TRACE_INTENT_LOG === '1') {
-          console.log('[TOPIC_ANCHOR]', JSON.stringify({ requestId: req.requestId || `req-${Date.now()}`, ...traceIntent.topicAnchor }));
+        const a = traceIntent.topicAnchor;
+        console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}"${a.entities?.length ? ` entities=[${a.entities.join(',')}]` : ''} turnAge=${a.turnAge} carried=${a.carried}`);
+      }
+
+      // Log primary mode transitions
+      if (traceIntent?.primaryMode) {
+        const prev = convoStateObj?.lastPrimaryMode || null;
+        const curr = traceIntent.primaryMode;
+        if (prev && prev !== curr) {
+          console.log(`[MODE_LOCK] ${prev} → ${curr}`);
+        } else if (!prev) {
+          console.log(`[MODE_LOCK] ● ${curr} (initial)`);
         }
+        if (convoStateObj) convoStateObj.lastPrimaryMode = curr;
       }
 
     } catch (synthErr) {
