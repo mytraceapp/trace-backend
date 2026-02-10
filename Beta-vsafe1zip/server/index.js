@@ -4432,6 +4432,41 @@ app.post('/api/chat', async (req, res) => {
           conversationState.saveState(effectiveUserId, stState);
           const a = stState.topicAnchor;
           console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}" turnAge=${a.turnAge} carried=${a.carried} (studios_intercept)`);
+          
+          const pf = conversationState.getPendingFollowup(stState);
+          if (pf && !pf.expired) {
+            conversationState.clearPendingFollowup(stState);
+            conversationState.saveState(effectiveUserId, stState);
+            if (pool) {
+              clearReflectionFlag(pool, effectiveUserId).catch(() => {});
+            }
+            console.log('[FOLLOWUP_OVERRIDE]', JSON.stringify({
+              requestId,
+              cleared: true,
+              reason: 'pivot_to_studios',
+              path: 'studios_intercept',
+              activity: pf.activityName
+            }));
+            console.log('[FOLLOWUP_STATE]', JSON.stringify({
+              requestId,
+              pending: false,
+              expired: false,
+              allowed: false,
+              primaryMode: 'studios',
+              intentType: 'music',
+              overriddenBy: 'studios_intercept'
+            }));
+          } else if (pf && pf.expired) {
+            conversationState.clearPendingFollowup(stState);
+            conversationState.saveState(effectiveUserId, stState);
+            console.log('[FOLLOWUP_STATE]', JSON.stringify({
+              requestId,
+              pending: false,
+              expired: true,
+              allowed: false,
+              primaryMode: 'studios'
+            }));
+          }
         }
         
         const studioResponse = normalizeChatResponse(response, requestId);
@@ -4989,6 +5024,41 @@ app.post('/api/chat', async (req, res) => {
           conversationState.saveState(effectiveUserId, stState);
           const a = stState.topicAnchor;
           console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}" turnAge=${a.turnAge} carried=${a.carried} (music_invite)`);
+          
+          const pf = conversationState.getPendingFollowup(stState);
+          if (pf && !pf.expired) {
+            conversationState.clearPendingFollowup(stState);
+            conversationState.saveState(effectiveUserId, stState);
+            if (pool) {
+              clearReflectionFlag(pool, effectiveUserId).catch(() => {});
+            }
+            console.log('[FOLLOWUP_OVERRIDE]', JSON.stringify({
+              requestId,
+              cleared: true,
+              reason: 'pivot_to_studios',
+              path: 'music_invite_offer',
+              activity: pf.activityName
+            }));
+            console.log('[FOLLOWUP_STATE]', JSON.stringify({
+              requestId,
+              pending: false,
+              expired: false,
+              allowed: false,
+              primaryMode: 'studios',
+              intentType: 'music',
+              overriddenBy: 'music_invite_offer'
+            }));
+          } else if (pf && pf.expired) {
+            conversationState.clearPendingFollowup(stState);
+            conversationState.saveState(effectiveUserId, stState);
+            console.log('[FOLLOWUP_STATE]', JSON.stringify({
+              requestId,
+              pending: false,
+              expired: true,
+              allowed: false,
+              primaryMode: 'studios'
+            }));
+          }
         }
         console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
         return res.json({
