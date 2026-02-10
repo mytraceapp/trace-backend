@@ -46,6 +46,12 @@ function createEmptyTraceIntent() {
 
     ui_action: null,
 
+    action: {
+      type: 'none',
+      name: 'none',
+      payload: {},
+    },
+
     topicAnchor: null,
 
     continuity: {

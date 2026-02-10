@@ -1,0 +1,95 @@
+Phase 5 Step 2: Interaction Contract Lock (Studios + Playback/UI actions)
+
+Goal:
+Make /api/chat reliably choose the correct UI/action behavior in music/studios contexts so TRACE never “forgets” what to do (Spotify modal vs in-app playback), and never offers soundscapes/activities in studios.
+
+Do NOT change:
+- TRACE_SCHEMA_ENFORCEMENT_PCT
+- retirement flags
+- Drift Lock behavior
+- prompt rollout %
+
+What to implement:
+
+1) Define an explicit, server-side Interaction Contract (V2-aware, but can apply broadly):
+Create a new helper module, e.g. server/contracts/interactionContract.js with:
+- classifyMusicRequest(text, traceIntent) -> one of:
+    "spotify_playlist"
+    "spotify_open"
+    "trace_track_play"
+    "trace_album_play"
+    "studios_reel_concept"
+    "studios_lyrics"
+    "none"
+Rules (deterministic):
+- If text contains "spotify" OR "playlist" OR "link" OR "open in spotify" -> spotify_playlist
+- If text starts with "play" AND references known TRACE track/album OR traceIntent.musicEntity.type==="track"/"album" -> trace_track_play / trace_album_play
+- If text asks "reel", "concept", "edit", "visual", "video" -> studios_reel_concept
+- If text asks "lyrics", "write lyrics", "verse", "hook" -> studios_lyrics
+- Otherwise none
+
+2) Extend traceIntent with a single, unified action intent:
+traceIntent.action = {
+  type: "ui_action" | "audio_action" | "none",
+  name: string,                 // e.g. "open_journal_modal", "play_trace_track"
+  payload: object               // e.g. { url, trackId, trackName, albumName, source:"spotify"|"trace" }
+}
+
+Populate traceIntent.action inside brainSynthesis or immediately after it using classifyMusicRequest():
+- spotify_playlist:
+    action.type="ui_action"
+    action.name="open_journal_modal"
+    payload={ kind:"spotify_playlist", external:true, queryHint:<short>, url:null }
+- trace_track_play:
+    action.type="audio_action"
+    action.name="play_trace_track"
+    payload={ trackName, trackId if known, source:"trace" }
+- trace_album_play:
+    action.type="audio_action"
+    action.name="play_trace_album"
+    payload={ albumName, albumId if known, source:"trace" }
+- studios_reel_concept / studios_lyrics:
+    action.type="none" (text response only), but set traceIntent.primaryMode="studios" if not already
+
+3) Hard policy locks (server-side, not prompt-dependent):
+- If traceIntent.primaryMode==="studios":
+    - force allowActivities="never"
+    - block soundscape offers (no atmosphereEngine “suggest soundscape” text injection)
+    - never return activity_suggestion
+- If action.name==="open_journal_modal" (Spotify):
+    - ensure the response does NOT start in-app playback
+    - ensure payload.external=true
+- If action.name starts with "play_trace_":
+    - ensure audio_action is present and not journal modal
+
+4) Response mapping (single source of truth):
+In the final response object builder, map traceIntent.action to:
+- ui_action (for open_journal_modal)
+- audio_action (for play_trace_track / play_trace_album)
+and include:
+action_source: "contract_v1"
+Do not rely on model text to decide the action.
+
+5) Observability (no user text):
+Add one log line per request when action is set:
+[ACTION_CONTRACT] {
+  requestId,
+  primaryMode,
+  classified: <one of the classifyMusicRequest outputs>,
+  action_type,
+  action_name,
+  external: true/false
+}
+
+Also add a sanity check log if the response violates the contract:
+[ACTION_CONTRACT_VIOLATION] {requestId, expectedAction, actualFieldsPresent}
+
+6) Acceptance tests (manual + curl):
+- User: "Give me a Spotify playlist for this vibe"
+  -> ui_action=open_journal_modal, external=true, response_source trace_studios or model, no audio_action
+- User: "Play Midnight Underwater"
+  -> audio_action=play_trace_track, no ui_action, no soundscape offer
+- Studios reel run: 6 turns in studios should never offer soundscapes/activities
+- Pivot from reflection pending to "Play <track>" should clear pendingFollowup and produce the correct audio_action
+
+Keep everything else unchanged.

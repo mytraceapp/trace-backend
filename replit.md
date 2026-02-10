@@ -1,6 +1,6 @@
 # Overview
 
-TRACE is a mental wellness and emotional support application designed to provide a calm, grounded companion experience. It integrates interactive activities, AI-powered conversations, journaling, and mindfulness exercises within a safe, non-judgmental digital space. The application aims to help users achieve emotional clarity and reflect on their well-being. Key features include real-time AI chat, interactive mini-games, a comprehensive journaling system with calendar views, and emotional pattern recognition to understand and support mental and emotional rhythms. The project's overarching vision is to deliver a personalized and supportive digital companion for daily emotional well-being, with an aesthetic inspired by modern smartphone design.
+TRACE is a mental wellness and emotional support application providing a calm, grounded companion experience. It integrates interactive activities, AI-powered conversations, journaling, and mindfulness exercises within a safe, non-judgmental digital space. The application aims to help users achieve emotional clarity and reflect on their well-being, delivering a personalized and supportive digital companion for daily emotional well-being.
 
 # User Preferences
 
@@ -10,107 +10,75 @@ Preferred communication style: Simple, everyday language.
 
 ## Frontend
 
-The application is built with React 18, TypeScript, and Vite, utilizing Framer Motion for animations and Tailwind CSS v4 for styling with custom design tokens. It follows a screen-based architecture with dedicated components. State management is handled by React Context API for global states (user, entries, theme) and local component state. Navigation uses a bottom bar for primary screens and modal overlays for secondary flows.
+The application uses React 18, TypeScript, and Vite, with Framer Motion for animations and Tailwind CSS v4 for styling. It features a screen-based architecture, React Context API for state management, and a bottom navigation bar.
 
 ## Audio & Sensory Design
 
-Custom tone generators, built using the Web Audio API, create dynamic, procedurally generated ambient soundscapes that adapt to screen navigation.
+Custom tone generators built with the Web Audio API create dynamic, procedurally generated ambient soundscapes.
 
 ## AI Integration
 
-An Express server proxies requests to the OpenAI API, defining TRACE AI's personality through system prompts. Client-side conversation history maintains context. An Emotional Intelligence Module analyzes mood trajectories and user engagement, prompting check-backs when needed. An audit logging system tracks AI interactions and decisions, including consent for pattern reflections. Bug guardrails ensure graceful degradation. A system confidence level dynamically adjusts AI responses based on internal context reliability. Feature flags (`PATTERN_REFLECTIONS_ENABLED`, `EMOTIONAL_INTELLIGENCE_ENABLED`, `CONSENT_SYSTEM_ENABLED`, `ACTIVITY_SUGGESTIONS_ENABLED`, `LONG_TERM_MEMORY_ENABLED`) allow for granular control over smart features.
+An Express server proxies requests to the OpenAI API, defining TRACE AI's personality. Features include an Emotional Intelligence Module for mood analysis, an audit logging system, and configurable smart features via feature flags. TRACE uses relational language for interactions and a state machine for a friend-like onboarding sequence, including a critical therapy disclaimer. Summaries are warm, grounded, and factual, avoiding jargon.
 
-### Presence Enhancements
+## Privacy by Design
 
-TRACE uses relational language for activity acknowledgments and journal conversation invitations, integrates Spotify for playlist suggestions, and offers original ambient music. Features are introduced contextually.
+TRACE primarily stores AI-generated, non-identifying summaries (max 15 words) of user content in Supabase with Row Level Security (RLS). GDPR-compliant endpoints for data management are included.
 
-### Scripted Onboarding
+## Reliability & Graceful Degradation
 
-A state machine manages a friend-like onboarding sequence, which includes an introduction, activity suggestion, auto-navigation to an activity, a post-activity check-in, and a critical, one-time therapy disclaimer. This flow completes after the disclaimer is shown. Post-activity, the AI extracts recent chat context for conversation continuity.
+The backend provides relational fallback messages for OpenAI failures, and Spotify integration includes a triple safety net. All network requests use AbortController timeouts to prevent hanging.
 
-### Summary Tone
+## Journal Memory Integration
 
-All TRACE summaries maintain a warm, grounded tone, focusing on factual observations of user-generated patterns and themes without therapeutic jargon.
+High-level themes from journal entries are extracted, with user consent, to inform chat context, allowing TRACE to reference past entries.
 
-### Privacy by Design
+## Activity Outcomes Learning
 
-TRACE primarily stores AI-generated, non-identifying summaries (max 15 words) of user content, discarding raw text unless the user explicitly opts in. Data is stored in Supabase with Row Level Security (RLS). GDPR-compliant endpoints for data export and deletion, and privacy settings management, are included.
+The system correlates activity completions with mood check-ins to identify and suggest mood-improving activities.
 
-### Reliability & Graceful Degradation
+## Post-Activity Followup Override
 
-The backend provides relational fallback messages if OpenAI retries fail. Spotify integration includes a triple safety net with fallbacks to web players. All network requests use AbortController timeouts to prevent hanging, with graceful degradation for activity logs and music configurations.
+Scripted post-activity reflection follow-ups are carefully managed via session state and database flags to prevent overriding user intent pivots, with checks at pre-brainSynthesis and post-brainSynthesis gates.
 
-### Journal Memory Integration
+## Continuity Guard
 
-High-level themes from journal entries are extracted and, with user consent, fed into chat context, allowing TRACE to reference past entries using hedging language.
+A two-layer approach prevents conversation resets when response sources change, using a V2 prompt directive and server-side contextual bridges. Topic anchoring prevents context drift, persisting `topicAnchor` and using a session summary.
 
-### Activity Outcomes Learning
+## Primary Mode Gating
 
-The system correlates activity completions with mood check-ins to identify mood-improving activities, suggesting them with warm, tentative phrases.
+`traceIntent.primaryMode` enforces a single authoritative mode per response (e.g., `studios`, `conversation`) to prevent mixed responses.
 
-### Post-Activity Followup Override
+## Interaction Contract Lock
 
-Scripted post-activity reflection follow-ups are gated to prevent overriding user intent pivots. When an activity completes, `pendingFollowup` is set in session state (TTL 10 minutes) and `awaiting_reflection` is set in `activity_reflection_state` DB table. On the next user message, the system checks for pivots at **two gates**:
+Enforces action-response consistency for music/studios requests by classifying user messages into typed actions, storing them in `traceIntent.action`, and validating compliance with defined policies.
 
-1. **Early-return gate (pre-brainSynthesis)**: If Studios intercepts (`studios_intercept` or `music_invite_offer` path), `pendingFollowup` is cleared from both session state and DB immediately, with `[FOLLOWUP_OVERRIDE] reason:"pivot_to_studios" path:"studios_intercept|music_invite_offer"`. Normal Studios routing continues.
+## Doorways v1 (Brain-Only Detection)
 
-2. **Post-brainSynthesis gate**: If brainSynthesis runs (no Studios intercept), `traceIntent` is used as the source of truth. If the user pivots (`primaryMode==="studios"` OR `intentType==="music"` OR `musicRequest===true` OR play/spotify/playlist keyword match), the reflection is cleared. If the user gives a reflection answer (`isReflectionAnswer(text)` in `reflectionTracking.js`), the caring response is generated and followup is consumed. If neither, followup is deferred (not cleared) so the user can answer next turn.
-
-Safety: crisis mode and onboarding always bypass reflection. Observability: `[FOLLOWUP_STATE]` logs pending/expired/allowed/primaryMode per request; `[FOLLOWUP_OVERRIDE]` logs when cleared with reason (`pivot_to_studios`, `onboarding_active`, `not_reflection_answer`). Files: `conversationState.js` (pendingFollowup state with TTL), `reflectionTracking.js` (isReflectionAnswer helper), `index.js` (early-return override in Studios/music_invite paths + post-brainSynthesis gate).
-
-### Continuity Guard
-
-Prevents conversation resets when response sources change (model fallback, scripted intercept, Studios pivot). Two-layer approach:
-
-1. **V2 Prompt Directive**: When `traceIntent.continuity.required` is true, `buildTracePromptV2.js` injects `CONTINUITY: Continue the current thread. Do not reset or reintroduce yourself.` into the system prompt, handled by the AI model for natural continuity.
-
-2. **Server-Side Bridges**: For non-AI responses (model fallbacks, scripted returns), `buildContinuityBridge(continuity)` prepends a 6-12 word contextual bridge (e.g., "Still with you on this —", "Back to the music —") using domain-specific phrases from `CONTINUITY_BRIDGES`. Bridges are NOT applied during crisis mode or to Studios responses (already contextual).
-
-`buildContinuity(traceIntent, sessionState)` in `brainSynthesis.js` computes continuity requirements based on `topicAnchor`, `topicEstablished`, `primaryMode`, or `pendingFollowup`. The result is stored in `traceIntent.continuity` with fields: `required`, `reason`, `topicAnchor`, `sessionSummary`.
-
-**Anchor Persistence**: During early Studio intercepts, the previous non-music `topicAnchor` is saved to `stState.previousAnchor` so the user's original conversation thread can be recovered after a music pivot.
-
-Observability: `[CONTINUITY]` logs fire on every response path with `requestId`, `required`, `reason`, `source` (trace_studios, model, model_fallback). Files: `index.js` (bridge logic + logging), `brainSynthesis.js` (buildContinuity), `traceDirectiveV2.js` (CONTINUITY directive), `buildTracePromptV2.js` (injection).
-
-### Dreamscape Presence Memory
-
-Recent Dreamscape session history is loaded to allow TRACE to reference past sessions contextually.
-
-### Primary Mode Gating
-
-`traceIntent.primaryMode` enforces a single authoritative mode per response (e.g., `studios`, `conversation`, `dream`, `activity`, `crisis`, `onboarding`) to prevent mixed responses. For example, in `studios` mode, soundscapes are suppressed and activities are blocked. An anti-repetition system for Studios prevents repetitive responses.
-
-### Topic Anchoring
-
-Prevents context drift across conversation turns. `brainSynthesis` computes a `topicAnchor` per turn with `domain` (music/dreams/crisis/activity/onboarding/conversation), `label`, `entities`, `turnAge`, and `carried`. Persisted in `conversationState` and carried forward via `previousAnchor`; resets on `cognitiveIntent.topic_shift`. The V2 directive injects `TOPIC ANCHOR:` and `SESSION SUMMARY:` lines. `buildSessionSummary(traceIntent, sessionState)` produces a max-18-word, no-user-quotes summary from anchor + session stage to prevent context loss when history is trimmed (V2-only). Always-on logs: `[ANCHOR]` (topic tracking), `[MODE_LOCK]` (primaryMode transitions), `[SESSION_SUMMARY]` (requestId, summary_len, domain, label). Files: `brainSynthesis.js`, `traceDirectiveV2.js`, `buildTracePromptV2.js`, `conversationState.js`, `traceIntent.js`.
-
-### Doorways v1 (Brain-Only Detection)
-
-A system to detect user entry into specific emotional/psychological realms (e.g., `dreams_symbols`, `grief`) and inject contextual intent into the system prompt for natural AI responses. It uses phrase-based scoring, affinity decay, per-door cooldowns, and crisis override.
+Detects user entry into specific emotional/psychological realms to inject contextual intent into the system prompt.
 
 ## Interactive Activities
 
-Activities are short (45 seconds to 5 minutes) and include a procedural Maze mini-game, Breathing Exercises, 5-4-3-2-1 Grounding, "Rising" (WebGL shader animation), Power Nap, Pearl Ripple, and Walking Reset. All activities auto-save an entry upon completion.
+Short activities (45 seconds to 5 minutes) include a procedural Maze game, Breathing Exercises, 5-4-3-2-1 Grounding, "Rising" (WebGL), Power Nap, Pearl Ripple, and Walking Reset. All auto-save an entry upon completion.
 
 ## Journal & Entries System
 
-A unified `Entry` interface supports five types: `session`, `emotional_note`, `ai_reflection`, `check_in`, and `pattern`. Entries are timestamped, include metadata, and are visualized in a calendar. AI-generated daily reflections summarize user activity. Data is managed via an in-memory React context with localStorage persistence.
+A unified `Entry` interface supports five types, visualized in a calendar, with AI-generated daily reflections. Data is managed via in-memory React context with localStorage persistence.
 
 ## Patterns Feature
 
-The system identifies three pattern types: Peak Window, Energy Tides, and Stress Echoes, providing insights and suggested actions. A visual rhythm map shows weekly emotional cadence.
+Identifies three pattern types: Peak Window, Energy Tides, and Stress Echoes, providing insights and a visual rhythm map.
 
 ## Authentication & Subscription Management
 
-The app supports email/password authentication (with Face ID placeholder) and an onboarding flow for plan selection (Light/Free, Premium, Studio). Subscription plans are managed globally via `UserProvider` for feature gating.
+Supports email/password authentication and an onboarding flow for plan selection (Light/Free, Premium, Studio), with subscription plans managed globally for feature gating.
 
 ## Design System
 
-The app employs distinct Day (sage greens, warm earth tones) and Night (deep olive-charcoal, desert sand undertones) themes, applied at the root using CSS classes. The visual language emphasizes soft gradients, subtle grain textures, rounded corners, liquid light animations, and typography using SF Pro Text and Display. Interactions prioritize gentle spring animations and clear visual feedback.
+Employs distinct Day (sage greens, warm earth tones) and Night (deep olive-charcoal, desert sand undertones) themes, applied using CSS classes. The visual language emphasizes soft gradients, subtle grain textures, rounded corners, liquid light animations, and specific typography.
 
 ## Synthesis Gate — Prompt Architecture Refactoring
 
-A multi-phase refactoring implemented a two-layer V2 prompt system to address prompt fragmentation. This includes stripping legacy injections, server-side deterministic computation of meta-data, schema enforcement with a single-attempt `gpt-4o-mini` rewrite for validation failures, and various retirement flags to disable legacy prompt adjustments when schema enforcement is active. V2 rollout is controlled by environment flags (`TRACE_PROMPT_V2_PCT`, `TRACE_V2_STRIP_INJECTIONS`, `TRACE_SCHEMA_ENFORCEMENT`) allowing for instant rollback.
+A multi-phase refactoring implemented a two-layer V2 prompt system to address prompt fragmentation, including schema enforcement and environment-controlled rollout.
 
 # External Dependencies
 

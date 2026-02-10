@@ -115,6 +115,7 @@ const conversationState = require('./conversationState');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
 const { evaluateAtmosphere } = require('./atmosphereEngine');
 const { brainSynthesis, logTraceIntent, buildSessionSummary } = require('./brain/brainSynthesis');
+const { classifyMusicRequest, buildActionFromClassification, enforceContractPolicies, validateContractCompliance, mapActionToResponse } = require('./contracts/interactionContract');
 const { 
   pickMemoryBullets, 
   pickPatternBullets, 
@@ -4516,6 +4517,16 @@ app.post('/api/chat', async (req, res) => {
           source: 'trace_studios'
         }));
         
+        const earlyClassification = classifyMusicRequest(studiosUserMsg?.content || '', null);
+        console.log('[ACTION_CONTRACT]', JSON.stringify({
+          requestId,
+          primaryMode: 'studios',
+          classified: earlyClassification,
+          action_type: studiosUiAction ? 'ui_action' : (hasAudioAction ? 'audio_action' : 'none'),
+          action_name: studiosUiAction?.type || (hasAudioAction ? 'play_trace_track' : 'none'),
+          external: studiosUiAction?.source === 'spotify',
+        }));
+        
         const studioResponse = normalizeChatResponse(response, requestId);
         storeDedupResponse(dedupKey, studioResponse);
         console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
@@ -4525,6 +4536,7 @@ app.post('/api/chat', async (req, res) => {
           sound_state: { current: null, changed: false, reason: 'studios_early_return' },
           response_source: 'trace_studios',
           ui_action: studiosUiAction,
+          action_source: 'contract_v1',
           _provenance: { path: 'studios_intercept', primaryMode: 'studios', kind: studiosResponse.traceStudios?.kind, requestId, ts: Date.now(), studiosRegenerated, ui_action_type: studiosUiAction?.type || null }
         });
       }
@@ -5114,6 +5126,14 @@ app.post('/api/chat', async (req, res) => {
           reason: miContReq ? 'topic_established' : 'no_prior_context',
           source: 'music_invite'
         }));
+        console.log('[ACTION_CONTRACT]', JSON.stringify({
+          requestId,
+          primaryMode: 'studios',
+          classified: 'none',
+          action_type: 'none',
+          action_name: 'music_invite',
+          external: false,
+        }));
         console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
         return res.json({
           type: 'music_invite',
@@ -5123,6 +5143,7 @@ app.post('/api/chat', async (req, res) => {
           sound_state: { current: null, changed: false, reason: 'music_invite_suppressed' },
           response_source: 'trace_studios',
           ui_action: null,
+          action_source: 'contract_v1',
           _provenance: { path: 'music_invite_offer', primaryMode: 'studios', moodSpace: space, requestId, ts: Date.now() }
         });
       } else {
@@ -7253,6 +7274,28 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
           required: traceIntent.continuity.required,
           reason: traceIntent.continuity.reason,
           source: 'brainSynthesis'
+        }));
+      }
+
+      // ============================================================
+      // INTERACTION CONTRACT: classify + set action + enforce policy
+      // ============================================================
+      if (traceIntent && lastUserMessage) {
+        const classification = classifyMusicRequest(lastUserMessage, traceIntent);
+        if (classification !== 'none') {
+          traceIntent.action = buildActionFromClassification(classification, lastUserMessage, traceIntent);
+          if ((classification === 'studios_reel_concept' || classification === 'studios_lyrics') && traceIntent.primaryMode !== 'studios') {
+            traceIntent.primaryMode = 'studios';
+          }
+        }
+        enforceContractPolicies(traceIntent);
+        console.log('[ACTION_CONTRACT]', JSON.stringify({
+          requestId,
+          primaryMode: traceIntent.primaryMode,
+          classified: classification,
+          action_type: traceIntent.action?.type || 'none',
+          action_name: traceIntent.action?.name || 'none',
+          external: traceIntent.action?.payload?.external || false,
         }));
       }
 
@@ -9697,6 +9740,28 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     }
     
+    // ============================================================
+    // INTERACTION CONTRACT: map action to response fields
+    // ============================================================
+    let contractUiAction = null;
+    let contractAudioAction = null;
+    let contractActionSource = null;
+    if (traceIntent?.action && traceIntent.action.type !== 'none') {
+      const mapped = mapActionToResponse(traceIntent);
+      contractUiAction = mapped.ui_action;
+      contractAudioAction = mapped.audio_action;
+      contractActionSource = mapped.action_source;
+    }
+    const effectiveUiAction = contractUiAction || pipelineUiAction;
+    const effectiveAudioAction = contractAudioAction || finalResponse.audio_action || null;
+
+    if (traceIntent?.primaryMode === 'studios' && finalResponse.activity_suggestion?.name) {
+      finalResponse.activity_suggestion = { name: null, reason: null, should_navigate: false };
+    }
+
+    const responseForValidation = { ...finalResponse, ui_action: effectiveUiAction, audio_action: effectiveAudioAction };
+    validateContractCompliance(traceIntent, responseForValidation, requestId);
+
     if (traceIntent?.continuity) {
       console.log('[CONTINUITY]', JSON.stringify({
         requestId,
@@ -9706,7 +9771,15 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }));
     }
     console.log('[RESPONSE_SOURCE]', 'model', requestId);
-    return res.json({ ...finalResponse, deduped: false, response_source: 'model', ui_action: pipelineUiAction, _provenance });
+    return res.json({
+      ...finalResponse,
+      deduped: false,
+      response_source: 'model',
+      ui_action: effectiveUiAction,
+      ...(effectiveAudioAction && { audio_action: effectiveAudioAction }),
+      ...(contractActionSource && { action_source: contractActionSource }),
+      _provenance,
+    });
   } catch (error) {
     console.error('TRACE API error:', error.message || error);
     console.log('[RESPONSE_SOURCE]', 'model', req.body?.requestId);
