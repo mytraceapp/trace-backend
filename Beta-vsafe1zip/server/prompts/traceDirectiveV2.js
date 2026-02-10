@@ -1,18 +1,39 @@
 /**
- * TRACE Turn Directive V2 (Phase 2)
+ * TRACE Turn Directive V2 (Phase 2 + Phase 7 Step 1)
  * 
  * Converts traceIntent into explicit turn instructions.
  * This is the dynamic portion that changes per-request.
  * 
+ * Phase 7 Step 1 additions:
+ *   - Confidence Posture (high/medium/low)
+ *   - First-Sentence Authority Rule
+ *   - Hedging Suppression
+ *   - Cadence Buckets (studios vs conversation)
+ *   - Latency Perception directive
+ * 
  * Design: Always placed LAST in the system prompt for maximum instruction following.
  */
 
-function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessionSummary = null }) {
+const EXPLORING_AND_ABOVE = ['EXPLORING', 'PROCESSING', 'INTEGRATING', 'CLOSING'];
+
+function deriveConfidence(traceIntent, activeRun, convoStage) {
+  if (traceIntent?.continuity?.required === true) return 'high';
+  if (activeRun?.active === true && !activeRun?.expired) return 'high';
+
+  const topicEstablished = traceIntent?.topicAnchor?.carried === true;
+  if (topicEstablished) return 'medium';
+  if (convoStage && EXPLORING_AND_ABOVE.includes(convoStage)) return 'medium';
+
+  return 'low';
+}
+
+function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessionSummary = null, activeRun = null, convoStage = null }) {
   const c = traceIntent?.constraints || {};
   const mode = traceIntent?.mode || 'micro';
   const intentType = traceIntent?.intentType || 'other';
+  const primaryMode = traceIntent?.primaryMode || 'conversation';
+  const isCrisisOrOnboarding = primaryMode === 'crisis' || primaryMode === 'onboarding';
 
-  // Mode instruction block
   const modeBlock =
     mode === 'micro'
       ? `MODE: MICRO. Keep it to ${c.maxSentences || 2} sentences max.`
@@ -22,7 +43,6 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
       ? `MODE: CRISIS. Use safety-first guidance.`
       : `MODE: NORMAL. Be appropriately concise but complete.`;
 
-  // Longform structure contract — semantic presence, not formatting headers
   const structure =
     mode === 'longform'
       ? `STRUCTURE REQUIREMENT (MANDATORY):
@@ -35,7 +55,6 @@ Do not use section headers or labels. Write in natural narrative flow.
 Do not ask any questions in this response.`
       : '';
 
-  // Questions constraint — unmistakable language to eliminate question_overflow
   const questionsRule =
     typeof c.allowQuestions === 'number'
       ? c.allowQuestions === 0
@@ -43,7 +62,6 @@ Do not ask any questions in this response.`
         : `Ask exactly one question at the end. Do not ask any other questions.`
       : '';
 
-  // Activity suggestion constraint
   const activityRule =
     c.allowActivities === 'never'
       ? (c.suppressSoundscapes
@@ -51,7 +69,6 @@ Do not ask any questions in this response.`
           : 'Do not suggest activities.')
       : c.allowActivities ? `Activity suggestions: ${c.allowActivities}.` : '';
 
-  // Doorway hint (optional therapeutic realm)
   const doorwayHint = traceIntent?.selectedContext?.doorwayHint
     ? `Doorway hint (optional): ${traceIntent.selectedContext.doorwayHint}.`
     : '';
@@ -69,7 +86,6 @@ Do not ask any questions in this response.`
     ? `Use these context bullets if relevant:\n- ${contextBullets.join('\n- ')}`
     : `No extra context needed.`;
 
-  // Anti-repetition openers
   const antiRepeat =
     antiRepetitionOpeners.length
       ? `Avoid repeating these openers:\n- ${antiRepetitionOpeners.slice(0, 8).join('\n- ')}`
@@ -88,11 +104,54 @@ Do not ask any questions in this response.`
     ? 'CONTINUITY: Continue the current thread. Do not reset or reintroduce yourself.'
     : '';
 
+  // ── Phase 7 Step 1: Confidence + Authority + Hedging + Cadence ──
+
+  const confidence = isCrisisOrOnboarding ? null : deriveConfidence(traceIntent, activeRun, convoStage);
+  const anchorChanged = traceIntent?.continuity?.anchorChanged === true;
+  const continuityRequired = traceIntent?.continuity?.required === true;
+
+  let confidenceBlock = '';
+  if (confidence && !isCrisisOrOnboarding) {
+    // A) First-Sentence Authority
+    let authorityRule = '';
+    if (continuityRequired) {
+      authorityRule = `FIRST-SENTENCE RULE: Start with a direct continuation (6–14 words). Do NOT re-explain who you are, do NOT ask "what's going on", do NOT reset context. Banned openers: "Just to clarify", "To recap", "As an AI", "It sounds like".`;
+    } else if (anchorChanged) {
+      authorityRule = `FIRST-SENTENCE RULE: Use one clean pivot line (6–14 words) acknowledging the shift. No re-explanation.`;
+    }
+
+    // B) Hedging Suppression
+    let hedgingRule = '';
+    if (confidence === 'high') {
+      hedgingRule = `HEDGING: None. Do not use "maybe", "might", "perhaps", "I think", "it seems". Be decisive but gentle.`;
+    } else if (confidence === 'medium') {
+      hedgingRule = `HEDGING: One soft hedge maximum. Be grounded.`;
+    } else {
+      hedgingRule = `HEDGING: One clarifying question maximum. Stay within question limits.`;
+    }
+
+    // C) Cadence Bucket
+    let cadenceRule = '';
+    if (primaryMode === 'studios') {
+      cadenceRule = `CADENCE: Fast, declarative, creative. No activities or soundscapes. No therapy cadence. Respond quickly and concretely; no preambles.`;
+    } else if (primaryMode === 'conversation') {
+      cadenceRule = `CADENCE: Paced, warm, human. Reflect briefly; no over-explaining. Lead with one grounded line, then continue.`;
+    }
+
+    confidenceBlock = [
+      `CONFIDENCE: ${confidence.toUpperCase()}`,
+      authorityRule,
+      hedgingRule,
+      cadenceRule,
+    ].filter(Boolean).join('\n');
+  }
+
   return `
 TURN DIRECTIVE
 Intent type: ${intentType}
 ${summaryLine}
 ${continuityLine}
+${confidenceBlock}
 ${modeBlock}
 ${structure}
 ${questionsRule}
@@ -108,4 +167,4 @@ Output only the user-facing message.
 `.trim();
 }
 
-module.exports = { buildTraceDirectiveV2 };
+module.exports = { buildTraceDirectiveV2, deriveConfidence };

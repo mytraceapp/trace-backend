@@ -5,7 +5,7 @@
  * The directive is always placed LAST for maximum instruction following.
  * 
  * Usage:
- *   const systemPrompt = buildTracePromptV2({ tonePreference, traceIntent, antiRepetitionOpeners });
+ *   const systemPrompt = buildTracePromptV2({ tonePreference, traceIntent, antiRepetitionOpeners, activeRun, convoStage });
  */
 
 const { buildTraceCoreV2 } = require('./traceCoreV2');
@@ -16,9 +16,11 @@ function buildTracePromptV2({
   traceIntent,
   antiRepetitionOpeners,
   sessionSummary,
+  activeRun,
+  convoStage,
 }) {
   const core = buildTraceCoreV2({ tonePreference });
-  const directive = buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners, sessionSummary });
+  const directive = buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners, sessionSummary, activeRun, convoStage });
 
   // IMPORTANT: directive must be last for maximum instruction following
   return `${core}\n\n${directive}`;

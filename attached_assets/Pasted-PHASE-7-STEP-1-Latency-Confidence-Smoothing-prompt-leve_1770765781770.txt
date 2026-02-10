@@ -1,0 +1,67 @@
+PHASE 7 STEP 1 — Latency + Confidence Smoothing (prompt-level polish only)
+
+Goal:
+Make TRACE feel less scripted and more intuitive by improving:
+- first-line authority (assumes continuity when appropriate)
+- reduced hedging when continuity is required
+- cadence buckets by mode (studios vs conversation vs crisis)
+NO changes to schema knobs, retirement flags, Drift Lock, or routing.
+
+Implement in server/prompts/traceDirectiveV2.js (or the V2 directive builder):
+
+A) Add "Confidence Posture" block derived from traceIntent:
+   - confidence = "high" if traceIntent.continuity.required===true OR activeRun.active===true
+   - confidence = "medium" if topicEstablished===true OR stage >= EXPLORING
+   - confidence = "low" otherwise
+
+Do NOT log user text. You may log confidence level only.
+
+B) First-Sentence Authority Rule (hard directive):
+   If traceIntent.continuity.required===true:
+     - start with a direct continuation line (6–14 words)
+     - do NOT re-explain TRACE, do NOT ask "what’s going on", do NOT reset context
+     - do NOT use phrases: "Just to clarify", "To recap", "As an AI", "It sounds like"
+   If anchor changed (traceIntent.continuity.anchorChanged===true):
+     - allow a single clean pivot line (6–14 words) acknowledging the shift, no re-explain
+
+C) Hedging Suppression Rules (mode aware):
+   If confidence==="high":
+     - avoid hedges: "maybe", "might", "perhaps", "I think", "it seems"
+     - use decisive but gentle language
+   If confidence==="medium":
+     - allow ONE soft hedge max
+   If confidence==="low":
+     - allow ONE clarifying question max (still obey question limits)
+
+D) Cadence Buckets (does not change length policy; just tone + rhythm):
+   - primaryMode==="studios":
+       * fast, declarative, creative
+       * never offer activities/soundscapes
+       * avoid therapy cadence
+   - primaryMode==="conversation":
+       * paced, warm, human
+       * can reflect briefly but no over-explain
+   - crisis/onboarding:
+       * unchanged (bypass; do not apply Step 1 rules)
+
+E) Add a tiny directive line that helps latency perception (no actual perf change):
+   - studios: "Respond quickly and concretely; no preambles."
+   - conversation: "Lead with one grounded line, then continue."
+
+F) Observability (safe):
+   Add log line (always-on, no user text):
+   [PHASE7] {requestId, mode, confidence, continuity_required, anchor_changed}
+   Only emit for V2 requests, skip crisis/onboarding.
+
+Acceptance tests:
+1) Studios run: 6 turns in a row should not reintroduce TRACE; first line feels continuous and decisive.
+2) Conversation: 3 turns on same topic should not hedge; first line continues the thread.
+3) Pivot: anchorChanged=true should produce a clean pivot line (no reset).
+4) Ensure schema metrics unchanged; no new violations.
+
+Do not alter:
+- TRACE_SCHEMA_ENFORCEMENT_PCT
+- retirement flags
+- Drift Lock logic
+- tighten/sanitize behavior
+- model routing

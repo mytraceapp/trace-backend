@@ -68,6 +68,10 @@ Maintains context stability during creative music exploration sessions by keepin
 
 When FOLLOWUP_OVERRIDE fires with `pivot_to_studios`: (1) forces `traceIntent.continuity.required = true` with reason `"override_applied"`, (2) sets `topicAnchor = { domain:"studios", label:"Studios run (music exploration)" }` if missing or stale, (3) clears pendingFollowup immediately. Activity follow-up context is quarantined on override: `activityOutcomesData` zeroed, `activityBullets` in `selectedContext` cleared, activity outcomes removed from `contextParts`, and post-activity scripted questions blocked. All early-return responses use `overrideFired` to ensure `continuity.required = true` for continuity bridge application. Enhanced `[FOLLOWUP_OVERRIDE]` logging includes `continuity_forced`, `anchor_set`, and `activity_quarantined` fields. Files: `index.js`.
 
+## Latency + Confidence Smoothing (Phase 7 Step 1)
+
+Prompt-level polish in `traceDirectiveV2.js` that makes TRACE feel less scripted and more intuitive. `deriveConfidence()` computes a confidence level (high/medium/low) from `traceIntent.continuity.required`, `activeRun.active`, `topicAnchor.carried`, and conversation stage. High confidence: no hedging, direct continuation openers, decisive language. Medium: one soft hedge max. Low: one clarifying question max. First-Sentence Authority Rule enforces 6–14 word direct continuations when continuity is required, banning reset phrases ("Just to clarify", "As an AI", etc.). Cadence Buckets set mode-specific tone: studios = fast/declarative/no-therapy, conversation = paced/warm/grounded. Latency perception directives added per mode. Crisis/onboarding bypass all Step 1 rules. Observability: `[PHASE7]` log with requestId, mode, confidence, continuity_required, anchor_changed (V2 only, skip crisis/onboarding). No changes to schema enforcement, retirement flags, Drift Lock, or model routing. Files: `traceDirectiveV2.js`, `buildTracePromptV2.js`, `index.js`.
+
 ## Doorways v1 (Brain-Only Detection)
 
 Detects user entry into specific emotional/psychological realms to inject contextual intent into the system prompt.

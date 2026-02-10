@@ -125,6 +125,7 @@ const {
   buildSelectedContextV2,
 } = require('./brain/contextBullets');
 const { buildTracePromptV2 } = require('./prompts/buildTracePromptV2');
+const { deriveConfidence } = require('./prompts/traceDirectiveV2');
 const { computeMeta } = require('./validation/computeMeta');
 const { validateTraceResponseSchema } = require('./validation/validateTraceResponseSchema');
 const { rewriteToSchema } = require('./validation/rewriteToSchema');
@@ -7914,13 +7915,31 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
       }
 
       // V2 mode: Complete replacement, no legacy injections
+      const activeRunForPrompt = conversationState.getActiveRun(convoStateObj);
+      const convoStageForPrompt = convoStateObj?.stage || null;
+
       systemPrompt = buildTracePromptV2({
         tonePreference: tonePreference || 'neutral',
         traceIntent,
         antiRepetitionOpeners: traceIntent.antiRepetitionOpeners || [],
         sessionSummary,
+        activeRun: activeRunForPrompt,
+        convoStage: convoStageForPrompt,
       });
       console.log('[TRACE V2] Using V2 system prompt (mode:', traceIntent.mode, 'intentType:', traceIntent.intentType, ')');
+
+      // Phase 7 Step 1: Observability log (V2 only, skip crisis/onboarding)
+      const p7PrimaryMode = traceIntent.primaryMode || 'conversation';
+      if (p7PrimaryMode !== 'crisis' && p7PrimaryMode !== 'onboarding') {
+        const p7Confidence = deriveConfidence(traceIntent, activeRunForPrompt, convoStageForPrompt);
+        console.log('[PHASE7]', JSON.stringify({
+          requestId: requestId || `req-${Date.now()}`,
+          mode: p7PrimaryMode,
+          confidence: p7Confidence,
+          continuity_required: !!traceIntent.continuity?.required,
+          anchor_changed: !!traceIntent.continuity?.anchorChanged,
+        }));
+      }
     } else {
       // Legacy mode: Inject door intent into existing prompt
       if (doorwaysResult.doorIntent && !isCrisisMode) {
