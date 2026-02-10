@@ -1,0 +1,66 @@
+Implement a V2-only SESSION SUMMARY to prevent context loss when history is trimmed.
+
+Goal:
+Provide the model with a short, stable summary of the current conversation focus so it does not re-infer context on every turn.
+
+Implementation details:
+
+1) Add a function:
+   buildSessionSummary(traceIntent, sessionState)
+
+   Rules:
+   - Max 18 words
+   - No direct user quotes
+   - No sensitive or personal phrasing
+   - Generic, descriptive language only
+   - Deterministic output (same inputs → same summary)
+
+2) Summary derivation logic:
+   - If traceIntent.primaryMode === "studios":
+       Use topicAnchor.label + key entity if present.
+       Example:
+         "Exploring music visuals around Night Swim."
+         "Developing reel concepts for multiple tracks."
+   - If primaryMode === "conversation":
+       Use conversation stage + anchor label if available.
+       Example:
+         "Discussing work stress and emotional fatigue."
+         "Exploring personal reflection and next steps."
+   - If primaryMode === "dream":
+       Example:
+         "Reflecting on a dream experience."
+   - If primaryMode === "activity":
+       Example:
+         "Guided grounding and regulation support."
+   - If crisis or onboarding:
+       Use a fixed, safe summary.
+       Example:
+         "User in safety support mode."
+         "Completing onboarding steps."
+
+3) Inject into the V2 directive only:
+   Place immediately after intent type and before constraints.
+   Format:
+     SESSION SUMMARY: <summary>
+
+   Legacy prompts must not be affected.
+
+4) Logging (always on, no user text leaks):
+   Emit a single line:
+     [SESSION_SUMMARY] {
+       requestId,
+       word_count,
+       domain,
+       label
+     }
+
+5) Safety:
+   - Do not store summaries long-term.
+   - Do not echo summaries back to the client.
+   - Do not change any schema enforcement, rollout percentages, or retirement flags.
+
+Acceptance criteria:
+- Model maintains topic continuity even when history is trimmed.
+- No re-explaining of TRACE role during follow-ups.
+- SESSION SUMMARY appears in logs for all V2 requests.
+- No behavior change for legacy prompts.

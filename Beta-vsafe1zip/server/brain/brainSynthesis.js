@@ -407,9 +407,9 @@ function buildSessionSummary(traceIntent, sessionState) {
   } else if (domain === 'dreams') {
     parts.push('Reflecting on a dream experience.');
   } else if (domain === 'onboarding') {
-    parts.push('Initial onboarding conversation.');
+    parts.push('Completing onboarding steps.');
   } else if (domain === 'activity') {
-    parts.push('Engaged with an activity.');
+    parts.push('Guided grounding and regulation support.');
   } else {
     parts.push(`Discussing ${label}`);
   }
