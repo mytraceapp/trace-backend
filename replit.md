@@ -50,7 +50,13 @@ The system correlates activity completions with mood check-ins to identify mood-
 
 ### Post-Activity Followup Override
 
-Scripted post-activity reflection follow-ups are gated by `brainSynthesis` output to prevent overriding user intent pivots. When an activity completes and a reflection follow-up is scheduled (via `activity_reflection_state` DB table), the system defers the intercept until AFTER `brainSynthesis` runs. If the user pivots to studios/music (`primaryMode==="studios"` OR `intentType==="music"` OR `musicRequest===true`), the reflection is cleared and normal routing continues. `isReflectionAnswer(text)` in `reflectionTracking.js` distinguishes reflection answers from music/pivot requests. Safety: crisis mode and onboarding always bypass reflection. Observability: `[FOLLOWUP_STATE]` logs pending/allowed/primaryMode per request; `[FOLLOWUP_OVERRIDE]` logs when cleared with reason (`user_pivot_to_studios`, `onboarding_active`, `not_reflection_answer`). Files: `conversationState.js` (pendingFollowup state), `reflectionTracking.js` (isReflectionAnswer helper), `index.js` (followup override gate after brainSynthesis).
+Scripted post-activity reflection follow-ups are gated to prevent overriding user intent pivots. When an activity completes, `pendingFollowup` is set in session state (TTL 10 minutes) and `awaiting_reflection` is set in `activity_reflection_state` DB table. On the next user message, the system checks for pivots at **two gates**:
+
+1. **Early-return gate (pre-brainSynthesis)**: If Studios intercepts (`studios_intercept` or `music_invite_offer` path), `pendingFollowup` is cleared from both session state and DB immediately, with `[FOLLOWUP_OVERRIDE] reason:"pivot_to_studios" path:"studios_intercept|music_invite_offer"`. Normal Studios routing continues.
+
+2. **Post-brainSynthesis gate**: If brainSynthesis runs (no Studios intercept), `traceIntent` is used as the source of truth. If the user pivots (`primaryMode==="studios"` OR `intentType==="music"` OR `musicRequest===true` OR play/spotify/playlist keyword match), the reflection is cleared. If the user gives a reflection answer (`isReflectionAnswer(text)` in `reflectionTracking.js`), the caring response is generated and followup is consumed. If neither, followup is deferred (not cleared) so the user can answer next turn.
+
+Safety: crisis mode and onboarding always bypass reflection. Observability: `[FOLLOWUP_STATE]` logs pending/expired/allowed/primaryMode per request; `[FOLLOWUP_OVERRIDE]` logs when cleared with reason (`pivot_to_studios`, `onboarding_active`, `not_reflection_answer`). Files: `conversationState.js` (pendingFollowup state with TTL), `reflectionTracking.js` (isReflectionAnswer helper), `index.js` (early-return override in Studios/music_invite paths + post-brainSynthesis gate).
 
 ### Dreamscape Presence Memory
 
