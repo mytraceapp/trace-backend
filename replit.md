@@ -52,6 +52,10 @@ A two-layer approach prevents conversation resets when response sources change, 
 
 Enforces action-response consistency for music/studios requests by classifying user messages into typed actions, storing them in `traceIntent.action`, and validating compliance with defined policies.
 
+## Studios Run Mode (Sticky Session)
+
+Maintains context stability during creative music exploration sessions by keeping `primaryMode` defaulted to `studios` unless the user makes a clear emotional/dream/crisis/onboarding pivot. `conversationState.activeRun` stores `{ mode, anchorLabel, startedAtMs, lastTouchedAtMs, ttlMs: 720000 }` (12-minute TTL refreshed on each studios interaction). Pre-routing check detects pivots (emotional disclosure, dream disclosure, crisis, onboarding) and clears the run, overriding `primaryMode` from `studios` to `conversation`. If the user stays in non-studios for 2 consecutive turns, `activeRun` is cleared automatically. Observability: `[ACTIVE_RUN]` logs with `requestId`, `active`, `mode`, `expired`, `defaultedMode`, `cleared`, `reason`. Files: `conversationState.js`, `index.js`.
+
 ## Doorways v1 (Brain-Only Detection)
 
 Detects user entry into specific emotional/psychological realms to inject contextual intent into the system prompt.

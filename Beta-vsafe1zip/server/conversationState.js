@@ -85,8 +85,52 @@ function createDefaultState() {
     lastTopicKeywords: [],
     topicAnchor: null,
     lastPrimaryMode: null,
-    pendingFollowup: null
+    pendingFollowup: null,
+    activeRun: null,
+    consecutiveNonRunTurns: 0,
   };
+}
+
+const ACTIVE_RUN_DEFAULT_TTL_MS = 720000;
+
+function setActiveRun(state, { mode, anchorLabel }) {
+  const now = Date.now();
+  if (state.activeRun && state.activeRun.mode === mode) {
+    state.activeRun.lastTouchedAtMs = now;
+    state.activeRun.anchorLabel = anchorLabel || state.activeRun.anchorLabel;
+  } else {
+    state.activeRun = {
+      mode: mode || 'studios',
+      anchorLabel: anchorLabel || 'music exploration',
+      startedAtMs: now,
+      lastTouchedAtMs: now,
+      ttlMs: ACTIVE_RUN_DEFAULT_TTL_MS,
+    };
+  }
+  state.consecutiveNonRunTurns = 0;
+}
+
+function getActiveRun(state) {
+  if (!state?.activeRun) return null;
+  const ar = state.activeRun;
+  const elapsed = Date.now() - ar.lastTouchedAtMs;
+  if (elapsed > ar.ttlMs) {
+    state.activeRun = null;
+    state.consecutiveNonRunTurns = 0;
+    return { ...ar, expired: true };
+  }
+  return { ...ar, expired: false };
+}
+
+function clearActiveRun(state, reason) {
+  state.activeRun = null;
+  state.consecutiveNonRunTurns = 0;
+  return reason || 'manual_clear';
+}
+
+function incrementNonRunTurns(state) {
+  state.consecutiveNonRunTurns = (state.consecutiveNonRunTurns || 0) + 1;
+  return state.consecutiveNonRunTurns;
 }
 
 function setPendingFollowup(state, { activityId, activityName, ttlMs }) {
@@ -409,5 +453,10 @@ module.exports = {
   setPendingFollowup,
   getPendingFollowup,
   clearPendingFollowup,
-  FOLLOWUP_DEFAULT_TTL_MS
+  FOLLOWUP_DEFAULT_TTL_MS,
+  setActiveRun,
+  getActiveRun,
+  clearActiveRun,
+  incrementNonRunTurns,
+  ACTIVE_RUN_DEFAULT_TTL_MS
 };

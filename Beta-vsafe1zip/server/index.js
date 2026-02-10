@@ -4469,9 +4469,11 @@ app.post('/api/chat', async (req, res) => {
             carried,
           };
           stState.lastPrimaryMode = 'studios';
+          conversationState.setActiveRun(stState, { mode: 'studios', anchorLabel: 'music exploration' });
           conversationState.saveState(effectiveUserId, stState);
           const a = stState.topicAnchor;
           console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}" turnAge=${a.turnAge} carried=${a.carried} (studios_intercept)`);
+          console.log('[ACTIVE_RUN]', JSON.stringify({ requestId, active: true, mode: 'studios', expired: false, defaultedMode: false, cleared: false, reason: 'studios_intercept' }));
           
           const pf = conversationState.getPendingFollowup(stState);
           if (pf && !pf.expired) {
@@ -5080,9 +5082,11 @@ app.post('/api/chat', async (req, res) => {
             carried,
           };
           stState.lastPrimaryMode = 'studios';
+          conversationState.setActiveRun(stState, { mode: 'studios', anchorLabel: 'music exploration' });
           conversationState.saveState(effectiveUserId, stState);
           const a = stState.topicAnchor;
           console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}" turnAge=${a.turnAge} carried=${a.carried} (music_invite)`);
+          console.log('[ACTIVE_RUN]', JSON.stringify({ requestId, active: true, mode: 'studios', expired: false, defaultedMode: false, cleared: false, reason: 'music_invite' }));
           
           const pf = conversationState.getPendingFollowup(stState);
           if (pf && !pf.expired) {
@@ -7202,6 +7206,63 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
     const attunement = { posture, detected_state, postureConfidence };
     
     // ============================================================
+    // ACTIVE RUN: Studios Run Mode (sticky session)
+    // If an activeRun exists and is not expired, default to studios
+    // mode unless the user makes a clear pivot (emotional/dream/
+    // crisis/onboarding disclosure).
+    // ============================================================
+    let activeRunApplied = false;
+    let activeRunCleared = false;
+    let activeRunClearReason = null;
+    const activeRun = conversationState.getActiveRun(convoStateObj);
+    
+    if (activeRun && !activeRun.expired) {
+      const pivotPatterns = /\b(i\s+feel|i'?m\s+(feeling|tired|anxious|stressed|scared|sad|depressed|overwhelmed|hurt|angry|lonely|numb|empty|lost|broken|panick|suicidal|hopeless)|i\s+can'?t\s+(stop|handle|take|breathe|sleep)|i\s+had\s+a\s+dream|dreamt|weird\s+dream|in\s+my\s+dream|nightmare|i\s+need\s+help|i\s+want\s+to\s+(die|hurt|end)|help\s+me)\b/i;
+      const isOnboardingActive = !!(userProfile && 
+        (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null) &&
+        userProfile.onboarding_step && userProfile.onboarding_step !== 'completed');
+      const isPivot = pivotPatterns.test(lastUserMessage || '') || isEarlyCrisisMode || isOnboardingActive ||
+        !!(cognitiveIntent?.primary_emotional_context && cognitiveIntent.primary_emotional_context !== 'neutral' && /\b(i\s+feel|i'?m\s+feeling)\b/i.test(lastUserMessage || ''));
+      
+      if (isPivot) {
+        activeRunClearReason = conversationState.clearActiveRun(convoStateObj, 'pivot_detected');
+        activeRunCleared = true;
+        console.log('[ACTIVE_RUN]', JSON.stringify({
+          requestId,
+          active: false,
+          mode: activeRun.mode,
+          expired: false,
+          defaultedMode: false,
+          cleared: true,
+          reason: 'pivot_detected'
+        }));
+      } else {
+        activeRunApplied = true;
+        console.log('[ACTIVE_RUN]', JSON.stringify({
+          requestId,
+          active: true,
+          mode: activeRun.mode,
+          expired: false,
+          defaultedMode: true,
+          cleared: false,
+          reason: 'run_active'
+        }));
+      }
+    } else if (activeRun && activeRun.expired) {
+      activeRunCleared = true;
+      activeRunClearReason = 'ttl_expired';
+      console.log('[ACTIVE_RUN]', JSON.stringify({
+        requestId,
+        active: false,
+        mode: activeRun.mode,
+        expired: true,
+        defaultedMode: false,
+        cleared: true,
+        reason: 'ttl_expired'
+      }));
+    }
+    
+    // ============================================================
     // BRAIN SYNTHESIS (Phase 2: After all signals are computed)
     // Consolidates all module signals into traceIntent object
     // ============================================================
@@ -7297,6 +7358,90 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
           action_name: traceIntent.action?.name || 'none',
           external: traceIntent.action?.payload?.external || false,
         }));
+      }
+
+      // ============================================================
+      // ACTIVE RUN: Post-brainSynthesis refresh / tracking
+      // If primaryMode==="studios" → set/refresh activeRun
+      // If non-studios and activeRun exists → increment consecutiveNonRunTurns
+      // If 2 consecutive non-studios turns → clear activeRun
+      // If activeRunApplied (pre-routing default) → override primaryMode
+      // ============================================================
+      if (traceIntent) {
+        if (activeRunApplied && traceIntent.primaryMode !== 'studios' && !activeRunCleared) {
+          traceIntent.primaryMode = 'studios';
+          traceIntent.constraints.allowActivities = 'never';
+          traceIntent.constraints.suppressSoundscapes = true;
+          if (!traceIntent.constraints.studiosDirective) {
+            traceIntent.constraints.studiosDirective = `Do not mention soundscapes. Only album/tracks/playlists/visual concepts.
+CAPABILITY-AWARE ACTIONS:
+- If recommending a TRACE track/album: use PLAY_IN_APP_TRACK. You may say "Playing…" or "Here's…".
+- If recommending Spotify content: use OPEN_JOURNAL_MODAL (preferred) or OPEN_EXTERNAL_URL. Never say "Playing…" for Spotify. Use "Check this out…" or "You might like…".
+- Never mix sources in one response. One action per response.`;
+          }
+          conversationState.setActiveRun(convoStateObj, {
+            mode: 'studios',
+            anchorLabel: traceIntent.topicAnchor?.label || 'music exploration',
+          });
+          conversationState.saveState(effectiveUserId, convoStateObj);
+        } else if (activeRunCleared && traceIntent.primaryMode === 'studios') {
+          traceIntent.primaryMode = 'conversation';
+          traceIntent.constraints.allowActivities = traceIntent.constraints.allowActivities === 'never' ? undefined : traceIntent.constraints.allowActivities;
+          traceIntent.constraints.suppressSoundscapes = false;
+          traceIntent.constraints.studiosDirective = null;
+          console.log('[ACTIVE_RUN]', JSON.stringify({
+            requestId,
+            active: false,
+            mode: 'studios',
+            expired: false,
+            defaultedMode: false,
+            cleared: true,
+            reason: 'pivot_override_primaryMode'
+          }));
+        } else if (traceIntent.primaryMode === 'studios') {
+          conversationState.setActiveRun(convoStateObj, {
+            mode: 'studios',
+            anchorLabel: traceIntent.topicAnchor?.label || 'music exploration',
+          });
+          conversationState.saveState(effectiveUserId, convoStateObj);
+          if (!activeRunApplied) {
+            console.log('[ACTIVE_RUN]', JSON.stringify({
+              requestId,
+              active: true,
+              mode: 'studios',
+              expired: false,
+              defaultedMode: false,
+              cleared: false,
+              reason: 'studios_entered'
+            }));
+          }
+        } else if (convoStateObj?.activeRun) {
+          const nonRunCount = conversationState.incrementNonRunTurns(convoStateObj);
+          if (nonRunCount >= 2) {
+            conversationState.clearActiveRun(convoStateObj, 'consecutive_non_run');
+            conversationState.saveState(effectiveUserId, convoStateObj);
+            console.log('[ACTIVE_RUN]', JSON.stringify({
+              requestId,
+              active: false,
+              mode: 'studios',
+              expired: false,
+              defaultedMode: false,
+              cleared: true,
+              reason: 'consecutive_non_run'
+            }));
+          } else {
+            conversationState.saveState(effectiveUserId, convoStateObj);
+            console.log('[ACTIVE_RUN]', JSON.stringify({
+              requestId,
+              active: true,
+              mode: convoStateObj.activeRun.mode,
+              expired: false,
+              defaultedMode: false,
+              cleared: false,
+              reason: `non_run_turn_${nonRunCount}`
+            }));
+          }
+        }
       }
 
     } catch (synthErr) {
