@@ -4272,6 +4272,7 @@ app.post('/api/chat', async (req, res) => {
       // Get last assistant message for context-aware responses
       const lastAssistantMsg = rawMessages?.filter(m => m.role === 'assistant').pop()?.content || '';
       const clientState = req.body.traceStudiosContext ? { traceStudiosContext: req.body.traceStudiosContext } : {};
+      console.log('[TRACE STUDIOS DEBUG] received traceStudiosContext:', req.body.traceStudiosContext || 'NONE', '| userMsg:', studiosUserMsg.content?.substring(0, 40));
       
       // Get nowPlaying from client_state for lyrics context
       const rawClientState = req.body.client_state || {};

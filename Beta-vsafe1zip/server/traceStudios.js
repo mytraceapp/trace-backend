@@ -529,15 +529,17 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
   }
   
   // PRIORITY 2: Context-based play requests (user confirmed after offer)
-  // Also fires when contextTrackId is 'night_swim' (album-level offer) 
+  // Also fires when contextTrackId is 'night_swim' (album-level offer)
+  // Also fires when TRACE just mentioned a track and user confirms (server-side detection, no client context needed)
   const isAlbumContext = contextTrackId === 'night_swim';
+  const lastMsgOfferedTrack = mentionedTrack || justMentionedNightSwim || justMentionedNeonPromise;
   const hasPlayableContext = contextTrack || isAlbumContext || mentionedTrack || inNeonContext || justMentionedNightSwim || justMentionedNeonPromise;
   
-  if ((wantsToPlay || (isAffirmative && (contextTrack || isAlbumContext))) && hasPlayableContext) {
+  if ((wantsToPlay || (isAffirmative && (contextTrack || isAlbumContext || lastMsgOfferedTrack))) && hasPlayableContext) {
     console.log('[TRACE STUDIOS] Confirmed play request detected — sending ui_action');
     
-    // Priority: TRACE's last mention > context track > album context > neon promise context
-    const trackToPlay = mentionedTrack || contextTrack || (inNeonContext ? TRACKS.neon_promise : null);
+    // Priority: TRACE's last mention > context track > neon promise context > last msg neon promise
+    const trackToPlay = mentionedTrack || contextTrack || (inNeonContext ? TRACKS.neon_promise : null) || (justMentionedNeonPromise ? TRACKS.neon_promise : null);
     
     if (trackToPlay) {
       console.log('[TRACE STUDIOS] Playing specific track:', trackToPlay.title);
