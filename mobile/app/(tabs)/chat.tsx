@@ -571,6 +571,7 @@ export default function ChatScreen() {
   
   // Track TRACE Studios music reveal context to avoid playlist clash
   const [traceStudiosContext, setTraceStudiosContext] = useState<string | null>(null);
+  const traceStudiosContextRef = useRef<string | null>(null);
   const [nightSwimTracks, setNightSwimTracks] = useState<any[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isNightSwimPlaying, setIsNightSwimPlaying] = useState(false);
@@ -1551,6 +1552,7 @@ export default function ChatScreen() {
           // Update TRACE Studios context from reflection response (for offer-then-confirm cadence)
           if (data?.traceStudios?.traceStudiosContext) {
             setTraceStudiosContext(data.traceStudios.traceStudiosContext);
+            traceStudiosContextRef.current = data.traceStudios.traceStudiosContext;
             console.log('🎵 Reflection: Set traceStudiosContext:', data.traceStudios.traceStudiosContext);
           }
           
@@ -1763,7 +1765,7 @@ export default function ChatScreen() {
         deviceId: stableId,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         patternContext,
-        traceStudiosContext, // Pass current context to avoid playlist clash
+        traceStudiosContext: traceStudiosContextRef.current || traceStudiosContext, // Use ref to avoid stale closures
         client_state: clientStateRef.current, // Pass full client state for doorways/brain
         weatherContext, // Include weather for contextual responses
       });
@@ -1773,9 +1775,10 @@ export default function ChatScreen() {
       // Update TRACE Studios context from response (clears after 2 turns if not renewed)
       if (result?.traceStudios?.traceStudiosContext) {
         setTraceStudiosContext(result.traceStudios.traceStudiosContext);
-      } else if (traceStudiosContext) {
-        // Clear context after one turn without renewal
+        traceStudiosContextRef.current = result.traceStudios.traceStudiosContext;
+      } else if (traceStudiosContext || traceStudiosContextRef.current) {
         setTraceStudiosContext(null);
+        traceStudiosContextRef.current = null;
       }
       
       // ===== APPLY CLIENT STATE PATCH from backend (doorways, suggestions, hooks) =====
