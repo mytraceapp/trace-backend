@@ -76,6 +76,10 @@ Prompt-level polish in `traceDirectiveV2.js` that makes TRACE feel less scripted
 
 `computeNextMove()` in `brainSynthesis.js` selects one clear next move per turn from: `continue`, `clarify`, `offer_music`, `offer_activity_if_asked`, `reflect_then_question`, `deliver_longform`. Studios mode restricts to `{continue, clarify, offer_music, deliver_longform}` only. High confidence + continuity prefers `continue`. Explicit music asks → `offer_music`. Ambiguous short messages → `clarify`. Longform mode → `deliver_longform`. The directive injects a `NEXT MOVE CONTRACT` line mapping each move to specific behavioral rules (e.g., `clarify` = exactly 1 question, nothing else). Crisis/onboarding bypass. Observability: `[PHASE7_NEXTMOVE]` log with requestId, mode, confidence, nextMove, intentType, continuity_required (V2 only). Files: `brainSynthesis.js`, `traceDirectiveV2.js`, `index.js`.
 
+## Output Contract Lock (Phase 7 Step 3)
+
+Hard-locks TRACE's premium response quality via prompt-level output contracts and lightweight log-only assertions. V2-only, crisis/onboarding bypass. The V2 directive (`traceDirectiveV2.js`) injects a `NEXT MOVE OUTPUT CONTRACT` section with: (1) First-Line Continuity Rule — banned reset phrases when continuity required, (2) Studios First-Turn Exception — no identity intros, (3) Mode Guardrails — studios forbids activities/soundscapes/therapy, conversation forbids unsolicited music offers. `assertNextMoveContract()` in `server/validation/nextMoveAsserts.js` runs 6 deterministic assertions: `first_line_reset`, `studios_identity_intro`, `move_mix_clarify`, `move_question_count`, `studios_activity_leak`, `conversation_music_offer_leak`. Always-on `[PHASE7_CONTRACT]` log with requestId, ran, passed, primaryMode, nextMove, confidence, continuity_required, violations. No user text logged. No schema/routing/flag changes. Files: `traceDirectiveV2.js`, `nextMoveAsserts.js`, `index.js`.
+
 ## Doorways v1 (Brain-Only Detection)
 
 Detects user entry into specific emotional/psychological realms to inject contextual intent into the system prompt.

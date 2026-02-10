@@ -130,6 +130,7 @@ const { computeMeta } = require('./validation/computeMeta');
 const { validateTraceResponseSchema } = require('./validation/validateTraceResponseSchema');
 const { rewriteToSchema } = require('./validation/rewriteToSchema');
 const { shouldUseSchemaEnforcement, buildSchemaMetrics } = require('./validation/schemaRollout');
+const { assertNextMoveContract } = require('./validation/nextMoveAsserts');
 const {
   detectEmotionalState,
   isUserAgreeing,
@@ -10019,6 +10020,26 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       })();
     }
     
+    // ── Phase 7 Step 3: Output Contract Lock assertions ──
+    const contractResult = assertNextMoveContract({
+      requestId: chatRequestId,
+      useV2,
+      isCrisisMode,
+      isOnboardingActive,
+      traceIntent,
+      finalText: response.message,
+    });
+    console.log('[PHASE7_CONTRACT]', JSON.stringify({
+      requestId: chatRequestId,
+      ran: contractResult.ran,
+      passed: contractResult.passed,
+      primaryMode: traceIntent?.primaryMode || 'conversation',
+      nextMove: traceIntent?.nextMove || null,
+      confidence: traceIntent?.confidence || null,
+      continuity_required: traceIntent?.continuity?.required || false,
+      violations: contractResult.violations.map(v => v.code),
+    }));
+
     // Phase 4.6: Condensed end-of-request log (no PHI)
     if (process.env.TRACE_INTENT_LOG === '1') {
       console.log('[PHASE4]', JSON.stringify({

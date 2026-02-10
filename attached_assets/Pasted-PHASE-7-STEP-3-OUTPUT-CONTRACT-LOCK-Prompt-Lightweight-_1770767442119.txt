@@ -1,0 +1,222 @@
+PHASE 7 STEP 3 — OUTPUT CONTRACT LOCK (Prompt + Lightweight Assertions)
+
+OBJECTIVE
+Implement Phase 7 Step 3 to hard-lock TRACE’s premium feel by enforcing:
+• First-line continuity behavior
+• Strict nextMove → output contracts
+• Studios vs Conversation guardrails
+
+This is V2-only. No routing, schema, model, or flag changes. Crisis and onboarding must bypass everything.
+
+DO NOT CHANGE
+• TRACE_SCHEMA_ENFORCEMENT_PCT
+• Retirement flags
+• Drift Lock behavior
+• Studios Run Mode logic
+• Followup Override logic
+• Model routing, tiers, retries, or timeouts
+
+————————————————————————
+PART A — V2 PROMPT CONTRACT
+————————————————————————
+
+Update the V2 directive (traceDirectiveV2.js or equivalent) to add a hard “NEXT MOVE OUTPUT CONTRACT” section.
+
+Add these rules verbatim in strong language:
+
+1) FIRST-LINE CONTINUITY RULE
+If continuity.required === true:
+• First sentence MUST be a direct continuation of the current thread
+• 6–14 words
+• Forbidden in first sentence:
+  - “I’m TRACE”
+  - “TRACE Studios”
+  - “As an AI”
+  - “To recap”
+  - “Let’s”
+  - “Just to clarify”
+  - “Here’s what we’ll do”
+
+2) STUDIOS FIRST-TURN EXCEPTION
+If primaryMode === "studios" AND continuity.required === false:
+• First sentence MUST be creative or action-oriented
+• NEVER explain what Studios is
+• NEVER introduce TRACE’s identity
+
+3) NEXT MOVE → OUTPUT MAPPING (DO NOT MIX MOVES)
+• continue:
+  - Continue content only
+  - NO questions unless missing-slot detection explicitly requires it
+
+• clarify:
+  - Ask EXACTLY ONE question
+  - STOP immediately (no extra content)
+
+• offer_music:
+  - Offer ONE track OR ask ONE preference question
+  - NEVER mention soundscapes or activities
+
+• reflect_then_question:
+  - Brief reflection (1–2 lines)
+  - Ask EXACTLY ONE warm question
+  - Do NOT offer music unless user explicitly asked
+
+• deliver_longform:
+  - Long output
+  - NO questions
+  - NEVER truncate
+  - Enforce structure for stories/recipes
+
+4) MODE GUARDRAILS
+If primaryMode === "studios":
+• Forbidden: activities, soundscapes, grounding, exercises, therapy cadence
+
+If primaryMode === "conversation":
+• Forbidden: offering tracks, playlists, albums unless user explicitly asks
+  (play / spotify / track / playlist intent)
+
+————————————————————————
+PART B — LIGHTWEIGHT ASSERTIONS (LOG-ONLY)
+————————————————————————
+
+Create: server/validation/nextMoveAsserts.js
+
+Export function:
+assertNextMoveContract({
+  requestId,
+  useV2,
+  isCrisisMode,
+  isOnboardingActive,
+  traceIntent,
+  finalText
+})
+
+Return:
+{
+  ran: boolean,
+  passed: boolean,
+  violations: [{ code, detail, severity }]
+}
+
+Run ONLY if:
+• useV2 === true
+• NOT crisis
+• NOT onboarding
+• traceIntent.nextMove exists
+• finalText exists
+
+Assertions (deterministic, no user text logged):
+
+1) first_line_reset (severity: high)
+If continuity.required === true AND first sentence contains:
+• “I’m TRACE”
+• “TRACE Studios”
+• “As an AI”
+• “To recap”
+• “Let’s”
+• “Just to clarify”
+• “Here’s what we’ll do”
+
+2) studios_identity_intro (severity: high)
+If primaryMode === "studios"
+AND continuity.required === false
+AND first sentence introduces TRACE or Studios
+
+3) move_mix_clarify (severity: medium)
+If nextMove === "clarify"
+AND response has more than 1 sentence OR paragraph break
+
+4) move_question_count (severity: medium/high)
+• continue / deliver_longform → question count MUST be 0
+• clarify / offer_music / reflect_then_question → question count MUST be exactly 1
+
+5) studios_activity_leak (severity: high)
+If primaryMode === "studios" AND text contains:
+• soundscape
+• breathing
+• grounding
+• exercise
+• doorway
+• “try this”
+• “let’s do”
+
+6) conversation_music_offer_leak (severity: high)
+If primaryMode === "conversation"
+AND nextMove !== "offer_music"
+AND user did NOT request music
+AND response offers track/playlist/Spotify/Night Swim
+
+————————————————————————
+PART C — LOGGING
+————————————————————————
+
+Add always-on log:
+[PHASE7_CONTRACT] {
+  requestId,
+  ran,
+  passed,
+  primaryMode,
+  nextMove,
+  confidence,
+  continuity_required,
+  violations: [codes]
+}
+
+NO user text in logs.
+
+————————————————————————
+PART D — WIRING
+————————————————————————
+
+Wire assertNextMoveContract into server/index.js:
+• After finalText is produced
+• After rewrites (if any)
+• Before response is returned
+
+Do NOT alter schema enforcement flow.
+
+————————————————————————
+PART E — CURL ACCEPTANCE SCRIPT
+————————————————————————
+
+Create: server/tools/phase7_step3_curl.sh
+
+Sequence (same userId + visitorId):
+
+1) “Give me a reel concept for Midnight Underwater.”
+2) “Now one for Neon Promise, same vibe.”
+3) “Make it more cinematic.”
+4) “Give me a 6-shot list.”
+5) “Now caption + five hashtags.”
+6) “Actually I feel tired and overwhelmed.”
+7) “It’s been like this all week.”
+8) “Back to music — play Midnight Underwater.”
+
+Script should:
+• Hit localhost:5000/api/chat
+• Print raw JSON (no jq)
+• Use POST with JSON body
+
+Expected:
+• PHASE7_CONTRACT passed:true on turns 2–5
+• No studios_identity_intro
+• No studios_activity_leak
+• No conversation_music_offer_leak on turns 6–7
+• offer_music only on turn 8
+
+————————————————————————
+DELIVERABLES
+————————————————————————
+
+• Updated V2 directive with output contract
+• server/validation/nextMoveAsserts.js
+• index.js wiring
+• server/tools/phase7_step3_curl.sh
+
+NO new flags
+NO routing changes
+NO schema changes
+NO model changes
+
+————————————————————————
+END

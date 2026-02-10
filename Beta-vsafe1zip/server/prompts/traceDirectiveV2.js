@@ -1,15 +1,12 @@
 /**
- * TRACE Turn Directive V2 (Phase 2 + Phase 7 Step 1)
+ * TRACE Turn Directive V2 (Phase 2 + Phase 7 Steps 1-3)
  * 
  * Converts traceIntent into explicit turn instructions.
  * This is the dynamic portion that changes per-request.
  * 
- * Phase 7 Step 1 additions:
- *   - Confidence Posture (high/medium/low)
- *   - First-Sentence Authority Rule
- *   - Hedging Suppression
- *   - Cadence Buckets (studios vs conversation)
- *   - Latency Perception directive
+ * Phase 7 Step 1: Confidence Posture, First-Sentence Authority, Hedging, Cadence
+ * Phase 7 Step 2: Next-Move Contracts
+ * Phase 7 Step 3: Output Contract Lock (hard enforcement of move→output mapping)
  * 
  * Design: Always placed LAST in the system prompt for maximum instruction following.
  */
@@ -148,18 +145,45 @@ Do not ask any questions in this response.`
   }
 
   const NEXT_MOVE_CONTRACTS = {
-    continue: 'Respond directly on-thread. Max 1 question.',
-    clarify: 'Ask exactly 1 clarifying question, nothing else.',
-    offer_music: 'Execute music action/format. No soundscapes or activities.',
-    offer_activity_if_asked: 'Offer an activity only if the user asked. Otherwise, respond normally.',
-    reflect_then_question: '1 grounded reflection line + 1 question.',
-    deliver_longform: 'No questions. Ensure complete structure (beginning, middle, end).',
+    continue: 'Continue content only. NO questions unless a missing-slot detection explicitly requires it. Do NOT mix in reflections, music offers, or activity offers.',
+    clarify: 'Ask EXACTLY ONE question. STOP immediately after. No extra content, no reflections, no offers.',
+    offer_music: 'Offer ONE track OR ask ONE preference question. NEVER mention soundscapes or activities.',
+    offer_activity_if_asked: 'Offer an activity only if the user asked. Otherwise respond normally. Do NOT offer music.',
+    reflect_then_question: 'Brief reflection (1–2 lines) then ask EXACTLY ONE warm question. Do NOT offer music unless user explicitly asked.',
+    deliver_longform: 'Long output. NO questions. NEVER truncate. Enforce structure for stories/recipes (beginning, middle, end).',
   };
 
   const nextMove = traceIntent?.nextMove || null;
   const nextMoveContract = (nextMove && !isCrisisOrOnboarding && NEXT_MOVE_CONTRACTS[nextMove])
     ? `NEXT MOVE: ${nextMove}. ${NEXT_MOVE_CONTRACTS[nextMove]} Do not do multiple moves.`
     : '';
+
+  // ── Phase 7 Step 3: Output Contract Lock ──
+  let outputContractBlock = '';
+  if (!isCrisisOrOnboarding) {
+    const contractRules = [];
+
+    // First-Line Continuity Rule
+    if (continuityRequired) {
+      contractRules.push(`FIRST-LINE CONTINUITY (HARD RULE): Your first sentence MUST be a direct continuation of the current thread, 6–14 words. FORBIDDEN in first sentence: "I'm TRACE", "TRACE Studios", "As an AI", "To recap", "Let's", "Just to clarify", "Here's what we'll do". Violation = failed output.`);
+    }
+
+    // Studios First-Turn Exception
+    if (primaryMode === 'studios' && !continuityRequired) {
+      contractRules.push(`STUDIOS FIRST-TURN (HARD RULE): First sentence MUST be creative or action-oriented. NEVER explain what Studios is. NEVER introduce TRACE's identity. Jump straight into creative output.`);
+    }
+
+    // Mode Guardrails
+    if (primaryMode === 'studios') {
+      contractRules.push(`STUDIOS GUARDRAIL: FORBIDDEN in this response — activities, soundscapes, grounding, exercises, breathing, therapy cadence, "try this", "let's do". Only music, albums, tracks, playlists, creative content.`);
+    } else if (primaryMode === 'conversation') {
+      contractRules.push(`CONVERSATION GUARDRAIL: Do NOT offer tracks, playlists, albums, Night Swim, or Spotify unless the user explicitly asked for music (play/spotify/track/playlist intent).`);
+    }
+
+    if (contractRules.length > 0) {
+      outputContractBlock = `\nNEXT MOVE OUTPUT CONTRACT (ENFORCE STRICTLY):\n${contractRules.join('\n')}`;
+    }
+  }
 
   return `
 TURN DIRECTIVE
@@ -168,6 +192,7 @@ ${summaryLine}
 ${continuityLine}
 ${confidenceBlock}
 ${nextMoveContract}
+${outputContractBlock}
 ${modeBlock}
 ${structure}
 ${questionsRule}
