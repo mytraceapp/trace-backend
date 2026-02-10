@@ -722,6 +722,9 @@ export default function ChatScreen() {
     
     stopAmbient();
     
+    // Set track index IMMEDIATELY before showing player to prevent wrong track flash
+    setCurrentTrackIndex(trackIndex);
+    
     // Increment session counter to force React remount (handles back-to-back requests)
     setNightSwimSession(prev => prev + 1);
     setShowNightSwimPlayer(true);
@@ -742,8 +745,7 @@ export default function ChatScreen() {
 
       if (data && data.length > 0) {
         setNightSwimTracks(data);
-        setCurrentTrackIndex(trackIndex);
-        console.log('🎵 Loaded Night Swim tracks:', data.length);
+        console.log('🎵 Loaded Night Swim tracks:', data.length, 'starting at track:', trackIndex);
         
         if (autoplay) {
           await playNightSwimTrack(data[trackIndex] || data[0]);
@@ -1578,10 +1580,11 @@ export default function ChatScreen() {
                 };
                 clientStateRef.current.mode = 'audio_player';
                 console.log('🎵 Reflection: Opening audio_player for', trackTitle);
+                setCurrentTrackIndex(trackIndex);
                 setTimeout(() => {
                   openNightSwimPlayer(
                     reflectionAudio.autoplay !== false,
-                    reflectionAudio.track || 0
+                    trackIndex
                   );
                 }, 600);
               } else if (playbackMode === 'spotify_journal') {
@@ -2002,10 +2005,13 @@ export default function ChatScreen() {
           clientStateRef.current.mode = 'audio_player';
           console.log('🎵 Updated nowPlaying:', clientStateRef.current.nowPlaying);
           
+          // Set track index immediately to prevent wrong-track flash
+          setCurrentTrackIndex(trackIndex);
+          
           setTimeout(() => {
             openNightSwimPlayer(
               audioAction.autoplay !== false,
-              audioAction.track || 0
+              trackIndex
             );
           }, 600);
         } else if (playbackMode === 'spotify_journal') {
