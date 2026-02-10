@@ -12,6 +12,9 @@ const { createUiAction, UI_ACTION_TYPES } = require('./brain/traceIntent');
 const _recentStudiosVisuals = new Map();
 const STUDIOS_VISUAL_CAP = 10;
 
+const _recentStudiosConcepts = new Map();
+const STUDIOS_CONCEPT_CAP = 10;
+
 function simpleHash(str) {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
@@ -53,6 +56,33 @@ function recordStudiosVisual(userId, text) {
   recents.push({ hash: simpleHash(text), text: text.substring(0, 120) });
   if (recents.length > STUDIOS_VISUAL_CAP) recents = recents.slice(-STUDIOS_VISUAL_CAP);
   _recentStudiosVisuals.set(userId, recents);
+}
+
+function extractConcept(text) {
+  const first = (text || '').split(/[.\n]/).filter(Boolean)[0] || '';
+  return first.substring(0, 80).trim();
+}
+
+function checkConceptRepeat(userId, text) {
+  const concept = extractConcept(text);
+  if (!concept) return false;
+  const recents = _recentStudiosConcepts.get(userId) || [];
+  const hash = simpleHash(concept);
+  for (const entry of recents) {
+    if (entry.hash === hash || bigramSimilarity(concept, entry.text) > 0.7) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function recordStudiosConcept(userId, text) {
+  const concept = extractConcept(text);
+  if (!concept) return;
+  let recents = _recentStudiosConcepts.get(userId) || [];
+  recents.push({ hash: simpleHash(concept), text: concept });
+  if (recents.length > STUDIOS_CONCEPT_CAP) recents = recents.slice(-STUDIOS_CONCEPT_CAP);
+  _recentStudiosConcepts.set(userId, recents);
 }
 
 function norm(s = "") {
@@ -880,5 +910,7 @@ module.exports = {
   TRACKS,
   checkStudiosRepeat,
   recordStudiosVisual,
+  checkConceptRepeat,
+  recordStudiosConcept,
   UI_ACTION_TYPES,
 };

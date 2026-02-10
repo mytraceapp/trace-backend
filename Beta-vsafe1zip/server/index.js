@@ -42,7 +42,7 @@ const {
 } = require('./traceSystemPrompt');
 const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
-const { handleTraceStudios, TRACKS, checkStudiosRepeat, recordStudiosVisual, UI_ACTION_TYPES } = require('./traceStudios');
+const { handleTraceStudios, TRACKS, checkStudiosRepeat, recordStudiosVisual, checkConceptRepeat, recordStudiosConcept, UI_ACTION_TYPES } = require('./traceStudios');
 const {
   storeSignal,
   getOrAnalyzeLearnings,
@@ -4323,6 +4323,27 @@ app.post('/api/chat', async (req, res) => {
           }
           console.log('[STUDIOS_REPEAT]', JSON.stringify({ requestId, regenerated: studiosRegenerated }));
         }
+        
+        let conceptRegen = false;
+        if (checkConceptRepeat(effectiveUserId, studiosMsg)) {
+          const altSeed = `${effectiveUserId}::concept::${Date.now()}`;
+          const altResponse = handleTraceStudios({
+            userText: studiosUserMsg.content + ' ' + altSeed,
+            clientState,
+            userId: effectiveUserId,
+            lastAssistantMessage: lastAssistantMsg,
+            nowPlaying,
+            recentAssistantMessages: recentAssistantMsgs,
+          });
+          if (altResponse?.assistant_message && altResponse.assistant_message !== studiosMsg) {
+            studiosMsg = altResponse.assistant_message;
+            studiosResponse.traceStudios = altResponse.traceStudios || studiosResponse.traceStudios;
+            studiosUiAction = altResponse.ui_action || studiosUiAction;
+            conceptRegen = true;
+          }
+          console.log('[STUDIOS_REPEAT]', JSON.stringify({ requestId, regen: conceptRegen, layer: 'concept' }));
+        }
+        recordStudiosConcept(effectiveUserId, studiosMsg);
         
         recordStudiosVisual(effectiveUserId, studiosMsg);
         
