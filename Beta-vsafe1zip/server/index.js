@@ -7281,7 +7281,7 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
       const sessionSummary = buildSessionSummary(traceIntent, convoStateObj);
       if (sessionSummary) {
         const anchor = traceIntent.topicAnchor;
-        console.log('[SESSION_SUMMARY]', JSON.stringify({ requestId: chatRequestId, word_count: sessionSummary.split(/\s+/).length, domain: anchor?.domain || null, label: anchor?.label || null }));
+        console.log('[SESSION_SUMMARY]', JSON.stringify({ requestId: requestId || `req-${Date.now()}`, word_count: sessionSummary.split(/\s+/).length, domain: anchor?.domain || null, label: anchor?.label || null }));
       }
 
       // V2 mode: Complete replacement, no legacy injections
