@@ -152,6 +152,22 @@ CAPABILITY-AWARE ACTIONS:
     getPendingFollowup: getPendingFollowupFn,
   });
 
+  const synthConfidence = intent.continuity?.required ? 'high'
+    : intent.topicAnchor?.carried ? 'medium'
+    : (conversationState?.stage && ['EXPLORING','PROCESSING','INTEGRATING','CLOSING'].includes(conversationState.stage)) ? 'medium'
+    : 'low';
+
+  intent.nextMove = computeNextMove({
+    primaryMode: intent.primaryMode,
+    intentType: intent.intentType,
+    mode: intent.mode,
+    continuity: intent.continuity,
+    conversationState,
+    traceBrainSignals,
+    currentMessage,
+    confidence: synthConfidence,
+  });
+
   return intent;
 }
 
@@ -485,6 +501,36 @@ function buildSessionSummary(traceIntent, sessionState) {
   }
 
   return summary.replace(/\.\s*$/, '') + '.';
+}
+
+function computeNextMove({ primaryMode, intentType, mode, continuity, conversationState, traceBrainSignals, currentMessage, confidence }) {
+  const text = (currentMessage || '').toLowerCase();
+  const isStudios = primaryMode === 'studios';
+  const continuityRequired = continuity?.required === true;
+  const conf = confidence || 'low';
+
+  if (mode === 'longform') return 'deliver_longform';
+
+  const explicitMusicAsk = /\b(play|listen|song|track|album|playlist|night swim|spotify|queue)\b/.test(text);
+  if (explicitMusicAsk) return 'offer_music';
+
+  const missingSlot = isStudios && !explicitMusicAsk && /\b(something|anything|whatever|idk|not sure|hmm|what|which)\b/.test(text) && text.length < 50;
+  if (missingSlot) return 'clarify';
+
+  if (conf === 'high' && continuityRequired) return 'continue';
+
+  if (isStudios) {
+    return 'continue';
+  }
+
+  if (continuityRequired) return 'continue';
+
+  const topicEstablished = !!conversationState?.topicEstablished;
+  if (topicEstablished) return 'reflect_then_question';
+
+  if (traceBrainSignals?.asksForHelp) return 'clarify';
+
+  return 'reflect_then_question';
 }
 
 module.exports = { brainSynthesis, logTraceIntent, buildSessionSummary };

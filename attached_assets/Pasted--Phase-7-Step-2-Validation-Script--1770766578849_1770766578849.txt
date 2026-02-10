@@ -1,0 +1,99 @@
+# ================================
+# Phase 7 Step 2 Validation Script
+# ================================
+
+cd /home/runner/workspace/Beta-vsafe1zip/server || exit 1
+
+# Clean old log
+rm -f server.log
+
+# Start server with logging
+node index.js 2>&1 | tee -a server.log &
+SERVER_PID=$!
+
+# Give server time to boot
+sleep 3
+
+API="http://127.0.0.1:5000/api/chat"
+USER_ID="00000001-0000-0000-0000-000000000001"
+LT="2026-02-10T14:00:00-08:00"
+
+send() {
+  local MSG="$1"
+  echo
+  echo "USER: $MSG"
+  curl -sS "$API" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"userId\": \"$USER_ID\",
+      \"localTime\": \"$LT\",
+      \"messages\": [
+        {\"role\": \"user\", \"content\": \"$MSG\"}
+      ]
+    }" | python - <<'PY'
+import sys, json
+try:
+  o=json.load(sys.stdin)
+  print("SOURCE:", o.get("response_source"))
+  msg=o.get("message","")
+  print("TRACE:", msg[:160] + ("..." if len(msg)>160 else ""))
+except Exception as e:
+  print("ERROR:", e)
+PY
+}
+
+# ----------------------------
+# Turns 1–6: STUDIOS RUN
+# Expect: PHASE7_NEXTMOVE = continue
+# ----------------------------
+send "TRACE Studios: Give me a reel concept for Midnight Underwater."
+sleep 1
+send "Okay now one for Neon Promise — same vibe, different visuals."
+sleep 1
+send "Make it more cinematic, like an A24 trailer edit."
+sleep 1
+send "Now give me a hook line concept for Track 2."
+sleep 1
+send "Give me a shot list with 6 shots."
+sleep 1
+send "Now give me a caption and five hashtags."
+
+# ----------------------------
+# Turn 7: CONVERSATION PIVOT
+# Expect: pivot out of studios, no reset
+# ----------------------------
+sleep 1
+send "Actually I feel really tired today and overwhelmed."
+
+# ----------------------------
+# Turn 8: BACK TO STUDIOS (PLAY)
+# Expect: PHASE7_NEXTMOVE = offer_music
+# ----------------------------
+sleep 1
+send "Okay back to music — play Midnight Underwater."
+
+# ----------------------------
+# Allow logs to flush
+# ----------------------------
+sleep 2
+
+echo
+echo "=============================="
+echo "PHASE7_NEXTMOVE LOG CHECK"
+echo "=============================="
+grep "\[PHASE7_NEXTMOVE\]" server.log || echo "❌ No PHASE7_NEXTMOVE logs found"
+
+echo
+echo "=============================="
+echo "ANCHOR / CONTINUITY CHECK"
+echo "=============================="
+grep "\[ANCHOR\]\|\[CONTINUITY\]" server.log || echo "⚠️ No anchor/continuity logs found"
+
+echo
+echo "=============================="
+echo "OFFER MUSIC CHECK"
+echo "=============================="
+grep "offer_music" server.log || echo "❌ offer_music not detected"
+
+# Stop server
+kill $SERVER_PID

@@ -105,6 +105,7 @@ Do not ask any questions in this response.`
     : '';
 
   // ── Phase 7 Step 1: Confidence + Authority + Hedging + Cadence ──
+  // ── Phase 7 Step 2: Next-Move Contract ──
 
   const confidence = isCrisisOrOnboarding ? null : deriveConfidence(traceIntent, activeRun, convoStage);
   const anchorChanged = traceIntent?.continuity?.anchorChanged === true;
@@ -146,12 +147,27 @@ Do not ask any questions in this response.`
     ].filter(Boolean).join('\n');
   }
 
+  const NEXT_MOVE_CONTRACTS = {
+    continue: 'Respond directly on-thread. Max 1 question.',
+    clarify: 'Ask exactly 1 clarifying question, nothing else.',
+    offer_music: 'Execute music action/format. No soundscapes or activities.',
+    offer_activity_if_asked: 'Offer an activity only if the user asked. Otherwise, respond normally.',
+    reflect_then_question: '1 grounded reflection line + 1 question.',
+    deliver_longform: 'No questions. Ensure complete structure (beginning, middle, end).',
+  };
+
+  const nextMove = traceIntent?.nextMove || null;
+  const nextMoveContract = (nextMove && !isCrisisOrOnboarding && NEXT_MOVE_CONTRACTS[nextMove])
+    ? `NEXT MOVE: ${nextMove}. ${NEXT_MOVE_CONTRACTS[nextMove]} Do not do multiple moves.`
+    : '';
+
   return `
 TURN DIRECTIVE
 Intent type: ${intentType}
 ${summaryLine}
 ${continuityLine}
 ${confidenceBlock}
+${nextMoveContract}
 ${modeBlock}
 ${structure}
 ${questionsRule}

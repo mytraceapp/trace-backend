@@ -72,6 +72,10 @@ When FOLLOWUP_OVERRIDE fires with `pivot_to_studios`: (1) forces `traceIntent.co
 
 Prompt-level polish in `traceDirectiveV2.js` that makes TRACE feel less scripted and more intuitive. `deriveConfidence()` computes a confidence level (high/medium/low) from `traceIntent.continuity.required`, `activeRun.active`, `topicAnchor.carried`, and conversation stage. High confidence: no hedging, direct continuation openers, decisive language. Medium: one soft hedge max. Low: one clarifying question max. First-Sentence Authority Rule enforces 6–14 word direct continuations when continuity is required, banning reset phrases ("Just to clarify", "As an AI", etc.). Cadence Buckets set mode-specific tone: studios = fast/declarative/no-therapy, conversation = paced/warm/grounded. Latency perception directives added per mode. Crisis/onboarding bypass all Step 1 rules. Observability: `[PHASE7]` log with requestId, mode, confidence, continuity_required, anchor_changed (V2 only, skip crisis/onboarding). No changes to schema enforcement, retirement flags, Drift Lock, or model routing. Files: `traceDirectiveV2.js`, `buildTracePromptV2.js`, `index.js`.
 
+## Micro-Anticipation + Next-Move Contracts (Phase 7 Step 2)
+
+`computeNextMove()` in `brainSynthesis.js` selects one clear next move per turn from: `continue`, `clarify`, `offer_music`, `offer_activity_if_asked`, `reflect_then_question`, `deliver_longform`. Studios mode restricts to `{continue, clarify, offer_music, deliver_longform}` only. High confidence + continuity prefers `continue`. Explicit music asks → `offer_music`. Ambiguous short messages → `clarify`. Longform mode → `deliver_longform`. The directive injects a `NEXT MOVE CONTRACT` line mapping each move to specific behavioral rules (e.g., `clarify` = exactly 1 question, nothing else). Crisis/onboarding bypass. Observability: `[PHASE7_NEXTMOVE]` log with requestId, mode, confidence, nextMove, intentType, continuity_required (V2 only). Files: `brainSynthesis.js`, `traceDirectiveV2.js`, `index.js`.
+
 ## Doorways v1 (Brain-Only Detection)
 
 Detects user entry into specific emotional/psychological realms to inject contextual intent into the system prompt.

@@ -7939,6 +7939,14 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
           continuity_required: !!traceIntent.continuity?.required,
           anchor_changed: !!traceIntent.continuity?.anchorChanged,
         }));
+        console.log('[PHASE7_NEXTMOVE]', JSON.stringify({
+          requestId: requestId || `req-${Date.now()}`,
+          mode: p7PrimaryMode,
+          confidence: p7Confidence,
+          nextMove: traceIntent.nextMove || 'none',
+          intentType: traceIntent.intentType || 'other',
+          continuity_required: !!traceIntent.continuity?.required,
+        }));
       }
     } else {
       // Legacy mode: Inject door intent into existing prompt

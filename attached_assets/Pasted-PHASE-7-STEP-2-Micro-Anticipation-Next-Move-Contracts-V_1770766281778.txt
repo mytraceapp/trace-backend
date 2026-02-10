@@ -1,0 +1,51 @@
+PHASE 7 STEP 2 — Micro-Anticipation + Next-Move Contracts (V2 only)
+
+Objective:
+Reduce “jumbled brain” feeling by making TRACE choose one clear next move per turn,
+based on traceIntent + continuity + confidence.
+
+Do NOT change:
+- routing
+- schema enforcement pct
+- retirement flags
+- Drift Lock
+- tighten/sanitize behavior
+
+Implementation:
+1) Add traceIntent.nextMove (string) computed in brainSynthesis.js (or a small helper called from it):
+   Allowed values:
+   - "continue"
+   - "clarify"
+   - "offer_music"
+   - "offer_activity_if_asked"
+   - "reflect_then_question"
+   - "deliver_longform"
+   Rules:
+   - If primaryMode==="studios": nextMove ∈ {"continue","clarify","offer_music","deliver_longform"} only
+     (never activity/soundscape)
+   - If confidence==="high" and continuity.required===true: prefer "continue"
+   - If missing critical slot (track name / playlist target / request ambiguity): "clarify"
+   - If user explicitly asks to play/spotify/track/playlist: "offer_music"
+   - If longform constraints true: "deliver_longform"
+
+2) Inject a tiny "NEXT MOVE CONTRACT" line into traceDirectiveV2.js:
+   Example:
+   NEXT MOVE: <nextMove>. Execute it cleanly. Do not do multiple moves.
+
+   Contracts:
+   - continue: respond directly on-thread; max 1 question
+   - clarify: ask exactly 1 clarifying question, nothing else
+   - offer_music: do music action/format; no soundscapes/activities
+   - reflect_then_question: 1 grounded line + 1 question
+   - deliver_longform: no questions; ensure complete structure
+
+3) Observability:
+   Always-on [PHASE7_NEXTMOVE] log (V2 only, no user text):
+   {requestId, mode, confidence, nextMove, intentType, continuity_required}
+
+Acceptance tests:
+- Studios 8 turns: nextMove mostly "continue"; only "clarify" when needed.
+- Post-activity pivot to studios: nextMove="offer_music" and no reflection follow-up.
+- Conversation 5 turns: nextMove alternates logically; no random resets.
+
+Keep existing prompt rules from Phase 7 Step 1. This step only adds the nextMove contract line.
