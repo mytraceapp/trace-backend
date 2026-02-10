@@ -46,6 +46,8 @@ function createEmptyTraceIntent() {
 
     ui_action: null,
 
+    topicAnchor: null,
+
     constraints: {
       maxSentences: 2,
       allowQuestions: 1,
