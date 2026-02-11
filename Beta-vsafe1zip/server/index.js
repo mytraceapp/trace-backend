@@ -3655,28 +3655,66 @@ app.post('/api/greeting', async (req, res) => {
       }
     }
     
-    // Get memory context (themes, goals, etc.)
-    let memoryContext = [];
+    // Load recent conversation topics from actual messages (what they were REALLY talking about)
+    let recentConversationTopics = [];
+    let lastConversationSnippet = null;
     if (userId && supabaseServer) {
       try {
-        const memoryData = await loadTraceLongTermMemory(supabaseServer, userId);
-        // Fixed: memory returns coreThemes, not themes
-        if (memoryData?.coreThemes && memoryData.coreThemes.length > 0) {
-          // Shuffle themes and pick 1-2 random ones (not always the same)
-          const shuffled = [...memoryData.coreThemes].sort(() => Math.random() - 0.5);
-          // 50% chance to use themes at all (keeps greetings varied)
-          if (Math.random() > 0.5) {
-            memoryContext = shuffled.slice(0, Math.floor(Math.random() * 2) + 1); // 1-2 random themes
+        const { data: recentMsgs } = await supabaseServer
+          .from('chat_messages')
+          .select('role, content, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(8);
+        
+        if (recentMsgs && recentMsgs.length > 0) {
+          const userMsgs = recentMsgs.filter(m => m.role === 'user' && m.content);
+          
+          const foundTopics = new Set();
+          for (const msg of userMsgs.slice(0, 5)) {
+            const keywords = conversationState.extractTopicKeywords(msg.content);
+            keywords.forEach(k => foundTopics.add(k));
+          }
+          recentConversationTopics = [...foundTopics].slice(0, 3);
+          
+          // Get a short snippet of what they were last talking about (user's last substantive message)
+          const lastSubstantive = userMsgs.find(m => m.content.length > 10);
+          if (lastSubstantive) {
+            lastConversationSnippet = lastSubstantive.content.slice(0, 80);
           }
         }
-        console.log('[GREETING] Memory loaded:', { themes: memoryContext.length, data: memoryContext });
+        console.log('[GREETING] Recent conversation topics:', recentConversationTopics, 'snippet:', lastConversationSnippet?.slice(0, 40));
+      } catch (e) {
+        console.warn('[GREETING] Failed to load recent messages:', e.message);
+      }
+    }
+    
+    // Get memory context (themes, goals, etc.) - used as FALLBACK when no recent conversation topics
+    let memoryContext = [];
+    if (userId && supabaseServer && recentConversationTopics.length === 0) {
+      try {
+        const memoryData = await loadTraceLongTermMemory(supabaseServer, userId);
+        if (memoryData?.coreThemes && memoryData.coreThemes.length > 0) {
+          const shuffled = [...memoryData.coreThemes].sort(() => Math.random() - 0.5);
+          if (Math.random() > 0.5) {
+            memoryContext = shuffled.slice(0, Math.floor(Math.random() * 2) + 1);
+          }
+        }
+        console.log('[GREETING] Memory fallback loaded:', { themes: memoryContext.length, data: memoryContext });
       } catch (e) {
         console.warn('[GREETING] Failed to load memory:', e.message);
       }
     }
     
-    // Randomize greeting approach for variety
-    const greetingApproach = ['time_focus', 'theme_focus', 'simple', 'question'][Math.floor(Math.random() * 4)];
+    // Choose greeting approach - prioritize recent conversation context when available
+    let greetingApproach;
+    if (recentConversationTopics.length > 0) {
+      greetingApproach = Math.random() > 0.3 ? 'conversation_continuity' : 'simple';
+    } else if (memoryContext.length > 0) {
+      greetingApproach = ['time_focus', 'theme_focus', 'simple', 'question'][Math.floor(Math.random() * 4)];
+    } else {
+      greetingApproach = ['time_focus', 'simple', 'question'][Math.floor(Math.random() * 3)];
+    }
     
     // Prefer mobile-provided activity name if more recent
     const effectiveRecentActivity = recentActivityName || recentActivity;
@@ -3685,6 +3723,7 @@ app.post('/api/greeting', async (req, res) => {
       timeOfDay, dayOfWeek, lastSeenDaysAgo, 
       recentActivity: effectiveRecentActivity, 
       memoryContext: memoryContext.length, 
+      recentConversationTopics,
       approach: greetingApproach,
       hasRecentCheckIn, justDidActivity, recentTopic, stressLevel 
     });
@@ -3697,11 +3736,12 @@ app.post('/api/greeting', async (req, res) => {
       recentActivity: effectiveRecentActivity, 
       memoryContext,
       greetingApproach,
-      // New context fields
       hasRecentCheckIn,
       justDidActivity,
       recentTopic,
-      stressLevel
+      stressLevel,
+      recentConversationTopics,
+      lastConversationSnippet,
     });
 
     if (!openai) {

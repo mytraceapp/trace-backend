@@ -635,7 +635,7 @@ Example energy: "Hey — I'm TRACE. I'm here whenever you want to breathe with m
 Return JSON: { "greeting": "your message" }`.trim();
 }
 
-function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext, greetingApproach, hasRecentCheckIn, justDidActivity, recentTopic, stressLevel }) {
+function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext, greetingApproach, hasRecentCheckIn, justDidActivity, recentTopic, stressLevel, recentConversationTopics, lastConversationSnippet }) {
   const firstName = displayName ? displayName.split(' ')[0] : null;
   
   // Build context parts
@@ -690,12 +690,20 @@ function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastS
     }
   }
   
-  // Recent topic context
+  // Recent topic context from client
   if (recentTopic) {
     contextParts.push(`Recent topic they mentioned: ${recentTopic}`);
   }
   
-  // Memory context - only include if approach wants it
+  // Recent ACTUAL conversation topics (from their messages in the database)
+  if (recentConversationTopics && recentConversationTopics.length > 0) {
+    contextParts.push(`What they were recently talking about: ${recentConversationTopics.join(', ')}`);
+  }
+  if (lastConversationSnippet) {
+    contextParts.push(`Their last message to you: "${lastConversationSnippet}"`);
+  }
+  
+  // Memory context - only include if approach wants it AND no recent conversation topics
   if (memoryContext && memoryContext.length > 0 && greetingApproach === 'theme_focus') {
     contextParts.push(`Things you know about them (pick ONE to mention naturally): ${memoryContext.join(', ')}`);
   }
@@ -710,6 +718,9 @@ function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastS
   // Randomize the approach instruction
   let approachInstruction = '';
   switch (greetingApproach) {
+    case 'conversation_continuity':
+      approachInstruction = 'Pick up from where you last left off. Reference what they were recently talking about — casually, like a friend who remembers. Don\'t repeat their words back verbatim, just show you remember the thread. Example: if they were talking about their teenager opening up, say something like "hey, how\'s it been going with your daughter?" NOT "How\'s school?"';
+      break;
     case 'time_focus':
       approachInstruction = 'Focus on the time of day - ask about their morning/afternoon/evening/night.';
       break;
