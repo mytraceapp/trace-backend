@@ -10491,16 +10491,21 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       traceIntent?.action?.type === 'spotify_playlist';
     const primaryModeConvo = (traceIntent?.primaryMode || 'conversation') === 'conversation';
 
-    if (primaryModeConvo && !userRequestedMusic && finalResponse.message) {
-      const MUSIC_LEAK_TERMS = /\b(night swim|spotify|playlist|rooted|low orbit|first light|neon promise|undertow|euphoria|ocean breathing|tidal house|midnight underwater|slow tides|afterglow|play.*track|album)\b/i;
+    if (primaryModeConvo && !userRequestedMusic && hasMusicLeakViolation && finalResponse.message) {
+      const MUSIC_OFFER_PATTERN = /\b(night swim|spotify|playlist|rooted playlist|low orbit playlist|first light playlist|play\s+(a\s+)?track|put on (a\s+)?(track|album)|listen to (the\s+)?(album|playlist))\b/i;
       const sentences = finalResponse.message.split(/(?<=[.!?])\s+/);
-      const cleaned = sentences.filter(s => !MUSIC_LEAK_TERMS.test(s));
+      const cleaned = sentences.filter(s => !MUSIC_OFFER_PATTERN.test(s));
       if (cleaned.length < sentences.length) {
         const strippedCount = sentences.length - cleaned.length;
-        finalResponse.message = cleaned.length > 0 ? cleaned.join(' ') : sentences[0].replace(MUSIC_LEAK_TERMS, '').trim();
+        if (cleaned.length > 0) {
+          finalResponse.message = cleaned.join(' ');
+        } else {
+          finalResponse.message = "I'm here. What's on your mind?";
+        }
         console.log('[MUSIC_LEAK_STRIP]', JSON.stringify({
           requestId: chatRequestId,
           stripped_sentences: strippedCount,
+          total_sentences: sentences.length,
           had_contract_violation: hasMusicLeakViolation,
         }));
         if (finalResponse.activity_suggestion?.name) {
