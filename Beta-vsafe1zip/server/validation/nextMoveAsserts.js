@@ -26,11 +26,15 @@ const STUDIOS_LEAK_TERMS = [
 ];
 
 const MUSIC_OFFER_TERMS = [
-  'night swim',
   'spotify',
-  'playlist',
-  'track',
-  'album',
+  'rooted playlist',
+  'rooted_playlist',
+  'low orbit playlist',
+  'low_orbit_playlist',
+  'first light playlist',
+  'first_light_playlist',
+  'on spotify',
+  'open spotify',
 ];
 
 function getFirstSentence(text) {

@@ -10481,20 +10481,20 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       violations: contractResult.violations.map(v => v.code),
     }));
 
-    // ── ACTIVE MUSIC LEAK ENFORCEMENT ──
-    // When in conversation mode and the user didn't ask for music,
-    // strip sentences that contain unsolicited playlist/Spotify/album mentions.
-    const hasMusicLeakViolation = contractResult.violations.some(v => v.code === 'conversation_music_offer_leak');
-    const userRequestedMusic = traceIntent?.intentType === 'music' ||
-      traceIntent?.signals?.traceBrain?.musicRequest === true ||
-      traceIntent?.nextMove === 'offer_music' ||
-      traceIntent?.action?.type === 'spotify_playlist';
     const primaryModeConvo = (traceIntent?.primaryMode || 'conversation') === 'conversation';
 
-    if (primaryModeConvo && !userRequestedMusic && hasMusicLeakViolation && finalResponse.message) {
-      const MUSIC_OFFER_PATTERN = /\b(night swim|spotify|playlist|rooted playlist|low orbit playlist|first light playlist|play\s+(a\s+)?track|put on (a\s+)?(track|album)|listen to (the\s+)?(album|playlist))\b/i;
+    // ── SPOTIFY PLAYLIST LEAK ENFORCEMENT ──
+    // Night Swim tracks are fine to suggest. Only strip Spotify playlist mentions
+    // (Rooted, Low Orbit, First Light) unless user asked for external recs or is leaving.
+    const lastMsgLower = (lastUserMessage || '').toLowerCase();
+    const userLeavingSignal = /\b(bye|goodbye|goodnight|gotta go|heading out|done for (tonight|now|today)|signing off|see you|talk later|i'm out|leaving|wrapping up|gotta sleep|going to bed|logging off)\b/i.test(lastMsgLower);
+    const userAskedExternal = /\b(outside|external|spotify|playlist|something else|other app|off.?app|recommend.*(outside|else|different))\b/i.test(lastMsgLower);
+    const spotifyPlaylistAllowed = userLeavingSignal || userAskedExternal || (traceIntent?.action?.type === 'spotify_playlist');
+
+    if (primaryModeConvo && !spotifyPlaylistAllowed && finalResponse.message) {
+      const SPOTIFY_PLAYLIST_PATTERN = /\b(spotify|on spotify|open spotify|rooted playlist|low orbit playlist|first light playlist|rooted_playlist|low_orbit_playlist|first_light_playlist|check out rooted|check out low orbit|check out first light|try rooted|try low orbit|try first light)\b/i;
       const sentences = finalResponse.message.split(/(?<=[.!?])\s+/);
-      const cleaned = sentences.filter(s => !MUSIC_OFFER_PATTERN.test(s));
+      const cleaned = sentences.filter(s => !SPOTIFY_PLAYLIST_PATTERN.test(s));
       if (cleaned.length < sentences.length) {
         const strippedCount = sentences.length - cleaned.length;
         if (cleaned.length > 0) {
@@ -10502,18 +10502,18 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         } else {
           finalResponse.message = "I'm here. What's on your mind?";
         }
-        console.log('[MUSIC_LEAK_STRIP]', JSON.stringify({
+        console.log('[SPOTIFY_PLAYLIST_STRIP]', JSON.stringify({
           requestId: chatRequestId,
           stripped_sentences: strippedCount,
           total_sentences: sentences.length,
-          had_contract_violation: hasMusicLeakViolation,
+          userLeaving: userLeavingSignal,
+          userAskedExternal,
         }));
         if (finalResponse.activity_suggestion?.name) {
           const playlistNames = ['rooted_playlist', 'low_orbit_playlist', 'first_light_playlist'];
-          const musicActivities = ['track_1', 'track_2', 'track_3', 'track_4', 'track_5', 'track_6', 'track_7', 'track_8', ...playlistNames];
-          if (musicActivities.includes(finalResponse.activity_suggestion.name)) {
+          if (playlistNames.includes(finalResponse.activity_suggestion.name)) {
             finalResponse.activity_suggestion = { name: null, reason: null, should_navigate: false };
-            console.log('[MUSIC_LEAK_STRIP] Cleared unsolicited music activity_suggestion');
+            console.log('[SPOTIFY_PLAYLIST_STRIP] Cleared unsolicited playlist activity_suggestion');
           }
         }
       }
@@ -10567,13 +10567,13 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     
     // Post-processing: detect playlist mentions in AI-generated responses
     // When the model mentions a playlist, store as pending offer (user must confirm before we open journal modal)
-    // TURN GATE: playlists open outside the app — only offer after 5+ turns AND in-app options explored first
+    // PLAYLIST GATE: Spotify playlists open OUTSIDE the app — absolute last resort
+    // Only allow after 7+ music suggestions, user leaving, user asking for external, or explicit playlist request
     let pipelineUiAction = null;
     const finalMsgText = (finalResponse.message || '').toLowerCase();
-    const sessionTurns = safeClientState?.turnCount || safeClientState?.sessionTurnCount || 0;
-    const hasTriedInAppMusic = safeClientState?.lastSuggestion || safeClientState?.nowPlaying;
+    const sessionMusicSuggestions = safeClientState?.musicSuggestionCount || 0;
     const isExplicitPlaylistRequest = /\b(play|open|put on)\b.*(rooted|low orbit|first light|playlist)/i.test(lastUserMessage || '');
-    const playlistTurnGateMet = (sessionTurns >= 5 && !!hasTriedInAppMusic) || isExplicitPlaylistRequest;
+    const playlistTurnGateMet = (sessionMusicSuggestions >= 7) || isExplicitPlaylistRequest || userLeavingSignal || userAskedExternal;
     
     const playlistMentions = [
       { patterns: ['rooted_playlist', 'rooted playlist', 'playing rooted', 'play rooted'], name: 'rooted_playlist', album: 'Rooted' },

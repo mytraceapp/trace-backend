@@ -177,7 +177,7 @@ Do not ask any questions in this response.`
     if (primaryMode === 'studios') {
       contractRules.push(`STUDIOS GUARDRAIL: FORBIDDEN in this response — activities, soundscapes, grounding, exercises, breathing, therapy cadence, "try this", "let's do". Only music, albums, tracks, playlists, creative content.`);
     } else if (primaryMode === 'conversation') {
-      contractRules.push(`CONVERSATION GUARDRAIL (HARD RULE): Do NOT mention, suggest, or reference ANY music — no tracks, playlists, albums, Night Swim, Spotify, Rooted, Low Orbit, First Light, or any track names. Music is ONLY allowed when the user explicitly asks with words like "play", "music", "song", "track", "playlist", or "Spotify". If unsure, do NOT mention music. Violation = response will be stripped.`);
+      contractRules.push(`CONVERSATION GUARDRAIL (HARD RULE): NEVER mention Spotify playlists (Rooted, Low Orbit, First Light) unless the user explicitly asks for external/outside-app recommendations OR is leaving/saying goodbye. Night Swim tracks are fine to suggest naturally when the emotional moment fits. Spotify playlist mentions will be stripped from the response.`);
     }
 
     if (contractRules.length > 0) {
