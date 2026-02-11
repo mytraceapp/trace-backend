@@ -519,41 +519,52 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     (includesAny(t, ["play", "put on", "start"]) && t.includes("night swim") && !requestedTrack);
   
   if (directAlbumPlay) {
-    console.log('[TRACE STUDIOS] Direct album play request for Night Swim — offering first');
+    console.log('[TRACE STUDIOS] Direct album play request for Night Swim — playing immediately');
+    const firstTrack = Object.values(TRACKS)[0];
     const responses = [
-      "Night Swim is my album — seven tracks I wrote, each one a different kind of still. Want me to put it on?",
-      "Night Swim. It's something I made — underwater textures, slow movement. Ready to hear it?",
-      "I've got an album called Night Swim — it's all mood and quiet motion. Want to listen?",
+      "Putting on Night Swim.",
+      "Night Swim, coming up.",
+      "Starting Night Swim for you.",
     ];
     const msg = pickRotating(responses, seed);
     return {
       assistant_message: msg,
       mode: "trace_studios",
-      ui_action: null,
+      ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: firstTrack?.title || 'Night Swim', trackId: firstTrack?.id || 'neon_promise', trackIndex: 0, album: 'night_swim', source: 'trace' }),
       traceStudios: {
-        kind: "offer_night_swim",
+        kind: "play_night_swim",
         traceStudiosContext: "night_swim",
+        audio_action: {
+          action: "play",
+          trackId: firstTrack?.id || 'neon_promise',
+          source: "trace_originals",
+        },
       },
     };
   }
   
-  // PRIORITY 1: Direct play request with track name — offer first, wait for confirmation
+  // PRIORITY 1: Direct play request with track name — play immediately
   if (directPlayRequest) {
-    console.log('[TRACE STUDIOS] Direct play request for:', requestedTrack.title, '— offering first');
+    console.log('[TRACE STUDIOS] Direct play request for:', requestedTrack.title, '— playing immediately');
     const track = requestedTrack;
-    const offerResponses = [
-      `${track.title} — ${track.description || 'one of my tracks'}. Ready to hear it?`,
-      `That's ${track.title}. ${track.description || 'A good one.'}. Want me to play it?`,
-      `${track.title}. ${track.mood ? 'It carries ' + track.mood.split(',')[0].trim() + '.' : ''} Let me know when you're ready.`,
+    const playResponses = [
+      `Playing ${track.title}.`,
+      `${track.title}, coming up.`,
+      `Putting on ${track.title}.`,
     ];
-    const msg = pickRotating(offerResponses, seed);
+    const msg = pickRotating(playResponses, seed);
     return {
       assistant_message: msg,
       mode: "trace_studios",
-      ui_action: null,
+      ui_action: createUiAction({ type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK, title: track.title, trackId: track.id, trackIndex: track.index || 0, album: 'night_swim', source: 'trace' }),
       traceStudios: {
-        kind: `offer_${track.id}`,
+        kind: `play_${track.id}`,
         traceStudiosContext: track.id,
+        audio_action: {
+          action: "play",
+          trackId: track.id,
+          source: "trace_originals",
+        },
       },
     };
   }
