@@ -4546,19 +4546,45 @@ app.post('/api/chat', async (req, res) => {
       
       const convoStateForAudio = conversationState.getState(effectiveUserId);
       convoStateForAudio.turnCount++;
+      
+      // Capture what was playing before stopping (for resume later)
       if (!convoStateForAudio.lastPlayedTrack) {
         const clientNowPlaying = safeClientState.nowPlaying;
         if (clientNowPlaying) {
           convoStateForAudio.lastPlayedTrack = {
             trackId: clientNowPlaying.trackId,
+            trackIndex: clientNowPlaying.trackIndex,
             title: clientNowPlaying.title,
             album: clientNowPlaying.album || 'night_swim',
             timestamp: Date.now(),
           };
           console.log('[TRACK MEMORY] Captured nowPlaying before stop:', clientNowPlaying.title);
+        } else {
+          // Fallback: try session history
+          const stopSessionHistory = getSessionHistory(effectiveUserId);
+          if (stopSessionHistory.length > 0) {
+            const lastTrackNum = stopSessionHistory[stopSessionHistory.length - 1];
+            const lastTrackInfo = getTrackInfo(lastTrackNum);
+            convoStateForAudio.lastPlayedTrack = {
+              trackIndex: lastTrackNum - 1,
+              title: lastTrackInfo?.name || `Track ${lastTrackNum}`,
+              album: 'night_swim',
+              timestamp: Date.now(),
+            };
+            console.log('[TRACK MEMORY] Captured from session history before stop:', lastTrackInfo?.name);
+          }
         }
       }
+      
+      // Store audio state: music was explicitly stopped by user
+      convoStateForAudio.audioState = {
+        status: 'stopped',
+        stoppedAt: Date.now(),
+        stoppedBy: 'user',
+        lastTrack: convoStateForAudio.lastPlayedTrack || null
+      };
       conversationState.saveState(effectiveUserId, convoStateForAudio);
+      console.log('[AUDIO STATE] Music stopped by user, saved audio state');
       
       return res.json({
         ok: true,
@@ -4614,10 +4640,12 @@ app.post('/api/chat', async (req, res) => {
           console.log('[AUDIO CONTROL] No session history, using conversation state lastPlayedTrack:', saved.trackId || saved.trackIndex);
           
           convoStateForResume.turnCount++;
+          convoStateForResume.audioState = { status: 'playing', resumedAt: Date.now(), track: saved.title || null };
           conversationState.saveState(effectiveUserId, convoStateForResume);
           
           const resumeMsg = postActivityBridge + (saved.title ? `Back on — ${saved.title}.` : "Picking up where you left off.");
           console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
+          console.log('[AUDIO STATE] Music resumed from saved state');
           
           return res.json({
             ok: true,
@@ -4649,6 +4677,7 @@ app.post('/api/chat', async (req, res) => {
         if (age < 2 * 60 * 60 * 1000) {
           console.log('[AUDIO CONTROL] Using client lastNowPlaying:', lnp.title);
           convoStateForResume.turnCount++;
+          convoStateForResume.audioState = { status: 'playing', resumedAt: Date.now(), track: lnp.title || null };
           conversationState.saveState(effectiveUserId, convoStateForResume);
           
           const resumeMsg = postActivityBridge + (lnp.title ? `Back on — ${lnp.title}.` : "Picking up where you left off.");
@@ -4705,7 +4734,9 @@ app.post('/api/chat', async (req, res) => {
       console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
       
       convoStateForResume.turnCount++;
+      convoStateForResume.audioState = { status: 'playing', resumedAt: Date.now(), track: trackInfo?.name || null };
       conversationState.saveState(effectiveUserId, convoStateForResume);
+      console.log('[AUDIO STATE] Music resumed');
       
       const resumeMsg = postActivityBridge + (trackInfo ? `Back on — ${trackInfo.name}.` : "Playing.");
       
@@ -7527,17 +7558,22 @@ You MUST:
       // This injects a context cue BEFORE the OpenAI call to guide the LLM
       // NOTE: curationResult is declared at outer scope so post-LLM pipeline can use it
       const lastUserMsgForMusic = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
-      const conversationTurnForCuration = turnCount || messages.filter(m => m.role === 'user').length;
+      const conversationTurnForCuration = messages.filter(m => m.role === 'user').length;
       
       const isExplicitMusicRequest = /\b(play|music|song|track|night swim|playlist|album)\b/i.test(lastUserMsgForMusic);
       
-      curationResult = curateMusic({
-        userId: effectiveUserId,
-        userMessage: lastUserMsgForMusic,
-        localTime: localTime || null,
-        conversationTurn: conversationTurnForCuration,
-        isExplicitMusicRequest
-      });
+      try {
+        curationResult = curateMusic({
+          userId: effectiveUserId,
+          userMessage: lastUserMsgForMusic,
+          localTime: localTime || null,
+          conversationTurn: conversationTurnForCuration,
+          isExplicitMusicRequest
+        });
+      } catch (curationErr) {
+        console.warn('[MUSIC_CURATION_V2] curateMusic threw (continuing without):', curationErr.message);
+        curationResult = { shouldOffer: false, reason: 'curation_error' };
+      }
       
       if (curationResult.shouldOffer) {
         const offerLevelName = curationResult.offerLevelName || 'GENTLE';
@@ -7584,6 +7620,25 @@ Frame it personally. Playlists open externally — only suggest if user seems op
     if (clientStateContext) {
       systemPrompt += `\n\n${clientStateContext}`;
       console.log('[TRACE BRAIN] Appended client state context');
+    }
+    
+    // ============================================================
+    // AUDIO STATE CONTEXT — Tell the LLM if music is playing/stopped
+    // This prevents context loss when user asks about music after stopping
+    // ============================================================
+    const audioConvoStateForPrompt = conversationState.getState(effectiveUserId);
+    const audioState = audioConvoStateForPrompt.audioState;
+    if (audioState) {
+      const minutesSinceMusicEvent = Math.round((Date.now() - (audioState.stoppedAt || audioState.resumedAt || 0)) / 60000);
+      if (audioState.status === 'stopped' && minutesSinceMusicEvent < 60) {
+        const lastTrackName = audioState.lastTrack?.title || audioConvoStateForPrompt.lastPlayedTrack?.title || 'a track';
+        systemPrompt += `\n\nAUDIO STATE: Music is currently OFF. User stopped it ${minutesSinceMusicEvent} minute${minutesSinceMusicEvent === 1 ? '' : 's'} ago (was playing ${lastTrackName}).
+If user asks to resume/play music, acknowledge that their music was paused and offer to bring it back. You know their last track. Do NOT ask "what are you listening to?" — you already know.
+If user mentions music in any way, you have this context.`;
+        console.log('[AUDIO STATE] Injected stopped-music context into prompt, stopped', minutesSinceMusicEvent, 'min ago');
+      } else if (audioState.status === 'playing' && minutesSinceMusicEvent < 30) {
+        systemPrompt += `\n\nAUDIO STATE: Music is currently playing${audioState.track ? ` (${audioState.track})` : ''}. User is listening right now.`;
+      }
     }
     
     // ============================================================
@@ -9582,7 +9637,20 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       console.log('[TRACE MUSIC CONTROL] User requested music stop/pause');
     } else if (isMusicResumeRequest) {
       // User wants music back - resume or start a track
-      const lastTrack = sessionHistory[sessionHistory.length - 1] || 1;
+      // Check session history first, then conversation state audioState/lastPlayedTrack
+      let lastTrack = sessionHistory[sessionHistory.length - 1] || null;
+      if (!lastTrack) {
+        const resumeConvoState = conversationState.getState(effectiveUserId);
+        const savedTrack = resumeConvoState.lastPlayedTrack;
+        if (savedTrack && savedTrack.trackIndex !== undefined) {
+          lastTrack = (savedTrack.trackIndex ?? 0) + 1;
+          console.log('[TRACE MUSIC CONTROL] Resume from convo state lastPlayedTrack:', savedTrack.title || lastTrack);
+        } else if (resumeConvoState.audioState?.lastTrack?.trackIndex !== undefined) {
+          lastTrack = (resumeConvoState.audioState.lastTrack.trackIndex ?? 0) + 1;
+          console.log('[TRACE MUSIC CONTROL] Resume from audioState lastTrack');
+        }
+      }
+      lastTrack = lastTrack || 1;
       audioAction = buildAudioAction('open', {
         source: 'originals',
         album: 'night_swim',
@@ -9758,7 +9826,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     }
     
-    // Track last played for Phase 8c guard
+    // Track last played for Phase 8c guard + update audioState
     if (audioAction && audioAction.type === 'open' && effectiveUserId) {
       const trackConvoState = conversationState.getState(effectiveUserId);
       trackConvoState.lastPlayedTrack = {
@@ -9767,8 +9835,13 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         source: 'music_pipeline',
         timestamp: Date.now(),
       };
+      trackConvoState.audioState = { status: 'playing', startedAt: Date.now(), track: getTrackInfo((audioAction.track ?? 0) + 1)?.name || null };
       conversationState.saveState(effectiveUserId, trackConvoState);
       console.log('[TRACK MEMORY] Saved lastPlayedTrack from music pipeline, index:', audioAction.track);
+    } else if (audioAction && audioAction.type === 'stop' && effectiveUserId) {
+      const stopConvoState = conversationState.getState(effectiveUserId);
+      stopConvoState.audioState = { status: 'stopped', stoppedAt: Date.now(), stoppedBy: 'pipeline', lastTrack: stopConvoState.lastPlayedTrack || null };
+      conversationState.saveState(effectiveUserId, stopConvoState);
     }
     
     // V2 curation replaces v1 proactive check — curation already ran pre-LLM
