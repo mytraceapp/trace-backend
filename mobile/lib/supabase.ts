@@ -61,27 +61,78 @@ export async function getTraceUserId(): Promise<string> {
   return userId;
 }
 
+const PERSISTED_AUTH_ID_KEY = 'trace_supabase_auth_id';
+
+export async function getPersistedAuthId(): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(PERSISTED_AUTH_ID_KEY);
+  } catch {
+    return null;
+  }
+}
+
+async function persistAuthId(userId: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(PERSISTED_AUTH_ID_KEY, userId);
+  } catch (e) {
+    console.warn('[AUTH] Failed to persist auth ID:', e);
+  }
+}
+
 export async function ensureAuthSession(): Promise<string | null> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (session?.user?.id) {
       console.log('[AUTH] Existing session found:', session.user.id.slice(0, 8));
+      await persistAuthId(session.user.id);
       return session.user.id;
     }
+    
+    const previousUserId = await getPersistedAuthId();
     
     console.log('[AUTH] No session, creating anonymous user...');
     const { data, error } = await supabase.auth.signInAnonymously();
     
     if (error) {
       console.error('[AUTH] Anonymous sign-in error:', error.message);
+      if (previousUserId) {
+        console.log('[AUTH] Falling back to persisted user ID:', previousUserId.slice(0, 8));
+        return previousUserId;
+      }
       return null;
     }
     
-    console.log('[AUTH] Anonymous user created:', data.user?.id?.slice(0, 8));
-    return data.user?.id ?? null;
+    const newUserId = data.user?.id ?? null;
+    
+    if (newUserId) {
+      await persistAuthId(newUserId);
+      
+      if (previousUserId && previousUserId !== newUserId) {
+        console.log('[AUTH] User ID changed! Previous:', previousUserId.slice(0, 8), '→ New:', newUserId.slice(0, 8));
+        console.log('[AUTH] Will migrate data from previous user ID');
+        try {
+          await AsyncStorage.setItem('trace:pending_user_migration', JSON.stringify({
+            oldUserId: previousUserId,
+            newUserId: newUserId,
+            timestamp: Date.now(),
+          }));
+        } catch (e) {
+          console.warn('[AUTH] Failed to store migration flag:', e);
+        }
+      }
+      
+      console.log('[AUTH] Anonymous user created:', newUserId.slice(0, 8));
+    }
+    
+    return newUserId;
   } catch (err: any) {
     console.error('[AUTH] Session error:', err.message);
+    const fallback = await getPersistedAuthId();
+    if (fallback) {
+      console.log('[AUTH] Using persisted fallback ID:', fallback.slice(0, 8));
+      return fallback;
+    }
     return null;
   }
 }

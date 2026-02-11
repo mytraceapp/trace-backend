@@ -857,7 +857,7 @@ export default function ChatScreen() {
       setStableId(deviceId);
       console.log('🆔 deviceId:', deviceId);
 
-      // Step 2: Get user ID
+      // Step 2: Get user ID (with persistence to survive sign-out)
       const { data } = await supabase.auth.getUser();
       let userId = data?.user?.id ?? null;
       if (!userId) {
@@ -875,14 +875,64 @@ export default function ChatScreen() {
         await AsyncStorage.setItem('trace:auth_user_id', userId);
         console.log('💾 [CHAT] Saved userId to AsyncStorage:', userId.slice(0, 8));
       }
+      
+      // Check if user ID changed (anonymous re-auth created a new user)
+      // If so, migrate local data and trigger server-side migration
+      let migrationUserId: string | null = null;
+      try {
+        const pendingMigration = await AsyncStorage.getItem('trace:pending_user_migration');
+        if (pendingMigration) {
+          const { oldUserId, newUserId, timestamp } = JSON.parse(pendingMigration);
+          const ageMinutes = (Date.now() - timestamp) / (1000 * 60);
+          if (ageMinutes < 60 * 24 && oldUserId && newUserId && userId === newUserId) {
+            migrationUserId = oldUserId;
+            console.log('🔄 [MIGRATION] Detected user ID change, old:', oldUserId.slice(0, 8), '→ new:', newUserId.slice(0, 8));
+            
+            // Migrate local conversation history from old key to new key
+            const oldMessages = await loadConversationFromStorage(oldUserId);
+            if (oldMessages.length > 0) {
+              console.log('🔄 [MIGRATION] Copying', oldMessages.length, 'local messages from old user to new');
+              await saveConversationToStorage(oldMessages, newUserId);
+            }
+            
+            // Trigger server-side data migration
+            try {
+              const migrateRes = await fetch(`${CHAT_API_BASE}/api/migrate-user`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ oldUserId, newUserId }),
+              });
+              if (migrateRes.ok) {
+                const result = await migrateRes.json();
+                console.log('🔄 [MIGRATION] Server migration result:', result);
+              } else {
+                console.warn('🔄 [MIGRATION] Server migration failed:', migrateRes.status);
+              }
+            } catch (e: any) {
+              console.warn('🔄 [MIGRATION] Server migration error:', e.message);
+            }
+            
+            await AsyncStorage.removeItem('trace:pending_user_migration');
+          } else {
+            // Stale migration or different user — clean up
+            await AsyncStorage.removeItem('trace:pending_user_migration');
+          }
+        }
+      } catch (e) {
+        console.warn('🔄 [MIGRATION] Check failed:', e);
+      }
 
       // Step 3: Load existing conversation from SERVER (Supabase) with one-hour session logic
       let serverMessages: ChatMessage[] = [];
-      let sessionActive = false; // Is there an active session (messages within last hour)?
+      let sessionActive = false;
       
-      if (userId) {
+      // Try current user ID first, fall back to migration source if no data
+      const userIdsToTry = [userId, migrationUserId].filter(Boolean) as string[];
+      
+      for (const tryUserId of userIdsToTry) {
+        if (serverMessages.length > 0) break;
         try {
-          const res = await fetch(`${CHAT_API_BASE}/api/chat-history?userId=${encodeURIComponent(userId)}`);
+          const res = await fetch(`${CHAT_API_BASE}/api/chat-history?userId=${encodeURIComponent(tryUserId)}`);
           if (res.ok) {
             const json = await res.json();
             if (json?.ok && Array.isArray(json.messages) && json.messages.length > 0) {
@@ -893,34 +943,38 @@ export default function ChatScreen() {
                 timestamp: m.created_at,
               }));
               
-              // Check if last message is within one hour (session still active)
               const lastMsg = json.messages[json.messages.length - 1];
               if (lastMsg?.created_at) {
                 const lastMsgTime = new Date(lastMsg.created_at).getTime();
                 const ageMinutes = (Date.now() - lastMsgTime) / (1000 * 60);
                 sessionActive = ageMinutes < 60;
-                console.log('⏰ Last message age:', Math.round(ageMinutes), 'minutes, session active:', sessionActive);
+                console.log('⏰ Last message age:', Math.round(ageMinutes), 'minutes, session active:', sessionActive, '(from user:', tryUserId.slice(0, 8), ')');
               }
             }
           }
         } catch (e) {
-          console.warn('Failed to load server history:', e);
+          console.warn('Failed to load server history for', tryUserId.slice(0, 8), ':', e);
         }
       }
       
       // Use server messages if session is active, otherwise check local storage
       if (sessionActive && serverMessages.length > 0) {
         setMessages(serverMessages);
-        saveConversationToStorage(serverMessages, userId); // Sync to local
+        saveConversationToStorage(serverMessages, userId);
         console.log('📱 Loaded', serverMessages.length, 'messages from server (session active)');
       } else {
-        // Session expired or no server history - check local storage as fallback
         const storedMessages = await loadConversationFromStorage(userId);
         if (storedMessages.length > 0) {
-          // Check if local messages are within one hour
-          // For now, trust local storage for pending activity flow
           setMessages(storedMessages);
           console.log('📱 Loaded', storedMessages.length, 'messages from local storage');
+        } else if (migrationUserId) {
+          // Try loading from the old user's local storage as last resort
+          const oldMessages = await loadConversationFromStorage(migrationUserId);
+          if (oldMessages.length > 0) {
+            setMessages(oldMessages);
+            saveConversationToStorage(oldMessages, userId);
+            console.log('📱 Loaded', oldMessages.length, 'messages from migrated local storage');
+          }
         }
       }
       

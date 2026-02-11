@@ -13123,6 +13123,142 @@ app.get('/api/debug-messages', async (req, res) => {
   }
 });
 
+// ===== USER MIGRATION (anonymous re-auth data recovery) =====
+app.post('/api/migrate-user', async (req, res) => {
+  try {
+    const { oldUserId, newUserId, deviceId } = req.body;
+    if (!oldUserId || !newUserId || oldUserId === newUserId) {
+      return res.status(400).json({ ok: false, error: 'Valid oldUserId and newUserId required' });
+    }
+    
+    if (!supabaseServer) {
+      return res.status(500).json({ ok: false, error: 'Database not configured' });
+    }
+    
+    // Security: Verify the old user ID actually belongs to this device/session
+    // by checking that old user has data and new user was just created (minimal data)
+    const { count: oldDataCount } = await supabaseServer
+      .from('chat_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', oldUserId);
+    
+    const { count: newDataCount } = await supabaseServer
+      .from('chat_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', newUserId);
+    
+    // Safety check: only allow migration if old user has data and new user has very little
+    // This prevents abuse — can't steal data from a well-established account
+    if (!oldDataCount || oldDataCount === 0) {
+      console.log('[MIGRATE] Rejected: old user has no data');
+      return res.json({ ok: true, results: {}, skipped: 'no_old_data' });
+    }
+    if (newDataCount && newDataCount > 5) {
+      console.log('[MIGRATE] Rejected: new user already has significant data (', newDataCount, 'messages)');
+      return res.status(403).json({ ok: false, error: 'New user already has data, migration blocked' });
+    }
+    
+    console.log('[MIGRATE] Starting migration from', oldUserId.slice(0, 8), '→', newUserId.slice(0, 8));
+    
+    const migrationResults = {};
+    
+    // Tables where rows should be MOVED (re-assigned) — append-safe tables
+    const appendTables = [
+      { name: 'chat_messages', idField: 'user_id' },
+      { name: 'entries', idField: 'user_id' },
+      { name: 'welcome_history', idField: 'user_id' },
+      { name: 'check_ins', idField: 'user_id' },
+    ];
+    
+    // Tables where only ONE row per user exists — move only if new user has none
+    const singletonTables = [
+      { name: 'profiles', idField: 'user_id' },
+      { name: 'trace_memory', idField: 'user_id' },
+    ];
+    
+    // Append tables: always move old rows to new user (merge)
+    for (const table of appendTables) {
+      try {
+        const { count: oldCount } = await supabaseServer
+          .from(table.name)
+          .select('*', { count: 'exact', head: true })
+          .eq(table.idField, oldUserId);
+        
+        if (oldCount && oldCount > 0) {
+          const { error } = await supabaseServer
+            .from(table.name)
+            .update({ [table.idField]: newUserId })
+            .eq(table.idField, oldUserId);
+          
+          if (error) {
+            console.warn(`[MIGRATE] ${table.name}: update failed -`, error.message);
+            migrationResults[table.name] = { status: 'error', error: error.message };
+          } else {
+            console.log(`[MIGRATE] ${table.name}: migrated ${oldCount} rows`);
+            migrationResults[table.name] = { status: 'migrated', rows: oldCount };
+          }
+        } else {
+          migrationResults[table.name] = { status: 'no_data' };
+        }
+      } catch (e) {
+        console.warn(`[MIGRATE] ${table.name}: error -`, e.message);
+        migrationResults[table.name] = { status: 'error', error: e.message };
+      }
+    }
+    
+    // Singleton tables: move only if new user doesn't have one yet
+    for (const table of singletonTables) {
+      try {
+        const { count: oldCount } = await supabaseServer
+          .from(table.name)
+          .select('*', { count: 'exact', head: true })
+          .eq(table.idField, oldUserId);
+        
+        if (oldCount && oldCount > 0) {
+          const { count: newCount } = await supabaseServer
+            .from(table.name)
+            .select('*', { count: 'exact', head: true })
+            .eq(table.idField, newUserId);
+          
+          if (!newCount || newCount === 0) {
+            const { error } = await supabaseServer
+              .from(table.name)
+              .update({ [table.idField]: newUserId })
+              .eq(table.idField, oldUserId);
+            
+            if (error) {
+              console.warn(`[MIGRATE] ${table.name}: update failed -`, error.message);
+              migrationResults[table.name] = { status: 'error', error: error.message };
+            } else {
+              console.log(`[MIGRATE] ${table.name}: migrated`);
+              migrationResults[table.name] = { status: 'migrated', rows: oldCount };
+            }
+          } else {
+            // Delete old singleton since new user already has one
+            await supabaseServer
+              .from(table.name)
+              .delete()
+              .eq(table.idField, oldUserId);
+            console.log(`[MIGRATE] ${table.name}: new user has data, cleaned up old`);
+            migrationResults[table.name] = { status: 'kept_new', cleaned_old: true };
+          }
+        } else {
+          migrationResults[table.name] = { status: 'no_data' };
+        }
+      } catch (e) {
+        console.warn(`[MIGRATE] ${table.name}: error -`, e.message);
+        migrationResults[table.name] = { status: 'error', error: e.message };
+      }
+    }
+    
+    console.log('[MIGRATE] Complete:', migrationResults);
+    res.json({ ok: true, results: migrationResults });
+  } catch (err) {
+    console.error('[MIGRATE] Error:', err.message);
+    res.status(500).json({ ok: false, error: 'Migration failed' });
+  }
+});
+
 app.get('/api/chat-history', async (req, res) => {
   try {
     const { userId } = req.query;

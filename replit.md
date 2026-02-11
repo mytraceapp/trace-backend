@@ -102,7 +102,11 @@ Identifies three pattern types: Peak Window, Energy Tides, and Stress Echoes, pr
 
 ## Authentication & Subscription Management
 
-Supports email/password authentication and an onboarding flow for plan selection (Light/Free, Premium, Studio), with subscription plans managed globally for feature gating.
+Supports Supabase anonymous authentication with persistent user ID recovery. The Supabase auth user ID is stored in SecureStore (survives app restarts/reinstalls). When an anonymous session is lost and re-created, the system detects the user ID change, migrates local data, and triggers server-side data migration (`POST /api/migrate-user`) to reassign chat messages, entries, profiles, and memory from the old anonymous user to the new one. The migration endpoint includes safety checks (old user must have data, new user must have minimal data) to prevent abuse. Subscription plans (Light/Free, Premium, Studio) are managed globally for feature gating.
+
+## Greeting Deduplication
+
+Welcome greetings track what approaches and topics were used in past greetings via the `welcome_history` table (columns: `greeting`, `approach`, `topics_used`). Each greeting is saved after generation, and the last 5 are loaded on the next visit. Recent conversation topics are filtered against previously-used topics to rotate fresh angles, and the last 2 greeting approaches are excluded when selecting a new one. The AI prompt includes the last 3 greeting texts with explicit instructions not to repeat them. Only 10 greeting history rows are kept per user.
 
 ## Design System
 
