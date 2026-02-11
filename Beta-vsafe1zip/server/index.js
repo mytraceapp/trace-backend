@@ -3658,6 +3658,7 @@ app.post('/api/greeting', async (req, res) => {
     
     // Load recent conversation topics from actual messages (what they were REALLY talking about)
     let recentConversationTopics = [];
+    let allAvailableTopics = [];
     let lastConversationSnippet = null;
     if (userId && supabaseServer) {
       try {
@@ -3666,27 +3667,72 @@ app.post('/api/greeting', async (req, res) => {
           .select('role, content, created_at')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
-          .limit(8);
+          .limit(20);
         
         if (recentMsgs && recentMsgs.length > 0) {
           const userMsgs = recentMsgs.filter(m => m.role === 'user' && m.content);
           
           const foundTopics = new Set();
-          for (const msg of userMsgs.slice(0, 5)) {
+          for (const msg of userMsgs.slice(0, 8)) {
             const keywords = conversationState.extractTopicKeywords(msg.content);
             keywords.forEach(k => foundTopics.add(k));
           }
-          recentConversationTopics = [...foundTopics].slice(0, 3);
+          allAvailableTopics = [...foundTopics];
+          recentConversationTopics = allAvailableTopics.slice(0, 3);
           
-          // Get a short snippet of what they were last talking about (user's last substantive message)
           const lastSubstantive = userMsgs.find(m => m.content.length > 10);
           if (lastSubstantive) {
             lastConversationSnippet = lastSubstantive.content.slice(0, 80);
           }
         }
-        console.log('[GREETING] Recent conversation topics:', recentConversationTopics, 'snippet:', lastConversationSnippet?.slice(0, 40));
+        console.log('[GREETING] Recent conversation topics:', recentConversationTopics, 'all available:', allAvailableTopics.length, 'snippet:', lastConversationSnippet?.slice(0, 40));
       } catch (e) {
         console.warn('[GREETING] Failed to load recent messages:', e.message);
+      }
+    }
+    
+    // Load GREETING HISTORY — what approaches/topics were already used in recent welcomes
+    let recentGreetingHistory = [];
+    let recentlyUsedApproaches = [];
+    let recentlyUsedTopics = [];
+    let recentGreetingTexts = [];
+    if (userId && supabaseServer) {
+      try {
+        const { data: pastGreetings } = await supabaseServer
+          .from('welcome_history')
+          .select('greeting, approach, topics_used, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        if (pastGreetings && pastGreetings.length > 0) {
+          recentGreetingHistory = pastGreetings;
+          recentlyUsedApproaches = pastGreetings.map(g => g.approach).filter(Boolean);
+          recentlyUsedTopics = pastGreetings.flatMap(g => g.topics_used || []);
+          recentGreetingTexts = pastGreetings.slice(0, 3).map(g => g.greeting).filter(Boolean);
+        }
+        console.log('[GREETING] History loaded:', { 
+          count: recentGreetingHistory.length, 
+          recentApproaches: recentlyUsedApproaches.slice(0, 3),
+          recentTopics: recentlyUsedTopics.slice(0, 5)
+        });
+      } catch (e) {
+        console.warn('[GREETING] Failed to load greeting history:', e.message);
+      }
+    }
+    
+    // Filter conversation topics — rotate away from topics already mentioned in recent greetings
+    if (recentlyUsedTopics.length > 0 && allAvailableTopics.length > 0) {
+      const freshTopics = allAvailableTopics.filter(t => !recentlyUsedTopics.includes(t));
+      if (freshTopics.length > 0) {
+        // Prefer fresh topics the greeting hasn't mentioned yet
+        const shuffledFresh = freshTopics.sort(() => Math.random() - 0.5);
+        recentConversationTopics = shuffledFresh.slice(0, 3);
+        console.log('[GREETING] Rotated to fresh conversation topics:', recentConversationTopics, '(filtered out:', recentlyUsedTopics.length, 'used topics)');
+      } else {
+        // All topics exhausted — shuffle the full set so at least the order varies
+        recentConversationTopics = [...allAvailableTopics].sort(() => Math.random() - 0.5).slice(0, 3);
+        console.log('[GREETING] All topics previously used, shuffled:', recentConversationTopics);
       }
     }
     
@@ -3697,8 +3743,11 @@ app.post('/api/greeting', async (req, res) => {
         const memoryData = await loadTraceLongTermMemory(supabaseServer, userId);
         if (memoryData?.coreThemes && memoryData.coreThemes.length > 0) {
           const shuffled = [...memoryData.coreThemes].sort(() => Math.random() - 0.5);
+          // Filter out themes already used in recent greetings
+          const freshThemes = shuffled.filter(t => !recentlyUsedTopics.includes(t));
+          const themePool = freshThemes.length > 0 ? freshThemes : shuffled;
           if (Math.random() > 0.5) {
-            memoryContext = shuffled.slice(0, Math.floor(Math.random() * 2) + 1);
+            memoryContext = themePool.slice(0, Math.floor(Math.random() * 2) + 1);
           }
         }
         console.log('[GREETING] Memory fallback loaded:', { themes: memoryContext.length, data: memoryContext });
@@ -3707,14 +3756,22 @@ app.post('/api/greeting', async (req, res) => {
       }
     }
     
-    // Choose greeting approach - prioritize recent conversation context when available
+    // Choose greeting approach — avoid repeating the last 2 approaches
     let greetingApproach;
+    const lastTwoApproaches = recentlyUsedApproaches.slice(0, 2);
+    
+    function pickFreshApproach(candidates) {
+      const fresh = candidates.filter(a => !lastTwoApproaches.includes(a));
+      const pool = fresh.length > 0 ? fresh : candidates;
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+    
     if (recentConversationTopics.length > 0) {
-      greetingApproach = Math.random() > 0.3 ? 'conversation_continuity' : 'simple';
+      greetingApproach = pickFreshApproach(['conversation_continuity', 'conversation_continuity', 'simple', 'question']);
     } else if (memoryContext.length > 0) {
-      greetingApproach = ['time_focus', 'theme_focus', 'simple', 'question'][Math.floor(Math.random() * 4)];
+      greetingApproach = pickFreshApproach(['time_focus', 'theme_focus', 'simple', 'question']);
     } else {
-      greetingApproach = ['time_focus', 'simple', 'question'][Math.floor(Math.random() * 3)];
+      greetingApproach = pickFreshApproach(['time_focus', 'simple', 'question']);
     }
     
     // Prefer mobile-provided activity name if more recent
@@ -3743,6 +3800,8 @@ app.post('/api/greeting', async (req, res) => {
       stressLevel,
       recentConversationTopics,
       lastConversationSnippet,
+      recentGreetingTexts,
+      recentlyUsedTopics,
     });
 
     if (!openai) {
@@ -3780,6 +3839,45 @@ app.post('/api/greeting', async (req, res) => {
     }
 
     console.log('[GREETING] AI Generated:', greeting);
+    
+    // Save greeting to welcome_history for deduplication on future visits
+    if (userId && supabaseServer) {
+      try {
+        const topicsUsed = [
+          ...recentConversationTopics,
+          ...(memoryContext || []),
+          ...(recentTopic ? [recentTopic] : []),
+          ...(effectiveRecentActivity ? [effectiveRecentActivity] : []),
+        ].filter(Boolean).slice(0, 8);
+        
+        await supabaseServer.from('welcome_history').insert({
+          user_id: userId,
+          greeting,
+          approach: greetingApproach,
+          topics_used: topicsUsed,
+        });
+        
+        // Keep only the last 10 greetings per user (cleanup old entries)
+        const { data: allGreetings } = await supabaseServer
+          .from('welcome_history')
+          .select('id')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+        
+        if (allGreetings && allGreetings.length > 10) {
+          const idsToDelete = allGreetings.slice(10).map(g => g.id);
+          await supabaseServer
+            .from('welcome_history')
+            .delete()
+            .in('id', idsToDelete);
+        }
+        
+        console.log('[GREETING] Saved to history - approach:', greetingApproach, 'topics:', topicsUsed);
+      } catch (e) {
+        console.warn('[GREETING] Failed to save greeting history:', e.message);
+      }
+    }
+    
     res.json({ greeting, firstRun: false });
   } catch (err) {
     console.error('/api/greeting error', err);

@@ -635,7 +635,7 @@ Example energy: "Hey — I'm TRACE. I'm here whenever you want to breathe with m
 Return JSON: { "greeting": "your message" }`.trim();
 }
 
-function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext, greetingApproach, hasRecentCheckIn, justDidActivity, recentTopic, stressLevel, recentConversationTopics, lastConversationSnippet }) {
+function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext, greetingApproach, hasRecentCheckIn, justDidActivity, recentTopic, stressLevel, recentConversationTopics, lastConversationSnippet, recentGreetingTexts, recentlyUsedTopics }) {
   const firstName = displayName ? displayName.split(' ')[0] : null;
   
   // Build context parts
@@ -737,6 +737,19 @@ function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastS
       approachInstruction = 'Be natural and casual.';
   }
   
+  // Build deduplication section from greeting history
+  let dedupSection = '';
+  if (recentGreetingTexts && recentGreetingTexts.length > 0) {
+    dedupSection += `\nYOUR RECENT GREETINGS (DO NOT repeat or closely resemble these):\n`;
+    recentGreetingTexts.forEach((g, i) => {
+      dedupSection += `${i + 1}. "${g}"\n`;
+    });
+  }
+  if (recentlyUsedTopics && recentlyUsedTopics.length > 0) {
+    const uniqueTopics = [...new Set(recentlyUsedTopics)].slice(0, 6);
+    dedupSection += `\nTOPICS YOU ALREADY MENTIONED RECENTLY (pick something DIFFERENT): ${uniqueTopics.join(', ')}\n`;
+  }
+  
   return `You are TRACE, a calm friend greeting someone.
 
 Generate ONE short greeting (1-2 sentences max). Like a text from a friend.
@@ -746,15 +759,15 @@ ${contextStr}
 
 APPROACH FOR THIS GREETING:
 ${approachInstruction}
-
+${dedupSection}
 RULES:
 - Sound like a real friend, NOT an app
 - Casual tone, lowercase is fine
 - DON'T use "[Time], [Name]" pattern (robotic)
-- DON'T always mention the same things
+- DON'T repeat topics, angles, or phrasing from your recent greetings listed above
 - DON'T say "Welcome back" or app-speak
-- BE DIFFERENT from generic greetings
-- VARY your approach each time
+- BE DIFFERENT from your last few greetings — vary tone, angle, and what you reference
+- If you've already asked about something recently, choose a completely different angle
 
 Return ONLY the greeting text.`.trim();
 }
