@@ -4268,6 +4268,7 @@ function applyResponseShapeLock(payload, requestId) {
     shapeMeta.issues = validation.issues.map(i => i.code);
   }
   normalized._shape_meta = shapeMeta;
+  normalized.request_id = requestId || normalized.requestId || null;
   const topIssues = validation.issues.map(i => i.code);
   console.log('[RESPONSE_SHAPE]', JSON.stringify({
     requestId: requestId || normalized.requestId || null,
@@ -4405,6 +4406,12 @@ app.post('/api/chat', async (req, res) => {
       if (cachedResponse) {
         res.set('X-Trace-Dedup', '1');
         console.log('[RESPONSE_SOURCE]', 'dedup_cache', requestId);
+        console.log('[APP_TRACE]', JSON.stringify({
+          requestId, response_source: 'dedup_cache', mode: null,
+          primaryMode: cachedResponse?._provenance?.primaryMode || 'unknown', intentType: 'none', nextMove: null,
+          continuity_required: false, anchor_domain: null, anchor_changed: false,
+          activeRun_active: false, onboarding_active: false, crisis_active: false, pendingFollowup: null,
+        }));
         return res.json(applyResponseShapeLock({ ...cachedResponse, response_source: 'dedup_cache', _provenance: { path: 'dedup_cache', requestId, ts: Date.now() } }, requestId));
       }
       console.log(`[DEDUP] MISS dedupKey=${dedupKey}`);
@@ -4537,6 +4544,7 @@ app.post('/api/chat', async (req, res) => {
       return res.json({
         ok: true,
         requestId,
+        request_id: requestId,
         message: stopMsg,
         audio_action: stopAudioAction,
         activity_suggestion: { name: null, should_navigate: false },
@@ -4569,6 +4577,7 @@ app.post('/api/chat', async (req, res) => {
           return res.json({
             ok: true,
             requestId,
+            request_id: requestId,
             message: resumeMsg,
             audio_action: {
               type: 'open',
@@ -4603,6 +4612,7 @@ app.post('/api/chat', async (req, res) => {
           return res.json({
             ok: true,
             requestId,
+            request_id: requestId,
             message: resumeMsg,
             audio_action: {
               type: 'open',
@@ -4657,6 +4667,7 @@ app.post('/api/chat', async (req, res) => {
       return res.json({
         ok: true,
         requestId,
+        request_id: requestId,
         message: resumeMsg,
         audio_action: resumeAudioAction,
         activity_suggestion: { name: null, should_navigate: false },
@@ -4921,6 +4932,14 @@ app.post('/api/chat', async (req, res) => {
         studioResponse.message = applyContinuityBridge({ traceIntent: earlyTraceIntent, response_source: 'trace_studios', messageText: studioResponse.message, requestId });
         storeDedupResponse(dedupKey, studioResponse);
         console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
+        console.log('[APP_TRACE]', JSON.stringify({
+          requestId, response_source: 'trace_studios', mode: earlyTraceIntent?.mode || null,
+          primaryMode: 'studios', intentType: earlyTraceIntent?.action?.type || 'none',
+          nextMove: earlyTraceIntent?.nextMove || null, continuity_required: earlyTraceIntent?.continuity?.required || false,
+          anchor_domain: earlyState?.topicAnchor?.domain || null, anchor_changed: false,
+          activeRun_active: earlyState?.activeRun?.active || false, onboarding_active: false,
+          crisis_active: false, pendingFollowup: null,
+        }));
         return res.json(applyResponseShapeLock({ 
           ...studioResponse, 
           deduped: false,
@@ -4972,6 +4991,13 @@ app.post('/api/chat', async (req, res) => {
       };
       const insightMsg = applyContinuityBridge({ traceIntent: insightTraceIntent, response_source: 'insight', messageText: insightCheck.message, requestId });
       console.log('[RESPONSE_SOURCE]', 'insight', requestId);
+      console.log('[APP_TRACE]', JSON.stringify({
+        requestId, response_source: 'insight', mode: null,
+        primaryMode: 'conversation', intentType: 'none', nextMove: null,
+        continuity_required: !!insightContReq, anchor_domain: insightState?.topicAnchor?.domain || null,
+        anchor_changed: false, activeRun_active: false, onboarding_active: false,
+        crisis_active: false, pendingFollowup: null,
+      }));
       return res.json(applyResponseShapeLock({
         message: insightMsg,
         insight: { message: insightMsg, type: insightCheck.type },
@@ -10575,6 +10601,23 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }));
     }
     console.log('[RESPONSE_SOURCE]', 'model', requestId);
+    
+    console.log('[APP_TRACE]', JSON.stringify({
+      requestId: chatRequestId,
+      response_source: 'model',
+      mode: traceIntent?.mode || null,
+      primaryMode: traceIntent?.primaryMode || 'conversation',
+      intentType: traceIntent?.action?.type || 'none',
+      nextMove: traceIntent?.nextMove || null,
+      continuity_required: traceIntent?.continuity?.required || false,
+      anchor_domain: traceIntent?.topicAnchor?.domain || null,
+      anchor_changed: traceIntent?.topicAnchor?.carried === false,
+      activeRun_active: traceIntent?.activeRun?.active || false,
+      onboarding_active: isOnboardingActive || false,
+      crisis_active: isCrisisMode || false,
+      pendingFollowup: traceIntent?.pendingFollowup || null,
+    }));
+    
     const shapedResponse = applyResponseShapeLock({
       ...finalResponse,
       deduped: false,

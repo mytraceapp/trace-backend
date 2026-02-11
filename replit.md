@@ -90,3 +90,29 @@ Identifies three pattern types: Peak Window, Energy Tides, and Stress Echoes, pr
 -   **Web Audio API**: Browser-native audio synthesis.
 -   **localStorage**: Client-side persistence.
 -   **PostgreSQL**: Server-side relational database.
+
+# Debugging Context Loss (App vs Curl)
+
+Every `/api/chat` response includes a top-level `request_id` field that matches the `requestId` used in all server log tags (`[SCHEMA METRICS]`, `[PHASE4]`, `[RESPONSE_SOURCE]`, `[APP_TRACE]`, `[RESPONSE_SHAPE]`, `[PHASE7_CONTRACT]`).
+
+The response also includes `response_source` (e.g. `model`, `trace_studios`, `audio_control`, `insight`, `dedup_cache`) and `_shape_meta.mode` (e.g. `conversation`, `studios`, `audio_control`).
+
+## How to debug jumbled responses
+
+1. Start the server with logs piped to a file:
+   ```
+   cd Beta-vsafe1zip && PORT=3000 node server/index.js 2>&1 | tee -a server.log
+   ```
+2. Reproduce 3 bad turns in the app.
+3. Copy their `request_id` values from the response payload (visible in app network inspector or by logging on the client).
+4. Grep for each request:
+   ```
+   grep <request_id> server.log
+   ```
+5. For each request, check:
+   - `[APP_TRACE]` — Which `response_source` and `primaryMode` was used? Did `anchor_domain` change unexpectedly? Is `continuity_required` true but the response feels disconnected?
+   - `[RESPONSE_SHAPE]` — Did the shape lock flag any issues? Does `mode` match what you expected?
+   - `[PHASE7_CONTRACT]` — Any violations logged?
+   - `[RESPONSE_SOURCE]` — Did it hit an early return (studios, insight, dedup_cache, audio_control) instead of the full model pipeline?
+6. Compare `userId` across requests — if it changes between turns, the client is losing its session, which would explain context loss.
+7. Compare against a curl test with the same history to confirm whether the issue is in the server pipeline or the client's request construction.
