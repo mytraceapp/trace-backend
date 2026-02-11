@@ -2614,19 +2614,20 @@ function detectStoryRequest(text) {
   if (!text) return false;
   const t = text.toLowerCase().trim();
   
-  // Patterns that REQUEST a story (user wants TRACE to tell one)
   const storyRequestPatterns = [
-    /^tell me a story/i,
-    /^tell me another story/i,
-    /^can you tell me a story/i,
-    /^i want (to hear )?a story/i,
-    /^give me a story/i,
+    /tell me a story/i,
+    /tell me another story/i,
+    /can you tell me a story/i,
+    /i want (you |u )?(to )?(tell|hear).*stor/i,
+    /give me a story/i,
     /^story\s*(?:please|pls)?$/i,
-    /^write me a story/i,
-    /^share a story/i,
-    /^got a story/i,
-    /^another story/i,
-    /^one more story/i
+    /write me a story/i,
+    /share a story/i,
+    /got a story/i,
+    /another story/i,
+    /one more story/i,
+    /want a story/i,
+    /need a story/i,
   ];
   
   // Patterns where user is SHARING their own story (NOT a request)

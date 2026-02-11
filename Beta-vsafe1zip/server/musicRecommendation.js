@@ -21,6 +21,8 @@ const NIGHT_SWIM_TRACKS = [
 
 const TRACK_NAME_ALIASES = {
   'midnight underwater': 1,
+  'midnight underway': 1,
+  'midnight under water': 1,
   'slow tides over glass': 2,
   'slow tides': 2,
   'undertow': 3,

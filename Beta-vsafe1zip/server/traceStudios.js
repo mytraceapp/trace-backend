@@ -411,6 +411,8 @@ const TRACKS = {
 // Track name aliases for detection
 const TRACK_ALIASES = {
   'midnight underwater': 'midnight_underwater',
+  'midnight underway': 'midnight_underwater',
+  'midnight under water': 'midnight_underwater',
   'slow tides': 'slow_tides',
   'slow tides over glass': 'slow_tides',
   'undertow': 'undertow',
