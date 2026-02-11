@@ -4840,9 +4840,10 @@ app.post('/api/chat', async (req, res) => {
     const faithAllowed = isStoryRequest ? detectFaithLanguage(rawMessages, 10) : false;
     
     // Select story theme based on recent emotion or rotate
+    // Note: isCrisisMode is determined later; story mode will be gated again post-crisis-check
     let storyMode = null;
     let selectedTheme = null;
-    if (isStoryRequest && !isCrisisMode) {
+    if (isStoryRequest) {
       // Get recent emotion from client state or messages
       const recentEmotion = req.body.client_state?.recentSentiment || 
                            req.body.client_state?.detected_state || 
@@ -6229,6 +6230,11 @@ app.post('/api/chat', async (req, res) => {
     const isCrisisMode = crisisState.active || isCurrentlyDistressed || clientCrisisMode;
     const crisisPendingExitCheckIn = crisisState.pendingExitCheckIn;
     
+    if (isCrisisMode && storyMode) {
+      storyMode = null;
+      selectedTheme = null;
+    }
+    
     // CRITICAL: Log crisis state for debugging
     console.log(`[CRISIS CHECK] userId: ${effectiveUserId?.slice(0,8)}, currentMsgDistressed: ${isCurrentMessageDistressed}, historyDistressed: ${isHistoryDistressed}, clientFlag: ${clientCrisisMode}, isCrisisMode: ${isCrisisMode}`);
 
@@ -7103,7 +7109,7 @@ Include all necessary details. The response can be long—that's what they want.
       
       // ========== REVELATION-STRUCTURE STORY MODE ==========
       // Inject special story prompt when user requests a story
-      if (storyMode === 'revelation_parable' && selectedTheme) {
+      if (storyMode === 'revelation_parable' && selectedTheme && !isCrisisMode) {
         const storyPrompt = buildRevelationStoryPrompt(selectedTheme, faithAllowed);
         systemPrompt += storyPrompt;
         console.log('[STORY_MODE] Injected revelation-structure prompt for theme:', selectedTheme.name);
