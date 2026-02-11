@@ -598,6 +598,49 @@ function validateUserId(userId, deviceId) {
   return { valid: true, error: null, effectiveId };
 }
 
+// ============================================================
+// USER ID NORMALIZATION
+// Maps short/truncated userIds to full UUIDs.
+// The main /api/chat endpoint always receives the full UUID;
+// other endpoints (sync, bootstrap) may receive truncated forms.
+// ============================================================
+const userIdCache = new Map(); // shortPrefix -> fullUUID
+
+function registerFullUserId(fullId) {
+  if (!fullId || !isValidUuid(fullId)) return;
+  const short = fullId.split('-')[0];
+  userIdCache.set(short, fullId);
+  userIdCache.set(fullId, fullId);
+}
+
+function normalizeUserId(rawId) {
+  if (!rawId) return null;
+  const str = String(rawId).trim();
+  if (isValidUuid(str)) {
+    registerFullUserId(str);
+    return str;
+  }
+  const resolved = userIdCache.get(str);
+  if (resolved) {
+    return resolved;
+  }
+  console.warn(`[USERID_MISMATCH] Cannot resolve "${str}" to full UUID — no cached mapping`);
+  return str;
+}
+
+function assertFullUserId(id, context) {
+  if (!id) return id;
+  if (typeof id === 'string' && id.length < 20 && !id.includes('-')) {
+    const resolved = normalizeUserId(id);
+    if (resolved !== id) {
+      console.log(`[USERID_MISMATCH] ${context}: resolved truncated "${id}" → "${resolved}"`);
+      return resolved;
+    }
+    console.warn(`[USERID_MISMATCH] ${context}: short userId "${id}" used — could not resolve to full UUID`);
+  }
+  return id;
+}
+
 /**
  * Autonomy Enforcement Post-Processing Guard
  * Catches and rewrites directive patterns that slip through prompt-level enforcement
@@ -4458,6 +4501,7 @@ app.post('/api/chat', async (req, res) => {
 
     // Require real userId - don't use hardcoded fallback that corrupts user identity
     const effectiveUserId = userId || null;
+    if (effectiveUserId) registerFullUserId(effectiveUserId);
     
     if (!effectiveUserId) {
       console.warn('[TRACE CHAT] No userId provided, returning 401');
@@ -11043,18 +11087,18 @@ app.get('/api/debug/openai-last', (req, res) => {
 app.post('/api/chat/bootstrap', async (req, res) => {
   try {
     // Get userId and userName from POST body
-    const { userId, userName } = req.body || {};
+    const { userId: rawBootstrapUserId, userName } = req.body || {};
     
-    // Fall back to auth header if no userId in body
-    let effectiveUserId = userId || null;
+    let effectiveUserId = rawBootstrapUserId ? normalizeUserId(rawBootstrapUserId) : null;
     if (!effectiveUserId) {
       const { user } = await getUserFromAuthHeader(req);
       if (user?.id) {
         effectiveUserId = user.id;
       }
     }
+    if (effectiveUserId) registerFullUserId(effectiveUserId);
     
-    console.log('[CHAT BOOTSTRAP] Request - effectiveUserId:', effectiveUserId?.slice(0, 8) || 'none', 'userName:', userName || 'none');
+    console.log('[CHAT BOOTSTRAP] Request - effectiveUserId:', effectiveUserId || 'none', 'userName:', userName || 'none');
     
     if (!effectiveUserId) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -11153,10 +11197,10 @@ app.get('/api/chat/bootstrap', async (req, res) => {
     if (user?.id) {
       effectiveUserId = user.id;
     } else if (req.query.userId) {
-      effectiveUserId = req.query.userId;
+      effectiveUserId = normalizeUserId(req.query.userId);
     }
     
-    console.log('[CHAT BOOTSTRAP GET] Request - effectiveUserId:', effectiveUserId?.slice(0, 8) || 'none');
+    console.log('[CHAT BOOTSTRAP GET] Request - effectiveUserId:', effectiveUserId || 'none');
     
     if (!effectiveUserId) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -11205,15 +11249,17 @@ app.get('/api/chat/bootstrap', async (req, res) => {
 // Called every 30 seconds from mobile to persist locally-saved messages
 app.post('/api/chat/history/sync', async (req, res) => {
   try {
-    const { userId, messages, syncedAt } = req.body || {};
+    const { userId: rawUserId, messages, syncedAt } = req.body || {};
+    const userIdShort = rawUserId?.slice?.(0, 8) || 'none';
+    const userId = normalizeUserId(rawUserId);
     
     console.log('[CHAT SYNC] Request:', { 
-      userId: userId?.slice?.(0, 8), 
+      userIdFull: userId,
+      userIdShort,
       messageCount: messages?.length || 0,
       syncedAt 
     });
     
-    // Validate required fields
     if (!userId) {
       return res.status(400).json({ success: false, error: 'userId is required' });
     }
@@ -11222,10 +11268,9 @@ app.post('/api/chat/history/sync', async (req, res) => {
       return res.status(400).json({ success: false, error: 'messages array is required' });
     }
     
-    // Validate UUID format
-    const validation = validateUserId(userId, null);
-    if (!validation.valid) {
-      return res.status(400).json({ success: false, error: 'Invalid userId format' });
+    const userIdFull = assertFullUserId(userId, 'CHAT_SYNC');
+    if (userIdFull !== userId) {
+      console.log(`[CHAT SYNC] userId resolved: ${userId} → ${userIdFull}`);
     }
     
     if (!supabaseServer) {
@@ -11256,7 +11301,7 @@ app.post('/api/chat/history/sync', async (req, res) => {
         const { data: existing } = await supabaseServer
           .from('chat_messages')
           .select('id')
-          .eq('user_id', userId)
+          .eq('user_id', userIdFull)
           .eq('role', msg.role)
           .eq('content', msg.content)
           .limit(1);
@@ -11266,9 +11311,8 @@ app.post('/api/chat/history/sync', async (req, res) => {
           continue;
         }
         
-        // Insert new message
         const insertData = {
-          user_id: userId,
+          user_id: userIdFull,
           role: msg.role,
           content: msg.content,
         };
@@ -11294,7 +11338,7 @@ app.post('/api/chat/history/sync', async (req, res) => {
       }
     }
     
-    console.log('[CHAT SYNC] Synced', syncedCount, 'messages for user:', userId.slice(0, 8));
+    console.log('[CHAT SYNC] Synced', syncedCount, 'messages for user:', userIdFull);
     
     return res.json({
       success: true,
@@ -11836,13 +11880,13 @@ app.post('/api/chat/activity-acknowledgment', async (req, res) => {
   // If no reflection provided in request, try to fetch from recent onboarding_reflections
   if (!userReflection && userId) {
     try {
-      const normalizedUserId = String(userId).split('-')[0]; // Handle both formats
+      const fullUserId = assertFullUserId(String(userId), 'ACTIVITY_ACK');
       const result = await pool.query(`
         SELECT reflection FROM onboarding_reflections 
         WHERE user_id = $1 
         ORDER BY created_at DESC 
         LIMIT 1
-      `, [normalizedUserId]);
+      `, [fullUserId]);
       
       if (result.rows.length > 0) {
         userReflection = result.rows[0].reflection || '';
