@@ -1,0 +1,32 @@
+ LOG  [TRACE CHAT] 🔧 Setting initializedUserId= 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [TRACE CHAT] ⚠️ SAFETY NET: Chat is empty, will fetch greeting in greeting effect
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [TRACE CHAT] Fetching greeting from backend... {"recentSentiment": null, "stressLevel": null}
+ LOG  [TRACE CHAT] displayName from profile: Nina Tested
+ LOG  [TRACE CHAT] Greeting request body: {"deviceId": undefined, "hasRecentCheckIn": null, "justDidActivity": null, "name": "Nina Tested", "recentTopic": null, "stressLevel": null, "timeOfDay": "afternoon", "userId": "80624861-1955-40f4-b302-2af2c9dc67c1", "userName": "Nina Tested"}
+ WARN  [TRACE CHAT] ⚠️ Greeting API returned status: 502
+ LOG  [TRACE CHAT] ⚠️ Greeting API failed - retrying once...
+ WARN  [TRACE CHAT] ⚠️ Retry also failed - leaving greeting empty (no hardcoded fallback)
+ LOG  [TRACE CHAT] Params: {}
+ LOG  [EMERGENCY GREETING] ⚠️ Chat is empty after 2s - retrying greeting fetch (no hardcoded fallback)
+ LOG  [STATE_SNAPSHOT] playerActive=false soundscapeActive=false ambientStatus=loaded=true playing=true volume=0.2199999988079071 soundscapeStatus=null
+ LOG  [AUDIO_CADENCE] silence_fallback skipped reason=activity_resume_in_progress
+ LOG  [AUDIO_CADENCE] activity_resume_flag_cleared
+ LOG  [AUDIO_CADENCE] activity_resume_flag_cleared
+ LOG  [AUDIO_CADENCE] activity_resume_flag_cleared
+ LOG  [CACHE CLEANUP] Starting automated cleanup...
+ LOG  [CACHE CLEANUP] Cleanup complete
+ LOG  [STORAGE] Total keys: 41
+ LOG  [STORAGE] Cache keys: 0
+ LOG  [STORAGE] Estimated size: 167.85 KB
+ LOG  [AUTO-CLEANUP] ✅ Initialized
+ LOG  [HEALTH CHECK] Running automated health checks...
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [USER_CONTEXT] Using auth user ID: 80624861-1955-40f4-b302-2af2c9dc67c1
+ LOG  [HEALTH CHECK] ⚠️ chat-api: degraded (253ms) - HTTP 502
+ LOG  [HEALTH CHECK] ⚠️ patterns-api: degraded (170ms) - HTTP 502
+ LOG  [HEALTH CHECK] ✅ Completed
+
