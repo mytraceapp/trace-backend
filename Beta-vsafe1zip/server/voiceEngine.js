@@ -197,18 +197,19 @@ function extractRecentTopics(recentHistory = []) {
 
 /**
  * Detect if we should add music awareness
+ * NOTE: Only returns true for active non-presence soundscapes.
+ * History-based detection removed — it caused random music phrases
+ * ("quieter now", "let the sound hold you") to leak into unrelated responses.
+ * The V2 prompt system handles music awareness via context budget and directives.
  */
 function shouldAddMusicContext(intent, recentHistory) {
   const { soundscape_state } = intent.session_state || {};
   
-  // If soundscape is active and not presence
   if (soundscape_state && soundscape_state !== 'presence' && soundscape_state !== null) {
     return true;
   }
   
-  // Check if music was recently mentioned
-  const historyText = (recentHistory || []).map(m => m.content || '').join(' ').toLowerCase();
-  return historyText.includes('music') || historyText.includes('playing') || historyText.includes('track');
+  return false;
 }
 
 /**
@@ -242,19 +243,9 @@ function applyVoiceStyle(baseResponse, intent, options = {}) {
     styled = sentences.slice(0, 4).join(' ');
   }
   
-  // 6. Add music awareness if appropriate
-  if (shouldAddMusicContext(intent, recentHistory)) {
-    // Don't add if already mentions music
-    if (!styled.toLowerCase().includes('music') && !styled.toLowerCase().includes('track')) {
-      // Subtle music awareness - not always, just sometimes
-      if (Math.random() < 0.3) {
-        const musicPhrase = VOICE_MARKERS.musicAware[
-          Math.floor(Math.random() * VOICE_MARKERS.musicAware.length)
-        ];
-        styled = styled.replace(/\.$/, `. ${musicPhrase}.`);
-      }
-    }
-  }
+  // 6. Music awareness — handled entirely by V2 prompt directives now.
+  // Random phrase injection removed: it caused phrases like "quieter now"
+  // or "let the sound hold you" to appear in unrelated responses.
   
   return styled;
 }
