@@ -131,6 +131,7 @@ const { validateTraceResponseSchema } = require('./validation/validateTraceRespo
 const { rewriteToSchema } = require('./validation/rewriteToSchema');
 const { shouldUseSchemaEnforcement, buildSchemaMetrics } = require('./validation/schemaRollout');
 const { assertNextMoveContract } = require('./validation/nextMoveAsserts');
+const { normalizeResponseEnvelope, validateResponseEnvelope, deriveResponseMode } = require('./validation/responseShapeContract');
 const {
   detectEmotionalState,
   isUserAgreeing,
@@ -4113,6 +4114,36 @@ function applyContinuityBridge({ traceIntent, response_source, messageText, requ
   return bridged;
 }
 
+function applyResponseShapeLock(payload, requestId) {
+  const normalized = normalizeResponseEnvelope(payload);
+  const validation = validateResponseEnvelope(normalized);
+  const mode = deriveResponseMode(normalized);
+  const shapeMeta = {
+    ok: validation.ok,
+    mode,
+    has_audio_action: !!(normalized.audio_action),
+    has_ui_action: !!(normalized.ui_action),
+    has_client_patch: !!(normalized.client_state_patch),
+  };
+  if (!validation.ok) {
+    shapeMeta.issues = validation.issues.map(i => i.code);
+  }
+  normalized._shape_meta = shapeMeta;
+  const topIssues = validation.issues.map(i => i.code);
+  console.log('[RESPONSE_SHAPE]', JSON.stringify({
+    requestId: requestId || normalized.requestId || null,
+    ok: validation.ok,
+    mode,
+    issues_count: validation.issues.length,
+    top_issues: topIssues,
+    response_source: normalized.response_source || null,
+    has_audio_action: shapeMeta.has_audio_action,
+    has_ui_action: shapeMeta.has_ui_action,
+    has_client_patch: shapeMeta.has_client_patch,
+  }));
+  return normalized;
+}
+
 // Normalize chat response for consistent mobile-friendly envelope
 function normalizeChatResponse(payload, requestId) {
   const msg =
@@ -4216,7 +4247,7 @@ app.post('/api/chat', async (req, res) => {
       if (cachedResponse) {
         res.set('X-Trace-Dedup', '1');
         console.log('[RESPONSE_SOURCE]', 'dedup_cache', requestId);
-        return res.json({ ...cachedResponse, response_source: 'dedup_cache', _provenance: { path: 'dedup_cache', requestId, ts: Date.now() } });
+        return res.json(applyResponseShapeLock({ ...cachedResponse, response_source: 'dedup_cache', _provenance: { path: 'dedup_cache', requestId, ts: Date.now() } }, requestId));
       }
       console.log(`[DEDUP] MISS dedupKey=${dedupKey}`);
     }
@@ -4598,7 +4629,7 @@ app.post('/api/chat', async (req, res) => {
         studioResponse.message = applyContinuityBridge({ traceIntent: earlyTraceIntent, response_source: 'trace_studios', messageText: studioResponse.message, requestId });
         storeDedupResponse(dedupKey, studioResponse);
         console.log('[RESPONSE_SOURCE]', 'trace_studios', requestId);
-        return res.json({ 
+        return res.json(applyResponseShapeLock({ 
           ...studioResponse, 
           deduped: false,
           sound_state: { current: null, changed: false, reason: 'studios_early_return' },
@@ -4606,7 +4637,7 @@ app.post('/api/chat', async (req, res) => {
           ui_action: studiosUiAction,
           action_source: 'contract_v1',
           _provenance: { path: 'studios_intercept', primaryMode: 'studios', kind: studiosResponse.traceStudios?.kind, requestId, ts: Date.now(), studiosRegenerated, ui_action_type: studiosUiAction?.type || null }
-        });
+        }, requestId));
       }
     }
     
@@ -4649,14 +4680,14 @@ app.post('/api/chat', async (req, res) => {
       };
       const insightMsg = applyContinuityBridge({ traceIntent: insightTraceIntent, response_source: 'insight', messageText: insightCheck.message, requestId });
       console.log('[RESPONSE_SOURCE]', 'insight', requestId);
-      return res.json({
+      return res.json(applyResponseShapeLock({
         message: insightMsg,
         insight: { message: insightMsg, type: insightCheck.type },
         client_state_patch: insightCheck.client_state_patch,
         sound_state: { current: null, changed: false, reason: 'insight_early_return' },
         response_source: 'insight',
         _provenance: { path: 'pillar12_insight', type: insightCheck.type, requestId, ts: Date.now() }
-      });
+      }, requestId));
     }
     
     // Banned phrases that should not be in conversation history (causes AI to copy them)
@@ -7779,7 +7810,7 @@ Just the response, nothing else.
               } catch (e) { /* non-critical */ }
               
               console.log('[RESPONSE_SOURCE]', 'model', requestId);
-              return res.json({
+              return res.json(applyResponseShapeLock({
                 message: caringMessage,
                 activity_suggestion: null,
                 posture: 'STEADY',
@@ -7788,7 +7819,7 @@ Just the response, nothing else.
                 sound_state: 'presence',
                 client_state_patch: {},
                 response_source: 'model'
-              });
+              }, requestId));
             }
           } catch (interceptErr) {
             console.warn('[POST-ACTIVITY INTERCEPT] Error, falling back to main chat:', interceptErr.message);
@@ -10143,7 +10174,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }));
     }
     console.log('[RESPONSE_SOURCE]', 'model', requestId);
-    return res.json({
+    const shapedResponse = applyResponseShapeLock({
       ...finalResponse,
       deduped: false,
       response_source: 'model',
@@ -10151,17 +10182,19 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       ...(effectiveAudioAction && { audio_action: effectiveAudioAction }),
       ...(contractActionSource && { action_source: contractActionSource }),
       _provenance,
-    });
+    }, chatRequestId);
+    return res.json(shapedResponse);
   } catch (error) {
     console.error('TRACE API error:', error.message || error);
     console.log('[RESPONSE_SOURCE]', 'model', req.body?.requestId);
-    res.status(500).json(normalizeChatResponse({ 
+    const errorPayload = normalizeChatResponse({ 
       ok: false, 
       error: 'Failed to get response', 
       message: "something went wrong on my end. give me a sec.",
       response_source: 'model',
       _provenance: { path: 'error_fallback', requestId: req.body?.requestId, ts: Date.now(), error: (error.message || '').slice(0, 100) }
-    }, req.body?.requestId));
+    }, req.body?.requestId);
+    res.status(500).json(applyResponseShapeLock(errorPayload, req.body?.requestId));
   }
 });
 

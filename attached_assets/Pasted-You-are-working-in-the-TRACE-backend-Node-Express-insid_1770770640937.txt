@@ -1,0 +1,123 @@
+You are working in the TRACE backend (Node/Express) inside:
+  /home/runner/workspace/Beta-vsafe1zip/server
+Main file: server/index.js
+
+GOAL (Phase 8.1 — Response Shape Lock):
+Lock the API response envelope so the frontend never guesses what TRACE means.
+This phase is about RESPONSE SHAPE, not “more intelligence.”
+Do NOT modify: model routing, schema enforcement pct, retirement flags, Drift Lock behavior, prompt V2 rollout, or studios run mode logic.
+
+HARD CONSTRAINTS (do not violate):
+- Keep: TRACE_SCHEMA_ENFORCEMENT_PCT=10
+- Keep all retirement flags OFF
+- Keep Drift Lock behavior unchanged
+- No new OpenAI calls
+- No new behavioral routing logic (only shape + validation)
+- Crisis + onboarding bypass must remain untouched
+
+WHAT TO IMPLEMENT:
+
+1) Define a single response schema contract in one new file:
+   Create: server/validation/responseShapeContract.js
+
+   Export:
+   - normalizeResponseEnvelope(payload) -> returns normalized payload
+   - validateResponseEnvelope(payload) -> returns { ok, issues: [{code, severity, detail}] }
+   - deriveResponseMode(payload) -> one of:
+       "studios" | "conversation" | "crisis" | "onboarding" | "system"
+
+   The contract must support existing payload fields and add NO breaking changes.
+
+2) Canonical allowed keys (top-level) in ALL responses:
+   Required:
+     - message: string
+     - response_source: string   (already added earlier)
+   Optional (when applicable):
+     - audio_action: object|null
+     - ui_action: object|null
+     - sound_state: object|null
+     - activity_suggestion: object|null
+     - client_state_patch: object|null
+     - next_question: string|null
+     - pattern_metadata: object|null
+     - isCrisisMode: boolean
+     - _schema_meta: object|null   (already exists)
+     - _shape_meta: object|null    (new; safe debug-only info, no user text)
+
+   IMPORTANT:
+   - Do NOT remove existing fields currently returned.
+   - Only normalize missing values to null and delete unknown keys.
+
+3) Add mode-specific invariants (validation rules):
+   a) studios mode:
+      - MUST NOT include: activity_suggestion (must be null)
+      - MUST NOT include: sound_state (must be null)
+      - ui_action allowed (e.g., OPEN_JOURNAL_MODAL), audio_action allowed
+   b) conversation mode:
+      - audio_action must be null UNLESS user explicitly asked to play/spotify/playlist/track
+        (Use existing intent/traceIntent info if present; otherwise do not enforce this rule—log only.)
+      - ui_action allowed only if the response is clearly a navigation action (journal modal / open spotify)
+   c) crisis mode:
+      - audio_action/ui_action/activity_suggestion/sound_state must all be null
+   d) onboarding:
+      - response_source must be "onboarding_script"
+      - audio_action/ui_action must be null
+
+   These are validation checks only. In Phase 8.1 we do NOT rewrite content.
+   Phase 8.1 is LOG-ONLY for violations.
+
+4) Wire it into server/index.js at ONE choke point:
+   Right before every res.json(...) return (or centrally right before normalizeChatResponse()).
+   Implement minimally:
+   - call normalizeResponseEnvelope(payload) before sending
+   - call validateResponseEnvelope(payload) and emit:
+       [RESPONSE_SHAPE] {requestId, ok, mode, issues_count, top_issues:[codes], response_source}
+     No user text in logs.
+
+   If validation fails:
+   - DO NOT change response text
+   - Only attach: _shape_meta = { ok:false, issues:[codes], mode }
+   - Still return the response (log-only).
+
+5) Add a tiny “path visibility” field in _shape_meta:
+   - include: { mode, has_audio_action, has_ui_action, has_client_patch }
+   This helps debugging without exposing user content.
+
+6) Add a small CLI tool (optional but preferred if cheap):
+   Create: server/tools/shapeReport.js
+   Similar to metricsReport.js, it parses server.log (LOG_PATH) and summarizes:
+     - counts by response_mode
+     - top issue codes
+     - % of responses with audio_action/ui_action per mode
+   Must print no user text.
+
+TESTS (must run and pass):
+A) Start server with tee logging:
+   cd /home/runner/workspace/Beta-vsafe1zip/server
+   node index.js 2>&1 | tee -a server.log
+
+B) Run 3 curl calls (use localhost:5000):
+   1) Studios: "Give me a reel concept for Midnight Underwater."
+   2) Conversation pivot: "Actually I feel really tired today."
+   3) Back to studios play: "Okay back to music — play Midnight Underwater."
+
+Confirm in logs:
+- [RESPONSE_SHAPE] appears for each request
+- studios mode has activity_suggestion:null and sound_state:null
+- crisis/onboarding unaffected (do not force test, just ensure code bypass exists)
+
+DELIVERABLES:
+- New file responseShapeContract.js
+- index.js wired with minimal diff
+- [RESPONSE_SHAPE] log line emitted per request
+- If created: shapeReport.js + npm script "shape" added to root package.json OR document how to run it
+- Update replit.md with Phase 8.1 summary (short)
+
+DO NOT:
+- Change prompt content
+- Change schema enforcement behavior
+- Change studios run mode logic
+- Change followup override logic
+- Add new model calls or retries
+
+Proceed with implementation now.
