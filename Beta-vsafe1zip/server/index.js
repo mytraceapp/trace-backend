@@ -4524,6 +4524,43 @@ app.post('/api/chat', async (req, res) => {
     console.log('🧠 /api/chat mode=chat_core userId:', userId, 'deviceId:', deviceId);
     const requestStartTime = Date.now();
     
+    // ============================================================
+    // 🎵 EARLY ATMOSPHERE EVALUATION: Run BEFORE any early returns
+    // This ensures soundscapes are assessed on EVERY turn, including
+    // Studios intercepts, insights, activity nav, etc.
+    // ============================================================
+    let earlyAtmosphereResult = null;
+    try {
+      const earlyRecentUserMsgs = (rawMessages || [])
+        .filter(m => m.role === 'user')
+        .slice(-3)
+        .map(m => m.content);
+      const earlyCurrentMsg = rawMessages?.length > 0 ? rawMessages[rawMessages.length - 1].content : '';
+      const clientSoundStateEarly = safeClientState?.currentSoundState || null;
+      const newAssistantCountEarly = currentAssistantMsgCount + 1;
+      
+      earlyAtmosphereResult = evaluateAtmosphere({
+        userId: effectiveUserId,
+        current_message: earlyCurrentMsg || earlyRecentUserMsgs[earlyRecentUserMsgs.length - 1] || '',
+        recent_messages: earlyRecentUserMsgs.slice(0, -1),
+        client_sound_state: clientSoundStateEarly,
+        userMessageCount: currentUserMsgCount,
+        assistantMessageCount: newAssistantCountEarly,
+        isCrisisMode: false
+      });
+      
+      if (earlyAtmosphereResult?.sound_state?.changed) {
+        console.log(`[ATMOSPHERE EARLY] State changed: ${earlyAtmosphereResult.sound_state.current} (${earlyAtmosphereResult.sound_state.reason})`);
+      }
+    } catch (err) {
+      console.warn('[ATMOSPHERE EARLY] Evaluation failed:', err.message);
+    }
+    
+    // Helper: get current atmosphere sound_state for any return path
+    const getAtmosphereSoundState = () => {
+      return earlyAtmosphereResult?.sound_state || { current: null, changed: false, reason: 'default' };
+    };
+    
     // EARLY CRISIS CHECK - block music/lyrics interception during crisis
     // This runs before TRACE Studios to ensure crisis mode takes absolute priority
     // Check BOTH current message AND recent history (last 5 user messages)
@@ -5100,7 +5137,7 @@ app.post('/api/chat', async (req, res) => {
         return res.json(applyResponseShapeLock({ 
           ...studioResponse, 
           deduped: false,
-          sound_state: { current: null, changed: false, reason: 'studios_early_return' },
+          sound_state: getAtmosphereSoundState(),
           response_source: 'trace_studios',
           ui_action: studiosUiAction,
           action_source: 'contract_v1',
@@ -5159,7 +5196,7 @@ app.post('/api/chat', async (req, res) => {
         message: insightMsg,
         insight: { message: insightMsg, type: insightCheck.type },
         client_state_patch: insightCheck.client_state_patch,
-        sound_state: { current: null, changed: false, reason: 'insight_early_return' },
+        sound_state: getAtmosphereSoundState(),
         response_source: 'insight',
         _provenance: { path: 'pillar12_insight', type: insightCheck.type, requestId, ts: Date.now() }
       }, requestId));
@@ -5354,7 +5391,7 @@ app.post('/api/chat', async (req, res) => {
           reason: null,
           should_navigate: false,
         },
-        sound_state: { current: null, changed: false, reason: 'boundary_early_return' },
+        sound_state: getAtmosphereSoundState(),
         response_source: 'model',
         _provenance: { path: 'boundary_redirect', category: 'SEXUAL_OR_ROMANTIC', requestId, ts: Date.now() }
       });
@@ -5489,7 +5526,7 @@ app.post('/api/chat', async (req, res) => {
             should_navigate: true,
             target: pendingActivity
           },
-          sound_state: { current: null, changed: false, reason: 'activity_nav_early_return' },
+          sound_state: getAtmosphereSoundState(),
           response_source: 'model'
         });
       }
@@ -5572,13 +5609,14 @@ app.post('/api/chat', async (req, res) => {
       const musicState = getMusicState(effectiveUserId);
       if (musicState.pendingPlaylistOffer) {
         const confirmLower = userText.toLowerCase().trim();
+        const playlistNegation = /^no\b|^nah\b|^nope|^not\b|don't want|dont want|i'm good|im good|i'm okay|im okay|no thanks|no thank|not right now|not now|maybe later|pass\b|skip\b|stop/i.test(confirmLower);
         const playlistAffirmatives = [
           'yes', 'yeah', 'sure', 'okay', 'ok', 'yep', 'yup', 'please',
           'ready', "i'm ready", 'im ready', "let's go", 'lets go',
           'sounds good', 'that sounds good', 'open it', 'show me',
           'take me there', 'do it', 'go ahead', "let's hear it", 'lets hear it'
         ];
-        const isPlaylistConfirm = playlistAffirmatives.some(p => confirmLower.includes(p));
+        const isPlaylistConfirm = !playlistNegation && playlistAffirmatives.some(p => confirmLower.includes(p));
         
         if (isPlaylistConfirm) {
           const pendingAction = musicState.pendingPlaylistOffer;
@@ -5599,7 +5637,7 @@ app.post('/api/chat', async (req, res) => {
             type: 'music_invite_confirmed',
             message: applyContinuityBridge({ traceIntent: confirmIntent, response_source: 'trace_studios', messageText: confirmMsg, requestId }),
             activity_suggestion: { name: null, reason: null, should_navigate: false },
-            sound_state: { current: null, changed: false, reason: 'playlist_confirmed' },
+            sound_state: getAtmosphereSoundState(),
             response_source: 'trace_studios',
             ui_action: pendingAction,
             _provenance: { path: 'playlist_offer_confirmed', primaryMode: 'studios', requestId, ts: Date.now(), ui_action_type: pendingAction.type }
@@ -5750,7 +5788,7 @@ app.post('/api/chat', async (req, res) => {
           moodSpace: space,
           message: applyContinuityBridge({ traceIntent: inviteIntent, response_source: 'trace_studios', messageText: text, requestId }),
           activity_suggestion: { name: null, reason: null, should_navigate: false },
-          sound_state: { current: null, changed: false, reason: 'music_invite_suppressed' },
+          sound_state: getAtmosphereSoundState(),
           response_source: 'trace_studios',
           ui_action: null,
           action_source: 'contract_v1',
@@ -6599,7 +6637,7 @@ app.post('/api/chat', async (req, res) => {
       return res.json({ 
         ...closureResponse, 
         deduped: false,
-        sound_state: { current: null, changed: false, reason: 'light_closure_early_return' },
+        sound_state: getAtmosphereSoundState(),
         response_source: 'model',
         _provenance: { path: 'light_closure', requestId, ts: Date.now() }
       });
@@ -9843,7 +9881,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     } else if (immediateNightSwimOffer && trackIsActive && !isExplicitMusicCommand) {
       console.log('[PHASE8c_TRACK_GUARD] Suppressed immediateNightSwimOffer — track already active');
-    } else if (!audioAction && curationResult.shouldOffer && curationResult.type === 'track' && !(trackIsActive && !isExplicitMusicCommand)) {
+    } else if (!audioAction && curationResult.shouldOffer && curationResult.type === 'track' && !(trackIsActive && !isExplicitMusicCommand) && !musicOfferOnCooldown && !userDeclinedMusic) {
       // V2 CURATION FALLBACK: Offer was cued pre-LLM but response didn't use "night swim" string
       // (e.g., SEED level: "I have something for this mood")
       // Detect if AI delivered a generic music offer
@@ -10407,25 +10445,14 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       const cadenceMet = currentUserMsgCount >= 2 && newAssistantMsgCount >= 1;
       console.log(`[CADENCE] Post-response: user=${currentUserMsgCount}, assistant=${newAssistantMsgCount}, cadenceMet=${cadenceMet}`);
       
-      if (isMusicContext) {
-        atmosphereResult = {
-          sound_state: { current: null, changed: false, reason: 'music_context_suppressed' }
-        };
-        console.log('[ATMOSPHERE] Skipped — music context active (isMusicContext=true)');
-      } else {
-        atmosphereResult = evaluateAtmosphere({
-          userId: effectiveUserId,
-          current_message: userText,
-          recent_messages: recentUserMessages.slice(0, -1),
-          client_sound_state: clientSoundState,
-          userMessageCount: currentUserMsgCount,
-          assistantMessageCount: newAssistantMsgCount,
-          isCrisisMode: isCrisisMode
-        });
-        
-        if (atmosphereResult?.sound_state?.changed) {
-          console.log(`[ATMOSPHERE] State changed to: ${atmosphereResult.sound_state.current}`);
-        }
+      // Use the early atmosphere result (already computed before early returns)
+      // This prevents double-evaluation which would mess up internal state tracking
+      atmosphereResult = earlyAtmosphereResult || {
+        sound_state: { current: null, changed: false, reason: 'default' }
+      };
+      
+      if (atmosphereResult?.sound_state?.changed) {
+        console.log(`[ATMOSPHERE] State changed to: ${atmosphereResult.sound_state.current}`);
       }
     } catch (err) {
       console.error('[ATMOSPHERE] Evaluation failed:', err.message);
