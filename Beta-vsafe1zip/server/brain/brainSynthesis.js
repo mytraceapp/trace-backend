@@ -316,6 +316,19 @@ function buildTopicAnchor({
   const domain = DOMAIN_MAP[primaryMode] || 'conversation';
   const topicKeywords = conversationState?.lastTopicKeywords || [];
 
+  const isBareGreeting = /^(hi|hello|hey|yo|sup|heya|hiya|heyy|hii|what'?s up|wassup)[\s!.?]*$/i.test((currentMessage || '').trim());
+  const previousHasContent = previousAnchor && previousAnchor.label && previousAnchor.label !== 'open conversation';
+
+  if (isBareGreeting && previousHasContent && !cognitiveIntent?.topic_shift) {
+    return {
+      domain: previousAnchor.domain,
+      label: previousAnchor.label,
+      entities: previousAnchor.entities || [],
+      turnAge: (previousAnchor.turnAge || 0) + 1,
+      carried: true,
+    };
+  }
+
   let label = '';
   const entities = [];
 
@@ -424,9 +437,15 @@ function buildContinuity({ topicAnchor, previousAnchor, conversationState, cogni
   let required = false;
   let reason = 'no_prior_context';
 
+  const anchorCarried = !!topicAnchor?.carried;
+  const previousHadContent = previousAnchor && previousAnchor.label && previousAnchor.label !== 'open conversation';
+
   if (anchorExists && noTopicShift) {
     required = true;
     reason = 'anchor_active';
+  } else if (anchorCarried && previousHadContent && noTopicShift) {
+    required = true;
+    reason = 'anchor_carried_through_greeting';
   } else if (topicEstablished) {
     required = true;
     reason = 'topic_established';
