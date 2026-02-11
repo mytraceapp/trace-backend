@@ -415,29 +415,29 @@ function generateContextualContinuation(response, recentHistory = []) {
   else if (contexts.emotional) continuations = emotionalContinuations;
   else if (contexts.casual) continuations = casualContinuations;
   
-  // Extract the non-lazy part of the response if there is one
-  let cleanPart = response;
-  const lazyPatterns = [
-    /[\.\,\s]*(so\s+)?what['']?s\s+(been\s+)?on\s+your\s+mind\s*\??/gi,
-    /[\.\,\s]*(so\s+)?what\s+would\s+you\s+like\s+to\s+talk\s+about\s*\??/gi,
-    /[\.\,\s]*(so\s+)?what\s+brings\s+you\s+here\s+(today\s*)?\??/gi,
-    /[\.\,\s]*(so\s+)?how\s+are\s+you\s+feeling\s+(today\s*)?\??/gi,
-    /[\.\,\s]*(so\s+)?what\s+are\s+you\s+feeling\s+(right\s+now\s*)?\??/gi,
-    /[\.\,\s]*(so\s+)?how\s+can\s+I\s+support\s+you\s*\??/gi,
-    /[\.\,\s]*(so\s+)?what['']?s\s+going\s+on\s+(with\s+you\s*)?\??/gi,
-    /[\.\,\s]*(so\s+)?tell\s+me\s+(more\s+)?about\s+what['']?s\s+happening\s*\.?/gi,
-    /[\.\,\s]*(so\s+)?I['']?m\s+here\s+(for\s+you\s*)?if\s+you\s+want\s+to\s+talk\.?/gi,
-    /[\.\,\s]*(so\s+)?anything\s+(else\s+)?on\s+your\s+mind\s*\??/gi,
+  const lazySentencePatterns = [
+    /what[''\u2019]?s\s+(been\s+)?on\s+your\s+mind/i,
+    /what\s+would\s+you\s+like\s+to\s+talk\s+about/i,
+    /what\s+brings\s+you\s+here/i,
+    /how\s+are\s+you\s+feeling\s+(today|right now)?/i,
+    /what\s+are\s+you\s+feeling/i,
+    /how\s+can\s+I\s+support\s+you/i,
+    /what[''\u2019]?s\s+going\s+on\s+(with\s+you)?/i,
+    /tell\s+me\s+(more\s+)?about\s+what[''\u2019]?s\s+happening/i,
+    /I[''\u2019]?m\s+here\s+(for\s+you\s*)?if\s+you\s+want\s+to\s+talk/i,
+    /anything\s+(else\s+)?on\s+your\s+mind/i,
+    /is\s+there\s+anything\s+(you[''\u2019]?d\s+like\s+to\s+share|on\s+your\s+mind)/i,
   ];
-  
-  for (const pattern of lazyPatterns) {
-    cleanPart = cleanPart.replace(pattern, '');
-  }
-  cleanPart = cleanPart.replace(/\s{2,}/g, ' ').trim();
-  
-  // If clean part is substantial, keep it
+
+  const sentences = response.match(/[^.!?]+[.!?]+/g) || [response];
+  const cleanSentences = sentences.filter(sentence => {
+    return !lazySentencePatterns.some(p => p.test(sentence));
+  });
+
+  const cleanPart = cleanSentences.join(' ').replace(/\s{2,}/g, ' ').trim();
+
   if (cleanPart.length >= 8) {
-    console.log(`[VOICE] 🔧 Kept clean part: "${cleanPart}"`);
+    console.log(`[VOICE] Kept clean part: "${cleanPart}"`);
     return cleanPart;
   }
   
