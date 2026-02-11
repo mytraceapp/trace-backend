@@ -358,6 +358,8 @@ Generic probes are NOT allowed at this stage.
 function violatesProbeRules(response, state, userHadContent) {
   const moveType = classifyMoveType(response);
   
+  const hasRealTopic = state.topicEstablished && state.lastTopicKeywords && state.lastTopicKeywords.length > 0;
+  
   // Violation: consecutive open probes when user provided content
   if (moveType === MOVE_TYPES.OPEN_PROBE && 
       state.lastMoveType === MOVE_TYPES.OPEN_PROBE && 
@@ -366,12 +368,17 @@ function violatesProbeRules(response, state, userHadContent) {
     return true;
   }
   
-  // Violation: open probe when topic is established and we're past OPENING
+  // Violation: open probe when a REAL topic is established and we're past OPENING
+  // Skip when topic is generic "open conversation" with no entities — that's not a real topic
   if (moveType === MOVE_TYPES.OPEN_PROBE && 
-      state.topicEstablished && 
+      hasRealTopic && 
       (state.stage === STAGES.SHARING || state.stage === STAGES.EXPLORING || state.stage === STAGES.PROCESSING)) {
-    console.log(`[CONVO_GUARD] VIOLATION: OPEN_PROBE in ${state.stage} stage with established topic`);
+    console.log(`[CONVO_GUARD] VIOLATION: OPEN_PROBE in ${state.stage} stage with established topic [${state.lastTopicKeywords.join(', ')}]`);
     return true;
+  }
+  
+  if (moveType === MOVE_TYPES.OPEN_PROBE && !hasRealTopic && state.topicEstablished) {
+    console.log(`[CONVO_GUARD] OPEN_PROBE allowed — topicEstablished but no real topic keywords detected`);
   }
   
   return false;
