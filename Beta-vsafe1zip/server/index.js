@@ -4560,6 +4560,32 @@ app.post('/api/chat', async (req, res) => {
       let trackInfo = lastTrack ? getTrackInfo(lastTrack) : null;
       
       const convoStateForResume = conversationState.getState(effectiveUserId);
+
+      let postActivityBridge = '';
+      const pendingFollowup = convoStateForResume.pendingFollowup;
+      if (pendingFollowup && pendingFollowup.activityName && !pendingFollowup.expired) {
+        postActivityBridge = `Good to have you back from ${pendingFollowup.activityName}. `;
+        convoStateForResume.pendingFollowup = { ...pendingFollowup, expired: true, clearedBy: 'music_resume' };
+        console.log('[AUDIO CONTROL] Cleared pending post-activity reflection — user resumed music instead');
+        if (pool) {
+          try {
+            await clearReflectionFlag(pool, effectiveUserId);
+            console.log('[AUDIO CONTROL] Also cleared DB reflection flag via pendingFollowup path');
+          } catch (e) { /* non-critical */ }
+        }
+      }
+      if (!postActivityBridge && pool) {
+        try {
+          const reflCtx = await getReflectionContext(pool, effectiveUserId);
+          if (reflCtx && reflCtx.lastActivityName) {
+            postActivityBridge = `Welcome back from ${reflCtx.lastActivityName}. `;
+            await clearReflectionFlag(pool, effectiveUserId);
+            console.log('[AUDIO CONTROL] Cleared DB reflection flag — user resumed music instead');
+          }
+        } catch (e) {
+          console.warn('[AUDIO CONTROL] Reflection check failed:', e.message);
+        }
+      }
       
       if (!lastTrack && convoStateForResume.lastPlayedTrack) {
         const saved = convoStateForResume.lastPlayedTrack;
@@ -4571,7 +4597,7 @@ app.post('/api/chat', async (req, res) => {
           convoStateForResume.turnCount++;
           conversationState.saveState(effectiveUserId, convoStateForResume);
           
-          const resumeMsg = saved.title ? `Back on — ${saved.title}.` : "Picking up where you left off.";
+          const resumeMsg = postActivityBridge + (saved.title ? `Back on — ${saved.title}.` : "Picking up where you left off.");
           console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
           
           return res.json({
@@ -4593,7 +4619,7 @@ app.post('/api/chat', async (req, res) => {
             detected_state: 'neutral',
             sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
             response_source: 'audio_control',
-            _provenance: { path: 'audio_resume_from_state', requestId, ts: Date.now() }
+            _provenance: { path: 'audio_resume_from_state', requestId, ts: Date.now(), had_activity_bridge: !!postActivityBridge }
           });
         }
       }
@@ -4606,7 +4632,7 @@ app.post('/api/chat', async (req, res) => {
           convoStateForResume.turnCount++;
           conversationState.saveState(effectiveUserId, convoStateForResume);
           
-          const resumeMsg = lnp.title ? `Back on — ${lnp.title}.` : "Picking up where you left off.";
+          const resumeMsg = postActivityBridge + (lnp.title ? `Back on — ${lnp.title}.` : "Picking up where you left off.");
           console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
           
           return res.json({
@@ -4628,7 +4654,7 @@ app.post('/api/chat', async (req, res) => {
             detected_state: 'neutral',
             sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
             response_source: 'audio_control',
-            _provenance: { path: 'audio_resume_from_client_state', requestId, ts: Date.now() }
+            _provenance: { path: 'audio_resume_from_client_state', requestId, ts: Date.now(), had_activity_bridge: !!postActivityBridge }
           });
         }
       }
@@ -4662,7 +4688,7 @@ app.post('/api/chat', async (req, res) => {
       convoStateForResume.turnCount++;
       conversationState.saveState(effectiveUserId, convoStateForResume);
       
-      const resumeMsg = trackInfo ? `Back on — ${trackInfo.name}.` : "Playing.";
+      const resumeMsg = postActivityBridge + (trackInfo ? `Back on — ${trackInfo.name}.` : "Playing.");
       
       return res.json({
         ok: true,
@@ -4675,7 +4701,7 @@ app.post('/api/chat', async (req, res) => {
         detected_state: 'neutral',
         sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
         response_source: 'audio_control',
-        _provenance: { path: 'audio_resume', requestId, ts: Date.now() }
+        _provenance: { path: 'audio_resume', requestId, ts: Date.now(), had_activity_bridge: !!postActivityBridge }
       });
     }
     
@@ -10483,7 +10509,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
 
     const primaryModeConvo = (traceIntent?.primaryMode || 'conversation') === 'conversation';
 
-    // ── SPOTIFY PLAYLIST LEAK ENFORCEMENT ──
+    // ── PHASE 8: SPOTIFY PLAYLIST LEAK ENFORCEMENT ──
     // Night Swim tracks are fine to suggest. Only strip Spotify playlist mentions
     // (Rooted, Low Orbit, First Light) unless user asked for external recs or is leaving.
     const lastMsgLower = (lastUserMessage || '').toLowerCase();
@@ -10502,12 +10528,13 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         } else {
           finalResponse.message = "I'm here. What's on your mind?";
         }
-        console.log('[SPOTIFY_PLAYLIST_STRIP]', JSON.stringify({
+        console.log('[PHASE8_PLAYLIST_STRIP]', JSON.stringify({
           requestId: chatRequestId,
           stripped_sentences: strippedCount,
           total_sentences: sentences.length,
           userLeaving: userLeavingSignal,
           userAskedExternal,
+          spotifyAllowed: spotifyPlaylistAllowed,
         }));
         if (finalResponse.activity_suggestion?.name) {
           const playlistNames = ['rooted_playlist', 'low_orbit_playlist', 'first_light_playlist'];
@@ -10567,7 +10594,8 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     
     // Post-processing: detect playlist mentions in AI-generated responses
     // When the model mentions a playlist, store as pending offer (user must confirm before we open journal modal)
-    // PLAYLIST GATE: Spotify playlists open OUTSIDE the app — absolute last resort
+    // ── PHASE 8b: PLAYLIST GATE ──
+    // Spotify playlists open OUTSIDE the app — absolute last resort
     // Only allow after 7+ music suggestions, user leaving, user asking for external, or explicit playlist request
     let pipelineUiAction = null;
     const finalMsgText = (finalResponse.message || '').toLowerCase();
@@ -10583,7 +10611,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     for (const pl of playlistMentions) {
       if (pl.patterns.some(p => finalMsgText.includes(p))) {
         if (!playlistTurnGateMet) {
-          console.log('[PLAYLIST_GATE] Blocked playlist offer — too early', JSON.stringify({ requestId: chatRequestId, playlistId: pl.name, sessionTurns, hasTriedInAppMusic: !!hasTriedInAppMusic, isExplicitRequest: isExplicitPlaylistRequest }));
+          console.log('[PHASE8b_PLAYLIST_GATE] Blocked playlist offer — too early', JSON.stringify({ requestId: chatRequestId, playlistId: pl.name, sessionMusicSuggestions, isExplicitRequest: isExplicitPlaylistRequest, userLeaving: userLeavingSignal, userAskedExternal }));
           break;
         }
         const pendingAction = {
@@ -10592,11 +10620,12 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
           playlistId: pl.name,
           source: 'trace',
         };
+        pipelineUiAction = pendingAction;
         if (effectiveUserId) {
           const mState = getMusicState(effectiveUserId);
           mState.pendingPlaylistOffer = pendingAction;
         }
-        console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId: chatRequestId, type: 'offer_playlist', source: pendingAction.source, playlistId: pl.name, path: 'ai_pipeline_postprocess_offer' }));
+        console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId: chatRequestId, type: 'offer_playlist', source: pendingAction.source, playlistId: pl.name, path: 'ai_pipeline_postprocess_offer', ui_action_set: true }));
         break;
       }
     }
@@ -10623,7 +10652,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     // PLAYLIST TURN GATE: suppress playlist activity_suggestions when too early
     const playlistNames = ['rooted_playlist', 'low_orbit_playlist', 'first_light_playlist'];
     if (finalResponse.activity_suggestion?.name && playlistNames.includes(finalResponse.activity_suggestion.name) && !playlistTurnGateMet) {
-      console.log('[PLAYLIST_GATE] Suppressed playlist activity_suggestion — too early', JSON.stringify({ requestId: chatRequestId, name: finalResponse.activity_suggestion.name, sessionTurns }));
+      console.log('[PHASE8b_PLAYLIST_GATE] Suppressed playlist activity_suggestion — too early', JSON.stringify({ requestId: chatRequestId, name: finalResponse.activity_suggestion.name, sessionMusicSuggestions }));
       finalResponse.activity_suggestion = { name: null, reason: null, should_navigate: false };
     }
 
