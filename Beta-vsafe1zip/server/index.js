@@ -4764,7 +4764,33 @@ app.post('/api/chat', async (req, res) => {
         }
       }
       
-      const resumeAudioAction = lastTrack ? {
+      // NOTHING TO RESUME: No track found from any source
+      // Don't send a blind resume action — tell user nothing is playing
+      if (!lastTrack) {
+        console.log('[AUDIO CONTROL] Resume requested but no track found from any source');
+        console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
+        
+        convoStateForResume.turnCount++;
+        conversationState.saveState(effectiveUserId, convoStateForResume);
+        
+        const noTrackMsg = postActivityBridge + "Nothing's playing right now. Want me to put something on?";
+        
+        return res.json({
+          ok: true,
+          requestId,
+          request_id: requestId,
+          message: noTrackMsg,
+          audio_action: null,
+          activity_suggestion: { name: null, should_navigate: false },
+          posture: 'STEADY',
+          detected_state: 'neutral',
+          sound_state: { current: null, changed: false, reason: 'nothing_to_resume' },
+          response_source: 'audio_control',
+          _provenance: { path: 'audio_resume_nothing_playing', requestId, ts: Date.now(), had_activity_bridge: !!postActivityBridge }
+        });
+      }
+      
+      const resumeAudioAction = {
         type: 'open',
         action: 'play',
         source: 'originals',
@@ -4772,13 +4798,8 @@ app.post('/api/chat', async (req, res) => {
         track: lastTrack - 1,
         autoplay: true,
         reason: 'user_requested'
-      } : {
-        type: 'resume',
-        action: 'resume',
-        source: 'last_played',
-        reason: 'user_requested'
       };
-      console.log(`[AUDIO CONTROL] Resume music detected - ${lastTrack ? `resuming Track ${lastTrack} (${trackInfo?.name || 'Unknown'})` : 'no track history, resuming last'}`);
+      console.log(`[AUDIO CONTROL] Resume music detected - resuming Track ${lastTrack} (${trackInfo?.name || 'Unknown'})`);
       console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
       
       convoStateForResume.turnCount++;
@@ -12347,6 +12368,50 @@ app.post('/api/onboarding/reflection', async (req, res) => {
       return res.status(400).json({ success: false, error: 'reflection is required' });
     }
     
+    // Check for music stop/resume commands — these should not be treated as reflections
+    const reflectionLower = (reflectionText || '').toLowerCase().trim();
+    const reflectionStopsMusic = /^stop\s*(the\s*)?(music|audio|sound|playing)|^pause\s*(the\s*)?(music|audio)|^turn\s*off\s*(the\s*)?(music|audio)|^mute|^silence|^quiet$/i.test(reflectionLower);
+    const reflectionResumesMusic = /^resume\s*(the\s*)?(music|audio)?$|^play\s*(the\s*)?(music|audio)$|^unpause|^unmute|^turn\s*on\s*(the\s*)?(music|audio)|^start\s*(the\s*)?(music|audio)$|^(put|bring)\s*(the\s*)?(music|audio)\s*(back|on)|^music\s*(back|on|again)|^resume$/i.test(reflectionLower);
+    
+    if (reflectionStopsMusic) {
+      console.log('[ACTIVITY REFLECTION] Intercepted music STOP command in reflection');
+      return res.json({
+        success: true,
+        ok: true,
+        message: "Music's off.",
+        aiResponse: "Music's off.",
+        audio_action: { type: 'stop', action: 'pause', source: 'all', reason: 'user_requested' },
+        sound_state: { current: null, changed: true, reason: 'user_stopped' },
+      });
+    }
+    
+    if (reflectionResumesMusic) {
+      console.log('[ACTIVITY REFLECTION] Intercepted music RESUME command in reflection');
+      const convoStateRef = conversationState.getState(userId);
+      const savedTrack = convoStateRef?.lastPlayedTrack;
+      
+      if (savedTrack && (Date.now() - (savedTrack.timestamp || 0)) < 2 * 60 * 60 * 1000) {
+        const trackIndex = savedTrack.trackIndex ?? savedTrack.trackId ?? 0;
+        return res.json({
+          success: true,
+          ok: true,
+          message: savedTrack.title ? `Back on — ${savedTrack.title}.` : "Picking up where you left off.",
+          aiResponse: savedTrack.title ? `Back on — ${savedTrack.title}.` : "Picking up where you left off.",
+          audio_action: { type: 'open', action: 'play', source: 'originals', album: savedTrack.album || 'night_swim', track: typeof trackIndex === 'number' ? trackIndex : 0, autoplay: true, reason: 'user_requested_resume' },
+          sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
+        });
+      }
+      
+      return res.json({
+        success: true,
+        ok: true,
+        message: "Nothing's playing right now. Want me to put something on?",
+        aiResponse: "Nothing's playing right now. Want me to put something on?",
+        audio_action: null,
+        sound_state: { current: null, changed: false, reason: 'nothing_to_resume' },
+      });
+    }
+
     // Check for TRACE music requests (e.g., "play neon promise") - redirect to music handler
     const studiosResponse = handleTraceStudios({
       userText: reflectionText,
