@@ -1,0 +1,74 @@
+#!/bin/bash
+set -e
+
+API_URL="http://localhost:5000/api/chat"
+USER_ID="freeze-test-user-001"
+
+echo "=== FREEZE QUALIFICATION SESSION START ==="
+
+curl -s $API_URL -H "Content-Type: application/json" -d '{
+  "userId": "'"$USER_ID"'",
+  "message": "Give me a reel concept for Midnight Underwater."
+}' >/dev/null
+
+curl -s $API_URL -H "Content-Type: application/json" -d '{
+  "userId": "'"$USER_ID"'",
+  "message": "Okay now one for Neon Promise — same vibe."
+}' >/dev/null
+
+curl -s $API_URL -H "Content-Type: application/json" -d '{
+  "userId": "'"$USER_ID"'",
+  "message": "Make it more cinematic, like an A24 trailer."
+}' >/dev/null
+
+curl -s $API_URL -H "Content-Type: application/json" -d '{
+  "userId": "'"$USER_ID"'",
+  "message": "Now give me a hook line idea for Track 2."
+}' >/dev/null
+
+curl -s $API_URL -H "Content-Type: application/json" -d '{
+  "userId": "'"$USER_ID"'",
+  "message": "Give me a 6-shot visual list for the album teaser."
+}' >/dev/null
+
+curl -s $API_URL -H "Content-Type: application/json" -d '{
+  "userId": "'"$USER_ID"'",
+  "message": "Write a caption and five hashtags."
+}' >/dev/null
+
+echo "--- Pivot to conversation ---"
+
+curl -s $API_URL -H "Content-Type: application/json" -d '{
+  "userId": "'"$USER_ID"'",
+  "message": "Honestly I feel really tired and overwhelmed lately."
+}' >/dev/null
+
+curl -s $API_URL -H "Content-Type: application/json" -d '{
+  "userId": "'"$USER_ID"'",
+  "message": "It has been like this all week."
+}' >/dev/null
+
+echo "--- Return to studios ---"
+
+curl -s $API_URL -H "Content-Type: application/json" -d '{
+  "userId": "'"$USER_ID"'",
+  "message": "Okay back to music — play Midnight Underwater."
+}' >/dev/null
+
+curl -s $API_URL -H "Content-Type: application/json" -d '{
+  "userId": "'"$USER_ID"'",
+  "message": "Give me another reel idea for Neon Promise."
+}' >/dev/null
+
+echo "=== SESSION COMPLETE ==="
+
+echo
+echo "=== RESPONSE SHAPE REPORT ==="
+node server/tools/shapeReport.js || echo "(shapeReport skipped — no logs found)"
+
+echo
+echo "=== SCHEMA + PHASE METRICS REPORT ==="
+node server/tools/metricsReport.js || echo "(metricsReport skipped — no logs found)"
+
+echo
+echo "=== FREEZE QUALIFICATION DONE ==="
