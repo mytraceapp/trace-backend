@@ -8071,6 +8071,10 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
     // CONVERSATION STATE LAYER: Track stage + move type to prevent repetitive probing
     // ============================================================
     const convoState = conversationState.getState(effectiveUserId);
+    if (convoState.turnCount === 0 && messages && messages.length > 1) {
+      conversationState.reconstructStateFromMessages(convoState, messages);
+      conversationState.saveState(effectiveUserId, convoState);
+    }
     const userHadContent = conversationState.advanceStage(convoState, lastUserContent);
     
     console.log(`[CONVO_STATE] Before: { stage: ${convoState.stage}, lastMove: ${convoState.lastMoveType}, topics: [${convoState.lastTopicKeywords.join(', ')}], userHadContent: ${userHadContent} }`);

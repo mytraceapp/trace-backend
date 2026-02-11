@@ -181,20 +181,20 @@ function userHasContent(message) {
   if (!message) return false;
   const trimmed = message.trim();
   
-  // Check for non-content patterns
   for (const pattern of NON_CONTENT_PATTERNS) {
     if (pattern.test(trimmed)) {
       return false;
     }
   }
   
-  // Content indicators
-  const hasLength = trimmed.length >= 15;
-  const hasMultipleWords = trimmed.split(/\s+/).length >= 3;
-  const hasPunctuation = /[,!?\-\.]/.test(trimmed.slice(0, -1)); // punctuation not just at end
+  const wordCount = trimmed.split(/\s+/).length;
+  const hasLength = trimmed.length >= 8;
+  const hasMultipleWords = wordCount >= 2;
+  const hasPunctuation = /[,!?\-\.]/.test(trimmed.slice(0, -1));
   const hasEmotionWord = /feel|felt|think|thought|worried|anxious|sad|happy|stressed|tired|overwhelmed|scared|angry|frustrated|confused|lost|stuck|hurt/i.test(trimmed);
+  const hasTopicWord = /work|job|school|family|friend|sleep|dream|music|health|money|move|break|stress|busy|crazy|everything|nothing|lot|stuff|things/i.test(trimmed);
   
-  return hasLength || hasMultipleWords || hasPunctuation || hasEmotionWord;
+  return hasLength || hasMultipleWords || hasPunctuation || hasEmotionWord || hasTopicWord;
 }
 
 /**
@@ -269,6 +269,54 @@ function classifyMoveType(response) {
 }
 
 /**
+ * Rebuild conversation state from message history
+ * Called when getState creates a fresh default state but messages exist
+ */
+function reconstructStateFromMessages(state, messages) {
+  if (!messages || messages.length === 0) return state;
+  
+  const userMessages = messages.filter(m => m.role === 'user');
+  const assistantMessages = messages.filter(m => m.role === 'assistant');
+  
+  state.turnCount = Math.max(userMessages.length, assistantMessages.length);
+  
+  let contentCount = 0;
+  const allTopics = [];
+  
+  for (const msg of userMessages) {
+    const content = msg.content || '';
+    if (userHasContent(content)) contentCount++;
+    const topics = extractTopicKeywords(content);
+    for (const t of topics) {
+      if (!allTopics.includes(t)) allTopics.push(t);
+    }
+  }
+  
+  if (allTopics.length > 0) {
+    state.lastTopicKeywords = allTopics.slice(-5);
+    state.topicEstablished = true;
+  }
+  
+  if (contentCount >= 2 || state.turnCount >= 4) {
+    state.stage = STAGES.EXPLORING;
+  } else if (contentCount >= 1 || state.turnCount >= 2) {
+    state.stage = STAGES.SHARING;
+    state.topicEstablished = true;
+  } else if (state.turnCount >= 1) {
+    state.stage = STAGES.OPENING;
+  }
+  
+  if (assistantMessages.length > 0) {
+    const lastAssistant = assistantMessages[assistantMessages.length - 1];
+    state.lastMoveType = classifyMoveType(lastAssistant.content || '');
+  }
+  
+  console.log(`[CONVO_STATE] Reconstructed from ${messages.length} messages: stage=${state.stage}, turns=${state.turnCount}, topics=[${state.lastTopicKeywords.join(', ')}], contentMsgs=${contentCount}`);
+  
+  return state;
+}
+
+/**
  * Advance conversation stage based on user content
  */
 function advanceStage(state, userMessage) {
@@ -277,6 +325,12 @@ function advanceStage(state, userMessage) {
   
   if (topics.length > 0) {
     state.lastTopicKeywords = topics;
+  }
+  
+  if (state.turnCount >= 3 && (state.stage === STAGES.ARRIVAL || state.stage === STAGES.OPENING)) {
+    state.stage = STAGES.SHARING;
+    state.topicEstablished = true;
+    console.log(`[CONVO_STATE] Auto-advanced past ARRIVAL after ${state.turnCount} turns`);
   }
   
   if (hasContent) {
@@ -289,7 +343,6 @@ function advanceStage(state, userMessage) {
       console.log(`[CONVO_STATE] Stage advanced: ${STAGES.SHARING} → ${STAGES.EXPLORING}`);
     }
     
-    // Check for emotional content to advance to PROCESSING
     if (/overwhelm|really (sad|scared|anxious|stressed)|can't (stop|handle|take)/i.test(userMessage)) {
       state.stage = STAGES.PROCESSING;
       console.log(`[CONVO_STATE] Emotional intensity detected → ${STAGES.PROCESSING}`);
@@ -458,6 +511,7 @@ module.exports = {
   extractTopicKeywords,
   classifyMoveType,
   advanceStage,
+  reconstructStateFromMessages,
   buildStatePromptInjection,
   violatesProbeRules,
   generateFallbackResponse,
