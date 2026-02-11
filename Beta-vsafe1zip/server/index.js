@@ -4851,7 +4851,18 @@ app.post('/api/chat', async (req, res) => {
         recentAssistantMessages: recentAssistantMsgs, // Check history for played tracks
       });
       
-      if (studiosResponse) {
+      if (studiosResponse && studiosResponse._declined) {
+        console.log('[TRACE STUDIOS] User declined music — clearing studios mode');
+        const declineState = conversationState.getState(effectiveUserId);
+        if (declineState.topicAnchor && declineState.topicAnchor.domain === 'music') {
+          declineState.topicAnchor = null;
+          declineState.lastPrimaryMode = null;
+          declineState.lastMusicOfferAt = Date.now();
+          conversationState.saveState(effectiveUserId, declineState);
+          console.log('[ANCHOR] Cleared music anchor — user declined');
+        }
+        // Fall through to main pipeline — don't intercept
+      } else if (studiosResponse) {
         console.log('[TRACE STUDIOS] Intercepted:', studiosResponse.traceStudios?.kind);
         
         let studiosMsg = studiosResponse.assistant_message;
@@ -4972,6 +4983,7 @@ app.post('/api/chat', async (req, res) => {
               title: studiosUiAction?.title || studioAction.trackId,
               timestamp: Date.now(),
             };
+            trackState.lastMusicOfferAt = Date.now();
             conversationState.saveState(effectiveUserId, trackState);
             console.log('[TRACK MEMORY] Saved lastPlayedTrack:', trackState.lastPlayedTrack.trackId);
           }
@@ -9614,6 +9626,23 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }));
     }
     
+    // MUSIC OFFER COOLDOWN: Prevent pushy DJ behavior
+    // Don't attach audio recommendations if we recently offered music (within 5 min)
+    const audioConvoStateForCooldown = conversationState.getState(effectiveUserId);
+    const lastMusicOfferAt = audioConvoStateForCooldown.lastMusicOfferAt || 0;
+    const musicOfferCooldownMs = 5 * 60 * 1000; // 5 minutes
+    const musicOfferOnCooldown = (Date.now() - lastMusicOfferAt) < musicOfferCooldownMs;
+    
+    // Also check if user explicitly declined music recently
+    const userDeclinedMusic = /^no\b|^nah\b|^nope|don't want|dont want|i'm good|im good|i'm okay|im okay|no thanks|not right now|stop|pass\b|skip\b/i.test(lastUserMsgForAudio.trim());
+    
+    if (musicOfferOnCooldown) {
+      console.log(`[MUSIC COOLDOWN] Suppressing offer — last offer ${Math.round((Date.now() - lastMusicOfferAt) / 1000)}s ago (cooldown: 300s)`);
+    }
+    if (userDeclinedMusic) {
+      console.log('[MUSIC COOLDOWN] User declined music — suppressing any audio offers this turn');
+    }
+    
     // Check if TRACE is offering Night Swim in this response
     // Requires both "night swim" AND offer-intent keywords to avoid false positives
     const responseLower = responseText.toLowerCase();
@@ -9624,7 +9653,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
                            responseLower.includes('made') ||
                            responseLower.includes('put it on') ||
                            responseLower.includes('listen');
-    const isNightSwimOffer = nightSwimMentioned && hasOfferIntent;
+    const isNightSwimOffer = nightSwimMentioned && hasOfferIntent && !musicOfferOnCooldown && !userDeclinedMusic;
     
     // Check if the IMMEDIATE previous assistant message offered Night Swim
     // This prevents spurious triggers from old mentions
@@ -9784,6 +9813,10 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         autoplay: false
       });
       addToSessionHistory(effectiveUserId, trackNum);
+      // Record music offer timestamp for cooldown
+      const offerState = conversationState.getState(effectiveUserId);
+      offerState.lastMusicOfferAt = Date.now();
+      conversationState.saveState(effectiveUserId, offerState);
       const trackInfo = getTrackInfo(trackNum);
       console.log(`[TRACE ORIGINALS] Night Swim offered, recommending Track ${trackNum}: ${trackInfo?.name || 'Unknown'} (index ${trackNum - 1})`);
     } else if (isNightSwimOffer && trackIsActive && !isExplicitMusicCommand) {
@@ -12422,7 +12455,9 @@ app.post('/api/onboarding/reflection', async (req, res) => {
       recentAssistantMessages: [],
     });
     
-    if (studiosResponse) {
+    if (studiosResponse && studiosResponse._declined) {
+      console.log('[ACTIVITY REFLECTION] User declined music — proceeding as normal reflection');
+    } else if (studiosResponse && !studiosResponse._declined) {
       console.log('[ACTIVITY REFLECTION] Intercepted TRACE Studios request:', studiosResponse.traceStudios?.kind);
       
       const reflectionUiAction = studiosResponse.ui_action || null;

@@ -509,8 +509,12 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
   const contextTrackId = clientState?.traceStudiosContext;
   const contextTrack = contextTrackId && TRACKS[contextTrackId] ? TRACKS[contextTrackId] : null;
   
+  // Explicit negation check — must run BEFORE affirmative to prevent "No I'm okay" false positives
+  const isNegation = /^no\b|^nah\b|^nope|^not\b|don't want|dont want|i'm good|im good|i'm okay|im okay|no thanks|no thank|not right now|not now|maybe later|pass\b|skip\b|stop/i.test(t);
+  
   // Simple affirmative responses (yes, sure, okay, etc.)
-  const isAffirmative = includesAny(t, [
+  // GUARD: negation overrides — "No I'm okay" is NOT affirmative
+  const isAffirmative = !isNegation && includesAny(t, [
     "yes", "yeah", "sure", "okay", "ok", "yep", "yup", "please", "do it", "go ahead",
     "ready", "i'm ready", "im ready", "let's go", "lets go", "sounds good", "that sounds good",
     "open it", "show me", "take me there", "let's hear it", "lets hear it"
@@ -591,6 +595,13 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
   const isAlbumContext = contextTrackId === 'night_swim';
   const lastMsgOfferedTrack = mentionedTrack || justMentionedNightSwim || justMentionedNeonPromise;
   const hasPlayableContext = contextTrack || isAlbumContext || mentionedTrack || inNeonContext || justMentionedNightSwim || justMentionedNeonPromise;
+  
+  // DECLINE GUARD: If user explicitly declines music, return null immediately
+  // This prevents any further music interception and lets the main pipeline handle it
+  if (isNegation && lastMsgOfferedTrack && !directPlayRequest && !wantsToPlay) {
+    console.log('[TRACE STUDIOS] User declined music offer — returning null to clear studios mode');
+    return { _declined: true, declined_reason: 'user_said_no' };
+  }
   
   // Only play on affirmative if TRACE actually offered something (lastMsgOfferedTrack),
   // not just because the track was mentioned in any previous context

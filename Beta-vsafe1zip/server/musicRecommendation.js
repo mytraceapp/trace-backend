@@ -114,6 +114,10 @@ function isUserAgreeing(message) {
   if (!message) return false;
   const lowerMsg = message.toLowerCase().trim();
   
+  // NEGATION GUARD: "No I'm okay", "nah", "not right now" etc. are NOT agreement
+  const isNegation = /^no\b|^nah\b|^nope|^not\b|don't want|dont want|i'm good|im good|i'm okay|im okay|no thanks|no thank|not right now|not now|maybe later|pass\b|skip\b|stop/i.test(lowerMsg);
+  if (isNegation) return false;
+  
   return AGREEMENT_PHRASES.some(phrase => {
     if (phrase.includes(' ')) {
       return lowerMsg.includes(phrase);
