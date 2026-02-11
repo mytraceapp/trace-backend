@@ -4484,14 +4484,14 @@ app.post('/api/chat', async (req, res) => {
     console.log('[TRACE BRAIN] client_state:', JSON.stringify(safeClientState));
     
     // 🎵 CADENCE TRACKING: Server-side message counting from actual conversation history
-    // Primary: count from messages array. Fallback: use client state if messages are truncated.
-    const msgUserCount = messages.filter(m => m.role === 'user').length;
-    const msgAssistantCount = messages.filter(m => m.role === 'assistant').length;
+    // Uses rawMessages here because filtered `messages` const is declared later
+    const rawMsgUserCount = (rawMessages || []).filter(m => m.role === 'user').length;
+    const rawMsgAssistantCount = (rawMessages || []).filter(m => m.role === 'assistant').length;
     const clientUserCount = (safeClientState.userMessageCount || 0) + 1;
     const clientAssistantCount = safeClientState.assistantMessageCount || 0;
-    const currentUserMsgCount = Math.max(msgUserCount, clientUserCount);
-    const currentAssistantMsgCount = Math.max(msgAssistantCount, clientAssistantCount);
-    console.log(`[CADENCE] User: ${currentUserMsgCount} (msg=${msgUserCount}, client=${clientUserCount}), Assistant: ${currentAssistantMsgCount} (msg=${msgAssistantCount}, client=${clientAssistantCount})`);
+    const currentUserMsgCount = Math.max(rawMsgUserCount, clientUserCount);
+    const currentAssistantMsgCount = Math.max(rawMsgAssistantCount, clientAssistantCount);
+    console.log(`[CADENCE] User: ${currentUserMsgCount} (msg=${rawMsgUserCount}, client=${clientUserCount}), Assistant: ${currentAssistantMsgCount} (msg=${rawMsgAssistantCount}, client=${clientAssistantCount})`);
 
     // Filter out invalid placeholder names like "friend", "buddy", "pal"
     const invalidNames = ['friend', 'buddy', 'pal', 'user', 'guest', 'anonymous'];
