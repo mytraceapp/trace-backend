@@ -75,16 +75,16 @@ const ALLOWED_TRANSITIONS = {
   insight: ['presence', 'insight']
 };
 
-const DWELL_TIME_MS = 45000;
+const DWELL_TIME_MS = 30000;
 const OSCILLATION_WINDOW_MS = 120000;
 const OSCILLATION_THRESHOLD = 3;
 const FREEZE_DURATION_MS = 90000;
 const NEUTRAL_STREAK_THRESHOLD = 6; // Neutral messages before returning to presence
 const SIGNAL_TIMEOUT_MS = 600000; // 10 minutes - soundscapes persist reasonably
 const GROUNDING_CLEAR_THRESHOLD = 3; // Require 3 clear messages to exit grounding
-const MIN_STATE_PERSIST_MESSAGES = 6; // Minimum messages before allowing state switch
+const MIN_STATE_PERSIST_MESSAGES = 4; // Minimum messages before allowing state switch
 const INACTIVITY_TIMEOUT_MS = 300000; // 5 minutes - return to ambient after inactivity
-const BASELINE_WINDOW_MESSAGES = 3; // Accumulate signals over first 3 messages before making initial switch
+const BASELINE_WINDOW_MESSAGES = 2; // Accumulate signals over first 2 messages before making initial switch
 
 // ============================================================
 // SESSION STATE STORAGE (in-memory, keyed by userId)
@@ -223,10 +223,10 @@ function evaluateAtmosphere(input) {
   }
   
   // ============================================================
-  // 🎵 CADENCE GATE: Check if 4-message cadence is met (2 user + 2 assistant)
-  // Soundscapes don't trigger until conversation has warmed up
+  // 🎵 CADENCE GATE: Check if 3-message cadence is met (2 user + 1 assistant)
+  // Soundscapes start quickly once conversation begins
   // ============================================================
-  const cadenceMet = userMessageCount >= 2 && assistantMessageCount >= 2;
+  const cadenceMet = userMessageCount >= 2 && assistantMessageCount >= 1;
   
   if (!cadenceMet) {
     console.log(`[ATMOSPHERE] Cadence not met: user=${userMessageCount}, assistant=${assistantMessageCount} - staying on global ambient`);

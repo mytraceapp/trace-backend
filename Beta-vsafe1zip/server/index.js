@@ -4440,11 +4440,15 @@ app.post('/api/chat', async (req, res) => {
     const safeClientState = clientState || {};
     console.log('[TRACE BRAIN] client_state:', JSON.stringify(safeClientState));
     
-    // 🎵 CADENCE TRACKING: Track message counts for soundscape warm-up
-    // Increment user message count (this is a new user message)
-    const currentUserMsgCount = (safeClientState.userMessageCount || 0) + 1;
-    const currentAssistantMsgCount = safeClientState.assistantMessageCount || 0;
-    console.log(`[CADENCE] User message count: ${currentUserMsgCount}, Assistant: ${currentAssistantMsgCount}`);
+    // 🎵 CADENCE TRACKING: Server-side message counting from actual conversation history
+    // Primary: count from messages array. Fallback: use client state if messages are truncated.
+    const msgUserCount = messages.filter(m => m.role === 'user').length;
+    const msgAssistantCount = messages.filter(m => m.role === 'assistant').length;
+    const clientUserCount = (safeClientState.userMessageCount || 0) + 1;
+    const clientAssistantCount = safeClientState.assistantMessageCount || 0;
+    const currentUserMsgCount = Math.max(msgUserCount, clientUserCount);
+    const currentAssistantMsgCount = Math.max(msgAssistantCount, clientAssistantCount);
+    console.log(`[CADENCE] User: ${currentUserMsgCount} (msg=${msgUserCount}, client=${clientUserCount}), Assistant: ${currentAssistantMsgCount} (msg=${msgAssistantCount}, client=${clientAssistantCount})`);
 
     // Filter out invalid placeholder names like "friend", "buddy", "pal"
     const invalidNames = ['friend', 'buddy', 'pal', 'user', 'guest', 'anonymous'];
@@ -10300,9 +10304,9 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       // Pass client's current sound state so backend can restore if session was lost
       const clientSoundState = safeClientState?.currentSoundState || null;
       
-      // 🎵 CADENCE: After generating response, increment assistant message count
+      // 🎵 CADENCE: After generating response, assistant count goes up by 1
       const newAssistantMsgCount = currentAssistantMsgCount + 1;
-      const cadenceMet = currentUserMsgCount >= 2 && newAssistantMsgCount >= 2;
+      const cadenceMet = currentUserMsgCount >= 2 && newAssistantMsgCount >= 1;
       console.log(`[CADENCE] Post-response: user=${currentUserMsgCount}, assistant=${newAssistantMsgCount}, cadenceMet=${cadenceMet}`);
       
       if (isMusicContext) {
@@ -10378,7 +10382,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
           .eq('user_id', effectiveUserId)
           .single();
         
-        if (cadenceError && cadenceError.code !== 'PGRST116') {
+        if (cadenceError && cadenceError.code !== 'PGRST116' && !cadenceError.message?.includes('schema cache')) {
           console.warn('[ECHO] Supabase cadence query error:', cadenceError.message);
         }
         
@@ -10406,7 +10410,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
               last_echo_offer_at: new Date().toISOString() 
             }, { onConflict: 'user_id' });
           
-          if (upsertError) {
+          if (upsertError && !upsertError.message?.includes('schema cache')) {
             console.warn('[ECHO] Failed to update cooldown:', upsertError.message);
           }
           
@@ -10519,8 +10523,8 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     
     // 🎵 CADENCE: Include cadence tracking in client_state_patch
     clientStatePatch.userMessageCount = currentUserMsgCount;
-    clientStatePatch.assistantMessageCount = currentAssistantMsgCount + 1; // Post-response count
-    clientStatePatch.soundscapeCadenceMet = currentUserMsgCount >= 2 && (currentAssistantMsgCount + 1) >= 2;
+    clientStatePatch.assistantMessageCount = currentAssistantMsgCount + 1;
+    clientStatePatch.soundscapeCadenceMet = currentUserMsgCount >= 2 && (currentAssistantMsgCount + 1) >= 1;
     clientStatePatch.lastActivityTimestamp = Date.now(); // For 5-minute inactivity reset
     
     // Guided step state patch
@@ -10695,17 +10699,20 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       const { conversationId } = conversationMeta;
       const sessionId = sessionRotation?.sessionId || conversationMeta.conversation?.current_session_id;
       const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content;
+      const canPersistToSupabase = Boolean(sessionId && conversationId);
       
       // Fire and forget - don't block response
       (async () => {
         try {
-          // Save user message
-          if (lastUserMsg) {
-            await memoryStore.saveMessage(supabaseServer, conversationId, sessionId, 'user', lastUserMsg);
-          }
-          // Save assistant response
-          if (response.message) {
-            await memoryStore.saveMessage(supabaseServer, conversationId, sessionId, 'assistant', response.message);
+          if (canPersistToSupabase) {
+            if (lastUserMsg) {
+              await memoryStore.saveMessage(supabaseServer, conversationId, sessionId, 'user', lastUserMsg);
+            }
+            if (response.message) {
+              await memoryStore.saveMessage(supabaseServer, conversationId, sessionId, 'assistant', response.message);
+            }
+          } else {
+            console.log('[CORE MEMORY] Skipping Supabase persist — session not established (in-memory only)');
           }
           
           // Check if extraction should run

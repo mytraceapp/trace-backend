@@ -358,7 +358,9 @@ async function loadRecentJournalMemories(supabase, userId, daysBack = 30) {
       .limit(20);
 
     if (error) {
-      console.error('[TRACE JOURNAL MEMORY] loadRecentJournalMemories error:', error.message);
+      if (!error.message?.includes('schema cache')) {
+        console.error('[TRACE JOURNAL MEMORY] loadRecentJournalMemories error:', error.message);
+      }
       return [];
     }
 
