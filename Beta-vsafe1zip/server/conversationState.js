@@ -79,6 +79,7 @@ function createDefaultState() {
     lastMoveType: null,
     lastAssistantIntentSignature: null,
     topicEstablished: false,
+    userSetTopic: false,
     turnCount: 0,
     lastAccessed: Date.now(),
     consecutiveProbes: 0,
@@ -325,6 +326,7 @@ function advanceStage(state, userMessage) {
   
   if (topics.length > 0) {
     state.lastTopicKeywords = topics;
+    state.userSetTopic = true;
   }
   
   if (state.turnCount >= 3 && (state.stage === STAGES.ARRIVAL || state.stage === STAGES.OPENING)) {
@@ -413,31 +415,37 @@ Generic probes are NOT allowed at this stage.
 
 /**
  * Check if response violates probe rules
+ * Only fires when user has genuinely shared content AND model ignores it
  */
 function violatesProbeRules(response, state, userHadContent) {
   const moveType = classifyMoveType(response);
   
-  const hasRealTopic = state.topicEstablished && state.lastTopicKeywords && state.lastTopicKeywords.length > 0;
+  if (moveType !== MOVE_TYPES.OPEN_PROBE) return false;
   
-  // Violation: consecutive open probes when user provided content
   if (moveType === MOVE_TYPES.OPEN_PROBE && 
       state.lastMoveType === MOVE_TYPES.OPEN_PROBE && 
-      userHadContent) {
-    console.log(`[CONVO_GUARD] VIOLATION: Consecutive OPEN_PROBE after user content`);
+      userHadContent &&
+      state.consecutiveProbes >= 2) {
+    console.log(`[CONVO_GUARD] VIOLATION: ${state.consecutiveProbes}x consecutive OPEN_PROBE after user content`);
     return true;
   }
   
-  // Violation: open probe when a REAL topic is established and we're past OPENING
-  // Skip when topic is generic "open conversation" with no entities — that's not a real topic
+  if (moveType === MOVE_TYPES.OPEN_PROBE && !userHadContent) {
+    console.log(`[CONVO_GUARD] OPEN_PROBE allowed — user hasn't shared real content yet`);
+    return false;
+  }
+  
+  const hasUserDrivenTopic = state.topicEstablished && 
+    state.lastTopicKeywords && 
+    state.lastTopicKeywords.length > 0 &&
+    state.userSetTopic === true;
+  
   if (moveType === MOVE_TYPES.OPEN_PROBE && 
-      hasRealTopic && 
-      (state.stage === STAGES.SHARING || state.stage === STAGES.EXPLORING || state.stage === STAGES.PROCESSING)) {
-    console.log(`[CONVO_GUARD] VIOLATION: OPEN_PROBE in ${state.stage} stage with established topic [${state.lastTopicKeywords.join(', ')}]`);
+      hasUserDrivenTopic && 
+      userHadContent &&
+      state.stage === STAGES.PROCESSING) {
+    console.log(`[CONVO_GUARD] VIOLATION: OPEN_PROBE in PROCESSING with user-set topic [${state.lastTopicKeywords.join(', ')}]`);
     return true;
-  }
-  
-  if (moveType === MOVE_TYPES.OPEN_PROBE && !hasRealTopic && state.topicEstablished) {
-    console.log(`[CONVO_GUARD] OPEN_PROBE allowed — topicEstablished but no real topic keywords detected`);
   }
   
   return false;
