@@ -141,6 +141,7 @@ CAPABILITY-AWARE ACTIONS:
     doorwaysResult,
     currentMessage,
     previousAnchor: previousAnchor || null,
+    historyMessages: historyMessages || [],
   });
 
   intent.continuity = buildContinuity({
@@ -294,6 +295,45 @@ function summarizeAtmosphere(atm) {
   };
 }
 
+// --- Topic Recovery from Message History ---
+
+const TOPIC_PATTERNS = [
+  { pattern: /\b(work|job|boss|coworker|office|career|meeting|deadline)\b/i, label: 'work' },
+  { pattern: /\b(school|homework|paper|class|teacher|exam|test|assignment|grade|study)\b/i, label: 'school' },
+  { pattern: /\b(mom|dad|parent|family|brother|sister|son|daughter|wife|husband|partner|boyfriend|girlfriend)\b/i, label: 'family' },
+  { pattern: /\b(friend|friendship|social|lonely|alone)\b/i, label: 'relationships' },
+  { pattern: /\b(sleep|tired|exhausted|insomnia|rest|nap)\b/i, label: 'sleep' },
+  { pattern: /\b(anxious|anxiety|worried|nervous|panic|stressed|overwhelmed)\b/i, label: 'stress' },
+  { pattern: /\b(sad|depressed|down|low|empty|hopeless|crying)\b/i, label: 'sadness' },
+  { pattern: /\b(angry|frustrated|mad|annoyed|irritated|furious)\b/i, label: 'frustration' },
+  { pattern: /\b(money|rent|bills|debt|financial|afford)\b/i, label: 'finances' },
+  { pattern: /\b(health|sick|pain|doctor|hospital|medication)\b/i, label: 'health' },
+  { pattern: /\b(move|moving|new place|apartment|house)\b/i, label: 'life changes' },
+  { pattern: /\b(breakup|broke up|divorce|separation|ex\b)\b/i, label: 'breakup' },
+];
+
+function recoverTopicFromHistory(messages) {
+  if (!messages || messages.length < 2) return null;
+
+  const userMsgs = messages
+    .filter(m => m.role === 'user')
+    .map(m => (m.content || '').trim())
+    .filter(c => c.length >= 8);
+
+  const lastFive = userMsgs.slice(-5);
+
+  for (let i = lastFive.length - 1; i >= 0; i--) {
+    const msg = lastFive[i];
+    for (const { pattern, label } of TOPIC_PATTERNS) {
+      if (pattern.test(msg)) {
+        return label;
+      }
+    }
+  }
+
+  return null;
+}
+
 // --- Topic Anchor Builder ---
 
 const DOMAIN_MAP = {
@@ -312,6 +352,7 @@ function buildTopicAnchor({
   doorwaysResult,
   currentMessage,
   previousAnchor,
+  historyMessages,
 }) {
   const domain = DOMAIN_MAP[primaryMode] || 'conversation';
   const topicKeywords = conversationState?.lastTopicKeywords || [];
@@ -319,14 +360,27 @@ function buildTopicAnchor({
   const isBareGreeting = /^(hi|hello|hey|yo|sup|heya|hiya|heyy|hii|what'?s up|wassup)[\s!.?]*$/i.test((currentMessage || '').trim());
   const previousHasContent = previousAnchor && previousAnchor.label && previousAnchor.label !== 'open conversation';
 
-  if (isBareGreeting && previousHasContent && !cognitiveIntent?.topic_shift) {
-    return {
-      domain: previousAnchor.domain,
-      label: previousAnchor.label,
-      entities: previousAnchor.entities || [],
-      turnAge: (previousAnchor.turnAge || 0) + 1,
-      carried: true,
-    };
+  if (isBareGreeting && !cognitiveIntent?.topic_shift) {
+    if (previousHasContent) {
+      return {
+        domain: previousAnchor.domain,
+        label: previousAnchor.label,
+        entities: previousAnchor.entities || [],
+        turnAge: (previousAnchor.turnAge || 0) + 1,
+        carried: true,
+      };
+    }
+    const recoveredLabel = recoverTopicFromHistory(historyMessages);
+    if (recoveredLabel) {
+      return {
+        domain: 'conversation',
+        label: recoveredLabel,
+        entities: [],
+        turnAge: 0,
+        carried: true,
+        recoveredFromHistory: true,
+      };
+    }
   }
 
   let label = '';
@@ -349,10 +403,11 @@ function buildTopicAnchor({
       label = topicKeywords.slice(0, 2).join(' & ');
     } else if (cognitiveIntent?.emotional_context && cognitiveIntent.emotional_context !== 'neutral') {
       label = cognitiveIntent.emotional_context;
-    } else if (previousAnchor?.label) {
+    } else if (previousHasContent) {
       label = previousAnchor.label;
     } else {
-      label = 'open conversation';
+      const recoveredLabel = recoverTopicFromHistory(historyMessages);
+      label = recoveredLabel || 'open conversation';
     }
   }
 
@@ -439,10 +494,15 @@ function buildContinuity({ topicAnchor, previousAnchor, conversationState, cogni
 
   const anchorCarried = !!topicAnchor?.carried;
   const previousHadContent = previousAnchor && previousAnchor.label && previousAnchor.label !== 'open conversation';
+  const recoveredFromHistory = !!topicAnchor?.recoveredFromHistory;
+  const anchorHasRealLabel = topicAnchor?.label && topicAnchor.label !== 'open conversation';
 
   if (anchorExists && noTopicShift) {
     required = true;
     reason = 'anchor_active';
+  } else if (recoveredFromHistory && anchorHasRealLabel) {
+    required = true;
+    reason = 'anchor_recovered_from_history';
   } else if (anchorCarried && previousHadContent && noTopicShift) {
     required = true;
     reason = 'anchor_carried_through_greeting';

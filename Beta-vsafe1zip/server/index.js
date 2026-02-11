@@ -7438,7 +7438,7 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
       if (traceIntent?.topicAnchor && convoStateObj) {
         convoStateObj.topicAnchor = traceIntent.topicAnchor;
         const a = traceIntent.topicAnchor;
-        console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}"${a.entities?.length ? ` entities=[${a.entities.join(',')}]` : ''} turnAge=${a.turnAge} carried=${a.carried}`);
+        console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}"${a.entities?.length ? ` entities=[${a.entities.join(',')}]` : ''} turnAge=${a.turnAge} carried=${a.carried}${a.recoveredFromHistory ? ' recovered=history' : ''}`);
       }
 
       // Log primary mode transitions
@@ -10005,6 +10005,12 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         console.log('[VOICE] Post-processing issues:', voiceValidation.issues);
         response.message = voiceValidation.corrected;
       }
+    }
+    
+    // EMPTY RESPONSE SAFETY NET: If sanitization/voice stripped everything, provide a grounded fallback
+    if (response.message && response.message.replace(/[\s.,;!?]/g, '').length < 3) {
+      console.log(`[EMPTY_RESPONSE] Response was stripped to near-empty after post-processing, applying fallback`);
+      response.message = "I'm here. What's on your mind?";
     }
     
     const finalResponse = normalizeChatResponse(response, requestId);
