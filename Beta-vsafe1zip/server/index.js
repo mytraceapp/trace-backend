@@ -4354,6 +4354,25 @@ function storeDedupResponse(dedupKey, payload) {
 const recentLightAcksPerUser = new Map();
 const LIGHT_ACK_HISTORY_SIZE = 5;
 
+function findLastPlayedTrackFromHistory(messages) {
+  if (!messages?.length) return null;
+  const trackNames = {
+    'midnight underwater': 1, 'slow tides': 2, 'slow tides over glass': 2,
+    'undertow': 3, 'euphoria': 4, 'ocean breathing': 5,
+    'tidal house': 6, 'tidal memory': 6, 'neon promise': 7, 'night swim': 1,
+  };
+  const assistantMsgs = messages.filter(m => m.role === 'assistant').slice(-10);
+  for (let i = assistantMsgs.length - 1; i >= 0; i--) {
+    const content = (assistantMsgs[i].content || '').toLowerCase();
+    for (const [name, num] of Object.entries(trackNames)) {
+      if (content.includes(name) && (content.includes('playing') || content.includes('back on') || content.includes('here\'s') || content.includes('listen'))) {
+        return { trackNumber: num, trackName: name };
+      }
+    }
+  }
+  return null;
+}
+
 app.post('/api/chat', async (req, res) => {
   // Build dedup key BEFORE try block so it's available for caching on success
   const dedupKey = getDedupKey(req);
@@ -4478,7 +4497,7 @@ app.post('/api/chat', async (req, res) => {
     });
     console.log('[COGNITIVE ENGINE] Intent:', JSON.stringify(cognitiveIntent));
     const stopsMusic = /^stop\s*(the\s*)?(music|audio|sound|playing)|^pause\s*(the\s*)?(music|audio)|^turn\s*off\s*(the\s*)?(music|audio)|^mute|^silence|^quiet$/i.test(userMessageLower);
-    const resumesMusic = /^resume\s*(the\s*)?(music|audio)|^play\s*(the\s*)?(music|audio)|^unpause|^unmute|^turn\s*on\s*(the\s*)?(music|audio)|^start\s*(the\s*)?(music|audio)/i.test(userMessageLower);
+    const resumesMusic = /^resume\s*(the\s*)?(music|audio)?$|^play\s*(the\s*)?(music|audio)$|^unpause|^unmute|^turn\s*on\s*(the\s*)?(music|audio)|^start\s*(the\s*)?(music|audio)$|^(put|bring)\s*(the\s*)?(music|audio)\s*(back|on)|^music\s*(back|on|again)|^resume$/i.test(userMessageLower);
     
     if (stopsMusic || resumesMusic) {
       console.log(`[AUDIO CONTROL] stopsMusic: ${stopsMusic}, resumesMusic: ${resumesMusic}`);
@@ -4501,6 +4520,18 @@ app.post('/api/chat', async (req, res) => {
       
       const convoStateForAudio = conversationState.getState(effectiveUserId);
       convoStateForAudio.turnCount++;
+      if (!convoStateForAudio.lastPlayedTrack) {
+        const clientNowPlaying = safeClientState.nowPlaying;
+        if (clientNowPlaying) {
+          convoStateForAudio.lastPlayedTrack = {
+            trackId: clientNowPlaying.trackId,
+            title: clientNowPlaying.title,
+            album: clientNowPlaying.album || 'night_swim',
+            timestamp: Date.now(),
+          };
+          console.log('[TRACK MEMORY] Captured nowPlaying before stop:', clientNowPlaying.title);
+        }
+      }
       conversationState.saveState(effectiveUserId, convoStateForAudio);
       
       return res.json({
@@ -4517,8 +4548,89 @@ app.post('/api/chat', async (req, res) => {
       });
     } else if (resumesMusic) {
       const sessionHistory = getSessionHistory(effectiveUserId);
-      const lastTrack = sessionHistory.length > 0 ? sessionHistory[sessionHistory.length - 1] : null;
-      const trackInfo = lastTrack ? getTrackInfo(lastTrack) : null;
+      let lastTrack = sessionHistory.length > 0 ? sessionHistory[sessionHistory.length - 1] : null;
+      let trackInfo = lastTrack ? getTrackInfo(lastTrack) : null;
+      
+      const convoStateForResume = conversationState.getState(effectiveUserId);
+      
+      if (!lastTrack && convoStateForResume.lastPlayedTrack) {
+        const saved = convoStateForResume.lastPlayedTrack;
+        const age = Date.now() - (saved.timestamp || 0);
+        if (age < 2 * 60 * 60 * 1000) {
+          const trackIndex = saved.trackIndex ?? saved.trackId;
+          console.log('[AUDIO CONTROL] No session history, using conversation state lastPlayedTrack:', saved.trackId || saved.trackIndex);
+          
+          convoStateForResume.turnCount++;
+          conversationState.saveState(effectiveUserId, convoStateForResume);
+          
+          const resumeMsg = saved.title ? `Back on — ${saved.title}.` : "Picking up where you left off.";
+          console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
+          
+          return res.json({
+            ok: true,
+            requestId,
+            message: resumeMsg,
+            audio_action: {
+              type: 'open',
+              action: 'play',
+              source: 'originals',
+              album: saved.album || 'night_swim',
+              track: typeof trackIndex === 'number' ? trackIndex : 0,
+              autoplay: true,
+              reason: 'user_requested_resume'
+            },
+            activity_suggestion: { name: null, should_navigate: false },
+            posture: 'STEADY',
+            detected_state: 'neutral',
+            sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
+            response_source: 'audio_control',
+            _provenance: { path: 'audio_resume_from_state', requestId, ts: Date.now() }
+          });
+        }
+      }
+      
+      if (!lastTrack && safeClientState.lastNowPlaying) {
+        const lnp = safeClientState.lastNowPlaying;
+        const age = Date.now() - (lnp.stoppedAt || 0);
+        if (age < 2 * 60 * 60 * 1000) {
+          console.log('[AUDIO CONTROL] Using client lastNowPlaying:', lnp.title);
+          convoStateForResume.turnCount++;
+          conversationState.saveState(effectiveUserId, convoStateForResume);
+          
+          const resumeMsg = lnp.title ? `Back on — ${lnp.title}.` : "Picking up where you left off.";
+          console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
+          
+          return res.json({
+            ok: true,
+            requestId,
+            message: resumeMsg,
+            audio_action: {
+              type: 'open',
+              action: 'play',
+              source: 'originals',
+              album: lnp.album || 'night_swim',
+              track: 0,
+              autoplay: true,
+              reason: 'user_requested_resume'
+            },
+            activity_suggestion: { name: null, should_navigate: false },
+            posture: 'STEADY',
+            detected_state: 'neutral',
+            sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
+            response_source: 'audio_control',
+            _provenance: { path: 'audio_resume_from_client_state', requestId, ts: Date.now() }
+          });
+        }
+      }
+      
+      if (!lastTrack) {
+        const historyTrack = findLastPlayedTrackFromHistory(rawMessages);
+        if (historyTrack) {
+          lastTrack = historyTrack.trackNumber;
+          trackInfo = getTrackInfo(lastTrack);
+          console.log('[AUDIO CONTROL] Found track from conversation history:', trackInfo?.name);
+        }
+      }
       
       const resumeAudioAction = lastTrack ? {
         type: 'open',
@@ -4537,7 +4649,6 @@ app.post('/api/chat', async (req, res) => {
       console.log(`[AUDIO CONTROL] Resume music detected - ${lastTrack ? `resuming Track ${lastTrack} (${trackInfo?.name || 'Unknown'})` : 'no track history, resuming last'}`);
       console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
       
-      const convoStateForResume = conversationState.getState(effectiveUserId);
       convoStateForResume.turnCount++;
       conversationState.saveState(effectiveUserId, convoStateForResume);
       
@@ -4695,6 +4806,19 @@ app.post('/api/chat', async (req, res) => {
             autoplay: true,
           };
           console.log('[TRACE STUDIOS] Sending audio_action to frontend:', response.audio_action);
+          
+          if (effectiveUserId) {
+            const trackState = conversationState.getState(effectiveUserId);
+            trackState.lastPlayedTrack = {
+              trackId: studioAction.trackId,
+              trackIndex,
+              album: 'night_swim',
+              title: studiosUiAction?.title || studioAction.trackId,
+              timestamp: Date.now(),
+            };
+            conversationState.saveState(effectiveUserId, trackState);
+            console.log('[TRACK MEMORY] Saved lastPlayedTrack:', trackState.lastPlayedTrack.trackId);
+          }
         }
         
         let overrideFired = false;
@@ -6803,6 +6927,21 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
       }
     }
     
+    if (effectiveUserId && !isCrisisMode) {
+      const preActState = conversationState.getState(effectiveUserId);
+      if (preActState.preActivityContext) {
+        const preCtx = preActState.preActivityContext;
+        const ageMin = Math.round((Date.now() - (preCtx.timestamp || 0)) / 60000);
+        if (ageMin < 60) {
+          contextParts.push(`\nPRE-ACTIVITY CONTEXT (user just returned from an activity ${ageMin} min ago):\n${preCtx.summary}\nIf the user references what they were doing before the activity (e.g., music, a topic), use this context to continue seamlessly.`);
+          console.log('[TRACE] Added pre-activity context:', preCtx.summary);
+        } else {
+          preActState.preActivityContext = null;
+          conversationState.saveState(effectiveUserId, preActState);
+        }
+      }
+    }
+    
     // Get Dreamscape presence memory (relational history)
     if (pool && !isCrisisMode) {
       try {
@@ -7809,8 +7948,8 @@ CAPABILITY-AWARE ACTIONS:
         pMode === 'studios' ||
         iType === 'music' ||
         brainSignals?.musicRequest === true ||
-        /\b(play|put on|listen to|queue|start)\b/.test(lastUserMsg) ||
-        /\b(spotify|playlist|album|track|song)\b/.test(lastUserMsg)
+        /\b(play|put on|listen to|queue|start|resume)\b/.test(lastUserMsg) ||
+        /\b(spotify|playlist|album|track|song|music)\b/.test(lastUserMsg)
       );
       const userIsReflecting = isReflectionAnswer(lastUserMessage);
       const isOnboarding = !!(userProfile && 
@@ -9356,6 +9495,18 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     // Proactive recommendation logging: Track when conditions are met for analytics
     // Note: The actual offer comes from the LLM via system prompt guidance
     // We only log here - audio_action is ONLY emitted when response contains actual offer
+    if (audioAction && audioAction.type === 'open' && effectiveUserId) {
+      const trackConvoState = conversationState.getState(effectiveUserId);
+      trackConvoState.lastPlayedTrack = {
+        trackIndex: audioAction.track,
+        album: audioAction.album || 'night_swim',
+        source: 'music_pipeline',
+        timestamp: Date.now(),
+      };
+      conversationState.saveState(effectiveUserId, trackConvoState);
+      console.log('[TRACK MEMORY] Saved lastPlayedTrack from music pipeline, index:', audioAction.track);
+    }
+    
     if (!audioAction && !alreadyOfferedThisSession && !isNightSwimOffer) {
       const recommendation = shouldRecommendMusic({
         userMessage: lastUserMsgForAudio,
@@ -11228,7 +11379,6 @@ Just the question, nothing else.
       }
     }
     
-    // Set pendingFollowup in conversation session state (TTL-based, in-memory)
     if (userId) {
       const convoState = conversationState.getState(userId);
       conversationState.setPendingFollowup(convoState, {
@@ -11236,6 +11386,28 @@ Just the question, nothing else.
         activityName: activity,
         ttlMs: conversationState.FOLLOWUP_DEFAULT_TTL_MS
       });
+      
+      const preCtxParts = [];
+      if (convoState.lastPlayedTrack) {
+        preCtxParts.push(`User was listening to music (${convoState.lastPlayedTrack.title || 'Night Swim'}) before the activity`);
+      }
+      if (convoState.lastPrimaryMode) {
+        preCtxParts.push(`Previous mode: ${convoState.lastPrimaryMode}`);
+      }
+      if (convoState.topicAnchor) {
+        preCtxParts.push(`Previous topic: ${convoState.topicAnchor.label || convoState.topicAnchor.domain}`);
+      }
+      if (preCtxParts.length > 0) {
+        convoState.preActivityContext = {
+          summary: preCtxParts.join('. '),
+          lastPlayedTrack: convoState.lastPlayedTrack || null,
+          lastPrimaryMode: convoState.lastPrimaryMode,
+          topicAnchor: convoState.topicAnchor ? { ...convoState.topicAnchor } : null,
+          timestamp: Date.now(),
+        };
+        console.log('[ACTIVITY RETURN] Saved preActivityContext:', convoState.preActivityContext.summary);
+      }
+      
       conversationState.saveState(userId, convoState);
       console.log('[ACTIVITY RETURN] Set pendingFollowup in session state for:', activity);
     }

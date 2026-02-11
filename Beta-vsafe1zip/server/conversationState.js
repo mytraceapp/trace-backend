@@ -89,6 +89,8 @@ function createDefaultState() {
     pendingFollowup: null,
     activeRun: null,
     consecutiveNonRunTurns: 0,
+    lastPlayedTrack: null,
+    preActivityContext: null,
   };
 }
 

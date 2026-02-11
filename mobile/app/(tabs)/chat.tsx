@@ -597,6 +597,7 @@ export default function ChatScreen() {
     timeOfDay: 'morning' | 'afternoon' | 'evening' | 'late_night';
     recentSentiment: string | null;
     nowPlaying: { trackId: string; title: string; album?: string } | null;
+    lastNowPlaying: { trackId: string; title: string; album?: string; stoppedAt: number } | null;
     lastSuggestion: { suggestion_id?: string; type: string; id: string; ts: number; accepted?: boolean | null } | null;
     lastActivity: { id: string; ts: number } | null;
     doorwayState: { lastDoorwayId: string; ts: number } | null;
@@ -609,6 +610,7 @@ export default function ChatScreen() {
     timeOfDay: getTimeOfDay(),
     recentSentiment: null,
     nowPlaying: null,
+    lastNowPlaying: null,
     lastSuggestion: null,
     lastActivity: null,
     doorwayState: null,
@@ -1829,13 +1831,16 @@ export default function ChatScreen() {
 
       console.log('📥 TRACE received reply:', result);
       
-      // Update TRACE Studios context from response (clears after 2 turns if not renewed)
       if (result?.traceStudios?.traceStudiosContext) {
         setTraceStudiosContext(result.traceStudios.traceStudiosContext);
         traceStudiosContextRef.current = result.traceStudios.traceStudiosContext;
       } else if (traceStudiosContext || traceStudiosContextRef.current) {
-        setTraceStudiosContext(null);
-        traceStudiosContextRef.current = null;
+        const src = result?.response_source || '';
+        const isActivityRelated = src === 'activity_followup' || src === 'activity_return' || src === 'insight';
+        if (!isActivityRelated) {
+          setTraceStudiosContext(null);
+          traceStudiosContextRef.current = null;
+        }
       }
       
       // ===== APPLY CLIENT STATE PATCH from backend (doorways, suggestions, hooks) =====
@@ -2116,7 +2121,9 @@ export default function ChatScreen() {
         // Close Night Swim player if open
         closeNightSwimPlayer();
         
-        // Reset all audio-related client state
+        if (clientStateRef.current.nowPlaying) {
+          clientStateRef.current.lastNowPlaying = { ...clientStateRef.current.nowPlaying, stoppedAt: Date.now() };
+        }
         clientStateRef.current.nowPlaying = null;
         clientStateRef.current.mode = 'chat';
         clientStateRef.current.currentSoundState = null;
