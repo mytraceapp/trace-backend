@@ -146,6 +146,22 @@ const {
   getTrackInfo
 } = require('./musicRecommendation');
 const {
+  curateMusic,
+  canOfferMusic,
+  recordMusicOffer,
+  recordMusicAccepted,
+  recordMusicDeclined,
+  setCrisisMode: setCurationCrisisMode,
+  getUserMusicState,
+  resetUserSession: resetCurationSession,
+  detectEmotionalTriggers,
+  determineOfferLevel,
+  OFFER_LEVEL,
+  getDeclineAcknowledgment,
+  NIGHT_SWIM_TRACKS: NIGHT_SWIM_TRACKS_V2,
+  PLAYLISTS: CURATION_PLAYLISTS
+} = require('./musicCuration');
+const {
   summarizeContent,
   storePrivacyEntry,
   generateSummaryOnDemand,
@@ -4399,6 +4415,9 @@ app.post('/api/chat', async (req, res) => {
     // Generate stable requestId for this request
     const requestId = clientRequestId || `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     
+    // Music curation v2 result — declared at handler scope so post-LLM pipeline can use it
+    let curationResult = { shouldOffer: false, reason: 'not_evaluated' };
+    
     // Check for cached response (deduplication for retry storms)
     // Uses clientMessageId to return EXACT same response on network retries
     if (dedupKey) {
@@ -6554,6 +6573,11 @@ app.post('/api/chat', async (req, res) => {
     // CRITICAL: Log crisis state for debugging
     console.log(`[CRISIS CHECK] userId: ${effectiveUserId?.slice(0,8)}, currentMsgDistressed: ${isCurrentMessageDistressed}, historyDistressed: ${isHistoryDistressed}, clientFlag: ${clientCrisisMode}, isCrisisMode: ${isCrisisMode}`);
 
+    // Sync crisis state to music curation v2 (reduces session offer limits, adjusts cooldowns)
+    if (effectiveUserId) {
+      setCurationCrisisMode(effectiveUserId, isCrisisMode);
+    }
+
     // ============================================================
     // CRISIS CALL COMMAND DETECTION (MAIN CHAT)
     // If user is in crisis and says "call X", trigger dial immediately
@@ -7465,7 +7489,7 @@ You MUST:
 4. Pick up the conversation thread from what they already shared`;
       }
 
-      // Feedback loop adaptation - adjust prompt based on user's learned preferences
+      // Feedback loop adaptation - adjust prompt based on user's learned preferences + engagement signals
       if (pool && effectiveUserId) {
         try {
           const learnings = await getOrAnalyzeLearnings(pool, effectiveUserId);
@@ -7474,38 +7498,81 @@ You MUST:
             systemPrompt += promptAdaptation;
             console.log('[FEEDBACK] Applied prompt adaptation for user:', effectiveUserId, 'confidence:', learnings?.confidence || 0);
           }
+          
+          // Surface engagement signals for richer personalization
+          if (learnings && learnings.dataPoints >= 10 && learnings.confidence >= 0.5) {
+            const signalSummary = [];
+            if (learnings.bestEngagementTime !== 'varied') {
+              signalSummary.push(`Most active: ${learnings.bestEngagementTime}`);
+            }
+            if (learnings.avgConversationLength > 0) {
+              const convStyle = learnings.avgConversationLength > 10 ? 'deep conversations' : 
+                                learnings.avgConversationLength > 5 ? 'moderate-length chats' : 'brief check-ins';
+              signalSummary.push(`Typical style: ${convStyle}`);
+            }
+            if (learnings.userTendency !== 'mixed') {
+              signalSummary.push(`Emotional pattern: tends toward ${learnings.userTendency}`);
+            }
+            if (signalSummary.length > 0) {
+              systemPrompt += `\n[ENGAGEMENT PROFILE] ${signalSummary.join(' | ')}`;
+              console.log('[FEEDBACK_SIGNALS] Engagement profile injected:', signalSummary.join(' | '));
+            }
+          }
         } catch (feedbackError) {
           console.warn('[FEEDBACK] Could not fetch learnings (continuing without):', feedbackError.message);
         }
       }
       
-      // Check if Night Swim should be offered based on emotional state
+      // Check if music should be offered based on emotional state (v2 curation)
       // This injects a context cue BEFORE the OpenAI call to guide the LLM
+      // NOTE: curationResult is declared at outer scope so post-LLM pipeline can use it
       const lastUserMsgForMusic = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
-      const alreadyOfferedNightSwim = messages.some(m => 
-        m.role === 'assistant' && 
-        m.content?.toLowerCase().includes('night swim')
-      );
+      const conversationTurnForCuration = turnCount || messages.filter(m => m.role === 'user').length;
       
-      if (!alreadyOfferedNightSwim) {
-        const musicRecommendation = shouldRecommendMusic({
-          userMessage: lastUserMsgForMusic,
-          conversationHistory: messages,
-          localTime: localTime || null,
-          hasOfferedMusicThisSession: alreadyOfferedNightSwim
-        });
+      const isExplicitMusicRequest = /\b(play|music|song|track|night swim|playlist|album)\b/i.test(lastUserMsgForMusic);
+      
+      curationResult = curateMusic({
+        userId: effectiveUserId,
+        userMessage: lastUserMsgForMusic,
+        localTime: localTime || null,
+        conversationTurn: conversationTurnForCuration,
+        isExplicitMusicRequest
+      });
+      
+      if (curationResult.shouldOffer) {
+        const offerLevelName = curationResult.offerLevelName || 'GENTLE';
+        const itemName = curationResult.revealName ? curationResult.item?.name : '[withheld until user agrees]';
+        const itemType = curationResult.type; // 'track', 'playlist', 'album'
         
-        if (musicRecommendation.shouldRecommend) {
-          // Inject context cue to guide LLM to offer Night Swim
+        if (itemType === 'track' || itemType === 'album') {
           systemPrompt += `
 
-NIGHT SWIM RECOMMENDATION CUE:
-Based on the user's current state (${musicRecommendation.reason}), this is a good moment to offer Night Swim.
-In your response, naturally offer Night Swim using relational language like:
-"I made something called Night Swim for moments like this. Want me to play it?"
-Only offer once in this conversation. Frame it personally, not prescriptively.`;
-          console.log('[TRACE ORIGINALS] Night Swim recommendation cue injected:', musicRecommendation.reason);
+MUSIC OFFER CUE (Level: ${offerLevelName}):
+Based on the user's current state (${curationResult.reason}), this is a natural moment to offer music.
+Use this phrasing naturally in your response: "${curationResult.offerPhrase}"
+${curationResult.revealName ? `Track: ${itemName}` : 'Do NOT reveal the track name yet — wait for them to say yes.'}
+Frame it personally, not prescriptively. Only offer once in this conversation.`;
+        } else if (itemType === 'playlist') {
+          systemPrompt += `
+
+PLAYLIST OFFER CUE (Level: ${offerLevelName}):
+Based on the user's current state (${curationResult.reason}), a playlist might help.
+Use this phrasing naturally: "${curationResult.offerPhrase}"
+${curationResult.revealName ? `Playlist: ${itemName}` : 'Do NOT reveal the playlist name yet.'}
+Frame it personally. Playlists open externally — only suggest if user seems open.`;
         }
+        
+        console.log('[MUSIC_CURATION_V2] Offer cue injected:', JSON.stringify({
+          requestId,
+          type: itemType,
+          offerLevel: offerLevelName,
+          reason: curationResult.reason,
+          revealName: curationResult.revealName,
+          itemName: curationResult.item?.name
+        }));
+      } else {
+        console.log('[MUSIC_CURATION_V2] No offer:', curationResult.reason, 
+          curationResult.intentScore !== undefined ? `(intent=${curationResult.intentScore})` : '');
       }
     }
     
@@ -9606,11 +9673,92 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     } else if (immediateNightSwimOffer && trackIsActive && !isExplicitMusicCommand) {
       console.log('[PHASE8c_TRACK_GUARD] Suppressed immediateNightSwimOffer — track already active');
+    } else if (!audioAction && curationResult.shouldOffer && curationResult.type === 'track' && !(trackIsActive && !isExplicitMusicCommand)) {
+      // V2 CURATION FALLBACK: Offer was cued pre-LLM but response didn't use "night swim" string
+      // (e.g., SEED level: "I have something for this mood")
+      // Detect if AI delivered a generic music offer
+      const genericOfferDelivered = /\b(want me to|put something on|have something for|made something|play it|have just the thing)\b/i.test(responseLower);
+      if (genericOfferDelivered && curationResult.item) {
+        const trackNum = curationResult.item.number;
+        audioAction = buildAudioAction('recommend', {
+          source: 'originals',
+          album: 'night_swim',
+          track: trackNum - 1,
+          autoplay: false
+        });
+        addToSessionHistory(effectiveUserId, trackNum);
+        console.log(`[MUSIC_CURATION_V2] Fallback offer detected (${curationResult.offerLevelName}), recommending Track ${trackNum}: ${curationResult.item.name}`);
+      }
     }
     
-    // Proactive recommendation logging: Track when conditions are met for analytics
-    // Note: The actual offer comes from the LLM via system prompt guidance
-    // We only log here - audio_action is ONLY emitted when response contains actual offer
+    // ── MUSIC CURATION V2: State Tracking ──
+    // Use deterministic curationResult (from pre-LLM) + response content to track state
+    if (effectiveUserId) {
+      const curationTurn = turnCount || messages.filter(m => m.role === 'user').length;
+      
+      // Detect if AI actually delivered the offer in its response
+      const v2OfferDelivered = curationResult.shouldOffer && (
+        isNightSwimOffer || // Legacy string match (still works for explicit Night Swim mentions)
+        /\b(want me to|want to hear|put something on|have something for|made something|play it)\b/i.test(responseLower) // Generic offer detection
+      );
+      
+      if (v2OfferDelivered) {
+        const offerType = curationResult.type || 'track';
+        const offerItemId = curationResult.item?.id || (audioAction ? `track_${(audioAction.track ?? 0) + 1}` : 'unknown');
+        recordMusicOffer(effectiveUserId, offerType, offerItemId, curationTurn);
+        
+        // Persist offer metadata in conversation state for next-turn accept/decline handling
+        const offerState = conversationState.getState(effectiveUserId);
+        offerState.pendingMusicOffer = {
+          type: offerType,
+          itemId: offerItemId,
+          item: curationResult.item ? { number: curationResult.item.number, name: curationResult.item.name, id: curationResult.item.id } : null,
+          offerLevel: curationResult.offerLevelName,
+          timestamp: Date.now()
+        };
+        conversationState.saveState(effectiveUserId, offerState);
+        
+        console.log('[MUSIC_CURATION_V2] Recorded offer + saved pending:', JSON.stringify({ type: offerType, itemId: offerItemId, level: curationResult.offerLevelName }));
+      }
+      
+      // Retrieve the stored pending offer from prior turn (v2-aware accept/decline)
+      const priorOfferState = conversationState.getState(effectiveUserId);
+      const pendingOffer = priorOfferState.pendingMusicOffer;
+      const hasPendingOffer = pendingOffer && (Date.now() - (pendingOffer.timestamp || 0)) < 10 * 60 * 1000;
+      
+      // Detect acceptance of a previous offer (legacy Night Swim + v2 generic offers via stored state)
+      if (hasPendingOffer && isUserAgreeing(lastUserMsgForAudio)) {
+        recordMusicAccepted(effectiveUserId, pendingOffer.type);
+        
+        // If no audioAction was already set by legacy path, create one from stored offer
+        if (!audioAction && pendingOffer.item && pendingOffer.type === 'track' && !(trackIsActive && !isExplicitMusicCommand)) {
+          const trackNum = pendingOffer.item.number;
+          audioAction = buildAudioAction('open', {
+            source: 'originals',
+            album: 'night_swim',
+            track: trackNum - 1,
+            autoplay: true
+          });
+          addToSessionHistory(effectiveUserId, trackNum);
+          console.log(`[MUSIC_CURATION_V2] Accepted pending offer → playing Track ${trackNum}: ${pendingOffer.item.name}`);
+        }
+        
+        // Clear the pending offer
+        priorOfferState.pendingMusicOffer = null;
+        conversationState.saveState(effectiveUserId, priorOfferState);
+        console.log('[MUSIC_CURATION_V2] Recorded acceptance:', pendingOffer.type);
+      }
+      
+      // Detect decline of a previous offer
+      if (hasPendingOffer && isUserDeclining(lastUserMsgForAudio)) {
+        recordMusicDeclined(effectiveUserId, pendingOffer.type);
+        priorOfferState.pendingMusicOffer = null;
+        conversationState.saveState(effectiveUserId, priorOfferState);
+        console.log('[MUSIC_CURATION_V2] Recorded decline:', pendingOffer.type);
+      }
+    }
+    
+    // Track last played for Phase 8c guard
     if (audioAction && audioAction.type === 'open' && effectiveUserId) {
       const trackConvoState = conversationState.getState(effectiveUserId);
       trackConvoState.lastPlayedTrack = {
@@ -9623,20 +9771,10 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       console.log('[TRACK MEMORY] Saved lastPlayedTrack from music pipeline, index:', audioAction.track);
     }
     
-    if (!audioAction && !alreadyOfferedThisSession && !isNightSwimOffer) {
-      const recommendation = shouldRecommendMusic({
-        userMessage: lastUserMsgForAudio,
-        conversationHistory: messages,
-        localTime: localTime || null,
-        hasOfferedMusicThisSession: alreadyOfferedThisSession
-      });
-      
-      if (recommendation.shouldRecommend) {
-        // Log for analytics - system prompt guides LLM to naturally offer Night Swim
-        // audio_action is NOT emitted here to avoid frontend confusion
-        // If LLM offers Night Swim in response, isNightSwimOffer will catch it above
-        console.log('[TRACE ORIGINALS] Proactive conditions met (LLM should offer):', recommendation.reason);
-      }
+    // V2 curation replaces v1 proactive check — curation already ran pre-LLM
+    if (!audioAction && !isNightSwimOffer) {
+      // Kept for analytics only — v2 curateMusic is the decision engine now
+      console.log('[MUSIC_CURATION_V2] No audio_action emitted this turn (curation ran pre-LLM)');
     }
     
     // ===== ONBOARDING INTRO REMOVED =====
