@@ -10481,6 +10481,39 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       violations: contractResult.violations.map(v => v.code),
     }));
 
+    // ── ACTIVE MUSIC LEAK ENFORCEMENT ──
+    // When in conversation mode and the user didn't ask for music,
+    // strip sentences that contain unsolicited playlist/Spotify/album mentions.
+    const hasMusicLeakViolation = contractResult.violations.some(v => v.code === 'conversation_music_offer_leak');
+    const userRequestedMusic = traceIntent?.intentType === 'music' ||
+      traceIntent?.signals?.traceBrain?.musicRequest === true ||
+      traceIntent?.nextMove === 'offer_music' ||
+      traceIntent?.action?.type === 'spotify_playlist';
+    const primaryModeConvo = (traceIntent?.primaryMode || 'conversation') === 'conversation';
+
+    if (primaryModeConvo && !userRequestedMusic && finalResponse.message) {
+      const MUSIC_LEAK_TERMS = /\b(night swim|spotify|playlist|rooted|low orbit|first light|neon promise|undertow|euphoria|ocean breathing|tidal house|midnight underwater|slow tides|afterglow|play.*track|album)\b/i;
+      const sentences = finalResponse.message.split(/(?<=[.!?])\s+/);
+      const cleaned = sentences.filter(s => !MUSIC_LEAK_TERMS.test(s));
+      if (cleaned.length < sentences.length) {
+        const strippedCount = sentences.length - cleaned.length;
+        finalResponse.message = cleaned.length > 0 ? cleaned.join(' ') : sentences[0].replace(MUSIC_LEAK_TERMS, '').trim();
+        console.log('[MUSIC_LEAK_STRIP]', JSON.stringify({
+          requestId: chatRequestId,
+          stripped_sentences: strippedCount,
+          had_contract_violation: hasMusicLeakViolation,
+        }));
+        if (finalResponse.activity_suggestion?.name) {
+          const playlistNames = ['rooted_playlist', 'low_orbit_playlist', 'first_light_playlist'];
+          const musicActivities = ['track_1', 'track_2', 'track_3', 'track_4', 'track_5', 'track_6', 'track_7', 'track_8', ...playlistNames];
+          if (musicActivities.includes(finalResponse.activity_suggestion.name)) {
+            finalResponse.activity_suggestion = { name: null, reason: null, should_navigate: false };
+            console.log('[MUSIC_LEAK_STRIP] Cleared unsolicited music activity_suggestion');
+          }
+        }
+      }
+    }
+
     // Phase 4.6: Condensed end-of-request log (no PHI)
     if (process.env.TRACE_INTENT_LOG === '1') {
       console.log('[PHASE4]', JSON.stringify({
