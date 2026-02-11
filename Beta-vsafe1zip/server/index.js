@@ -4394,10 +4394,20 @@ app.post('/api/chat', async (req, res) => {
       };
       console.log('[AUDIO CONTROL] Stop music detected - stopping ALL audio immediately');
       console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
+      
+      const lastAssistant = rawMessages?.filter(m => m.role === 'assistant').slice(-1)[0]?.content || '';
+      const lastUser = rawMessages?.filter(m => m.role === 'user').slice(-3, -1).map(m => m.content).join(' ') || '';
+      const hadConvo = lastUser.length > 15 || lastAssistant.length > 30;
+      const stopMsg = hadConvo ? "Okay, music's off." : "Done.";
+      
+      const convoStateForAudio = conversationState.getState(effectiveUserId);
+      convoStateForAudio.turnCount++;
+      conversationState.saveState(effectiveUserId, convoStateForAudio);
+      
       return res.json({
         ok: true,
         requestId,
-        message: "Done.",
+        message: stopMsg,
         audio_action: stopAudioAction,
         activity_suggestion: { name: null, should_navigate: false },
         posture: 'STEADY',
@@ -4407,18 +4417,37 @@ app.post('/api/chat', async (req, res) => {
         _provenance: { path: 'audio_stop', requestId, ts: Date.now() }
       });
     } else if (resumesMusic) {
-      const resumeAudioAction = {
+      const sessionHistory = getSessionHistory(effectiveUserId);
+      const lastTrack = sessionHistory.length > 0 ? sessionHistory[sessionHistory.length - 1] : null;
+      const trackInfo = lastTrack ? getTrackInfo(lastTrack) : null;
+      
+      const resumeAudioAction = lastTrack ? {
+        type: 'open',
+        action: 'play',
+        source: 'originals',
+        album: 'night_swim',
+        track: lastTrack - 1,
+        autoplay: true,
+        reason: 'user_requested'
+      } : {
         type: 'resume',
         action: 'resume',
         source: 'last_played',
         reason: 'user_requested'
       };
-      console.log('[AUDIO CONTROL] Resume music detected - resuming last played audio');
+      console.log(`[AUDIO CONTROL] Resume music detected - ${lastTrack ? `resuming Track ${lastTrack} (${trackInfo?.name || 'Unknown'})` : 'no track history, resuming last'}`);
       console.log('[RESPONSE_SOURCE]', 'audio_control', requestId);
+      
+      const convoStateForResume = conversationState.getState(effectiveUserId);
+      convoStateForResume.turnCount++;
+      conversationState.saveState(effectiveUserId, convoStateForResume);
+      
+      const resumeMsg = trackInfo ? `Back on — ${trackInfo.name}.` : "Playing.";
+      
       return res.json({
         ok: true,
         requestId,
-        message: "Playing.",
+        message: resumeMsg,
         audio_action: resumeAudioAction,
         activity_suggestion: { name: null, should_navigate: false },
         posture: 'STEADY',
