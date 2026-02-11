@@ -5269,7 +5269,13 @@ app.post('/api/chat', async (req, res) => {
     const prevAssistantContent = messages?.filter(m => m.role === 'assistant').pop()?.content || '';
     const activityPendingConfirmation = prevAssistantContent.includes("Let me know when you're ready") || 
                                         prevAssistantContent.includes("Ready when you are") ||
-                                        prevAssistantContent.includes("when you're ready");
+                                        prevAssistantContent.includes("when you're ready") ||
+                                        prevAssistantContent.includes("you might enjoy") ||
+                                        prevAssistantContent.includes("might help") ||
+                                        prevAssistantContent.includes("could try") ||
+                                        prevAssistantContent.includes("consider") ||
+                                        prevAssistantContent.includes("good for") ||
+                                        prevAssistantContent.includes("good when you need");
     
     if (activityPendingConfirmation && isActivityConfirmation(userText)) {
       // Extract which activity was mentioned in the previous message
@@ -9094,7 +9100,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         
         for (const { pattern, name } of activityMentions) {
           // Check if this message mentions an activity AND has offer language
-          const hasOfferLanguage = /would you like|want to try|ready when you are|let me know|guide you|take you/i.test(content);
+          const hasOfferLanguage = /would you like|want to try|ready when you are|let me know|guide you|take you|you might enjoy|consider|might help|could try|good for|good when|pure stillness|for when you/i.test(content);
           if (pattern.test(content) && hasOfferLanguage) {
             pendingActivity = name;
             break;
@@ -9124,6 +9130,30 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     }
     // ============================================================
+    
+    // ============================================================
+    // ACTIVITY-NAME GUARD: If model response mentions an activity by name
+    // with suggestion language but didn't set activity_suggestion, fix it.
+    // This prevents activities from being treated as tracks/music.
+    // ============================================================
+    const ACTIVITY_NAMES_SET = ['breathing', 'maze', 'rising', 'drift', 'ripple', 'basin', 'dreamscape', 'grounding', 'walking', 'window', 'rest'];
+    const modelText = (parsed.message || '').toLowerCase();
+    if (!parsed.activity_suggestion?.name && modelText) {
+      const suggestLanguage = /you might enjoy|consider|might help|could try|good for|good when|would you like to try|want to try/i.test(modelText);
+      if (suggestLanguage) {
+        for (const actName of ACTIVITY_NAMES_SET) {
+          if (modelText.includes(actName)) {
+            console.log(`[ACTIVITY-NAME GUARD] Model suggested "${actName}" as text but missing activity_suggestion — injecting`);
+            parsed.activity_suggestion = {
+              name: actName,
+              reason: 'model_text_mentioned_activity',
+              should_navigate: false
+            };
+            break;
+          }
+        }
+      }
+    }
     
     // Handle multi-message responses (crisis mode returns messages array)
     let messagesArray = null;

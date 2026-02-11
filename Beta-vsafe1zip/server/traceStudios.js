@@ -571,6 +571,20 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     };
   }
   
+  // ALREADY-PLAYING GUARD: If user is reacting to a currently playing track ("nicee", "love it"),
+  // don't re-play or re-announce it. Only respond if they explicitly ask to play something.
+  const isAlreadyPlaying = nowPlayingTrack && (
+    (contextTrack && nowPlayingTrack.includes(contextTrack.id)) ||
+    (mentionedTrack && nowPlayingTrack.includes(mentionedTrack.id)) ||
+    nowPlayingTrack === contextTrackId
+  );
+  const isReaction = isAffirmative && !wantsToPlay && !directPlayRequest;
+  
+  if (isAlreadyPlaying && isReaction) {
+    console.log('[TRACE STUDIOS] Track already playing, user is reacting — skipping re-play');
+    return null; // Let the main chat pipeline handle the reaction naturally
+  }
+  
   // PRIORITY 2: Context-based play requests (user confirmed after offer)
   // Also fires when contextTrackId is 'night_swim' (album-level offer)
   // Also fires when TRACE just mentioned a track and user confirms (server-side detection, no client context needed)
@@ -578,7 +592,9 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
   const lastMsgOfferedTrack = mentionedTrack || justMentionedNightSwim || justMentionedNeonPromise;
   const hasPlayableContext = contextTrack || isAlbumContext || mentionedTrack || inNeonContext || justMentionedNightSwim || justMentionedNeonPromise;
   
-  if ((wantsToPlay || (isAffirmative && (contextTrack || isAlbumContext || lastMsgOfferedTrack))) && hasPlayableContext) {
+  // Only play on affirmative if TRACE actually offered something (lastMsgOfferedTrack),
+  // not just because the track was mentioned in any previous context
+  if ((wantsToPlay || (isAffirmative && lastMsgOfferedTrack)) && hasPlayableContext) {
     console.log('[TRACE STUDIOS] Confirmed play request detected — sending ui_action');
     
     // Priority: TRACE's last mention > context track > neon promise context > last msg neon promise

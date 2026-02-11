@@ -14,31 +14,40 @@
 const SIGNAL_TABLES = {
   grounding: [
     "panic", "panic attack", "can't breathe", "overwhelmed", "spiraling",
-    "anxious", "losing control", "freaking out", "racing thoughts", "stressed"
+    "anxious", "losing control", "freaking out", "racing thoughts", "stressed",
+    "can't calm down", "heart racing", "shaking", "on edge", "nervous",
+    "too much", "can't handle", "falling apart", "breaking down", "so much going on"
   ],
   comfort: [
     "sad", "grief", "lonely", "hurt", "heartbroken", "crying", "tired",
-    "exhausted", "miss them", "emotionally drained"
+    "exhausted", "miss them", "emotionally drained",
+    "miss someone", "miss her", "miss him", "lost someone", "feeling down",
+    "heavy", "rough day", "bad day", "tough day", "feeling low",
+    "not okay", "not great", "struggling", "hard time", "been hard",
+    "worn out", "burnt out", "drained", "empty inside", "feel alone"
   ],
   reflective: [
     "thinking about", "remembering", "processing", "trying to understand",
-    "why do I", "looking back", "confused about", "figuring out"
+    "why do I", "looking back", "confused about", "figuring out",
+    "been thinking", "on my mind", "can't stop thinking", "wondering",
+    "reflecting", "makes me think", "reminds me", "what if", "used to",
+    "idk why", "don't know why", "trying to figure", "going through something"
   ],
   insight: [
     "I understand now", "that makes sense", "I realize", "I see",
-    "that helped", "I feel better", "relief", "I'm okay now"
+    "that helped", "I feel better", "relief", "I'm okay now",
+    "clicked", "hit me", "finally get it", "makes more sense now",
+    "oh wow", "never thought of it that way", "you're right",
+    "that's true", "needed to hear that", "thank you for that"
   ],
-  // PRESENCE signals - actively detected calm/positive states
-  // Includes single keywords AND phrases for robust detection
   presence: [
-    // Single keywords (catch sentiment detection)
     "calm", "relaxed", "peaceful", "content", "happy", "chill", "great", "good",
-    // Full phrases (more confident matches)
     "I'm good", "I'm okay", "I'm fine", "feeling good", "feeling better",
     "I'm calm", "I'm relaxed", "at peace", "I'm content", "I'm happy",
     "doing well", "pretty good", "not bad", "all good", "I'm great",
     "feeling chill", "good day", "nice day", "just chilling", "just hanging",
-    "things are good", "life is good", "feeling at ease", "I'm at peace"
+    "things are good", "life is good", "feeling at ease", "I'm at peace",
+    "vibing", "just vibing", "chillin", "all chill", "yeah good"
   ]
 };
 
@@ -49,7 +58,8 @@ const EXTREME_SPIKE_TRIGGERS = [
 const STRONG_GROUNDING_SIGNALS = [
   "anxious", "stressed", "nervous", "overwhelmed", "spiraling",
   "can't stop thinking", "racing thoughts", "on edge", "tense",
-  "freaking out", "panicking", "scared"
+  "freaking out", "panicking", "scared", "can't calm down",
+  "heart racing", "shaking", "too much", "falling apart", "breaking down"
 ];
 
 // Priority order: grounding (urgent) > insight > comfort > reflective > presence (calm baseline)
@@ -69,12 +79,12 @@ const DWELL_TIME_MS = 45000;
 const OSCILLATION_WINDOW_MS = 120000;
 const OSCILLATION_THRESHOLD = 3;
 const FREEZE_DURATION_MS = 90000;
-const NEUTRAL_STREAK_THRESHOLD = 10; // Increased from 3 - require more neutral messages before returning to presence
-const SIGNAL_TIMEOUT_MS = 900000; // 15 minutes (was 5 minutes) - soundscapes persist longer
-const GROUNDING_CLEAR_THRESHOLD = 3; // Increased from 2 - require more clear messages
-const MIN_STATE_PERSIST_MESSAGES = 14; // Minimum messages before allowing state switch (7 tracks * 2 msgs per track avg)
+const NEUTRAL_STREAK_THRESHOLD = 6; // Neutral messages before returning to presence
+const SIGNAL_TIMEOUT_MS = 600000; // 10 minutes - soundscapes persist reasonably
+const GROUNDING_CLEAR_THRESHOLD = 3; // Require 3 clear messages to exit grounding
+const MIN_STATE_PERSIST_MESSAGES = 6; // Minimum messages before allowing state switch
 const INACTIVITY_TIMEOUT_MS = 300000; // 5 minutes - return to ambient after inactivity
-const BASELINE_WINDOW_MESSAGES = 4; // Accumulate signals over first 4 messages before making initial switch
+const BASELINE_WINDOW_MESSAGES = 3; // Accumulate signals over first 3 messages before making initial switch
 
 // ============================================================
 // SESSION STATE STORAGE (in-memory, keyed by userId)
