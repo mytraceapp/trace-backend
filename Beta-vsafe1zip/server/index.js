@@ -2651,6 +2651,20 @@ function getTokenParams(model, limit = 500) {
   return { max_tokens: limit };
 }
 
+function isSentenceComplete(text) {
+  if (!text) return false;
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return false;
+  const wordCount = trimmed.split(/\s+/).length;
+  if (wordCount <= 6) return true;
+  if (/[.!?…"')}\]]$/.test(trimmed)) return true;
+  if (/[,;:\-–—]$/.test(trimmed)) return false;
+  const lastWord = trimmed.split(/\s+/).pop()?.toLowerCase() || '';
+  const danglingWords = ['the', 'a', 'an', 'and', 'but', 'or', 'so', 'to', 'for', 'of', 'in', 'on', 'at', 'by', 'with', 'from', 'that', 'this', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'may', 'might', 'shall', 'i', 'you', 'we', 'they', 'he', 'she', 'it', 'my', 'your', 'our', 'their', 'its', 'remember', 'because', 'although', 'when', 'while', 'if', 'unless', 'until', 'since', 'about', 'into', 'through'];
+  if (danglingWords.includes(lastWord)) return false;
+  return true;
+}
+
 // Detect if user is asking for long-form content (recipes, stories, lists, etc.)
 function detectLongFormRequest(text) {
   if (!text) return false;
@@ -8886,7 +8900,14 @@ Your response (text only, no JSON):`;
         }, { signal: textController.signal });
         
         clearTimeout(textTimeout);
+        const t2FinishReason = textResponse.choices[0]?.finish_reason;
         textResult = textResponse.choices[0]?.message?.content?.trim() || '';
+        
+        if (t2FinishReason === 'length' && textResult && !isSentenceComplete(textResult)) {
+          console.warn('[TRACE T2] Premium text truncated (finish_reason=length, incomplete sentence), discarding');
+          textResult = '';
+          usedFallback = true;
+        }
         
       } catch (err) {
         if (err.name === 'AbortError' || err.message?.includes('abort')) {
@@ -9001,18 +9022,26 @@ Your response (text only, no JSON):`;
           console.log('[TRACE MODEL]', { intendedModel: selectedModel, actualModel: response?.model });
         }
         rawContent = response.choices[0]?.message?.content || '';
+        const l1FinishReason = response.choices[0]?.finish_reason;
+        
+        if (l1FinishReason === 'length') {
+          console.warn('[TRACE OPENAI L1] Token limit hit (finish_reason=length), response likely truncated — retrying');
+          continue;
+        }
         
         if (rawContent.trim()) {
           const testParse = JSON.parse(rawContent);
-          // Accept either single message OR messages array (for crisis multi-message)
           const hasValidMessage = testParse.message && testParse.message.trim().length > 0;
           const hasValidMessages = testParse.messages && Array.isArray(testParse.messages) && testParse.messages.length > 0;
           if (hasValidMessage || hasValidMessages) {
+            if (hasValidMessage && !isSentenceComplete(testParse.message)) {
+              console.warn('[TRACE OPENAI L1] Message appears truncated (incomplete sentence):', testParse.message.slice(-40));
+              continue;
+            }
             parsed = testParse;
             console.log('[TRACE OPENAI L1] Success on attempt', attempt, hasValidMessages ? '(multi-message)' : '');
             break;
           } else {
-            // Log what we got instead
             console.warn('[TRACE OPENAI L1] JSON parsed but no message field. Keys:', Object.keys(testParse).join(', '));
             console.warn('[TRACE OPENAI L1] Raw preview:', rawContent.substring(0, 200));
           }
@@ -9052,16 +9081,24 @@ Your response (text only, no JSON):`;
           recordOpenAICall(TRACE_BACKUP_MODEL, response, chatRequestId, openaiStart);
           console.log(`[OPENAI RESPONSE] model=${response.model || 'unknown'} (fallback)`);
           rawContent = response.choices[0]?.message?.content || '';
+          const l2FinishReason = response.choices[0]?.finish_reason;
+          
+          if (l2FinishReason === 'length') {
+            console.warn('[TRACE OPENAI L2] Token limit hit (finish_reason=length), response truncated');
+          }
           
           if (rawContent.trim()) {
             const testParse = JSON.parse(rawContent);
-            // Accept either single message OR messages array (for crisis multi-message)
             const hasValidMessage = testParse.message && testParse.message.trim().length > 0;
             const hasValidMessages = testParse.messages && Array.isArray(testParse.messages) && testParse.messages.length > 0;
             if (hasValidMessage || hasValidMessages) {
-              parsed = testParse;
-              console.log('[TRACE OPENAI L2] Success with backup model', hasValidMessages ? '(multi-message)' : '');
-              break;
+              if (hasValidMessage && !isSentenceComplete(testParse.message) && l2FinishReason === 'length') {
+                console.warn('[TRACE OPENAI L2] Message truncated (incomplete sentence + finish_reason=length), falling through');
+              } else {
+                parsed = testParse;
+                console.log('[TRACE OPENAI L2] Success with backup model', hasValidMessages ? '(multi-message)' : '');
+                break;
+              }
             }
           }
         } catch (err) {
@@ -9226,7 +9263,10 @@ Your response:`;
         });
         
         const plainText = response.choices[0]?.message?.content?.trim() || '';
-        if (plainText.length > 5) {
+        const l3FinishReason = response.choices[0]?.finish_reason;
+        if (l3FinishReason === 'length' && !isSentenceComplete(plainText)) {
+          console.warn('[TRACE OPENAI L3] Plain text truncated (finish_reason=length), falling through to L4');
+        } else if (plainText.length > 5) {
           parsed = {
             message: plainText,
             activity_suggestion: { name: null, reason: null, should_navigate: false }
@@ -9494,10 +9534,11 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
           });
           
           const regenContent = regenResponse.choices[0]?.message?.content || '';
-          if (regenContent.trim()) {
+          const regenFinish = regenResponse.choices[0]?.finish_reason;
+          if (regenContent.trim() && regenFinish !== 'length') {
             try {
               const regenParsed = JSON.parse(regenContent);
-              if (regenParsed.message && regenParsed.message.trim() !== lastAssistantInHistory) {
+              if (regenParsed.message && regenParsed.message.trim() !== lastAssistantInHistory && isSentenceComplete(regenParsed.message.trim())) {
                 assistantText = regenParsed.message.trim();
                 parsed.message = assistantText;
                 console.log('[ANTI-REPEAT] regeneration successful, new response applied');
@@ -10221,7 +10262,8 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
             temperature: 0.5,
           });
           const rewritten = rewriteResponse.choices?.[0]?.message?.content?.trim();
-          if (rewritten && rewritten.length > 10) {
+          const driftFinishReason = rewriteResponse.choices?.[0]?.finish_reason;
+          if (rewritten && rewritten.length > 10 && (driftFinishReason !== 'length' || isSentenceComplete(rewritten))) {
             const rewriteDriftCheck = checkDriftViolations(rewritten);
             if (!rewriteDriftCheck.hasViolation) {
               processedAssistantText = rewritten;
