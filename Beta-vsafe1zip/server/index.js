@@ -5081,7 +5081,7 @@ app.post('/api/chat', async (req, res) => {
     const userText = lastUserMsg?.content || '';
     
     // Detect if user wants long-form content (recipes, stories, detailed explanations)
-    const isLongFormRequest = detectLongFormRequest(userText);
+    let isLongFormRequest = detectLongFormRequest(userText);
     
     // Detect if user is referencing prior context ("u know", "i just told u", etc.)
     const isContextReference = detectContextReference(userText);
@@ -5096,13 +5096,19 @@ app.post('/api/chat', async (req, res) => {
     let storyMode = null;
     let selectedTheme = null;
     if (isStoryRequest) {
+      // CRITICAL: Story requests MUST be treated as long-form to prevent truncation.
+      // detectStoryRequest catches patterns ("another story", "want a story") that
+      // detectLongFormRequest misses. Without this, stories get 800 tokens (not 3000)
+      // and run through tightenResponse/enforceBrevity which cuts them to 3 sentences.
+      isLongFormRequest = true;
+      
       // Get recent emotion from client state or messages
       const recentEmotion = req.body.client_state?.recentSentiment || 
                            req.body.client_state?.detected_state || 
                            null;
       selectedTheme = selectStoryTheme(recentEmotion);
       storyMode = 'revelation_parable';
-      console.log(`[STORY_MODE] revelation_parable theme=${selectedTheme.id} faithAllowed=${faithAllowed}`);
+      console.log(`[STORY_MODE] revelation_parable theme=${selectedTheme.id} faithAllowed=${faithAllowed} longFormForced=true`);
     }
     
     // ========== SEXUAL/ROMANTIC CONTENT GATE ==========
@@ -9638,7 +9644,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     // ===== PHASE 4: SCHEMA VALIDATION + SINGLE REWRITE PATH =====
     // Phase 4.5: Percentage-based rollout via shouldUseSchemaEnforcement()
     const schemaEnforcementMasterOn = process.env.TRACE_SCHEMA_ENFORCEMENT === '1';
-    const schemaUserEligible = useV2 && !isCrisisMode && !isOnboardingActive && schemaEnforcementMasterOn
+    const schemaUserEligible = useV2 && !isCrisisMode && !isOnboardingActive && !storyMode && schemaEnforcementMasterOn
       && shouldUseSchemaEnforcement(effectiveUserId);
     const schemaEnforcementActive = schemaUserEligible;
 
@@ -9752,7 +9758,11 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     // Users outside the enforcement bucket keep Drift Lock as a safety net.
     const noDoubleRewrite = schemaEnforcementActive && schemaRan && (schemaRewriteAttempted || schemaPassed);
     const skipDriftLockRetirement = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_DRIFT_LOCK_WHEN_SCHEMA === '1';
-    const skipDriftLock = noDoubleRewrite || skipDriftLockRetirement;
+    const skipDriftLockForStory = !!storyMode; // Stories must not be rewritten by drift lock (400 token cap would truncate)
+    const skipDriftLock = noDoubleRewrite || skipDriftLockRetirement || skipDriftLockForStory;
+    if (skipDriftLockForStory) {
+      console.log('[DRIFT LOCK] Skipped — story mode active, preserving narrative structure');
+    }
     let driftLockRan = false;
 
     if (!skipDriftLock) {
@@ -9885,21 +9895,28 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     } else if (isLyricsRequest) {
       tightenedText = processedAssistantText;
       console.log('[TRACE BRAIN] Skipping tighten - lyrics request detected');
-    } else if (isLongFormRequest || (useV2 && shouldSkipTighten)) {
+    } else if (isLongFormRequest || storyMode || (useV2 && shouldSkipTighten)) {
       tightenedText = processedAssistantText;
       tightenPairRan = false;
+      const effectiveMode = storyMode ? `story_${storyMode}` : (traceIntent?.mode || (isLongFormRequest ? 'longform_legacy' : 'unknown'));
       console.log('[LONGFORM]', JSON.stringify({
         requestId: req.requestId || `req-${Date.now()}`,
         skip_tighten_pair: true,
-        mode: traceIntent?.mode || (isLongFormRequest ? 'longform_legacy' : 'unknown'),
+        mode: effectiveMode,
+        storyMode: storyMode || null,
         mustNotTruncate: !!traceIntent?.constraints?.mustNotTruncate
       }));
-      const skipSanitizeToneLF = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_SANITIZE_TONE_WHEN_SCHEMA === '1';
-      if (skipSanitizeToneLF) {
+      if (storyMode) {
         sanitizeToneRan = false;
+        console.log('[STORY_MODE] Skipping ALL post-processing (tighten + sanitizeTone) to preserve story structure');
       } else {
-        sanitizeToneRan = true;
-        tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode: false });
+        const skipSanitizeToneLF = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_SANITIZE_TONE_WHEN_SCHEMA === '1';
+        if (skipSanitizeToneLF) {
+          sanitizeToneRan = false;
+        } else {
+          sanitizeToneRan = true;
+          tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode: false });
+        }
       }
     } else {
       const skipTightenPair = schemaEnforcementActive && schemaRanSuccessfully && process.env.TRACE_DISABLE_TIGHTEN_PAIR_WHEN_SCHEMA === '1';
