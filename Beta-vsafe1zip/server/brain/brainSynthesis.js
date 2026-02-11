@@ -403,11 +403,11 @@ function buildTopicAnchor({
       label = topicKeywords.slice(0, 2).join(' & ');
     } else if (cognitiveIntent?.emotional_context && cognitiveIntent.emotional_context !== 'neutral') {
       label = cognitiveIntent.emotional_context;
-    } else if (previousHasContent) {
+    } else if (previousHasContent && (previousAnchor.turnAge || 0) < 6) {
       label = previousAnchor.label;
     } else {
       const recoveredLabel = recoverTopicFromHistory(historyMessages);
-      label = recoveredLabel || 'open conversation';
+      label = recoveredLabel || (previousHasContent ? previousAnchor.label : 'open conversation');
     }
   }
 

@@ -206,8 +206,10 @@ function extractTopicKeywords(message) {
   
   // Look for specific topics
   const topicPatterns = [
-    { pattern: /\b(work|job|boss|coworker|office|career|meeting)\b/i, topic: 'work' },
-    { pattern: /\b(mom|dad|parent|family|brother|sister|son|daughter|wife|husband|partner)\b/i, topic: 'family' },
+    { pattern: /\b(work|job|boss|coworker|office|career|meeting|interview)\b/i, topic: 'work' },
+    { pattern: /\b(school|class|teacher|homework|exam|grade|college|university|semester|studying)\b/i, topic: 'school' },
+    { pattern: /\b(mom|dad|parent|family|brother|sister|son|daughter|wife|husband|partner|teenager|teen|kid|child|baby|mama|papa)\b/i, topic: 'family' },
+    { pattern: /\b(she'?s opening up|he'?s opening up|opening up to me|talking to me more)\b/i, topic: 'parenting' },
     { pattern: /\b(friend|friendship|social|lonely|alone)\b/i, topic: 'relationships' },
     { pattern: /\b(sleep|tired|exhausted|insomnia|rest)\b/i, topic: 'sleep' },
     { pattern: /\b(anxious|anxiety|worried|nervous|panic)\b/i, topic: 'anxiety' },
@@ -215,6 +217,10 @@ function extractTopicKeywords(message) {
     { pattern: /\b(stress|stressed|pressure|overwhelmed)\b/i, topic: 'stress' },
     { pattern: /\b(dream|nightmare|dreamt|dreamed)\b/i, topic: 'dreams' },
     { pattern: /\b(music|song|listening|album)\b/i, topic: 'music' },
+    { pattern: /\b(money|rent|bills|debt|broke|paycheck|financial)\b/i, topic: 'finances' },
+    { pattern: /\b(health|sick|pain|doctor|hospital|medication|meds)\b/i, topic: 'health' },
+    { pattern: /\b(breakup|broke up|ex|divorce|separated)\b/i, topic: 'breakup' },
+    { pattern: /\b(move|moving|new place|apartment|house)\b/i, topic: 'life change' },
   ];
   
   for (const { pattern, topic } of topicPatterns) {

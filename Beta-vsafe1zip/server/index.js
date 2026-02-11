@@ -8368,7 +8368,8 @@ Your response (text only, no JSON):`;
         if (supportsCustomTemperature(selectedModel)) {
           openaiParams.temperature = chatTemperature;
         }
-        const l1RequestOptions = (isLongFormRequest || traceIntent?.mode === 'longform') ? { timeout: 60000 } : {};
+        const l1Timeout = isLongformL1 ? 60000 : 12000;
+        const l1RequestOptions = { timeout: l1Timeout };
         const response = await openai.chat.completions.create(openaiParams, l1RequestOptions);
         const openaiDuration = Date.now() - openaiStart;
         console.log(`[TIMING] OpenAI L1 call took ${openaiDuration}ms (attempt ${attempt})`);
@@ -8422,7 +8423,8 @@ Your response (text only, no JSON):`;
           if (supportsCustomTemperature(TRACE_BACKUP_MODEL)) {
             backupParams.temperature = chatTemperature;
           }
-          const l2RequestOptions = (isLongFormRequest || traceIntent?.mode === 'longform') ? { timeout: 60000 } : {};
+          const l2Timeout = (isLongFormRequest || traceIntent?.mode === 'longform') ? 60000 : 15000;
+          const l2RequestOptions = { timeout: l2Timeout };
           const response = await openai.chat.completions.create(backupParams, l2RequestOptions);
           
           recordOpenAICall(TRACE_BACKUP_MODEL, response, chatRequestId, openaiStart);
