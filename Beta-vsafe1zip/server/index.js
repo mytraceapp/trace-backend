@@ -9396,6 +9396,33 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     const lastUserMsgForAudio = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
     const responseText = messagesArray ? messagesArray[0] : assistantText;
     
+    // ── PHASE 8c: TRACK-ALREADY-PLAYING GUARD ──
+    // If a track was started in the last turn, do NOT override it with a mood-based pick.
+    // Only explicit user commands (play X, stop, resume, play again) can change the track.
+    const audioConvoState = conversationState.getState(effectiveUserId);
+    const trackJustStarted = audioConvoState.lastPlayedTrack && 
+      audioConvoState.lastPlayedTrack.source === 'music_pipeline' &&
+      (Date.now() - (audioConvoState.lastPlayedTrack.timestamp || 0)) < 3 * 60 * 1000;
+    const clientNowPlaying = safeClientState?.nowPlaying || safeClientState?.lastNowPlaying;
+    const clientTrackAge = clientNowPlaying?.startedAt ? (Date.now() - clientNowPlaying.startedAt) : 
+                           clientNowPlaying?.stoppedAt ? (Date.now() - clientNowPlaying.stoppedAt) : Infinity;
+    const trackCurrentlyPlaying = !!(clientNowPlaying?.trackId || clientNowPlaying?.title) && clientTrackAge < 10 * 60 * 1000;
+    const trackIsActive = trackJustStarted || trackCurrentlyPlaying;
+    
+    const userMsgLowerForAudio = lastUserMsgForAudio.toLowerCase();
+    const isExplicitMusicCommand = /^(play|put on|stop|pause|resume|start|can you play|could you play|let me hear|i want to hear|play some|play me)\b/i.test(userMsgLowerForAudio) || 
+      /\b(play again|replay|one more time|switch to|change to)\b/i.test(userMsgLowerForAudio);
+    
+    if (trackIsActive && !isExplicitMusicCommand) {
+      console.log('[PHASE8c_TRACK_GUARD] Track already active, skipping mood-based audio_action', JSON.stringify({
+        requestId,
+        trackJustStarted,
+        trackCurrentlyPlaying,
+        lastPlayedTrack: audioConvoState.lastPlayedTrack?.trackIndex,
+        clientTrack: clientNowPlaying?.title || null,
+      }));
+    }
+    
     // Check if TRACE is offering Night Swim in this response
     // Requires both "night swim" AND offer-intent keywords to avoid false positives
     const responseLower = responseText.toLowerCase();
@@ -9538,8 +9565,9 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       addToSessionHistory(effectiveUserId, trackNum);
       const trackInfo = getTrackInfo(trackNum);
       console.log(`[TRACE ORIGINALS] Night Swim requested, playing Track ${trackNum}: ${trackInfo?.name || 'Unknown'} (index ${trackNum - 1})`);
-    } else if (isNightSwimOffer) {
+    } else if (isNightSwimOffer && !(trackIsActive && !isExplicitMusicCommand)) {
       // TRACE is offering Night Swim - pick track based on emotional context
+      // GUARD: Skip if a track is already playing and user didn't explicitly request music
       const emotionalState = detectEmotionalState(lastUserMsgForAudio);
       const mood = emotionalState.categories[0] || 'calm';
       const trackNum = getTrackForMood(mood, effectiveUserId, sessionHistory);
@@ -9551,19 +9579,19 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         track: trackNum - 1,
         autoplay: false
       });
-      // Record recommendation in session history to avoid repeating same track
       addToSessionHistory(effectiveUserId, trackNum);
       const trackInfo = getTrackInfo(trackNum);
       console.log(`[TRACE ORIGINALS] Night Swim offered, recommending Track ${trackNum}: ${trackInfo?.name || 'Unknown'} (index ${trackNum - 1})`);
-    } else if (immediateNightSwimOffer) {
+    } else if (isNightSwimOffer && trackIsActive && !isExplicitMusicCommand) {
+      console.log('[PHASE8c_TRACK_GUARD] Suppressed isNightSwimOffer — track already active');
+    } else if (immediateNightSwimOffer && !(trackIsActive && !isExplicitMusicCommand)) {
       // Check user's response to the immediate offer
+      // GUARD: Skip if a track is already playing and user didn't explicitly request music
       if (isUserAgreeing(lastUserMsgForAudio)) {
-        // User agreed - pick track based on mood and session history
         const emotionalState = detectEmotionalState(lastUserMsgForAudio);
         const mood = emotionalState.categories[0] || 'calm';
         const trackNum = getTrackForMood(mood, effectiveUserId, sessionHistory);
         
-        // Convert to 0-based index for frontend (track 1 → index 0)
         audioAction = buildAudioAction('open', {
           source: 'originals',
           album: 'night_swim',
@@ -9574,10 +9602,10 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         const trackInfo = getTrackInfo(trackNum);
         console.log(`[TRACE ORIGINALS] User agreed, playing Track ${trackNum}: ${trackInfo?.name || 'Unknown'} (index ${trackNum - 1})`);
       } else if (isUserDeclining(lastUserMsgForAudio)) {
-        // User declined - clear the pending offer (no audio_action)
         console.log('[TRACE ORIGINALS] User declined Night Swim offer');
       }
-      // If neither agreeing nor declining, no audio_action - conversation continues naturally
+    } else if (immediateNightSwimOffer && trackIsActive && !isExplicitMusicCommand) {
+      console.log('[PHASE8c_TRACK_GUARD] Suppressed immediateNightSwimOffer — track already active');
     }
     
     // Proactive recommendation logging: Track when conditions are met for analytics
