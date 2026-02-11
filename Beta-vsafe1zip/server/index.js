@@ -778,9 +778,9 @@ function pickMusicSpace(context = {}) {
   }
   
   // Second: Infer from emotional keywords
-  if (context.grief || context.sad || context.heavy) return 'drift';
-  if (context.panicky || context.anxious || context.overwhelmed) return 'ground';
-  return 'rising';
+  if (context.grief || context.sad || context.heavy) return 'low_orbit';
+  if (context.panicky || context.anxious || context.overwhelmed) return 'rooted';
+  return 'first_light';
 }
 
 // Detect if user explicitly asked for a specific music space/activity
@@ -789,25 +789,25 @@ function detectExplicitMusicSpace(messageText = '') {
   
   // CRITICAL: Only detect PLAYLIST names (album titles), NOT activity names
   // Activities: breathing, maze, rising, drift, basin, grounding, walking, etc.
-  // Playlists: "First Light" (rising_playlist), "Rooted" (ground_playlist), "Low Orbit" (low_orbit_playlist)
+  // Playlists: "First Light" (first_light_playlist), "Rooted" (rooted_playlist), "Low Orbit" (low_orbit_playlist)
   
   // Explicit playlist album name requests
-  if (txt.includes('first light') || txt.includes('firstlight')) return 'rising';
-  if (txt.includes('rooted') && (txt.includes('play') || txt.includes('playlist'))) return 'ground';
-  if (txt.includes('low orbit') && (txt.includes('play') || txt.includes('playlist'))) return 'drift';
+  if (txt.includes('first light') || txt.includes('firstlight')) return 'first_light';
+  if (txt.includes('rooted') && (txt.includes('play') || txt.includes('playlist'))) return 'rooted';
+  if (txt.includes('low orbit') && (txt.includes('play') || txt.includes('playlist'))) return 'low_orbit';
   
   // "play X playlist" patterns only
   const playlistPatterns = [
-    /play\s+(the\s+)?rising\s+playlist/i,
-    /play\s+(the\s+)?drift\s+playlist/i,
-    /play\s+(the\s+)?ground\s+playlist/i,
+    /play\s+(the\s+)?first\s*light\s+playlist/i,
+    /play\s+(the\s+)?low\s*orbit\s+playlist/i,
+    /play\s+(the\s+)?rooted\s+playlist/i,
   ];
   
   for (const pattern of playlistPatterns) {
     if (pattern.test(txt)) {
-      if (txt.includes('rising playlist')) return 'rising';
-      if (txt.includes('drift playlist')) return 'drift';
-      if (txt.includes('ground playlist')) return 'ground';
+      if (txt.includes('first light playlist') || txt.includes('first_light playlist')) return 'first_light';
+      if (txt.includes('low orbit playlist') || txt.includes('low_orbit playlist')) return 'low_orbit';
+      if (txt.includes('rooted playlist')) return 'rooted';
     }
   }
   
@@ -2514,9 +2514,9 @@ ACTIVITIES (interactive experiences — use exact names):
   breathing, maze, rising, drift, ripple, basin, dreamscape, grounding, walking, window, rest
 
 PLAYLISTS (music collections — use _playlist suffix):
-  ground_playlist (album: "Rooted")
+  rooted_playlist (album: "Rooted")
   low_orbit_playlist (album: "Low Orbit")  
-  rising_playlist (album: "First Light")
+  first_light_playlist (album: "First Light")
 
 TRACE STUDIOS TRACKS (Night Swim album - YOUR music, you made this):
   Track 1: Midnight Underwater (2am thoughts, overwhelm)
@@ -2529,7 +2529,7 @@ TRACE STUDIOS TRACKS (Night Swim album - YOUR music, you made this):
 
 ROUTING RULES:
 • "take me to rising" / "do rising" / "rising" → activity_suggestion: {"name": "rising"}
-• "play First Light" / "First Light" → activity_suggestion: {"name": "rising_playlist"}
+• "play First Light" / "First Light" → activity_suggestion: {"name": "first_light_playlist"}
 • "play Neon Promise" → audio_action with track 7
 • NEVER confuse an activity request with a playlist. "rising" ≠ "First Light"
 
@@ -10128,9 +10128,9 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     const playlistTurnGateMet = (sessionTurns >= 5 && !!hasTriedInAppMusic) || isExplicitPlaylistRequest;
     
     const playlistMentions = [
-      { patterns: ['ground_playlist', 'rooted playlist', 'playing rooted', 'play rooted'], name: 'ground_playlist', album: 'Rooted' },
+      { patterns: ['rooted_playlist', 'rooted playlist', 'playing rooted', 'play rooted'], name: 'rooted_playlist', album: 'Rooted' },
       { patterns: ['low_orbit_playlist', 'low orbit playlist', 'playing low orbit', 'play low orbit'], name: 'low_orbit_playlist', album: 'Low Orbit' },
-      { patterns: ['rising_playlist', 'first light playlist', 'playing first light', 'play first light'], name: 'rising_playlist', album: 'First Light' },
+      { patterns: ['first_light_playlist', 'first light playlist', 'playing first light', 'play first light'], name: 'first_light_playlist', album: 'First Light' },
     ];
     for (const pl of playlistMentions) {
       if (pl.patterns.some(p => finalMsgText.includes(p))) {
@@ -10173,7 +10173,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     }
     
     // PLAYLIST TURN GATE: suppress playlist activity_suggestions when too early
-    const playlistNames = ['ground_playlist', 'low_orbit_playlist', 'rising_playlist'];
+    const playlistNames = ['rooted_playlist', 'low_orbit_playlist', 'first_light_playlist'];
     if (finalResponse.activity_suggestion?.name && playlistNames.includes(finalResponse.activity_suggestion.name) && !playlistTurnGateMet) {
       console.log('[PLAYLIST_GATE] Suppressed playlist activity_suggestion — too early', JSON.stringify({ requestId: chatRequestId, name: finalResponse.activity_suggestion.name, sessionTurns }));
       finalResponse.activity_suggestion = { name: null, reason: null, should_navigate: false };
@@ -12280,14 +12280,14 @@ app.get('/api/music-config', (req, res) => {
   res.json({
     spotifyClientId: process.env.SPOTIFY_CLIENT_ID || '',
     playlists: {
-      ground: process.env.TRACE_GROUND_URL || process.env.TRACE_GROUND_URI || '',
-      drift: process.env.TRACE_DRIFT_URL || process.env.TRACE_DRIFT_URI || '',
-      rising: process.env.TRACE_RISING_URL || process.env.TRACE_RISING_URI || '',
+      rooted: process.env.TRACE_GROUND_URL || process.env.TRACE_GROUND_URI || '',
+      low_orbit: process.env.TRACE_DRIFT_URL || process.env.TRACE_DRIFT_URI || '',
+      first_light: process.env.TRACE_RISING_URL || process.env.TRACE_RISING_URI || '',
     },
     displayNames: {
-      ground: 'Rooted',
-      drift: 'Low Orbit',
-      rising: 'First Light',
+      rooted: 'Rooted',
+      low_orbit: 'Low Orbit',
+      first_light: 'First Light',
     },
   });
 });

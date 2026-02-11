@@ -1,17 +1,16 @@
 import { Linking, Platform } from 'react-native';
 import { fetchMusicConfig, MoodSpace } from './musicConfig';
 
-// Last-resort hardcoded fallbacks - only used if config fetch fails
 const FALLBACK_PLAYLISTS: Record<MoodSpace, { webUrl: string; appUri: string }> = {
-  ground: {
+  rooted: {
     webUrl: 'https://open.spotify.com/playlist/5cAoML12eNgt4J1XAXYU77',
     appUri: 'spotify:playlist:5cAoML12eNgt4J1XAXYU77',
   },
-  drift: {
+  low_orbit: {
     webUrl: 'https://open.spotify.com/playlist/5ahaGLZi7wB40G2PQFfdvt',
     appUri: 'spotify:playlist:5ahaGLZi7wB40G2PQFfdvt',
   },
-  rising: {
+  first_light: {
     webUrl: 'https://open.spotify.com/playlist/7LHWpQChAU89LqBO7bVYeU',
     appUri: 'spotify:playlist:7LHWpQChAU89LqBO7bVYeU',
   },
@@ -30,7 +29,6 @@ function getPlaylistUrls(configUrl: string, mood: MoodSpace): { webUrl: string; 
       appUri: `spotify:playlist:${playlistId}`,
     };
   }
-  // Config URL is invalid, use hardcoded fallback
   console.warn('[Spotify] Invalid config URL, using fallback for:', mood);
   return FALLBACK_PLAYLISTS[mood];
 }
@@ -38,7 +36,6 @@ function getPlaylistUrls(configUrl: string, mood: MoodSpace): { webUrl: string; 
 export async function openSpotifyPlaylist(
   mood: MoodSpace
 ): Promise<boolean> {
-  // First, try to get dynamic config
   let playlist: { webUrl: string; appUri: string };
   try {
     const config = await fetchMusicConfig();
@@ -51,7 +48,6 @@ export async function openSpotifyPlaylist(
   }
   
   try {
-    // First, try to open the Spotify app directly with app URI
     const canOpenApp = await Linking.canOpenURL(playlist.appUri);
     
     if (canOpenApp) {
@@ -60,7 +56,6 @@ export async function openSpotifyPlaylist(
       return true;
     }
     
-    // Fallback: Try to open web URL (will open in browser or Spotify if installed)
     console.log('[Spotify] App not available, trying web URL');
     await Linking.openURL(playlist.webUrl);
     console.log('[Spotify] Opened web fallback:', playlist.webUrl);
@@ -68,7 +63,6 @@ export async function openSpotifyPlaylist(
   } catch (error: any) {
     console.error('[Spotify] Failed to open app URI:', error.message);
     
-    // Last resort: try web URL
     try {
       await Linking.openURL(playlist.webUrl);
       console.log('[Spotify] Opened web fallback after error:', playlist.webUrl);

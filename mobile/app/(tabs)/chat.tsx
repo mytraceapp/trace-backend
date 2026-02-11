@@ -149,9 +149,9 @@ const ACTIVITY_ROUTES: Record<string, string> = {
   'journal': '/(tabs)/journal',
   'Journal': '/(tabs)/journal',
   // Spotify playlists handled separately via openSpotifyPlaylist
-  'ground_playlist': 'spotify:ground',
+  'rooted_playlist': 'spotify:rooted',
   'low_orbit_playlist': 'spotify:low_orbit',
-  'rising_playlist': 'spotify:rising',
+  'first_light_playlist': 'spotify:first_light',
 };
 
 type ChatRole = 'user' | 'assistant';
@@ -1593,8 +1593,8 @@ export default function ChatScreen() {
                 leftForSpotifyRef.current = { left: true, trackTitle: playlistId, leftAt: Date.now() };
                 setTimeout(async () => {
                   const playlistToMood: Record<string, MoodSpace> = {
-                    'ground_playlist': 'ground', 'low_orbit_playlist': 'low_orbit', 'rising_playlist': 'rising',
-                    'ground': 'ground', 'low_orbit': 'low_orbit', 'rising': 'rising'
+                    'rooted_playlist': 'rooted', 'low_orbit_playlist': 'low_orbit', 'first_light_playlist': 'first_light',
+                    'rooted': 'rooted', 'low_orbit': 'low_orbit', 'first_light': 'first_light'
                   };
                   const mood = playlistToMood[playlistId] || (playlistId as MoodSpace);
                   await openSpotifyPlaylist(mood);
@@ -2024,12 +2024,12 @@ export default function ChatScreen() {
           setTimeout(async () => {
             // Map playlist IDs to mood spaces
             const playlistToMood: Record<string, MoodSpace> = {
-              'ground_playlist': 'ground',
+              'rooted_playlist': 'rooted',
               'low_orbit_playlist': 'low_orbit',
-              'rising_playlist': 'rising',
-              'ground': 'ground',
+              'first_light_playlist': 'first_light',
+              'rooted': 'rooted',
               'low_orbit': 'low_orbit',
-              'rising': 'rising'
+              'first_light': 'first_light'
             };
             const mood = playlistToMood[playlistId] || (playlistId as MoodSpace);
             await openSpotifyPlaylist(mood);

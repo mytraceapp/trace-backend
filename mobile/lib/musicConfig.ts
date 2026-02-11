@@ -1,4 +1,4 @@
-export type MoodSpace = 'ground' | 'low_orbit' | 'rising';
+export type MoodSpace = 'rooted' | 'low_orbit' | 'first_light';
 
 export interface MusicConfig {
   spotifyClientId: string;
@@ -26,13 +26,12 @@ export async function fetchMusicConfig(): Promise<MusicConfig> {
   } catch (err: any) {
     clearTimeout(timeout);
     console.warn('[Music] Config fetch failed:', err.message);
-    // Return fallback config with hardcoded playlist URLs
     return {
       spotifyClientId: '',
       playlists: {
-        ground: 'https://open.spotify.com/playlist/5cAoML12eNgt4J1XAXYU77',
+        rooted: 'https://open.spotify.com/playlist/5cAoML12eNgt4J1XAXYU77',
         low_orbit: 'https://open.spotify.com/playlist/5ahaGLZi7wB40G2PQFfdvt',
-        rising: 'https://open.spotify.com/playlist/7LHWpQChAU89LqBO7bVYeU',
+        first_light: 'https://open.spotify.com/playlist/7LHWpQChAU89LqBO7bVYeU',
       },
     };
   }
@@ -44,7 +43,7 @@ export async function getPlaylistItem(mood: MoodSpace) {
   return {
     id: `playlist-${mood}`,
     title:
-      mood === 'ground'
+      mood === 'rooted'
         ? 'Rooted'
         : mood === 'low_orbit'
         ? 'Low Orbit'

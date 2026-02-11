@@ -316,12 +316,12 @@ RIGHT: "Things like breathing exercises, grounding techniques, a maze for anxiou
 === ACTIVITY VS PLAYLIST ROUTING ===
 
 ACTIVITIES (no suffix): breathing, maze, rising, drift, ripple, basin, dreamscape, grounding, walking, window, rest
-PLAYLISTS (with _playlist): ground_playlist, low_orbit_playlist, rising_playlist
+PLAYLISTS (with _playlist): rooted_playlist, low_orbit_playlist, first_light_playlist
 
 Playlist names are DISTINCT from activities:
-- "Rooted" / "play Rooted" → ground_playlist
+- "Rooted" / "play Rooted" → rooted_playlist
 - "Low Orbit" / "play Low Orbit" → low_orbit_playlist  
-- "First Light" / "play First Light" → rising_playlist
+- "First Light" / "play First Light" → first_light_playlist
 
 "rising" / "do rising" / "take me to rising" = ACTIVITY (NOT playlist)
 "First Light" / "play First Light" = PLAYLIST
@@ -433,7 +433,7 @@ When user accepts a music offer with "sure" / "thanks" / "okay" / "yes":
 - Simply set should_navigate: true with minimal/no message
 - Example: If you offered "First Light" and user says "Thanks"
   → message: "" (empty or just "🎵")
-  → activity_suggestion: { "name": "rising_playlist", "should_navigate": true }
+  → activity_suggestion: { "name": "first_light_playlist", "should_navigate": true }
 
 EXIT INSTRUCTIONS by type:
 - Auto-play (Basin, Rising, Drift, Dreamscape, Window, Ripple): "Tap TRACE at the top to return"
@@ -578,9 +578,9 @@ For playlists, include:
 {
   "message": "Playing Rooted for you.",
   "activity_suggestion": {
-    "name": "ground_playlist",
+    "name": "rooted_playlist",
     "should_navigate": true,
-    "target": "ground_playlist"
+    "target": "rooted_playlist"
   }
 }
 

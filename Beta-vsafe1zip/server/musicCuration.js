@@ -119,7 +119,7 @@ const NIGHT_SWIM_TRACKS = [
 // ============================================================
 const PLAYLISTS = [
   {
-    id: 'ground_playlist',
+    id: 'rooted_playlist',
     name: 'Rooted',
     playbackMode: 'spotify_journal',
     moods: ['grounding', 'stability', 'anchoring', 'present', 'centered'],
@@ -141,7 +141,7 @@ const PLAYLISTS = [
     description: "For floating away. Weightless, spacious sounds."
   },
   {
-    id: 'rising_playlist',
+    id: 'first_light_playlist',
     name: 'First Light',
     playbackMode: 'spotify_journal',
     moods: ['hope', 'morning', 'beginning', 'fresh', 'new'],
