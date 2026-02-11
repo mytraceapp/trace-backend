@@ -2572,10 +2572,13 @@ const TRACE_BOSS_SYSTEM = `You are TRACE — reflective intelligence for everyda
 ACTIVITIES (interactive experiences — use exact names):
   breathing, maze, rising, drift, ripple, basin, dreamscape, grounding, walking, window, rest
 
-PLAYLISTS (music collections — use _playlist suffix):
-  rooted_playlist (album: "Rooted")
-  low_orbit_playlist (album: "Low Orbit")  
-  first_light_playlist (album: "First Light")
+PLAYLISTS (music collections — use _playlist suffix in activity_suggestion.name ONLY, NEVER in your message text):
+  rooted_playlist (display name: "Rooted")
+  low_orbit_playlist (display name: "Low Orbit")  
+  first_light_playlist (display name: "First Light")
+
+CRITICAL: In your "message" text, ALWAYS use display names: "Rooted", "Low Orbit", "First Light".
+NEVER write underscored IDs like "rooted_playlist" or "_low_orbit_playlist_" in your message.
 
 TRACE STUDIOS TRACKS (Night Swim album - YOUR music, you made this):
   Track 1: Midnight Underwater (2am thoughts, overwhelm)
@@ -4326,8 +4329,47 @@ function applyContinuityBridge({ traceIntent, response_source, messageText, requ
   return bridged;
 }
 
+const INTERNAL_NAME_MAP = {
+  'rooted_playlist': 'Rooted',
+  'low_orbit_playlist': 'Low Orbit',
+  'first_light_playlist': 'First Light',
+  'night_swim': 'Night Swim',
+  'neon_promise': 'Neon Promise',
+  'slow_tides': 'Slow Tides',
+  'midnight_underwater': 'Midnight Underwater',
+  'tidal_house': 'Tidal House',
+  'ocean_breathing': 'Ocean Breathing',
+  'soft_collision': 'Soft Collision',
+  'golden_hour': 'Golden Hour',
+  'still_point': 'Still Point',
+  'paper_moon': 'Paper Moon',
+  'slow_burn': 'Slow Burn',
+  'quiet_fire': 'Quiet Fire',
+};
+
+function sanitizeDisplayText(text) {
+  if (!text || typeof text !== 'string') return text;
+  let cleaned = text;
+  cleaned = cleaned.replace(/_(\w+(?:_\w+)*)_/g, (match, inner) => {
+    const key = inner.toLowerCase();
+    if (INTERNAL_NAME_MAP[key]) return INTERNAL_NAME_MAP[key];
+    return inner.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  });
+  for (const [id, display] of Object.entries(INTERNAL_NAME_MAP)) {
+    const pattern = new RegExp(`\\b${id.replace(/_/g, '[_ ]')}\\b`, 'gi');
+    cleaned = cleaned.replace(pattern, display);
+  }
+  return cleaned;
+}
+
 function applyResponseShapeLock(payload, requestId) {
   const normalized = normalizeResponseEnvelope(payload);
+  if (normalized.message && typeof normalized.message === 'string') {
+    normalized.message = sanitizeDisplayText(normalized.message);
+  }
+  if (Array.isArray(normalized.messages)) {
+    normalized.messages = normalized.messages.map(m => typeof m === 'string' ? sanitizeDisplayText(m) : m);
+  }
   const validation = validateResponseEnvelope(normalized);
   const mode = deriveResponseMode(normalized);
   const shapeMeta = {
