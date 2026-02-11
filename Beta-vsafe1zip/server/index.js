@@ -789,7 +789,7 @@ function detectExplicitMusicSpace(messageText = '') {
   
   // CRITICAL: Only detect PLAYLIST names (album titles), NOT activity names
   // Activities: breathing, maze, rising, drift, basin, grounding, walking, etc.
-  // Playlists: "First Light" (rising_playlist), "Rooted" (ground_playlist), "Low Orbit" (drift_playlist)
+  // Playlists: "First Light" (rising_playlist), "Rooted" (ground_playlist), "Low Orbit" (low_orbit_playlist)
   
   // Explicit playlist album name requests
   if (txt.includes('first light') || txt.includes('firstlight')) return 'rising';
@@ -2515,7 +2515,7 @@ ACTIVITIES (interactive experiences — use exact names):
 
 PLAYLISTS (music collections — use _playlist suffix):
   ground_playlist (album: "Rooted")
-  drift_playlist (album: "Low Orbit")  
+  low_orbit_playlist (album: "Low Orbit")  
   rising_playlist (album: "First Light")
 
 TRACE STUDIOS TRACKS (Night Swim album - YOUR music, you made this):
@@ -10119,15 +10119,25 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     
     // Post-processing: detect playlist mentions in AI-generated responses
     // When the model mentions a playlist, store as pending offer (user must confirm before we open journal modal)
+    // TURN GATE: playlists open outside the app — only offer after 5+ turns AND in-app options explored first
     let pipelineUiAction = null;
     const finalMsgText = (finalResponse.message || '').toLowerCase();
+    const sessionTurns = safeClientState?.turnCount || safeClientState?.sessionTurnCount || 0;
+    const hasTriedInAppMusic = safeClientState?.lastSuggestion || safeClientState?.nowPlaying;
+    const isExplicitPlaylistRequest = /\b(play|open|put on)\b.*(rooted|low orbit|first light|playlist)/i.test(lastUserMessage || '');
+    const playlistTurnGateMet = (sessionTurns >= 5 && !!hasTriedInAppMusic) || isExplicitPlaylistRequest;
+    
     const playlistMentions = [
       { patterns: ['ground_playlist', 'rooted playlist', 'playing rooted', 'play rooted'], name: 'ground_playlist', album: 'Rooted' },
-      { patterns: ['drift_playlist', 'low orbit playlist', 'playing low orbit', 'play low orbit'], name: 'drift_playlist', album: 'Low Orbit' },
+      { patterns: ['low_orbit_playlist', 'low orbit playlist', 'playing low orbit', 'play low orbit'], name: 'low_orbit_playlist', album: 'Low Orbit' },
       { patterns: ['rising_playlist', 'first light playlist', 'playing first light', 'play first light'], name: 'rising_playlist', album: 'First Light' },
     ];
     for (const pl of playlistMentions) {
       if (pl.patterns.some(p => finalMsgText.includes(p))) {
+        if (!playlistTurnGateMet) {
+          console.log('[PLAYLIST_GATE] Blocked playlist offer — too early', JSON.stringify({ requestId: chatRequestId, playlistId: pl.name, sessionTurns, hasTriedInAppMusic: !!hasTriedInAppMusic, isExplicitRequest: isExplicitPlaylistRequest }));
+          break;
+        }
         const pendingAction = {
           type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
           title: pl.album,
@@ -10159,6 +10169,13 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     const effectiveAudioAction = contractAudioAction || finalResponse.audio_action || null;
 
     if (traceIntent?.primaryMode === 'studios' && finalResponse.activity_suggestion?.name) {
+      finalResponse.activity_suggestion = { name: null, reason: null, should_navigate: false };
+    }
+    
+    // PLAYLIST TURN GATE: suppress playlist activity_suggestions when too early
+    const playlistNames = ['ground_playlist', 'low_orbit_playlist', 'rising_playlist'];
+    if (finalResponse.activity_suggestion?.name && playlistNames.includes(finalResponse.activity_suggestion.name) && !playlistTurnGateMet) {
+      console.log('[PLAYLIST_GATE] Suppressed playlist activity_suggestion — too early', JSON.stringify({ requestId: chatRequestId, name: finalResponse.activity_suggestion.name, sessionTurns }));
       finalResponse.activity_suggestion = { name: null, reason: null, should_navigate: false };
     }
 

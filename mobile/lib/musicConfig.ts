@@ -1,4 +1,4 @@
-export type MoodSpace = 'ground' | 'drift' | 'rising';
+export type MoodSpace = 'ground' | 'low_orbit' | 'rising';
 
 export interface MusicConfig {
   spotifyClientId: string;
@@ -31,7 +31,7 @@ export async function fetchMusicConfig(): Promise<MusicConfig> {
       spotifyClientId: '',
       playlists: {
         ground: 'https://open.spotify.com/playlist/5cAoML12eNgt4J1XAXYU77',
-        drift: 'https://open.spotify.com/playlist/5ahaGLZi7wB40G2PQFfdvt',
+        low_orbit: 'https://open.spotify.com/playlist/5ahaGLZi7wB40G2PQFfdvt',
         rising: 'https://open.spotify.com/playlist/7LHWpQChAU89LqBO7bVYeU',
       },
     };
@@ -45,10 +45,10 @@ export async function getPlaylistItem(mood: MoodSpace) {
     id: `playlist-${mood}`,
     title:
       mood === 'ground'
-        ? 'Ground'
-        : mood === 'drift'
-        ? 'Drift'
-        : 'Rising',
+        ? 'Rooted'
+        : mood === 'low_orbit'
+        ? 'Low Orbit'
+        : 'First Light',
     subtitle: 'Curated by TRACE',
     source: 'spotify' as const,
     spotifyUri: cfg.playlists[mood],

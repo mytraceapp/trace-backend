@@ -150,7 +150,7 @@ const ACTIVITY_ROUTES: Record<string, string> = {
   'Journal': '/(tabs)/journal',
   // Spotify playlists handled separately via openSpotifyPlaylist
   'ground_playlist': 'spotify:ground',
-  'drift_playlist': 'spotify:drift',
+  'low_orbit_playlist': 'spotify:low_orbit',
   'rising_playlist': 'spotify:rising',
 };
 
@@ -1593,8 +1593,8 @@ export default function ChatScreen() {
                 leftForSpotifyRef.current = { left: true, trackTitle: playlistId, leftAt: Date.now() };
                 setTimeout(async () => {
                   const playlistToMood: Record<string, MoodSpace> = {
-                    'ground_playlist': 'ground', 'drift_playlist': 'drift', 'rising_playlist': 'rising',
-                    'ground': 'ground', 'drift': 'drift', 'rising': 'rising'
+                    'ground_playlist': 'ground', 'low_orbit_playlist': 'low_orbit', 'rising_playlist': 'rising',
+                    'ground': 'ground', 'low_orbit': 'low_orbit', 'rising': 'rising'
                   };
                   const mood = playlistToMood[playlistId] || (playlistId as MoodSpace);
                   await openSpotifyPlaylist(mood);
@@ -2025,10 +2025,10 @@ export default function ChatScreen() {
             // Map playlist IDs to mood spaces
             const playlistToMood: Record<string, MoodSpace> = {
               'ground_playlist': 'ground',
-              'drift_playlist': 'drift',
+              'low_orbit_playlist': 'low_orbit',
               'rising_playlist': 'rising',
               'ground': 'ground',
-              'drift': 'drift',
+              'low_orbit': 'low_orbit',
               'rising': 'rising'
             };
             const mood = playlistToMood[playlistId] || (playlistId as MoodSpace);

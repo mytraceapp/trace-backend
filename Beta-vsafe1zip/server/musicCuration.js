@@ -130,7 +130,7 @@ const PLAYLISTS = [
     description: "For when you need to feel anchored. Grounding frequencies."
   },
   {
-    id: 'drift_playlist',
+    id: 'low_orbit_playlist',
     name: 'Low Orbit',
     playbackMode: 'spotify_journal',
     moods: ['floating', 'detachment', 'space', 'distance', 'release'],
