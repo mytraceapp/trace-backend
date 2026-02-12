@@ -9030,6 +9030,11 @@ Your response (text only, no JSON):`;
     const cfg = getConfiguredModel();
     const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
     
+    // Total time budget: mobile client times out at 60s, so we must respond within 50s
+    // to leave margin for network latency. If we exceed this, accept whatever we have.
+    const TOTAL_TIME_BUDGET_MS = 50000;
+    const timeBudgetExceeded = () => (Date.now() - requestStartTime) >= TOTAL_TIME_BUDGET_MS;
+    
     // Token limit for long-form content (recipes, stories, detailed explanations)
     const tokenLimit = isLongFormRequest ? 3000 : 800;
     
@@ -9046,6 +9051,10 @@ Your response (text only, no JSON):`;
     const isLongformL1 = isLongFormRequest || traceIntent?.mode === 'longform';
     const maxL1Retries = (parsed || useL3FastPath) ? 0 : (isLongformL1 ? 1 : 2);
     for (let attempt = 1; attempt <= maxL1Retries; attempt++) {
+      if (timeBudgetExceeded()) {
+        console.warn(`[TRACE OPENAI L1] Time budget exceeded before attempt ${attempt}, skipping to fallback`);
+        break;
+      }
       try {
         if (attempt > 1) await sleep(200); // Reduced delay
         
@@ -9063,7 +9072,13 @@ Your response (text only, no JSON):`;
         if (supportsCustomTemperature(selectedModel)) {
           openaiParams.temperature = chatTemperature;
         }
-        const l1Timeout = isLongformL1 ? 60000 : 12000;
+        const remainingBudget = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
+        const baseL1Timeout = isLongformL1 ? 60000 : 12000;
+        const l1Timeout = Math.min(baseL1Timeout, remainingBudget - 5000); // leave 5s for post-processing
+        if (l1Timeout < 3000) {
+          console.warn(`[TRACE OPENAI L1] Remaining budget too low (${remainingBudget}ms), skipping L1 attempt ${attempt}`);
+          break;
+        }
         const l1RequestOptions = { timeout: l1Timeout };
         const response = await openai.chat.completions.create(openaiParams, l1RequestOptions);
         const openaiDuration = Date.now() - openaiStart;
@@ -9077,6 +9092,19 @@ Your response (text only, no JSON):`;
         const l1FinishReason = response.choices[0]?.finish_reason;
         
         if (l1FinishReason === 'length') {
+          // If we're running out of time, accept the truncated response rather than retrying
+          if (timeBudgetExceeded() || attempt >= maxL1Retries) {
+            console.warn(`[TRACE OPENAI L1] Token limit hit but accepting (time_budget_exceeded=${timeBudgetExceeded()}, attempt=${attempt}/${maxL1Retries})`);
+            // Try to use what we have
+            try {
+              const truncParse = JSON.parse(rawContent);
+              if (truncParse.message && truncParse.message.trim().length > 10) {
+                parsed = truncParse;
+                console.log('[TRACE OPENAI L1] Accepted truncated response to avoid timeout');
+                break;
+              }
+            } catch (e) { /* not valid JSON, fall through */ }
+          }
           console.warn('[TRACE OPENAI L1] Token limit hit (finish_reason=length), response likely truncated — retrying');
           continue;
         }
@@ -9107,7 +9135,8 @@ Your response (text only, no JSON):`;
     }
     
     // LAYER 2: Backup model if primary failed (skip for fast-path)
-    if (!parsed && !useL3FastPath) {
+    // Also skip L2 if we're already past time budget — go straight to L3 (faster)
+    if (!parsed && !useL3FastPath && !timeBudgetExceeded()) {
       console.log(`[OPENAI CONFIG] model=${TRACE_BACKUP_MODEL} baseURL=${cfg.baseURL} (fallback)`);
       for (let attempt = 1; attempt <= 1; attempt++) {
         try {
@@ -9126,7 +9155,13 @@ Your response (text only, no JSON):`;
           if (supportsCustomTemperature(TRACE_BACKUP_MODEL)) {
             backupParams.temperature = chatTemperature;
           }
-          const l2Timeout = (isLongFormRequest || traceIntent?.mode === 'longform') ? 60000 : 15000;
+          const remainingBudgetL2 = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
+          const baseL2Timeout = (isLongFormRequest || traceIntent?.mode === 'longform') ? 60000 : 15000;
+          const l2Timeout = Math.min(baseL2Timeout, remainingBudgetL2 - 5000);
+          if (l2Timeout < 3000) {
+            console.warn(`[TRACE OPENAI L2] Remaining budget too low (${remainingBudgetL2}ms), skipping to L3`);
+            break;
+          }
           const l2RequestOptions = { timeout: l2Timeout };
           const response = await openai.chat.completions.create(backupParams, l2RequestOptions);
           
@@ -9157,6 +9192,19 @@ Your response (text only, no JSON):`;
           console.error('[TRACE OPENAI L2] Error:', err.message);
         }
       }
+    }
+    
+    // HARD DEADLINE: If we've exceeded the time budget and still have no response,
+    // return a safe relational fallback immediately instead of making more OpenAI calls
+    if (!parsed && timeBudgetExceeded()) {
+      const elapsed = Date.now() - requestStartTime;
+      console.warn(`[TIMING] Hard deadline hit at ${elapsed}ms — using relational fallback`);
+      parsed = {
+        message: isCrisisMode 
+          ? "I'm here with you. If you need immediate support, you can call or text 988 anytime."
+          : "I'm here. Take your time — no rush at all.",
+        activity_suggestion: { name: null, reason: null, should_navigate: false }
+      };
     }
     
     // LAYER 3: Plain text mode (no JSON format requirement)
@@ -9307,12 +9355,14 @@ Your response:`;
         }
         
         const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : 400;
+        const remainingBudgetL3 = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
+        const l3Timeout = Math.max(3000, Math.min(10000, remainingBudgetL3 - 3000));
         const response = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
           messages: [{ role: 'user', content: plainPrompt }],
           max_tokens: l3MaxTokens,
           temperature: 0.8,
-        });
+        }, { timeout: l3Timeout });
         
         const plainText = response.choices[0]?.message?.content?.trim() || '';
         const l3FinishReason = response.choices[0]?.finish_reason;

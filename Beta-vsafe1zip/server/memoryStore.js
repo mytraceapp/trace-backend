@@ -110,6 +110,27 @@ async function saveMessage(supabase, conversationId, sessionId, role, content) {
   if (!supabase) return;
 
   try {
+    // Ensure session exists before inserting message (prevents FK constraint errors)
+    if (sessionId) {
+      const { data: sessionExists } = await supabase
+        .from('trace_sessions')
+        .select('session_id')
+        .eq('session_id', sessionId)
+        .maybeSingle();
+      
+      if (!sessionExists) {
+        await supabase.from('trace_sessions').insert({
+          session_id: sessionId,
+          conversation_id: conversationId,
+          started_at: new Date().toISOString(),
+        }).then(({ error: sessErr }) => {
+          if (sessErr && !sessErr.message?.includes('duplicate')) {
+            console.warn('[MEMORY STORE] Failed to create session:', sessErr.message);
+          }
+        });
+      }
+    }
+    
     const { error } = await supabase.from('trace_messages').insert(msg);
     if (error) throw error;
 
