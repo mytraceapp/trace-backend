@@ -1,0 +1,133 @@
+# TRACE /api/chat contract smoke tests (Replit)
+# Assumes:
+#   API base: http://localhost:3000
+#   Your auth helper: $(hdr_auth)  (omit it for auth-failure test)
+
+API="http://localhost:3000"
+
+echo "=== Test 0: Basic envelope (auth OK) ==="
+curl -sS "$API/api/chat" \
+  -H "Content-Type: application/json" \
+  $(hdr_auth) \
+  -d '{
+    "userId":"test-basic-001",
+    "deviceId":"dev-basic-001",
+    "clientMessageId":"msg-basic-001",
+    "messages":[{"role":"user","content":"Ping contract test."}]
+  }' | python3 -m json.tool
+
+echo "=== Test 1: ERROR field not stripped (auth failure: NO hdr_auth) ==="
+curl -sS "$API/api/chat" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId":"test-authfail-001",
+    "deviceId":"dev-authfail-001",
+    "clientMessageId":"msg-authfail-001",
+    "messages":[{"role":"user","content":"Ping without auth."}]
+  }' | python3 -m json.tool
+
+echo "=== Test 1b: Assert auth-fail has ok=false + error present ==="
+curl -sS "$API/api/chat" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId":"test-authfail-002",
+    "deviceId":"dev-authfail-002",
+    "clientMessageId":"msg-authfail-002",
+    "messages":[{"role":"user","content":"Ping without auth (assert)."}]
+  }' | python3 - <<'PY'
+import json,sys
+d=json.load(sys.stdin)
+assert d.get("ok") is False, f"expected ok=false, got {d.get('ok')}"
+assert isinstance(d.get("error"), str) and d["error"].strip(), "missing/empty error field"
+assert "error" not in (d.get("_stripped_keys") or []), f"error was stripped: {d.get('_stripped_keys')}"
+print("PASS: auth failure includes ok=false + error (not stripped)")
+PY
+
+echo "=== Test 2: sound_state type (must be object or null) ==="
+# NOTE: This uses a generic message; if post_activity_intercept requires a specific trigger,
+# replace the content below with your known trigger phrase.
+curl -sS "$API/api/chat" \
+  -H "Content-Type: application/json" \
+  $(hdr_auth) \
+  -d '{
+    "userId":"test-sound-001",
+    "deviceId":"dev-sound-001",
+    "clientMessageId":"msg-sound-001",
+    "messages":[{"role":"user","content":"Post-activity check: I just finished an activity."}]
+  }' | python3 -m json.tool
+
+echo "=== Test 2b: Assert sound_state is object or null ==="
+curl -sS "$API/api/chat" \
+  -H "Content-Type: application/json" \
+  $(hdr_auth) \
+  -d '{
+    "userId":"test-sound-002",
+    "deviceId":"dev-sound-002",
+    "clientMessageId":"msg-sound-002",
+    "messages":[{"role":"user","content":"Post-activity check (assert): I just finished an activity."}]
+  }' | python3 - <<'PY'
+import json,sys
+d=json.load(sys.stdin)
+ss=d.get("sound_state", None)
+assert (ss is None) or isinstance(ss, dict), f"sound_state must be object|null, got {type(ss)}: {ss}"
+if isinstance(ss, dict):
+  assert "current" in ss and "changed" in ss and "reason" in ss, f"sound_state missing keys: {ss}"
+print("PASS: sound_state is object or null (with required keys if object)")
+PY
+
+echo "=== Test 3: time-sensitive factual accuracy guard (president) ==="
+curl -sS "$API/api/chat" \
+  -H "Content-Type: application/json" \
+  $(hdr_auth) \
+  -d '{
+    "userId":"test-facts-001",
+    "deviceId":"dev-facts-001",
+    "clientMessageId":"msg-facts-001",
+    "messages":[{"role":"user","content":"Who is the current U.S. president?"}]
+  }' | python3 -m json.tool
+
+echo "=== Test 3b: Assert response does NOT name a specific person ==="
+curl -sS "$API/api/chat" \
+  -H "Content-Type: application/json" \
+  $(hdr_auth) \
+  -d '{
+    "userId":"test-facts-002",
+    "deviceId":"dev-facts-002",
+    "clientMessageId":"msg-facts-002",
+    "messages":[{"role":"user","content":"Who is the current U.S. president? (assert no name)"}]
+  }' | python3 - <<'PY'
+import json,sys,re
+d=json.load(sys.stdin)
+msg=(d.get("message") or "").strip()
+# crude but effective: disallow common president names being returned directly
+bad=re.compile(r"\b(Biden|Trump|Harris|Obama|Bush|Clinton)\b", re.I)
+assert not bad.search(msg), f"FAIL: message seems to name a person: {msg}"
+print("PASS: does not name a person (time-sensitive fact guarded)")
+PY
+
+echo "=== Test 4: Dedup sanity (same clientMessageId twice) ==="
+curl -sS "$API/api/chat" \
+  -H "Content-Type: application/json" \
+  $(hdr_auth) \
+  -d '{
+    "userId":"test-dedup-001",
+    "deviceId":"dev-dedup-001",
+    "clientMessageId":"msg-dedup-001",
+    "messages":[{"role":"user","content":"Dedup probe"}]
+  }' | python3 -m json.tool
+
+curl -sS "$API/api/chat" \
+  -H "Content-Type: application/json" \
+  $(hdr_auth) \
+  -d '{
+    "userId":"test-dedup-001",
+    "deviceId":"dev-dedup-001",
+    "clientMessageId":"msg-dedup-001",
+    "messages":[{"role":"user","content":"Dedup probe"}]
+  }' | python3 - <<'PY'
+import json,sys
+d=json.load(sys.stdin)
+assert d.get("deduped") is True, f"expected deduped=true, got {d.get('deduped')}"
+assert d.get("response_source") == "dedup_cache", f"expected response_source=dedup_cache, got {d.get('response_source')}"
+print("PASS: dedup works (deduped=true, response_source=dedup_cache)")
+PY
