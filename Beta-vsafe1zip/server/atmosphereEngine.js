@@ -75,14 +75,14 @@ const ALLOWED_TRANSITIONS = {
   insight: ['presence', 'insight']
 };
 
-const DWELL_TIME_MS = 30000;
+const DWELL_TIME_MS = 90000; // 90 seconds — soundscapes need time to breathe
 const OSCILLATION_WINDOW_MS = 120000;
 const OSCILLATION_THRESHOLD = 3;
 const FREEZE_DURATION_MS = 90000;
-const NEUTRAL_STREAK_THRESHOLD = 6; // Neutral messages before returning to presence
+const NEUTRAL_STREAK_THRESHOLD = 8; // 8 neutral messages before returning to presence (was 6)
 const SIGNAL_TIMEOUT_MS = 600000; // 10 minutes - soundscapes persist reasonably
 const GROUNDING_CLEAR_THRESHOLD = 3; // Require 3 clear messages to exit grounding
-const MIN_STATE_PERSIST_MESSAGES = 4; // Minimum messages before allowing state switch
+const MIN_STATE_PERSIST_MESSAGES = 8; // Minimum 8 messages before allowing state reassessment (was 4)
 const INACTIVITY_TIMEOUT_MS = 300000; // 5 minutes - return to ambient after inactivity
 const BASELINE_WINDOW_MESSAGES = 2; // Accumulate signals over first 2 messages before making initial switch
 
@@ -109,7 +109,7 @@ function getSessionState(userId) {
       baseline_message_count: 0,      // Messages since session start
       accumulated_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0 }, // Baseline scores
       // Continuous assessment: rolling signals for reassessment after persistence
-      continuous_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0 }   // Rolling scores
+      continuous_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0, presence: 0 }   // Rolling scores
     });
   }
   return sessionStates.get(userId);
@@ -479,9 +479,8 @@ function evaluateAtmosphere(input) {
   // Track rolling signals for reassessment at persistence boundary
   // ============================================================
   
-  const newContinuousAccumulated = { ...session.continuous_signals || { grounding: 0, comfort: 0, reflective: 0, insight: 0 } };
-  for (const state of ['grounding', 'comfort', 'reflective', 'insight']) {
-    // Decay old signals slightly, add new ones
+  const newContinuousAccumulated = { ...session.continuous_signals || { grounding: 0, comfort: 0, reflective: 0, insight: 0, presence: 0 } };
+  for (const state of ['grounding', 'comfort', 'reflective', 'insight', 'presence']) {
     newContinuousAccumulated[state] = (newContinuousAccumulated[state] * 0.85) + (scores[state] || 0);
   }
   
@@ -508,11 +507,14 @@ function evaluateAtmosphere(input) {
     // ============================================================
     console.log(`[ATMOSPHERE] 🎯 REASSESSMENT: ${newMessagesSinceChange} messages complete, evaluating next state`);
     
-    // Find best state from continuous accumulation
-    let bestState = 'presence'; // Default to presence if no signals
-    let bestScore = 0;
+    // Find best state from continuous accumulation.
+    // Default to CURRENT state (not presence) — only switch if there's a stronger signal.
+    // Returning to presence requires either neutral streak, signal timeout, or active presence signals.
+    let bestState = current_state;
+    let bestScore = newContinuousAccumulated[current_state] || 0;
     
     for (const state of STATE_PRIORITY) {
+      if (state === current_state) continue;
       const accumulated = newContinuousAccumulated[state] || 0;
       if (accumulated > bestScore && accumulated >= 1.0) {
         bestScore = accumulated;
@@ -520,18 +522,39 @@ function evaluateAtmosphere(input) {
       }
     }
     
+    // Only suggest presence if:
+    // (a) Active presence signals detected, OR
+    // (b) Current state signals fully exhausted AND neutral streak has built up, OR
+    // (c) Signal timeout elapsed (no emotional signals for 10 min)
+    const presenceAccumulated = newContinuousAccumulated['presence'] || 0;
+    const currentStateExhausted = (newContinuousAccumulated[current_state] || 0) < 0.3;
+    const neutralStreakMet = newNeutralStreak >= NEUTRAL_STREAK_THRESHOLD;
+    const signalTimedOut = newSignalTimestamp > 0 && (now - newSignalTimestamp) >= SIGNAL_TIMEOUT_MS;
+    
+    if (bestState === current_state && (
+      (currentStateExhausted && presenceAccumulated >= 0.5) ||
+      (currentStateExhausted && neutralStreakMet) ||
+      signalTimedOut
+    )) {
+      bestState = 'presence';
+      bestScore = presenceAccumulated || 0;
+      const exitReason = signalTimedOut ? 'signal_timeout' : neutralStreakMet ? 'neutral_streak' : 'presence_signals';
+      console.log(`[ATMOSPHERE] 🔄 Current state ${current_state} exhausted (${(newContinuousAccumulated[current_state] || 0).toFixed(2)}), exit via ${exitReason} — suggesting presence`);
+    }
+    
     if (bestState !== current_state) {
       candidate_state = bestState;
       reason = `reassessment_${bestState}_score_${bestScore.toFixed(1)}`;
       console.log(`[ATMOSPHERE] 🔄 Reassessment suggests: ${current_state} → ${bestState}`);
     } else {
-      // Stay in current state, reset persistence counter
       console.log(`[ATMOSPHERE] 🔄 Reassessment: staying in ${current_state}, resetting persistence window`);
     }
     
-    // Reset continuous signals for next window
-    for (const state of ['grounding', 'comfort', 'reflective', 'insight']) {
-      newContinuousAccumulated[state] = 0;
+    // Decay continuous signals for next window instead of zeroing them out.
+    // This preserves emotional inertia — a state that was entered for good reason
+    // shouldn't vanish just because the user sends a few neutral messages.
+    for (const state of ['grounding', 'comfort', 'reflective', 'insight', 'presence']) {
+      newContinuousAccumulated[state] = newContinuousAccumulated[state] * 0.5;
     }
   } else if (!persistenceWindowComplete && isInNonPresenceState) {
     // ============================================================
@@ -568,7 +591,7 @@ function evaluateAtmosphere(input) {
       reason = 'neutral_message_streak';
     } else if (newSignalTimestamp > 0 && (now - newSignalTimestamp) >= SIGNAL_TIMEOUT_MS) {
       candidate_state = 'presence';
-      reason = 'signal_timeout_15min';
+      reason = 'signal_timeout_10min';
     }
     
     // Signal-based state detection
