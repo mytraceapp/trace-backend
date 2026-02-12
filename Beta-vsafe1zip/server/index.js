@@ -4820,7 +4820,7 @@ app.post('/api/chat', async (req, res) => {
           convoStateForResume.audioState = { status: 'playing', resumedAt: Date.now(), track: saved.title || null };
           conversationState.saveState(effectiveUserId, convoStateForResume);
           
-          const resumeMsg = postActivityBridge + (saved.title ? `Back on — ${saved.title}.` : "Picking up where you left off.");
+          const resumeMsg = postActivityBridge + "Back on.";
           console.log('[AUDIO STATE] Music resumed from saved state');
           
           return finalizeTraceResponse(res, {
@@ -4856,7 +4856,7 @@ app.post('/api/chat', async (req, res) => {
           convoStateForResume.audioState = { status: 'playing', resumedAt: Date.now(), track: lnp.title || null };
           conversationState.saveState(effectiveUserId, convoStateForResume);
           
-          const resumeMsg = postActivityBridge + (lnp.title ? `Back on — ${lnp.title}.` : "Picking up where you left off.");
+          const resumeMsg = postActivityBridge + "Back on.";
           
           return finalizeTraceResponse(res, {
             ok: true,
@@ -4932,7 +4932,7 @@ app.post('/api/chat', async (req, res) => {
       conversationState.saveState(effectiveUserId, convoStateForResume);
       console.log('[AUDIO STATE] Music resumed');
       
-      const resumeMsg = postActivityBridge + (trackInfo ? `Back on — ${trackInfo.name}.` : "Playing.");
+      const resumeMsg = postActivityBridge + "Back on.";
       
       return finalizeTraceResponse(res, {
         ok: true,
@@ -12735,8 +12735,8 @@ app.post('/api/onboarding/reflection', async (req, res) => {
         return res.json({
           success: true,
           ok: true,
-          message: savedTrack.title ? `Back on — ${savedTrack.title}.` : "Picking up where you left off.",
-          aiResponse: savedTrack.title ? `Back on — ${savedTrack.title}.` : "Picking up where you left off.",
+          message: "Back on.",
+          aiResponse: "Back on.",
           audio_action: { type: 'open', action: 'play', source: 'originals', album: savedTrack.album || 'night_swim', track: typeof trackIndex === 'number' ? trackIndex : 0, autoplay: true, reason: 'user_requested_resume' },
           sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
         });
