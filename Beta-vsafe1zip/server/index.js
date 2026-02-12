@@ -9929,6 +9929,56 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
        prevMsgLower.includes('share') ||
        prevMsgLower.includes('made') ||
        prevMsgLower.includes('listen'));
+
+    // Detect specific track names in previous assistant message (e.g., "How about Ocean Breathing?")
+    // and in current response (e.g., "Playing Ocean Breathing now")
+    // Use multi-word names first (longer matches) to avoid partial false positives
+    // Single-word names like "euphoria" and "undertow" require quoted context (e.g., "Euphoria")
+    const TRACK_NAMES_SAFE = [
+      ['midnight underwater', 1], ['midnight under water', 1],
+      ['slow tides over glass', 2], ['slow tides', 2],
+      ['midnight undertow', 3],
+      ['ocean breathing', 5],
+      ['tidal house', 6], ['tidal memory glow', 6], ['tidal memory', 6],
+      ['neon promise', 7],
+    ];
+    const TRACK_NAMES_QUOTED = [
+      ['undertow', 3],
+      ['euphoria', 4],
+    ];
+    const MUSIC_OFFER_RE = /\b(how about|try|want to hear|listen to|play|put on|check out)\b.*\b(track|song|it|one|this)\b/i;
+    const MUSIC_OFFER_DIRECT_RE = /\b(how about|want to (?:hear|listen|try)|let me play|i('?ll| will) (?:play|put on)|maybe (?:try|listen to)|we could (?:try|play|listen))\b/i;
+    const PLAYING_NOW_RE = /\b(playing|putting on|spinning|starting)\b.{0,30}\b(now|for you|right now)\b|\b(now|here'?s)\b.{0,20}\b(playing|putting on)\b|\bplaying\b.{1,40}(ocean breathing|neon promise|midnight underwater|slow tides|tidal house)/i;
+    const QUOTED_TRACK_RE = /[""]([^""]+)[""]|"([^"]+)"/;
+
+    function detectTrackInText(text) {
+      for (const [name, num] of TRACK_NAMES_SAFE) {
+        if (text.includes(name)) return num;
+      }
+      const quotedMatch = text.match(QUOTED_TRACK_RE);
+      if (quotedMatch) {
+        const quoted = (quotedMatch[1] || quotedMatch[2] || '').toLowerCase();
+        for (const [name, num] of TRACK_NAMES_QUOTED) {
+          if (quoted === name) return num;
+        }
+        for (const [name, num] of TRACK_NAMES_SAFE) {
+          if (quoted === name || quoted.includes(name)) return num;
+        }
+      }
+      return null;
+    }
+
+    let prevOfferedTrackNum = null;
+    const prevTrackNum = detectTrackInText(prevMsgLower);
+    if (prevTrackNum && (MUSIC_OFFER_RE.test(prevMsgLower) || MUSIC_OFFER_DIRECT_RE.test(prevMsgLower))) {
+      prevOfferedTrackNum = prevTrackNum;
+    }
+
+    let responsePlayingTrackNum = null;
+    const respTrackNum = detectTrackInText(responseLower);
+    if (respTrackNum && PLAYING_NOW_RE.test(responseLower)) {
+      responsePlayingTrackNum = respTrackNum;
+    }
     
     // Check if music was already offered this session (prevent multiple offers)
     const alreadyOfferedThisSession = messages.some(m => 
@@ -9986,6 +10036,8 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     console.log('[TRACE AUDIO DEBUG] isPlayAgainRequest:', isPlayAgainRequest);
     console.log('[TRACE AUDIO DEBUG] isNightSwimOffer:', isNightSwimOffer);
     console.log('[TRACE AUDIO DEBUG] immediateNightSwimOffer:', immediateNightSwimOffer);
+    console.log('[TRACE AUDIO DEBUG] prevOfferedTrackNum:', prevOfferedTrackNum);
+    console.log('[TRACE AUDIO DEBUG] responsePlayingTrackNum:', responsePlayingTrackNum);
     
     if (isMusicStopRequest) {
       // User wants to stop/pause the music - send stop action
@@ -10105,6 +10157,28 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     } else if (immediateNightSwimOffer && trackIsActive && !isExplicitMusicCommand) {
       console.log('[PHASE8c_TRACK_GUARD] Suppressed immediateNightSwimOffer — track already active');
+    } else if (responsePlayingTrackNum && !(trackIsActive && !isExplicitMusicCommand)) {
+      // Current response says "Playing Ocean Breathing now" — emit audio_action to actually play it
+      audioAction = buildAudioAction('open', {
+        source: 'originals',
+        album: 'night_swim',
+        track: responsePlayingTrackNum - 1,
+        autoplay: true
+      });
+      addToSessionHistory(effectiveUserId, responsePlayingTrackNum);
+      const trackInfo = getTrackInfo(responsePlayingTrackNum);
+      console.log(`[TRACE ORIGINALS] Response mentions playing track, emitting audio_action: Track ${responsePlayingTrackNum}: ${trackInfo?.name || 'Unknown'} (index ${responsePlayingTrackNum - 1})`);
+    } else if (prevOfferedTrackNum && !responsePlayingTrackNum && isUserAgreeing(lastUserMsgForAudio) && !(trackIsActive && !isExplicitMusicCommand)) {
+      // Previous message offered a specific track by name, user agreed
+      audioAction = buildAudioAction('open', {
+        source: 'originals',
+        album: 'night_swim',
+        track: prevOfferedTrackNum - 1,
+        autoplay: true
+      });
+      addToSessionHistory(effectiveUserId, prevOfferedTrackNum);
+      const trackInfo = getTrackInfo(prevOfferedTrackNum);
+      console.log(`[TRACE ORIGINALS] User agreed to track offer, playing Track ${prevOfferedTrackNum}: ${trackInfo?.name || 'Unknown'} (index ${prevOfferedTrackNum - 1})`);
     } else if (!audioAction && curationResult.shouldOffer && curationResult.type === 'track' && !(trackIsActive && !isExplicitMusicCommand) && !musicOfferSuppressed) {
       // V2 CURATION FALLBACK: Offer was cued pre-LLM but response didn't use "night swim" string
       // (e.g., SEED level: "I have something for this mood")
