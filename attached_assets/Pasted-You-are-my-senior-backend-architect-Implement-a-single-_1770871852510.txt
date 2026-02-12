@@ -1,0 +1,36 @@
+You are my senior backend architect. Implement a single “response finalizer” helper so ALL return paths from /api/chat return the same normalized envelope.
+
+Context:
+- /api/chat is huge with many early returns (audio stop/resume, boundary gates, breathing mode, activity nav, playlist confirm, etc).
+- Today, only a few paths run applyResponseShapeLock() (dedup, studios intercept, insight, post-activity intercept, final model).
+- The client expects a consistent shape and we have mobile tests that validate message array parsing and dedupe/retry behavior.
+
+Goal:
+- Create a helper function (e.g., finalizeTraceResponse) that:
+  1) Accepts a “raw payload” and normalizes it into the canonical response envelope.
+  2) Runs applyResponseShapeLock() (or equivalent) for any response that includes messages.
+  3) Ensures standard fields exist even for early returns and errors:
+     - ok (boolean)
+     - messages: string[] (always an array if ok=true)
+     - has_audio_action (boolean)
+     - has_ui_action (boolean)
+     - has_client_patch (boolean)
+     - response_source / trace_source (string) for observability
+     - request_id (string) if available
+  4) Preserves existing behavior: do NOT change message text, do NOT change audio behavior, do NOT change drift lock rules.
+
+Implementation requirements:
+- Add finalizeTraceResponse() near the top of the /api/chat file or in a small helper module (preferred if easy).
+- Replace every early return `return res.json(...)` / `return res.status(...).json(...)` with `return finalizeTraceResponse(res, {...})`
+- Keep HTTP status codes intact (401/403/429/etc). The helper should not force 200.
+- Add __DEV__ logs or APP_TRACE logs so we can confirm response_source for each return path.
+
+Acceptance tests:
+1) Trigger at least 6 early returns (auth 401, breathing mode, activity nav, playlist confirm, music invite, US president) and confirm response keys are consistent.
+2) Run existing mobile integration test suite (6/6) and confirm it still passes.
+3) Ensure dedupe retry still returns cached response quickly and parsing works.
+
+Deliverables:
+- List files changed.
+- Short diff summary.
+- A small table mapping early-return paths to response_source tags.

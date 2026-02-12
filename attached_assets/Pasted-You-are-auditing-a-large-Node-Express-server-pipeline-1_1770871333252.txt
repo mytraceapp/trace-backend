@@ -1,0 +1,58 @@
+You are auditing a large Node/Express server pipeline (~18k lines) for coherence and ordering. This is NOT a refactor. Do not change code unless explicitly asked.
+
+Goal:
+Produce an integrity audit report of the /api/chat request lifecycle: execution order, competing directives, dead/unreachable paths, redundant saves, early returns that skip critical logic, prompt bloat/conflicts.
+
+Scope:
+- Focus on server/index.js and any imported pipeline files directly involved in /api/chat.
+- Identify: execution order, early returns, state writes, prompt assembly, model routing, schema/rewrite enforcement, drift lock/tighten/sanitize, studios intercepts, dedup paths, response shaping, logging.
+
+Hard constraints:
+- DO NOT modify any rollout knobs (schema enforcement pct, retirement flags, drift lock behavior).
+- DO NOT propose broad refactors.
+- If you suggest fixes, they must be “minimal patch” and clearly separated as OPTIONAL.
+- Prefer adding observability over changing logic.
+
+Deliverable format (must follow exactly):
+
+1) Pipeline Map (Turn Lifecycle)
+- Provide a numbered sequence of stages in the exact order they run for /api/chat.
+- For each stage: function name(s), file(s), and whether it can early-return.
+
+2) Early Return Matrix
+- A table-like list of every early-return path (studios intercept, onboarding_script, insight, dedup_cache, audio_control, error fallback, etc.)
+- For each early return:
+  - What it skips (continuity, context budget, session summary, response shape lock, contract assertions, etc.)
+  - Whether applyResponseShapeLock or normalize/validate runs
+  - Whether request_id + APP_TRACE are guaranteed to fire
+
+3) Competing Directive Conflicts
+- List any places where two directive systems can contradict (V2 directive vs studios directive vs continuity bridge vs nextMove contract vs response shape lock).
+- For each conflict: exact instruction snippets + where they originate + which one wins in runtime.
+
+4) Dead / Unreachable / Redundant Code
+- Identify blocks that can never fire because earlier conditions/returns catch them.
+- Identify duplicated work: conversationState.saveState, memory loads, chat sync calls, repeated prompt concatenation.
+- Call out “runs twice per turn” issues.
+
+5) Prompt Assembly & Bloat
+- Estimate prompt size contributors (top 5 biggest chunks).
+- Identify duplicated or conflicting instruction blocks.
+- Flag anything that causes “cadence horrid” (e.g., reset lines, identity intros, therapy cadence leaking into studios).
+- Mention whether model routing chooses gpt-4o-mini vs gpt-5.1 and why.
+
+6) Coherence Scorecard
+Rate each subsystem (0–10):
+- Continuity / anchor persistence
+- Mode gating (studios vs conversation)
+- Familiarity/experience memory
+- Post-activity followup override
+- Response shaping
+- Logging/observability
+And give 1–2 sentence justification each.
+
+7) Minimal Observability Patch (optional)
+- If gaps exist, propose 3–5 tiny log/assert lines (no user text) to verify ordering + skipped stages.
+- No behavior changes.
+
+Start by locating the /api/chat handler entrypoint and tracing ONE request end-to-end, then enumerate branches.
