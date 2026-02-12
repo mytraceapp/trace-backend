@@ -234,15 +234,23 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   }, [fadeVolume]);
 
   const handleSoundState = useCallback(async (payload: SoundStatePayload) => {
-    if (!payload.changed) return;
     if (pausedByRef.current) {
       console.log(`[AUDIO] Skipping state change (paused by ${pausedByRef.current})`);
       return;
     }
-    
-    console.log(`[AUDIO] State change: ${currentStateRef.current} → ${payload.current} (${payload.reason || 'no reason'})`);
-    
-    // All 5 states are soundscapes (including presence for calm/happy/chill)
+
+    const isFirstActivation = !currentStateRef.current && !soundRef.current;
+
+    if (!payload.changed && !isFirstActivation) {
+      return;
+    }
+
+    if (isFirstActivation) {
+      console.log(`[AUDIO] First activation: starting "${payload.current}" soundscape`);
+    } else {
+      console.log(`[AUDIO] State change: ${currentStateRef.current} → ${payload.current} (${payload.reason || 'no reason'})`);
+    }
+
     await playState(payload.current, DEFAULT_FADE_MS);
   }, [playState]);
 
