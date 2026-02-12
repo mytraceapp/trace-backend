@@ -5103,6 +5103,8 @@ app.post('/api/chat', async (req, res) => {
           };
           stState.lastPrimaryMode = 'studios';
           conversationState.setActiveRun(stState, { mode: 'studios', anchorLabel: 'music exploration' });
+          const stFamResult = conversationState.evaluateMusicFamiliarity(stState, studiosUserMsg?.content || '', 'studios');
+          console.log('[MUSIC_FAMILIARITY]', JSON.stringify({ requestId, prev: stFamResult.prev, next: stFamResult.next, reason: stFamResult.reason, path: 'studios_intercept' }));
           conversationState.saveState(effectiveUserId, stState);
           const a = stState.topicAnchor;
           console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}" turnAge=${a.turnAge} carried=${a.carried} (studios_intercept)`);
@@ -5743,6 +5745,8 @@ app.post('/api/chat', async (req, res) => {
           };
           stState.lastPrimaryMode = 'studios';
           conversationState.setActiveRun(stState, { mode: 'studios', anchorLabel: 'music exploration' });
+          const miFamResult = conversationState.evaluateMusicFamiliarity(stState, userText || '', 'studios');
+          console.log('[MUSIC_FAMILIARITY]', JSON.stringify({ requestId, prev: miFamResult.prev, next: miFamResult.next, reason: miFamResult.reason, path: 'music_invite' }));
           conversationState.saveState(effectiveUserId, stState);
           const a = stState.topicAnchor;
           console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}" turnAge=${a.turnAge} carried=${a.carried} (music_invite)`);
@@ -8217,7 +8221,7 @@ CAPABILITY-AWARE ACTIONS:
         lastUserContent,
         traceIntent?.primaryMode
       );
-      console.log(`[MUSIC_FAMILIARITY] ${JSON.stringify({ requestId, prev: musicFamiliarityResult.prev, next: musicFamiliarityResult.next, reason: musicFamiliarityResult.reason })}`);
+      console.log(`[MUSIC_FAMILIARITY] ${JSON.stringify({ requestId, prev: musicFamiliarityResult.prev, next: musicFamiliarityResult.next, reason: musicFamiliarityResult.reason, path: 'main_pipeline' })}`);
       if (traceIntent) {
         traceIntent.musicFamiliarity = convoStateObj.musicFamiliarity;
       }
