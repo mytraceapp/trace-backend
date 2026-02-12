@@ -91,7 +91,7 @@ function validateResponseEnvelope(payload) {
       issues.push({ code: 'studios_has_activity', severity: 'warn', detail: 'activity_suggestion with active content in studios mode' });
     }
     if (payload.sound_state != null && payload.sound_state.current != null) {
-      issues.push({ code: 'studios_has_soundstate', severity: 'warn', detail: 'sound_state.current set in studios mode' });
+      issues.push({ code: 'studios_has_soundstate', severity: 'info', detail: 'sound_state.current set in studios mode (non-fatal: globally allowed)' });
     }
   }
 
