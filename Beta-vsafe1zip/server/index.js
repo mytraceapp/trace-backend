@@ -4655,7 +4655,7 @@ app.post('/api/chat', async (req, res) => {
     // Intercept "who is the current X" questions to avoid stale answers.
     // No model call, no external API — deterministic early return.
     // ============================================================
-    const CURRENT_FACTS_RE = /\b(?:who\s+is\s+(?:the\s+)?(?:current|new|now)\s+(?:president|prime\s*minister|ceo|pope|king|queen|chancellor|governor|mayor|speaker)|(?:current|new)\s+(?:president|prime\s*minister|ceo|pope|king|queen|chancellor|governor|mayor|speaker)\s+(?:of|is))\b/i;
+    const CURRENT_FACTS_RE = /\b(?:who\s+is\s+(?:the\s+)?(?:current|new|now)\s+(?:[\w.]+\s+){0,3}(?:president|prime\s*minister|ceo|pope|king|queen|chancellor|governor|mayor|speaker)|(?:current|new)\s+(?:[\w.]+\s+){0,3}(?:president|prime\s*minister|ceo|pope|king|queen|chancellor|governor|mayor|speaker)\s+(?:of|is))\b/i;
     if (!isEarlyCrisisMode && CURRENT_FACTS_RE.test(userMessageLower)) {
       console.log('[FACTS GUARD] Intercepted time-sensitive question:', userMessageLower.slice(0, 80));
       return finalizeTraceResponse(res, {
