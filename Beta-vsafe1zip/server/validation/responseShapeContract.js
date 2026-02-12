@@ -29,6 +29,8 @@ const ALLOWED_KEYS = new Set([
   'onboarding',
   'greeting',
   'next_step',
+  'error',
+  'request_id',
 ]);
 
 function deriveResponseMode(payload) {
@@ -61,6 +63,10 @@ function normalizeResponseEnvelope(payload) {
     if (!(k in out)) out[k] = null;
   }
   if (!('isCrisisMode' in out)) out.isCrisisMode = false;
+
+  if (out.sound_state && typeof out.sound_state === 'string') {
+    out.sound_state = { current: out.sound_state, changed: false, reason: 'normalized_legacy' };
+  }
 
   const unknown = [];
   for (const k of Object.keys(out)) {

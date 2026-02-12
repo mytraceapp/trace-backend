@@ -4651,6 +4651,21 @@ app.post('/api/chat', async (req, res) => {
     const userMessageLower = (userMessage || '').toLowerCase().trim();
     
     // ============================================================
+    // TIME-SENSITIVE FACTS GUARDRAIL
+    // Intercept "who is the current X" questions to avoid stale answers.
+    // No model call, no external API — deterministic early return.
+    // ============================================================
+    const CURRENT_FACTS_RE = /\b(?:who\s+is\s+(?:the\s+)?(?:current|new|now)\s+(?:president|prime\s*minister|ceo|pope|king|queen|chancellor|governor|mayor|speaker)|(?:current|new)\s+(?:president|prime\s*minister|ceo|pope|king|queen|chancellor|governor|mayor|speaker)\s+(?:of|is))\b/i;
+    if (!isEarlyCrisisMode && CURRENT_FACTS_RE.test(userMessageLower)) {
+      console.log('[FACTS GUARD] Intercepted time-sensitive question:', userMessageLower.slice(0, 80));
+      return finalizeTraceResponse(res, {
+        message: "That's a great question — but I don't have a live news feed, so I'd rather not risk giving you outdated info. A quick search online will have the most accurate answer. I can definitely help with background, context, or anything else on your mind though.",
+        response_source: 'facts_guard',
+        _provenance: { path: 'time_sensitive_facts', requestId, ts: Date.now() }
+      }, requestId);
+    }
+    
+    // ============================================================
     // 🧠 COGNITIVE ENGINE: Pre-process intent before response generation
     // Detects topic shifts, gates scripts, maintains context continuity
     // ============================================================
@@ -8452,7 +8467,7 @@ Just the response, nothing else.
                 posture: 'STEADY',
                 detected_state: 'neutral',
                 posture_confidence: 0.6,
-                sound_state: 'presence',
+                sound_state: { current: 'presence', changed: false, reason: 'post_activity_intercept' },
                 client_state_patch: {},
                 response_source: 'model',
                 _provenance: { path: 'post_activity_intercept', requestId, ts: Date.now() }

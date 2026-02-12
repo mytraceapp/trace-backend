@@ -1,0 +1,51 @@
+TRACE Backend — Contract & Freshness Fix (MINIMAL DIFFS ONLY)
+
+You are auditing and patching a Node/Express backend for TRACE. Focus ONLY on these three issues and do NOT refactor or touch audio/drift-lock/schema/mode-routing contracts beyond what’s required.
+
+GOALS
+1) Response contract hole: `error` field is being stripped by the response shape allowlist, so auth_failure and error_fallback lose machine-readable error info.
+2) Response contract hole: `sound_state` type inconsistency (some paths emit a raw string like "presence" instead of an object).
+3) Time-sensitive factual accuracy: questions like “Who is the current U.S. president?” must NOT return stale info. Implement a safe, low-cost policy that avoids wrong answers without adding any new paid APIs.
+
+CONSTRAINTS
+- No large refactors. No changes to audio system, drift lock, schema enforcement, or mode routing contracts.
+- Keep changes small and reversible (prefer 1–5 line edits per fix).
+- Preserve existing response envelope keys and finalizeTraceResponse usage.
+- Add tests or quick curl sanity checks only if trivial.
+
+TASKS (DO THESE EXACTLY)
+
+A) FIX: `error` STRIPPED
+- Locate the response envelope allowlist (e.g., `ALLOWED_KEYS` in `server/validation/responseShapeContract.js` or similar).
+- Add `'error'` to the allowlist so it survives normalization/shape-lock.
+- Ensure `auth_failure` and `error_fallback` responses include `error: <string>` in the raw payload and that it now appears in the final JSON.
+
+B) FIX: `sound_state` TYPE
+- Find any path returning `sound_state: 'presence'` (or any string).
+- Patch that specific return to use object form:
+  `{ current: 'presence', changed: false, reason: '<path_name>' }`
+- OPTIONAL SAFETY NET (only if it’s already easy and low-risk):
+  In the response normalization step (e.g., `normalizeResponseEnvelope`), if `sound_state` is a string, convert it to:
+  `{ current: <string>, changed: false, reason: 'normalized_legacy' }`
+  Do NOT otherwise alter sound_state behavior.
+
+C) FIX: TIME-SENSITIVE “CURRENT” FACTS
+- Implement a guardrail for “current office-holder” questions (president, CEO, etc.).
+- Do NOT attempt to answer with a specific name unless you have a trusted, updated source already in the system (you probably don’t).
+- Minimal policy:
+  If the user asks a “current” office-holder question, respond with:
+  - A short, truthful message stating you may not have live updates,
+  - Suggest checking an official source,
+  - Offer to help with background/context instead.
+- Make it deterministic and cheap: NO extra model calls, NO external web calls.
+- Ensure the response_source is something distinct like `'facts'` or `'system'` (pick one) so logs can filter these.
+
+DELIVERABLES
+1) Show a concise list of files touched and exactly what changed.
+2) Provide unified diffs for each file.
+3) Provide 3 quick curl commands to verify:
+   - `error` present on auth/error paths
+   - `sound_state` is object or null
+   - “current president” no longer returns a stale name and instead returns the safe policy response
+
+no additional analysis, just apply the patches + diffs.
