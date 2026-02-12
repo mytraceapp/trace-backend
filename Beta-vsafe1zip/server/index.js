@@ -476,9 +476,9 @@ CRITICAL - WHAT YOU CAN AND CANNOT OFFER:
 // Compact identity for fallback prompts (L3, L4, premium tier)
 const TRACE_IDENTITY_COMPACT = `You are TRACE — a calm, grounded companion who also makes music.
 IDENTITY: Steady presence. Emotionally intelligent. Non-judgmental. Not human (no body, childhood, parents).
-MUSIC: Night Swim album (Midnight Underwater, Slow Tides, Undertow, Euphoria, Ocean Breathing, Tidal House, Neon Promise). You made this. Acknowledge your tracks as YOUR music.
 VOICE: Chill friend, NOT therapist. Short (1-3 sentences). Warm but not gushy. Use contractions. No therapy phrases ("I hear you", "It sounds like").
-BOUNDARIES: Not a therapist. Don't diagnose. If crisis, prioritize safety (988).`;
+BOUNDARIES: Not a therapist. Don't diagnose. If crisis, prioritize safety (988).
+MUSIC RULE: Never volunteer music unless the user asks or you have a strong emotional reason. Conversation comes first — always.`;
 
 // Separate: Artist Canon (injected only when music questions are detected)
 const TRACE_ARTIST_CANON_PROMPT = `
@@ -2618,6 +2618,13 @@ WHO I AM:
 CORE BEHAVIOR:
 - Not a therapist. A sharp, calm friend who notices what matters.
 - Respond to user's actual words first. Then ONE follow-up question max.
+
+MUSIC RESTRAINT (CRITICAL):
+- You are a companion FIRST, music maker second. Conversation always takes priority.
+- Do NOT bring up music, tracks, playlists, or Night Swim unless the user asks or the moment truly calls for it.
+- If you already mentioned music this session and the user didn't engage, DROP IT. Do not re-offer.
+- Never mention more than ONE music option at a time. No menus of playlists or track lists.
+- When you do mention music, keep it brief and natural — like a friend casually mentioning a song, not a DJ pitching a set.
 
 ACTIVITY REFERENCE (when to suggest):
 - breathing: anxiety, panic, racing thoughts
@@ -5077,6 +5084,7 @@ app.post('/api/chat', async (req, res) => {
               timestamp: Date.now(),
             };
             trackState.lastMusicOfferAt = Date.now();
+            trackState.sessionMusicOffers = (trackState.sessionMusicOffers || 0) + 1;
             conversationState.saveState(effectiveUserId, trackState);
             console.log('[TRACK MEMORY] Saved lastPlayedTrack:', trackState.lastPlayedTrack.trackId);
           }
@@ -7738,12 +7746,14 @@ You MUST:
       const isExplicitMusicRequest = /\b(play|music|song|track|night swim|playlist|album)\b/i.test(lastUserMsgForMusic);
       
       try {
+        const curationConvoState = conversationState.getState(effectiveUserId);
         curationResult = curateMusic({
           userId: effectiveUserId,
           userMessage: lastUserMsgForMusic,
           localTime: localTime || null,
           conversationTurn: conversationTurnForCuration,
-          isExplicitMusicRequest
+          isExplicitMusicRequest,
+          externalSessionCount: curationConvoState.sessionMusicOffers || 0
         });
       } catch (curationErr) {
         console.warn('[MUSIC_CURATION_V2] curateMusic threw (continuing without):', curationErr.message);
@@ -9747,21 +9757,27 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }));
     }
     
-    // MUSIC OFFER COOLDOWN: Prevent pushy DJ behavior
-    // Don't attach audio recommendations if we recently offered music (within 5 min)
     const audioConvoStateForCooldown = conversationState.getState(effectiveUserId);
     const lastMusicOfferAt = audioConvoStateForCooldown.lastMusicOfferAt || 0;
-    const musicOfferCooldownMs = 5 * 60 * 1000; // 5 minutes
+    const musicOfferCooldownMs = 5 * 60 * 1000;
     const musicOfferOnCooldown = (Date.now() - lastMusicOfferAt) < musicOfferCooldownMs;
     
-    // Also check if user explicitly declined music recently
+    const sessionMusicOffers = audioConvoStateForCooldown.sessionMusicOffers || 0;
+    const MAX_SESSION_MUSIC_OFFERS = 3;
+    const sessionMusicOfferCapped = sessionMusicOffers >= MAX_SESSION_MUSIC_OFFERS && !isExplicitMusicCommand;
+    
     const userDeclinedMusic = /^no\b|^nah\b|^nope|don't want|dont want|i'm good|im good|i'm okay|im okay|no thanks|not right now|stop|pass\b|skip\b/i.test(lastUserMsgForAudio.trim());
     
+    const musicOfferSuppressed = musicOfferOnCooldown || sessionMusicOfferCapped || userDeclinedMusic;
+    
     if (musicOfferOnCooldown) {
-      console.log(`[MUSIC COOLDOWN] Suppressing offer — last offer ${Math.round((Date.now() - lastMusicOfferAt) / 1000)}s ago (cooldown: 300s)`);
+      console.log(`[MUSIC GOVERNOR] Cooldown active — last offer ${Math.round((Date.now() - lastMusicOfferAt) / 1000)}s ago`);
+    }
+    if (sessionMusicOfferCapped) {
+      console.log(`[MUSIC GOVERNOR] Session cap reached (${sessionMusicOffers}/${MAX_SESSION_MUSIC_OFFERS}) — no more proactive offers`);
     }
     if (userDeclinedMusic) {
-      console.log('[MUSIC COOLDOWN] User declined music — suppressing any audio offers this turn');
+      console.log('[MUSIC GOVERNOR] User declined — suppressing offers this turn');
     }
     
     // Check if TRACE is offering Night Swim in this response
@@ -9774,7 +9790,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
                            responseLower.includes('made') ||
                            responseLower.includes('put it on') ||
                            responseLower.includes('listen');
-    const isNightSwimOffer = nightSwimMentioned && hasOfferIntent && !musicOfferOnCooldown && !userDeclinedMusic;
+    const isNightSwimOffer = nightSwimMentioned && hasOfferIntent && !musicOfferSuppressed;
     
     // Check if the IMMEDIATE previous assistant message offered Night Swim
     // This prevents spurious triggers from old mentions
@@ -9934,9 +9950,9 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         autoplay: false
       });
       addToSessionHistory(effectiveUserId, trackNum);
-      // Record music offer timestamp for cooldown
       const offerState = conversationState.getState(effectiveUserId);
       offerState.lastMusicOfferAt = Date.now();
+      offerState.sessionMusicOffers = (offerState.sessionMusicOffers || 0) + 1;
       conversationState.saveState(effectiveUserId, offerState);
       const trackInfo = getTrackInfo(trackNum);
       console.log(`[TRACE ORIGINALS] Night Swim offered, recommending Track ${trackNum}: ${trackInfo?.name || 'Unknown'} (index ${trackNum - 1})`);
@@ -9964,7 +9980,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     } else if (immediateNightSwimOffer && trackIsActive && !isExplicitMusicCommand) {
       console.log('[PHASE8c_TRACK_GUARD] Suppressed immediateNightSwimOffer — track already active');
-    } else if (!audioAction && curationResult.shouldOffer && curationResult.type === 'track' && !(trackIsActive && !isExplicitMusicCommand) && !musicOfferOnCooldown && !userDeclinedMusic) {
+    } else if (!audioAction && curationResult.shouldOffer && curationResult.type === 'track' && !(trackIsActive && !isExplicitMusicCommand) && !musicOfferSuppressed) {
       // V2 CURATION FALLBACK: Offer was cued pre-LLM but response didn't use "night swim" string
       // (e.g., SEED level: "I have something for this mood")
       // Detect if AI delivered a generic music offer
@@ -9998,8 +10014,9 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         const offerItemId = curationResult.item?.id || (audioAction ? `track_${(audioAction.track ?? 0) + 1}` : 'unknown');
         recordMusicOffer(effectiveUserId, offerType, offerItemId, curationTurn);
         
-        // Persist offer metadata in conversation state for next-turn accept/decline handling
         const offerState = conversationState.getState(effectiveUserId);
+        offerState.lastMusicOfferAt = Date.now();
+        offerState.sessionMusicOffers = (offerState.sessionMusicOffers || 0) + 1;
         offerState.pendingMusicOffer = {
           type: offerType,
           itemId: offerItemId,

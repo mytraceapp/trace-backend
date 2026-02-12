@@ -176,8 +176,8 @@ const COOLDOWNS = {
   DECLINED_PLAYLIST: 90 * 60 * 1000,      // 90 min after declining playlist
   DECLINED_ALBUM: 24 * 60 * 60 * 1000,    // 24 hours after declining album
   
-  // Session limits
-  SESSION_MAX_OFFERS_NORMAL: 2,           // Stable/reflective user
+  // Session limits (unified with index.js MAX_SESSION_MUSIC_OFFERS)
+  SESSION_MAX_OFFERS_NORMAL: 3,           // Stable/reflective user (matches unified governor)
   SESSION_MAX_OFFERS_CRISIS: 1,           // High distress user
   SESSION_DOUBLE_DECLINE_BLOCK: true,     // Stop all offers after 2 declines
   
@@ -305,7 +305,7 @@ function calculateIntentScore(message, state) {
 // COOLDOWN CHECKS
 // ============================================================
 
-function canOfferMusic(userId, type, conversationTurn) {
+function canOfferMusic(userId, type, conversationTurn, externalSessionCount) {
   const state = getUserMusicState(userId);
   const now = Date.now();
   
@@ -315,12 +315,14 @@ function canOfferMusic(userId, type, conversationTurn) {
   }
   
   // Session max (adjust by crisis state)
+  // Use higher of internal count vs external (conversationState) count for true unification
   const maxOffers = state.isInCrisis 
     ? COOLDOWNS.SESSION_MAX_OFFERS_CRISIS 
     : COOLDOWNS.SESSION_MAX_OFFERS_NORMAL;
   
-  if (state.sessionOfferCount >= maxOffers) {
-    return { allowed: false, reason: 'session_max_reached' };
+  const effectiveCount = Math.max(state.sessionOfferCount, externalSessionCount || 0);
+  if (effectiveCount >= maxOffers) {
+    return { allowed: false, reason: 'session_max_reached', effectiveCount, maxOffers };
   }
   
   // Turn memory window (no offer in last N turns)
@@ -498,19 +500,18 @@ function curateMusic(context) {
     userMessage,
     localTime,
     conversationTurn = 0,
-    isExplicitMusicRequest = false
+    isExplicitMusicRequest = false,
+    externalSessionCount = 0
   } = context;
   
   const state = getUserMusicState(userId);
   
-  // Don't offer music in first 3 turns
-  if (conversationTurn < 3 && !isExplicitMusicRequest) {
+  if (conversationTurn < 5 && !isExplicitMusicRequest) {
     return { shouldOffer: false, reason: 'too_early_in_conversation' };
   }
   
-  // Calculate intent score
   const intentScore = calculateIntentScore(userMessage, state);
-  const INTENT_THRESHOLD = 2;
+  const INTENT_THRESHOLD = 3;
   
   if (intentScore < INTENT_THRESHOLD && !isExplicitMusicRequest) {
     return { shouldOffer: false, reason: 'intent_score_too_low', intentScore };
@@ -536,7 +537,7 @@ function curateMusic(context) {
     const trackMatch = triggers.find(t => t.type === 'track');
     
     // Check cooldowns
-    const cooldownCheck = canOfferMusic(userId, 'track', conversationTurn);
+    const cooldownCheck = canOfferMusic(userId, 'track', conversationTurn, externalSessionCount);
     const itemCheck = canOfferSpecificItem(userId, trackMatch.item.id);
     
     if (cooldownCheck.allowed && itemCheck.allowed) {
@@ -552,7 +553,7 @@ function curateMusic(context) {
   if (!bestMatch && triggers.some(t => t.type === 'playlist')) {
     const playlistMatch = triggers.find(t => t.type === 'playlist');
     
-    const cooldownCheck = canOfferMusic(userId, 'playlist', conversationTurn);
+    const cooldownCheck = canOfferMusic(userId, 'playlist', conversationTurn, externalSessionCount);
     const itemCheck = canOfferSpecificItem(userId, playlistMatch.item.id);
     
     if (cooldownCheck.allowed && itemCheck.allowed) {
@@ -566,7 +567,7 @@ function curateMusic(context) {
   
   // Priority 3: Album (late night + high intensity)
   if (!bestMatch && isNight && intensity >= 3 && conversationTurn >= 5) {
-    const cooldownCheck = canOfferMusic(userId, 'album', conversationTurn);
+    const cooldownCheck = canOfferMusic(userId, 'album', conversationTurn, externalSessionCount);
     
     if (cooldownCheck.allowed) {
       bestMatch = {

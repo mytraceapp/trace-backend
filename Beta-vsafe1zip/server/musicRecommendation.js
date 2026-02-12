@@ -202,15 +202,6 @@ function shouldRecommendMusic(context) {
     };
   }
   
-  if (state.intensity === 'medium' && isNightTime) {
-    return {
-      shouldRecommend: true,
-      reason: 'nighttime_emotional_support',
-      album: 'night_swim',
-      urgency: 'low'
-    };
-  }
-  
   return { shouldRecommend: false, reason: 'no_trigger_detected' };
 }
 
