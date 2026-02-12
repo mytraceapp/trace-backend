@@ -920,6 +920,27 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
       };
     }
 
+    const lastMsgOfferedLyrics = /\b(share the lyrics|share lyrics|want.*(lyrics|words)|see the lyrics|read the lyrics)\b/i.test(lastMsg);
+    const isUserAffirmative = /^(yeah|yes|sure|ok|okay|please|yep|yea|do it|go ahead|let'?s|absolutely|definitely|for sure|bet|go for it|send them|send it|hit me|ya)\b/i.test(t);
+
+    if (lastMsgOfferedLyrics && isUserAffirmative && inNeonContext) {
+      console.log('[TRACE STUDIOS] User agreed to lyrics offer — sharing lyrics directly');
+      const track = TRACKS.neon_promise;
+      if (track?.lyrics) {
+        const after = pickRotating(AFTER_LYRICS_PROMPTS, seed + "::after");
+        return {
+          assistant_message: `${formatLyricsBlock(track)}\n\n${after}`,
+          mode: "trace_studios",
+          ui_action: null,
+          traceStudios: {
+            kind: "lyrics_shared",
+            trackId: "neon_promise",
+            traceStudiosContext: "neon_promise",
+          },
+        };
+      }
+    }
+
     if (looksLikeLyricsRequest(t)) {
       console.log('[TRACE STUDIOS] Lyrics request INTERCEPTED (bypassing OpenAI). User text:', t.substring(0, 50));
       console.log('[TRACE STUDIOS] Context: inNeonContext:', inNeonContext, 'isPlaying:', isPlayingNeonPromise, 'recentlyPlayed:', recentlyPlayedNeonPromise);
