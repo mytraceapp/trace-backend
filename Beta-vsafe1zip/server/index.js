@@ -4699,11 +4699,15 @@ app.post('/api/chat', async (req, res) => {
     const stopsMusic = /^stop\s*(the\s*)?(music|audio|sound|playing)|^pause\s*(the\s*)?(music|audio)|^turn\s*off\s*(the\s*)?(music|audio)|^mute|^silence|^quiet$/i.test(userMessageLower);
     const resumesMusic = /^resume\s*(the\s*)?(music|audio)?$|^play\s*(the\s*)?(music|audio)$|^unpause|^unmute|^turn\s*on\s*(the\s*)?(music|audio)|^start\s*(the\s*)?(music|audio)$|^(put|bring)\s*(the\s*)?(music|audio)\s*(back|on)|^music\s*(back|on|again)|^resume$/i.test(userMessageLower);
     
+    const hasStudiosContext = !!(req.body.traceStudiosContext || safeClientState.traceStudiosContext);
+    
     if (stopsMusic || resumesMusic) {
       console.log(`[AUDIO CONTROL] stopsMusic: ${stopsMusic}, resumesMusic: ${resumesMusic}`);
     }
     
-    if (stopsMusic) {
+    if (hasStudiosContext && (stopsMusic || resumesMusic)) {
+      console.log('[AUDIO CONTROL] Deferring to Studios handler (traceStudiosContext active)');
+    } else if (stopsMusic) {
       const stopAudioAction = {
         type: 'stop',
         action: 'pause',
@@ -4963,13 +4967,19 @@ app.post('/api/chat', async (req, res) => {
         .slice(-5) // Last 5 assistant messages
         .map(m => m.content?.toLowerCase() || '');
       
+      const recentUserMsgsForStudios = (rawMessages || [])
+        .filter(m => m.role === 'user')
+        .slice(-5)
+        .map(m => m.content?.toLowerCase() || '');
+      
       const studiosResponse = handleTraceStudios({
         userText: studiosUserMsg.content,
         clientState,
         userId: effectiveUserId,
         lastAssistantMessage: lastAssistantMsg,
-        nowPlaying, // Pass current track for lyrics context
-        recentAssistantMessages: recentAssistantMsgs, // Check history for played tracks
+        nowPlaying,
+        recentAssistantMessages: recentAssistantMsgs,
+        recentUserMessages: recentUserMsgsForStudios,
       });
       
       if (studiosResponse && studiosResponse._declined) {
@@ -4999,6 +5009,7 @@ app.post('/api/chat', async (req, res) => {
             lastAssistantMessage: lastAssistantMsg,
             nowPlaying,
             recentAssistantMessages: recentAssistantMsgs,
+            recentUserMessages: recentUserMsgsForStudios,
           });
           if (altResponse?.assistant_message && altResponse.assistant_message !== studiosMsg) {
             studiosMsg = altResponse.assistant_message;
@@ -5019,6 +5030,7 @@ app.post('/api/chat', async (req, res) => {
             lastAssistantMessage: lastAssistantMsg,
             nowPlaying,
             recentAssistantMessages: recentAssistantMsgs,
+            recentUserMessages: recentUserMsgsForStudios,
           });
           if (altResponse?.assistant_message && altResponse.assistant_message !== studiosMsg) {
             studiosMsg = altResponse.assistant_message;
@@ -5069,45 +5081,81 @@ app.post('/api/chat', async (req, res) => {
         if (studiosResponse.traceStudios?.audio_action) {
           const studioAction = studiosResponse.traceStudios.audio_action;
           
-          const TRACK_INDEX_MAP = {
-            'midnight_underwater': 0,
-            'slow_tides': 1,
-            'slow_tides_over_glass': 1,
-            'undertow': 2,
-            'midnight_undertow': 2,
-            'euphoria': 3,
-            'calm_euphoria': 3,
-            'ocean_breathing': 4,
-            'tidal_house': 5,
-            'tidal_memory_glow': 5,
-            'neon_promise': 6,
-            'night_swim': 0,
-          };
-          
-          const trackIndex = TRACK_INDEX_MAP[studioAction.trackId] ?? 0;
-          
-          response.audio_action = {
-            type: 'open',
-            source: 'originals',
-            album: 'night_swim',
-            track: trackIndex,
-            autoplay: true,
-          };
-          console.log('[TRACE STUDIOS] Sending audio_action to frontend:', response.audio_action);
-          
-          if (effectiveUserId) {
-            const trackState = conversationState.getState(effectiveUserId);
-            trackState.lastPlayedTrack = {
-              trackId: studioAction.trackId,
-              trackIndex,
-              album: 'night_swim',
-              title: studiosUiAction?.title || studioAction.trackId,
-              timestamp: Date.now(),
+          if (studioAction.action === 'pause' || studioAction.action === 'resume') {
+            response.audio_action = {
+              type: studioAction.action === 'pause' ? 'stop' : 'resume',
+              action: studioAction.action,
+              source: 'all',
+              reason: 'user_requested',
             };
-            trackState.lastMusicOfferAt = Date.now();
-            trackState.sessionMusicOffers = (trackState.sessionMusicOffers || 0) + 1;
-            conversationState.saveState(effectiveUserId, trackState);
-            console.log('[TRACK MEMORY] Saved lastPlayedTrack:', trackState.lastPlayedTrack.trackId);
+            console.log('[TRACE STUDIOS] Sending audio control action to frontend:', response.audio_action);
+            
+            if (effectiveUserId) {
+              const trackState = conversationState.getState(effectiveUserId);
+              if (studioAction.action === 'pause') {
+                const clientNowPlaying = safeClientState.nowPlaying;
+                if (clientNowPlaying && !trackState.lastPlayedTrack) {
+                  trackState.lastPlayedTrack = {
+                    trackId: clientNowPlaying.trackId,
+                    trackIndex: clientNowPlaying.trackIndex,
+                    title: clientNowPlaying.title,
+                    album: clientNowPlaying.album || 'night_swim',
+                    timestamp: Date.now(),
+                  };
+                }
+                trackState.audioState = {
+                  status: 'stopped',
+                  stoppedAt: Date.now(),
+                  stoppedBy: 'user',
+                  lastTrack: trackState.lastPlayedTrack || null
+                };
+              } else {
+                trackState.audioState = { status: 'playing', resumedAt: Date.now() };
+              }
+              conversationState.saveState(effectiveUserId, trackState);
+              console.log('[TRACK MEMORY] Audio state updated:', studioAction.action);
+            }
+          } else {
+            const TRACK_INDEX_MAP = {
+              'midnight_underwater': 0,
+              'slow_tides': 1,
+              'slow_tides_over_glass': 1,
+              'undertow': 2,
+              'midnight_undertow': 2,
+              'euphoria': 3,
+              'calm_euphoria': 3,
+              'ocean_breathing': 4,
+              'tidal_house': 5,
+              'tidal_memory_glow': 5,
+              'neon_promise': 6,
+              'night_swim': 0,
+            };
+            
+            const trackIndex = TRACK_INDEX_MAP[studioAction.trackId] ?? 0;
+            
+            response.audio_action = {
+              type: 'open',
+              source: 'originals',
+              album: 'night_swim',
+              track: trackIndex,
+              autoplay: true,
+            };
+            console.log('[TRACE STUDIOS] Sending audio_action to frontend:', response.audio_action);
+            
+            if (effectiveUserId) {
+              const trackState = conversationState.getState(effectiveUserId);
+              trackState.lastPlayedTrack = {
+                trackId: studioAction.trackId,
+                trackIndex,
+                album: 'night_swim',
+                title: studiosUiAction?.title || studioAction.trackId,
+                timestamp: Date.now(),
+              };
+              trackState.lastMusicOfferAt = Date.now();
+              trackState.sessionMusicOffers = (trackState.sessionMusicOffers || 0) + 1;
+              conversationState.saveState(effectiveUserId, trackState);
+              console.log('[TRACK MEMORY] Saved lastPlayedTrack:', trackState.lastPlayedTrack.trackId);
+            }
           }
         }
         
@@ -12664,18 +12712,28 @@ app.post('/api/onboarding/reflection', async (req, res) => {
         if (reflectionUiAction?.source === 'spotify') {
           console.log('[STUDIOS GUARDRAIL] Blocked audio_action in reflection — spotify source');
         } else {
-          const TRACK_INDEX_MAP = {
-            'midnight_underwater': 0, 'slow_tides': 1, 'undertow': 2, 'euphoria': 3,
-            'ocean_breathing': 4, 'tidal_house': 5, 'neon_promise': 6, 'night_swim': 0,
-          };
-          const trackIndex = TRACK_INDEX_MAP[studiosResponse.traceStudios.audio_action.trackId] ?? 0;
-          response.audio_action = {
-            type: 'open',
-            source: 'originals',
-            album: 'night_swim',
-            track: trackIndex,
-            autoplay: true,
-          };
+          const studioAction = studiosResponse.traceStudios.audio_action;
+          if (studioAction.action === 'pause' || studioAction.action === 'resume') {
+            response.audio_action = {
+              type: studioAction.action === 'pause' ? 'stop' : 'resume',
+              action: studioAction.action,
+              source: 'all',
+              reason: 'user_requested',
+            };
+          } else {
+            const TRACK_INDEX_MAP = {
+              'midnight_underwater': 0, 'slow_tides': 1, 'undertow': 2, 'euphoria': 3,
+              'ocean_breathing': 4, 'tidal_house': 5, 'neon_promise': 6, 'night_swim': 0,
+            };
+            const trackIndex = TRACK_INDEX_MAP[studioAction.trackId] ?? 0;
+            response.audio_action = {
+              type: 'open',
+              source: 'originals',
+              album: 'night_swim',
+              track: trackIndex,
+              autoplay: true,
+            };
+          }
         }
       }
       

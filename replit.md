@@ -79,6 +79,17 @@ A unified `Entry` interface supports five types, visualized in a calendar, with 
 
 Identifies three pattern types: Peak Window, Energy Tides, and Stress Echoes, providing insights and a visual rhythm map.
 
+## Audio Control Path Resolution (Feb 2026)
+
+Two audio control handlers exist in index.js: an early interceptor (AUDIO CONTROL section, ~line 4699) and the Studios handler (traceStudios.js). When `traceStudiosContext` is set, the early interceptor defers to Studios for stop/resume/pause commands — this prevents conflicts where "resume" was caught by the wrong handler with no track context. Studios' audio_action responses use `{action: 'pause'}` or `{action: 'resume'}` which index.js converts to proper `{type: 'stop'}` or `{type: 'resume'}` envelopes (not play actions via TRACK_INDEX_MAP).
+
+### Studios Replay Prevention (traceOfferedTrack)
+Distinguishes "offered" vs "already played" tracks using regex patterns:
+- `PLAYED_CONFIRMATION_RE`: Matches "Playing Neon Promise.", "Now playing..." etc.
+- `OFFER_RE`: Matches "Want to hear...?", "Would you like to listen...?" etc.
+- `traceOfferedTrack = lastMsgIsOffer && !lastMsgIsPlayConfirmation` — only fires play on affirmative if TRACE actually offered, not if it already played.
+- `isBareAffirmative` check filters "yeah" buried in longer conversational messages (nonAffirmativeWords ≤ 1).
+
 # External Dependencies
 
 -   **OpenAI API**: For TRACE AI chat completions.

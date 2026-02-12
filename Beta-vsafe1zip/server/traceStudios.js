@@ -459,7 +459,7 @@ const PLAYLIST_NAMES = [
   "midnight underwater", "slow tides over glass"
 ];
 
-function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssistantMessage = "", nowPlaying = null, recentAssistantMessages = [] }) {
+function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssistantMessage = "", nowPlaying = null, recentAssistantMessages = [], recentUserMessages = [] }) {
   const t = norm(userText);
   const seed = `${userId}::${t}`;
   const lastMsg = (lastAssistantMessage || '').toLowerCase();
@@ -480,6 +480,43 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
   const recentlyPlayedNightSwim = recentHistory.includes('night swim') ||
     recentHistory.includes('playing night swim');
   
+  // ============================================================
+  // CONTEXT-AWARE AUDIO CONTROL (stop / pause / resume / mute)
+  // Works even during reflection questions — voice-command style.
+  // Must run BEFORE any music-play logic so "stop" isn't swallowed.
+  // ============================================================
+  const STOP_RE = /^(stop|pause|mute|quiet|silence|shut|hush|turn.*off|kill)\b.*\b(music|song|track|audio|sound|it|that|the music|playing)?\s*$/i;
+  const RESUME_RE = /^(resume|unpause|unmute|continue|keep playing|play again|turn.*back.*on)\b/i;
+  const isStopCmd = STOP_RE.test(t) || /^(stop|pause|mute)\s*$/i.test(t);
+  const isResumeCmd = RESUME_RE.test(t);
+
+  if (isStopCmd && (nowPlayingTrack || recentlyPlayedNeonPromise || recentlyPlayedNightSwim || inNeonContext)) {
+    console.log('[TRACE STUDIOS] Audio STOP command:', t);
+    return {
+      assistant_message: pickRotating(["Pausing.", "Got it — pausing the music.", "Paused."], seed),
+      mode: "trace_studios",
+      ui_action: createUiAction({ type: 'AUDIO_CONTROL', action: 'pause' }),
+      traceStudios: {
+        kind: "audio_stop",
+        traceStudiosContext: clientState?.traceStudiosContext || null,
+        audio_action: { action: "pause", source: "user_command" },
+      },
+    };
+  }
+  if (isResumeCmd && (nowPlayingTrack || recentlyPlayedNeonPromise || recentlyPlayedNightSwim || inNeonContext)) {
+    console.log('[TRACE STUDIOS] Audio RESUME command:', t);
+    return {
+      assistant_message: pickRotating(["Resuming.", "Picking back up.", "Playing again."], seed),
+      mode: "trace_studios",
+      ui_action: createUiAction({ type: 'AUDIO_CONTROL', action: 'resume' }),
+      traceStudios: {
+        kind: "audio_resume",
+        traceStudiosContext: clientState?.traceStudiosContext || null,
+        audio_action: { action: "resume", source: "user_command" },
+      },
+    };
+  }
+  
   // Check what TRACE just mentioned
   const justOfferedPlaylist = PLAYLIST_NAMES.some(p => lastMsg.includes(p));
   const justMentionedNightSwim = lastMsg.includes('night swim');
@@ -489,6 +526,19 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     lastMsg.includes('music, mostly') ||
     lastMsg.includes('music. it') ||
     lastMsg.includes('i made something');
+
+  // ============================================================
+  // PLAYED vs OFFERED distinction
+  // If TRACE's last message already PLAYED a track (e.g. "Playing Neon Promise."),
+  // that's a confirmation, NOT an offer. Affirmative responses should NOT replay.
+  // An "offer" is when TRACE asks "want to hear it?" / "want me to play?"
+  // ============================================================
+  const PLAYED_CONFIRMATION_RE = /\b(playing|putting on|starting|here'?s|coming up)\b/i;
+  const OFFER_RE = /\b(want (to|me to)|wanna|like to|shall i|should i|care to|in the mood|how about)\b.*\b(hear|play|listen|put|start|try)\b|\b(hear|play|listen)\b.*\?/i;
+  const lastMsgIsPlayConfirmation = PLAYED_CONFIRMATION_RE.test(lastMsg) && (justMentionedNeonPromise || justMentionedNightSwim);
+  const lastMsgIsOffer = OFFER_RE.test(lastMsg);
+  // "offered" = TRACE asked about playing, NOT that it already played
+  const traceOfferedTrack = (justMentionedNeonPromise || justMentionedNightSwim) && lastMsgIsOffer && !lastMsgIsPlayConfirmation;
   
   // Check if user is requesting a specific track by name
   const requestedTrack = detectRequestedTrack(t);
@@ -510,11 +560,23 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
   const contextTrack = contextTrackId && TRACKS[contextTrackId] ? TRACKS[contextTrackId] : null;
   
   // Explicit negation check — must run BEFORE affirmative to prevent "No I'm okay" false positives
-  const isNegation = /^no\b|^nah\b|^nope|^not\b|don't want|dont want|i'm good|im good|i'm okay|im okay|no thanks|no thank|not right now|not now|maybe later|pass\b|skip\b|stop/i.test(t);
+  const isNegation = /^no\b|^nah\b|^nope|^not\b|don't want|dont want|i'm good|im good|i'm okay|im okay|no thanks|no thank|not right now|not now|maybe later|pass\b|skip\b/i.test(t);
+  
+  // ============================================================
+  // CONVERSATIONAL INTENT SCORING
+  // Prevent casual "yeah" from triggering music when the message
+  // is clearly conversational (has substantial content beyond the
+  // affirmative word itself).
+  // ============================================================
+  const words = t.split(/\s+/).filter(Boolean);
+  const AFFIRMATIVE_WORDS = new Set(["yes", "yeah", "sure", "okay", "ok", "yep", "yup", "please"]);
+  const nonAffirmativeWords = words.filter(w => !AFFIRMATIVE_WORDS.has(w));
+  const isBareAffirmative = nonAffirmativeWords.length <= 1;
   
   // Simple affirmative responses (yes, sure, okay, etc.)
   // GUARD: negation overrides — "No I'm okay" is NOT affirmative
-  const isAffirmative = !isNegation && includesAny(t, [
+  // GUARD: must be a bare/short affirmative, not buried in a longer sentence
+  const isAffirmative = !isNegation && isBareAffirmative && includesAny(t, [
     "yes", "yeah", "sure", "okay", "ok", "yep", "yup", "please", "do it", "go ahead",
     "ready", "i'm ready", "im ready", "let's go", "lets go", "sounds good", "that sounds good",
     "open it", "show me", "take me there", "let's hear it", "lets hear it"
@@ -603,10 +665,13 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     return { _declined: true, declined_reason: 'user_said_no' };
   }
   
-  // Only play on affirmative if TRACE actually offered something (lastMsgOfferedTrack),
-  // not just because the track was mentioned in any previous context
-  if ((wantsToPlay || (isAffirmative && lastMsgOfferedTrack)) && hasPlayableContext) {
+  // Only play on affirmative if TRACE actually OFFERED (not already played).
+  // "Playing Neon Promise." is a confirmation → affirmative should NOT replay.
+  // "Want to hear Neon Promise?" is an offer → affirmative SHOULD play.
+  // wantsToPlay ("play it", "let me hear") always works regardless.
+  if ((wantsToPlay || (isAffirmative && traceOfferedTrack)) && hasPlayableContext) {
     console.log('[TRACE STUDIOS] Confirmed play request detected — sending ui_action');
+    console.log('[TRACE STUDIOS] Trigger:', wantsToPlay ? 'wantsToPlay' : 'affirmative+offer', '| traceOffered:', traceOfferedTrack, '| lastMsgIsOffer:', lastMsgIsOffer, '| lastMsgIsPlayConfirm:', lastMsgIsPlayConfirmation);
     
     // Priority: TRACE's last mention > context track > neon promise context > last msg neon promise
     const trackToPlay = mentionedTrack || contextTrack || (inNeonContext ? TRACKS.neon_promise : null) || (justMentionedNeonPromise ? TRACKS.neon_promise : null);
