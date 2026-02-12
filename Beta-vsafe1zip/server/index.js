@@ -11073,7 +11073,8 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     const finalMsgText = (finalResponse.message || '').toLowerCase();
     const sessionMusicSuggestions = safeClientState?.musicSuggestionCount || 0;
     const isExplicitPlaylistRequest = /\b(play|open|put on)\b.*(rooted|low orbit|first light|playlist)/i.test(lastUserMessage || '');
-    const playlistTurnGateMet = (sessionMusicSuggestions >= 7) || isExplicitPlaylistRequest || userLeavingSignal || userAskedExternal;
+    const playlistGovernorOverride = isExplicitPlaylistRequest; // Explicit user requests bypass governor
+    const playlistTurnGateMet = ((sessionMusicSuggestions >= 7) || isExplicitPlaylistRequest || userLeavingSignal || userAskedExternal) && (!musicOfferSuppressed || playlistGovernorOverride);
     
     const playlistMentions = [
       { patterns: ['rooted_playlist', 'rooted playlist', 'playing rooted', 'play rooted'], name: 'rooted_playlist', album: 'Rooted' },
