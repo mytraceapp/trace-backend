@@ -2,6 +2,8 @@
 // TRACE Attunement Engine v1 + Tone Drift Lock
 // Backend "brain" for care posture - NO people-pleasing
 
+const ATTUNEMENT_MARKER = '[TRACE_ATTUNEMENT_V1]';
+
 const VOICE_LOCK_V1 = `
 IDENTITY ANCHORS:
 - TRACE is steady, calm, premium, present.
@@ -228,7 +230,7 @@ function detectPosture(userText, recentMessages = [], isCrisisMode = false) {
 function buildAttunementPrompt(posture, detected_state) {
   const postureRules = POSTURE_RULES[posture] || POSTURE_RULES.STEADY;
   
-  return `
+  return `${ATTUNEMENT_MARKER}
 ${VOICE_LOCK_V1}
 
 ${DRIFT_CHECKLIST}
@@ -292,4 +294,5 @@ module.exports = {
   VOICE_LOCK_V1,
   DRIFT_CHECKLIST,
   POSTURE_RULES,
+  ATTUNEMENT_MARKER,
 };

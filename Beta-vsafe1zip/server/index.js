@@ -8605,6 +8605,7 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
       const convoStageForPrompt = convoStateObj?.stage || null;
 
       systemPrompt = buildTracePromptV2({
+        attunementBlock,
         tonePreference: tonePreference || 'neutral',
         traceIntent,
         antiRepetitionOpeners: traceIntent.antiRepetitionOpeners || [],
@@ -8612,7 +8613,8 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
         activeRun: activeRunForPrompt,
         convoStage: convoStageForPrompt,
       });
-      console.log('[TRACE V2] Using V2 system prompt (mode:', traceIntent.mode, 'intentType:', traceIntent.intentType, ')');
+      const attunementIncluded = systemPrompt.includes('[TRACE_ATTUNEMENT_V1]');
+      console.log('[TRACE V2] Using V2 system prompt (mode:', traceIntent.mode, 'intentType:', traceIntent.intentType, 'attunement_included=' + attunementIncluded + ')');
 
       // Phase 7 Step 1: Observability log (V2 only, skip crisis/onboarding)
       const p7PrimaryMode = traceIntent.primaryMode || 'conversation';
