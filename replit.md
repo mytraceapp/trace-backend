@@ -16,6 +16,25 @@ The application is built with React 18, TypeScript, and Vite, utilizing Framer M
 
 Custom tone generators, built with the Web Audio API, create dynamic, procedurally generated ambient soundscapes.
 
+### Mobile Audio Layers (Feb 2026)
+
+The mobile app has three independent audio layers:
+1. **Global Ambient** (`ambientAudio.ts`): Plays `trace_ambient.m4a` on chat tab focus when Night Swim player is inactive. Simple loop at 0.35 volume.
+2. **Emotional Soundscapes** (`AudioProvider.tsx`): 5 mood-based folders × 7 tracks each, triggered by the Atmosphere Engine's `sound_state` payload. Uses `isFirstActivation` guard to start playback on the initial "presence" state even when `changed: false`. Pauses for activities or originals playback.
+3. **Night Swim Player** (inline in `chat.tsx`): Streams tracks from Supabase `trace_originals_tracks` table (7 tracks). Server sends 0-based track index via `audio_action`; mobile fetches tracks ordered by `track_number asc` and plays `data[trackIndex]`.
+
+### Night Swim Track Index Alignment
+Server `TRACK_INDEX_MAP` (0-based) → DB `track_number` (1-based):
+- 0 → Midnight Underwater (track 1)
+- 1 → Slow Tides Over Glass (track 2)
+- 2 → Undertow (track 3)
+- 3 → Euphoria (track 4)
+- 4 → Ocean Breathing (track 5)
+- 5 → Tidal House (track 6)
+- 6 → Neon Promise (track 7)
+
+Audio URLs are currently SoundHelix placeholders; replace with real assets when available.
+
 ## AI Integration
 
 An Express server acts as a proxy to the OpenAI API, defining TRACE AI's personality with relational language and a friend-like onboarding sequence that includes a therapy disclaimer. It features an Emotional Intelligence Module for mood analysis, an audit logging system, and configurable smart features via feature flags. Summaries are warm, grounded, and factual, avoiding jargon. The system is designed for reliability with relational fallback messages for OpenAI failures.
