@@ -41,7 +41,7 @@ The system employs several mechanisms to ensure conversational coherence:
 -   **Latency + Confidence Smoothing**: Adjusts TRACE's communication style (e.g., directness, hedging) based on confidence levels and conversation stage to feel less scripted.
 -   **Micro-Anticipation + Next-Move Contracts**: Selects a clear next conversational move per turn (e.g., continue, clarify, offer music) and enforces specific behavioral rules for each.
 -   **Output Contract Lock**: Ensures premium response quality through prompt-level output contracts and assertions, validating first-line continuity, studios-specific rules, and mode guardrails.
--   **Response Shape Lock**: Locks the API response envelope, normalizing and validating it at every `/api/chat` exit point to ensure consistent data structure and content based on the interaction mode.
+-   **Response Shape Lock + finalizeTraceResponse()**: A centralized `finalizeTraceResponse()` helper (in `server/responseFinalize.js`) wraps every `return` path in `/api/chat` (~51 exit points). It normalizes the response envelope, runs `applyResponseShapeLock()` (validate + sanitize + derive mode), ensures `messages[]` array exists, and emits both `[RESPONSE_SHAPE]` and `[APP_TRACE]` logs for every path. This replaced the previous pattern where only ~4 of ~19 early returns ran shape lock, and ~15 paths returned inconsistent envelopes.
 
 ## Authentication & Subscription
 
