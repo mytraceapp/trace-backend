@@ -133,6 +133,7 @@ const { shouldUseSchemaEnforcement, buildSchemaMetrics } = require('./validation
 const { assertNextMoveContract } = require('./validation/nextMoveAsserts');
 const { normalizeResponseEnvelope, validateResponseEnvelope, deriveResponseMode } = require('./validation/responseShapeContract');
 const { finalizeTraceResponse } = require('./responseFinalize');
+const { trimT2Manifesto, shouldSkipStudiosFamiliarityInjection, buildDedupLog } = require('./promptDedup');
 const {
   detectEmotionalState,
   isUserAgreeing,
@@ -189,6 +190,7 @@ const FEATURE_FLAGS = {
   CONSENT_SYSTEM_ENABLED: process.env.CONSENT_SYSTEM_ENABLED !== 'false',
   ACTIVITY_SUGGESTIONS_ENABLED: process.env.ACTIVITY_SUGGESTIONS_ENABLED !== 'false',
   LONG_TERM_MEMORY_ENABLED: process.env.LONG_TERM_MEMORY_ENABLED !== 'false',
+  PROMPT_DEDUP_ENABLED: process.env.PROMPT_DEDUP_ENABLED === 'true',
 };
 
 console.log('[FEATURE FLAGS]', FEATURE_FLAGS);
@@ -8629,11 +8631,25 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
     // STUDIOS DIRECTIVE INJECTION
     // When primaryMode==="studios", append hard gate directive to prompt
     // ============================================================
+    const dedupState = { blocks: [], t2Removed: [], t2Kept: [], studiosFamiliaritySkipped: false, studiosFamiliarityReason: '' };
     if (traceIntent?.constraints?.studiosDirective) {
       let studiosDirText = traceIntent.constraints.studiosDirective;
-      if (traceIntent.musicFamiliarity && traceIntent.musicFamiliarity !== 'new') {
+      dedupState.blocks.push('studios_directive');
+
+      const familiarityCheck = FEATURE_FLAGS.PROMPT_DEDUP_ENABLED
+        ? shouldSkipStudiosFamiliarityInjection(useV2, traceIntent.musicFamiliarity)
+        : { skipFamiliarityInjection: false, reason: 'dedup_disabled' };
+
+      dedupState.studiosFamiliaritySkipped = familiarityCheck.skipFamiliarityInjection;
+      dedupState.studiosFamiliarityReason = familiarityCheck.reason;
+
+      if (!familiarityCheck.skipFamiliarityInjection && traceIntent.musicFamiliarity && traceIntent.musicFamiliarity !== 'new') {
         studiosDirText += `\nMUSIC FAMILIARITY: ${traceIntent.musicFamiliarity.toUpperCase()}. User knows the catalog. Do NOT introduce Night Swim or TRACE Studios as if it's new. Skip "Have you heard…" or "Want to hear my album?". Speak as a fellow listener.`;
+        dedupState.blocks.push('studios_music_familiarity');
+      } else if (familiarityCheck.skipFamiliarityInjection) {
+        dedupState.blocks.push('studios_music_familiarity_SKIPPED(v2_owns)');
       }
+
       systemPrompt += `\n\nMODE GATE (STUDIOS):\n${studiosDirText}`;
     }
 
@@ -8723,7 +8739,7 @@ Vary your opening. Use a different rhythm than above.`;
       }
       
       if (modelRoute.tier === 2 && !isCrisisMode) {
-        systemPrompt += `
+        const T2_MANIFESTO_FULL = `
 
 TIER 2: PREMIUM EXPERIENCE MODE
 
@@ -8778,6 +8794,18 @@ Default to 40–120 words. Longer only if user asks for a plan, steps, or explan
 VOICE CONSTRAINTS
 - Stay steady. Warm, not gushy. Confident, not salesy.
 If user's message contains a clear preference (style, vibe, constraint), mirror it once in your next reply.`;
+
+        if (FEATURE_FLAGS.PROMPT_DEDUP_ENABLED && useV2) {
+          const dedupResult = trimT2Manifesto(T2_MANIFESTO_FULL);
+          systemPrompt += dedupResult.trimmed;
+          dedupState.blocks.push('t2_manifesto_trimmed');
+          dedupState.t2Removed = dedupResult.removed;
+          dedupState.t2Kept = dedupResult.kept;
+          console.log(`[PROMPT_DEDUP] T2 manifesto trimmed: removed=[${dedupResult.removed.join(',')}] kept=[${dedupResult.kept.join(',')}]`);
+        } else {
+          systemPrompt += T2_MANIFESTO_FULL;
+          dedupState.blocks.push('t2_manifesto_full');
+        }
       }
     }
     
@@ -8795,6 +8823,19 @@ If user's message contains a clear preference (style, vibe, constraint), mirror 
         skippedInjections: skippedInjections.length > 0 ? skippedInjections : 'none',
         tier: modelRoute.tier,
       });
+      if (dedupState.blocks.length > 0 || FEATURE_FLAGS.PROMPT_DEDUP_ENABLED) {
+        console.log('[PROMPT_DEDUP]', JSON.stringify(buildDedupLog({
+          requestId,
+          enabled: FEATURE_FLAGS.PROMPT_DEDUP_ENABLED,
+          useV2,
+          stripLegacy: stripLegacyInjections,
+          t2Removed: dedupState.t2Removed,
+          t2Kept: dedupState.t2Kept,
+          studiosFamiliaritySkipped: dedupState.studiosFamiliaritySkipped,
+          studiosFamiliarityReason: dedupState.studiosFamiliarityReason,
+          includedBlocks: dedupState.blocks,
+        })));
+      }
     }
     
     // DEV-ONLY SENTINEL: Verify V2 prompt is clean when strip=true
