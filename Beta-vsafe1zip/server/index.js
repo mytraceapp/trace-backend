@@ -4538,6 +4538,20 @@ app.post('/api/chat', async (req, res) => {
       console.log(`[DEDUP] MISS dedupKey=${dedupKey}`);
     }
     
+    // ============================================================
+    // CANARY SHORT-CIRCUIT
+    // If { "canary": true } in request body, return immediately.
+    // No OpenAI call, no DB writes, no side-effects.
+    // ============================================================
+    if (req.body.canary === true) {
+      console.log('[CANARY] Short-circuit ping from', userId || deviceId || 'unknown');
+      return finalizeTraceResponse(res, {
+        message: 'canary ok',
+        response_source: 'canary',
+        _provenance: { path: 'canary', requestId, ts: Date.now() }
+      }, requestId);
+    }
+    
     // Extract client_state for context-aware responses
     const safeClientState = clientState || {};
     console.log('[TRACE BRAIN] client_state:', JSON.stringify(safeClientState));

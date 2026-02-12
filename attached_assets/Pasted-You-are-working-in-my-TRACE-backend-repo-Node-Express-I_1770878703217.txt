@@ -1,0 +1,46 @@
+You are working in my TRACE backend repo (Node/Express). Implement a tiny “canary” monitor with NO refactors and minimal diffs.
+
+Goal:
+- Every 5 minutes, ping:
+  1) GET /health
+  2) POST /api/chat with a stable userId/deviceId
+- Alert if:
+  - status != 200
+  - for /api/chat: missing request_id OR missing response_source OR missing _shape_meta
+  - latency spike above a threshold (default 2500ms)
+- Keep costs low: DO NOT call OpenAI. The /api/chat ping must be a fast path that avoids model calls.
+
+Constraints:
+- No new heavy dependencies.
+- Must be safe in production (won’t spam, won’t hit OpenAI).
+- Must not break existing endpoints or contracts.
+
+Implementation details:
+1) Add a new internal endpoint that /api/chat can short-circuit on without calling the model.
+   - Example: if request JSON contains { "canary": true }, return via finalizeTraceResponse with:
+     ok:true, message:"canary ok", response_source:"canary", and include request_id/_shape_meta.
+   - Ensure it bypasses studios, onboarding, breathing, etc. (early in /api/chat after auth/dedup is ok).
+2) Create a canary runner:
+   - Option A (preferred): a small script in server/scripts/canary.js using built-in fetch (Node 18+) or axios if already present.
+   - It should read BASE_URL from env (default http://localhost:3000).
+   - It should include hdr_auth if the service requires auth. If auth headers are required in prod, read CANARY_AUTH_HEADER and CANARY_AUTH_VALUE from env and include them.
+   - It should measure latency per request and keep a moving window (e.g. last 12 runs) and alert on:
+       - any single run > LATENCY_MS (default 2500)
+       - OR average of last 6 runs > LATENCY_AVG_MS (default 2000)
+3) Scheduling:
+   - In Replit, we can run it as a separate “always on” process OR using a simple setInterval inside the server if that’s easier.
+   - Prefer NOT to run inside the main request handler; if adding to server startup, guard behind env CANARY_ENABLED=true.
+4) Alerting:
+   - Always console.error a single-line JSON log with a tag [CANARY_ALERT].
+   - If CANARY_WEBHOOK_URL is set, POST a small JSON payload to it (time, baseUrl, check, status, latencyMs, error).
+5) Provide:
+   - Exact files changed + minimal diff
+   - Example env vars
+   - A one-liner to run locally: node server/scripts/canary.js
+   - A quick curl to verify the canary short-circuit:
+     curl -sS http://localhost:3000/api/chat -H "Content-Type: application/json" $(hdr_auth) -d '{"userId":"canary","deviceId":"canary","clientMessageId":"canary-1","canary":true,"messages":[{"role":"user","content":"canary"}]}' | python3 -m json.tool
+
+Make sure:
+- /api/chat canary responses include request_id, response_source, _shape_meta, ok, message.
+- It never triggers OpenAI calls.
+- It is fully reversible and isolated.
