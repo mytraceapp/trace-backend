@@ -131,20 +131,29 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
     
     // Extract curiosity hook if present
     const curiosity_hook = data.curiosity_hook || null;
-    
+
+    const sound_state = data.sound_state || null;
+
+    const crisis_resources = data.crisis_resources || null;
+
+    const echo_offer = data.echo_offer || null;
+
     return {
       message: data.message || "mm, I'm here.",
-      messages: data.messages || null, // Multi-message array for crisis mode
+      messages: data.messages || null,
       isCrisisMultiMessage: data.isCrisisMultiMessage || false,
-      isCrisisMode: data.isCrisisMode || false, // Crisis mode persistence flag
+      isCrisisMode: data.isCrisisMode || false,
       activity_suggestion: activitySuggestion,
       pattern_metadata: patternMetadata,
-      traceStudios, // Pass back for context tracking
-      audio_action, // Pass back for Night Swim / Spotify playback
-      client_state_patch, // Pass back for state updates
-      doorway, // Pass back for doorway mode
-      suggestion, // Pass back for brain suggestions
-      curiosity_hook, // Pass back for curiosity hooks (Pillar 8)
+      traceStudios,
+      audio_action,
+      client_state_patch,
+      doorway,
+      suggestion,
+      curiosity_hook,
+      sound_state,
+      crisis_resources,
+      echo_offer,
     };
   } catch (err: any) {
     clearTimeout(timeout);
