@@ -91,7 +91,78 @@ function createDefaultState() {
     consecutiveNonRunTurns: 0,
     lastPlayedTrack: null,
     preActivityContext: null,
+    musicFamiliarity: 'new',
+    musicFamiliarityMeta: { trackNameMentions: 0, studiosTurns: 0, deepRequestTurns: 0 },
   };
+}
+
+const KNOWN_TRACK_NAMES = [
+  'midnight underwater', 'slow tides', 'slow tides over glass',
+  'undertow', 'euphoria', 'ocean breathing',
+  'tidal house', 'tidal memory', 'neon promise', 'night swim'
+];
+
+const PLAY_INTENT_PATTERNS = [
+  /play\s+(some|a|the)?\s*(trace|night swim|music|track|album|song)/i,
+  /put\s+on\s+(some|a|the)?\s*(trace|night swim|music|track|album|song)/i,
+  /can\s+(you|i)\s+(hear|listen|play)/i,
+  /queue\s+up/i,
+  /let('s|s)?\s+listen/i,
+];
+
+const DEEP_REQUEST_PATTERNS = [
+  /track\s*(list|order|number)/i,
+  /what\s*(track|song)\s*(is|was)\s*(that|this|next|after)/i,
+  /lyrics/i,
+  /reel\s*(concept|idea|visual)/i,
+  /album\s*(art|cover|concept|order|track)/i,
+  /which\s+track/i,
+  /how\s+many\s+tracks/i,
+];
+
+function evaluateMusicFamiliarity(state, userMessage, primaryMode) {
+  const prev = state.musicFamiliarity || 'new';
+  const meta = state.musicFamiliarityMeta || { trackNameMentions: 0, studiosTurns: 0, deepRequestTurns: 0 };
+  const msgLower = (userMessage || '').toLowerCase();
+
+  if (primaryMode === 'studios') {
+    meta.studiosTurns++;
+  }
+
+  const mentionsTrack = KNOWN_TRACK_NAMES.some(t => msgLower.includes(t));
+  if (mentionsTrack) meta.trackNameMentions++;
+
+  const hasPlayIntent = PLAY_INTENT_PATTERNS.some(p => p.test(msgLower));
+  const hasDeepRequest = DEEP_REQUEST_PATTERNS.some(p => p.test(msgLower));
+  if (hasDeepRequest && primaryMode === 'studios') meta.deepRequestTurns++;
+
+  let next = prev;
+
+  if (prev === 'new') {
+    if (hasPlayIntent || mentionsTrack || meta.studiosTurns >= 2) {
+      next = 'aware';
+    }
+  }
+
+  if (next === 'aware') {
+    if (meta.trackNameMentions >= 3 || (meta.deepRequestTurns >= 2 && meta.studiosTurns >= 4)) {
+      next = 'fan';
+    }
+  }
+
+  state.musicFamiliarity = next;
+  state.musicFamiliarityMeta = meta;
+
+  return { prev, next, reason: next !== prev ? buildFamiliarityReason(meta, hasPlayIntent, mentionsTrack, hasDeepRequest) : 'no_change' };
+}
+
+function buildFamiliarityReason(meta, hasPlayIntent, mentionsTrack, hasDeepRequest) {
+  const parts = [];
+  if (hasPlayIntent) parts.push('play_intent');
+  if (mentionsTrack) parts.push(`track_mention(${meta.trackNameMentions})`);
+  if (meta.studiosTurns >= 2) parts.push(`studios_turns(${meta.studiosTurns})`);
+  if (hasDeepRequest) parts.push(`deep_request(${meta.deepRequestTurns})`);
+  return parts.join('+') || 'threshold_met';
 }
 
 const ACTIVE_RUN_DEFAULT_TTL_MS = 720000;
@@ -535,5 +606,6 @@ module.exports = {
   getActiveRun,
   clearActiveRun,
   incrementNonRunTurns,
-  ACTIVE_RUN_DEFAULT_TTL_MS
+  ACTIVE_RUN_DEFAULT_TTL_MS,
+  evaluateMusicFamiliarity,
 };

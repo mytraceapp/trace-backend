@@ -30,6 +30,7 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
   const intentType = traceIntent?.intentType || 'other';
   const primaryMode = traceIntent?.primaryMode || 'conversation';
   const isCrisisOrOnboarding = primaryMode === 'crisis' || primaryMode === 'onboarding';
+  const musicFamiliarity = traceIntent?.musicFamiliarity || 'new';
 
   const modeBlock =
     mode === 'micro'
@@ -185,6 +186,11 @@ Do not ask any questions in this response.`
     }
   }
 
+  let musicFamiliarityBlock = '';
+  if (musicFamiliarity !== 'new' && !isCrisisOrOnboarding) {
+    musicFamiliarityBlock = `MUSIC FAMILIARITY: ${musicFamiliarity.toUpperCase()}. The user already knows TRACE's music catalog. BANNED phrases: "Have you listened to…", "Want to hear my album?", "Let me introduce TRACE Studios…", "I actually have music", "Did you know I have an album?", "I made an album called…". Speak as if the user already knows Night Swim. Only offer music when the user asks or expresses music intent.`;
+  }
+
   return `
 TURN DIRECTIVE
 Intent type: ${intentType}
@@ -193,6 +199,7 @@ ${continuityLine}
 ${confidenceBlock}
 ${nextMoveContract}
 ${outputContractBlock}
+${musicFamiliarityBlock}
 ${modeBlock}
 ${structure}
 ${questionsRule}

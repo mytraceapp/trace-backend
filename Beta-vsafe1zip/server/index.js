@@ -8254,6 +8254,20 @@ CAPABILITY-AWARE ACTIONS:
       }
 
       // ============================================================
+      // MUSIC FAMILIARITY: Evaluate and promote based on user signals
+      // ============================================================
+      const musicFamiliarityResult = conversationState.evaluateMusicFamiliarity(
+        convoStateObj,
+        lastUserContent,
+        traceIntent?.primaryMode
+      );
+      console.log(`[MUSIC_FAMILIARITY] ${JSON.stringify({ requestId, prev: musicFamiliarityResult.prev, next: musicFamiliarityResult.next, reason: musicFamiliarityResult.reason })}`);
+      if (traceIntent) {
+        traceIntent.musicFamiliarity = convoStateObj.musicFamiliarity;
+      }
+      conversationState.saveState(effectiveUserId, convoStateObj);
+
+      // ============================================================
       // CTX_BUDGET: Mode-scoped context filtering (Phase 6 Step 2A)
       // ============================================================
       if (traceIntent && !isEarlyCrisisMode && !isOnboardingScripted) {
@@ -8677,7 +8691,11 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
     // When primaryMode==="studios", append hard gate directive to prompt
     // ============================================================
     if (traceIntent?.constraints?.studiosDirective) {
-      systemPrompt += `\n\nMODE GATE (STUDIOS):\n${traceIntent.constraints.studiosDirective}`;
+      let studiosDirText = traceIntent.constraints.studiosDirective;
+      if (traceIntent.musicFamiliarity && traceIntent.musicFamiliarity !== 'new') {
+        studiosDirText += `\nMUSIC FAMILIARITY: ${traceIntent.musicFamiliarity.toUpperCase()}. User knows the catalog. Do NOT introduce Night Swim or TRACE Studios as if it's new. Skip "Have you heard…" or "Want to hear my album?". Speak as a fellow listener.`;
+      }
+      systemPrompt += `\n\nMODE GATE (STUDIOS):\n${studiosDirText}`;
     }
 
     // ============================================================
