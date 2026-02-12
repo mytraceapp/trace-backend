@@ -229,10 +229,10 @@ function evaluateAtmosphere(input) {
   const cadenceMet = userMessageCount >= 2 && assistantMessageCount >= 1;
   
   if (!cadenceMet) {
-    console.log(`[ATMOSPHERE] Cadence not met: user=${userMessageCount}, assistant=${assistantMessageCount} - staying on global ambient`);
+    console.log(`[ATMOSPHERE] Cadence not met: user=${userMessageCount}, assistant=${assistantMessageCount} - staying on presence`);
     return {
       sound_state: {
-        current: null, // null = global ambient (no soundscape until cadence met)
+        current: 'presence',
         changed: false,
         reason: 'cadence_not_met',
         cadence: { userMessageCount, assistantMessageCount, met: false }
@@ -248,15 +248,14 @@ function evaluateAtmosphere(input) {
   const lastActivity = session.last_activity_timestamp || 0;
   const timeSinceLastActivity = now - lastActivity;
   
-  // Check if a soundscape is currently active (not ambient)
-  const hasSoundscapeActive = session.current_state && session.current_state !== null;
+  // Check if a non-presence soundscape is currently active
+  const hasNonPresenceSoundscape = session.current_state && session.current_state !== 'presence';
   
-  if (lastActivity > 0 && timeSinceLastActivity >= INACTIVITY_TIMEOUT_MS && hasSoundscapeActive) {
-    console.log(`[ATMOSPHERE] Inactivity reset: ${Math.floor(timeSinceLastActivity / 1000)}s since last activity - returning to global ambient`);
+  if (lastActivity > 0 && timeSinceLastActivity >= INACTIVITY_TIMEOUT_MS && hasNonPresenceSoundscape) {
+    console.log(`[ATMOSPHERE] Inactivity reset: ${Math.floor(timeSinceLastActivity / 1000)}s since last activity - returning to presence from ${session.current_state}`);
     
-    // Reset session to ambient (no soundscape active - app's default audio)
     updateSessionState(userId, {
-      current_state: null, // null = no soundscape, global ambient kicks in
+      current_state: 'presence',
       last_change_timestamp: now,
       last_activity_timestamp: now,
       neutral_message_streak: 0,
@@ -266,7 +265,7 @@ function evaluateAtmosphere(input) {
     
     return {
       sound_state: {
-        current: null, // null = global ambient (no soundscape)
+        current: 'presence',
         changed: true,
         reason: 'inactivity_reset_5min',
         cadence: { userMessageCount, assistantMessageCount, met: true }
