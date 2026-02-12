@@ -5901,12 +5901,22 @@ app.post('/api/chat', async (req, res) => {
       );
     }
 
+    // Request-scoped profile cache: load once, reuse everywhere
+    let _profileBasicCache = undefined;
+    let _profileBasicDbHits = 0;
+    async function getProfileBasicOnce() {
+      if (_profileBasicCache !== undefined) return _profileBasicCache;
+      _profileBasicDbHits++;
+      _profileBasicCache = await loadProfileBasic(effectiveUserId);
+      return _profileBasicCache;
+    }
+
     // Load user's preferred name from database (source of truth, not client payload)
     let displayName = null;
     let userProfile = null;
     try {
       if (supabaseServer && effectiveUserId) {
-        userProfile = await loadProfileBasic(effectiveUserId);
+        userProfile = await getProfileBasicOnce();
         if (userProfile?.preferred_name) {
           displayName = userProfile.preferred_name.trim();
           console.log('[TRACE NAME] Loaded from DB:', displayName);
@@ -6959,7 +6969,7 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
           console.log('[TRACE WEATHER] Using client-provided weather context:', summary, temperature + '°F', 'isDayTime:', isDayTime, 'cloudCover:', cloudCover);
         } else {
           // Fall back to server-side weather fetch based on profile lat/lon
-          const profileForWeather = await loadProfileBasic(effectiveUserId);
+          const profileForWeather = await getProfileBasicOnce();
           const weatherResult = await maybeAttachWeatherContext({
             messages,
             profile: profileForWeather,
@@ -6976,7 +6986,7 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
 
       // Load dog context if user is talking about their dog
       try {
-        const profileForDog = await loadProfileBasic(effectiveUserId);
+        const profileForDog = await getProfileBasicOnce();
         const dogResult = await maybeAttachDogContext({
           messages,
           profile: profileForDog,
@@ -6990,7 +7000,7 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
 
       // Load holiday context if user mentions holidays
       try {
-        const profileForHoliday = await loadProfileBasic(effectiveUserId);
+        const profileForHoliday = await getProfileBasicOnce();
         const holidayResult = await maybeAttachHolidayContext({
           messages,
           profile: profileForHoliday,
@@ -7025,7 +7035,7 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
 
       // Load sunlight context (sunrise/sunset awareness)
       try {
-        const profileForSunlight = await loadProfileBasic(effectiveUserId);
+        const profileForSunlight = await getProfileBasicOnce();
         const sunlightResult = await maybeAttachSunlightContext({
           messages,
           profile: profileForSunlight,
@@ -7052,6 +7062,8 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
       } catch (err) {
         console.error('[TRACE ANNIVERSARY] Failed to load anniversary context:', err.message);
       }
+
+      console.log(`[PROFILE_CACHE] db_hits=${_profileBasicDbHits} cached=${_profileBasicCache !== undefined} userId=${effectiveUserId?.slice(0,8) || 'none'}`);
 
       // Check if user is commenting on recently played music (conversation context)
       // e.g. User: "play neon promise" -> TRACE: "Here you go" -> User: "such a good song"
