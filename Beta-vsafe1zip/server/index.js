@@ -7216,17 +7216,19 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
       }
     }
     
-    // Get Dreamscape presence memory (relational history)
+    // Get Dreamscape presence memory (relational history) — single load, reused downstream
+    let dreamscapeHistory = null;
     if (pool && !isCrisisMode) {
       try {
-        const dreamscapeHistory = await loadDreamscapeHistory(pool, userId, deviceId);
+        dreamscapeHistory = await loadDreamscapeHistory(pool, userId, deviceId);
         if (dreamscapeHistory) {
+          dreamscapeHistory.trackName = dreamscapeHistory.trackId || null;
           const dreamscapeContext = formatDreamscapeHistoryForContext(dreamscapeHistory);
           if (dreamscapeContext) {
             contextParts.push(dreamscapeContext);
-            console.log('[TRACE] Added Dreamscape presence memory:', dreamscapeHistory.trackId, dreamscapeHistory.daysAgo, 'days ago');
           }
         }
+        console.log(`[DREAMSCAPE_CACHE] loaded=true trackId=${dreamscapeHistory?.trackId || 'none'} daysAgo=${dreamscapeHistory?.daysAgo ?? 'n/a'} db_hits=1`);
       } catch (dreamErr) {
         console.warn('[TRACE] Dreamscape history context failed:', dreamErr.message);
       }
@@ -7429,43 +7431,6 @@ CRISIS OVERRIDE:
     if (confidenceGuidance) {
       contextParts.push(confidenceGuidance);
       console.log('[SYSTEM CONFIDENCE]', { level: systemConfidence.level, score: systemConfidence.score, issues: systemConfidence.issues });
-    }
-    
-    // ---- DREAMSCAPE HISTORY CONTEXT ----
-    // Fetch user's recent Dreamscape track preference for personalized suggestions
-    let dreamscapeHistory = null;
-    if (effectiveUserId && pool) {
-      try {
-        const historyResult = await pool.query(
-          `SELECT 
-            metadata->>'dreamscapeTrackId' as last_track,
-            completed_at,
-            EXTRACT(DAY FROM NOW() - completed_at) as days_ago
-          FROM activity_logs
-          WHERE user_id = $1 
-            AND activity_type = 'dreamscape'
-            AND metadata->>'dreamscapeTrackId' IS NOT NULL
-          ORDER BY completed_at DESC
-          LIMIT 1`,
-          [effectiveUserId]
-        );
-        
-        if (historyResult.rows && historyResult.rows.length > 0) {
-          const { last_track, days_ago } = historyResult.rows[0];
-          const daysAgoNum = Math.floor(parseFloat(days_ago) || 0);
-          
-          // Only use history if within 14 days (current, not creepy)
-          if (daysAgoNum <= 14) {
-            dreamscapeHistory = {
-              lastTrack: last_track,
-              daysAgo: daysAgoNum
-            };
-            console.log('[DREAMSCAPE HISTORY] Found recent session:', last_track, daysAgoNum, 'days ago');
-          }
-        }
-      } catch (historyErr) {
-        console.warn('[DREAMSCAPE HISTORY] Failed to fetch:', historyErr.message);
-      }
     }
     
     // ---- CORE MEMORY CONTINUITY SYSTEM ----
