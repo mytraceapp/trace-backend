@@ -59,6 +59,14 @@ Utilizes distinct Day (sage greens, warm earth tones) and Night (deep olive-char
 
 A two-layer V2 prompt system was implemented to address prompt fragmentation, including schema enforcement and environment-controlled rollout.
 
+## Prompt Deduplication (`server/promptDedup.js`)
+
+Resolves overlapping/conflicting prompt directives across V2 directive, Studios gate, and T2 manifesto. Gated by `PROMPT_DEDUP_ENABLED` feature flag (default `false`). When enabled:
+-   **V2 directive owns**: mode/length, confidence/hedging, studios guardrail, music familiarity 6-phrase ban list.
+-   **Studios gate adds only**: capability-aware action rules (PLAY_IN_APP_TRACK etc.); music familiarity injection skipped (V2 already has it).
+-   **T2 manifesto trimmed**: PREMIUM BREVITY (conflicts with V2 micro mode) and DEPTH WITHOUT THERAPY VOICE (V2 core + voiceEngine enforce). Kept: CORE RULES, PREMIUM INTUITION LOOP, MICRO-ECHO, ANTI-REPETITION cadence, PREMIUM QUESTIONS, MICRO-INSIGHT, VOICE CONSTRAINTS.
+-   Debug: `[PROMPT_DEDUP]` logs show which blocks were included/removed per request.
+
 ## Interactive Activities
 
 Includes short, interactive activities like a procedural Maze game, Breathing Exercises, 5-4-3-2-1 Grounding, "Rising" (WebGL), Power Nap, Pearl Ripple, and Walking Reset, all with auto-save upon completion.
