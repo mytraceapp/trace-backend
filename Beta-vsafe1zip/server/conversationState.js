@@ -559,8 +559,15 @@ function reconstructStateFromMessages(state, messages) {
     const lastAssistant = assistantMessages[assistantMessages.length - 1];
     state.lastMoveType = classifyMoveType(lastAssistant.content || '');
   }
+
+  let trailingQStreak = 0;
+  for (let i = assistantMessages.length - 1; i >= 0; i--) {
+    if (/\?/.test(assistantMessages[i].content || '')) trailingQStreak++;
+    else break;
+  }
+  state.qStreak = trailingQStreak;
   
-  console.log(`[CONVO_STATE] Reconstructed from ${messages.length} messages: stage=${state.stage}, turns=${state.turnCount}, topics=[${state.lastTopicKeywords.join(', ')}], contentMsgs=${contentCount}`);
+  console.log(`[CONVO_STATE] Reconstructed from ${messages.length} messages: stage=${state.stage}, turns=${state.turnCount}, topics=[${state.lastTopicKeywords.join(', ')}], contentMsgs=${contentCount}, qStreak=${trailingQStreak}`);
   
   return state;
 }
