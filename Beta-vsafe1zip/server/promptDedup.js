@@ -62,13 +62,14 @@ function trimT2Manifesto(t2Text) {
   }
 
   const KEPT_MARKERS = [
-    'CORE RULES',
-    'PREMIUM INTUITION LOOP',
-    'MICRO-ECHO',
-    'ANTI-REPETITION',
-    'PREMIUM QUESTIONS',
+    'INTUITION',
+    'RESPONSE SHAPE',
+    'ALIVE LANGUAGE',
     'MICRO-INSIGHT',
-    'VOICE CONSTRAINTS',
+    'QUESTIONS',
+    'ANTI-REPETITION',
+    'BREVITY',
+    'GRAMMAR',
   ];
   for (const marker of KEPT_MARKERS) {
     if (result.includes(marker)) {

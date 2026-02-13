@@ -68,6 +68,17 @@ const LAZY_GENERIC_QUESTIONS = [
   'how can I support you'
 ];
 
+const HOLLOW_PATTERNS = [
+  /that sounds like .{5,40} (?:is|has been|must be) (?:weighing|hard|tough|difficult|heavy|a lot)/i,
+  /it makes sense that you(?:'d| would) feel .{3,30} about/i,
+  /(?:it's|that's) (?:completely |totally |perfectly )?(?:normal|natural|valid|understandable|okay) to feel/i,
+  /(?:i can see|i can tell|i sense) (?:that |how much )?(?:this|that|it) (?:means|matters|affects|impacts)/i,
+  /thank you for (?:sharing|opening up|trusting|being vulnerable)/i,
+  /(?:it's clear|it sounds like) (?:this|that|you) (?:means|matters|is important)/i,
+  /what (?:comes up|arises|surfaces) (?:for you )?when you (?:think|sit with|reflect)/i,
+  /how does (?:that|this|it) (?:sit with|land for|resonate with) you/i,
+];
+
 // TRACE voice characteristics
 const VOICE_MARKERS = {
   // Grounded openers (not "hi!" energy)
@@ -128,6 +139,64 @@ function containsLazyQuestion(text) {
 function containsUnsolicitedOffer(text) {
   const lower = text.toLowerCase();
   return UNSOLICITED_ACTIVITY_OFFERS.filter(phrase => lower.includes(phrase));
+}
+
+function detectHollowResponse(text) {
+  if (!text || text.length < 20) return null;
+  for (const pattern of HOLLOW_PATTERNS) {
+    const match = text.match(pattern);
+    if (match) return match[0];
+  }
+  return null;
+}
+
+function sentenceHasConcreteDetail(sentence) {
+  const quotePattern = /["'\u201c\u201d].{3,}["'\u201c\u201d]/;
+  if (quotePattern.test(sentence)) return true;
+  const words = sentence.split(/\s+/).filter(w => w.length > 3);
+  if (words.length > 12) return true;
+  const concreteSignals = /\b(?:because|when you said|the part about|specifically|yesterday|last night|this morning|your \w+)\b/i;
+  if (concreteSignals.test(sentence)) return true;
+  return false;
+}
+
+function rewriteHollowSentence(text, recentTopics) {
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  if (sentences.length <= 1) {
+    const isHollow = HOLLOW_PATTERNS.some(p => p.test(text)) && !sentenceHasConcreteDetail(text);
+    if (!isHollow) return text;
+    const topicPhrase = recentTopics.length > 0 ? recentTopics[0] : null;
+    const aliveReplacements = topicPhrase ? [
+      `that ${topicPhrase} thing — it's not small.`,
+      `yeah. ${topicPhrase} hits different when you say it out loud.`,
+      `${topicPhrase}. that's real.`,
+    ] : [
+      "yeah. that's not nothing.",
+      "mm. you're not making that up.",
+      "that's real.",
+    ];
+    const pick = aliveReplacements[Math.floor(Math.random() * aliveReplacements.length)];
+    console.log(`[VOICE] Single hollow sentence — alive replacement: "${pick}"`);
+    return pick;
+  }
+  const cleaned = [];
+  let hollowCount = 0;
+  for (const s of sentences) {
+    const matchesPattern = HOLLOW_PATTERNS.some(p => p.test(s));
+    if (matchesPattern && !sentenceHasConcreteDetail(s)) {
+      hollowCount++;
+    } else {
+      cleaned.push(s);
+    }
+  }
+  if (hollowCount === 0) return text;
+  const remaining = cleaned.join(' ').trim();
+  if (remaining.length >= 15) {
+    console.log(`[VOICE] Stripped ${hollowCount} hollow sentence(s), kept: "${remaining.slice(0, 60)}..."`);
+    return remaining;
+  }
+  console.log(`[VOICE] All sentences hollow but preserving original to avoid content loss`);
+  return text;
 }
 
 /**
@@ -481,6 +550,17 @@ function validateResponse(response, intent, recentHistory = []) {
     }
   }
   
+  // HOLLOW RESPONSE CHECK: Detect formulaic patterns that are topic-specific but emotionally dead
+  if (hasConversationContext) {
+    const hollow = detectHollowResponse(corrected);
+    if (hollow) {
+      const topics = extractRecentTopics(recentHistory);
+      issues.push(`Hollow pattern detected: "${hollow}" - rewriting`);
+      console.log(`[VOICE] ⚠️ HOLLOW PATTERN: "${hollow}"`);
+      corrected = rewriteHollowSentence(corrected, topics);
+    }
+  }
+  
   // Check for conversation restart
   if (isConversationRestart(response, recentHistory)) {
     issues.push('Appears to restart conversation (generic greeting)');
@@ -511,10 +591,13 @@ module.exports = {
   isConversationRestart,
   containsBannedPhrases,
   containsLazyQuestion,
+  detectHollowResponse,
+  rewriteHollowSentence,
   extractRecentTopics,
   generateContextualContinuation,
   BANNED_PHRASES,
   LAZY_GENERIC_QUESTIONS,
+  HOLLOW_PATTERNS,
   VOICE_MARKERS,
   RESPONSE_TONE_MAP
 };

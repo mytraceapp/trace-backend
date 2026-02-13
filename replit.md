@@ -62,6 +62,17 @@ The system employs several mechanisms to ensure conversational coherence:
 -   **Output Contract Lock**: Ensures premium response quality through prompt-level output contracts and assertions, validating first-line continuity, studios-specific rules, and mode guardrails.
 -   **Response Shape Lock + finalizeTraceResponse()**: A centralized `finalizeTraceResponse()` helper (in `server/responseFinalize.js`) wraps every `return` path in `/api/chat` (~51 exit points). It normalizes the response envelope, runs `applyResponseShapeLock()` (validate + sanitize + derive mode), ensures `messages[]` array exists, and emits both `[RESPONSE_SHAPE]` and `[APP_TRACE]` logs for every path. This replaced the previous pattern where only ~4 of ~19 early returns ran shape lock, and ~15 paths returned inconsistent envelopes.
 
+## Voice Quality Systems (Feb 2026)
+
+### Hollow-Response Detection (`voiceEngine.js`)
+Post-processing layer that catches formulaic patterns which are topic-specific but emotionally dead (e.g. "That sounds like X is weighing on you", "It's completely valid to feel..."). Uses `HOLLOW_PATTERNS` regex array with a `sentenceHasConcreteDetail()` guard to avoid false positives — sentences with user quotes, concrete time references, or sufficient length are preserved. When hollow sentences are stripped, remaining non-hollow content is kept; only fully-hollow single-sentence responses get alive replacements.
+
+### Dynamic Stage-Aware Fallbacks (`conversationState.js`)
+Fallback responses (used when model violates rules repeatedly) are now pools of 3 per topic with turn-based rotation, plus stage-aware generic fallbacks: ARRIVAL stage gets "no agenda" presence, PROCESSING stage gets "stay with that" depth, default gets minimal presence markers.
+
+### T2 Manifesto v2 (`index.js`)
+Rewritten to push model toward thinking WITH the user rather than AT them. Key shifts: example-driven (Good/Bad pairs), "alive language" section, questions that make users think not perform, and a fallback structure floor (observation + question) for when the model is unsure.
+
 ## Authentication & Subscription
 
 Supports Supabase anonymous authentication with persistent user ID recovery and server-side data migration for lost sessions. Subscription plans (Light/Free, Premium, Studio) are managed globally for feature gating.

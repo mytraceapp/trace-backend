@@ -525,40 +525,97 @@ function violatesProbeRules(response, state, userHadContent) {
 }
 
 /**
- * Generate a fallback response when model keeps violating rules
+ * Generate a fallback response when model keeps violating rules.
+ * Stage-aware and topic-threading — feels alive, not scripted.
  */
 function generateFallbackResponse(state) {
   const topics = state.lastTopicKeywords;
-  
+  const stage = state.stage;
+  const turn = state.turnCount || 0;
+
   if (topics.length > 0) {
-    const topicResponses = {
-      'work': "work stuff can weigh on you. what part's been sitting heaviest?",
-      'family': "family's complicated. is there a specific moment that's stuck with you?",
-      'relationships': "those connections matter. what's been different about it lately?",
-      'sleep': "sleep's been tough. is it the falling asleep or the staying asleep?",
-      'anxiety': "that anxious feeling — does it come in waves or is it more constant?",
-      'sadness': "I hear that. is it more of a heavy feeling or more like emptiness?",
-      'stress': "a lot on your plate. what's the one thing that keeps coming back to you?",
-      'dreams': "dreams can surface things. anything in particular that stood out?",
-      'music': "mm. how's it landing right now?",
+    const topicPools = {
+      'work': [
+        "what part of the work thing keeps replaying?",
+        "is it the job itself or what it's costing you?",
+        "work. what would feel different if you could change one thing about it?",
+      ],
+      'family': [
+        "family — which part of that is yours to carry and which part isn't?",
+        "is it something recent or something that's been building?",
+        "what do you wish they understood?",
+      ],
+      'relationships': [
+        "what changed? or did something just become harder to ignore?",
+        "is this about what happened or about what it means?",
+        "what would you say to them if you knew they'd actually hear it?",
+      ],
+      'sleep': [
+        "what's running through your head when you can't sleep?",
+        "is the sleep thing new or has it been a pattern?",
+        "when was the last time you actually slept well? what was different?",
+      ],
+      'anxiety': [
+        "where does it sit in your body right now?",
+        "is there a specific thing driving it or is it more like a hum?",
+        "what would 'less anxious' look like in the next hour?",
+      ],
+      'sadness': [
+        "what does the sadness want you to know?",
+        "is this a missing-something sadness or a tired-of-something sadness?",
+        "when did it get heavier?",
+      ],
+      'stress': [
+        "what's the thing you keep circling back to?",
+        "if you could drop one thing from the pile, which one would breathe easier?",
+        "is anything actually urgent or does everything just feel urgent?",
+      ],
+      'dreams': [
+        "what part of the dream stayed with you?",
+        "did it feel more like a warning or more like processing?",
+        "who showed up in it?",
+      ],
+      'music': [
+        "mm. let it sit.",
+        "how's this one landing?",
+        "something else, or stay here?",
+      ],
     };
-    
+
     for (const topic of topics) {
-      if (topicResponses[topic]) {
-        return topicResponses[topic];
+      const pool = topicPools[topic];
+      if (pool) {
+        const idx = (turn + Date.now()) % pool.length;
+        return pool[idx];
       }
     }
   }
-  
-  // Generic but present fallbacks (not probing)
-  const fallbacks = [
-    "I'm here.",
-    "mm. take your time.",
-    "still with you.",
-    "no rush.",
+
+  if (stage === STAGES.ARRIVAL || stage === STAGES.OPENING) {
+    const earlyFallbacks = [
+      "I'm here. no agenda.",
+      "take your time. I'm not going anywhere.",
+      "whenever you're ready.",
+    ];
+    return earlyFallbacks[(turn + Date.now()) % earlyFallbacks.length];
+  }
+
+  if (stage === STAGES.PROCESSING || stage === STAGES.EXPLORING) {
+    const deepFallbacks = [
+      "mm. stay with that for a second.",
+      "you don't have to figure it out right now.",
+      "that's heavier than it sounds, isn't it.",
+    ];
+    return deepFallbacks[(turn + Date.now()) % deepFallbacks.length];
+  }
+
+  const presentFallbacks = [
+    "still here.",
+    "mm. I'm listening.",
+    "yeah. keep going.",
+    "take your time with it.",
   ];
-  
-  return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  return presentFallbacks[(turn + Date.now()) % presentFallbacks.length];
 }
 
 /**
