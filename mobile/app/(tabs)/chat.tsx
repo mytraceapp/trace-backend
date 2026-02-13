@@ -1672,9 +1672,20 @@ export default function ChatScreen() {
               clientStateRef.current.nowPlaying = null;
               clientStateRef.current.mode = 'chat';
               clientStateRef.current.currentSoundState = null;
+            } else if (reflectionAudio.type === 'resume') {
+              console.log('🎵 Reflection: resume ambient audio');
+              await playAmbient('main', require('../../assets/audio/trace_ambient.m4a'), 0.35);
+              clientStateRef.current.currentSoundState = 'presence';
+              clientStateRef.current.mode = 'chat';
             }
           }
           
+          if (data.response_source === 'audio_intent_guard') {
+            console.log('🎵 Reflection audio_intent_guard — no chat bubble');
+            setIsSending(false);
+            return;
+          }
+
           // Use the AI response from the server
           if (data.aiResponse) {
             console.log('🎓 TRACE: AI response for reflection:', data.aiResponse);
