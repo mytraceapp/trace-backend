@@ -47,6 +47,9 @@ Music familiarity (new → aware → fan) is tracked per user and persisted to S
 ## Audio Control Path Resolution
 An audio control handler system differentiates between early interceptors and the Studios handler to prevent conflicts in stop/resume/pause commands, ensuring correct track context. It also includes logic to prevent replaying already-offered tracks.
 
+## Relational Memory (Phase 1)
+Entity-anchored relational memory system (`server/relationalMemory.js`) that tracks people the user mentions. Extracts relationship mentions ("my mom", "my brother") from chat messages, normalizes synonyms (mom/mother/mama → mom), and resolves known people from the local PostgreSQL `people` table. Relational anchors (e.g., "mom = Sarah") are injected into the LLM system prompt so TRACE can reference people by name. Handles ambiguous relationships (multiple friends) with buddy-voice clarification. Auto-creates person records when users explicitly name someone ("my mom Sarah"). CRUD endpoints at `/api/memory/people` and `/api/memory/person`. High-salience people are always included in system prompt context even without explicit mentions.
+
 # External Dependencies
 
 -   **OpenAI API**: For TRACE AI chat completions.

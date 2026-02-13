@@ -180,6 +180,7 @@ const {
 const memoryStore = require('./memoryStore');
 const sessionManager = require('./sessionManager');
 const coreMemory = require('./coreMemory');
+const relationalMemory = require('./relationalMemory');
 
 /**
  * Feature Flags - Panic switches for smart features
@@ -8979,6 +8980,55 @@ Your response (text only, no JSON):`;
       console.log(`[FAST-PATH] Detected ${detected_state} + mini model, skipping to L3 for speed`);
     }
     
+    // ============================================================
+    // RELATIONAL MEMORY: Extract mentions, resolve people, inject anchors
+    // ============================================================
+    let relationalAnchors = null;
+    try {
+      if (pool && effectiveUserId) {
+        const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content || '';
+        const mentionedRelationships = relationalMemory.extractRelationshipMentions(lastUserMsg);
+        const explicitPersons = relationalMemory.extractExplicitPersonMentions(lastUserMsg);
+
+        for (const ep of explicitPersons) {
+          await relationalMemory.upsertPerson(pool, effectiveUserId, ep.relationship, ep.name);
+        }
+
+        const resolvedPeople = [];
+
+        if (mentionedRelationships.size > 0) {
+          for (const rel of mentionedRelationships) {
+            const result = await relationalMemory.resolvePersonByRelationship(pool, effectiveUserId, rel);
+            if (result && result.ambiguous) {
+              const clarification = relationalMemory.buildClarificationResponse(rel, result.candidates, lastUserMsg);
+              console.log(`[RELATIONAL MEMORY] Ambiguous ${rel}, asking clarification`);
+              return finalizeTraceResponse(res, {
+                message: clarification,
+                response_source: 'relational_clarification',
+                _provenance: { path: 'relational_memory', requestId, ts: Date.now() }
+              }, requestId);
+            } else if (result) {
+              resolvedPeople.push(result);
+              await relationalMemory.bumpSalience(pool, result.id);
+            }
+          }
+        }
+
+        if (resolvedPeople.length === 0) {
+          const highSalience = await relationalMemory.getHighSaliencePeople(pool, effectiveUserId, 5);
+          resolvedPeople.push(...highSalience);
+        }
+
+        relationalAnchors = relationalMemory.buildRelationalAnchors(resolvedPeople);
+        if (relationalAnchors) {
+          systemPrompt += '\n\n' + relationalAnchors;
+          console.log(`[RELATIONAL MEMORY] Injected ${resolvedPeople.length} anchors`);
+        }
+      }
+    } catch (relErr) {
+      console.warn('[RELATIONAL MEMORY] Error (continuing without):', relErr.message);
+    }
+
     // LAYER 1: Selected model with retries (skip if premium already handled)
     const preprocessTime = Date.now() - requestStartTime;
     console.log(`[TIMING] Pre-processing took ${preprocessTime}ms`);
@@ -13344,6 +13394,88 @@ app.post('/api/journal/memory-consent', async (req, res) => {
   } catch (err) {
     console.error('📓 [JOURNAL CONSENT] Error:', err);
     return res.status(500).json({ success: false, error: 'Failed to update consent' });
+  }
+});
+
+// ============================================================
+// RELATIONAL MEMORY CRUD ENDPOINTS
+// ============================================================
+
+app.get('/api/memory/people', async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ success: false, error: 'userId required' });
+    if (!pool) return res.json({ success: true, people: [] });
+
+    const people = await relationalMemory.listPeople(pool, userId);
+    return res.json({ success: true, people });
+  } catch (err) {
+    console.error('[RELATIONAL MEMORY] GET /people error:', err.message);
+    return res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+app.post('/api/memory/person', async (req, res) => {
+  try {
+    const { userId, relationship, displayName, notes, aliases } = req.body;
+    if (!userId || !relationship || !displayName) {
+      return res.status(400).json({ success: false, error: 'userId, relationship, and displayName are required' });
+    }
+    if (!pool) return res.status(503).json({ success: false, error: 'Database unavailable' });
+
+    const normalized = relationalMemory.normalizeRelationship(relationship) || relationship.toLowerCase();
+    const person = await relationalMemory.upsertPerson(pool, userId, normalized, displayName, aliases);
+    if (!person) return res.status(500).json({ success: false, error: 'Failed to create person' });
+
+    if (notes) {
+      await relationalMemory.updatePerson(pool, person.id, userId, { notes });
+    }
+    return res.json({ success: true, person });
+  } catch (err) {
+    console.error('[RELATIONAL MEMORY] POST /person error:', err.message);
+    return res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+app.patch('/api/memory/person/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, displayName, relationship, notes, aliases } = req.body;
+    if (!userId) return res.status(400).json({ success: false, error: 'userId required' });
+    if (!pool) return res.status(503).json({ success: false, error: 'Database unavailable' });
+
+    const updates = {};
+    if (displayName) updates.display_name = displayName;
+    if (relationship) updates.relationship = relationalMemory.normalizeRelationship(relationship) || relationship.toLowerCase();
+    if (notes !== undefined) updates.notes = notes;
+    if (aliases) updates.aliases = aliases;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, error: 'No fields to update' });
+    }
+
+    const person = await relationalMemory.updatePerson(pool, id, userId, updates);
+    if (!person) return res.status(500).json({ success: false, error: 'Failed to update person' });
+    return res.json({ success: true, person });
+  } catch (err) {
+    console.error('[RELATIONAL MEMORY] PATCH /person error:', err.message);
+    return res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+app.delete('/api/memory/person/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.query.userId || req.body?.userId;
+    if (!userId) return res.status(400).json({ success: false, error: 'userId required' });
+    if (!pool) return res.status(503).json({ success: false, error: 'Database unavailable' });
+
+    const deleted = await relationalMemory.deletePerson(pool, id, userId);
+    if (!deleted) return res.status(404).json({ success: false, error: 'Person not found' });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[RELATIONAL MEMORY] DELETE /person error:', err.message);
+    return res.status(500).json({ success: false, error: 'Server error' });
   }
 });
 
