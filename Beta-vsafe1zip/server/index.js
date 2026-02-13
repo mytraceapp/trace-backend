@@ -12517,47 +12517,23 @@ app.post('/api/onboarding/reflection', async (req, res) => {
       return res.status(400).json({ success: false, error: 'reflection is required' });
     }
     
-    // Check for music stop/resume commands — these should not be treated as reflections
-    const reflectionLower = (reflectionText || '').toLowerCase().trim();
-    const reflectionStopsMusic = /^stop\s*(the\s*)?(music|audio|sound|playing)|^pause\s*(the\s*)?(music|audio)|^turn\s*off\s*(the\s*)?(music|audio)|^mute|^silence|^quiet$/i.test(reflectionLower);
-    const reflectionResumesMusic = /^resume\s*(the\s*)?(music|audio)?$|^play\s*(the\s*)?(music|audio)$|^unpause|^unmute|^turn\s*on\s*(the\s*)?(music|audio)|^start\s*(the\s*)?(music|audio)$|^(put|bring)\s*(the\s*)?(music|audio)\s*(back|on)|^music\s*(back|on|again)|^resume$/i.test(reflectionLower);
-    
-    if (reflectionStopsMusic) {
-      console.log('[ACTIVITY REFLECTION] Intercepted music STOP command in reflection');
+    const reflectionNorm = (reflectionText || '').toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
+    const reflectionWords = reflectionNorm.split(' ').length;
+    const STOP_PHRASES = new Set(['stop', 'pause', 'mute', 'silence', 'quiet', 'hush', 'stop music', 'stop the music', 'stop audio', 'stop the audio', 'stop the sound', 'stop playing', 'pause music', 'pause the music', 'turn off music', 'turn off the music', 'mute music', 'mute the music', 'no music', 'cut music', 'cut the music']);
+    const RESUME_PHRASES = new Set(['resume', 'unpause', 'unmute', 'continue', 'resume music', 'resume the music', 'play music', 'play the music', 'start music', 'start the music', 'start playing', 'turn on music', 'turn on the music', 'bring it back', 'bring the music back', 'bring back the music', 'music on', 'music back', 'music back on', 'music again', 'continue music', 'continue playing']);
+    const reflStopIntent = reflectionWords <= 5 && STOP_PHRASES.has(reflectionNorm);
+    const reflResumeIntent = reflectionWords <= 5 && RESUME_PHRASES.has(reflectionNorm);
+
+    if (reflStopIntent || reflResumeIntent) {
+      const guardType = reflStopIntent ? 'stop' : 'resume';
+      console.log(`[ACTIVITY REFLECTION] audio_intent_guard ${guardType}: "${reflectionNorm}"`);
       return res.json({
         success: true,
         ok: true,
-        message: "Music's off.",
-        aiResponse: "Music's off.",
-        audio_action: { type: 'stop', action: 'pause', source: 'all', reason: 'user_requested' },
-        sound_state: { current: null, changed: true, reason: 'user_stopped' },
-      });
-    }
-    
-    if (reflectionResumesMusic) {
-      console.log('[ACTIVITY REFLECTION] Intercepted music RESUME command in reflection');
-      const convoStateRef = conversationState.getState(userId);
-      const savedTrack = convoStateRef?.lastPlayedTrack;
-      
-      if (savedTrack && (Date.now() - (savedTrack.timestamp || 0)) < 2 * 60 * 60 * 1000) {
-        const trackIndex = savedTrack.trackIndex ?? savedTrack.trackId ?? 0;
-        return res.json({
-          success: true,
-          ok: true,
-          message: "Back on.",
-          aiResponse: "Back on.",
-          audio_action: { type: 'open', action: 'play', source: 'originals', album: savedTrack.album || 'night_swim', track: typeof trackIndex === 'number' ? trackIndex : 0, autoplay: true, reason: 'user_requested_resume' },
-          sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
-        });
-      }
-      
-      return res.json({
-        success: true,
-        ok: true,
-        message: "Nothing's playing right now. Want me to put something on?",
-        aiResponse: "Nothing's playing right now. Want me to put something on?",
-        audio_action: null,
-        sound_state: { current: null, changed: false, reason: 'nothing_to_resume' },
+        response_source: 'audio_intent_guard',
+        message: '',
+        messages: [],
+        audio_action: { type: guardType, source: 'audio_intent_guard' },
       });
     }
 
