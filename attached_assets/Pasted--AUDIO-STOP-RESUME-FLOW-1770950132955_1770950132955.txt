@@ -1,0 +1,51 @@
+=============================================================================
+AUDIO STOP/RESUME FLOW — CONFIRMATION
+=============================================================================
+
+When you type "stop music" or "resume music," the backend guard catches those 
+commands instantly — before the AI model is ever called — and sends back a 
+simple instruction to the app: type: 'stop' or type: 'resume'. No AI-generated 
+text, no chat bubble.
+
+On the mobile side, the app receives that instruction and:
+
+  STOP   → stops all audio (ambient, soundscapes, Night Swim player)
+  RESUME → calls the AudioContext single-source-of-truth resume routine to bring 
+           back the ambient track at the same volume
+
+That's all it does. It's not switching tracks or doing anything fancy — just 
+turning the ambient layer on or off. The AI never gets involved in the actual 
+audio control.
+
+-----------------------------------------------------------------------------
+BACKEND (server/index.js ~988–1002)
+-----------------------------------------------------------------------------
+
+- Runs detectAudioIntent(userText) BEFORE any model call
+- If it matches stop/resume, returns immediately with:
+  - audio_action: { type: 'stop' | 'resume', source: 'audio_intent_guard' }
+  - messages: []
+  - message: '' (no model text)
+
+-----------------------------------------------------------------------------
+FRONTEND (chat.tsx)
+-----------------------------------------------------------------------------
+
+- Receives res.audio_action from the API response
+- Logs [CHAT_AUDIO_SIGNAL] when res.audio_action is present
+- Logs [AUDIO_ACTION_RX] Backend says: type=STOP|RESUME source=... when handler runs
+- For type: 'stop'  → calls audioEvent(USER_STOP), shows "Okay. Music is stopped."
+- For type: 'resume' → calls audioEvent(USER_RESUME), shows "Back on." or fallback
+
+-----------------------------------------------------------------------------
+HOW TO VERIFY
+-----------------------------------------------------------------------------
+
+Type "stop music" or "resume music" and check logs for:
+
+  Server:  [AUDIO_INTENT_GUARD] ✓ Matched stop|resume intent
+  Client:  [CHAT_AUDIO_SIGNAL] and [AUDIO_ACTION_RX] Backend says: type=STOP|RESUME
+
+These confirm the backend instruction is being received and handled.
+
+=============================================================================
