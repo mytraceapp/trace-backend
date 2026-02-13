@@ -94,6 +94,8 @@ function createDefaultState() {
     musicFamiliarity: 'new',
     musicFamiliarityMeta: { trackNameMentions: 0, studiosTurns: 0, deepRequestTurns: 0 },
     rhythmHistory: [],
+    qStreak: 0,
+    feelingCheckins: [],
   };
 }
 
@@ -794,6 +796,10 @@ function generateFallbackResponse(state) {
 /**
  * Update state after response is sent
  */
+const FEELING_CHECKIN_RE = /\bhow (are you|do you|have you been) feel/i;
+const FEELING_CHECKIN_RE2 = /\bhow('s| is) (that|this|it) (feel|making you feel|sitting with you)/i;
+const FEELING_CHECKIN_RE3 = /\bwhat (are you|do you) feel/i;
+
 function updateStateAfterResponse(visitorId, response) {
   const state = getState(visitorId);
   const moveType = classifyMoveType(response);
@@ -806,11 +812,27 @@ function updateStateAfterResponse(visitorId, response) {
   } else {
     state.consecutiveProbes = 0;
   }
+
+  const hasQuestion = /\?/.test(response || '');
+  state.qStreak = hasQuestion ? (state.qStreak || 0) + 1 : 0;
+
+  const isFeelingCheckin = FEELING_CHECKIN_RE.test(response || '') || FEELING_CHECKIN_RE2.test(response || '') || FEELING_CHECKIN_RE3.test(response || '');
+  if (!state.feelingCheckins) state.feelingCheckins = [];
+  state.feelingCheckins.push(isFeelingCheckin ? 1 : 0);
+  if (state.feelingCheckins.length > 10) state.feelingCheckins = state.feelingCheckins.slice(-10);
   
   console.log(`[CONVO_STATE] After response: { stage: ${state.stage}, moveType: ${moveType}, turn: ${state.turnCount}, topics: [${state.lastTopicKeywords.join(', ')}] }`);
+  console.log(`[Q_GUARD] qStreak=${state.qStreak} feelingCheckins10=${state.feelingCheckins.filter(x=>x).length}`);
   
   saveState(visitorId, state);
   return state;
+}
+
+function getQuestionCooldown(visitorId) {
+  const state = getState(visitorId);
+  const qStreak = state.qStreak || 0;
+  const feelingCount = (state.feelingCheckins || []).filter(x => x).length;
+  return { questionCooldown: qStreak >= 1, feelingCooldown: feelingCount >= 1, qStreak, feelingCount };
 }
 
 async function loadMusicFamiliarity(supabase, userId, state) {
@@ -888,4 +910,5 @@ module.exports = {
   pickBuddyAck,
   buildRhythmPromptDirective,
   BUDDY_ACKNOWLEDGMENTS,
+  getQuestionCooldown,
 };

@@ -48,6 +48,18 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
     ? `APPROACH: Blend. The user is stressed but not overwhelmed. Acknowledge what they're feeling, then gently reflect. One grounding cue is okay but don't lead with it.`
     : '';
 
+  const qg = traceIntent?.questionGuard || {};
+  const qGuardBlock = qg.questionCooldown
+    ? `QUESTION GUARD (HARD RULE): Your last response already contained a question. Do NOT include any question marks in this reply. Instead: attune to what they said, offer 2 options or a micro-step. No questions.`
+    : '';
+  const feelGuardBlock = qg.feelingCooldown
+    ? `FEELING CHECK-IN BAN: You have already asked a "how do you feel" style question recently. BANNED for the next several turns: "how does that feel", "how are you feeling", "what are you feeling", "how is that sitting with you". Instead use somatic prompts ("where do you notice that in your body?"), needs prompts ("what do you need right now?"), or choice prompts ("want to sit with this or shift gears?").`
+    : '';
+
+  if (qg.questionCooldown) {
+    c.allowQuestions = 0;
+  }
+
   const structure =
     mode === 'longform'
       ? `STRUCTURE REQUIREMENT (MANDATORY):
@@ -209,6 +221,8 @@ ${outputContractBlock}
 ${musicFamiliarityBlock}
 ${modeBlock}
 ${modeHintBlock}
+${qGuardBlock}
+${feelGuardBlock}
 ${structure}
 ${questionsRule}
 ${activityRule}

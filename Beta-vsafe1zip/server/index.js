@@ -7963,6 +7963,7 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
           : 'reflect';
         traceIntent.trace_mode_hint = mh;
         console.log(`[MODE_HINT] ${mh} (highArousal=${brainSignals.highArousal}, state=${detected_state})`);
+        traceIntent.questionGuard = conversationState.getQuestionCooldown(effectiveUserId);
       }
       
       // Persist topic anchor in conversation state for next turn carry-forward
@@ -10969,6 +10970,19 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     }
     
+    // QUESTION GUARD POST-PROCESSING: Hard strip questions when cooldown active
+    if (traceIntent?.questionGuard?.questionCooldown && response.message && /\?/.test(response.message)) {
+      const sentences = response.message.split(/(?<=[.!?])\s+/);
+      const nonQ = sentences.filter(s => !/\?/.test(s));
+      if (nonQ.length > 0) {
+        response.message = nonQ.join(' ');
+        console.log(`[Q_GUARD] Stripped question sentence(s), keeping: "${response.message.slice(0, 50)}..."`);
+      } else {
+        response.message = response.message.replace(/\?/g, '.');
+        console.log(`[Q_GUARD] Converted all ? to . (no non-question sentences found)`);
+      }
+    }
+
     // EMPTY RESPONSE SAFETY NET: If sanitization/voice stripped everything, provide a grounded fallback
     // But allow intentional ultra-short buddy responses (rhythm system)
     if (!response.message || response.message.trim().length === 0) {
