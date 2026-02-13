@@ -62,6 +62,14 @@ Never ask "how do you feel?" or variants ("how does that sit with you?", "how ar
     ? `FEELING CHECK-IN BAN: You have already asked a "how do you feel" style question recently. BANNED for the next several turns: "how does that feel", "how are you feeling", "what are you feeling", "how is that sitting with you". Instead use somatic prompts ("where do you notice that in your body?"), needs prompts ("what do you need right now?"), or choice prompts ("want to sit with this or shift gears?").`
     : '';
 
+  const checkinSubstitutions = `CHECK-IN SUBSTITUTION (always active): Never default to "how are you feeling?" or variants. If you need a check-in, pick ONE:
+1) Body: "Where do you notice that — chest, throat, stomach, shoulders?"
+2) Need: "What do you need most right now — comfort, clarity, a plan, or rest?"
+3) Intensity: "If you had to put a number on it, 0–10, where does it land?"
+4) Fork: "Want to unpack this more, or regulate first?"
+5) Shift: "Want to stay here or change gears?"
+6) Anchor: "What's the one thing that's weighing heaviest right now?"`;
+
   if (qg.questionCooldown) {
     c.allowQuestions = 0;
   }
@@ -229,6 +237,7 @@ ${modeBlock}
 ${modeHintBlock}
 ${qGuardBlock}
 ${feelGuardBlock}
+${checkinSubstitutions}
 ${structure}
 ${questionsRule}
 ${activityRule}
