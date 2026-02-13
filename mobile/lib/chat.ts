@@ -433,10 +433,20 @@ export interface LastHourSummary {
   comparisonLabel: 'heavier' | 'lighter' | 'similar' | null;
 }
 
+export interface WeeklySections {
+  weekShape?: string | null;
+  recurringThemes?: string | null;
+  whatsShifting?: string | null;
+  whatWorked?: string | null;
+}
+
 export interface PatternsInsightsResult {
   peakWindow: PeakWindowResult;
   mostHelpfulActivity: MostHelpfulActivityResult;
   lastHourSummary?: LastHourSummary;
+  weeklyNarrative?: string | null;
+  weeklySections?: WeeklySections | null;
+  predictiveHint?: string | null;
   sampleSize: number;
   messageSampleSize?: number;
   lastCalculatedAt?: string | null;
@@ -465,20 +475,20 @@ export async function fetchPatternsInsights(params: {
       checkinsToday: 0,
       comparisonLabel: null,
     },
+    weeklyNarrative: null,
+    weeklySections: null,
+    predictiveHint: null,
     sampleSize: 0,
   };
   
-  const queryParams = new URLSearchParams();
-  if (userId) queryParams.append('userId', userId);
-  if (deviceId) queryParams.append('deviceId', deviceId);
-  
-  const url = `${TRACE_API_URL}/patterns/insights?${queryParams.toString()}`;
+  const url = `${TRACE_API_URL}/patterns/insights`;
   console.log('📊 TRACE patterns/insights: fetching from', url);
   
   try {
     const res = await fetch(url, {
-      method: 'GET',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, deviceId }),
     });
     
     if (!res.ok) {
@@ -487,12 +497,15 @@ export async function fetchPatternsInsights(params: {
     }
     
     const json = await res.json();
-    console.log('📊 TRACE patterns/insights result:', json);
+    console.log('📊 TRACE patterns/insights result keys:', Object.keys(json));
     
     return {
       peakWindow: json.peakWindow || fallback.peakWindow,
       mostHelpfulActivity: json.mostHelpfulActivity || fallback.mostHelpfulActivity,
       lastHourSummary: json.lastHourSummary || fallback.lastHourSummary,
+      weeklyNarrative: json.weeklyNarrative || null,
+      weeklySections: json.weeklySections || null,
+      predictiveHint: json.predictiveHint || null,
       sampleSize: json.sampleSize || 0,
       messageSampleSize: json.messageSampleSize || 0,
       lastCalculatedAt: json.lastCalculatedAt || null,

@@ -19,7 +19,7 @@ import { Colors } from '../constants/colors';
 import { FontFamily, TraceWordmark } from '../constants/typography';
 import { Shadows } from '../constants/shadows';
 import { getStableId } from '../lib/stableId';
-import { fetchPatternsWeeklySummary, fetchPatternsInsights, PatternsInsightsResult } from '../lib/chat';
+import { fetchPatternsInsights, PatternsInsightsResult, WeeklySections } from '../lib/chat';
 import { supabase } from '../lib/supabase';
 
 interface ChatMessage {
@@ -34,12 +34,6 @@ interface LastHourSections {
   whatHelped?: string;
 }
 
-interface WeeklySections {
-  weekShape?: string;
-  recurringThemes?: string;
-  whatsShifting?: string;
-  whatWorked?: string;
-}
 
 async function loadRecentChatMessages(userId: string | null): Promise<ChatMessage[]> {
   if (!userId) return [];
@@ -200,40 +194,12 @@ export default function PatternsReport() {
     }
   }, [stableId, userId]);
 
-  const loadWeeklySummary = useCallback(async () => {
-    try {
-      if (!stableId) return;
-
-      setPatternsSummaryLoading(true);
-
-      const result = await fetchPatternsWeeklySummary({
-        userId: userId,
-        deviceId: stableId,
-        userName: null,
-        peakWindowLabel: insights?.peakWindow?.label || null,
-        energyRhythmLabel: null,
-        energyRhythmDetail: null,
-        behaviorSignatures: [],
-      });
-
-      setPatternsSummary(result.summaryText);
-      const ws = result.sections || null;
-      const hasWeeklySections = ws && (ws.weekShape || ws.recurringThemes || ws.whatsShifting || ws.whatWorked);
-      setWeeklySections(hasWeeklySections ? ws : null);
-    } catch (err) {
-      console.error('[PATTERNS] weekly-summary fetch error:', err);
-      setPatternsSummary(null);
-      setWeeklySections(null);
-    } finally {
-      setPatternsSummaryLoading(false);
-    }
-  }, [stableId, userId, insights]);
-
   const loadInsights = useCallback(async () => {
     try {
       if (!userId) return;
 
       setInsightsLoading(true);
+      setPatternsSummaryLoading(true);
 
       const result = await fetchPatternsInsights({
         userId: userId,
@@ -241,17 +207,24 @@ export default function PatternsReport() {
       });
 
       setInsights(result);
+
+      setPatternsSummary(result.weeklyNarrative || null);
+      const ws = result.weeklySections || null;
+      const hasWeeklySections = ws && (ws.weekShape || ws.recurringThemes || ws.whatsShifting || ws.whatWorked);
+      setWeeklySections(hasWeeklySections ? ws : null);
     } catch (err) {
       console.error('[PATTERNS] insights fetch error:', err);
       setInsights(null);
+      setPatternsSummary(null);
+      setWeeklySections(null);
     } finally {
       setInsightsLoading(false);
+      setPatternsSummaryLoading(false);
     }
   }, [stableId, userId]);
 
   useEffect(() => { loadLastHourSummary(); }, [loadLastHourSummary]);
   useEffect(() => { loadInsights(); }, [loadInsights]);
-  useEffect(() => { if (insights) loadWeeklySummary(); }, [loadWeeklySummary, insights]);
 
   useFocusEffect(
     useCallback(() => {

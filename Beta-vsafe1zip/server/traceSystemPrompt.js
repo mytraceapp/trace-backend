@@ -916,7 +916,13 @@ OUTPUT (valid JSON only):
   "reliefLabel": string | null,
   "crossPatternHint": string | null (only if sampleSize >= 7, NOT crisisMode),
   "predictiveHint": string | null (studio users only, sampleSize >= 14),
-  "weeklyNarrative": string | null (2-5 sentences, grounded observational tone),
+  "weeklyNarrative": string | null (2-3 sentences, grounded observational tone — a compact summary),
+  "weeklySections": {
+    "weekShape": string | null (1-2 sentences: the rhythm/shape of the week — active days, quiet days, overall pace),
+    "recurringThemes": string | null (1-2 sentences: what kept showing up — topics, moods, patterns across sessions),
+    "whatsShifting": string | null (1-2 sentences: what changed compared to previous weeks — momentum, direction),
+    "whatWorked": string | null (1-2 sentences: what seemed to help — activities, timing, routines that correlated with better states)
+  },
   "weeklyMoodTrend": {
     "calm": { "direction": "up"|"down"|"stable", "label": string },
     "stress": { "direction": "up"|"down"|"stable", "label": string }
@@ -927,6 +933,8 @@ RULES:
 - Sound observant, not interpretive
 - Focus on patterns and behavioral signals (e.g., "Stress showed up more on weekdays", "Calm entries clustered on Sundays")
 - Use simple, modern language—emotionally neutral
+- Each weeklySections field should be distinct — no overlapping content between sections
+- weekShape = structure/rhythm, recurringThemes = content/topics, whatsShifting = change/direction, whatWorked = relief/recovery
 - Use phrases like: "A pattern emerging is...", "Most check-ins happened...", "There's been a mix of..."
 - AVOID: "navigating", "holding space", "softening", "tender", "thread of care", "what's been moving through you"
 - AVOID: "symptoms, pathology, disorder, breakdown, episode"

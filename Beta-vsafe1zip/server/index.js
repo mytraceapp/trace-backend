@@ -16962,7 +16962,7 @@ function mergePatterns(cached, current) {
     'peakWindowLabel', 'peakWindowStartRatio', 'peakWindowEndRatio',
     'stressEchoesLabel', 'reliefLabel', 'energyRhythmLabel',
     'mostHelpfulActivityLabel', 'mostHelpfulActivityCount',
-    'crossPatternHint', 'predictiveHint', 'weeklyNarrative',
+    'crossPatternHint', 'predictiveHint', 'weeklyNarrative', 'weeklySections',
     'energyFrequencyBuckets', 'energyTidesGlance', 'emotionalRhythmBuckets', 'emotionalRhythmLabel',
     'peakWindow', 'mostHelpfulActivity', 'stressEchoes', 'energyFlow', 'softening'
   ];
@@ -17711,6 +17711,7 @@ app.post('/api/patterns/insights', async (req, res) => {
     
     // Generate AI-driven insights using Patterns Engine
     let weeklyNarrative = null;
+    let weeklySections = null;
     let aiEnergyRhythmLabel = null;
     let aiStressEchoesLabel = null;
     let aiReliefLabel = null;
@@ -17786,6 +17787,10 @@ app.post('/api/patterns/insights', async (req, res) => {
           try {
             const parsed = JSON.parse(patternsResult);
             weeklyNarrative = parsed.weeklyNarrative || null;
+            const ws = parsed.weeklySections || null;
+            if (ws && (ws.weekShape || ws.recurringThemes || ws.whatsShifting || ws.whatWorked)) {
+              weeklySections = ws;
+            }
             aiEnergyRhythmLabel = parsed.energyRhythmLabel || null;
             aiStressEchoesLabel = parsed.stressEchoesLabel || null;
             aiReliefLabel = parsed.reliefLabel || null;
@@ -17956,6 +17961,7 @@ app.post('/api/patterns/insights', async (req, res) => {
       
       // Weekly narrative for "Your Week" card (AI-generated)
       weeklyNarrative,
+      weeklySections,
       
       // Three new emotionally intelligent trend fields
       presenceTrend,
