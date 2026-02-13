@@ -11,6 +11,7 @@ if (process.env.SENTRY_DSN) {
 }
 
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
@@ -13596,6 +13597,20 @@ app.post('/api/mark-music-declined', (req, res) => {
   state.musicDeclined = true;
 
   return res.json({ ok: true });
+});
+
+// Serve static frontend build
+const buildPath = path.join(__dirname, '..', 'build');
+app.use(express.static(buildPath, { maxAge: '1h', index: false }));
+
+// Catch-all: serve index.html for any non-API route (SPA routing)
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+    res.set('Cache-Control', 'no-cache');
+    res.sendFile(path.join(buildPath, 'index.html'));
+  } else {
+    next();
+  }
 });
 
 // Sentry error handler (v8 uses setupExpressErrorHandler)
