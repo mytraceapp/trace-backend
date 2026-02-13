@@ -98,6 +98,14 @@ A unified `Entry` interface supports five types, visualized in a calendar, with 
 
 Identifies three pattern types: Peak Window, Energy Tides, and Stress Echoes, providing insights and a visual rhythm map.
 
+## Music Familiarity Persistence (Feb 2026)
+
+Music familiarity (`new` → `aware` → `fan`) is tracked per user in `conversationState.js` and persisted to the `user_settings` Supabase table (`music_familiarity`, `music_familiarity_meta` columns). On fresh sessions (turnCount=0, familiarity='new'), the server loads persisted familiarity from Supabase. On promotion (familiarity level changes), it saves back asynchronously.
+
+## Doorways v1 Profile Persistence (Feb 2026)
+
+Doorway user profiles (affinity scores, hit history) are persisted to the `user_settings` Supabase table (`doorway_profile` jsonb column). Loaded before `processDoorways` runs and saved after when a door is selected or affinity decay has been applied. This enables cross-session unlock rules (repeat visits within 14 days).
+
 ## Audio Control Path Resolution (Feb 2026)
 
 Two audio control handlers exist in index.js: an early interceptor (AUDIO CONTROL section, ~line 4699) and the Studios handler (traceStudios.js). When `traceStudiosContext` is set, the early interceptor defers to Studios for stop/resume/pause commands — this prevents conflicts where "resume" was caught by the wrong handler with no track context. Studios' audio_action responses use `{action: 'pause'}` or `{action: 'resume'}` which index.js converts to proper `{type: 'stop'}` or `{type: 'resume'}` envelopes (not play actions via TRACK_INDEX_MAP).
