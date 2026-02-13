@@ -1,0 +1,123 @@
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, request_id, response_source, message, messages, audio_action, _provenance, requestId, ui_action, sound_state, activity_suggestion, client_state_patch, next_question, pattern_metadata, _schema_meta, _shape_meta, isCrisisMode
+ LOG  [CHAT_AUDIO_SIGNAL] {"hasAudioAction":true,"sound_state":null,"mediaVol":0.15000000000000002}
+ LOG  [TRACE Chat] ⚠️ No sound_state in response object
+ LOG  [TRACE MIRROR] Session expired, initialized new session
+ LOG  [TRACE CHAT] Received multiple messages: 0
+ LOG  [TRACE MIRROR] Processed responses: 0
+ LOG  [TRACE MIRROR] Session turn count: 1
+ LOG  [PILLAR 10] Session turn count incremented: 1
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [AUDIO_ACTION_RX] Backend says: type=STOP source=audio_intent_guard
+ LOG  [AUDIO_EVENT] type=USER_STOP page=undefined reason=audio_action sound_state=undefined action=undefined
+ LOG  [AUDIO_GATE] stopAmbientHard_enter {"hardStop":true,"stopGateReason":null,"stopGateAt":1770950388599,"mediaVol":0.15000000000000002,"page":"chat","soundscapeActive":false,"hasActiveSound":true,"reason":"audio_action"}
+ LOG  [AUDIO_CADENCE] stopAmbientHard called reason=audio_action instanceId=1
+ LOG  [SoundStateManager] Pending state: null
+ LOG  [AMBIENT_INSTANCE] stop id=1 sound=soundA reason=stop()
+ LOG  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [AMBIENT_INSTANCE] stop id=1 sound=soundA reason=audio_action
+ LOG  [AMBIENT_INSTANCE] stop id=1 sound=soundB reason=audio_action
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [AUDIO_CADENCE] stopAmbientHard soundB stopped reason=audio_action instanceId=1
+ WARN  [AudioContext.stop] Error stopping Sound A: [Error: Seeking interrupted.]
+ LOG  [AUDIO_CADENCE] stopAmbientHard soundA stopped reason=audio_action instanceId=1
+ LOG  [AUDIO_CADENCE] stopAmbientHard complete reason=audio_action isPlaying=false
+ LOG  [AUDIO_CADENCE] stop_all executed
+ LOG  [AudioContext.stop] ✅ Stopped
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [CHAT_FREEZE_DETECTED] deltaMs=3290 count=3
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2131 bytes
+ LOG  [CHAT_FREEZE_RECOVERED] afterMs=30877 count=3
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE CHAT] Updated last visit timestamp (user sent message)
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2131 bytes
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [TRACE Chat] Profile check: {"hasLat": true, "hasLon": true, "hasProfile": true, "lat": 40.7128, "lon": -74.006, "weatherEnabled": true}
+ LOG  [TRACE Chat] 🌤️ Fetching weather context for location: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] Calling getWeather with: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] 🌤️ Weather API response received: {
+  "summary": "Pretty cold — currently 30°F (feels like 21°F), nighttime. Mostly cloudy",
+  "current": {
+    "temperature": 30,
+    "feelsLike": 21,
+    "wind": 10,
+    "weatherText": "Mostly cloudy",
+    "humidity": 51,
+    "uvIndex": 0,
+    "cloudCover": 89,
+    "isDayTime": false
+  }
+}
+ LOG  [TRACE Chat] 🌤️ Weather context SUCCESSFULLY prepared: {
+  "summary": "Pretty cold — currently 30°F (feels like 21°F), nighttime. Mostly cloudy"
+}
+ LOG  [TYPING] startThinking called - showing immediately
+ LOG  [TYPING] Adding typing placeholder to messages (immediate)
+ LOG  [TRACE Chat] Backend URL: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev
+ LOG  [TRACE Chat] Sending to: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 30°F (feels like 21°F), nighttime. Mostly cloudy", "temperature": undefined, "windSpeed": undefined}
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"request_id":"req-1770950427170-aju1xj","response_source":"audio_intent_guard","message":"","messages":[],"audio_action":{"type":"resume","source":"audio_intent_guard"},"_provenance":{"path":"audio_intent_guard_resume","requestId":"req-1770950427170-aju1xj","ts":1770950427172},"requestId":"req-1770950427170-aju1xj","ui_action":null,"sound_state":null,"activity_suggestion":null,"client_state_patch":null,"next_question":null,"pattern_metadata":null,"_schema_meta":null,"_shape_meta":{"ok":true,"mode":"system","has_audio_action":true,"has_ui_action":false,"has_client_patch":false},"isCrisisMode":false}
+ LOG  [TRACE Chat] Processed messages array: []
+ WARN  [TRACE Chat] Warning: No valid response text extracted, returning data as-is
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, request_id, response_source, message, messages, audio_action, _provenance, requestId, ui_action, sound_state, activity_suggestion, client_state_patch, next_question, pattern_metadata, _schema_meta, _shape_meta, isCrisisMode
+ LOG  [CHAT_AUDIO_SIGNAL] {"hasAudioAction":true,"sound_state":null,"mediaVol":0.15000000000000002}
+ LOG  [TRACE Chat] ⚠️ No sound_state in response object
+ LOG  [TRACE CHAT] Received multiple messages: 0
+ LOG  [TRACE MIRROR] Processed responses: 0
+ LOG  [TRACE MIRROR] Session turn count: 2
+ LOG  [PILLAR 10] Session turn count incremented: 2
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [AUDIO_ACTION_RX] Backend says: type=RESUME source=audio_intent_guard
+ LOG  [AUDIO_CADENCE] resetToArrivalCadence reason=resume_cmd
+ LOG  [AUDIO_EVENT] type=USER_RESUME page=undefined reason=audio_action sound_state=undefined action=undefined
+ LOG  [AUDIO_GATE] ensureCorrectPlayback_enter {"hardStop":false,"stopGateReason":null,"stopGateAt":null,"mediaVol":0.15000000000000002,"page":"chat","soundscapeActive":false,"hasActiveSound":true,"reason":"audio_action"}
+ LOG  [AUDIO_CADENCE] ensureCorrectPlayback reason=audio_action currentMode=ambient page=chat
+ LOG  [AUDIO_CADENCE] ensureCorrectPlayback chat skip_soundscape reason=user_requested_ambient
+ LOG  [AMBIENT_START] reason=toggle_on_chat_audio_action gate=passed hardStop=false playerActive=false soundscapeActive=false ambientLoaded=true inFlight=true appState=active route=/chat
+ LOG  [AMBIENT_INSTANCE] play id=1 reason=toggle_on_chat_audio_action
+ LOG  [AUDIO_CADENCE] ensureCorrectPlayback complete reason=audio_action finalMode=ambient
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ WARN  
+
+Code: audioOwnerGuard.ts
+  121 |   if (!isSoundscapeOrAmbient(sound)) return;
+  122 |
+> 123 |   const stack = new Error().stack ?? '';
+      |                          ^
+  124 |   if (isCallerFromAudioContext(stack)) return;
+  125 |
+  126 |   const msg = `[AUDIO_OWNER_VIOLATION] playAsync() called on soundscape/ambient from outside AudioContext. Stack: ${stack}`;
+Call Stack
+  checkPlayAsyncOwner (lib/audioOwnerGuard.ts:123:26)
+  SoundProto.playAsync (lib/audioOwnerGuard.ts:145:24)
+  <anonymous> (contexts/AudioContext.tsx:819:35)
+ LOG  [AmbientMiniPlayer] Returning null - shouldShow=false and fadeAnim=0
+ LOG  [AuthAudioSync] Unmounting
+ LOG  [AuthAudioSync] Mounting, registering audio stop callback
+ LOG  [AuthAudioSync] Callback registered with auth context
+ LOG  [GlobalAudioCoordinator] isPlaying changed: false (was: false )
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [AUDIO_CADENCE] ensureAmbientPlaying complete reason=toggle_on_chat_audio_action
+ LOG  [CHAT_FREEZE_DETECTED] deltaMs=3388 count=4
