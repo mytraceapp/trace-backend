@@ -1,0 +1,69 @@
+Enhance TRACE greeting system with session history awareness:
+
+1. Modify /greeting endpoint to check last session state:
+   - Query sessions table for user's most recent completed session
+   - Get: last_active timestamp, emotional_state from context jsonb, last few messages
+
+2. Calculate time since last session:
+   const getTimeSinceLastSession = (lastActive) => {
+     if (!lastActive) return 'first_time';
+     const hoursSince = (Date.now() - new Date(lastActive)) / (1000 * 60 * 60);
+     if (hoursSince < 3) return 'recent'; // < 3 hours
+     if (hoursSince < 48) return 'same_day_or_yesterday'; // < 2 days
+     return 'been_a_while'; // 2+ days
+   };
+
+3. Detect emotional state from last session:
+   const getLastSessionTone = async (userId) => {
+     // Get last 3 messages from previous session
+     const { data: lastMessages } = await supabase
+       .from('session_messages')
+       .select('content, role')
+       .eq('user_id', userId)
+       .order('created_at', { ascending: false })
+       .limit(3);
+     
+     // Simple keyword detection for heavy topics
+     const heavyKeywords = ['difficult', 'hard', 'struggling', 'overwhelming', 'anxious', 'sad', 'stressed', 'exhausted'];
+     const lastContent = lastMessages?.map(m => m.content.toLowerCase()).join(' ') || '';
+     const isHeavy = heavyKeywords.some(keyword => lastContent.includes(keyword));
+     
+     return isHeavy ? 'heavy' : 'neutral';
+   };
+
+4. Build context-aware greeting prompt:
+   const buildGreetingContext = (timeSince, lastTone, localHour) => {
+     let context = `Generate a greeting for TRACE. Time: ${localHour}:00. `;
+     
+     if (timeSince === 'first_time') {
+       context += 'This is user\'s FIRST time. Keep it simple and grounding: "hey. let the sound settle you for a sec." or similar.';
+     } else if (timeSince === 'recent') {
+       context += 'User was just here < 3 hours ago. ';
+       if (lastTone === 'heavy') {
+         context += 'Last session was heavy/difficult. Keep greeting minimal and unjudgmental: just "hey" or "back?". NO chipper energy.';
+       } else {
+         context += 'Acknowledge quick return casually: "back already?" or "hey again" or just "hey".';
+       }
+     } else if (timeSince === 'same_day_or_yesterday') {
+       context += 'User was here in last day or two. Simple: "hey" or "how\'s it going".';
+     } else {
+       context += 'User hasn\'t been here in 2+ days. Light acknowledgment: "been a minute" or "hey" or "back?".';
+     }
+     
+     context += '\n\nRULES: No exclamation points. No "hope you\'re well" or therapy-speak. Match buddy at 2:47am vibe. Max 8 words.';
+     return context;
+   };
+
+5. Update /greeting endpoint flow:
+   - Get timeSince from last session
+   - Get lastTone from session messages
+   - Get localHour from request
+   - Build context with buildGreetingContext()
+   - Pass to AI for generation
+   - Still use existing hash deduplication system to avoid repeats
+
+6. Store emotional tone in session:
+   - When session ends (user closes app or 30min inactive), run simple emotion analysis on last few messages
+   - Update sessions.context jsonb with: { emotional_tone: 'heavy'|'neutral'|'light' }
+
+Implementation: Modify existing /greeting endpoint. Add emotional_tone detection as background task when sessions go inactive.
