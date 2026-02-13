@@ -110,7 +110,7 @@ const {
 } = require('./patternConsent');
 const { buildEmotionalIntelligenceContext } = require('./emotionalIntelligence');
 const { processIntent: processCoginitiveIntent, gateScript } = require('./cognitiveEngine');
-const { buildVoicePromptInjection, validateResponse } = require('./voiceEngine');
+const { buildVoicePromptInjection, validateResponse, containsBannedPhrases, containsLazyQuestion } = require('./voiceEngine');
 const conversationState = require('./conversationState');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
 const { evaluateAtmosphere } = require('./atmosphereEngine');
@@ -3925,7 +3925,31 @@ app.post('/api/greeting', async (req, res) => {
       }
     }
 
-    console.log('[GREETING] AI Generated:', greeting);
+    console.log('[GREETING] AI Generated (raw):', greeting);
+    
+    // Voice quality filter: catch banned phrases and lazy questions before displaying
+    const bannedInGreeting = containsBannedPhrases(greeting);
+    const lazyInGreeting = containsLazyQuestion(greeting);
+    
+    if (bannedInGreeting.length > 0 || lazyInGreeting.length > 0) {
+      console.log('[GREETING] Voice filter caught:', { banned: bannedInGreeting, lazy: lazyInGreeting });
+      
+      // Fall back to a safe, on-brand greeting
+      const firstName = displayName ? displayName.split(' ')[0] : null;
+      const timeLabel = timeOfDay === 'night' || timeOfDay === 'late_night' ? 'late one' : (timeOfDay || 'day');
+      const safeGreetings = [
+        firstName ? `hey ${firstName}.` : 'hey.',
+        timeOfDay === 'night' || timeOfDay === 'late_night' 
+          ? `late one. what's keeping you up?` 
+          : `how's your ${timeLabel} going?`,
+        firstName ? `${firstName}. good to catch you.` : 'good to catch you.',
+        `what's your ${timeLabel} been like?`,
+      ];
+      greeting = safeGreetings[Math.floor(Math.random() * safeGreetings.length)];
+      console.log('[GREETING] Replaced with safe greeting:', greeting);
+    }
+    
+    console.log('[GREETING] Final:', greeting);
     
     // Save greeting to welcome_history for deduplication on future visits
     if (userId && supabaseServer) {
@@ -4516,6 +4540,8 @@ app.post('/api/chat', async (req, res) => {
       tonePreference = 'neutral',
       client_state: clientState,
       requestId: clientRequestId,
+      isGreetingResponse,
+      greetingText,
     } = req.body;
     
     // Generate stable requestId for this request
@@ -4552,6 +4578,10 @@ app.post('/api/chat', async (req, res) => {
     // Extract client_state for context-aware responses
     const safeClientState = clientState || {};
     console.log('[TRACE BRAIN] client_state:', JSON.stringify(safeClientState));
+    
+    if (isGreetingResponse) {
+      console.log(`[GREETING CONTEXT] User is replying to greeting: "${(greetingText || '').slice(0, 60)}..."`);
+    }
     
     // 🎵 CADENCE TRACKING: Server-side message counting from actual conversation history
     // Uses rawMessages here because filtered `messages` const is declared later
@@ -7476,6 +7506,10 @@ CRITICAL - CONVERSATION CONTINUITY:
 - Do NOT start responses with generic greetings like "Hi", "Hey there", "Hello", "How are you today?"
 - Respond as if you've already said hello and are in the middle of a conversation.
 - Focus on answering or gently reflecting on the user's latest message.
+${isGreetingResponse && greetingText ? `
+GREETING RESPONSE CONTEXT:
+The user is responding directly to your opening greeting: "${greetingText}"
+Their message is a direct reply to what you just said above. Continue naturally from YOUR greeting — pick up the thread, respond to what they shared in context of what you asked or said. Do NOT ignore your greeting and start a new topic. Treat this like the second line of a text conversation where you already spoke first.` : ''}
 
 CONTEXT PRESERVATION - SHORT MESSAGES:
 - If user says "hi", "hello", "hey", "okay", "yeah", or other short replies, do NOT restart the conversation.

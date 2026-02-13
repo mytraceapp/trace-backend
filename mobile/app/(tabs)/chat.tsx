@@ -552,6 +552,7 @@ export default function ChatScreen() {
   const [stableId, setStableId] = useState<string | null>(null);
   const [welcomeText, setWelcomeText] = useState<string | null>(null);
   const [welcomeLoading, setWelcomeLoading] = useState(false);
+  const pendingGreetingRef = useRef<string | null>(null);
   // Track whether chat history has been loaded (to prevent greeting before history)
   const [historyLoaded, setHistoryLoaded] = useState(false);
   // Post-activity reflection flow state
@@ -1127,6 +1128,7 @@ export default function ChatScreen() {
               const onboardingIntro = data.messages[0]?.content;
               if (onboardingIntro) {
                 setWelcomeText(onboardingIntro);
+                pendingGreetingRef.current = onboardingIntro;
                 console.log('✅ UNIFIED INIT: Onboarding intro set to greeting UI');
               }
               
@@ -1172,9 +1174,12 @@ export default function ChatScreen() {
         
         if (!result.skipGreeting && result.text) {
           setWelcomeText(result.text);
+          pendingGreetingRef.current = result.text;
         }
       } catch (err: any) {
-        setWelcomeText("I'm really glad you're here. We can take this one breath, one thought at a time.");
+        const fallbackGreeting = "I'm really glad you're here. We can take this one breath, one thought at a time.";
+        setWelcomeText(fallbackGreeting);
+        pendingGreetingRef.current = fallbackGreeting;
       } finally {
         setWelcomeLoading(false);
       }
@@ -1277,11 +1282,12 @@ export default function ChatScreen() {
       }
       
       setWelcomeText(result.text);
+      pendingGreetingRef.current = result.text;
     } catch (err: any) {
       console.error('❌ TRACE greeting error:', err?.message || err);
-      setWelcomeText(
-        "I'm really glad you're here. We can take this one breath, one thought at a time."
-      );
+      const fallback = "I'm really glad you're here. We can take this one breath, one thought at a time.";
+      setWelcomeText(fallback);
+      pendingGreetingRef.current = fallback;
     } finally {
       setWelcomeLoading(false);
     }
@@ -1336,7 +1342,6 @@ export default function ChatScreen() {
           return current;
         });
         
-        // Also set welcome text from first message (for empty state display)
         if (bootstrapMessages[0]) {
           setWelcomeText(bootstrapMessages[0].content);
         }
@@ -1824,6 +1829,13 @@ export default function ChatScreen() {
         console.log('[TRACE Chat] Weather unavailable, continuing without');
       }
       
+      const pendingGreeting = pendingGreetingRef.current;
+      const isFirstReplyToGreeting = !!pendingGreeting;
+      if (isFirstReplyToGreeting) {
+        pendingGreetingRef.current = null;
+        console.log('📤 TRACE: First reply to greeting detected, sending greeting context');
+      }
+      
       const result = await sendChatMessage({
         messages: payloadMessages,
         userName: null,
@@ -1835,9 +1847,11 @@ export default function ChatScreen() {
         deviceId: stableId,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         patternContext,
-        traceStudiosContext: traceStudiosContextRef.current || traceStudiosContext, // Use ref to avoid stale closures
-        client_state: clientStateRef.current, // Pass full client state for doorways/brain
-        weatherContext, // Include weather for contextual responses
+        traceStudiosContext: traceStudiosContextRef.current || traceStudiosContext,
+        client_state: clientStateRef.current,
+        weatherContext,
+        isGreetingResponse: isFirstReplyToGreeting,
+        greetingText: isFirstReplyToGreeting ? pendingGreeting : null,
       });
 
       console.log('📥 TRACE received reply:', result);
