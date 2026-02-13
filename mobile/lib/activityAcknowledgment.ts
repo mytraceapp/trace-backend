@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const CHAT_API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
+import { apiFetch } from './apiFetch';
 
 function getTimeOfDay(): 'morning' | 'afternoon' | 'evening' | 'night' {
   const hour = new Date().getHours();
@@ -42,9 +41,8 @@ export async function logActivityCompletion(params: {
       body.selectionSource = params.selectionSource;
     }
     
-    const response = await fetch(`${CHAT_API_BASE}/api/activity/log`, {
+    const response = await apiFetch(`/api/activity/log`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
@@ -71,9 +69,8 @@ export async function fetchActivityAcknowledgment(params: {
   const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
   
   try {
-    const response = await fetch(`${CHAT_API_BASE}/api/chat/activity-return`, {
+    const response = await apiFetch(`/api/chat/activity-return`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId: params.userId || params.deviceId,
         activityType: params.activityType,
@@ -114,9 +111,8 @@ export async function triggerJournalConversationInvite(params: {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
     
-    const response = await fetch(`${CHAT_API_BASE}/api/journal/conversation-invite`, {
+    const response = await apiFetch(`/api/journal/conversation-invite`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId: params.userId,
         journalExcerpt: params.journalContent.substring(0, 200),

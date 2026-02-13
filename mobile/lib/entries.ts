@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiFetch } from './apiFetch';
 
 const ENTRIES_STORAGE_KEY = '@trace_entries';
 const DEMO_OFFSETS_KEY = '@trace_demo_offsets';
-const TRACE_API_URL = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api';
 
 export type EntryType = 'activity' | 'journal';
 export type EntryGroup = 'daily' | 'notes';
@@ -66,9 +66,8 @@ export async function fetchEntriesFromServer(userId: string): Promise<Entry[]> {
   try {
     console.log('📓 [ENTRIES] Fetching entries from server for user:', userId.slice(0, 8));
     
-    const res = await fetch(`${TRACE_API_URL}/journal/entries?userId=${encodeURIComponent(userId)}&limit=100`, {
+    const res = await apiFetch(`/api/journal/entries?userId=${encodeURIComponent(userId)}&limit=100`, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
     });
     
     if (!res.ok) {

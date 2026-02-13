@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/apiFetch';
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
@@ -53,7 +54,6 @@ async function loadRecentChatMessages(userId: string | null): Promise<ChatMessag
   }
 }
 
-const TRACE_API_URL = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api';
 
 interface LastHourResult {
   ok: boolean;
@@ -67,9 +67,8 @@ async function fetchLastHourSummary(params: {
   deviceId: string;
   recentMessages?: ChatMessage[];
 }): Promise<LastHourResult> {
-  const res = await fetch(`${TRACE_API_URL}/patterns/last-hour`, {
+  const res = await apiFetch('/api/patterns/last-hour', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
   const json = await res.json();

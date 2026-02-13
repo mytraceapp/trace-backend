@@ -1,3 +1,5 @@
+import { apiFetch } from './apiFetch';
+
 export type MoodSpace = 'rooted' | 'low_orbit' | 'first_light';
 
 export interface MusicConfig {
@@ -5,14 +7,12 @@ export interface MusicConfig {
   playlists: Record<MoodSpace, string>;
 }
 
-const API_BASE_URL = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
-
 export async function fetchMusicConfig(): Promise<MusicConfig> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
   
   try {
-    const res = await fetch(`${API_BASE_URL}/api/music-config`, {
+    const res = await apiFetch(`/api/music-config`, {
       signal: controller.signal,
     });
     

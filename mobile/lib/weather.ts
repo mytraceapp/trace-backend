@@ -4,8 +4,7 @@
  */
 
 import * as Location from 'expo-location';
-
-const API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
+import { apiFetch } from './apiFetch';
 
 export interface WeatherContext {
   temperature: number;
@@ -77,9 +76,8 @@ export async function getWeather(lat?: number, lon?: number): Promise<WeatherCon
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
 
-    const response = await fetch(`${API_BASE}/api/weather`, {
+    const response = await apiFetch(`/api/weather`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lat: coords.lat, lon: coords.lon }),
       signal: controller.signal,
     });

@@ -1,4 +1,5 @@
 import { getStableId } from './stableId';
+import { apiFetch } from './apiFetch';
 
 export interface DreamscapeHistory {
   lastTrack: string | null;
@@ -6,7 +7,6 @@ export interface DreamscapeHistory {
   completedAt?: string | null;
 }
 
-const API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
 const TIMEOUT_MS = 8000;
 
 export async function fetchDreamscapeHistory(): Promise<DreamscapeHistory> {
@@ -22,11 +22,10 @@ export async function fetchDreamscapeHistory(): Promise<DreamscapeHistory> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-    const response = await fetch(
-      `${API_BASE}/api/dreamscape/history?userId=${encodeURIComponent(userId)}`,
+    const response = await apiFetch(
+      `/api/dreamscape/history?userId=${encodeURIComponent(userId)}`,
       {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
       }
     );

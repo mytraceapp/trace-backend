@@ -1,4 +1,4 @@
-const API_URL = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
+import { apiFetch } from './apiFetch';
 
 interface TelemetryEvent {
   event_name: string;
@@ -10,9 +10,8 @@ export async function logEvent(userId: string | null, event: TelemetryEvent): Pr
   if (!userId) return;
   
   try {
-    await fetch(`${API_URL}/api/events`, {
+    await apiFetch(`/api/events`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId,
         events: [{
@@ -31,9 +30,8 @@ export async function logEvents(userId: string | null, events: TelemetryEvent[])
   if (!userId || events.length === 0) return;
   
   try {
-    await fetch(`${API_URL}/api/events`, {
+    await apiFetch(`/api/events`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId,
         events: events.map(e => ({

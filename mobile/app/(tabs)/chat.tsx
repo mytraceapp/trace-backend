@@ -125,7 +125,7 @@ import { logActivityCompletion } from '../../lib/activityAcknowledgment';
 import { openSpotifyPlaylist } from '../../lib/spotify';
 import { MoodSpace } from '../../lib/musicConfig';
 
-const CHAT_API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
+import { apiFetch } from '../../lib/apiFetch';
 
 const ACTIVITY_ROUTES: Record<string, string> = {
   'Breathing': '/activities/breathing',
@@ -900,9 +900,8 @@ export default function ChatScreen() {
             
             // Trigger server-side data migration
             try {
-              const migrateRes = await fetch(`${CHAT_API_BASE}/api/migrate-user`, {
+              const migrateRes = await apiFetch('/api/migrate-user', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ oldUserId, newUserId }),
               });
               if (migrateRes.ok) {
@@ -935,7 +934,7 @@ export default function ChatScreen() {
       for (const tryUserId of userIdsToTry) {
         if (serverMessages.length > 0) break;
         try {
-          const res = await fetch(`${CHAT_API_BASE}/api/chat-history?userId=${encodeURIComponent(tryUserId)}`);
+          const res = await apiFetch(`/api/chat-history?userId=${encodeURIComponent(tryUserId)}`);
           if (res.ok) {
             const json = await res.json();
             if (json?.ok && Array.isArray(json.messages) && json.messages.length > 0) {
@@ -1002,7 +1001,7 @@ export default function ChatScreen() {
               } else {
                 await AsyncStorage.setItem('trace:lastActivityReturnCall', now.toString());
                 
-                const ackRes = await fetch(`${CHAT_API_BASE}/api/chat/activity-return`, {
+                const ackRes = await apiFetch('/api/chat/activity-return', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ 
@@ -1038,7 +1037,7 @@ export default function ChatScreen() {
             if (userId) {
               try {
                 console.log('🔄 Updating onboarding step to reflection_pending...');
-                const stepRes = await fetch(`${CHAT_API_BASE}/api/onboarding/activity-complete`, {
+                const stepRes = await apiFetch('/api/onboarding/activity-complete', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ userId, activityName: activity }),
@@ -1110,7 +1109,7 @@ export default function ChatScreen() {
       if (userId) {
         try {
           const userName = await getDisplayName(userId);
-          const res = await fetch(`${CHAT_API_BASE}/api/chat/bootstrap`, {
+          const res = await apiFetch('/api/chat/bootstrap', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId, userName: userName || null }),
@@ -1202,9 +1201,7 @@ export default function ChatScreen() {
           console.log('⚠️ TRACE chat history: no userId, skipping fetch');
           return 0;
         }
-        const url = `${CHAT_API_BASE}/api/chat-history?userId=${encodeURIComponent(userId)}`;
-
-        const response = await fetch(url);
+        const response = await apiFetch(`/api/chat-history?userId=${encodeURIComponent(userId)}`);
 
         if (!response.ok) {
           console.log('⚠️ TRACE chat history failed with status:', response.status);
@@ -1304,7 +1301,7 @@ export default function ChatScreen() {
       console.log('[BOOTSTRAP] userName from mobile cache:', userName);
       
       // POST with userName to avoid backend needing to query Supabase
-      const res = await fetch(`${CHAT_API_BASE}/api/chat/bootstrap`, {
+      const res = await apiFetch('/api/chat/bootstrap', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1369,7 +1366,7 @@ export default function ChatScreen() {
     if (userId) {
       try {
         console.log('🔄 Updating onboarding step to reflection_pending...');
-        const stepRes = await fetch(`${CHAT_API_BASE}/api/onboarding/activity-complete`, {
+        const stepRes = await apiFetch('/api/onboarding/activity-complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: userId, activityName: activity }),
@@ -1415,7 +1412,7 @@ export default function ChatScreen() {
       } else {
         await AsyncStorage.setItem('trace:lastActivityReturnCall', now.toString());
         
-        const ackRes = await fetch(`${CHAT_API_BASE}/api/chat/activity-return`, {
+        const ackRes = await apiFetch('/api/chat/activity-return', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1598,7 +1595,7 @@ export default function ChatScreen() {
       // Save reflection and get AI response from server
       try {
         console.log('🎓 TRACE: saving reflection and getting AI response:', trimmed);
-        const reflectionRes = await fetch(`${CHAT_API_BASE}/api/onboarding/reflection`, {
+        const reflectionRes = await apiFetch('/api/onboarding/reflection', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

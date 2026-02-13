@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiFetch, getApiUrl } from './apiFetch';
 
 export interface PatternContext {
   peakWindow?: string | null;
@@ -66,11 +67,10 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
   const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout for retry system
 
   try {
-    const res = await fetch(
-      'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat',
+    const res = await apiFetch(
+      '/api/chat',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages,
           userName,
@@ -180,7 +180,6 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
   }
 }
 
-const TRACE_API_URL = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api';
 
 // Helper to gather user context for greeting
 
@@ -282,7 +281,7 @@ export async function fetchWelcomeGreeting(params: {
     stressLevel = null,
   } = params;
 
-  const url = `${TRACE_API_URL}/greeting`;
+  const url = getApiUrl('/api/greeting');
   console.log('✨ TRACE greeting: sending to', url);
 
   const controller = new AbortController();
@@ -307,11 +306,8 @@ export async function fetchWelcomeGreeting(params: {
     };
     console.log('✨ TRACE greeting body:', JSON.stringify(requestBody));
     
-    const res = await fetch(url, {
+    const res = await apiFetch('/api/greeting', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
@@ -363,7 +359,7 @@ export async function fetchPatternsWeeklySummary(params: {
     behaviorSignatures = [],
   } = params || {};
 
-  const url = `${TRACE_API_URL}/patterns/weekly-summary`;
+  const url = getApiUrl('/api/patterns/weekly-summary');
 
   console.log('🧠 TRACE weekly-summary: sending to', url, {
     userId,
@@ -374,9 +370,8 @@ export async function fetchPatternsWeeklySummary(params: {
     behaviorSignatures,
   });
 
-  const res = await fetch(url, {
+  const res = await apiFetch('/api/patterns/weekly-summary', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       userId,
       deviceId,
@@ -481,13 +476,11 @@ export async function fetchPatternsInsights(params: {
     sampleSize: 0,
   };
   
-  const url = `${TRACE_API_URL}/patterns/insights`;
-  console.log('📊 TRACE patterns/insights: fetching from', url);
+  console.log('📊 TRACE patterns/insights: fetching');
   
   try {
-    const res = await fetch(url, {
+    const res = await apiFetch('/api/patterns/insights', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, deviceId }),
     });
     
