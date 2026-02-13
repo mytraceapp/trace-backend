@@ -2130,16 +2130,26 @@ export default function ChatScreen() {
         
         console.log('🎵 All audio sources stopped');
       } else if (audioAction?.type === 'resume') {
-        // User asked TRACE to resume the music
         console.log('🎵 TRACE audio_action: resume - resuming audio');
-        
-        // Resume last played audio or default to presence soundscape
-        if (audioAction.source === 'last_played' || audioAction.source === 'soundscape') {
-          console.log('🎵 Resuming soundscape via handleSoundState');
-          await handleSoundState({ 
-            current: 'presence', 
-            changed: true, 
-            reason: 'user_requested_resume' 
+
+        const lastPlayed = clientStateRef.current.lastNowPlaying;
+        if (lastPlayed && lastPlayed.album === 'night_swim') {
+          const trackIdx = typeof lastPlayed.trackIndex === 'number'
+            ? lastPlayed.trackIndex
+            : (typeof lastPlayed.trackId === 'string' && lastPlayed.trackId.startsWith('night_swim_')
+                ? parseInt(lastPlayed.trackId.replace('night_swim_', ''), 10)
+                : 0);
+          console.log('🎵 Resuming Night Swim track:', trackIdx, lastPlayed.title);
+          setCurrentTrackIndex(trackIdx);
+          clientStateRef.current.nowPlaying = { ...lastPlayed, stoppedAt: undefined };
+          clientStateRef.current.mode = 'audio_player';
+          setTimeout(() => openNightSwimPlayer(true, trackIdx), 400);
+        } else {
+          console.log('🎵 Resuming soundscape (no Night Swim to resume)');
+          await handleSoundState({
+            current: 'presence',
+            changed: true,
+            reason: 'user_requested_resume'
           });
           clientStateRef.current.currentSoundState = 'presence';
         }
