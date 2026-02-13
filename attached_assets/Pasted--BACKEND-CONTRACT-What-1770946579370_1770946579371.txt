@@ -1,0 +1,64 @@
+=============================================================================
+BACKEND CONTRACT: What the backend must return for resume/stop music to work
+=============================================================================
+
+When the user says "resume music" or "stop music" (or similar phrases), the 
+backend must SHORT-CIRCUIT before any model/OpenAI call and return the 
+following JSON structure.
+
+-----------------------------------------------------------------------------
+RESPONSE FORMAT (for both stop and resume)
+-----------------------------------------------------------------------------
+
+{
+  "ok": true,
+  "response_source": "audio_intent_guard",
+  "audio_action": {
+    "type": "stop",
+    "source": "audio_intent_guard"
+  },
+  "messages": [],
+  "message": "",
+  "requestId": "req-{userId}-{timestamp}-{random}"
+}
+
+For RESUME, use type: "resume" instead of "stop".
+
+-----------------------------------------------------------------------------
+REQUIRED FIELDS
+-----------------------------------------------------------------------------
+
+  • audio_action (object, required)
+    - type: "stop" | "resume"  (lowercase)
+    - source: "audio_intent_guard" (or any string; frontend logs it)
+
+  • messages: []              (must be empty array - no model text)
+  • message: ""               (must be empty string)
+
+-----------------------------------------------------------------------------
+INTENT DETECTION (must run BEFORE model call)
+-----------------------------------------------------------------------------
+
+Run detectAudioIntent(userText) on the user's message. If it returns 
+{ matched: true, type: 'stop' } or { matched: true, type: 'resume' }, 
+return the JSON above immediately and do NOT call the model.
+
+Current patterns that should trigger:
+  STOP:  stop music, pause music, pause, mute, turn off music, silence, 
+         no music, stop the sound, stop playing, stop audio, cut music, quiet
+  RESUME: resume music, play music, start music, unpause, turn on music,
+          continue music, unmute, play music, start playing, bring back the 
+          music, music back
+
+-----------------------------------------------------------------------------
+WHAT THE FRONTEND DOES WITH THIS
+-----------------------------------------------------------------------------
+
+When it receives response.audio_action:
+  • type "stop"  → calls AudioContext USER_STOP, shows "Okay. Music is stopped."
+  • type "resume" → if ambience enabled: calls USER_RESUME + ensureCorrectPlayback
+                    if ambience off: shows ambience-off message
+                    Then shows "Back on — {track}" or "Nothing's playing right now..."
+  • Does NOT render any backend message text (messages are ignored)
+
+-----------------------------------------------------------------------------

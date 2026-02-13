@@ -4708,18 +4708,21 @@ app.post('/api/chat', async (req, res) => {
     const STOP_EXACT = new Set([
       'stop', 'pause', 'mute', 'silence', 'quiet', 'hush',
       'stop music', 'stop the music', 'stop audio', 'stop the audio',
+      'stop the sound', 'stop playing', 'stop playing music',
       'pause music', 'pause the music', 'pause audio', 'pause the audio',
       'turn off music', 'turn off the music', 'turn off audio', 'turn off the audio',
       'mute music', 'mute the music', 'mute audio',
-      'silence the music', 'stop playing', 'stop playing music',
+      'silence the music', 'no music', 'cut music', 'cut the music',
     ]);
     const RESUME_EXACT = new Set([
       'resume', 'unpause', 'unmute', 'continue',
       'resume music', 'resume the music', 'resume audio', 'resume the audio',
       'play music', 'play the music', 'play audio', 'play the audio',
       'start music', 'start the music', 'start audio', 'start the audio',
+      'start playing', 'start playing music',
       'turn on music', 'turn on the music', 'turn on audio', 'turn on the audio',
       'bring it back', 'bring the music back', 'bring music back',
+      'bring back the music', 'bring back music',
       'put music on', 'put the music on', 'put music back on',
       'music on', 'music back', 'music back on', 'music again',
       'continue music', 'continue the music', 'continue playing',
@@ -4738,7 +4741,7 @@ app.post('/api/chat', async (req, res) => {
         response_source: 'audio_intent_guard',
         message: '',
         messages: [],
-        audio_action: { type: guardType },
+        audio_action: { type: guardType, source: 'audio_intent_guard' },
         _provenance: { path: `audio_intent_guard_${guardType}`, requestId, ts: Date.now() },
       }, requestId);
     }
