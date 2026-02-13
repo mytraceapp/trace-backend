@@ -7643,8 +7643,7 @@ Frame it personally. Playlists open externally — only suggest if user seems op
       if (audioState.status === 'stopped' && minutesSinceMusicEvent < 60) {
         const lastTrackName = audioState.lastTrack?.title || audioConvoStateForPrompt.lastPlayedTrack?.title || 'a track';
         systemPrompt += `\n\nAUDIO STATE: Music is currently OFF. User stopped it ${minutesSinceMusicEvent} minute${minutesSinceMusicEvent === 1 ? '' : 's'} ago (was playing ${lastTrackName}).
-If user asks to resume/play music, acknowledge that their music was paused and offer to bring it back. You know their last track. Do NOT ask "what are you listening to?" — you already know.
-If user mentions music in any way, you have this context.`;
+Music stop/resume commands are handled automatically by the app — do NOT respond to them yourself. Do NOT mention app settings, toggles, preferences, or configuration. Do NOT tell the user to change any setting. If user mentions music in any way, you have this context but let the app handle playback controls.`;
         console.log('[AUDIO STATE] Injected stopped-music context into prompt, stopped', minutesSinceMusicEvent, 'min ago');
       } else if (audioState.status === 'playing' && minutesSinceMusicEvent < 30) {
         systemPrompt += `\n\nAUDIO STATE: Music is currently playing${audioState.track ? ` (${audioState.track})` : ''}. User is listening right now.`;
