@@ -88,7 +88,7 @@ const {
   detectDreamDoor,
 } = require('./traceBrain');
 const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways');
-const { processDoorways, bootstrapConversationState, DOORS } = require('./doorwaysV1');
+const { processDoorways, bootstrapConversationState, DOORS, loadDoorwayProfile, saveDoorwayProfile } = require('./doorwaysV1');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
 const { 
@@ -7674,6 +7674,9 @@ Music stop/resume commands are handled automatically by the app — do NOT respo
     // DOORWAYS v1: Process doors for response shaping
     // ============================================================
     let doorwayUserProfile = { doorAffinity: {}, doorHitHistory: {} };
+    if (supabaseServer && effectiveUserId) {
+      doorwayUserProfile = await loadDoorwayProfile(supabaseServer, effectiveUserId);
+    }
     let doorwayConversationState = safeClientState?.doorwayState || null;
     
     const doorwaysResult = processDoorways(
@@ -7682,6 +7685,11 @@ Music stop/resume commands are handled automatically by the app — do NOT respo
       doorwayUserProfile,
       isCrisisMode
     );
+    if (supabaseServer && effectiveUserId && doorwaysResult.userProfile) {
+      if (doorwaysResult.selectedDoorId || doorwaysResult.userProfile.affinityLastDecayedAt) {
+        saveDoorwayProfile(supabaseServer, effectiveUserId, doorwaysResult.userProfile).catch(() => {});
+      }
+    }
     
     console.log('[DOORWAYS v1] telemetry:', JSON.stringify({
       selectedDoorId: doorwaysResult.selectedDoorId,
@@ -7846,6 +7854,9 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
     }
     
     const convoStateObj = conversationState.getState(effectiveUserId);
+    if (convoStateObj.musicFamiliarity === 'new' && convoStateObj.turnCount === 0 && supabaseServer) {
+      await conversationState.loadMusicFamiliarity(supabaseServer, effectiveUserId, convoStateObj);
+    }
     const attunement = { posture, detected_state, postureConfidence };
     
     // ============================================================
@@ -8100,6 +8111,9 @@ CAPABILITY-AWARE ACTIONS:
         traceIntent.musicFamiliarity = convoStateObj.musicFamiliarity;
       }
       conversationState.saveState(effectiveUserId, convoStateObj);
+      if (musicFamiliarityResult.prev !== musicFamiliarityResult.next && supabaseServer) {
+        conversationState.saveMusicFamiliarity(supabaseServer, effectiveUserId, convoStateObj).catch(() => {});
+      }
 
       // ============================================================
       // CTX_BUDGET: Mode-scoped context filtering (Phase 6 Step 2A)

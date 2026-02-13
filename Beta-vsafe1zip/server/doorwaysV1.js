@@ -657,6 +657,36 @@ function processDoorways(userText, conversationState, userProfile, crisisSignals
 // ============================================================
 // EXPORTS
 // ============================================================
+async function loadDoorwayProfile(supabase, userId) {
+  if (!supabase || !userId) return { doorAffinity: {}, doorHitHistory: {} };
+  try {
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('doorway_profile')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error || !data?.doorway_profile) return { doorAffinity: {}, doorHitHistory: {} };
+    return data.doorway_profile;
+  } catch (e) {
+    return { doorAffinity: {}, doorHitHistory: {} };
+  }
+}
+
+async function saveDoorwayProfile(supabase, userId, profile) {
+  if (!supabase || !userId) return;
+  try {
+    await supabase
+      .from('user_settings')
+      .upsert({
+        user_id: userId,
+        doorway_profile: profile,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+  } catch (e) {
+    console.warn('[DOORWAYS v1] Profile save error:', e.message);
+  }
+}
+
 module.exports = {
   DOORWAYS_CONFIG,
   DOORS,
@@ -667,4 +697,6 @@ module.exports = {
   getEffectiveThreshold,
   getCooldownRemainingTurns,
   buildTelemetry,
+  loadDoorwayProfile,
+  saveDoorwayProfile,
 };

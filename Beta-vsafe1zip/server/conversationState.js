@@ -583,6 +583,46 @@ function updateStateAfterResponse(visitorId, response) {
   return state;
 }
 
+async function loadMusicFamiliarity(supabase, userId, state) {
+  if (!supabase || !userId) return;
+  try {
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('music_familiarity, music_familiarity_meta')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error || !data) return;
+    if (data.music_familiarity) {
+      state.musicFamiliarity = data.music_familiarity;
+    }
+    if (data.music_familiarity_meta) {
+      state.musicFamiliarityMeta = data.music_familiarity_meta;
+    }
+    console.log(`[MUSIC_FAMILIARITY] Loaded from Supabase: ${state.musicFamiliarity}`);
+  } catch (e) {
+    console.warn('[MUSIC_FAMILIARITY] Load error:', e.message);
+  }
+}
+
+async function saveMusicFamiliarity(supabase, userId, state) {
+  if (!supabase || !userId) return;
+  try {
+    const { error } = await supabase
+      .from('user_settings')
+      .upsert({
+        user_id: userId,
+        music_familiarity: state.musicFamiliarity || 'new',
+        music_familiarity_meta: state.musicFamiliarityMeta || { trackNameMentions: 0, studiosTurns: 0, deepRequestTurns: 0 },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+    if (error) {
+      console.warn('[MUSIC_FAMILIARITY] Save error:', error.message);
+    }
+  } catch (e) {
+    console.warn('[MUSIC_FAMILIARITY] Save error:', e.message);
+  }
+}
+
 module.exports = {
   STAGES,
   MOVE_TYPES,
@@ -608,4 +648,6 @@ module.exports = {
   incrementNonRunTurns,
   ACTIVE_RUN_DEFAULT_TTL_MS,
   evaluateMusicFamiliarity,
+  loadMusicFamiliarity,
+  saveMusicFamiliarity,
 };

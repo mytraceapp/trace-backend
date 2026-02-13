@@ -600,7 +600,7 @@ export default function ChatScreen() {
     lastNowPlaying: { trackId: string; title: string; album?: string; stoppedAt: number } | null;
     lastSuggestion: { suggestion_id?: string; type: string; id: string; ts: number; accepted?: boolean | null } | null;
     lastActivity: { id: string; ts: number } | null;
-    doorwayState: { lastDoorwayId: string; ts: number } | null;
+    doorwayState: Record<string, unknown> | null;
     sessionTurnCount: number;
     lastHookAt: number | null;
     lastHookGlobalAt: number | null;
@@ -1860,7 +1860,7 @@ export default function ChatScreen() {
         const patch = result.client_state_patch;
         if (patch.doorwayState) {
           clientStateRef.current.doorwayState = patch.doorwayState;
-          console.log('📊 TRACE client_state_patch applied: doorwayState', patch.doorwayState.lastDoorwayId);
+          console.log('📊 TRACE client_state_patch applied: doorwayState', patch.doorwayState?.doors?.currentDoorId || 'none');
         }
         if (patch.lastSuggestion) {
           clientStateRef.current.lastSuggestion = patch.lastSuggestion;

@@ -21,7 +21,7 @@ export interface ClientState {
   currentSoundState?: string | null;
   lastSuggestion?: { suggestion_id?: string; type: string; id: string; ts: number; accepted?: boolean | null } | null;
   lastActivity?: { id: string; ts: number } | null;
-  doorwayState?: { lastDoorwayId: string; ts: number } | null;
+  doorwayState?: Record<string, unknown> | null;
   sessionTurnCount?: number;
   lastHookAt?: number | null;
   lastHookGlobalAt?: number | null;
