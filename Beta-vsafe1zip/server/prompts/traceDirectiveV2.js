@@ -41,6 +41,13 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
       ? `MODE: CRISIS. Use safety-first guidance.`
       : `MODE: NORMAL. Be appropriately concise but complete.`;
 
+  const modeHint = traceIntent?.trace_mode_hint || 'reflect';
+  const modeHintBlock = modeHint === 'regulate'
+    ? `APPROACH: Regulate. The user is activated — ground them first. Use short, steady language. Invite one body-based action (breathe, feel feet, slow exhale). Do not explore or probe deeper right now.`
+    : modeHint === 'blend'
+    ? `APPROACH: Blend. The user is stressed but not overwhelmed. Acknowledge what they're feeling, then gently reflect. One grounding cue is okay but don't lead with it.`
+    : '';
+
   const structure =
     mode === 'longform'
       ? `STRUCTURE REQUIREMENT (MANDATORY):
@@ -201,6 +208,7 @@ ${nextMoveContract}
 ${outputContractBlock}
 ${musicFamiliarityBlock}
 ${modeBlock}
+${modeHintBlock}
 ${structure}
 ${questionsRule}
 ${activityRule}

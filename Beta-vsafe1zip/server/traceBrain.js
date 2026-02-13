@@ -101,9 +101,14 @@ function getSignals(userText) {
   
   const highArousalPhrases = [
     'panic', 'panicking', 'anxious', 'anxiety', 'overwhelmed', 'spiraling',
-    'freaking out', "can't breathe", 'cant breathe', 'heart racing', 'heart pounding'
+    'freaking out', "can't breathe", 'cant breathe', 'heart racing', 'heart pounding',
+    'tight chest', 'shaking', 'trembling', 'help me'
   ];
   const highArousalCount = highArousalPhrases.filter(p => t.includes(p)).length;
+  const intensePunctuation = (userText || '').length > 10 && (
+    (userText.match(/[!?]{2,}/g) || []).length >= 2 ||
+    (userText.replace(/[^A-Z]/g, '').length / Math.max(userText.replace(/[^a-zA-Z]/g, '').length, 1)) > 0.7
+  );
   
   const meaningSeeking = (
     t.includes('what does this mean') ||
@@ -139,7 +144,7 @@ function getSignals(userText) {
   
   return {
     asksForHelp: /what should i do|help me|any ideas|what do you think|suggest|recommend/i.test(t),
-    highArousal: highArousalCount >= 2 || /can't breathe|freaking out|spiraling/i.test(t),
+    highArousal: highArousalCount >= 2 || /can't breathe|freaking out|spiraling/i.test(t) || intensePunctuation,
     lowMood: /sad|depressed|hopeless|worthless|empty|numb|down|lonely|suicidal/i.test(t),
     restNeed: /tired|exhausted|insomnia|can't sleep|burnt out|drained|fatigue/i.test(t),
     rumination: /overthinking|can't stop thinking|stuck in my head|spiraling|ruminating/i.test(t),

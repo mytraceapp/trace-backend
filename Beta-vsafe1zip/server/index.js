@@ -7958,6 +7958,11 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
       // Store anti-repetition openers on traceIntent for V2 prompt building
       if (traceIntent) {
         traceIntent.antiRepetitionOpeners = antiRepetitionOpeners;
+        const mh = brainSignals.highArousal ? 'regulate'
+          : (detected_state && ['anxious','stressed','overwhelmed','spiraling'].includes(detected_state) && postureConfidence >= 0.5) ? 'blend'
+          : 'reflect';
+        traceIntent.trace_mode_hint = mh;
+        console.log(`[MODE_HINT] ${mh} (highArousal=${brainSignals.highArousal}, state=${detected_state})`);
       }
       
       // Persist topic anchor in conversation state for next turn carry-forward
