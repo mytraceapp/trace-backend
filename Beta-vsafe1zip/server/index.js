@@ -9346,7 +9346,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       try {
         // Regenerate with anti-repetition instruction
         const regenMessages = [
-          ...finalMessages,
+          ...messagesWithHydration,
           { role: 'assistant', content: originalResponse },
           { role: 'user', content: 'Vary the opener. Keep the insight. Be shorter. Don\'t repeat.' }
         ];
@@ -9508,10 +9508,10 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
           const regenResponse = await openai.chat.completions.create({
             model: selectedModel,
             messages: [
-              { role: 'system', content: systemPrompt + '\n\nIMPORTANT: Rewrite the reply to say the same thing but with different wording; keep the same tone and length. Do NOT repeat the exact same words.' },
+              { role: 'system', content: systemPrompt + '\n\nIMPORTANT: Rewrite the reply to say the same thing but with different wording; keep the same tone and length. Do NOT repeat the exact same words. Respond in JSON format with a "message" field containing your rephrased response.' },
               ...messagesWithHydration,
               { role: 'assistant', content: assistantText },
-              { role: 'user', content: '[SYSTEM: Your previous reply was identical to your last message. Please rephrase while keeping the same meaning.]' }
+              { role: 'user', content: '[SYSTEM: Your previous reply was identical to your last message. Please rephrase while keeping the same meaning. Respond as JSON with a "message" field.]' }
             ],
             max_tokens: 500,
             temperature: 0.8,
