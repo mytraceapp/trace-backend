@@ -11,6 +11,9 @@ const ALLOWED_KEYS = new Set([
   'next_question',
   'pattern_metadata',
   'isCrisisMode',
+  'isCrisisMultiMessage',
+  'crisis_resources',
+  'traceStudios',
   '_schema_meta',
   '_shape_meta',
 
@@ -31,6 +34,10 @@ const ALLOWED_KEYS = new Set([
   'next_step',
   'error',
   'request_id',
+  'mode',
+  'doorway',
+  'suggestion',
+  'curiosity_hook',
 ]);
 
 function deriveResponseMode(payload) {

@@ -5259,6 +5259,18 @@ app.post('/api/chat', async (req, res) => {
           topicAnchor: earlyState?.topicAnchor || null,
         };
         studioResponse.message = applyContinuityBridge({ traceIntent: earlyTraceIntent, response_source: 'trace_studios', messageText: studioResponse.message, requestId });
+        console.log('[STUDIOS_PLAY_DEBUG]', JSON.stringify({
+          requestId,
+          kind: studiosResponse.traceStudios?.kind,
+          has_audio_action: !!studioResponse.audio_action,
+          audio_action_type: studioResponse.audio_action?.type || null,
+          audio_action_track: studioResponse.audio_action?.track ?? null,
+          has_traceStudios: !!studioResponse.traceStudios,
+          traceStudiosContext: studioResponse.traceStudios?.traceStudiosContext || null,
+          has_ui_action: !!studiosUiAction,
+          ui_action_type: studiosUiAction?.type || null,
+          message: studioResponse.message?.substring(0, 50),
+        }));
         storeDedupResponse(dedupKey, studioResponse);
         return finalizeTraceResponse(res, { 
           ...studioResponse, 
