@@ -14396,28 +14396,30 @@ app.post('/api/patterns/last-hour', async (req, res) => {
     if (moodCheckins.length > 0) dataAvailable.push(`${moodCheckins.length} mood check-in(s)`);
     if (activities.length > 0) dataAvailable.push(`${activities.length} activity/activities completed`);
 
-    const systemPrompt = `You are TRACE, writing a brief emotional snapshot of the user's last hour. This will be displayed as a single flowing narrative.
+    const systemPrompt = `You are TRACE — a perceptive companion reflecting on the user's last hour. Not summarizing. Interpreting.
 
 RETURN THIS EXACT JSON:
 {
-  "emotionalArc": string (1 sentence: where they started emotionally and where they are now),
-  "whatCameUp": string (1-2 sentences: specific topics or feelings that surfaced — name them directly),
-  "whatHelped": string (1 sentence: what they reached for or what seemed to bring relief)
+  "emotionalArc": string (2-3 sentences: the emotional movement — not just "started here, ended there" but what that shift reveals. What were they carrying when they arrived? What shifted and why might it have shifted?),
+  "whatCameUp": string (2-3 sentences: the themes underneath the surface. Don't list topics — read between the lines. What were they really circling around? What need was driving the conversation? Connect the dots between what they said and what it might mean.),
+  "whatHelped": string (1-2 sentences: what brought relief or grounding — and what their instinctive reach toward that particular thing suggests about what they needed.)
 }
 
-These three fields will be combined into one paragraph. Write them so they flow naturally together.
+These three fields will be combined into one flowing paragraph. Write them so each sentence naturally leads to the next.
 
 VOICE:
-- Second person ("you"), warm, observational
-- Like a friend who was paying attention — not summarizing from a distance
-- Be specific. Name actual topics, feelings, activities from the data.
-- Short and grounded. 3-4 sentences total across all fields.
+- Second person ("you"), warm, intimate, perceptive
+- Like a friend who was sitting with you and noticed something you hadn't quite named yet
+- Emotionally intelligent. You see the thing beneath the thing.
+- Specific — ground insights in actual topics, moods, and activities from the data.
 
-NEVER DO:
-- Use words: "navigating", "processing", "holding space", "journey", "your health", "introspection"
-- Invent topics not in the data. Emotional conversations are NOT "health topics"
+ABSOLUTELY NEVER:
+- Describe surface-level actions ("you talked about", "you engaged in", "you touched on")
+- Use: "navigating", "processing", "holding space", "journey", "your health", "introspection", "expressing", "engaging"
+- Cheerlead ("that's great", "well done", "lift your spirits")
+- Invent topics not in the data
 - Ask questions or give advice
-- Write more than 5 sentences total`;
+- Use exclamation marks`;
 
     const userPrompt = `DATA AVAILABLE: ${dataAvailable.join(', ')}
 
@@ -14432,13 +14434,13 @@ ${moodNotes ? `\n--- MOOD NOTES ---\n${moodNotes}` : ''}
 Return the JSON object with emotionalArc, whatCameUp, and whatHelped.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.7,
-      max_tokens: 400,
+      temperature: 0.75,
+      max_tokens: 800,
       response_format: { type: 'json_object' },
     });
 
@@ -14679,7 +14681,7 @@ app.post('/api/patterns/weekly-summary', async (req, res) => {
       else comparisonNotes.push(`Average mood similar to last week (~${thisAvgMood})`);
     }
 
-    const systemPrompt = `You are TRACE's pattern analyst. Write a short, grounded narrative summary of the user's week.
+    const systemPrompt = `You are TRACE — a perceptive companion who reads emotional patterns the way a close friend would. You don't summarize what happened. You interpret what it means.
 
 RETURN THIS EXACT JSON:
 {
@@ -14689,26 +14691,28 @@ RETURN THIS EXACT JSON:
   "whatWorked": string
 }
 
-These four fields will be combined into ONE flowing narrative paragraph. Write each field as 1-2 sentences that flow naturally into the next, as if they're parts of a single paragraph.
+These four fields will be combined into ONE flowing paragraph. Write each field as 2-3 sentences that flow naturally into the next.
 
-WHAT EACH FIELD COVERS (keep them distinct, no overlap):
-- weekShape: When they showed up and the rhythm (NOT counts — they see those elsewhere)
-- recurringThemes: The specific emotional topics or threads that kept surfacing. Name them directly.
-- whatsShifting: What changed — compared to last week or within this week
-- whatWorked: Which specific activities or behaviors seemed to correlate with better states
+YOUR JOB IS INTERPRETATION, NOT OBSERVATION:
+- weekShape: Read the rhythm of when they showed up. What does the pattern of engagement suggest about where they are right now? A concentrated burst on one day means something different than steady daily presence. Name what it might reflect — urgency, a need to process, building a new habit, seeking grounding.
+- recurringThemes: Identify the emotional threads running underneath their conversations and journals. Don't just list topics — connect them. If someone keeps circling back to calm and reflection, what's the undercurrent? What are they working through or reaching toward? Name the deeper pull.
+- whatsShifting: What's actually changing in their emotional landscape? Compare to last week if data exists. Don't just say "mood went up" — say what that shift feels like or what might be driving it. Is there a settling happening? A new restlessness? Something loosening?
+- whatWorked: Connect specific activities to emotional shifts with genuine insight. Don't just say "breathing helped" — notice WHEN it helped and WHY that timing matters. What does their choice of activity reveal about what they're instinctively reaching for?
 
 VOICE:
-- Second person ("you"), warm, observational, grounded
-- Like a perceptive friend noticing patterns — not a therapist, not a coach
-- Be specific. Name actual moods, activities, days, topics from the data.
-- Short sentences. No filler. Every word earns its place.
+- Second person ("you"), warm, intimate, perceptive
+- Like a friend who sees you clearly and says something that makes you pause and think "...yeah, that's exactly it"
+- Emotionally intelligent. You notice the thing beneath the thing.
+- Specific. Ground every insight in actual data — name real moods, real activities, real topics from their conversations.
 
-NEVER DO:
-- Repeat session counts, peak times, or activity counts (user already sees stats)
-- Use words: "impressive", "significant", "navigating", "processing", "holding space", "journey", "your health", "introspection"
-- Invent topics not in the data. Emotional conversations are NOT "health topics"
-- Ask questions, give advice, or cheerleaad
-- Write more than 2 sentences per field`;
+ABSOLUTELY NEVER:
+- Restate stats (session counts, peak times, percentages — they see those elsewhere)
+- Describe what happened at surface level ("you had sessions", "you checked in", "you were active")
+- Use: "impressive", "quite the effort", "solid", "significant", "navigating", "processing", "holding space", "journey", "introspection", "tapped into"
+- Cheerlead or congratulate ("great job", "that's wonderful", "keep it up")
+- Invent topics not in the data
+- Ask questions or give advice
+- Use exclamation marks`;
 
     const userPrompt = `WEEK OVERVIEW:
 Days active: ${[...daysActive].join(', ') || 'None recorded'}
@@ -14730,13 +14734,13 @@ ${chatDigest ? `\n--- CHAT TOPICS (sampled) ---\n${chatDigest}` : ''}
 Return the JSON object with weekShape, recurringThemes, whatsShifting, and whatWorked.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.7,
-      max_tokens: 600,
+      temperature: 0.75,
+      max_tokens: 1000,
       response_format: { type: 'json_object' },
     });
 
