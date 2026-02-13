@@ -14396,30 +14396,33 @@ app.post('/api/patterns/last-hour', async (req, res) => {
     if (moodCheckins.length > 0) dataAvailable.push(`${moodCheckins.length} mood check-in(s)`);
     if (activities.length > 0) dataAvailable.push(`${activities.length} activity/activities completed`);
 
-    const systemPrompt = `You are TRACE — a perceptive companion reflecting on the user's last hour. Not summarizing. Interpreting.
+    const systemPrompt = `You are TRACE. Write a short, grounded reflection on the user's last hour. Interpret what the emotional data means — don't just describe what happened.
 
 RETURN THIS EXACT JSON:
 {
-  "emotionalArc": string (2-3 sentences: the emotional movement — not just "started here, ended there" but what that shift reveals. What were they carrying when they arrived? What shifted and why might it have shifted?),
-  "whatCameUp": string (2-3 sentences: the themes underneath the surface. Don't list topics — read between the lines. What were they really circling around? What need was driving the conversation? Connect the dots between what they said and what it might mean.),
-  "whatHelped": string (1-2 sentences: what brought relief or grounding — and what their instinctive reach toward that particular thing suggests about what they needed.)
+  "emotionalArc": string (1-2 sentences: where they started and where they landed emotionally, and what that movement suggests),
+  "whatCameUp": string (1-2 sentences: the real thread underneath — what were they actually working through or reaching for?),
+  "whatHelped": string (1 sentence: what seemed to ground them, and what that choice says about what they needed)
 }
 
-These three fields will be combined into one flowing paragraph. Write them so each sentence naturally leads to the next.
+These three fields become one short paragraph. Total: 4-5 sentences max. Keep it tight.
 
 VOICE:
-- Second person ("you"), warm, intimate, perceptive
-- Like a friend who was sitting with you and noticed something you hadn't quite named yet
-- Emotionally intelligent. You see the thing beneath the thing.
-- Specific — ground insights in actual topics, moods, and activities from the data.
+- Second person ("you"), direct, warm, plain-spoken
+- Like a friend who pays attention — not a therapist writing case notes
+- Short sentences. No filler. Say one true thing, not five vague ones.
+- Be specific — name actual moods, topics, and activities from the data.
 
-ABSOLUTELY NEVER:
-- Describe surface-level actions ("you talked about", "you engaged in", "you touched on")
-- Use: "navigating", "processing", "holding space", "journey", "your health", "introspection", "expressing", "engaging"
-- Cheerlead ("that's great", "well done", "lift your spirits")
+NEVER:
+- Overwrite or pad with flowery language ("gentle shift", "subtle release", "sense of routine", "undercurrents of worry", "anchor in the form of")
+- Describe actions ("you performed", "you engaged in", "you touched on", "you acknowledged")
+- Psychoanalyze ("it suggests you needed", "perhaps with a sense of", "hinting at a desire for")
+- Use: "navigating", "processing", "holding space", "journey", "introspection", "upliftment", "grounding effect"
+- Cheerlead or congratulate
 - Invent topics not in the data
 - Ask questions or give advice
-- Use exclamation marks`;
+- Use exclamation marks
+- Write more than 5 sentences total`;
 
     const userPrompt = `DATA AVAILABLE: ${dataAvailable.join(', ')}
 
@@ -17797,10 +17800,10 @@ app.post('/api/patterns/insights', async (req, res) => {
         const patternsEnginePrompt = buildPatternsEnginePrompt(patternsInput);
         
         const patternsCompletion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4o',
           messages: [{ role: 'user', content: patternsEnginePrompt }],
-          temperature: 0.8,
-          max_tokens: 600,
+          temperature: 0.75,
+          max_tokens: 1000,
           response_format: { type: 'json_object' },
         });
         
