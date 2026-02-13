@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useFonts } from 'expo-font';
-import { TrendingUp } from 'lucide-react-native';
+import { TrendingUp, Clock, Calendar, Repeat, ArrowUpRight, Sparkles } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Colors } from '../constants/colors';
@@ -28,58 +28,44 @@ interface ChatMessage {
   timestamp?: string;
 }
 
+interface LastHourSections {
+  emotionalArc?: string;
+  whatCameUp?: string;
+  whatHelped?: string;
+}
+
+interface WeeklySections {
+  weekShape?: string;
+  recurringThemes?: string;
+  whatsShifting?: string;
+  whatWorked?: string;
+}
+
 async function loadRecentChatMessages(userId: string | null): Promise<ChatMessage[]> {
   if (!userId) return [];
   try {
     const key = `trace:conversation_history:${userId}`;
     const stored = await AsyncStorage.getItem(key);
-    if (!stored) {
-      console.log('🧠 [PATTERNS] No stored messages found for key:', key);
-      return [];
-    }
+    if (!stored) return [];
     const messages: ChatMessage[] = JSON.parse(stored);
-    console.log('🧠 [PATTERNS] Loaded', messages.length, 'total messages from storage');
     const oneHourAgo = Date.now() - 60 * 60 * 1000;
-    const filtered = messages.filter(m => {
+    return messages.filter(m => {
       if (!m.timestamp) return true;
       return new Date(m.timestamp).getTime() >= oneHourAgo;
     });
-    console.log('🧠 [PATTERNS] Filtered to', filtered.length, 'messages from last hour');
-    return filtered;
   } catch (err) {
     console.error('Failed to load chat messages:', err);
     return [];
   }
 }
 
-const API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
+const TRACE_API_URL = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api';
 
 interface LastHourResult {
   ok: boolean;
   hasHistory: boolean;
   summaryText: string | null;
-}
-
-function getOrdinalSuffix(n: number): string {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
-function getComparisonText(label: 'heavier' | 'lighter' | 'similar' | null): string | null {
-  if (!label) return null;
-  switch (label) {
-    case 'heavier': return "This feels heavier compared to yesterday.";
-    case 'lighter': return "This feels lighter compared to yesterday.";
-    case 'similar': return "This feels pretty similar to this time yesterday.";
-    default: return null;
-  }
-}
-
-function getCheckinCountText(count: number): string | null {
-  if (count <= 0) return null;
-  if (count === 1) return "This is your first check-in today.";
-  return `This is the ${getOrdinalSuffix(count)} time you've checked in today.`;
+  sections: LastHourSections | null;
 }
 
 async function fetchLastHourSummary(params: { 
@@ -87,27 +73,47 @@ async function fetchLastHourSummary(params: {
   deviceId: string;
   recentMessages?: ChatMessage[];
 }): Promise<LastHourResult> {
-  console.log('🧠 fetchLastHourSummary called with:', { 
-    ...params, 
-    recentMessagesCount: params.recentMessages?.length || 0 
-  });
-  const res = await fetch(`${API_BASE}/api/patterns/last-hour`, {
+  const res = await fetch(`${TRACE_API_URL}/patterns/last-hour`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
   const json = await res.json();
-  console.log('🧠 fetchLastHourSummary response:', json);
+  const sections = json.sections ?? null;
+  const hasSections = sections && (sections.emotionalArc || sections.whatCameUp || sections.whatHelped);
   return {
     ok: json.ok ?? false,
     hasHistory: json.hasHistory ?? false,
     summaryText: json.summaryText ?? null,
+    sections: hasSections ? sections : null,
   };
 }
 
+function SectionBlock({ 
+  icon, 
+  label, 
+  text, 
+  canelaFont,
+  isLast = false,
+}: { 
+  icon: React.ReactNode; 
+  label: string; 
+  text: string; 
+  canelaFont: string;
+  isLast?: boolean;
+}) {
+  return (
+    <View style={[styles.sectionBlock, !isLast && styles.sectionBlockBorder]}>
+      <View style={styles.sectionHeader}>
+        {icon}
+        <Text style={[styles.sectionLabel, { fontFamily: canelaFont }]}>{label}</Text>
+      </View>
+      <Text style={[styles.sectionText, { fontFamily: canelaFont }]}>{text}</Text>
+    </View>
+  );
+}
+
 export default function PatternsReport() {
-  console.log('💠 [TRACE PATTERNS] PatternsReport RENDER');
-  
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
@@ -123,69 +129,42 @@ export default function PatternsReport() {
   const [stableId, setStableId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [lastHourSummary, setLastHourSummary] = useState<string | null>(null);
+  const [lastHourSections, setLastHourSections] = useState<LastHourSections | null>(null);
   const [hasLastHourHistory, setHasLastHourHistory] = useState(false);
   const [isLastHourLoading, setIsLastHourLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [patternsSummary, setPatternsSummary] = useState<string | null>(null);
+  const [weeklySections, setWeeklySections] = useState<WeeklySections | null>(null);
   const [isPatternsSummaryLoading, setPatternsSummaryLoading] = useState(false);
 
   const [insights, setInsights] = useState<PatternsInsightsResult | null>(null);
   const [isInsightsLoading, setInsightsLoading] = useState(false);
 
-  console.log(
-    '💠 [TRACE PATTERNS] stableId / userId / lastHour state =',
-    stableId,
-    userId,
-    { lastHourSummary, hasLastHourHistory, isLastHourLoading }
-  );
-
-  // UNIFIED INIT - read from AsyncStorage key saved by chat.tsx
   useEffect(() => {
     const initPatterns = async () => {
-      console.log('🚀 [PATTERNS INIT] Starting...');
-      
-      // Step 1: Get device ID
       const deviceId = await getStableId();
       setStableId(deviceId);
-      console.log('🆔 [PATTERNS INIT] deviceId:', deviceId);
       
-      // Step 2: Get user ID - try multiple sources
       let authUserId: string | null = null;
       
-      // Try 1: Check AsyncStorage key saved by chat.tsx (most reliable)
       try {
         authUserId = await AsyncStorage.getItem('trace:auth_user_id');
-        if (authUserId) {
-          console.log('🆔 [PATTERNS INIT] Got userId from trace:auth_user_id:', authUserId.slice(0, 8));
-        }
-      } catch (e) {
-        console.log('🆔 [PATTERNS INIT] trace:auth_user_id error:', e);
-      }
+      } catch (e) {}
       
-      // Try 2: Supabase auth
       if (!authUserId) {
         try {
           const { data } = await supabase.auth.getUser();
           authUserId = data?.user?.id ?? null;
-          console.log('🆔 [PATTERNS INIT] getUser result:', authUserId?.slice(0, 8) || 'null');
-        } catch (e) {
-          console.log('🆔 [PATTERNS INIT] getUser error:', e);
-        }
-      }
-      
-      // Try 3: Legacy user_id key
-      if (!authUserId) {
-        try {
-          const storedUserId = await AsyncStorage.getItem('user_id');
-          if (storedUserId) {
-            authUserId = storedUserId;
-            console.log('🆔 [PATTERNS INIT] fallback to user_id:', authUserId?.slice(0, 8));
-          }
         } catch (e) {}
       }
       
-      console.log('🆔 [PATTERNS INIT] FINAL userId:', authUserId);
+      if (!authUserId) {
+        try {
+          authUserId = await AsyncStorage.getItem('user_id');
+        } catch (e) {}
+      }
+      
       setUserId(authUserId);
     };
     
@@ -193,19 +172,13 @@ export default function PatternsReport() {
   }, []);
 
   const loadLastHourSummary = useCallback(async () => {
-    console.log('🧠 [TRACE PATTERNS] last-hour loader invoked');
-
     try {
-      if (!stableId || !userId) {
-        console.log('🧠 [TRACE PATTERNS] no stableId or userId yet, skipping last-hour');
-        return;
-      }
+      if (!stableId || !userId) return;
 
       setIsLastHourLoading(true);
       setError(null);
 
       const recentMessages = await loadRecentChatMessages(userId);
-      console.log('🧠 [TRACE PATTERNS] loaded recentMessages:', recentMessages.length);
 
       const result = await fetchLastHourSummary({
         userId: userId,
@@ -213,14 +186,14 @@ export default function PatternsReport() {
         recentMessages,
       });
 
-      console.log('🧠 [TRACE PATTERNS] last-hour result:', result);
-
       setHasLastHourHistory(result.hasHistory);
       setLastHourSummary(result.summaryText);
+      setLastHourSections(result.sections);
     } catch (err) {
-      console.error('🧠 [TRACE PATTERNS] last-hour fetch error:', err);
+      console.error('[PATTERNS] last-hour fetch error:', err);
       setHasLastHourHistory(false);
       setLastHourSummary(null);
+      setLastHourSections(null);
       setError('Connection error');
     } finally {
       setIsLastHourLoading(false);
@@ -229,10 +202,7 @@ export default function PatternsReport() {
 
   const loadWeeklySummary = useCallback(async () => {
     try {
-      if (!stableId) {
-        console.log('🧠 TRACE weekly-summary: no stable device id yet, skipping');
-        return;
-      }
+      if (!stableId) return;
 
       setPatternsSummaryLoading(true);
 
@@ -246,12 +216,14 @@ export default function PatternsReport() {
         behaviorSignatures: [],
       });
 
-      console.log('🧠 TRACE weekly-summary result:', result);
-
       setPatternsSummary(result.summaryText);
+      const ws = result.sections || null;
+      const hasWeeklySections = ws && (ws.weekShape || ws.recurringThemes || ws.whatsShifting || ws.whatWorked);
+      setWeeklySections(hasWeeklySections ? ws : null);
     } catch (err) {
-      console.error('🧠 TRACE weekly-summary fetch error:', err);
+      console.error('[PATTERNS] weekly-summary fetch error:', err);
       setPatternsSummary(null);
+      setWeeklySections(null);
     } finally {
       setPatternsSummaryLoading(false);
     }
@@ -259,10 +231,7 @@ export default function PatternsReport() {
 
   const loadInsights = useCallback(async () => {
     try {
-      if (!userId) {
-        console.log('📊 TRACE insights: no userId yet, skipping (userId:', userId, ')');
-        return;
-      }
+      if (!userId) return;
 
       setInsightsLoading(true);
 
@@ -271,40 +240,28 @@ export default function PatternsReport() {
         deviceId: stableId,
       });
 
-      console.log('📊 TRACE insights result:', result);
       setInsights(result);
     } catch (err) {
-      console.error('📊 TRACE insights fetch error:', err);
+      console.error('[PATTERNS] insights fetch error:', err);
       setInsights(null);
     } finally {
       setInsightsLoading(false);
     }
   }, [stableId, userId]);
 
-  useEffect(() => {
-    console.log('💠 [TRACE PATTERNS] useEffect -> loadLastHourSummary');
-    loadLastHourSummary();
-  }, [loadLastHourSummary]);
-
-  useEffect(() => {
-    console.log('📊 [TRACE PATTERNS] useEffect -> loadInsights');
-    loadInsights();
-  }, [loadInsights]);
-
-  useEffect(() => {
-    console.log('💠 [TRACE PATTERNS] useEffect -> loadWeeklySummary (after insights)');
-    if (insights) {
-      loadWeeklySummary();
-    }
-  }, [loadWeeklySummary, insights]);
+  useEffect(() => { loadLastHourSummary(); }, [loadLastHourSummary]);
+  useEffect(() => { loadInsights(); }, [loadInsights]);
+  useEffect(() => { if (insights) loadWeeklySummary(); }, [loadWeeklySummary, insights]);
 
   useFocusEffect(
     useCallback(() => {
-      console.log('💠 [TRACE PATTERNS] useFocusEffect -> loadLastHourSummary + loadInsights');
       loadLastHourSummary();
       loadInsights();
     }, [loadLastHourSummary, loadInsights])
   );
+
+  const iconColor = '#6B7B6E';
+  const iconSize = 14;
 
   return (
     <View style={styles.container}>
@@ -338,29 +295,20 @@ export default function PatternsReport() {
             Patterns
           </Text>
           <Text style={[styles.subtitle, { fontFamily: canelaFont }]}>
-            Reflections from your recent conversations
+            What your check-ins are telling you
           </Text>
         </View>
 
-        <View style={styles.lastHourPill}>
-          <Text style={styles.lastHourPillText}>
-            {isLastHourLoading
-              ? '•••'
-              : hasLastHourHistory
-              ? 'Last hour noted'
-              : 'No recent chat'}
-          </Text>
-        </View>
-
-        {!!lastHourSummary && (
-          <Text style={styles.lastHourSummaryDebug}>
-            {lastHourSummary}
-          </Text>
-        )}
-
+        {/* ─── LAST HOUR CARD ─── */}
         <View style={styles.card}>
-          <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
-            Last Hour with TRACE
+          <View style={styles.cardTitleRow}>
+            <Clock size={18} color="#6B7B6E" strokeWidth={1.5} />
+            <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
+              Right Now
+            </Text>
+          </View>
+          <Text style={[styles.cardSubtitle, { fontFamily: canelaFont }]}>
+            Your last hour with TRACE
           </Text>
 
           {isLastHourLoading && (
@@ -373,34 +321,66 @@ export default function PatternsReport() {
           )}
 
           {!isLastHourLoading && error && (
-            <Text style={[styles.errorText, { fontFamily: canelaFont }]}>
-              {error}
-            </Text>
+            <Text style={[styles.errorText, { fontFamily: canelaFont }]}>{error}</Text>
           )}
 
           {!isLastHourLoading && !error && (
             <>
-              {hasLastHourHistory && lastHourSummary ? (
+              {hasLastHourHistory && lastHourSections ? (
+                <View style={styles.sectionsContainer}>
+                  {lastHourSections.emotionalArc && (
+                    <SectionBlock
+                      icon={<Sparkles size={iconSize} color={iconColor} strokeWidth={1.5} />}
+                      label="Emotional Arc"
+                      text={lastHourSections.emotionalArc}
+                      canelaFont={canelaFont}
+                    />
+                  )}
+                  {lastHourSections.whatCameUp && (
+                    <SectionBlock
+                      icon={<TrendingUp size={iconSize} color={iconColor} strokeWidth={1.5} />}
+                      label="What Came Up"
+                      text={lastHourSections.whatCameUp}
+                      canelaFont={canelaFont}
+                    />
+                  )}
+                  {lastHourSections.whatHelped && (
+                    <SectionBlock
+                      icon={<ArrowUpRight size={iconSize} color={iconColor} strokeWidth={1.5} />}
+                      label="What Helped"
+                      text={lastHourSections.whatHelped}
+                      canelaFont={canelaFont}
+                      isLast
+                    />
+                  )}
+                </View>
+              ) : hasLastHourHistory && lastHourSummary ? (
                 <Text style={[styles.summaryText, { fontFamily: canelaFont }]}>
                   {lastHourSummary}
                 </Text>
               ) : (
                 <Text style={[styles.emptyText, { fontFamily: canelaFont }]}>
-                  No conversations in the last hour. That's okay - sometimes quiet is what we need.
+                  No check-ins in the last hour. That's okay — sometimes quiet is what you need.
                 </Text>
               )}
-              
+
               {insights?.lastHourSummary && (
-                <View style={styles.recentActivitySection}>
-                  {getComparisonText(insights.lastHourSummary.comparisonLabel) && (
-                    <Text style={[styles.recentActivityText, { fontFamily: canelaFont }]}>
-                      {getComparisonText(insights.lastHourSummary.comparisonLabel)}
-                    </Text>
+                <View style={styles.metaRow}>
+                  {insights.lastHourSummary.comparisonLabel && (
+                    <View style={styles.metaPill}>
+                      <Text style={styles.metaPillText}>
+                        {insights.lastHourSummary.comparisonLabel === 'heavier' ? 'Heavier than yesterday' :
+                         insights.lastHourSummary.comparisonLabel === 'lighter' ? 'Lighter than yesterday' :
+                         'Similar to yesterday'}
+                      </Text>
+                    </View>
                   )}
-                  {getCheckinCountText(insights.lastHourSummary.checkinsToday) && (
-                    <Text style={[styles.recentActivityText, { fontFamily: canelaFont }]}>
-                      {getCheckinCountText(insights.lastHourSummary.checkinsToday)}
-                    </Text>
+                  {insights.lastHourSummary.checkinsToday > 0 && (
+                    <View style={styles.metaPill}>
+                      <Text style={styles.metaPillText}>
+                        Check-in #{insights.lastHourSummary.checkinsToday} today
+                      </Text>
+                    </View>
                   )}
                 </View>
               )}
@@ -408,22 +388,82 @@ export default function PatternsReport() {
           )}
         </View>
 
+        {/* ─── WEEKLY CARD ─── */}
         <View style={styles.card}>
-          <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
-            Your Week
+          <View style={styles.cardTitleRow}>
+            <Calendar size={18} color="#6B7B6E" strokeWidth={1.5} />
+            <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
+              Your Week
+            </Text>
+          </View>
+          <Text style={[styles.cardSubtitle, { fontFamily: canelaFont }]}>
+            Patterns across the last 7 days
           </Text>
-          <Text style={[styles.summaryText, { fontFamily: canelaFont }]}>
-            {isPatternsSummaryLoading
-              ? 'Tracing your week...'
-              : patternsSummary ??
-                'As you keep checking in, TRACE will gently offer a small reflection on how your week is unfolding.'}
-          </Text>
+
+          {isPatternsSummaryLoading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#6B7B6E" />
+              <Text style={[styles.loadingText, { fontFamily: canelaFont }]}>
+                Tracing your week...
+              </Text>
+            </View>
+          )}
+
+          {!isPatternsSummaryLoading && weeklySections ? (
+            <View style={styles.sectionsContainer}>
+              {weeklySections.weekShape && (
+                <SectionBlock
+                  icon={<Calendar size={iconSize} color={iconColor} strokeWidth={1.5} />}
+                  label="Week Shape"
+                  text={weeklySections.weekShape}
+                  canelaFont={canelaFont}
+                />
+              )}
+              {weeklySections.recurringThemes && (
+                <SectionBlock
+                  icon={<Repeat size={iconSize} color={iconColor} strokeWidth={1.5} />}
+                  label="Recurring Themes"
+                  text={weeklySections.recurringThemes}
+                  canelaFont={canelaFont}
+                />
+              )}
+              {weeklySections.whatsShifting && (
+                <SectionBlock
+                  icon={<ArrowUpRight size={iconSize} color={iconColor} strokeWidth={1.5} />}
+                  label="What's Shifting"
+                  text={weeklySections.whatsShifting}
+                  canelaFont={canelaFont}
+                />
+              )}
+              {weeklySections.whatWorked && (
+                <SectionBlock
+                  icon={<Sparkles size={iconSize} color={iconColor} strokeWidth={1.5} />}
+                  label="What Worked"
+                  text={weeklySections.whatWorked}
+                  canelaFont={canelaFont}
+                  isLast
+                />
+              )}
+            </View>
+          ) : !isPatternsSummaryLoading && patternsSummary ? (
+            <Text style={[styles.summaryText, { fontFamily: canelaFont }]}>
+              {patternsSummary}
+            </Text>
+          ) : !isPatternsSummaryLoading ? (
+            <Text style={[styles.emptyText, { fontFamily: canelaFont }]}>
+              As you keep checking in, TRACE will start noticing the shape of your week.
+            </Text>
+          ) : null}
         </View>
 
+        {/* ─── WHAT HELPS MOST CARD ─── */}
         <View style={styles.card}>
-          <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
-            What Helps Most
-          </Text>
+          <View style={styles.cardTitleRow}>
+            <Sparkles size={18} color="#6B7B6E" strokeWidth={1.5} />
+            <Text style={[styles.cardTitle, { fontFamily: canelaFont }]}>
+              What Helps Most
+            </Text>
+          </View>
           <Text style={[styles.summaryText, { fontFamily: canelaFont }]}>
             {isInsightsLoading
               ? 'Noticing your patterns...'
@@ -487,27 +527,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.9,
   },
-  lastHourPill: {
-    alignSelf: 'center',
-    backgroundColor: 'rgba(107, 123, 110, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 12,
-  },
-  lastHourPillText: {
-    fontSize: 13,
-    color: '#4A5A4C',
-    fontWeight: '500',
-  },
-  lastHourSummaryDebug: {
-    marginTop: 4,
-    paddingHorizontal: 24,
-    fontSize: 11,
-    color: 'rgba(74, 90, 76, 0.6)',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
   card: {
     backgroundColor: 'rgba(255, 255, 255, 0.55)',
     borderRadius: 20,
@@ -519,15 +538,27 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 4,
+  },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 20,
     color: '#4A5A4C',
-    marginBottom: 16,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    color: '#8A9A8C',
+    marginBottom: 18,
+    marginLeft: 28,
   },
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    paddingVertical: 8,
   },
   loadingText: {
     fontSize: 14,
@@ -549,16 +580,51 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 22,
   },
-  recentActivitySection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(107, 123, 110, 0.15)',
+  sectionsContainer: {
+    gap: 0,
   },
-  recentActivityText: {
-    fontSize: 14,
-    color: '#6B7B6E',
-    lineHeight: 22,
-    marginBottom: 6,
+  sectionBlock: {
+    paddingVertical: 14,
+  },
+  sectionBlockBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(107, 123, 110, 0.18)',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    color: '#8A9A8C',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  sectionText: {
+    fontSize: 15,
+    color: '#4A5A4C',
+    lineHeight: 23,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(107, 123, 110, 0.18)',
+  },
+  metaPill: {
+    backgroundColor: 'rgba(107, 123, 110, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  metaPillText: {
+    fontSize: 12,
+    color: '#5A6A5C',
+    fontWeight: '500',
   },
 });

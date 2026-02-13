@@ -14223,9 +14223,8 @@ app.get('/api/chat-history', async (req, res) => {
   }
 });
 
-// Patterns: summarize last hour of conversation
-// mode: patterns_last_hour
-// Accepts either recentMessages from request body OR fetches from Supabase
+// Patterns: "Right Now" — emotional snapshot of the last hour
+// Pulls: chat messages, journal entries, mood check-ins, activity completions
 app.post('/api/patterns/last-hour', async (req, res) => {
   try {
     const { userId, deviceId, recentMessages } = req.body || {};
@@ -14236,126 +14235,184 @@ app.post('/api/patterns/last-hour', async (req, res) => {
       recentMessagesCount: recentMessages?.length || 0
     });
 
-    // Primary source: recentMessages from request body
-    // Fallback: fetch from Supabase if available
-    let messagesToAnalyze = [];
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
+    // ── 1. Chat messages ──
+    let messagesToAnalyze = [];
     if (recentMessages && Array.isArray(recentMessages) && recentMessages.length > 0) {
-      // Use messages sent directly from the mobile app
       messagesToAnalyze = recentMessages;
-      console.log('🧠 Using recentMessages from request body:', messagesToAnalyze.length, 'messages');
     } else if (supabaseServer && userId) {
-      // Fallback: fetch from Supabase
-      const effectiveUserId = userId || '2ec61767-ffa7-4665-9ee3-7b5ae6d8bd0c';
-      
-      // Debug: count all messages in table
-      const { count: totalCount } = await supabaseServer
-        .from('chat_messages')
-        .select('*', { count: 'exact', head: true });
-      console.log('🧠 Total messages in chat_messages table:', totalCount);
-      
-      console.log('🧠 Querying Supabase chat_messages for user:', effectiveUserId);
-      
-      // Query only messages from the last 2 hours, ordered descending to get most recent first
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-      
       const { data, error } = await supabaseServer
         .from('chat_messages')
         .select('role, content, created_at')
-        .eq('user_id', effectiveUserId)
+        .eq('user_id', userId)
         .gte('created_at', twoHoursAgo)
         .order('created_at', { ascending: true });
-
-      if (error) {
-        console.error('[TRACE PATTERNS] history query error:', error.message || error);
-      } else {
-        const allMessages = data || [];
-        console.log('🧠 Supabase returned', allMessages.length, 'total messages');
-        messagesToAnalyze = filterMessagesToLastHour(allMessages);
-        console.log('🧠 Using Supabase messages:', messagesToAnalyze.length, 'messages (filtered to last hour)');
+      if (!error && data) {
+        messagesToAnalyze = filterMessagesToLastHour(data);
       }
     }
 
-    const hasHistory = messagesToAnalyze.length > 0;
+    // ── 2. Journal entries (last hour, from Supabase) ──
+    let journalEntries = [];
+    if (supabaseServer && userId) {
+      try {
+        const { data: jData } = await supabaseServer
+          .from('journal_entries')
+          .select('content, mood, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', oneHourAgo)
+          .order('created_at', { ascending: true });
+        journalEntries = jData || [];
+      } catch (e) { console.warn('[LAST-HOUR] journal query error:', e.message); }
+    }
+
+    // ── 3. Mood check-ins (last hour, from local PG) ──
+    let moodCheckins = [];
+    if (userId) {
+      try {
+        const { rows } = await pool.query(
+          `SELECT mood_rating, mood_label, notes, activity_name, created_at
+           FROM mood_checkins
+           WHERE user_id = $1 AND created_at >= $2
+           ORDER BY created_at ASC`,
+          [userId, oneHourAgo]
+        );
+        moodCheckins = rows || [];
+      } catch (e) { console.warn('[LAST-HOUR] mood_checkins query error:', e.message); }
+    }
+
+    // ── 4. Activities completed (last hour, from local PG) ──
+    let activities = [];
+    if (userId) {
+      try {
+        const { rows } = await pool.query(
+          `SELECT activity_type, duration_seconds, completed_at
+           FROM activity_logs
+           WHERE user_id = $1 AND completed_at >= $2
+           ORDER BY completed_at ASC`,
+          [userId, oneHourAgo]
+        );
+        activities = rows || [];
+      } catch (e) { console.warn('[LAST-HOUR] activity_logs query error:', e.message); }
+    }
+
+    const hasHistory = messagesToAnalyze.length > 0 || journalEntries.length > 0 ||
+                       moodCheckins.length > 0 || activities.length > 0;
 
     if (!hasHistory) {
-      console.log('🧠 /api/patterns/last-hour - no messages to analyze');
-      return res.json({
-        ok: true,
-        hasHistory: false,
-        summaryText: null,
-      });
+      return res.json({ ok: true, hasHistory: false, summaryText: null, sections: null });
     }
 
-    // Check if OpenAI is available
     if (!openai) {
-      console.log('🧠 /api/patterns/last-hour - OpenAI not available, using fallback');
       return res.json({
-        ok: true,
-        hasHistory: true,
-        summaryText: "You've been sharing what's on your mind. Take a moment to notice how you're feeling right now.",
+        ok: true, hasHistory: true,
+        summaryText: "You've been here this hour — that matters. I'm still gathering the details.",
+        sections: null,
       });
     }
 
-    // Count user messages and detect emotional keywords
+    // ── Build rich context for the model ──
     const userMessages = messagesToAnalyze.filter(m => m.role === 'user');
-    const userMessageCount = userMessages.length;
     const allUserText = userMessages.map(m => (m.content || '').toLowerCase()).join(' ');
-    
-    // Detect emotional keywords for context
-    const emotionalKeywords = [];
-    if (/stress|stressed|stressful|pressure|deadline/.test(allUserText)) emotionalKeywords.push('stress');
-    if (/overwhelm|overwhelming|too much|can't handle/.test(allUserText)) emotionalKeywords.push('overwhelm');
-    if (/anxious|anxiety|worried|worry|nervous|panic/.test(allUserText)) emotionalKeywords.push('anxiety');
-    if (/tired|exhausted|drained|fatigue|sleep|rest/.test(allUserText)) emotionalKeywords.push('fatigue');
-    if (/sad|down|lonely|alone|empty|cry|crying/.test(allUserText)) emotionalKeywords.push('sadness');
-    if (/relax|calm|peace|better|relief/.test(allUserText)) emotionalKeywords.push('seeking-calm');
-    if (/grateful|thankful|gratitude|appreciate|blessed/.test(allUserText)) emotionalKeywords.push('gratitude');
-    if (/happy|excited|good|great|joy|wonderful/.test(allUserText)) emotionalKeywords.push('positive');
-    if (/confused|uncertain|unsure|lost|don't know/.test(allUserText)) emotionalKeywords.push('uncertainty');
-    if (/work|job|boss|coworker|meeting|project/.test(allUserText)) emotionalKeywords.push('work-related');
-    if (/family|mom|dad|parent|sibling|partner|relationship/.test(allUserText)) emotionalKeywords.push('relationships');
-    if (/health|body|pain|sick|doctor/.test(allUserText)) emotionalKeywords.push('health-concerns');
 
-    // Build compact convo text for the model (limit to last 15 messages for efficiency)
-    const recentSlice = messagesToAnalyze.slice(-15);
+    // Detect emotional shift: first half vs second half of user messages
+    const emotionWords = {
+      heavy: /stress|overwhelm|anxious|anxiety|worried|panic|scared|angry|frustrated|sad|lonely|hurt|tired|exhausted|drained|stuck|hopeless|numb/,
+      light: /calm|better|relief|okay|good|happy|grateful|hopeful|excited|relaxed|peaceful|lighter|clear/,
+    };
+    let startTone = 'neutral', endTone = 'neutral';
+    if (userMessages.length >= 2) {
+      const half = Math.ceil(userMessages.length / 2);
+      const firstHalf = userMessages.slice(0, half).map(m => (m.content || '').toLowerCase()).join(' ');
+      const secondHalf = userMessages.slice(half).map(m => (m.content || '').toLowerCase()).join(' ');
+      if (emotionWords.heavy.test(firstHalf)) startTone = 'heavy';
+      else if (emotionWords.light.test(firstHalf)) startTone = 'light';
+      if (emotionWords.heavy.test(secondHalf)) endTone = 'heavy';
+      else if (emotionWords.light.test(secondHalf)) endTone = 'light';
+    } else if (userMessages.length === 1) {
+      const txt = (userMessages[0].content || '').toLowerCase();
+      if (emotionWords.heavy.test(txt)) startTone = 'heavy';
+      else if (emotionWords.light.test(txt)) startTone = 'light';
+      endTone = startTone;
+    }
+
+    // Mood shift from check-ins
+    let moodShiftNote = '';
+    if (moodCheckins.length >= 2) {
+      const first = moodCheckins[0];
+      const last = moodCheckins[moodCheckins.length - 1];
+      const diff = (last.mood_rating || 0) - (first.mood_rating || 0);
+      if (diff >= 2) moodShiftNote = `Mood shifted upward (${first.mood_label || first.mood_rating} → ${last.mood_label || last.mood_rating})`;
+      else if (diff <= -2) moodShiftNote = `Mood shifted downward (${first.mood_label || first.mood_rating} → ${last.mood_label || last.mood_rating})`;
+      else moodShiftNote = `Mood stayed fairly steady (${first.mood_label || first.mood_rating} → ${last.mood_label || last.mood_rating})`;
+    } else if (moodCheckins.length === 1) {
+      moodShiftNote = `One mood check-in: ${moodCheckins[0].mood_label || 'rated ' + moodCheckins[0].mood_rating}`;
+    }
+
+    // Chat conversation text (last 20 messages)
+    const recentSlice = messagesToAnalyze.slice(-20);
     const convoText = recentSlice
-      .map((m) => {
-        const role = m.role || 'user';
-        const content = (m.content || '').slice(0, 300);
-        return `${role === 'assistant' ? 'TRACE' : 'User'}: ${content}`;
-      })
+      .map(m => `${m.role === 'assistant' ? 'TRACE' : 'User'}: ${(m.content || '').slice(0, 400)}`)
       .join('\n');
 
-    // Build context summary for the model
-    const contextSummary = `User messages: ${userMessageCount}` +
-      (emotionalKeywords.length ? `\nEmotional themes detected: ${emotionalKeywords.join(', ')}` : '');
+    // Journal snippets
+    const journalSnippets = journalEntries.map(j => {
+      const moodTag = j.mood ? ` [mood: ${j.mood}]` : '';
+      return `Journal${moodTag}: ${(j.content || '').slice(0, 300)}`;
+    }).join('\n');
 
-    const systemPrompt = `You are TRACE, providing a brief recap of what the user has been sharing in the last hour.
+    // Activity descriptions
+    const activityDescs = activities.map(a => {
+      const mins = a.duration_seconds ? Math.round(a.duration_seconds / 60) : null;
+      return `Completed: ${a.activity_type}${mins ? ` (${mins} min)` : ''}`;
+    }).join('\n');
 
-Your task: Write 2-3 grounded but warm sentences noting ONLY what's actually in the conversation below. Do NOT invent topics or themes that weren't discussed.
+    // Mood check-in notes
+    const moodNotes = moodCheckins
+      .filter(m => m.notes)
+      .map(m => `Mood note (${m.mood_label || m.mood_rating}): ${m.notes.slice(0, 200)}`)
+      .join('\n');
 
-Style:
-- Sound like a thoughtful friend noticing what they shared
-- Focus on specific topics and themes from the conversation
-- Be warm but factual—acknowledge what they talked about without analyzing it
-- Use phrases like: "You've been talking about...", "This session touched on...", "Sounds like [topic] is on your mind..."
-- AVOID: "navigating", "holding space", "journey", "processing", therapeutic jargon
-- Do NOT assume feelings they didn't express
-- Do NOT invent topics not in the conversation
-- Do NOT ask questions or give advice
+    const dataAvailable = [];
+    if (messagesToAnalyze.length > 0) dataAvailable.push(`${userMessages.length} user messages in chat`);
+    if (journalEntries.length > 0) dataAvailable.push(`${journalEntries.length} journal entry/entries`);
+    if (moodCheckins.length > 0) dataAvailable.push(`${moodCheckins.length} mood check-in(s)`);
+    if (activities.length > 0) dataAvailable.push(`${activities.length} activity/activities completed`);
 
-Example good outputs:
-- "You've been talking about work and some sleep stuff. Sounds like the week's been busy."
-- "This session touched on family and some money things—both came up a few times."
-- "Looks like you had a lot on your mind about that deadline. That's a lot to carry."`;
+    const systemPrompt = `You are TRACE, creating a structured emotional snapshot of the user's last hour.
 
-    const userPrompt = `${contextSummary}
+OUTPUT FORMAT — Return EXACTLY this JSON structure:
+{
+  "emotionalArc": "1-2 sentences about the emotional shape of this hour. Where they started, what shifted, where they are now. Use the tone shift data and mood data provided.",
+  "whatCameUp": "2-3 sentences about the specific topics, themes, or concerns that surfaced. Be concrete—name the actual subjects from the conversation and journal entries. Don't generalize.",
+  "whatHelped": "1-2 sentences about any activities they completed, moments of lightness, or things that seemed to bring relief or grounding. If nothing clearly helped, note what they reached for."
+}
 
-Conversation (last hour):
-${convoText}
+RULES:
+- Be specific. Name actual topics, feelings, activities from the data.
+- "emotionalArc" should read like a mini narrative: "You came in feeling X, and by the end..."
+- "whatCameUp" should feel like someone who was actually listening, not summarizing from a distance
+- "whatHelped" should connect activities/moments to emotional state where possible
+- Write in second person ("you"), warm but not saccharine
+- NO therapeutic jargon: avoid "navigating", "processing", "holding space", "journey"
+- NO questions, NO advice
+- Each section should feel distinct — don't repeat the same point across sections
+- If a section has no data (e.g., no activities), write something honest like "No activities this hour — just talking, which counts too."
+- ONLY reference what's actually in the data below`;
 
-IMPORTANT: Only mention topics that appear in the conversation above. Write 2-3 warm, observational sentences about what they shared.`;
+    const userPrompt = `DATA AVAILABLE: ${dataAvailable.join(', ')}
+
+EMOTIONAL SHIFT DETECTED: Started ${startTone}, ended ${endTone}
+${moodShiftNote ? `MOOD CHECK-INS: ${moodShiftNote}` : ''}
+
+${convoText ? `--- CONVERSATION ---\n${convoText}` : ''}
+${journalSnippets ? `\n--- JOURNAL ENTRIES ---\n${journalSnippets}` : ''}
+${activityDescs ? `\n--- ACTIVITIES ---\n${activityDescs}` : ''}
+${moodNotes ? `\n--- MOOD NOTES ---\n${moodNotes}` : ''}
+
+Return the JSON object with emotionalArc, whatCameUp, and whatHelped.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -14364,31 +14421,38 @@ IMPORTANT: Only mention topics that appear in the conversation above. Write 2-3 
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 150,
+      max_tokens: 400,
+      response_format: { type: 'json_object' },
     });
 
-    const summaryText =
-      completion?.choices?.[0]?.message?.content?.trim() ||
-      "You've been here, and that counts. Not much to recap yet, but I'm listening.";
+    const raw = completion?.choices?.[0]?.message?.content?.trim();
+    let sections = null;
+    let summaryText = '';
 
-    console.log('🧠 /api/patterns/last-hour generated summary:', summaryText.slice(0, 100) + '...');
+    try {
+      sections = JSON.parse(raw);
+      summaryText = [sections.emotionalArc, sections.whatCameUp, sections.whatHelped].filter(Boolean).join(' ');
+    } catch (parseErr) {
+      console.warn('[LAST-HOUR] JSON parse failed, using raw text');
+      summaryText = raw || "You've been here this hour, and that counts.";
+    }
+
+    console.log('🧠 /api/patterns/last-hour generated sections:', JSON.stringify(sections)?.slice(0, 200));
 
     return res.json({
       ok: true,
       hasHistory: true,
       summaryText,
+      sections,
     });
   } catch (err) {
     console.error('❌ /api/patterns/last-hour error:', err);
-    return res.status(500).json({
-      ok: false,
-      hasHistory: false,
-      summaryText: null,
-    });
+    return res.status(500).json({ ok: false, hasHistory: false, summaryText: null, sections: null });
   }
 });
 
-// mode: patterns_weekly_narrative
+// Patterns: "Your Week" — patterns & insights briefing
+// Pulls: journal themes + moods, chat topic clusters, mood trajectory, activity-mood correlations, previous week comparison
 app.post('/api/patterns/weekly-summary', async (req, res) => {
   try {
     const {
@@ -14406,116 +14470,239 @@ app.post('/api/patterns/weekly-summary', async (req, res) => {
 
     console.log('🧠 /api/patterns/weekly-summary userId:', userId?.slice?.(0, 8) || 'none');
 
-    // Fetch actual data from database if userId is provided
-    let weekSessions = 0;
-    let weekActiveDays = 0;
-    let dominantKind = null;
-    let dominantKindCount = 0;
-    let journalWeekCount = 0;
+    const now = new Date();
+    const oneWeekAgo = new Date(now); oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const twoWeeksAgo = new Date(now); twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    const weekAgoISO = oneWeekAgo.toISOString();
+    const twoWeeksAgoISO = twoWeeksAgo.toISOString();
 
-    if (supabaseServer && userId) {
+    // ── 1. Activity logs (this week + previous week from local PG) ──
+    let thisWeekActivities = [];
+    let prevWeekActivities = [];
+    if (userId) {
       try {
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        const weekAgoISO = oneWeekAgo.toISOString();
+        const { rows: thisWeek } = await pool.query(
+          `SELECT activity_type, duration_seconds, completed_at
+           FROM activity_logs WHERE user_id = $1 AND completed_at >= $2
+           ORDER BY completed_at ASC`,
+          [userId, weekAgoISO]
+        );
+        thisWeekActivities = thisWeek || [];
 
-        // Fetch activity logs
-        const { data: activityLogs } = await supabaseServer
-          .from('activity_logs')
-          .select('activity_type, completed_at')
-          .eq('user_id', userId)
-          .gte('completed_at', weekAgoISO);
-
-        if (activityLogs && activityLogs.length > 0) {
-          weekSessions = activityLogs.length;
-          
-          // Count unique active days
-          const activeDays = new Set();
-          const activityCounts = {};
-          for (const log of activityLogs) {
-            const day = new Date(log.completed_at).toDateString();
-            activeDays.add(day);
-            activityCounts[log.activity_type] = (activityCounts[log.activity_type] || 0) + 1;
-          }
-          weekActiveDays = activeDays.size;
-
-          // Find dominant activity
-          let maxCount = 0;
-          for (const [type, count] of Object.entries(activityCounts)) {
-            if (count > maxCount) {
-              maxCount = count;
-              dominantKind = type;
-              dominantKindCount = count;
-            }
-          }
-        }
-
-        // Fetch journal entries
-        const { data: journals } = await supabaseServer
-          .from('journal_entries')
-          .select('id')
-          .eq('user_id', userId)
-          .gte('created_at', weekAgoISO);
-
-        journalWeekCount = journals?.length || 0;
-
-        console.log('🧠 /api/patterns/weekly-summary fetched data:', {
-          weekSessions,
-          weekActiveDays,
-          dominantKind,
-          journalWeekCount
-        });
-      } catch (dbErr) {
-        console.warn('🧠 /api/patterns/weekly-summary db error:', dbErr.message);
-      }
+        const { rows: prevWeek } = await pool.query(
+          `SELECT activity_type, duration_seconds, completed_at
+           FROM activity_logs WHERE user_id = $1 AND completed_at >= $2 AND completed_at < $3
+           ORDER BY completed_at ASC`,
+          [userId, twoWeeksAgoISO, weekAgoISO]
+        );
+        prevWeekActivities = prevWeek || [];
+      } catch (e) { console.warn('[WEEKLY] activity query error:', e.message); }
     }
 
-    // If no activity at all this week
-    if (weekSessions === 0 && journalWeekCount === 0) {
+    // ── 2. Journal entries (this week + previous week, from Supabase) ──
+    let thisWeekJournals = [];
+    let prevWeekJournals = [];
+    if (supabaseServer && userId) {
+      try {
+        const { data: jThis } = await supabaseServer
+          .from('journal_entries')
+          .select('content, mood, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', weekAgoISO)
+          .order('created_at', { ascending: true });
+        thisWeekJournals = jThis || [];
+
+        const { data: jPrev } = await supabaseServer
+          .from('journal_entries')
+          .select('content, mood, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', twoWeeksAgoISO)
+          .lt('created_at', weekAgoISO)
+          .order('created_at', { ascending: true });
+        prevWeekJournals = jPrev || [];
+      } catch (e) { console.warn('[WEEKLY] journal query error:', e.message); }
+    }
+
+    // ── 3. Mood check-ins (this week + previous week, from local PG) ──
+    let thisWeekMoods = [];
+    let prevWeekMoods = [];
+    if (userId) {
+      try {
+        const { rows: mThis } = await pool.query(
+          `SELECT mood_rating, mood_label, notes, created_at
+           FROM mood_checkins WHERE user_id = $1 AND created_at >= $2
+           ORDER BY created_at ASC`,
+          [userId, weekAgoISO]
+        );
+        thisWeekMoods = mThis || [];
+
+        const { rows: mPrev } = await pool.query(
+          `SELECT mood_rating, mood_label, created_at
+           FROM mood_checkins WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
+           ORDER BY created_at ASC`,
+          [userId, twoWeeksAgoISO, weekAgoISO]
+        );
+        prevWeekMoods = mPrev || [];
+      } catch (e) { console.warn('[WEEKLY] mood query error:', e.message); }
+    }
+
+    // ── 4. Chat messages (this week, from Supabase — just user messages for topic extraction) ──
+    let thisWeekChats = [];
+    if (supabaseServer && userId) {
+      try {
+        const { data: cData } = await supabaseServer
+          .from('chat_messages')
+          .select('content, created_at')
+          .eq('user_id', userId)
+          .eq('role', 'user')
+          .gte('created_at', weekAgoISO)
+          .order('created_at', { ascending: true });
+        thisWeekChats = cData || [];
+      } catch (e) { console.warn('[WEEKLY] chat query error:', e.message); }
+    }
+
+    const totalSignals = thisWeekActivities.length + thisWeekJournals.length +
+                         thisWeekMoods.length + thisWeekChats.length;
+
+    if (totalSignals === 0) {
       return res.json({
         ok: true,
         summaryText: "This week is still opening up. As you start checking in and journaling, I'll begin tracing the shape of your rhythm with you.",
+        sections: null,
       });
     }
 
-    // Build context for OpenAI
-    const contextParts = [];
-    if (userName) contextParts.push(`User: ${userName}`);
-    if (localDay) contextParts.push(`Day: ${localDay}`);
-    if (localTime) contextParts.push(`Time: ${localTime}`);
-    const contextLine = contextParts.length ? contextParts.join(', ') : '';
-
-    // Build data summary
-    const dataParts = [];
-    if (weekSessions > 0) dataParts.push(`Sessions this week: ${weekSessions}`);
-    if (weekActiveDays > 0) dataParts.push(`Active days: ${weekActiveDays}`);
-    if (dominantKind && dominantKindCount > 0) {
-      dataParts.push(`Most used practice: ${dominantKind} (${dominantKindCount} times)`);
+    if (!openai) {
+      return res.json({
+        ok: true,
+        summaryText: 'Your week is taking shape. More detail coming soon.',
+        sections: null,
+      });
     }
-    if (journalWeekCount > 0) dataParts.push(`Journal entries: ${journalWeekCount}`);
-    
-    // Add pattern insights if available
-    if (peakWindowLabel) dataParts.push(`Peak window: ${peakWindowLabel}`);
-    if (energyRhythmLabel) dataParts.push(`Energy rhythm: ${energyRhythmLabel}`);
-    if (behaviorSignatures && behaviorSignatures.length > 0) {
-      dataParts.push(`Behavior signatures: ${behaviorSignatures.join(', ')}`);
+
+    // ── Build rich data digest ──
+
+    // Activity breakdown
+    const activityCounts = {};
+    let totalActivityMins = 0;
+    const activeDays = new Set();
+    for (const a of thisWeekActivities) {
+      activityCounts[a.activity_type] = (activityCounts[a.activity_type] || 0) + 1;
+      if (a.duration_seconds) totalActivityMins += Math.round(a.duration_seconds / 60);
+      activeDays.add(new Date(a.completed_at).toLocaleDateString('en-US', { weekday: 'short' }));
     }
-    const dataLine = dataParts.join('\n');
+    const sortedActivities = Object.entries(activityCounts).sort((a, b) => b[1] - a[1]);
+    const activitySummary = sortedActivities.map(([type, count]) => `${type}: ${count}x`).join(', ');
 
-    const systemPrompt = `You are TRACE, summarizing a week of check-ins and journaling.
-mode: patterns_weekly_narrative
+    // Previous week comparison
+    const prevActivityCount = prevWeekActivities.length;
+    const prevJournalCount = prevWeekJournals.length;
+    const prevMoodCount = prevWeekMoods.length;
+    const prevAvgMood = prevWeekMoods.length > 0
+      ? (prevWeekMoods.reduce((s, m) => s + (m.mood_rating || 0), 0) / prevWeekMoods.length).toFixed(1)
+      : null;
+    const thisAvgMood = thisWeekMoods.length > 0
+      ? (thisWeekMoods.reduce((s, m) => s + (m.mood_rating || 0), 0) / thisWeekMoods.length).toFixed(1)
+      : null;
 
-Tone: calm, validating, poetic but grounded. No advice, no instructions.
-- 2–3 sentences maximum.
-- Focus on noticing consistency, effort, rhythm, and the kinds of practices they're drawn to.
-- Do not mention exact counts mechanically; weave them into natural, observant language.
-- Do not ask questions.
-- Talk directly to the user as "you".
-- Speak like a gentle observer noticing patterns from the outside.`;
+    // Mood trajectory (start of week vs end)
+    let moodTrajectory = '';
+    if (thisWeekMoods.length >= 2) {
+      const firstThird = thisWeekMoods.slice(0, Math.ceil(thisWeekMoods.length / 3));
+      const lastThird = thisWeekMoods.slice(-Math.ceil(thisWeekMoods.length / 3));
+      const earlyAvg = firstThird.reduce((s, m) => s + (m.mood_rating || 0), 0) / firstThird.length;
+      const lateAvg = lastThird.reduce((s, m) => s + (m.mood_rating || 0), 0) / lastThird.length;
+      const diff = lateAvg - earlyAvg;
+      if (diff >= 1) moodTrajectory = `Mood trended upward over the week (early avg ${earlyAvg.toFixed(1)} → late avg ${lateAvg.toFixed(1)})`;
+      else if (diff <= -1) moodTrajectory = `Mood trended downward over the week (early avg ${earlyAvg.toFixed(1)} → late avg ${lateAvg.toFixed(1)})`;
+      else moodTrajectory = `Mood stayed relatively stable through the week (avg around ${thisAvgMood})`;
+    }
 
-    const userPrompt = `${contextLine ? contextLine + '\n' : ''}${dataLine}
+    // Mood labels frequency
+    const moodLabelCounts = {};
+    for (const m of thisWeekMoods) {
+      if (m.mood_label) moodLabelCounts[m.mood_label] = (moodLabelCounts[m.mood_label] || 0) + 1;
+    }
+    const topMoods = Object.entries(moodLabelCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
 
-In 2–3 sentences, gently reflect what this week's rhythm suggests about how this person has been showing up for themselves. Notice when they sought TRACE, what patterns emerged, and what that might say about their week. No advice, no questions, just noticing and affirming.`;
+    // Journal themes (send snippets to AI for topic extraction)
+    const journalDigest = thisWeekJournals.map(j => {
+      const day = new Date(j.created_at).toLocaleDateString('en-US', { weekday: 'short' });
+      const moodTag = j.mood ? ` [${j.mood}]` : '';
+      return `${day}${moodTag}: ${(j.content || '').slice(0, 200)}`;
+    }).join('\n');
+
+    // Chat topic snippets (sample up to 15 user messages spread across the week)
+    const chatSample = thisWeekChats.length <= 15
+      ? thisWeekChats
+      : thisWeekChats.filter((_, i) => i % Math.ceil(thisWeekChats.length / 15) === 0);
+    const chatDigest = chatSample.map(c => {
+      const day = new Date(c.created_at).toLocaleDateString('en-US', { weekday: 'short' });
+      return `${day}: ${(c.content || '').slice(0, 150)}`;
+    }).join('\n');
+
+    // Days they showed up vs didn't
+    const daysActive = new Set();
+    for (const m of thisWeekMoods) daysActive.add(new Date(m.created_at).toLocaleDateString('en-US', { weekday: 'short' }));
+    for (const j of thisWeekJournals) daysActive.add(new Date(j.created_at).toLocaleDateString('en-US', { weekday: 'short' }));
+    for (const c of thisWeekChats) daysActive.add(new Date(c.created_at).toLocaleDateString('en-US', { weekday: 'short' }));
+    for (const a of thisWeekActivities) daysActive.add(new Date(a.completed_at).toLocaleDateString('en-US', { weekday: 'short' }));
+
+    const comparisonNotes = [];
+    if (prevActivityCount > 0 || thisWeekActivities.length > 0) {
+      const diff = thisWeekActivities.length - prevActivityCount;
+      if (diff > 0) comparisonNotes.push(`Activities up from last week (${prevActivityCount} → ${thisWeekActivities.length})`);
+      else if (diff < 0) comparisonNotes.push(`Activities down from last week (${prevActivityCount} → ${thisWeekActivities.length})`);
+      else comparisonNotes.push(`Same number of activities as last week (${thisWeekActivities.length})`);
+    }
+    if (prevAvgMood && thisAvgMood) {
+      const mDiff = parseFloat(thisAvgMood) - parseFloat(prevAvgMood);
+      if (mDiff >= 0.5) comparisonNotes.push(`Average mood higher than last week (${prevAvgMood} → ${thisAvgMood})`);
+      else if (mDiff <= -0.5) comparisonNotes.push(`Average mood lower than last week (${prevAvgMood} → ${thisAvgMood})`);
+      else comparisonNotes.push(`Average mood similar to last week (~${thisAvgMood})`);
+    }
+
+    const systemPrompt = `You are TRACE, creating a structured weekly patterns briefing.
+
+OUTPUT FORMAT — Return EXACTLY this JSON structure:
+{
+  "weekShape": "2-3 sentences about the overall shape and rhythm of the week. Which days were active, how the emotional energy flowed across the week, consistency patterns. This is the big-picture view.",
+  "recurringThemes": "2-3 sentences identifying specific topics or emotional threads that came up more than once across journals, chats, and mood notes. Name the actual themes—don't generalize. If work stress appeared 3 times, say so.",
+  "whatsShifting": "1-2 sentences about what changed compared to last week, or within this week itself. Mood trajectory, engagement level, new themes appearing or old ones fading. If no previous week data, note internal shifts within this week.",
+  "whatWorked": "1-2 sentences connecting specific activities or practices to mood improvements or moments of relief. Which activities did they do most? Did mood tend to improve on days they used certain practices?"
+}
+
+RULES:
+- Be specific and data-driven. Reference actual days, moods, themes, activities by name.
+- "weekShape" = macro view (rhythm, consistency, when they showed up)
+- "recurringThemes" = the emotional content (what kept coming up)
+- "whatsShifting" = movement and change (what's different)
+- "whatWorked" = correlation between actions and feeling better
+- Write in second person ("you"), warm but substantive
+- NO therapeutic jargon: avoid "navigating", "processing", "holding space", "journey"
+- NO questions, NO advice
+- Each section should feel distinct — don't repeat information across sections
+- If data for a section is thin, be honest: "Not enough data yet to see a clear pattern here."
+- ONLY reference what's actually in the data below`;
+
+    const userPrompt = `WEEK OVERVIEW:
+Days active: ${[...daysActive].join(', ') || 'None recorded'}
+Total activities: ${thisWeekActivities.length} (${activitySummary || 'none'})
+Total journal entries: ${thisWeekJournals.length}
+Mood check-ins: ${thisWeekMoods.length}
+Chat messages: ${thisWeekChats.length}
+${moodTrajectory ? `Mood trajectory: ${moodTrajectory}` : ''}
+${topMoods.length ? `Most frequent moods: ${topMoods.map(([l, c]) => `${l} (${c}x)`).join(', ')}` : ''}
+${peakWindowLabel ? `Peak window: ${peakWindowLabel}` : ''}
+${energyRhythmLabel ? `Energy rhythm: ${energyRhythmLabel}` : ''}
+
+${comparisonNotes.length ? `COMPARED TO LAST WEEK:\n${comparisonNotes.join('\n')}` : 'No previous week data available for comparison.'}
+
+${journalDigest ? `--- JOURNAL ENTRIES (this week) ---\n${journalDigest}` : ''}
+
+${chatDigest ? `\n--- CHAT TOPICS (sampled) ---\n${chatDigest}` : ''}
+
+Return the JSON object with weekShape, recurringThemes, whatsShifting, and whatWorked.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -14523,24 +14710,36 @@ In 2–3 sentences, gently reflect what this week's rhythm suggests about how th
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.8,
-      max_tokens: 150,
+      temperature: 0.75,
+      max_tokens: 500,
+      response_format: { type: 'json_object' },
     });
 
-    const summaryText =
-      completion.choices?.[0]?.message?.content?.trim() ||
-      'Your week is still taking shape. As you keep checking in, TRACE will gently sketch the pattern.';
+    const raw = completion?.choices?.[0]?.message?.content?.trim();
+    let sections = null;
+    let summaryText = '';
+
+    try {
+      sections = JSON.parse(raw);
+      summaryText = [sections.weekShape, sections.recurringThemes, sections.whatsShifting, sections.whatWorked].filter(Boolean).join(' ');
+    } catch (parseErr) {
+      console.warn('[WEEKLY] JSON parse failed, using raw text');
+      summaryText = raw || 'Your week is still taking shape.';
+    }
+
+    console.log('🧠 /api/patterns/weekly-summary generated sections:', JSON.stringify(sections)?.slice(0, 200));
 
     res.json({
       ok: true,
       summaryText,
+      sections,
     });
   } catch (err) {
     console.error('🧠 /api/patterns/weekly-summary error:', err);
     res.status(500).json({
       ok: false,
-      summaryText:
-        'Your week is still taking shape. As you keep checking in, TRACE will gently sketch the pattern.',
+      summaryText: 'Your week is still taking shape. As you keep checking in, TRACE will gently sketch the pattern.',
+      sections: null,
     });
   }
 });

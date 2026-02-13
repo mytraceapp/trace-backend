@@ -405,6 +405,7 @@ export async function fetchPatternsWeeklySummary(params: {
         ? json.summaryText
         : null) ||
       null,
+    sections: json.sections || null,
   };
 }
 
