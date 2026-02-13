@@ -506,7 +506,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
   if (isResumeCmd && (nowPlayingTrack || recentlyPlayedNeonPromise || recentlyPlayedNightSwim || inNeonContext)) {
     console.log('[TRACE STUDIOS] Audio RESUME command:', t);
     return {
-      assistant_message: pickRotating(["Resuming.", "Picking back up.", "Playing again."], seed),
+      assistant_message: pickRotating(["Back on.", "Here you go.", "Back on."], seed),
       mode: "trace_studios",
       ui_action: createUiAction({ type: 'AUDIO_CONTROL', action: 'resume' }),
       traceStudios: {
