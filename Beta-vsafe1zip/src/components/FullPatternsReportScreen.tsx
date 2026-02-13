@@ -32,19 +32,6 @@ type HourSummary = {
   arc: "softening" | "rising" | "steady" | null;
 };
 
-interface LastHourSections {
-  emotionalArc?: string;
-  whatCameUp?: string;
-  whatHelped?: string;
-}
-
-interface WeeklySections {
-  weekShape?: string;
-  recurringThemes?: string;
-  whatsShifting?: string;
-  whatWorked?: string;
-}
-
 function getJournalingWhisper(
   lastHourSummary: HourSummary | null,
   weeklyStitches: EmotionalStitch[]
@@ -112,13 +99,11 @@ export function FullPatternsReportScreen({
   const [weeklyStitches, setWeeklyStitches] = useState<EmotionalStitch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [lastHourSections, setLastHourSections] = useState<LastHourSections | null>(null);
-  const [lastHourText, setLastHourText] = useState<string | null>(null);
+  const [lastHourNarrative, setLastHourNarrative] = useState<string | null>(null);
   const [hasLastHourHistory, setHasLastHourHistory] = useState(false);
   const [isLastHourLoading, setIsLastHourLoading] = useState(false);
 
-  const [weeklySections, setWeeklySections] = useState<WeeklySections | null>(null);
-  const [weeklyText, setWeeklyText] = useState<string | null>(null);
+  const [weeklyNarrative, setWeeklyNarrative] = useState<string | null>(null);
   const [isWeeklyLoading, setIsWeeklyLoading] = useState(false);
 
   const [reflectionText, setReflectionText] = useState('');
@@ -182,10 +167,14 @@ export function FullPatternsReportScreen({
         if (!cancelled && res.ok) {
           const json = await res.json();
           setHasLastHourHistory(json.hasHistory ?? false);
-          setLastHourText(json.summaryText ?? null);
           const s = json.sections ?? null;
           const valid = s && (s.emotionalArc || s.whatCameUp || s.whatHelped);
-          setLastHourSections(valid ? s : null);
+          if (valid) {
+            const parts = [s.emotionalArc, s.whatCameUp, s.whatHelped].filter(Boolean);
+            setLastHourNarrative(parts.join(' '));
+          } else {
+            setLastHourNarrative(json.summaryText ?? null);
+          }
         }
       } catch (err) {
         console.error('TRACE/lastHour ❌', err);
@@ -220,10 +209,14 @@ export function FullPatternsReportScreen({
         });
         if (!cancelled && res.ok) {
           const json = await res.json();
-          setWeeklyText(json.summaryText ?? null);
           const s = json.sections ?? null;
           const valid = s && (s.weekShape || s.recurringThemes || s.whatsShifting || s.whatWorked);
-          setWeeklySections(valid ? s : null);
+          if (valid) {
+            const parts = [s.weekShape, s.recurringThemes, s.whatsShifting, s.whatWorked].filter(Boolean);
+            setWeeklyNarrative(parts.join(' '));
+          } else {
+            setWeeklyNarrative(json.summaryText ?? null);
+          }
         }
       } catch (err) {
         console.error('TRACE/weeklySummary ❌', err);
@@ -306,28 +299,6 @@ export function FullPatternsReportScreen({
   const paragraphContainer = {
     maxWidth: '85%',
     margin: '0 auto 0 0',
-  };
-
-  const sectionLabelStyle = {
-    fontFamily: 'Georgia, serif',
-    fontSize: '11px',
-    fontWeight: 600 as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.08em',
-    color: isDark ? 'rgba(141, 161, 143, 0.7)' : 'rgba(107, 123, 110, 0.8)',
-    marginBottom: '6px',
-  };
-
-  const sectionTextStyle = {
-    ...textStyle,
-    fontSize: '14px',
-    lineHeight: 1.55,
-  };
-
-  const sectionDividerStyle = {
-    height: '1px',
-    backgroundColor: isDark ? 'rgba(141, 161, 143, 0.15)' : 'rgba(141, 161, 143, 0.25)',
-    margin: '14px 0',
   };
 
   return (
@@ -470,38 +441,9 @@ export function FullPatternsReportScreen({
                   </p>
                 )}
 
-                {!isLastHourLoading && hasLastHourHistory && lastHourSections ? (
-                  <div>
-                    {lastHourSections.emotionalArc && (
-                      <div>
-                        <p style={sectionLabelStyle}>Emotional Arc</p>
-                        <div style={paragraphContainer}>
-                          <p style={sectionTextStyle}>{lastHourSections.emotionalArc}</p>
-                        </div>
-                      </div>
-                    )}
-                    {lastHourSections.whatCameUp && (
-                      <div>
-                        {lastHourSections.emotionalArc && <div style={sectionDividerStyle} />}
-                        <p style={sectionLabelStyle}>What Came Up</p>
-                        <div style={paragraphContainer}>
-                          <p style={sectionTextStyle}>{lastHourSections.whatCameUp}</p>
-                        </div>
-                      </div>
-                    )}
-                    {lastHourSections.whatHelped && (
-                      <div>
-                        {(lastHourSections.emotionalArc || lastHourSections.whatCameUp) && <div style={sectionDividerStyle} />}
-                        <p style={sectionLabelStyle}>What Helped</p>
-                        <div style={paragraphContainer}>
-                          <p style={sectionTextStyle}>{lastHourSections.whatHelped}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : !isLastHourLoading && hasLastHourHistory && lastHourText ? (
+                {!isLastHourLoading && hasLastHourHistory && lastHourNarrative ? (
                   <div style={paragraphContainer}>
-                    <p style={textStyle}>{lastHourText}</p>
+                    <p style={textStyle}>{lastHourNarrative}</p>
                   </div>
                 ) : !isLastHourLoading ? (
                   <div style={paragraphContainer}>
@@ -529,47 +471,9 @@ export function FullPatternsReportScreen({
                   </p>
                 )}
 
-                {!isWeeklyLoading && weeklySections ? (
-                  <div>
-                    {weeklySections.weekShape && (
-                      <div>
-                        <p style={sectionLabelStyle}>Week Shape</p>
-                        <div style={paragraphContainer}>
-                          <p style={sectionTextStyle}>{weeklySections.weekShape}</p>
-                        </div>
-                      </div>
-                    )}
-                    {weeklySections.recurringThemes && (
-                      <div>
-                        {weeklySections.weekShape && <div style={sectionDividerStyle} />}
-                        <p style={sectionLabelStyle}>Recurring Themes</p>
-                        <div style={paragraphContainer}>
-                          <p style={sectionTextStyle}>{weeklySections.recurringThemes}</p>
-                        </div>
-                      </div>
-                    )}
-                    {weeklySections.whatsShifting && (
-                      <div>
-                        {(weeklySections.weekShape || weeklySections.recurringThemes) && <div style={sectionDividerStyle} />}
-                        <p style={sectionLabelStyle}>What's Shifting</p>
-                        <div style={paragraphContainer}>
-                          <p style={sectionTextStyle}>{weeklySections.whatsShifting}</p>
-                        </div>
-                      </div>
-                    )}
-                    {weeklySections.whatWorked && (
-                      <div>
-                        {(weeklySections.weekShape || weeklySections.recurringThemes || weeklySections.whatsShifting) && <div style={sectionDividerStyle} />}
-                        <p style={sectionLabelStyle}>What Worked</p>
-                        <div style={paragraphContainer}>
-                          <p style={sectionTextStyle}>{weeklySections.whatWorked}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : !isWeeklyLoading && weeklyText ? (
+                {!isWeeklyLoading && weeklyNarrative ? (
                   <div style={paragraphContainer}>
-                    <p style={textStyle}>{weeklyText}</p>
+                    <p style={textStyle}>{weeklyNarrative}</p>
                   </div>
                 ) : !isWeeklyLoading ? (
                   <div style={paragraphContainer}>

@@ -14396,27 +14396,28 @@ app.post('/api/patterns/last-hour', async (req, res) => {
     if (moodCheckins.length > 0) dataAvailable.push(`${moodCheckins.length} mood check-in(s)`);
     if (activities.length > 0) dataAvailable.push(`${activities.length} activity/activities completed`);
 
-    const systemPrompt = `You are TRACE, creating a structured emotional snapshot of the user's last hour.
+    const systemPrompt = `You are TRACE, writing a brief emotional snapshot of the user's last hour. This will be displayed as a single flowing narrative.
 
-OUTPUT FORMAT — Return EXACTLY this JSON structure:
+RETURN THIS EXACT JSON:
 {
-  "emotionalArc": "1-2 sentences about the emotional shape of this hour. Where they started, what shifted, where they are now. Use the tone shift data and mood data provided.",
-  "whatCameUp": "2-3 sentences about the specific topics, themes, or concerns that surfaced. Be concrete—name the actual subjects from the conversation and journal entries. Don't generalize.",
-  "whatHelped": "1-2 sentences about any activities they completed, moments of lightness, or things that seemed to bring relief or grounding. If nothing clearly helped, note what they reached for."
+  "emotionalArc": string (1 sentence: where they started emotionally and where they are now),
+  "whatCameUp": string (1-2 sentences: specific topics or feelings that surfaced — name them directly),
+  "whatHelped": string (1 sentence: what they reached for or what seemed to bring relief)
 }
 
-RULES:
+These three fields will be combined into one paragraph. Write them so they flow naturally together.
+
+VOICE:
+- Second person ("you"), warm, observational
+- Like a friend who was paying attention — not summarizing from a distance
 - Be specific. Name actual topics, feelings, activities from the data.
-- "emotionalArc" should read like a mini narrative: "You came in feeling X, and by the end..."
-- "whatCameUp" should feel like someone who was actually listening, not summarizing from a distance
-- "whatHelped" should connect activities/moments to emotional state where possible
-- Write in second person ("you"), warm but not saccharine
-- NO therapeutic jargon: avoid "navigating", "processing", "holding space", "journey"
-- NO questions, NO advice
-- Each section should feel distinct — don't repeat the same point across sections
-- If a section has no data (e.g., no activities), write something honest like "No activities this hour — just talking, which counts too."
-- ONLY reference what's actually in the data below
-- IMPORTANT: Do NOT invent or infer "health" as a topic unless the user explicitly mentioned physical health, illness, doctors, or medical issues. This is a wellness app — emotional conversations are NOT health topics. Never say "your health" or "health concerns" unless those exact words appear in the user's messages.`;
+- Short and grounded. 3-4 sentences total across all fields.
+
+NEVER DO:
+- Use words: "navigating", "processing", "holding space", "journey", "your health", "introspection"
+- Invent topics not in the data. Emotional conversations are NOT "health topics"
+- Ask questions or give advice
+- Write more than 5 sentences total`;
 
     const userPrompt = `DATA AVAILABLE: ${dataAvailable.join(', ')}
 
@@ -14678,7 +14679,7 @@ app.post('/api/patterns/weekly-summary', async (req, res) => {
       else comparisonNotes.push(`Average mood similar to last week (~${thisAvgMood})`);
     }
 
-    const systemPrompt = `You are TRACE's pattern analyst. Generate a concise, insight-rich weekly briefing.
+    const systemPrompt = `You are TRACE's pattern analyst. Write a short, grounded narrative summary of the user's week.
 
 RETURN THIS EXACT JSON:
 {
@@ -14688,32 +14689,26 @@ RETURN THIS EXACT JSON:
   "whatWorked": string
 }
 
-SECTION GUIDELINES (each must be 1-2 sentences MAX, distinct content, no overlap):
+These four fields will be combined into ONE flowing narrative paragraph. Write each field as 1-2 sentences that flow naturally into the next, as if they're parts of a single paragraph.
 
-weekShape — The RHYTHM only. When did they show up? How consistent? Were there gaps or clusters?
-  Example: "You checked in mostly on Tuesday and Thursday evenings, with a quiet stretch mid-week."
-  NOT: stats like "you had X sessions" (the user already sees those)
+WHAT EACH FIELD COVERS (keep them distinct, no overlap):
+- weekShape: When they showed up and the rhythm (NOT counts — they see those elsewhere)
+- recurringThemes: The specific emotional topics or threads that kept surfacing. Name them directly.
+- whatsShifting: What changed — compared to last week or within this week
+- whatWorked: Which specific activities or behaviors seemed to correlate with better states
 
-recurringThemes — The EMOTIONAL CONTENT. What specific topics, feelings, or situations kept surfacing? Name them directly.
-  Example: "Work pressure came up in three separate entries. A thread about sleep quality also appeared twice."
-  NOT: vague summaries like "a mix of emotions" or "various topics"
+VOICE:
+- Second person ("you"), warm, observational, grounded
+- Like a perceptive friend noticing patterns — not a therapist, not a coach
+- Be specific. Name actual moods, activities, days, topics from the data.
+- Short sentences. No filler. Every word earns its place.
 
-whatsShifting — CHANGE and DIRECTION. What moved compared to last week or within this week? Be specific about the shift.
-  Example: "Calm entries doubled compared to last week, while stress mentions dropped off after Wednesday."
-  NOT: restating what was already said in weekShape
-
-whatWorked — CAUSE and EFFECT. Which specific activities or behaviors correlated with better mood states?
-  Example: "Mood tended to lift on days you used Basin — your calmest entries followed those sessions."
-  NOT: generic observations about timing
-
-STRICT RULES:
-- Never repeat stats (session counts, peak times, activity counts) — the user sees those separately
-- Never overlap content between sections — each must say something the others don't
-- Never use: "impressive", "significant", "navigating", "processing", "holding space", "journey", "your health"
-- Never invent topics not in the data. If someone talks about feelings, that is NOT "health"
-- If data is thin for a section, say: "Not enough signal here yet."
-- Write in second person ("you"), warm but grounded
-- No questions, no advice, no cheerleading`;
+NEVER DO:
+- Repeat session counts, peak times, or activity counts (user already sees stats)
+- Use words: "impressive", "significant", "navigating", "processing", "holding space", "journey", "your health", "introspection"
+- Invent topics not in the data. Emotional conversations are NOT "health topics"
+- Ask questions, give advice, or cheerleaad
+- Write more than 2 sentences per field`;
 
     const userPrompt = `WEEK OVERVIEW:
 Days active: ${[...daysActive].join(', ') || 'None recorded'}
