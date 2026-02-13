@@ -921,9 +921,10 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     }
 
     const lastMsgOfferedLyrics = /\b(share the lyrics|share lyrics|want.*(lyrics|words)|see the lyrics|read the lyrics)\b/i.test(lastMsg);
+    const lastMsgMentionsNeonPromise = /neon\s*promise/i.test(lastMsg);
     const isUserAffirmative = /^(yeah|yes|sure|ok|okay|please|yep|yea|do it|go ahead|let'?s|absolutely|definitely|for sure|bet|go for it|send them|send it|hit me|ya)\b/i.test(t);
 
-    if (lastMsgOfferedLyrics && isUserAffirmative && inNeonContext) {
+    if (lastMsgOfferedLyrics && isUserAffirmative && (inNeonContext || lastMsgMentionsNeonPromise || lastMsgOfferedLyrics)) {
       console.log('[TRACE STUDIOS] User agreed to lyrics offer — sharing lyrics directly');
       const track = TRACKS.neon_promise;
       if (track?.lyrics) {
