@@ -32,6 +32,19 @@ type HourSummary = {
   arc: "softening" | "rising" | "steady" | null;
 };
 
+interface LastHourSections {
+  emotionalArc?: string;
+  whatCameUp?: string;
+  whatHelped?: string;
+}
+
+interface WeeklySections {
+  weekShape?: string;
+  recurringThemes?: string;
+  whatsShifting?: string;
+  whatWorked?: string;
+}
+
 function getJournalingWhisper(
   lastHourSummary: HourSummary | null,
   weeklyStitches: EmotionalStitch[]
@@ -94,10 +107,19 @@ export function FullPatternsReportScreen({
   const isDark = effectiveTheme === 'night';
   const { addEmotionalNoteEntry } = useEntries();
 
-  const [userId, setUserId] = useState<string | null>(null); // Used for data fetching
+  const [userId, setUserId] = useState<string | null>(null);
   const [lastHourSummary, setLastHourSummary] = useState<HourSummary | null>(null);
   const [weeklyStitches, setWeeklyStitches] = useState<EmotionalStitch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [lastHourSections, setLastHourSections] = useState<LastHourSections | null>(null);
+  const [lastHourText, setLastHourText] = useState<string | null>(null);
+  const [hasLastHourHistory, setHasLastHourHistory] = useState(false);
+  const [isLastHourLoading, setIsLastHourLoading] = useState(false);
+
+  const [weeklySections, setWeeklySections] = useState<WeeklySections | null>(null);
+  const [weeklyText, setWeeklyText] = useState<string | null>(null);
+  const [isWeeklyLoading, setIsWeeklyLoading] = useState(false);
 
   const [reflectionText, setReflectionText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -145,83 +167,74 @@ export function FullPatternsReportScreen({
     return () => { cancelled = true; };
   }, []);
 
-  const narratives = useMemo(() => {
-    const arc = lastHourSummary?.arc ?? null;
-    const avgIntensity = lastHourSummary?.avgIntensity ?? 0;
-    const total = lastHourSummary?.total ?? 0;
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
 
-    const todayStitch = weeklyStitches.find(
-      (s) => s.summary_date === new Date().toISOString().slice(0, 10)
-    );
-
-    const todayIsHeavyish =
-      !!todayStitch &&
-      todayStitch.total > 0 &&
-      (todayStitch.heavy + todayStitch.anxious) / todayStitch.total >= 0.4;
-
-    const hasHeavyDayThisWeek = weeklyStitches.some(
-      (s) => s.total > 0 && (s.heavy + s.anxious) / s.total >= 0.5
-    );
-
-    const heaviestDay = weeklyStitches.reduce<{ dayName: string; ratio: number } | null>((acc, s) => {
-      if (s.total === 0) return acc;
-      const ratio = (s.heavy + s.anxious) / s.total;
-      if (!acc || ratio > acc.ratio) {
-        const d = new Date(s.summary_date + 'T12:00:00');
-        return { dayName: d.toLocaleDateString('en-US', { weekday: 'long' }), ratio };
-      }
-      return acc;
-    }, null);
-
-    let todayNarrative = "";
-    if (todayIsHeavyish) {
-      todayNarrative = "Today seemed to carry a bit more weight than usual. That's okay — some days ask more of us, and it's alright to notice that without needing to fix anything.";
-    } else if (todayStitch && todayStitch.arc === "softening") {
-      todayNarrative = "It felt like today eased a little as it went on. Something in you may have found its way to soften, even if just slightly.";
-    } else if (todayStitch) {
-      todayNarrative = "Today appeared to move at its own pace — neither too heavy nor too light. Just present.";
-    } else {
-      todayNarrative = "TRACE is still gathering today's moments. As you move through the day, the shape of it will gently come into focus.";
-    }
-
-    let lastHourNarrative = "";
-    if (total === 0) {
-      lastHourNarrative = "This hour has been quiet so far. Sometimes the spaces between words are just as meaningful.";
-    } else if (arc === "softening") {
-      lastHourNarrative = "This last hour seemed to soften toward the end. Something in the rhythm of your words appeared to ease.";
-    } else if (arc === "rising" || avgIntensity >= 3) {
-      lastHourNarrative = "This last hour felt a bit more activated. Whatever was moving through you, it's okay that it showed up here.";
-    } else {
-      lastHourNarrative = "This last hour felt fairly steady. You moved through it at your own pace, and that's enough.";
-    }
-
-    let weeklyNarrative = "";
-    if (weeklyStitches.length < 3) {
-      weeklyNarrative = "TRACE is still learning your weekly rhythm. A few more days and the shape of your week will start to appear.";
-    } else {
-      const sorted = [...weeklyStitches].sort((a, b) => a.summary_date.localeCompare(b.summary_date));
-      const firstTwo = sorted.slice(0, 2);
-      const lastTwo = sorted.slice(-2);
-      const avgI = (arr: EmotionalStitch[]) => arr.reduce((s, x) => s + (x.avg_intensity ?? 2), 0) / arr.length;
-      const startAvg = avgI(firstTwo);
-      const endAvg = avgI(lastTwo);
-
-      if (endAvg <= startAvg - 0.5) {
-        weeklyNarrative = "It seemed like your week gently softened as it went on. Something in you may have found its way to ease, even if it felt subtle.";
-      } else if (endAvg >= startAvg + 0.5) {
-        weeklyNarrative = "This week felt a bit more activated toward the end. That's neither good nor bad — just the shape of things right now.";
-      } else {
-        weeklyNarrative = "Your week appeared fairly steady. The rhythm stayed mostly consistent, without sharp rises or dips.";
+    async function fetchLastHour() {
+      setIsLastHourLoading(true);
+      try {
+        const res = await fetch('/api/patterns/last-hour', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, deviceId: null }),
+        });
+        if (!cancelled && res.ok) {
+          const json = await res.json();
+          setHasLastHourHistory(json.hasHistory ?? false);
+          setLastHourText(json.summaryText ?? null);
+          const s = json.sections ?? null;
+          const valid = s && (s.emotionalArc || s.whatCameUp || s.whatHelped);
+          setLastHourSections(valid ? s : null);
+        }
+      } catch (err) {
+        console.error('TRACE/lastHour ❌', err);
+      } finally {
+        if (!cancelled) setIsLastHourLoading(false);
       }
     }
 
-    let stressEchoNarrative = "";
-    if (hasHeavyDayThisWeek && heaviestDay) {
-      stressEchoNarrative = `${heaviestDay.dayName} seemed to feel a bit heavier than other days this week. If any part of that still resonates, it's okay to let it rest here — you don't have to unpack anything unless you want to.`;
+    fetchLastHour();
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+
+    async function fetchWeekly() {
+      setIsWeeklyLoading(true);
+      try {
+        const res = await fetch('/api/patterns/weekly-summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            deviceId: null,
+            userName: null,
+            peakWindowLabel: null,
+            energyRhythmLabel: null,
+            energyRhythmDetail: null,
+            behaviorSignatures: [],
+          }),
+        });
+        if (!cancelled && res.ok) {
+          const json = await res.json();
+          setWeeklyText(json.summaryText ?? null);
+          const s = json.sections ?? null;
+          const valid = s && (s.weekShape || s.recurringThemes || s.whatsShifting || s.whatWorked);
+          setWeeklySections(valid ? s : null);
+        }
+      } catch (err) {
+        console.error('TRACE/weeklySummary ❌', err);
+      } finally {
+        if (!cancelled) setIsWeeklyLoading(false);
+      }
     }
 
-    return { todayNarrative, lastHourNarrative, weeklyNarrative, stressEchoNarrative };
-  }, [lastHourSummary, weeklyStitches]);
+    fetchWeekly();
+    return () => { cancelled = true; };
+  }, [userId]);
 
   const whisper = useMemo(() => {
     return getJournalingWhisper(lastHourSummary, weeklyStitches);
@@ -295,9 +308,30 @@ export function FullPatternsReportScreen({
     margin: '0 auto 0 0',
   };
 
+  const sectionLabelStyle = {
+    fontFamily: 'Georgia, serif',
+    fontSize: '11px',
+    fontWeight: 600 as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.08em',
+    color: isDark ? 'rgba(141, 161, 143, 0.7)' : 'rgba(107, 123, 110, 0.8)',
+    marginBottom: '6px',
+  };
+
+  const sectionTextStyle = {
+    ...textStyle,
+    fontSize: '14px',
+    lineHeight: 1.55,
+  };
+
+  const sectionDividerStyle = {
+    height: '1px',
+    backgroundColor: isDark ? 'rgba(141, 161, 143, 0.15)' : 'rgba(141, 161, 143, 0.25)',
+    margin: '14px 0',
+  };
+
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: 'transparent' }}>
-      {/* Math notebook grid overlay - day mode */}
       {!isDark && (
         <div 
           className="absolute inset-0 pointer-events-none opacity-[0.25]"
@@ -310,7 +344,6 @@ export function FullPatternsReportScreen({
         />
       )}
       
-      {/* Math notebook grid overlay - night mode */}
       {isDark && (
         <div 
           className="absolute inset-0 pointer-events-none opacity-[0.10]"
@@ -356,12 +389,10 @@ export function FullPatternsReportScreen({
               Your Emotional Reflection
             </h2>
             
-            {/* Subtle maze identity seal */}
             <div 
               className="relative mx-auto"
               style={{ width: '54px', height: '54px', marginBottom: '4px' }}
             >
-              {/* Solid background to mask grid */}
               <div 
                 className="absolute inset-[-8px] rounded-full"
                 style={{
@@ -397,7 +428,6 @@ export function FullPatternsReportScreen({
               A gentle look at what's been moving through you.
             </p>
             
-            {/* Subtle anchoring line - "this is where reflection begins" */}
             <div 
               style={{
                 width: 'calc(100% - 32px)',
@@ -423,6 +453,7 @@ export function FullPatternsReportScreen({
             </motion.p>
           ) : (
             <>
+              {/* ─── THIS LAST HOUR ─── */}
               <motion.section
                 className="w-full text-left"
                 style={{ ...cardStyle, marginBottom: '16px', border: sageCardBorder }}
@@ -430,27 +461,58 @@ export function FullPatternsReportScreen({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
               >
-                <h3 style={headingStyle}>Today</h3>
-                <span style={sageUnderline} />
-                <div style={paragraphContainer}>
-                  <p style={textStyle}>{narratives.todayNarrative}</p>
-                </div>
-              </motion.section>
-
-              <motion.section
-                className="w-full text-left"
-                style={{ ...cardStyle, marginBottom: '16px', border: sageCardBorder }}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5, duration: 0.6 }}
-              >
                 <h3 style={headingStyle}>This Last Hour</h3>
                 <span style={sageUnderline} />
-                <div style={paragraphContainer}>
-                  <p style={textStyle}>{narratives.lastHourNarrative}</p>
-                </div>
+
+                {isLastHourLoading && (
+                  <p style={{ ...textStyle, fontStyle: 'italic', opacity: 0.6 }}>
+                    Reading your recent moments...
+                  </p>
+                )}
+
+                {!isLastHourLoading && hasLastHourHistory && lastHourSections ? (
+                  <div>
+                    {lastHourSections.emotionalArc && (
+                      <div>
+                        <p style={sectionLabelStyle}>Emotional Arc</p>
+                        <div style={paragraphContainer}>
+                          <p style={sectionTextStyle}>{lastHourSections.emotionalArc}</p>
+                        </div>
+                      </div>
+                    )}
+                    {lastHourSections.whatCameUp && (
+                      <div>
+                        {lastHourSections.emotionalArc && <div style={sectionDividerStyle} />}
+                        <p style={sectionLabelStyle}>What Came Up</p>
+                        <div style={paragraphContainer}>
+                          <p style={sectionTextStyle}>{lastHourSections.whatCameUp}</p>
+                        </div>
+                      </div>
+                    )}
+                    {lastHourSections.whatHelped && (
+                      <div>
+                        {(lastHourSections.emotionalArc || lastHourSections.whatCameUp) && <div style={sectionDividerStyle} />}
+                        <p style={sectionLabelStyle}>What Helped</p>
+                        <div style={paragraphContainer}>
+                          <p style={sectionTextStyle}>{lastHourSections.whatHelped}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : !isLastHourLoading && hasLastHourHistory && lastHourText ? (
+                  <div style={paragraphContainer}>
+                    <p style={textStyle}>{lastHourText}</p>
+                  </div>
+                ) : !isLastHourLoading ? (
+                  <div style={paragraphContainer}>
+                    <p style={textStyle}>
+                      This hour has been quiet so far. Sometimes the spaces between words are just as meaningful.
+                    </p>
+                  </div>
+                ) : null}
               </motion.section>
 
+              {/* ─── YOUR WEEK ─── */}
               <motion.section
                 className="w-full text-left"
                 style={{ ...cardStyle, marginBottom: '16px', border: sageCardBorder }}
@@ -460,26 +522,63 @@ export function FullPatternsReportScreen({
               >
                 <h3 style={headingStyle}>Your Week</h3>
                 <span style={sageUnderline} />
-                <div style={paragraphContainer}>
-                  <p style={textStyle}>{narratives.weeklyNarrative}</p>
-                </div>
-              </motion.section>
 
-              {narratives.stressEchoNarrative && (
-                <motion.section
-                  className="w-full text-left"
-                  style={{ ...cardStyle, marginBottom: '16px', border: sageCardBorder }}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.7, duration: 0.6 }}
-                >
-                  <h3 style={headingStyle}>A Quiet Echo</h3>
-                  <span style={sageUnderline} />
-                  <div style={paragraphContainer}>
-                    <p style={textStyle}>{narratives.stressEchoNarrative}</p>
+                {isWeeklyLoading && (
+                  <p style={{ ...textStyle, fontStyle: 'italic', opacity: 0.6 }}>
+                    Tracing your week...
+                  </p>
+                )}
+
+                {!isWeeklyLoading && weeklySections ? (
+                  <div>
+                    {weeklySections.weekShape && (
+                      <div>
+                        <p style={sectionLabelStyle}>Week Shape</p>
+                        <div style={paragraphContainer}>
+                          <p style={sectionTextStyle}>{weeklySections.weekShape}</p>
+                        </div>
+                      </div>
+                    )}
+                    {weeklySections.recurringThemes && (
+                      <div>
+                        {weeklySections.weekShape && <div style={sectionDividerStyle} />}
+                        <p style={sectionLabelStyle}>Recurring Themes</p>
+                        <div style={paragraphContainer}>
+                          <p style={sectionTextStyle}>{weeklySections.recurringThemes}</p>
+                        </div>
+                      </div>
+                    )}
+                    {weeklySections.whatsShifting && (
+                      <div>
+                        {(weeklySections.weekShape || weeklySections.recurringThemes) && <div style={sectionDividerStyle} />}
+                        <p style={sectionLabelStyle}>What's Shifting</p>
+                        <div style={paragraphContainer}>
+                          <p style={sectionTextStyle}>{weeklySections.whatsShifting}</p>
+                        </div>
+                      </div>
+                    )}
+                    {weeklySections.whatWorked && (
+                      <div>
+                        {(weeklySections.weekShape || weeklySections.recurringThemes || weeklySections.whatsShifting) && <div style={sectionDividerStyle} />}
+                        <p style={sectionLabelStyle}>What Worked</p>
+                        <div style={paragraphContainer}>
+                          <p style={sectionTextStyle}>{weeklySections.whatWorked}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </motion.section>
-              )}
+                ) : !isWeeklyLoading && weeklyText ? (
+                  <div style={paragraphContainer}>
+                    <p style={textStyle}>{weeklyText}</p>
+                  </div>
+                ) : !isWeeklyLoading ? (
+                  <div style={paragraphContainer}>
+                    <p style={textStyle}>
+                      As you keep checking in, TRACE will start noticing the shape of your week.
+                    </p>
+                  </div>
+                ) : null}
+              </motion.section>
 
               {whisper && (
                 <motion.div
@@ -600,7 +699,6 @@ export function FullPatternsReportScreen({
                 </div>
               </motion.section>
 
-              {/* Back to Patterns button at bottom */}
               <motion.div
                 className="w-full flex justify-center"
                 style={{ marginTop: '32px', marginBottom: '16px' }}
