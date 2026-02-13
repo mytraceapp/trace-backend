@@ -2132,29 +2132,10 @@ export default function ChatScreen() {
         
         console.log('🎵 All audio sources stopped');
       } else if (audioAction?.type === 'resume') {
-        console.log('🎵 TRACE audio_action: resume - resuming audio');
-
-        const lastPlayed = clientStateRef.current.lastNowPlaying;
-        if (lastPlayed && lastPlayed.album === 'night_swim') {
-          const trackIdx = typeof lastPlayed.trackIndex === 'number'
-            ? lastPlayed.trackIndex
-            : (typeof lastPlayed.trackId === 'string' && lastPlayed.trackId.startsWith('night_swim_')
-                ? parseInt(lastPlayed.trackId.replace('night_swim_', ''), 10)
-                : 0);
-          console.log('🎵 Resuming Night Swim track:', trackIdx, lastPlayed.title);
-          setCurrentTrackIndex(trackIdx);
-          clientStateRef.current.nowPlaying = { ...lastPlayed, stoppedAt: undefined };
-          clientStateRef.current.mode = 'audio_player';
-          setTimeout(() => openNightSwimPlayer(true, trackIdx), 400);
-        } else {
-          console.log('🎵 Resuming soundscape (no Night Swim to resume)');
-          await handleSoundState({
-            current: 'presence',
-            changed: true,
-            reason: 'user_requested_resume'
-          });
-          clientStateRef.current.currentSoundState = 'presence';
-        }
+        console.log('🎵 TRACE audio_action: resume — bringing ambient back');
+        await playAmbient('main', require('../../assets/audio/trace_ambient.m4a'), 0.35);
+        clientStateRef.current.currentSoundState = 'presence';
+        clientStateRef.current.mode = 'chat';
       }
     } catch (err: any) {
       console.error('❌ TRACE handleSend error:', err.message || String(err));
