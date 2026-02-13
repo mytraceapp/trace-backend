@@ -4635,6 +4635,16 @@ app.post('/api/chat', async (req, res) => {
       return earlyAtmosphereResult?.sound_state || { current: null, changed: false, reason: 'default' };
     };
     
+    // Store request-scoped enrichment context on `res` so finalizeTraceResponse
+    // can automatically attach sound_state + client_state_patch to ALL return paths
+    res._traceEnrich = {
+      getAtmosphereSoundState,
+      userMessageCount: currentUserMsgCount,
+      assistantMessageCount: currentAssistantMsgCount,
+      effectiveUserId,
+      conversationState,
+    };
+    
     // EARLY CRISIS CHECK - block music/lyrics interception during crisis
     // This runs before TRACE Studios to ensure crisis mode takes absolute priority
     // Check BOTH current message AND recent history (last 5 user messages)
@@ -10788,6 +10798,19 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     // Only add client_state_patch if we have something to patch
     if (Object.keys(clientStatePatch).length > 0) {
       response.client_state_patch = clientStatePatch;
+    }
+    
+    // Preserve traceStudiosContext in main AI pipeline responses when Studios mode is active
+    // Without this, the client clears its Studios context on every non-intercepted response
+    if (traceIntent?.primaryMode === 'studios' && !response.traceStudios) {
+      const anchorEntities = traceIntent?.topicAnchor?.entities || [];
+      const hasNeonPromise = anchorEntities.some(e => /neon.*promise/i.test(e));
+      const hasMusicDomain = traceIntent?.topicAnchor?.domain === 'music';
+      if (hasNeonPromise) {
+        response.traceStudios = { traceStudiosContext: 'neon_promise', kind: 'context_carry' };
+      } else if (hasMusicDomain) {
+        response.traceStudios = { traceStudiosContext: 'music_general', kind: 'context_carry' };
+      }
     }
     
     // Add pattern_metadata if we used pattern context in this response

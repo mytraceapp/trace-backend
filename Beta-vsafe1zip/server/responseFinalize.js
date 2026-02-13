@@ -13,6 +13,39 @@ function finalizeTraceResponse(res, rawPayload, requestId, options = {}) {
   const responseSource = rawPayload?.response_source || options.responseSource || 'unknown';
   const provPath = rawPayload?._provenance?.path || options.provenancePath || 'unknown';
 
+  // Auto-enrich with sound_state + client_state_patch if request context available
+  // This ensures ALL return paths (Studios, breathing, boundary, etc.) maintain state
+  const enrich = res?._traceEnrich;
+  if (enrich && rawPayload && typeof rawPayload === 'object' && rawPayload.response_source !== 'system') {
+    if (!rawPayload.sound_state && enrich.getAtmosphereSoundState) {
+      rawPayload.sound_state = enrich.getAtmosphereSoundState();
+    }
+    if (!rawPayload.client_state_patch) {
+      rawPayload.client_state_patch = {};
+    }
+    const patch = rawPayload.client_state_patch;
+    if (patch.userMessageCount === undefined && enrich.userMessageCount !== undefined) {
+      patch.userMessageCount = enrich.userMessageCount;
+    }
+    if (patch.assistantMessageCount === undefined && enrich.assistantMessageCount !== undefined) {
+      patch.assistantMessageCount = enrich.assistantMessageCount + 1;
+    }
+    if (patch.soundscapeCadenceMet === undefined && enrich.userMessageCount !== undefined) {
+      patch.soundscapeCadenceMet = enrich.userMessageCount >= 2 && (enrich.assistantMessageCount + 1) >= 1;
+    }
+    if (patch.lastActivityTimestamp === undefined) {
+      patch.lastActivityTimestamp = Date.now();
+    }
+    // Update conversation state turn count on early returns
+    if (enrich.effectiveUserId && enrich.conversationState && rawPayload.message) {
+      try {
+        enrich.conversationState.updateStateAfterResponse(enrich.effectiveUserId, rawPayload.message);
+      } catch (e) {
+        // Non-blocking — don't fail the response
+      }
+    }
+  }
+
   const base = {
     ok: rawPayload?.ok !== false,
     ...rawPayload,

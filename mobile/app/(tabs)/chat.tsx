@@ -1847,8 +1847,9 @@ export default function ChatScreen() {
         traceStudiosContextRef.current = result.traceStudios.traceStudiosContext;
       } else if (traceStudiosContext || traceStudiosContextRef.current) {
         const src = result?.response_source || '';
-        const isActivityRelated = src === 'activity_followup' || src === 'activity_return' || src === 'insight';
-        if (!isActivityRelated) {
+        const mode = result?._shape_meta?.mode || '';
+        const keepContext = src === 'activity_followup' || src === 'activity_return' || src === 'insight' || src === 'trace_studios' || mode === 'studios';
+        if (!keepContext) {
           setTraceStudiosContext(null);
           traceStudiosContextRef.current = null;
         }
