@@ -48,8 +48,8 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd Beta-vsafe1zip && PORT=3000 node server/index.js"
-waitForPort = 3000
+args = "cd Beta-vsafe1zip && PORT=3001 node server/index.js"
+waitForPort = 3001
 
 [[workflows.workflow]]
 name = "Mobile App"
@@ -65,6 +65,10 @@ args = "cd mobile && rm -rf node_modules/.cache .expo && npx expo start --tunnel
 [[ports]]
 localPort = 3000
 externalPort = 3000
+
+[[ports]]
+localPort = 3001
+externalPort = 3001
 
 [[ports]]
 localPort = 5000
