@@ -1911,6 +1911,8 @@ export default function ChatScreen() {
           
           addMessage(assistantMessage);
         }
+      } else if (result?.response_source === 'audio_intent_guard') {
+        console.log('🎵 TRACE audio_intent_guard response — no chat bubble');
       } else {
         // Normal single message response
         let assistantText: string =
