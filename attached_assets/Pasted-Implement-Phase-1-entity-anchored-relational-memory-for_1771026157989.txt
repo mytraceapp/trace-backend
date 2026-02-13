@@ -1,0 +1,101 @@
+Implement Phase 1 entity-anchored relational memory for TRACE.
+
+GOAL (Phase 1):
+- If the user has exactly one person in memory for a relationship (e.g., sister), TRACE must always treat “my sister” as that person and use their name in replies.
+- If multiple sister records exist, do NOT call the LLM; ask a short buddy-voice clarification.
+- Keep implementation minimal and deterministic; no pronoun logic yet, no pending confirmation yet, no post-processing rewrites yet.
+
+STACK:
+Node/Express backend + Supabase (Postgres). We have user_id per request. Chat endpoint is POST /api/chat.
+
+DELIVERABLES (Phase 1):
+
+1) Supabase migration: create table `people`
+- id uuid primary key default gen_random_uuid()
+- owner_user_id uuid not null
+- relationship text not null (normalized keys: 'sister','brother','mom','dad', etc.)
+- display_name text not null
+- aliases text[] default '{}'
+- notes text
+- salience float default 0.7
+- last_mentioned_at timestamptz default now()
+- created_at timestamptz default now()
+- updated_at timestamptz default now()
+Indexes:
+- index (owner_user_id, relationship)
+Constraints:
+- unique (owner_user_id, relationship, display_name)
+Triggers:
+- auto update updated_at on row update
+RLS:
+- enable RLS and restrict select/insert/update/delete to auth.uid() = owner_user_id (or the equivalent user id column used in our auth setup).
+
+2) Create server module `server/relationalMemory.ts`
+Functions:
+- normalizeRelationship(raw: string) -> string | null
+  Map synonyms: mom/mother/mama -> 'mom', dad/father -> 'dad', sis/sister -> 'sister', etc.
+- extractRelationshipMentions(text) -> Set<string>
+  Use correct grouped regex for sister:
+  /\b(?:(?:my\s+)?sister|sis|lil\s+sis|big\s+sis)\b/i
+  Return normalized relationship keys (e.g., 'sister') for any matches.
+- extractExplicitPersonMentions(text) -> Array<{relationship: string, name: string}>
+  Detect explicit patterns like:
+  "my sister Emma", "my mom Maria"
+  Regex example:
+  /\bmy\s+(sister|brother|mom|mother|dad|father)\s+([A-Z][a-zA-Z'-]{1,30})\b/
+  Normalize relationship key.
+  Return list (can be 0..n).
+- resolvePersonByRelationship(userId, relationship) -> null | Person | {ambiguous: true, candidates: Person[]}
+  Query Supabase people where owner_user_id=userId AND relationship=relationship
+  If 0: null
+  If 1: person
+  If >1: ambiguous + candidates
+
+3) Modify /api/chat handler (BEFORE LLM call):
+- Read user message
+- Extract relationship mentions (e.g., sister)
+- For each relationship mentioned:
+    resolved = resolvePersonByRelationship(userId, relationship)
+    If resolved is ambiguous (>1):
+        DO NOT call LLM
+        Return short buddy voice clarification:
+        "When you say your sister—Emma or Sarah?"
+        (Use up to first 2-3 candidates by salience; no therapy tone.)
+    If resolved is one person:
+        Prepend a hard-context system block to the LLM input (top of system prompt):
+        "Relational anchors (always true unless user corrects it):
+         - Sister = Emma. Notes: <notes>. Use 'Emma' when the user says 'my sister' unless they specify a different person."
+        Also update that person row:
+        - last_mentioned_at = now()
+        - salience = min(salience + 0.1, 1.0)
+
+- Additionally: if text contains explicit person mention like "my sister Emma":
+    Upsert into `people` IF NOT EXISTS (owner_user_id, relationship, display_name)
+    This is allowed because it is explicit.
+    Insert with aliases including ["my sister","sis","sister","Emma"] if relationship is sister (simple defaults).
+    Then proceed with the same anchor injection logic.
+
+4) Add memory endpoints (Phase 1):
+- GET /api/memory/people -> list all people for user_id (ordered by relationship, salience desc)
+- POST /api/memory/person -> create manually {relationship, display_name, aliases?, notes?}
+- PATCH /api/memory/person/:id -> update (must enforce owner_user_id)
+- DELETE /api/memory/person/:id -> delete
+
+5) Privacy constraints:
+- Only create records from explicit patterns “my <relationship> <Name>”.
+- Do not create on vague mentions (“my sister…” alone).
+- User can view/edit/delete all records.
+
+6) Test plan (Phase 1):
+- Seed one sister Emma (via explicit mention or POST endpoint)
+- Send: “thinking about my sister” after 10 unrelated messages -> assistant MUST say “Emma”
+- Seed second sister Sarah -> “my sister is stressed” -> backend returns clarification without LLM call
+- Delete Emma -> next “my sister” mention should not resolve to Emma and should not auto-create
+
+FILES:
+- server/relationalMemory.ts (new)
+- server/routes/chat.ts (or existing chat handler file) modified
+- server/routes/memory.ts (new)
+- supabase/migrations/add_people_table.sql (new)
+
+Keep buddy voice for clarifications: short, casual, no clinical phrasing.
