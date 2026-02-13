@@ -916,12 +916,12 @@ OUTPUT (valid JSON only):
   "reliefLabel": string | null,
   "crossPatternHint": string | null (only if sampleSize >= 7, NOT crisisMode),
   "predictiveHint": string | null (studio users only, sampleSize >= 14),
-  "weeklyNarrative": string | null (2-3 sentences, grounded observational tone — a compact summary),
+  "weeklyNarrative": null (DEPRECATED — do NOT populate this field, always set to null),
   "weeklySections": {
-    "weekShape": string | null (1-2 sentences: the rhythm/shape of the week — active days, quiet days, overall pace),
-    "recurringThemes": string | null (1-2 sentences: what kept showing up — topics, moods, patterns across sessions),
-    "whatsShifting": string | null (1-2 sentences: what changed compared to previous weeks — momentum, direction),
-    "whatWorked": string | null (1-2 sentences: what seemed to help — activities, timing, routines that correlated with better states)
+    "weekShape": string (REQUIRED, 2-3 sentences: the rhythm/shape of the week — active days, quiet days, overall pace, when they showed up most),
+    "recurringThemes": string (REQUIRED, 2-3 sentences: what kept showing up — topics, moods, patterns across sessions. Name actual themes.),
+    "whatsShifting": string (REQUIRED, 1-2 sentences: what changed compared to previous weeks — momentum, direction, new patterns),
+    "whatWorked": string (REQUIRED, 1-2 sentences: what seemed to help — activities, timing, routines that correlated with better states)
   },
   "weeklyMoodTrend": {
     "calm": { "direction": "up"|"down"|"stable", "label": string },
@@ -930,6 +930,8 @@ OUTPUT (valid JSON only):
 }
 
 RULES:
+- CRITICAL: weeklySections is MANDATORY. All four fields (weekShape, recurringThemes, whatsShifting, whatWorked) MUST be non-null strings. Never skip them.
+- weeklyNarrative MUST be null. All weekly content goes into weeklySections only.
 - Sound observant, not interpretive
 - Focus on patterns and behavioral signals (e.g., "Stress showed up more on weekdays", "Calm entries clustered on Sundays")
 - Use simple, modern language—emotionally neutral

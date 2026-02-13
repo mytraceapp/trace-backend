@@ -17786,10 +17786,12 @@ app.post('/api/patterns/insights', async (req, res) => {
         if (patternsResult) {
           try {
             const parsed = JSON.parse(patternsResult);
-            weeklyNarrative = parsed.weeklyNarrative || null;
             const ws = parsed.weeklySections || null;
             if (ws && (ws.weekShape || ws.recurringThemes || ws.whatsShifting || ws.whatWorked)) {
               weeklySections = ws;
+              weeklyNarrative = [ws.weekShape, ws.recurringThemes, ws.whatsShifting, ws.whatWorked].filter(Boolean).join(' ');
+            } else {
+              weeklyNarrative = parsed.weeklyNarrative || null;
             }
             aiEnergyRhythmLabel = parsed.energyRhythmLabel || null;
             aiStressEchoesLabel = parsed.stressEchoesLabel || null;
@@ -17798,7 +17800,8 @@ app.post('/api/patterns/insights', async (req, res) => {
             aiPredictiveHint = parsed.predictiveHint || null;
             aiWeeklyMoodTrend = parsed.weeklyMoodTrend || null;
             console.log('📊 [PATTERNS ENGINE] Generated insights:', {
-              weeklyNarrative: weeklyNarrative?.slice(0, 50) + '...',
+              hasWeeklySections: !!weeklySections,
+              weekShape: weeklySections?.weekShape?.slice(0, 40),
               hasEnergyRhythm: !!aiEnergyRhythmLabel,
               hasStressEchoes: !!aiStressEchoesLabel,
               hasRelief: !!aiReliefLabel,
