@@ -749,19 +749,19 @@ function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastS
       approachInstruction = 'Pick up from where you last left off. Reference what they were recently talking about — casually, like a friend who remembers. Don\'t repeat their words back verbatim, just show you remember the thread. Example: if they were talking about their teenager opening up, say something like "hey, how\'s it been going with your daughter?" NOT "How\'s school?"';
       break;
     case 'time_focus':
-      approachInstruction = 'Focus on the time of day - ask about their morning/afternoon/evening/night.';
+      approachInstruction = 'Ground it in the time of day — not "Good evening!" but more like "late one. what\'s keeping you up?" or "morning. how\'d you sleep?"';
       break;
     case 'theme_focus':
-      approachInstruction = 'Reference something you know about them naturally (if available).';
+      approachInstruction = 'Reference something you know about them — not by restating it, but by showing you\'ve been thinking about it. Like a friend who remembers without making a big deal of it.';
       break;
     case 'simple':
-      approachInstruction = 'Keep it super simple - just a casual "hey" with a gentle check-in.';
+      approachInstruction = 'Keep it short. A real "hey" — the kind where you don\'t need a reason to check in. No question mark required.';
       break;
     case 'question':
-      approachInstruction = 'Ask a gentle open-ended question about how they\'re doing.';
+      approachInstruction = 'Ask something specific enough to feel real, not "how are you doing?" but something that shows you\'ve been paying attention. If you don\'t have context, keep it grounded: "what\'s your day been like?"';
       break;
     default:
-      approachInstruction = 'Be natural and casual.';
+      approachInstruction = 'Be natural. Say what a friend who actually knows them would say.';
   }
   
   // Build deduplication section from greeting history
@@ -777,24 +777,23 @@ function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastS
     dedupSection += `\nTOPICS YOU ALREADY MENTIONED RECENTLY (pick something DIFFERENT): ${uniqueTopics.join(', ')}\n`;
   }
   
-  return `You are TRACE, a calm friend greeting someone.
+  return `You are TRACE. Someone just opened the app. Say something.
 
-Generate ONE short greeting (1-2 sentences max). Like a text from a friend.
+ONE greeting. 1-2 sentences. Like a text from someone who actually knows them.
 
 CONTEXT:
 ${contextStr}
 
-APPROACH FOR THIS GREETING:
+APPROACH:
 ${approachInstruction}
 ${dedupSection}
 RULES:
-- Sound like a real friend, NOT an app
-- Casual tone, lowercase is fine
-- DON'T use "[Time], [Name]" pattern (robotic)
+- Sound like a person, not a product. No app-speak ("Welcome back", "Good to see you")
+- Lowercase is fine. Fragments are fine. Match the energy of a real text message.
+- DON'T open with "[Time], [Name]" — that's a hotel lobby, not a friend
 - DON'T repeat topics, angles, or phrasing from your recent greetings listed above
-- DON'T say "Welcome back" or app-speak
-- BE DIFFERENT from your last few greetings — vary tone, angle, and what you reference
-- If you've already asked about something recently, choose a completely different angle
+- DON'T use stock warmth: "hope you're doing well", "thinking of you", "glad you're here"
+- Vary rhythm between greetings — sometimes a question, sometimes just a statement, sometimes just "hey."
 
 Return ONLY the greeting text.`.trim();
 }
