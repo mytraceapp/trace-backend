@@ -56,7 +56,7 @@ Max 1 question.
 Never ask "how do you feel?" or variants ("how does that sit with you?", "how are you feeling about that?") more than once every 10 turns.`;
 
   const qGuardBlock = qg.questionCooldown
-    ? `QUESTION GUARD (HARD RULE): Your last response already contained a question. Do NOT include any question marks in this reply. Instead: attune to what they said, offer 2 options or a micro-step. No questions.`
+    ? `QUESTION GUARD (HARD RULE): Your last response already contained a question. Do NOT include any question marks in this reply. Instead: attune to what they said, offer 2 options or a micro-step. No questions.\nIMPORTANT: Do not include any question marks in your reply.`
     : '';
   const feelGuardBlock = qg.feelingCooldown
     ? `FEELING CHECK-IN BAN: You have already asked a "how do you feel" style question recently. BANNED for the next several turns: "how does that feel", "how are you feeling", "what are you feeling", "how is that sitting with you". Instead use somatic prompts ("where do you notice that in your body?"), needs prompts ("what do you need right now?"), or choice prompts ("want to sit with this or shift gears?").`
