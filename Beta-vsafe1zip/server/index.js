@@ -4658,9 +4658,6 @@ app.post('/api/chat', async (req, res) => {
       console.log('[CRISIS] Early crisis detection - bypassing TRACE Studios interception (history check:', historyDistress, ')');
     }
     
-    // 🎵 AUDIO CONTROL: DISABLED FOR NOW - needs debugging
-    // Feature was having issues with different code paths intercepting requests
-    // EARLY AUDIO CONTROL - Stop/Resume music commands bypass LLM for instant response
     const userMessage = rawMessages?.length > 0 ? rawMessages[rawMessages.length - 1].content : '';
     const userMessageLower = (userMessage || '').toLowerCase().trim();
     
@@ -4696,256 +4693,53 @@ app.post('/api/chat', async (req, res) => {
       }
     });
     console.log('[COGNITIVE ENGINE] Intent:', JSON.stringify(cognitiveIntent));
-    const stopsMusic = /^stop\s*(the\s*)?(music|audio|sound|playing)|^pause\s*(the\s*)?(music|audio)|^turn\s*off\s*(the\s*)?(music|audio)|^mute|^silence|^quiet$/i.test(userMessageLower);
-    const resumesMusic = /^resume\s*(the\s*)?(music|audio)?$|^play\s*(the\s*)?(music|audio)$|^unpause|^unmute|^turn\s*on\s*(the\s*)?(music|audio)|^start\s*(the\s*)?(music|audio)$|^(put|bring)\s*(the\s*)?(music|audio)\s*(back|on)|^music\s*(back|on|again)|^resume$/i.test(userMessageLower);
-    
-    const hasStudiosContext = !!(req.body.traceStudiosContext || safeClientState.traceStudiosContext);
-    
-    if (stopsMusic || resumesMusic) {
-      console.log(`[AUDIO CONTROL] stopsMusic: ${stopsMusic}, resumesMusic: ${resumesMusic}`);
-    }
-    
-    if (hasStudiosContext && (stopsMusic || resumesMusic)) {
-      console.log('[AUDIO CONTROL] Deferring to Studios handler (traceStudiosContext active)');
-    } else if (stopsMusic) {
-      const stopAudioAction = {
-        type: 'stop',
-        action: 'pause',
-        source: 'all',
-        reason: 'user_requested'
-      };
-      console.log('[AUDIO CONTROL] Stop music detected - stopping ALL audio immediately');
-      
-      const lastAssistant = rawMessages?.filter(m => m.role === 'assistant').slice(-1)[0]?.content || '';
-      const lastUser = rawMessages?.filter(m => m.role === 'user').slice(-3, -1).map(m => m.content).join(' ') || '';
-      const hadConvo = lastUser.length > 15 || lastAssistant.length > 30;
-      const stopMsg = hadConvo ? "Okay, music's off." : "Done.";
-      
-      const convoStateForAudio = conversationState.getState(effectiveUserId);
-      convoStateForAudio.turnCount++;
-      
-      // Capture what was playing before stopping (for resume later)
-      if (!convoStateForAudio.lastPlayedTrack) {
-        const clientNowPlaying = safeClientState.nowPlaying;
-        if (clientNowPlaying) {
-          convoStateForAudio.lastPlayedTrack = {
-            trackId: clientNowPlaying.trackId,
-            trackIndex: clientNowPlaying.trackIndex,
-            title: clientNowPlaying.title,
-            album: clientNowPlaying.album || 'night_swim',
-            timestamp: Date.now(),
-          };
-          console.log('[TRACK MEMORY] Captured nowPlaying before stop:', clientNowPlaying.title);
-        } else {
-          // Fallback: try session history
-          const stopSessionHistory = getSessionHistory(effectiveUserId);
-          if (stopSessionHistory.length > 0) {
-            const lastTrackNum = stopSessionHistory[stopSessionHistory.length - 1];
-            const lastTrackInfo = getTrackInfo(lastTrackNum);
-            convoStateForAudio.lastPlayedTrack = {
-              trackIndex: lastTrackNum - 1,
-              title: lastTrackInfo?.name || `Track ${lastTrackNum}`,
-              album: 'night_swim',
-              timestamp: Date.now(),
-            };
-            console.log('[TRACK MEMORY] Captured from session history before stop:', lastTrackInfo?.name);
-          }
-        }
-      }
-      
-      // Store audio state: music was explicitly stopped by user
-      convoStateForAudio.audioState = {
-        status: 'stopped',
-        stoppedAt: Date.now(),
-        stoppedBy: 'user',
-        lastTrack: convoStateForAudio.lastPlayedTrack || null
-      };
-      conversationState.saveState(effectiveUserId, convoStateForAudio);
-      console.log('[AUDIO STATE] Music stopped by user, saved audio state');
-      
-      return finalizeTraceResponse(res, {
-        ok: true,
-        requestId,
-        request_id: requestId,
-        message: stopMsg,
-        audio_action: stopAudioAction,
-        activity_suggestion: { name: null, should_navigate: false },
-        posture: 'STEADY',
-        detected_state: 'neutral',
-        sound_state: { current: null, changed: true, reason: 'user_stopped' },
-        response_source: 'audio_control',
-        _provenance: { path: 'audio_stop', requestId, ts: Date.now() }
-      }, requestId);
-    } else if (resumesMusic) {
-      const sessionHistory = getSessionHistory(effectiveUserId);
-      let lastTrack = sessionHistory.length > 0 ? sessionHistory[sessionHistory.length - 1] : null;
-      let trackInfo = lastTrack ? getTrackInfo(lastTrack) : null;
-      
-      const convoStateForResume = conversationState.getState(effectiveUserId);
 
-      let postActivityBridge = '';
-      const pendingFollowup = convoStateForResume.pendingFollowup;
-      if (pendingFollowup && pendingFollowup.activityName && !pendingFollowup.expired) {
-        postActivityBridge = `Good to have you back from ${pendingFollowup.activityName}. `;
-        convoStateForResume.pendingFollowup = { ...pendingFollowup, expired: true, clearedBy: 'music_resume' };
-        console.log('[AUDIO CONTROL] Cleared pending post-activity reflection — user resumed music instead');
-        if (pool) {
-          try {
-            await clearReflectionFlag(pool, effectiveUserId);
-            console.log('[AUDIO CONTROL] Also cleared DB reflection flag via pendingFollowup path');
-          } catch (e) { /* non-critical */ }
-        }
-      }
-      if (!postActivityBridge && pool) {
-        try {
-          const reflCtx = await getReflectionContext(pool, effectiveUserId);
-          if (reflCtx && reflCtx.lastActivityName) {
-            postActivityBridge = `Welcome back from ${reflCtx.lastActivityName}. `;
-            await clearReflectionFlag(pool, effectiveUserId);
-            console.log('[AUDIO CONTROL] Cleared DB reflection flag — user resumed music instead');
-          }
-        } catch (e) {
-          console.warn('[AUDIO CONTROL] Reflection check failed:', e.message);
-        }
-      }
-      
-      if (!lastTrack && convoStateForResume.lastPlayedTrack) {
-        const saved = convoStateForResume.lastPlayedTrack;
-        const age = Date.now() - (saved.timestamp || 0);
-        if (age < 2 * 60 * 60 * 1000) {
-          const trackIndex = saved.trackIndex ?? saved.trackId;
-          console.log('[AUDIO CONTROL] No session history, using conversation state lastPlayedTrack:', saved.trackId || saved.trackIndex);
-          
-          convoStateForResume.turnCount++;
-          convoStateForResume.audioState = { status: 'playing', resumedAt: Date.now(), track: saved.title || null };
-          conversationState.saveState(effectiveUserId, convoStateForResume);
-          
-          const resumeMsg = postActivityBridge + "Back on.";
-          console.log('[AUDIO STATE] Music resumed from saved state');
-          
-          return finalizeTraceResponse(res, {
-            ok: true,
-            requestId,
-            request_id: requestId,
-            message: resumeMsg,
-            audio_action: {
-              type: 'open',
-              action: 'play',
-              source: 'originals',
-              album: saved.album || 'night_swim',
-              track: typeof trackIndex === 'number' ? trackIndex : 0,
-              autoplay: true,
-              reason: 'user_requested_resume'
-            },
-            activity_suggestion: { name: null, should_navigate: false },
-            posture: 'STEADY',
-            detected_state: 'neutral',
-            sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
-            response_source: 'audio_control',
-            _provenance: { path: 'audio_resume_from_state', requestId, ts: Date.now(), had_activity_bridge: !!postActivityBridge }
-          }, requestId);
-        }
-      }
-      
-      if (!lastTrack && safeClientState.lastNowPlaying) {
-        const lnp = safeClientState.lastNowPlaying;
-        const age = Date.now() - (lnp.stoppedAt || 0);
-        if (age < 2 * 60 * 60 * 1000) {
-          console.log('[AUDIO CONTROL] Using client lastNowPlaying:', lnp.title);
-          convoStateForResume.turnCount++;
-          convoStateForResume.audioState = { status: 'playing', resumedAt: Date.now(), track: lnp.title || null };
-          conversationState.saveState(effectiveUserId, convoStateForResume);
-          
-          const resumeMsg = postActivityBridge + "Back on.";
-          
-          return finalizeTraceResponse(res, {
-            ok: true,
-            requestId,
-            request_id: requestId,
-            message: resumeMsg,
-            audio_action: {
-              type: 'open',
-              action: 'play',
-              source: 'originals',
-              album: lnp.album || 'night_swim',
-              track: 0,
-              autoplay: true,
-              reason: 'user_requested_resume'
-            },
-            activity_suggestion: { name: null, should_navigate: false },
-            posture: 'STEADY',
-            detected_state: 'neutral',
-            sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
-            response_source: 'audio_control',
-            _provenance: { path: 'audio_resume_from_client_state', requestId, ts: Date.now(), had_activity_bridge: !!postActivityBridge }
-          }, requestId);
-        }
-      }
-      
-      if (!lastTrack) {
-        const historyTrack = findLastPlayedTrackFromHistory(rawMessages);
-        if (historyTrack) {
-          lastTrack = historyTrack.trackNumber;
-          trackInfo = getTrackInfo(lastTrack);
-          console.log('[AUDIO CONTROL] Found track from conversation history:', trackInfo?.name);
-        }
-      }
-      
-      // NOTHING TO RESUME: No track found from any source
-      // Don't send a blind resume action — tell user nothing is playing
-      if (!lastTrack) {
-        console.log('[AUDIO CONTROL] Resume requested but no track found from any source');
-        
-        convoStateForResume.turnCount++;
-        conversationState.saveState(effectiveUserId, convoStateForResume);
-        
-        const noTrackMsg = postActivityBridge + "Nothing's playing right now. Want me to put something on?";
-        
-        return finalizeTraceResponse(res, {
-          ok: true,
-          requestId,
-          request_id: requestId,
-          message: noTrackMsg,
-          audio_action: null,
-          activity_suggestion: { name: null, should_navigate: false },
-          posture: 'STEADY',
-          detected_state: 'neutral',
-          sound_state: { current: null, changed: false, reason: 'nothing_to_resume' },
-          response_source: 'audio_control',
-          _provenance: { path: 'audio_resume_nothing_playing', requestId, ts: Date.now(), had_activity_bridge: !!postActivityBridge }
-        }, requestId);
-      }
-      
-      const resumeAudioAction = {
-        type: 'open',
-        action: 'play',
-        source: 'originals',
-        album: 'night_swim',
-        track: lastTrack - 1,
-        autoplay: true,
-        reason: 'user_requested'
-      };
-      console.log(`[AUDIO CONTROL] Resume music detected - resuming Track ${lastTrack} (${trackInfo?.name || 'Unknown'})`);
-      
-      convoStateForResume.turnCount++;
-      convoStateForResume.audioState = { status: 'playing', resumedAt: Date.now(), track: trackInfo?.name || null };
-      conversationState.saveState(effectiveUserId, convoStateForResume);
-      console.log('[AUDIO STATE] Music resumed');
-      
-      const resumeMsg = postActivityBridge + "Back on.";
-      
+    // ============================================================
+    // AUDIO INTENT GUARD — authoritative stop/resume lane
+    // Fires BEFORE the model call. No user-facing text emitted.
+    // Frontend audio_action handler is the only consumer.
+    // ============================================================
+    const audioGuardNorm = userMessageLower
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const audioGuardWordCount = audioGuardNorm.split(' ').length;
+
+    const STOP_EXACT = new Set([
+      'stop', 'pause', 'mute', 'silence', 'quiet', 'hush',
+      'stop music', 'stop the music', 'stop audio', 'stop the audio',
+      'pause music', 'pause the music', 'pause audio', 'pause the audio',
+      'turn off music', 'turn off the music', 'turn off audio', 'turn off the audio',
+      'mute music', 'mute the music', 'mute audio',
+      'silence the music', 'stop playing', 'stop playing music',
+    ]);
+    const RESUME_EXACT = new Set([
+      'resume', 'unpause', 'unmute', 'continue',
+      'resume music', 'resume the music', 'resume audio', 'resume the audio',
+      'play music', 'play the music', 'play audio', 'play the audio',
+      'start music', 'start the music', 'start audio', 'start the audio',
+      'turn on music', 'turn on the music', 'turn on audio', 'turn on the audio',
+      'bring it back', 'bring the music back', 'bring music back',
+      'put music on', 'put the music on', 'put music back on',
+      'music on', 'music back', 'music back on', 'music again',
+      'continue music', 'continue the music', 'continue playing',
+    ]);
+
+    const isStopIntent = audioGuardWordCount <= 5 && STOP_EXACT.has(audioGuardNorm);
+    const isResumeIntent = audioGuardWordCount <= 5 && RESUME_EXACT.has(audioGuardNorm);
+
+    if (isStopIntent || isResumeIntent) {
+      const guardType = isStopIntent ? 'stop' : 'resume';
+      console.log(`[AUDIO_INTENT_GUARD] Matched ${guardType} intent: "${audioGuardNorm}"`);
+
       return finalizeTraceResponse(res, {
         ok: true,
-        requestId,
         request_id: requestId,
-        message: resumeMsg,
-        audio_action: resumeAudioAction,
-        activity_suggestion: { name: null, should_navigate: false },
-        posture: 'STEADY',
-        detected_state: 'neutral',
-        sound_state: { current: 'presence', changed: true, reason: 'user_resumed' },
-        response_source: 'audio_control',
-        _provenance: { path: 'audio_resume', requestId, ts: Date.now(), had_activity_bridge: !!postActivityBridge }
+        response_source: 'audio_intent_guard',
+        message: '',
+        messages: [],
+        audio_action: { type: guardType },
+        _provenance: { path: `audio_intent_guard_${guardType}`, requestId, ts: Date.now() },
       }, requestId);
     }
     
