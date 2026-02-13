@@ -79,10 +79,10 @@ const DWELL_TIME_MS = 90000; // 90 seconds — soundscapes need time to breathe
 const OSCILLATION_WINDOW_MS = 120000;
 const OSCILLATION_THRESHOLD = 3;
 const FREEZE_DURATION_MS = 90000;
-const NEUTRAL_STREAK_THRESHOLD = 8; // 8 neutral messages before returning to presence (was 6)
-const SIGNAL_TIMEOUT_MS = 600000; // 10 minutes - soundscapes persist reasonably
+const NEUTRAL_STREAK_THRESHOLD = 12; // 12 neutral messages before returning to presence
+const SIGNAL_TIMEOUT_MS = 900000; // 15 minutes - soundscapes persist longer
 const GROUNDING_CLEAR_THRESHOLD = 3; // Require 3 clear messages to exit grounding
-const MIN_STATE_PERSIST_MESSAGES = 8; // Minimum 8 messages before allowing state reassessment (was 4)
+const MIN_STATE_PERSIST_MESSAGES = 10; // Minimum 10 messages before allowing state reassessment
 const INACTIVITY_TIMEOUT_MS = 300000; // 5 minutes - return to ambient after inactivity
 const BASELINE_WINDOW_MESSAGES = 2; // Accumulate signals over first 2 messages before making initial switch
 
@@ -311,12 +311,17 @@ function evaluateAtmosphere(input) {
   // ============================================================
   const VALID_STATES = ['presence', 'grounding', 'comfort', 'reflective', 'insight'];
   if (client_sound_state && VALID_STATES.includes(client_sound_state)) {
-    // If server thinks we're at presence but client is in another state, restore client's state
-    if (session.current_state === 'presence' && client_sound_state !== 'presence' && session.last_change_timestamp === 0) {
-      console.log(`[ATMOSPHERE] Restoring client state: ${client_sound_state} (server had no record)`);
-      session.current_state = client_sound_state;
-      session.last_change_timestamp = now - 30000; // Pretend it changed 30s ago
-      session.messages_since_state_change = 3; // Some persistence already
+    if (session.current_state !== client_sound_state && client_sound_state !== 'presence') {
+      const isNewSession = session.last_change_timestamp === 0;
+      const isServerStale = session.messages_since_state_change <= 2;
+      if (isNewSession || isServerStale) {
+        console.log(`[ATMOSPHERE] Restoring client state: ${client_sound_state} (server=${session.current_state}, new=${isNewSession}, stale=${isServerStale})`);
+        session.current_state = client_sound_state;
+        session.last_change_timestamp = now - 30000;
+        session.messages_since_state_change = 3;
+        session.neutral_message_streak = 0;
+        session.baseline_window_active = false;
+      }
     }
   }
   
@@ -480,7 +485,7 @@ function evaluateAtmosphere(input) {
   
   const newContinuousAccumulated = { ...session.continuous_signals || { grounding: 0, comfort: 0, reflective: 0, insight: 0, presence: 0 } };
   for (const state of ['grounding', 'comfort', 'reflective', 'insight', 'presence']) {
-    newContinuousAccumulated[state] = (newContinuousAccumulated[state] * 0.85) + (scores[state] || 0);
+    newContinuousAccumulated[state] = (newContinuousAccumulated[state] * 0.92) + (scores[state] || 0);
   }
   
   console.log(`[ATMOSPHERE] 📊 Continuous signals: ${JSON.stringify(newContinuousAccumulated)}`);
@@ -553,7 +558,7 @@ function evaluateAtmosphere(input) {
     // This preserves emotional inertia — a state that was entered for good reason
     // shouldn't vanish just because the user sends a few neutral messages.
     for (const state of ['grounding', 'comfort', 'reflective', 'insight', 'presence']) {
-      newContinuousAccumulated[state] = newContinuousAccumulated[state] * 0.5;
+      newContinuousAccumulated[state] = newContinuousAccumulated[state] * 0.7;
     }
   } else if (!persistenceWindowComplete && isInNonPresenceState) {
     // ============================================================

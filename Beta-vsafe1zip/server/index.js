@@ -8913,9 +8913,9 @@ Your response (text only, no JSON):`;
     const cfg = getConfiguredModel();
     const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
     
-    // Total time budget: mobile client times out at 60s, so we must respond within 50s
+    // Total time budget: mobile client times out at 30s, so we must respond within 25s
     // to leave margin for network latency. If we exceed this, accept whatever we have.
-    const TOTAL_TIME_BUDGET_MS = 50000;
+    const TOTAL_TIME_BUDGET_MS = 25000;
     const timeBudgetExceeded = () => (Date.now() - requestStartTime) >= TOTAL_TIME_BUDGET_MS;
     
     // Token limit for long-form content (recipes, stories, detailed explanations)
@@ -8932,7 +8932,7 @@ Your response (text only, no JSON):`;
     
     // Reduce retries for faster response (longform only needs 1 attempt since timeout is extended)
     const isLongformL1 = isLongFormRequest || traceIntent?.mode === 'longform';
-    const maxL1Retries = (parsed || useL3FastPath) ? 0 : (isLongformL1 ? 1 : 2);
+    const maxL1Retries = (parsed || useL3FastPath) ? 0 : 1;
     for (let attempt = 1; attempt <= maxL1Retries; attempt++) {
       if (timeBudgetExceeded()) {
         console.warn(`[TRACE OPENAI L1] Time budget exceeded before attempt ${attempt}, skipping to fallback`);
@@ -8956,7 +8956,7 @@ Your response (text only, no JSON):`;
           openaiParams.temperature = chatTemperature;
         }
         const remainingBudget = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
-        const baseL1Timeout = isLongformL1 ? 60000 : 12000;
+        const baseL1Timeout = isLongformL1 ? 30000 : 8000;
         const l1Timeout = Math.min(baseL1Timeout, remainingBudget - 5000); // leave 5s for post-processing
         if (l1Timeout < 3000) {
           console.warn(`[TRACE OPENAI L1] Remaining budget too low (${remainingBudget}ms), skipping L1 attempt ${attempt}`);
@@ -9007,9 +9007,13 @@ Your response (text only, no JSON):`;
           } else {
             console.warn('[TRACE OPENAI L1] JSON parsed but no message field. Keys:', Object.keys(testParse).join(', '));
             console.warn('[TRACE OPENAI L1] Raw preview:', rawContent.substring(0, 200));
+            console.log('[TRACE OPENAI L1] Empty JSON — skipping to L3 fast path');
+            break;
           }
         } else {
           console.warn('[TRACE OPENAI L1] Empty response content');
+          console.log('[TRACE OPENAI L1] Empty content — skipping to L3 fast path');
+          break;
         }
         console.warn('[TRACE OPENAI L1] Empty/invalid on attempt', attempt);
       } catch (err) {
