@@ -82,6 +82,28 @@ async function fetchLastHourSummary(params: {
   };
 }
 
+async function fetchWeeklySummary(params: {
+  userId: string | null;
+  deviceId: string | null;
+}): Promise<WeeklySections | null> {
+  try {
+    const res = await apiFetch('/api/patterns/weekly-summary', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const sections = json.sections;
+    if (sections && (sections.weekShape || sections.recurringThemes || sections.whatsShifting || sections.whatWorked)) {
+      return sections;
+    }
+    return null;
+  } catch (err) {
+    console.error('[PATTERNS] weekly-summary fetch error:', err);
+    return null;
+  }
+}
+
 function SectionBlock({ 
   icon, 
   label, 
@@ -200,17 +222,17 @@ export default function PatternsReport() {
       setInsightsLoading(true);
       setPatternsSummaryLoading(true);
 
-      const result = await fetchPatternsInsights({
-        userId: userId,
-        deviceId: stableId,
-      });
+      const [result, dedicatedSections] = await Promise.all([
+        fetchPatternsInsights({ userId, deviceId: stableId }),
+        fetchWeeklySummary({ userId, deviceId: stableId }),
+      ]);
 
       setInsights(result);
 
       setPatternsSummary(result.weeklyNarrative || null);
-      const ws = result.weeklySections || null;
-      const hasWeeklySections = ws && (ws.weekShape || ws.recurringThemes || ws.whatsShifting || ws.whatWorked);
-      setWeeklySections(hasWeeklySections ? ws : null);
+      const engineSections = result.weeklySections || null;
+      const hasEngineSections = engineSections && (engineSections.weekShape || engineSections.recurringThemes || engineSections.whatsShifting || engineSections.whatWorked);
+      setWeeklySections(dedicatedSections || (hasEngineSections ? engineSections : null));
     } catch (err) {
       console.error('[PATTERNS] insights fetch error:', err);
       setInsights(null);

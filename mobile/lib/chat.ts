@@ -435,6 +435,16 @@ export interface WeeklySections {
   whatWorked?: string | null;
 }
 
+export interface MoodTrendDirection {
+  direction: 'up' | 'down' | 'stable';
+  label: string;
+}
+
+export interface WeeklyMoodTrend {
+  calm?: MoodTrendDirection;
+  stress?: MoodTrendDirection;
+}
+
 export interface PatternsInsightsResult {
   peakWindow: PeakWindowResult;
   mostHelpfulActivity: MostHelpfulActivityResult;
@@ -445,6 +455,18 @@ export interface PatternsInsightsResult {
   sampleSize: number;
   messageSampleSize?: number;
   lastCalculatedAt?: string | null;
+  presenceTrend?: string | null;
+  emotionalLoadTrend?: string | null;
+  reliefSpotlight?: string | null;
+  energyTidesGlance?: string | null;
+  stressEchoesLabel?: string | null;
+  reliefLabel?: string | null;
+  emotionalRhythmLabel?: string | null;
+  energyRhythmLabel?: string | null;
+  peakWindowLabel?: string | null;
+  weeklyMoodTrend?: WeeklyMoodTrend | null;
+  stillLearning?: boolean;
+  journalSampleSize?: number;
 }
 
 export async function fetchPatternsInsights(params: {
@@ -502,6 +524,18 @@ export async function fetchPatternsInsights(params: {
       sampleSize: json.sampleSize || 0,
       messageSampleSize: json.messageSampleSize || 0,
       lastCalculatedAt: json.lastCalculatedAt || null,
+      presenceTrend: json.presenceTrend || null,
+      emotionalLoadTrend: json.emotionalLoadTrend || null,
+      reliefSpotlight: json.reliefSpotlight || null,
+      energyTidesGlance: json.energyTidesGlance || null,
+      stressEchoesLabel: json.stressEchoesLabel || null,
+      reliefLabel: json.reliefLabel || null,
+      emotionalRhythmLabel: json.emotionalRhythmLabel || null,
+      energyRhythmLabel: json.energyRhythmLabel || null,
+      peakWindowLabel: json.peakWindowLabel || null,
+      weeklyMoodTrend: json.weeklyMoodTrend || null,
+      stillLearning: json.stillLearning || false,
+      journalSampleSize: json.journalSampleSize || 0,
     };
   } catch (err) {
     console.error('📊 TRACE patterns/insights fetch error:', err);
