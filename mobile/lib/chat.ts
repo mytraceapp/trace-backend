@@ -17,6 +17,8 @@ export interface ClientState {
   timeOfDay?: 'morning' | 'afternoon' | 'evening' | 'late_night';
   recentSentiment?: string | null;
   nowPlaying?: { trackId: string; title: string; album?: string } | null;
+  lastNowPlaying?: { trackId: string; title: string; album?: string; stoppedAt: number } | null;
+  currentSoundState?: string | null;
   lastSuggestion?: { suggestion_id?: string; type: string; id: string; ts: number; accepted?: boolean | null } | null;
   lastActivity?: { id: string; ts: number } | null;
   doorwayState?: { lastDoorwayId: string; ts: number } | null;
@@ -154,6 +156,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
       sound_state,
       crisis_resources,
       echo_offer,
+      response_source: data.response_source || null,
     };
   } catch (err: any) {
     clearTimeout(timeout);
