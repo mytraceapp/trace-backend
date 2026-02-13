@@ -229,10 +229,16 @@ export default function PatternsReport() {
 
       setInsights(result);
 
-      setPatternsSummary(result.weeklyNarrative || null);
       const engineSections = result.weeklySections || null;
       const hasEngineSections = engineSections && (engineSections.weekShape || engineSections.recurringThemes || engineSections.whatsShifting || engineSections.whatWorked);
-      setWeeklySections(dedicatedSections || (hasEngineSections ? engineSections : null));
+
+      if (dedicatedSections) {
+        setWeeklySections(dedicatedSections);
+      } else if (hasEngineSections) {
+        setWeeklySections(engineSections);
+      } else {
+        setWeeklySections(null);
+      }
     } catch (err) {
       console.error('[PATTERNS] insights fetch error:', err);
       setInsights(null);
@@ -439,10 +445,6 @@ export default function PatternsReport() {
                 />
               )}
             </View>
-          ) : !isPatternsSummaryLoading && patternsSummary ? (
-            <Text style={[styles.summaryText, { fontFamily: canelaFont }]}>
-              {patternsSummary}
-            </Text>
           ) : !isPatternsSummaryLoading ? (
             <Text style={[styles.emptyText, { fontFamily: canelaFont }]}>
               As you keep checking in, TRACE will start noticing the shape of your week.

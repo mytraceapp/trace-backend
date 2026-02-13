@@ -14678,29 +14678,42 @@ app.post('/api/patterns/weekly-summary', async (req, res) => {
       else comparisonNotes.push(`Average mood similar to last week (~${thisAvgMood})`);
     }
 
-    const systemPrompt = `You are TRACE, creating a structured weekly patterns briefing.
+    const systemPrompt = `You are TRACE's pattern analyst. Generate a concise, insight-rich weekly briefing.
 
-OUTPUT FORMAT — Return EXACTLY this JSON structure:
+RETURN THIS EXACT JSON:
 {
-  "weekShape": "2-3 sentences about the overall shape and rhythm of the week. Which days were active, how the emotional energy flowed across the week, consistency patterns. This is the big-picture view.",
-  "recurringThemes": "2-3 sentences identifying specific topics or emotional threads that came up more than once across journals, chats, and mood notes. Name the actual themes—don't generalize. If work stress appeared 3 times, say so.",
-  "whatsShifting": "1-2 sentences about what changed compared to last week, or within this week itself. Mood trajectory, engagement level, new themes appearing or old ones fading. If no previous week data, note internal shifts within this week.",
-  "whatWorked": "1-2 sentences connecting specific activities or practices to mood improvements or moments of relief. Which activities did they do most? Did mood tend to improve on days they used certain practices?"
+  "weekShape": string,
+  "recurringThemes": string,
+  "whatsShifting": string,
+  "whatWorked": string
 }
 
-RULES:
-- Be specific and data-driven. Reference actual days, moods, themes, activities by name.
-- "weekShape" = macro view (rhythm, consistency, when they showed up)
-- "recurringThemes" = the emotional content (what kept coming up)
-- "whatsShifting" = movement and change (what's different)
-- "whatWorked" = correlation between actions and feeling better
-- Write in second person ("you"), warm but substantive
-- NO therapeutic jargon: avoid "navigating", "processing", "holding space", "journey"
-- NO questions, NO advice
-- Each section should feel distinct — don't repeat information across sections
-- If data for a section is thin, be honest: "Not enough data yet to see a clear pattern here."
-- ONLY reference what's actually in the data below
-- IMPORTANT: Do NOT invent or infer "health" as a topic unless the user explicitly mentioned physical health, illness, doctors, or medical issues. This is a wellness app — emotional conversations are NOT health topics. Never say "your health" or "health concerns" unless those exact words appear in the user's messages.`;
+SECTION GUIDELINES (each must be 1-2 sentences MAX, distinct content, no overlap):
+
+weekShape — The RHYTHM only. When did they show up? How consistent? Were there gaps or clusters?
+  Example: "You checked in mostly on Tuesday and Thursday evenings, with a quiet stretch mid-week."
+  NOT: stats like "you had X sessions" (the user already sees those)
+
+recurringThemes — The EMOTIONAL CONTENT. What specific topics, feelings, or situations kept surfacing? Name them directly.
+  Example: "Work pressure came up in three separate entries. A thread about sleep quality also appeared twice."
+  NOT: vague summaries like "a mix of emotions" or "various topics"
+
+whatsShifting — CHANGE and DIRECTION. What moved compared to last week or within this week? Be specific about the shift.
+  Example: "Calm entries doubled compared to last week, while stress mentions dropped off after Wednesday."
+  NOT: restating what was already said in weekShape
+
+whatWorked — CAUSE and EFFECT. Which specific activities or behaviors correlated with better mood states?
+  Example: "Mood tended to lift on days you used Basin — your calmest entries followed those sessions."
+  NOT: generic observations about timing
+
+STRICT RULES:
+- Never repeat stats (session counts, peak times, activity counts) — the user sees those separately
+- Never overlap content between sections — each must say something the others don't
+- Never use: "impressive", "significant", "navigating", "processing", "holding space", "journey", "your health"
+- Never invent topics not in the data. If someone talks about feelings, that is NOT "health"
+- If data is thin for a section, say: "Not enough signal here yet."
+- Write in second person ("you"), warm but grounded
+- No questions, no advice, no cheerleading`;
 
     const userPrompt = `WEEK OVERVIEW:
 Days active: ${[...daysActive].join(', ') || 'None recorded'}
@@ -14727,8 +14740,8 @@ Return the JSON object with weekShape, recurringThemes, whatsShifting, and whatW
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.75,
-      max_tokens: 500,
+      temperature: 0.7,
+      max_tokens: 600,
       response_format: { type: 'json_object' },
     });
 
@@ -14737,14 +14750,24 @@ Return the JSON object with weekShape, recurringThemes, whatsShifting, and whatW
     let summaryText = '';
 
     try {
-      sections = JSON.parse(raw);
-      summaryText = [sections.weekShape, sections.recurringThemes, sections.whatsShifting, sections.whatWorked].filter(Boolean).join(' ');
+      const parsed = JSON.parse(raw);
+      if (parsed.weekShape || parsed.recurringThemes || parsed.whatsShifting || parsed.whatWorked) {
+        sections = {
+          weekShape: parsed.weekShape || null,
+          recurringThemes: parsed.recurringThemes || null,
+          whatsShifting: parsed.whatsShifting || null,
+          whatWorked: parsed.whatWorked || null,
+        };
+        summaryText = [sections.weekShape, sections.recurringThemes, sections.whatsShifting, sections.whatWorked].filter(Boolean).join(' ');
+      } else {
+        summaryText = raw || 'Your week is still taking shape.';
+      }
     } catch (parseErr) {
       console.warn('[WEEKLY] JSON parse failed, using raw text');
       summaryText = raw || 'Your week is still taking shape.';
     }
 
-    console.log('🧠 /api/patterns/weekly-summary generated sections:', JSON.stringify(sections)?.slice(0, 200));
+    console.log('🧠 /api/patterns/weekly-summary generated sections:', JSON.stringify(sections)?.slice(0, 300));
 
     res.json({
       ok: true,
@@ -17789,10 +17812,8 @@ app.post('/api/patterns/insights', async (req, res) => {
             const ws = parsed.weeklySections || null;
             if (ws && (ws.weekShape || ws.recurringThemes || ws.whatsShifting || ws.whatWorked)) {
               weeklySections = ws;
-              weeklyNarrative = [ws.weekShape, ws.recurringThemes, ws.whatsShifting, ws.whatWorked].filter(Boolean).join(' ');
-            } else {
-              weeklyNarrative = parsed.weeklyNarrative || null;
             }
+            weeklyNarrative = parsed.weeklyNarrative || null;
             aiEnergyRhythmLabel = parsed.energyRhythmLabel || null;
             aiStressEchoesLabel = parsed.stressEchoesLabel || null;
             aiReliefLabel = parsed.reliefLabel || null;
@@ -17801,7 +17822,7 @@ app.post('/api/patterns/insights', async (req, res) => {
             aiWeeklyMoodTrend = parsed.weeklyMoodTrend || null;
             console.log('📊 [PATTERNS ENGINE] Generated insights:', {
               hasWeeklySections: !!weeklySections,
-              weekShape: weeklySections?.weekShape?.slice(0, 40),
+              sectionKeys: weeklySections ? Object.keys(weeklySections).filter(k => weeklySections[k]) : [],
               hasEnergyRhythm: !!aiEnergyRhythmLabel,
               hasStressEchoes: !!aiStressEchoesLabel,
               hasRelief: !!aiReliefLabel,
