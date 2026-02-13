@@ -14400,7 +14400,8 @@ RULES:
 - NO questions, NO advice
 - Each section should feel distinct — don't repeat the same point across sections
 - If a section has no data (e.g., no activities), write something honest like "No activities this hour — just talking, which counts too."
-- ONLY reference what's actually in the data below`;
+- ONLY reference what's actually in the data below
+- IMPORTANT: Do NOT invent or infer "health" as a topic unless the user explicitly mentioned physical health, illness, doctors, or medical issues. This is a wellness app — emotional conversations are NOT health topics. Never say "your health" or "health concerns" unless those exact words appear in the user's messages.`;
 
     const userPrompt = `DATA AVAILABLE: ${dataAvailable.join(', ')}
 
@@ -14683,7 +14684,8 @@ RULES:
 - NO questions, NO advice
 - Each section should feel distinct — don't repeat information across sections
 - If data for a section is thin, be honest: "Not enough data yet to see a clear pattern here."
-- ONLY reference what's actually in the data below`;
+- ONLY reference what's actually in the data below
+- IMPORTANT: Do NOT invent or infer "health" as a topic unless the user explicitly mentioned physical health, illness, doctors, or medical issues. This is a wellness app — emotional conversations are NOT health topics. Never say "your health" or "health concerns" unless those exact words appear in the user's messages.`;
 
     const userPrompt = `WEEK OVERVIEW:
 Days active: ${[...daysActive].join(', ') || 'None recorded'}
@@ -14969,6 +14971,7 @@ Guidelines:
 - Focus on patterns and themes from actual conversation
 - Use phrases like: "Today you talked about...", "This week there's been...", "Looks like..."
 - AVOID: "navigating", "holding space", "journey", "arc", "processing"
+- Do NOT invent or infer "health" as a topic unless the user explicitly mentioned physical health, illness, doctors, or medical issues. This is a wellness app — emotional conversations are NOT health topics.
 - If a time period is quiet, just note that warmly
 
 Return ONLY valid JSON with no markdown:
