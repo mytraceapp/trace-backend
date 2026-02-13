@@ -41,14 +41,20 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
       ? `MODE: CRISIS. Use safety-first guidance.`
       : `MODE: NORMAL. Be appropriately concise but complete.`;
 
-  const modeHint = traceIntent?.trace_mode_hint || 'reflect';
-  const modeHintBlock = modeHint === 'regulate'
-    ? `APPROACH: Regulate. The user is activated — ground them first. Use short, steady language. Invite one body-based action (breathe, feel feet, slow exhale). Do not explore or probe deeper right now.`
-    : modeHint === 'blend'
-    ? `APPROACH: Blend. The user is stressed but not overwhelmed. Acknowledge what they're feeling, then gently reflect. One grounding cue is okay but don't lead with it.`
-    : '';
-
   const qg = traceIntent?.questionGuard || {};
+  const modeHint = traceIntent?.trace_mode_hint || 'reflect';
+  const qCooldown = qg.questionCooldown;
+  const modeHintBlock = modeHint === 'regulate'
+    ? `APPROACH: Regulate (1–3 sentences).
+Shape: attune (1 line, name what you see) → guide (1 micro-step: breathe, feel feet, slow exhale, or sound cue) → action (1 grounding anchor).
+No analysis, no exploring deeper. Stay somatic and steady.${qCooldown ? ' Zero questions.' : ' Max 1 question.'}`
+    : modeHint === 'blend'
+    ? `APPROACH: Blend. The user is stressed but not overwhelmed. Acknowledge what they're feeling, then gently reflect. One grounding cue is okay but don't lead with it.${qCooldown ? ' Zero questions.' : ' Max 1 question.'}`
+    : `APPROACH: Reflect.
+Shape: attune (1 line, mirror what they said back sharper) → guide (1 gentle hypothesis or observation) → action (offer a fork: 2 options, then a tiny next step).
+Max 1 question.
+Never ask "how do you feel?" or variants ("how does that sit with you?", "how are you feeling about that?") more than once every 10 turns.`;
+
   const qGuardBlock = qg.questionCooldown
     ? `QUESTION GUARD (HARD RULE): Your last response already contained a question. Do NOT include any question marks in this reply. Instead: attune to what they said, offer 2 options or a micro-step. No questions.`
     : '';
