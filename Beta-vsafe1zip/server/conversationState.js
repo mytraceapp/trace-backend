@@ -93,7 +93,180 @@ function createDefaultState() {
     preActivityContext: null,
     musicFamiliarity: 'new',
     musicFamiliarityMeta: { trackNameMentions: 0, studiosTurns: 0, deepRequestTurns: 0 },
+    rhythmHistory: [],
   };
+}
+
+const LENGTH_TIERS = {
+  ULTRA_SHORT: 'ultra_short',
+  SHORT: 'short',
+  MEDIUM: 'medium',
+  LONG: 'long',
+};
+
+const TARGET_DISTRIBUTION = {
+  [LENGTH_TIERS.ULTRA_SHORT]: 0.15,
+  [LENGTH_TIERS.SHORT]: 0.35,
+  [LENGTH_TIERS.MEDIUM]: 0.35,
+  [LENGTH_TIERS.LONG]: 0.15,
+};
+
+const RHYTHM_WINDOW = 6;
+
+function classifyResponseLength(text) {
+  if (!text) return LENGTH_TIERS.SHORT;
+  const words = text.trim().split(/\s+/).length;
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+  if (words <= 5 && sentences <= 1) return LENGTH_TIERS.ULTRA_SHORT;
+  if (sentences <= 2 && words <= 25) return LENGTH_TIERS.SHORT;
+  if (sentences <= 4 && words <= 60) return LENGTH_TIERS.MEDIUM;
+  return LENGTH_TIERS.LONG;
+}
+
+function classifyUserEnergy(userMessage) {
+  if (!userMessage) return 'low';
+  const trimmed = userMessage.trim();
+  const words = trimmed.split(/\s+/).length;
+  const sentences = trimmed.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+
+  const lowEnergyPatterns = [
+    /^(yeah|yea|ya|yep|yup|ok|okay|k|sure|fine|idk|dunno|meh|nah|nope|whatever|ig|i guess|hmm|hm|mm)\.?$/i,
+    /^i('m| am) (just |)(tired|exhausted|done|over it|burned out|drained)\.?$/i,
+    /^not (really|much|great)\.?$/i,
+    /^(same|nothing|nm|no)\.?$/i,
+  ];
+
+  for (const p of lowEnergyPatterns) {
+    if (p.test(trimmed)) return 'low';
+  }
+
+  if (words <= 4) return 'low';
+  if (words <= 12) return 'medium';
+  if (words >= 30 || sentences >= 3) return 'high';
+  return 'medium';
+}
+
+function recordResponseLength(visitorId, responseText) {
+  const state = getState(visitorId);
+  const tier = classifyResponseLength(responseText);
+  if (!state.rhythmHistory) state.rhythmHistory = [];
+  state.rhythmHistory.push(tier);
+  if (state.rhythmHistory.length > RHYTHM_WINDOW) {
+    state.rhythmHistory = state.rhythmHistory.slice(-RHYTHM_WINDOW);
+  }
+  saveState(visitorId, state);
+  return tier;
+}
+
+function getNextLengthNudge(visitorId, userMessage, opts = {}) {
+  const state = getState(visitorId);
+  const history = state.rhythmHistory || [];
+  const userEnergy = classifyUserEnergy(userMessage);
+  const isCrisis = opts.isCrisis || false;
+  const isOnboarding = opts.isOnboarding || false;
+
+  if (isCrisis) return { tier: LENGTH_TIERS.SHORT, reason: 'crisis_override', userEnergy };
+  if (isOnboarding) return { tier: LENGTH_TIERS.MEDIUM, reason: 'onboarding', userEnergy };
+
+  if (userEnergy === 'low') {
+    const lowOptions = [LENGTH_TIERS.ULTRA_SHORT, LENGTH_TIERS.ULTRA_SHORT, LENGTH_TIERS.SHORT];
+    const pick = lowOptions[Math.floor(Math.random() * lowOptions.length)];
+    return { tier: pick, reason: 'user_low_energy', userEnergy };
+  }
+
+  if (history.length < 2) {
+    return { tier: LENGTH_TIERS.SHORT, reason: 'early_conversation', userEnergy };
+  }
+
+  const recent3 = history.slice(-3);
+  const counts = {};
+  for (const t of recent3) counts[t] = (counts[t] || 0) + 1;
+
+  if (counts[LENGTH_TIERS.MEDIUM] >= 2 || counts[LENGTH_TIERS.LONG] >= 2) {
+    return { tier: LENGTH_TIERS.ULTRA_SHORT, reason: 'rhythm_break_after_density', userEnergy };
+  }
+
+  if (counts[LENGTH_TIERS.ULTRA_SHORT] >= 2 || counts[LENGTH_TIERS.SHORT] >= 3) {
+    if (userEnergy === 'high') {
+      return { tier: LENGTH_TIERS.MEDIUM, reason: 'rhythm_break_user_searching', userEnergy };
+    }
+    return { tier: LENGTH_TIERS.MEDIUM, reason: 'rhythm_break_after_brevity', userEnergy };
+  }
+
+  if (userEnergy === 'high' && history[history.length - 1] !== LENGTH_TIERS.LONG) {
+    const roll = Math.random();
+    if (roll < 0.3) return { tier: LENGTH_TIERS.LONG, reason: 'user_high_energy_depth', userEnergy };
+    return { tier: LENGTH_TIERS.MEDIUM, reason: 'user_high_energy_default', userEnergy };
+  }
+
+  const defaultWeights = [
+    { tier: LENGTH_TIERS.ULTRA_SHORT, weight: 0.15 },
+    { tier: LENGTH_TIERS.SHORT, weight: 0.40 },
+    { tier: LENGTH_TIERS.MEDIUM, weight: 0.30 },
+    { tier: LENGTH_TIERS.LONG, weight: 0.15 },
+  ];
+
+  const lastTier = history[history.length - 1];
+  const adjusted = defaultWeights.map(w => {
+    if (w.tier === lastTier) return { ...w, weight: w.weight * 0.4 };
+    return w;
+  });
+
+  const totalWeight = adjusted.reduce((s, w) => s + w.weight, 0);
+  let roll = Math.random() * totalWeight;
+  for (const w of adjusted) {
+    roll -= w.weight;
+    if (roll <= 0) return { tier: w.tier, reason: 'weighted_distribution', userEnergy };
+  }
+
+  return { tier: LENGTH_TIERS.SHORT, reason: 'fallback', userEnergy };
+}
+
+const BUDDY_ACKNOWLEDGMENTS = {
+  neutral: ['yeah.', 'makes sense.', 'fair.', 'got it.', 'mm.'],
+  heavy: ['damn.', 'yeah.', 'that\'s a lot.', 'heavy.', 'yeah, I hear that.'],
+  affirm: ['yeah, that tracks.', 'real.', 'that makes sense.', 'yeah.', 'fair enough.'],
+  searching: ['huh.', 'interesting.', 'wait—', 'okay, hold on.', 'say more.'],
+};
+
+function pickBuddyAck(userMessage) {
+  if (!userMessage) return BUDDY_ACKNOWLEDGMENTS.neutral[0];
+  const lower = userMessage.toLowerCase();
+
+  const heavyPatterns = /tired|exhausted|done|can't|hurt|lost|alone|scared|angry|hate|sick of|over it|burned|drained|crying|broke/i;
+  const searchingPatterns = /why|what if|wonder|maybe|think about|keep (going|coming) back|realize/i;
+  const affirmPatterns = /right|exactly|that's it|yes|yeah|totally|for real/i;
+
+  let pool;
+  if (heavyPatterns.test(lower)) pool = BUDDY_ACKNOWLEDGMENTS.heavy;
+  else if (searchingPatterns.test(lower)) pool = BUDDY_ACKNOWLEDGMENTS.searching;
+  else if (affirmPatterns.test(lower)) pool = BUDDY_ACKNOWLEDGMENTS.affirm;
+  else pool = BUDDY_ACKNOWLEDGMENTS.neutral;
+
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function buildRhythmPromptDirective(nudge, opts = {}) {
+  if (!nudge || !nudge.tier) return '';
+  const nextMove = opts.nextMove || null;
+
+  const needsQuestion = nextMove && (nextMove === 'reflect_then_question' || nextMove === 'question_only');
+
+  if (nudge.tier === LENGTH_TIERS.ULTRA_SHORT && needsQuestion) {
+    return `RESPONSE LENGTH: Short this turn. 1-2 sentences max. One observation or one question — not both. Keep it tight. Don't fill space.`;
+  }
+
+  const directives = {
+    [LENGTH_TIERS.ULTRA_SHORT]: `RESPONSE LENGTH: Ultra-short this turn. 1-5 words max. A brief acknowledgment, a single reaction, or just a word. Examples: "yeah." / "damn." / "that tracks." / "huh." Do NOT add a question. Do NOT elaborate.`,
+
+    [LENGTH_TIERS.SHORT]: `RESPONSE LENGTH: Short this turn. 1-2 sentences max. One observation or one question — not both. Keep it tight. Don't fill space.`,
+
+    [LENGTH_TIERS.MEDIUM]: `RESPONSE LENGTH: Medium this turn. 2-4 sentences. You can reflect and ask one question. Stay conversational — no paragraphs, no lists. If the user mentioned something specific earlier in this conversation, you can reference it casually ("you said something about ___ earlier" or "wait, that connects to what you were saying about ___") — but only if it's natural, not forced.`,
+
+    [LENGTH_TIERS.LONG]: `RESPONSE LENGTH: Longer this turn — the user is working something out. 3-6 sentences okay. Stay conversational, not essayistic. Name what you're noticing. One question max. Feel free to lightly reference something they said earlier if it connects — like a friend who was actually listening.`,
+  };
+
+  return directives[nudge.tier] || '';
 }
 
 const KNOWN_TRACK_NAMES = [
@@ -683,6 +856,7 @@ async function saveMusicFamiliarity(supabase, userId, state) {
 module.exports = {
   STAGES,
   MOVE_TYPES,
+  LENGTH_TIERS,
   getState,
   saveState,
   userHasContent,
@@ -707,4 +881,11 @@ module.exports = {
   evaluateMusicFamiliarity,
   loadMusicFamiliarity,
   saveMusicFamiliarity,
+  classifyResponseLength,
+  classifyUserEnergy,
+  recordResponseLength,
+  getNextLengthNudge,
+  pickBuddyAck,
+  buildRhythmPromptDirective,
+  BUDDY_ACKNOWLEDGMENTS,
 };

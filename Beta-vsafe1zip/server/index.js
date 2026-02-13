@@ -8714,6 +8714,19 @@ If the right move isn't obvious: one grounded observation about what you notice 
     }
     
     // ============================================================
+    // RESPONSE RHYTHM: Inject length nudge based on recent history
+    // ============================================================
+    const rhythmNudge = conversationState.getNextLengthNudge(effectiveUserId, lastUserContent, {
+      isCrisis: isCrisisMode,
+      isOnboarding: isOnboardingActive,
+    });
+    const rhythmDirective = conversationState.buildRhythmPromptDirective(rhythmNudge, { nextMove: traceIntent?.nextMove || null });
+    if (rhythmDirective) {
+      systemPrompt += `\n\n${rhythmDirective}`;
+    }
+    console.log(`[RHYTHM] nudge: ${rhythmNudge.tier}, reason: ${rhythmNudge.reason}, userEnergy: ${rhythmNudge.userEnergy}, history: [${(conversationState.getState(effectiveUserId)?.rhythmHistory || []).join(',')}]`);
+    
+    // ============================================================
     // PHASE 3 GUARDRAILS: Log prompt metrics + injection status
     // ============================================================
     if (process.env.TRACE_INTENT_LOG === '1' || process.env.NODE_ENV !== 'production') {
@@ -10937,6 +10950,8 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       
       // Update state after response
       conversationState.updateStateAfterResponse(effectiveUserId, response.message);
+      const recordedTier = conversationState.recordResponseLength(effectiveUserId, response.message);
+      console.log(`[RHYTHM] recorded: ${recordedTier}, text_preview: "${(response.message || '').slice(0, 40)}..."`);
       conversationState.saveState(effectiveUserId, convoState);
     }
     
@@ -10950,9 +10965,23 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     }
     
     // EMPTY RESPONSE SAFETY NET: If sanitization/voice stripped everything, provide a grounded fallback
-    if (response.message && response.message.replace(/[\s.,;!?]/g, '').length < 3) {
-      console.log(`[EMPTY_RESPONSE] Response was stripped to near-empty after post-processing, applying fallback`);
-      response.message = "I'm here. What's on your mind?";
+    // But allow intentional ultra-short buddy responses (rhythm system)
+    if (!response.message || response.message.trim().length === 0) {
+      console.log(`[EMPTY_RESPONSE] Response is null/empty, applying buddy ack fallback`);
+      response.message = conversationState.pickBuddyAck(lastUserContent);
+    } else if (response.message.replace(/[\s.,;!?]/g, '').length < 3) {
+      const VALID_ULTRA_SHORT = [
+        'yeah', 'damn', 'huh', 'fair', 'real', 'mm', 'hmm', 'ok', 'okay',
+        'heavy', 'oof', 'right', 'same', 'true', 'felt', 'word',
+      ];
+      const stripped = response.message.replace(/[\s.,;!?'"]/g, '').toLowerCase();
+      const isValidUltraShort = VALID_ULTRA_SHORT.includes(stripped);
+      if (!isValidUltraShort) {
+        console.log(`[EMPTY_RESPONSE] Response was stripped to near-empty after post-processing, applying fallback`);
+        response.message = conversationState.pickBuddyAck(lastUserContent);
+      } else {
+        console.log(`[RHYTHM] Ultra-short response preserved: "${response.message}"`);
+      }
     }
     
     const finalResponse = normalizeChatResponse(response, requestId);
