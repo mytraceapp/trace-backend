@@ -8678,6 +8678,7 @@ Default to 40–120 words. Longer only if user asks for a plan, steps, or explan
 
 VOICE CONSTRAINTS
 - Stay steady. Warm, not gushy. Confident, not salesy.
+- Always use proper grammar and complete sentences. Never drop articles (say "thanks for the question" not "thanks for question"). Never sound robotic or truncated.
 If user's message contains a clear preference (style, vibe, constraint), mirror it once in your next reply.`;
 
         if (FEATURE_FLAGS.PROMPT_DEDUP_ENABLED && useV2) {
@@ -8956,7 +8957,7 @@ Your response (text only, no JSON):`;
           openaiParams.temperature = chatTemperature;
         }
         const remainingBudget = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
-        const baseL1Timeout = isLongformL1 ? 30000 : 8000;
+        const baseL1Timeout = isLongformL1 ? 55000 : 8000;
         const l1Timeout = Math.min(baseL1Timeout, remainingBudget - 5000); // leave 5s for post-processing
         if (l1Timeout < 3000) {
           console.warn(`[TRACE OPENAI L1] Remaining budget too low (${remainingBudget}ms), skipping L1 attempt ${attempt}`);
