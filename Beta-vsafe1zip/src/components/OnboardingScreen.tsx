@@ -656,15 +656,13 @@ export function OnboardingScreen({ onContinue }: OnboardingScreenProps) {
             }}
           >
             <p style={{ marginBottom: '4px' }}>
-              <span style={{ fontSize: '14px', letterSpacing: '0.08em', opacity: 0.85 }}>Meet</span>
-              {' '}
               <span style={{ fontFamily: 'ALORE, Georgia, serif', letterSpacing: '0.35em', fontSize: '16px' }}>TRACE</span>
             </p>
             <p style={{ fontSize: '14px', opacity: 0.75, marginBottom: '16px', letterSpacing: '0.04em' }}>
-              your calm space to slow down
+              a place to regulate and reflect.
             </p>
             <p>
-              A steady companion for checking in, breathing, reflecting, and finding a moment of peace when you need it.
+              Sound that calms you down. AI that sits with you. For 2:47 a.m. and other moments you can't name.
             </p>
           </div>
         </motion.div>

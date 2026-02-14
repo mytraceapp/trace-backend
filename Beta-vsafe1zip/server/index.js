@@ -4164,28 +4164,18 @@ app.post('/api/mood-checkin', async (req, res) => {
 // ==================== ONBOARDING INTRO VARIANTS ====================
 // One-time personalized intro for users still in onboarding
 
-// Variants when we have the user's name
 const ONBOARDING_INTRO_WITH_NAME = [
   "hey {name}. I'm TRACE. what's going on?",
-  "{name} — I'm TRACE. no agenda. what's happening?",
-  "hey {name}. I'm TRACE. take your time. what's happening?",
-  "{name}, hey. I'm TRACE. what's on your mind?",
-  "hey {name}. I'm TRACE. whatever's going on — you can just say it. what's up?",
-  "{name}. I'm TRACE. what's happening right now?",
-  "hey {name} — I'm TRACE. what's going on with you?",
-  "{name}... hey. I'm TRACE. no rush. what's up?",
+  "hey {name}. I'm TRACE. you doing okay?",
+  "{name}, hey. I'm TRACE. what's happening?",
+  "I'm TRACE, {name}. what's on your mind?",
 ];
 
-// Variants when we don't have the user's name yet (reads naturally without a name)
 const ONBOARDING_INTRO_NO_NAME = [
   "hey. I'm TRACE. what's going on?",
-  "hey — I'm TRACE. no agenda. what's happening?",
-  "hey. I'm TRACE. take your time. what's happening?",
+  "I'm TRACE. you doing okay?",
+  "hey. I'm TRACE. what's happening?",
   "I'm TRACE. what's on your mind?",
-  "hey. I'm TRACE. whatever's going on — you can just say it. what's up?",
-  "I'm TRACE. what's happening right now?",
-  "hey — I'm TRACE. what's going on with you?",
-  "hey. I'm TRACE. no rush. what's up?",
 ];
 
 function pickOnboardingIntroVariant(userId, name) {
@@ -5389,7 +5379,7 @@ app.post('/api/chat', async (req, res) => {
     if (detectViolenceOrThreat(userText)) {
       console.log('[SAFETY_REDIRECT] VIOLENCE_OR_THREAT');
       
-      const violenceMessage = "I can't help with anything that involves harming someone. If you feel like you might act on these thoughts, please seek immediate help.\n\nIf you're in the U.S. and there's imminent danger, call **911**. If you can, step away from anything that could be used to hurt someone and reach out to a trusted person or a local crisis service.\n\nIf you want, tell me what's going on right before these urges spike — we can work on a safer plan to get through the moment.";
+      const violenceMessage = "I can't help with anything that involves hurting someone. if you feel like you might act on these thoughts, please reach out now.\n\nif you're in the U.S. and there's immediate danger, call **911**. try to step away from anything that could be used to hurt someone and reach out to someone you trust.\n\nif you want, tell me what's going on right before these urges spike — we can figure out a safer way through the moment.";
       
       return finalizeTraceResponse(res, {
         message: violenceMessage,
@@ -5971,7 +5961,7 @@ app.post('/api/chat', async (req, res) => {
             state: 'spiraling',
             activity: 'maze',
             activityLabel: 'Maze',
-            message: "I hear you. Before we go deeper — let's interrupt the spiral and slow everything down.\nI'd recommend Maze. There's no timer. Just say okay when you're ready.",
+            message: "I hear you. think Maze might help interrupt this. no rush — just say okay when you're ready.",
             reason: 'User reported racing/spiraling thoughts - needs mental interrupt',
             route: '/activities/maze'
           };
@@ -5987,7 +5977,7 @@ app.post('/api/chat', async (req, res) => {
             state: 'stressed',
             activity: 'breathing',
             activityLabel: 'Breathing',
-            message: "I hear you. Before we go deeper — let's bring your system down first.\nI'd recommend Breathing (30 seconds). Just say okay when you're ready.",
+            message: "I hear you. think Breathing might help bring things down. no rush — just say okay when you're ready.",
             reason: 'User reported stress/anxiety - needs nervous system regulation',
             route: '/activities/breathing'
           };
@@ -6003,7 +5993,7 @@ app.post('/api/chat', async (req, res) => {
             state: 'tired',
             activity: 'rest',
             activityLabel: 'Rest',
-            message: "I hear you. Before we talk it through — let's help your body soften.\nI'd recommend Rest (5 minutes). Just say okay when you're ready.",
+            message: "I hear you. think Rest might help your body soften. no rush — just say okay when you're ready.",
             reason: 'User reported exhaustion - needs physical restoration',
             route: '/activities/rest'
           };
@@ -6017,7 +6007,7 @@ app.post('/api/chat', async (req, res) => {
             state: 'general',
             activity: 'breathing',
             activityLabel: 'Breathing',
-            message: "I hear you. Before we go deeper — let's bring your system down first.\nI'd recommend Breathing (30 seconds). Just say okay when you're ready.",
+            message: "I hear you. think Breathing might help right now. no rush — just say okay when you're ready.",
             reason: 'User shared something difficult - offering grounding activity',
             route: '/activities/breathing'
           };
@@ -6072,7 +6062,7 @@ app.post('/api/chat', async (req, res) => {
         
         console.log('[ONBOARDING] Mobile suggestion detected in history, user confirmed - navigating to:', activity);
         return finalizeTraceResponse(res, {
-          message: onboardBridge("Good. I'll be here when you get back."),
+          message: onboardBridge("alright. I'll be here when you're done."),
           activity_suggestion: {
             name: activity,
             reason: `Starting activity`,
@@ -6150,7 +6140,7 @@ app.post('/api/chat', async (req, res) => {
         await updateOnboardingStep('crisis_safety_check');
         
         return finalizeTraceResponse(res, {
-          message: "Thank you for telling me. I'm here.\n\nAre you safe right now?",
+          message: "I'm glad you told me. are you safe right now?",
           crisis_resources: {
             triggered: true,
             severity: crisisDetected.severity
@@ -6173,14 +6163,11 @@ app.post('/api/chat', async (req, res) => {
         
         let responseMsg;
         if (safeYes.some(k => t === k || t.startsWith(k + ' '))) {
-          // User is safe - offer trusted contact or 988
-          responseMsg = `Okay. Thank you.\n\nI still don't want you holding this alone.\n\nIf you're in the U.S., I can pull up 988…\nbut if you'd rather not, I can help you call someone you trust.\n\nWho can I pull up for you?`;
+          responseMsg = `okay, good. do you want to talk about what's going on, or just sit with this for a bit?\n\nif you're in the U.S., 988 is the crisis line — they're trained for this. want me to help you call?`;
         } else if (safeNo.some(k => t === k || t.startsWith(k + ' '))) {
-          // User is NOT safe - urgent response
-          responseMsg = `Okay. I'm staying with you.\n\nIf you can, please call 911 right now (or your local emergency number).\n\nIf you're in the U.S., I can pull up 988.\nOr… if that doesn't feel right, I can help you call someone you trust.\n\nWho would feel safest to call?`;
+          responseMsg = `okay. I'm staying with you.\n\n988 is the crisis line — they're trained for this. want me to help you call?\n\nor tell me who you trust, and I can help you reach them.`;
         } else {
-          // Ambiguous - treat as needing support
-          responseMsg = `That's okay.\nWe'll treat it like you need support.\n\nIf you're in the U.S., I can pull up 988 right now — type CALL 988.\nOr tell me who you trust, and I can help you call them.`;
+          responseMsg = `okay. 988 is the crisis line — they're trained for this. want me to help you call?\n\nor tell me who you trust, and I can help you reach them.`;
         }
         
         await updateOnboardingStep('crisis_trusted_contact');
@@ -6280,7 +6267,7 @@ app.post('/api/chat', async (req, res) => {
           // Transition back to normal - complete crisis flow
           await updateOnboardingStep('conversation_started');
           return finalizeTraceResponse(res, {
-            message: "I'm glad. I'm still here if you need me.\n\nTake it easy. No rush.",
+            message: "you back? how are you doing?",
             crisis_resources: { triggered: false, resolved: true },
             response_source: 'crisis',
             _provenance: { path: 'onboarding_crisis_stabilized', requestId, ts: Date.now() }
@@ -6291,7 +6278,7 @@ app.post('/api/chat', async (req, res) => {
           // Still in crisis - offer alternatives
           await updateOnboardingStep('crisis_trusted_contact');
           return finalizeTraceResponse(res, {
-            message: "I'm still here.\n\nWould you like to try someone else, or type CALL 988?",
+            message: "I'm still here.\n\nwant to try someone else, or type CALL 988?",
             crisis_resources: { triggered: true, awaiting_contact: true },
             response_source: 'crisis',
             _provenance: { path: 'onboarding_crisis_still_crisis', requestId, ts: Date.now() }
@@ -6300,7 +6287,7 @@ app.post('/api/chat', async (req, res) => {
         
         // Default check-in
         return finalizeTraceResponse(res, {
-          message: "I'm here. Are you still with me?",
+          message: "you back? how are you doing?",
           crisis_resources: { triggered: true, post_dial_check: true },
           response_source: 'crisis',
           _provenance: { path: 'onboarding_crisis_post_dial_check', requestId, ts: Date.now() }
@@ -6344,14 +6331,11 @@ app.post('/api/chat', async (req, res) => {
         
         let chatMessage;
         if (!disclaimerShown) {
-          // First time - natural welcome with soft activity offer and disclaimer
-          chatMessage = `Welcome. I'm here whenever you need a quiet moment.\n\nIf you want to try something small, we can start with Breathing (30 seconds) — or you can just talk to me.\n\nQuick note: I'm not therapy — but I can support you through what you're feeling.`;
+          chatMessage = `cool. so, I'm not therapy — just a space to talk and regulate when you need it. you can talk to me, or try something like Breathing if you want to settle in. what feels right?`;
           
-          // Mark disclaimer as shown
           await markDisclaimerShown();
         } else {
-          // Already shown - skip disclaimer, just be present
-          chatMessage = "I'm here. What's on your mind?";
+          chatMessage = "cool. what's on your mind?";
         }
         
         console.log('[ONBOARDING] Conversation started - disclaimerShown:', disclaimerShown);
@@ -6368,12 +6352,10 @@ app.post('/api/chat', async (req, res) => {
         }, requestId);
       }
       
-      // STEP: rapport_building -> After user shares what's on their mind, detect state and offer activity OR continue conversation
       if (onboardingStep === 'rapport_building') {
         const detected = detectEmotionalState(userText);
         
         if (detected) {
-          // User shared distress - suggest personalized activity
           trackSuggestion(detected.state, detected.activity, userText);
           await updateOnboardingStep(`waiting_ok:${detected.activity}`);
           
@@ -6391,7 +6373,6 @@ app.post('/api/chat', async (req, res) => {
           }, requestId);
         }
         
-        // No distress detected - move to conversation_started with disclaimer
         console.log('[ONBOARDING] No distress in rapport_building - moving to conversation_started');
         
         await updateOnboardingStep('conversation_started');
@@ -6400,10 +6381,10 @@ app.post('/api/chat', async (req, res) => {
         
         let chatMessage;
         if (!disclaimerShown) {
-          chatMessage = `Welcome. I'm here whenever you need a quiet moment.\n\nIf you want to try something small, we can start with Breathing (30 seconds) — or you can just talk to me.\n\nQuick note: I'm not therapy — but I can support you through what you're feeling.`;
+          chatMessage = `cool. so, I'm not therapy — just a space to talk and regulate when you need it. what's on your mind?`;
           await markDisclaimerShown();
         } else {
-          chatMessage = "I'm here. What's on your mind?";
+          chatMessage = "cool. what's on your mind?";
         }
         
         console.log('[ONBOARDING] Conversation started from rapport_building - disclaimerShown:', disclaimerShown);
@@ -6486,7 +6467,7 @@ app.post('/api/chat', async (req, res) => {
           
           console.log('[ONBOARDING] User affirmed, triggering auto-navigate to:', pendingActivity);
           return finalizeTraceResponse(res, {
-            message: onboardBridge("Good. I'll be here when you get back."),
+            message: onboardBridge("alright. I'll be here when you're done."),
             activity_suggestion: {
               name: pendingActivity,
               reason: `Starting ${activityLabel}`,
@@ -6497,10 +6478,9 @@ app.post('/api/chat', async (req, res) => {
             _provenance: { path: 'onboarding_waiting_ok_affirmed', requestId, ts: Date.now() }
           }, requestId);
         } else {
-          // User didn't say okay - gently re-prompt
           console.log('[ONBOARDING] User did not affirm, re-prompting for:', pendingActivity);
           return finalizeTraceResponse(res, {
-            message: onboardBridge(`No pressure. When you're ready, just say okay and we'll start ${activityLabel} together.`),
+            message: onboardBridge(`no pressure. just say okay when you're ready and we'll start ${activityLabel}.`),
             activity_suggestion: {
               name: pendingActivity,
               reason: 'Ready when you are',
@@ -6517,7 +6497,7 @@ app.post('/api/chat', async (req, res) => {
       if (onboardingStep.startsWith('activity_in_progress')) {
         console.log('[ONBOARDING] Activity still in progress, holding');
         return finalizeTraceResponse(res, {
-          message: onboardBridge("Take your time. I'm here."),
+          message: onboardBridge("take your time. I'm here."),
           activity_suggestion: { name: null, reason: null, should_navigate: false },
           response_source: 'onboarding_script',
           _provenance: { path: 'onboarding_activity_in_progress', requestId, ts: Date.now() }
@@ -6535,13 +6515,12 @@ app.post('/api/chat', async (req, res) => {
         
         let reflectionAck;
         if (isNegative) {
-          reflectionAck = "That's okay — not everything lands the same way every time. I'm still here.";
+          reflectionAck = "that's okay — not everything lands the same way every time. I'm still here.";
         } else {
-          reflectionAck = "I'm glad you tried it. Little moments like that can add up.";
+          reflectionAck = "got it. glad you tried it.";
         }
         
-        // Show disclaimer and complete onboarding
-        const disclaimerText = "\n\nQuick note before we go further: I'm not therapy — but I can be here with you through what you're feeling. What's on your mind?";
+        const disclaimerText = "\n\nquick thing — I'm not therapy, but I can sit with you through this. what else is going on?";
         
         // Mark disclaimer as shown
         await markDisclaimerShown();
@@ -12339,7 +12318,7 @@ Just the question, nothing else.
 
     if (!openai) {
       console.log('[ACTIVITY RETURN] No OpenAI client, using fallback');
-      return res.json({ message: "How you feeling?" });
+      return res.json({ message: "any different?" });
     }
 
     console.log('[ACTIVITY RETURN] Making OpenAI call for activity:', activity);
@@ -12354,7 +12333,7 @@ Just the question, nothing else.
       temperature: 0.85,
     });
 
-    const message = response.choices[0]?.message?.content?.trim() || "How you feeling?";
+    const message = response.choices[0]?.message?.content?.trim() || "any different?";
     console.log(`[ACTIVITY RETURN] OpenAI response: "${message}"`);
     
     // Set reflection flag so POST-ACTIVITY INTERCEPT triggers when user responds
