@@ -1,0 +1,204 @@
+NUCLEAR SIMPLIFICATION: Strip TRACE to minimal kernel, eliminate 90% of prompt complexity.
+
+PROBLEM: 20,000+ lines of system prompt (phases, memory blocks, context injection, question throttling, forbidden phrases, emotional states, door transitions, soundscape moods, time-of-day) creating conflicting instructions. Model defaults to safe therapy-speak despite anti-therapy rules. Voice inconsistent because too many controllers fighting.
+
+ROOT CAUSE: Not missing features. Prompt bloat + conflicting rules. Model can't see what matters, pattern-matches instead of following intent.
+
+SOLUTION: One kernel that always wins. Delete 90% of prompt. Enforce single voice. No phases, no memory bloat, no context injection wars.
+
+IMPLEMENTATION:
+
+1) REPLACE ENTIRE SYSTEM PROMPT WITH MINIMAL KERNEL (150 words total):
+
+You are TRACE. You're presence at 2:47 a.m. Not a therapist.
+
+CORE RULES (ALWAYS TRUE):
+- 1-2 sentences per response (most of the time)
+- Max 1 question per response (0 is fine)
+- Never ask the same type of question twice in a row
+- Never explain emotions back to people
+- Never say: "It's natural to...", "Feeling X is important", "I'm here to support you"
+
+RESPONSE PATTERN:
+- Brief acknowledgment: "yeah." / "makes sense." / "damn."
+- Optional: short observation or question
+- That's it.
+
+EXAMPLES:
+User: "I got the job"
+You: "nice."
+
+User: "I didn't think I would"
+You: "yeah, I bet."
+
+User: "I'm kinda proud"
+You: "you should be."
+
+User: "I'm stressed about work"
+You: "what's going on?"
+
+Match this vibe. Don't deviate.
+
+END OF SYSTEM PROMPT. Nothing else.
+
+2) STRIP ALL CONTEXT INJECTION to 2 lines max:
+
+Replace:
+{{SOUNDSCAPE_CONTEXT}} (100 lines about mood/energy)
+{{RELATIONAL_ANCHORS}} (50 lines about Emma is sister, use her name)
+{{TIME_CONTEXT}} (20 lines about late night energy)
+{{SESSION_CONTEXT}} (80 lines about last session tone)
+{{QUESTION_THROTTLE}} (30 lines about witness mode)
+{{DOOR_CONTEXT}} (40 lines about Basin exit)
+
+With:
+Current soundscape: {{SOUNDSCAPE_NAME}}
+Recently mentioned: {{PEOPLE_LIST}}
+
+Example:
+Current soundscape: 2:47 a.m.
+Recently mentioned: Emma (sister)
+
+That's it. Model figures out the rest.
+
+3) LIMIT CONVERSATION HISTORY TO LAST 10 MESSAGES:
+
+const recentHistory = conversationHistory.slice(-10);
+
+const messages = [
+  { role: 'system', content: minimalKernelPrompt },
+  ...recentHistory,
+  { role: 'user', content: userMessage }
+];
+
+No hydration of 30-50 messages. Just last 10. Prevents context drowning.
+
+4) ADD ANTI-REPEAT GATE (post-generation check):
+
+After GPT responds, check if repeating question type:
+
+const aiResponse = response.choices[0].message.content;
+const lastAiMessage = recentHistory.filter(m => m.role === 'assistant').slice(-1)[0];
+
+if (lastAiMessage && isRepeatQuestion(lastAiMessage.content, aiResponse)) {
+  console.log('[ANTI_REPEAT] Regenerating...');
+  
+  const messages2 = [
+    { role: 'system', content: minimalKernelPrompt + '\n\nDO NOT ask a question. Just acknowledge briefly.' },
+    ...recentHistory,
+    { role: 'user', content: userMessage }
+  ];
+  
+  const response2 = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: messages2,
+    temperature: 0.5
+  });
+  
+  return response2.choices[0].message.content;
+}
+
+Helper function:
+function isRepeatQuestion(lastMsg, currentMsg) {
+  if (!lastMsg.includes('?') || !currentMsg.includes('?')) return false;
+  const emotionWords = ['feeling', 'feel', 'think', 'doing', 'going on', 'happening'];
+  const lastHas = emotionWords.some(w => lastMsg.toLowerCase().includes(w));
+  const currentHas = emotionWords.some(w => currentMsg.toLowerCase().includes(w));
+  return lastHas && currentHas;
+}
+
+5) COMMENT OUT ALL PHASE SYSTEMS TEMPORARILY:
+
+// const phase = detectPhase(userMessage);
+// const phasePrompt = getPhasePrompt(phase);
+// const emotionalState = analyzeEmotion(userMessage);
+// const doorContext = getDoorTransitionContext();
+
+Just use minimal kernel for ALL responses. One voice. No mode switching.
+
+6) HANDLE CRISIS WITH HARD-CODED RESPONSE (bypass AI entirely):
+
+if (userMessage.match(/suicid|kill myself|want to die|end it all/i)) {
+  return {
+    response: "Are you safe right now? If you're in crisis, 988 is the crisis line. I can pull it up.",
+    skipAI: true
+  };
+}
+
+No phase detection. No AI involvement. Just hard-coded safety response.
+
+7) KEEP TEMPERATURE AT 0.5 (already set, don't change)
+
+8) REMOVE/COMMENT OUT:
+- All forbidden phrase lists (model has examples instead)
+- All response length distribution rules (kernel handles it)
+- All soundscape mood injection (just name is enough)
+- All time-of-day context (model doesn't need it)
+- All session emotional state tracking (too noisy)
+- All question throttling systems (anti-repeat gate handles it)
+- All onboarding phases (use kernel for everyone)
+
+TESTING IMMEDIATELY AFTER IMPLEMENTATION:
+
+Test 1 - Good news:
+User: "I got the job"
+Expected: "nice." or "congrats." or "that's huge."
+WRONG: "That's good to hear. Congratulations on the job. Sounds like a big step for you."
+
+Test 2 - Doubt:
+User: "I didn't think I would"
+Expected: "yeah, I bet." or "makes sense."
+WRONG: "It's natural to doubt yourself, especially with something important."
+
+Test 3 - Pride:
+User: "I'm kinda proud"
+Expected: "you should be." or "yeah." or "damn right."
+WRONG: "Feeling proud is important. Acknowledging your achievement can boost your confidence."
+
+Test 4 - Conversation flow (anti-repeat):
+User: "work is stressful"
+TRACE: "what's going on?"
+User: "my boss is demanding"
+TRACE: "yeah, that's rough." (NOT "How are you feeling about that?")
+
+Test 5 - Memory:
+User: "my sister called"
+TRACE: "how's Emma?" or "what'd she say?" (uses name from context)
+WRONG: "How did the conversation with your sister go?"
+
+WHY THIS WORKS:
+
+Before: 20,000 lines of bureaucracy fighting each other
+- Phase system says "be reflective"
+- Tone system says "be minimal"
+- Memory system says "use her name Emma"
+- Question system says "you asked 2 questions, go witness mode"
+- Time system says "late night, be heavy"
+- Model gets confused, defaults to safe therapy-speak
+
+After: 150 word kernel, ONE job
+- Match these examples
+- No conflicting instructions
+- No drowning in context
+- Model has clear patterns to follow
+
+EXPECTED RESULTS WITHIN 10 MESSAGES:
+- Consistent buddy voice
+- No therapy-speak
+- Brief responses (1-2 sentences)
+- No repeat questions
+- Uses names from memory naturally
+- Sounds like TRACE should sound
+
+IF THIS WORKS (it will):
+Voice stabilizes immediately. Then you can add back features ONE AT A TIME:
+- Week 1: Prove kernel stable
+- Week 2: Add minimal soundscape context (1 line)
+- Week 3: Add crisis phase (separate from kernel)
+- Week 4: Add relational memory (compressed)
+
+But only AFTER kernel proven stable. Do not add complexity until voice is consistent.
+
+CRITICAL: This is not a feature add. This is a deletion pass. Remove 90% of prompt to find the 10% that matters. Build from there.
+
+DO THIS FIRST. Everything else is noise until kernel works.

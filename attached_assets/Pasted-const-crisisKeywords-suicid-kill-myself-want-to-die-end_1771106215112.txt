@@ -1,0 +1,168 @@
+const crisisKeywords = [
+  'suicid', 'kill myself', 'want to die', 'end it all',
+  'don\'t want to be here', 'what\'s the point', 'can\'t do this anymore',
+  'better off dead', 'no reason to live', 'hurt myself'
+];
+
+const containsCrisis = crisisKeywords.some(k => 
+  userMessage.toLowerCase().includes(k)
+);
+
+if (containsCrisis) {
+  // Inject crisis context flag, let AI handle with compressed crisis hook
+  crisisDetected = true;
+}
+```
+
+---
+
+## Step 7: Keep Onboarding (But Compress Prompt)
+
+**Before (Bloated onboarding prompt):**
+```
+If this is the user's first conversation:
+Welcome them warmly but briefly. Say: "hey. I'm TRACE. what's going on?" or similar.
+Keep it casual. Don't explain features. Don't say "Welcome to TRACE!"
+After first message, mention: "I'm not therapy, but I can sit with this."
+Only say this once. Never repeat the disclaimer.
+```
+
+**After (Compressed):**
+```
+{{ONBOARDING_CONTEXT}}:
+First convo: "hey. I'm TRACE. what's going on?" → then: "I'm not therapy, but I can sit with this."
+```
+
+---
+
+## The Result: 800-Word System Prompt That Keeps Everything
+
+**What you're sending to GPT:**
+```
+[Core Kernel: 500 words]
++
+[Context Injection: 50-100 words total]
+  - Soundscape: "2:47 a.m. (heavy/minimal)"
+  - People: "Emma (sister), Jake (brother)"
+  - Music: "🎵 → offer Night Swim"
+  - Crisis: "Harm mention → safety check + 988"
+  - Onboarding: "First convo → brief intro + disclaimer"
++
+[Conversation History: 20 messages]
++
+[Current User Message]
+```
+
+**Total prompt: ~800 words + 20 messages**
+
+(Down from 20,000+ lines)
+
+---
+
+## What This Preserves
+
+✅ Voice consistency (kernel enforced)
+✅ Crisis safety (expanded keywords + compressed hook)
+✅ Music curation (🎵 trigger intact)
+✅ Relational memory (names used naturally)
+✅ Onboarding warmth (compressed but present)
+✅ Conversation recall (20 messages, not 10)
+✅ Model routing (T1/T2 unchanged)
+✅ Activities/journal/patterns (can inject 1-line context if needed)
+
+---
+
+## What This Fixes
+
+✅ Therapy-speak (kernel examples override)
+✅ Conflicting instructions (no more 47 voices fighting)
+✅ Response bloat (constraints enforce brevity)
+✅ Repeat questions (anti-repeat gate still active)
+✅ Context drowning (50-100 words of injection, not 500+)
+
+---
+
+## Replit Prompt (Middle-Ground Fix)
+```
+Compress TRACE system prompt to ~800 words while preserving all working features.
+
+PROBLEM: 20,000+ line prompt creating voice inconsistency (therapy-speak) due to conflicting instructions. But nuclear deletion would break crisis safety, music curation, memory, onboarding.
+
+SOLUTION: Keep feature hooks but compress dramatically. Core kernel (500 words) + slim context injection (50-100 words) + constraints.
+
+IMPLEMENTATION:
+
+1) REPLACE SYSTEM PROMPT WITH COMPRESSED VERSION:
+
+Core Kernel (500 words):
+- Voice rules: 1-2 sentences, max 1 question, never explain emotions back
+- Forbidden phrases: "It's natural to...", "Feeling X is important", "I'm here to support you"
+- Allowed patterns: "yeah.", "nice.", "makes sense.", "you should be."
+- Examples: 6 scenarios showing correct vs wrong responses
+
+Feature Hooks (slim, 1-2 lines each):
+- Memory: {{PEOPLE_CONTEXT}} → "Emma (sister), Jake (brother)" → use names naturally
+- Music: {{MUSIC_CONTEXT}} → "🎵 or 'play something' → offer Night Swim → if yes respond 🎵"
+- Crisis: {{CRISIS_CONTEXT}} → "Harm/death mention → 'are you safe?' → offer 988"
+- Soundscape: {{SOUNDSCAPE_CONTEXT}} → "2:47 a.m. (heavy/minimal)" → affects energy only
+- Onboarding: {{ONBOARDING_CONTEXT}} → "First convo: brief intro + disclaimer once"
+
+Constraints:
+- Never >4 sentences
+- Never 2 questions in one response
+- Never exclamation points
+- Default to fewer words
+
+2) COMPRESS CONTEXT INJECTION (keep features, reduce words):
+
+Before: {{SOUNDSCAPE_CONTEXT}} = 150 words about mood/bass/energy/tone
+After: {{SOUNDSCAPE_CONTEXT}} = "2:47 a.m. (heavy/minimal)"
+
+Before: {{PEOPLE_CONTEXT}} = 100 words about Emma lives in Seattle, use her name when...
+After: {{PEOPLE_CONTEXT}} = "Emma (sister), Jake (brother)"
+
+Before: {{MUSIC_CONTEXT}} = 70 words about albums, offering process, backend trigger
+After: {{MUSIC_CONTEXT}} = "🎵 → offer Night Swim → yes = 🎵"
+
+Before: {{CRISIS_CONTEXT}} = 90 words about safety protocol
+After: {{CRISIS_CONTEXT}} = "Harm mention → safety check + 988"
+
+Before: {{ONBOARDING_CONTEXT}} = 80 words about first greeting flow
+After: {{ONBOARDING_CONTEXT}} = "First convo: intro + disclaimer"
+
+3) KEEP CONVERSATION HISTORY AT 20 MESSAGES (not 10, not 50):
+   const recentHistory = conversationHistory.slice(-20);
+   Preserves recall fix without context drowning
+
+4) KEEP ANTI-REPEAT GATE (already working, don't touch)
+
+5) KEEP MODEL ROUTING T1/T2 (already working, don't touch)
+
+6) EXPAND CRISIS KEYWORDS (safety improvement):
+   const crisisKeywords = [
+     'suicid', 'kill myself', 'want to die', 'end it all',
+     'don\'t want to be here', 'what\'s the point', 'can\'t do this',
+     'better off dead', 'no reason to live', 'hurt myself'
+   ];
+
+7) KEEP ALL FEATURE ROUTING (music, activities, journal, doors):
+   Just compress their prompt injections to 1-2 lines each when active
+
+RESULT:
+- System prompt: 500 words core + 50-100 words injection = 600-650 words total
+- Down from 20,000+ lines
+- Preserves all features (crisis, music, memory, onboarding, routing)
+- Fixes voice consistency (kernel examples override conflicting instructions)
+- No feature deletion, just compression
+
+TEST AFTER IMPLEMENTATION:
+User: "I got the job"
+Expected: "nice." (NOT "That's good to hear. Congratulations...")
+
+User: "play something"
+Expected: "want Night Swim originals?" (feature still works)
+
+User: "my sister called" [Emma in memory]
+Expected: "how's Emma?" (memory still works)
+
+This is the middle ground: compress prompt 97% while keeping features 100%.
