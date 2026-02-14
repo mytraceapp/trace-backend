@@ -569,6 +569,47 @@ function validateResponse(response, intent, recentHistory = []) {
     }
   }
   
+  // REDUNDANCY CHECK: Strip sentences that just restate what the user said
+  if (hasConversationContext) {
+    const lastUserMsg = recentHistory.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+    const lastUserLower = lastUserMsg.toLowerCase().trim();
+    
+    // Detect echo-back patterns: response that merely repeats user's short agreement
+    // Only replace when the response is ONLY the echo (no additional content after it)
+    const isUserAgreement = /^(ok|okay|sure|yes|yeah|yep|sounds good|go ahead|mhm|alright)[\s,.!]*$/i.test(lastUserLower);
+    const correctedLower = corrected.toLowerCase().trim();
+    const isResponseEcho = /^(ok|okay|sure|alright|sounds good)[\s,.!]*$/i.test(correctedLower);
+    if (isUserAgreement && isResponseEcho) {
+      // Check if there's music context — if user agreed to a song, replace with a play confirmation
+      const hasMusicContext = recentHistory.some(m => m.role === 'assistant' && /night swim|ocean breathing|slow tides|euphoria|neon promise|tidal house|undertow|midnight underwater/i.test(m.content || ''));
+      const replacement = hasMusicContext ? 'here—' : generateContextualContinuation(corrected, recentHistory);
+      issues.push(`Echo-back detected: response echoes user agreement "${lastUserLower}" → replacing with "${replacement}"`);
+      console.log(`[VOICE] ⚠️ ECHO-BACK: Response echoes user agreement — replacing (music=${hasMusicContext})`);
+      corrected = replacement;
+    }
+    
+    // Detect restating: "so you're feeling X" / "it seems like you" patterns
+    const restatePatterns = [
+      /^so (?:you(?:'re| are)|it (?:sounds|seems) like)/i,
+      /^(?:it )?sounds like you/i,
+      /^what (?:i(?:'m| am) hearing|you(?:'re| are) saying)/i,
+      /^you(?:'re| are) (?:saying|telling me|expressing)/i,
+    ];
+    for (const pat of restatePatterns) {
+      if (pat.test(corrected.trim())) {
+        issues.push(`Restating pattern detected — stripping`);
+        console.log(`[VOICE] ⚠️ RESTATE detected: "${corrected.substring(0, 60)}..."`);
+        const sentences = corrected.split(/(?<=[.!?])\s+/);
+        if (sentences.length > 1) {
+          corrected = sentences.slice(1).join(' ');
+        } else {
+          corrected = generateContextualContinuation(corrected, recentHistory);
+        }
+        break;
+      }
+    }
+  }
+  
   // Check for conversation restart
   if (isConversationRestart(response, recentHistory)) {
     issues.push('Appears to restart conversation (generic greeting)');

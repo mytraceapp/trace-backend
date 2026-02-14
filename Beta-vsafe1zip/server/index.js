@@ -10134,8 +10134,8 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       ['undertow', 3],
       ['euphoria', 4],
     ];
-    const MUSIC_OFFER_RE = /\b(how about|try|want to hear|listen to|play|put on|check out)\b.*\b(track|song|it|one|this)\b/i;
-    const MUSIC_OFFER_DIRECT_RE = /\b(how about|want to (?:hear|listen|try)|let me play|i('?ll| will) (?:play|put on)|maybe (?:try|listen to)|we could (?:try|play|listen))\b/i;
+    const MUSIC_OFFER_RE = /\b(how about|try|want to hear|listen to|play|put on|check out|got just the|have just the|have something)\b.*\b(track|song|it|one|this|for you|right now)\b/i;
+    const MUSIC_OFFER_DIRECT_RE = /\b(how about|want to (?:hear|listen|try)|let me (?:play|put)|i('?ll| will) (?:play|put on)|maybe (?:try|listen to)|we could (?:try|play|listen)|i think you.{0,15}(?:love|like|enjoy)|putting on|here.{0,10}(?:try|listen|play))\b/i;
     const PLAYING_NOW_RE = /\b(playing|putting on|spinning|starting)\b.{0,30}\b(now|for you|right now)\b|\b(now|here'?s)\b.{0,20}\b(playing|putting on)\b|\bplaying\b.{1,40}(ocean breathing|neon promise|midnight underwater|slow tides|tidal house)/i;
     const QUOTED_TRACK_RE = /[""]([^""]+)[""]|"([^"]+)"/;
 
@@ -10262,7 +10262,6 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     } else if (specificTrackRequest) {
       // User requested a specific track by name (e.g., "play Neon Promise")
       const trackNum = specificTrackRequest.trackNumber;
-      // Convert to 0-based index for frontend (track 1 → index 0)
       audioAction = buildAudioAction('open', {
         source: 'originals',
         album: 'night_swim',
@@ -10271,11 +10270,22 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       });
       addToSessionHistory(effectiveUserId, trackNum);
       console.log(`[TRACE ORIGINALS] Specific track requested: ${specificTrackRequest.trackName} (Track ${trackNum}, index ${trackNum - 1})`);
+    } else if (prevOfferedTrackNum && !responsePlayingTrackNum && isUserAgreeing(lastUserMsgForAudio) && !(trackIsActive && !isExplicitMusicCommand)) {
+      // PRIORITY: Previous message offered a SPECIFIC track — user agreed → play THAT track
+      // This must come BEFORE isPlayAgainRequest to avoid replaying the wrong track
+      // Guard: skip if current response already triggers a "playing now" track (responsePlayingTrackNum)
+      audioAction = buildAudioAction('open', {
+        source: 'originals',
+        album: 'night_swim',
+        track: prevOfferedTrackNum - 1,
+        autoplay: true
+      });
+      addToSessionHistory(effectiveUserId, prevOfferedTrackNum);
+      const trackInfo = getTrackInfo(prevOfferedTrackNum);
+      console.log(`[TRACE ORIGINALS] User agreed to track offer, playing Track ${prevOfferedTrackNum}: ${trackInfo?.name || 'Unknown'} (index ${prevOfferedTrackNum - 1})`);
     } else if (isPlayAgainRequest) {
       // User said "play again" or similar when Night Swim was recently played
-      // Play the last track again (or pick a new one for variety)
       const lastTrack = sessionHistory[sessionHistory.length - 1];
-      // Convert to 0-based index for frontend (track 1 → index 0)
       audioAction = buildAudioAction('open', {
         source: 'originals',
         album: 'night_swim',
@@ -10356,17 +10366,6 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       addToSessionHistory(effectiveUserId, responsePlayingTrackNum);
       const trackInfo = getTrackInfo(responsePlayingTrackNum);
       console.log(`[TRACE ORIGINALS] Response mentions playing track, emitting audio_action: Track ${responsePlayingTrackNum}: ${trackInfo?.name || 'Unknown'} (index ${responsePlayingTrackNum - 1})`);
-    } else if (prevOfferedTrackNum && !responsePlayingTrackNum && isUserAgreeing(lastUserMsgForAudio) && !(trackIsActive && !isExplicitMusicCommand)) {
-      // Previous message offered a specific track by name, user agreed
-      audioAction = buildAudioAction('open', {
-        source: 'originals',
-        album: 'night_swim',
-        track: prevOfferedTrackNum - 1,
-        autoplay: true
-      });
-      addToSessionHistory(effectiveUserId, prevOfferedTrackNum);
-      const trackInfo = getTrackInfo(prevOfferedTrackNum);
-      console.log(`[TRACE ORIGINALS] User agreed to track offer, playing Track ${prevOfferedTrackNum}: ${trackInfo?.name || 'Unknown'} (index ${prevOfferedTrackNum - 1})`);
     } else if (!audioAction && curationResult.shouldOffer && curationResult.type === 'track' && !(trackIsActive && !isExplicitMusicCommand) && !musicOfferSuppressed) {
       // V2 CURATION FALLBACK: Offer was cued pre-LLM but response didn't use "night swim" string
       // (e.g., SEED level: "I have something for this mood")
@@ -10414,6 +10413,26 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
         conversationState.saveState(effectiveUserId, offerState);
         
         console.log('[MUSIC_CURATION_V2] Recorded offer + saved pending:', JSON.stringify({ type: offerType, itemId: offerItemId, level: curationResult.offerLevelName }));
+      }
+      
+      // SPONTANEOUS TRACK OFFER: AI mentioned a track in an offer context without curation triggering it
+      // Save as pendingMusicOffer so next-turn agreement triggers playback
+      // Requires explicit offer verbs to avoid false positives from track mentions in discussion
+      const responseTrackNum = detectTrackInText(responseLower);
+      const SPONTANEOUS_OFFER_RE = /\b(how about|want to (?:hear|listen|try)|let me (?:play|put)|i(?:'ll| will) (?:play|put on)|maybe (?:try|listen to)|want me to play|i can play|shall i play|put on)\b/i;
+      const responseHasExplicitOffer = SPONTANEOUS_OFFER_RE.test(responseLower) || (isNightSwimOffer && nightSwimMentioned);
+      if (!v2OfferDelivered && responseTrackNum && responseHasExplicitOffer && !audioAction) {
+        const offerState = conversationState.getState(effectiveUserId);
+        const trackInfo = getTrackInfo(responseTrackNum);
+        offerState.pendingMusicOffer = {
+          type: 'track',
+          itemId: `track_${responseTrackNum}`,
+          item: { number: responseTrackNum, name: trackInfo?.name || `Track ${responseTrackNum}`, id: `track_${responseTrackNum}` },
+          offerLevel: 'spontaneous',
+          timestamp: Date.now()
+        };
+        conversationState.saveState(effectiveUserId, offerState);
+        console.log(`[MUSIC_SPONTANEOUS_OFFER] Saved pending track offer: Track ${responseTrackNum} (${trackInfo?.name})`);
       }
       
       // Retrieve the stored pending offer from prior turn (v2-aware accept/decline)
