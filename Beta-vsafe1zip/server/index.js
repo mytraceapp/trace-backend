@@ -3169,14 +3169,14 @@ async function getChatHistory(userId) {
     return [];
   }
 
-  console.log('[TRACE HISTORY] loading from chat_messages for user:', userId);
+  console.log('[TRACE HISTORY] loading from chat_messages for user:', userId.slice(0, 8) + '...');
 
   const { data, error } = await supabaseServer
     .from('chat_messages')
     .select('role, content, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-    .limit(30);
+    .limit(50);
 
   if (error) {
     console.error('[TRACE HISTORY DB ERROR]', error.message || error);
@@ -7297,6 +7297,7 @@ CRISIS OVERRIDE:
     let coreMemoryContext = '';
     let sessionRotation = null;
     let conversationMeta = null;
+    let recentStoredCount = 0;
     
     if (effectiveUserId && !isCrisisMode) {
       try {
@@ -7317,6 +7318,7 @@ CRISIS OVERRIDE:
         // ---- CONVERSATION-SCOPED HISTORY HYDRATION ----
         // Client may be missing messages from prior sessions or app restarts.
         // Use conversation-scoped trace_messages to fill gaps.
+        recentStoredCount = recentStored.length;
         console.log(`[CHAT_HYDRATION] recentStored=${recentStored.length} clientMsgs=${messages.length} convId=${conversationId}`);
         if (recentStored.length > 0 && messages.length < 30) {
           const clientKeys = new Set(
@@ -7372,9 +7374,11 @@ CRISIS OVERRIDE:
       }
     }
     
-    // Fallback hydration for crisis mode or when Core Memory is skipped
-    // Crisis conversations still need context so the AI understands the situation
-    if (!conversationMeta && effectiveUserId && supabaseServer && messages.length < 30) {
+    // Fallback hydration: Use chat_messages when Core Memory trace_messages has no data,
+    // or when Core Memory was skipped entirely (crisis mode, no conversationMeta).
+    // This ensures TRACE has conversation history even if trace_messages table is empty/missing.
+    const needsFallbackHydration = !conversationMeta || recentStoredCount === 0;
+    if (needsFallbackHydration && effectiveUserId && supabaseServer && messages.length < 40) {
       try {
         const fallbackHistory = await getChatHistory(effectiveUserId);
         if (fallbackHistory.length > 0) {
@@ -7386,13 +7390,18 @@ CRISIS OVERRIDE:
             return !clientKeys.has(key);
           });
           if (missingMessages.length > 0) {
-            console.log(`[CHAT_HYDRATION_FALLBACK] Hydrating ${missingMessages.length} messages (crisis/fallback mode)`);
+            console.log(`[CHAT_HYDRATION_FALLBACK] Hydrating ${missingMessages.length} messages from chat_messages (reason: ${!conversationMeta ? 'no_conversation_meta' : 'trace_messages_empty'})`);
             const merged = [
               ...missingMessages.map(m => ({ role: m.role, content: m.content, created_at: m.created_at })),
               ...messages
             ];
             messages = merged.length > 40 ? merged.slice(-40) : merged;
+            console.log(`[CHAT_HYDRATION_FALLBACK] Final message count: ${messages.length}`);
+          } else {
+            console.log(`[CHAT_HYDRATION_FALLBACK] No missing messages (client has all ${messages.length})`);
           }
+        } else {
+          console.log('[CHAT_HYDRATION_FALLBACK] No stored chat_messages found');
         }
       } catch (fallbackErr) {
         console.warn('[CHAT_HYDRATION_FALLBACK] Error:', fallbackErr.message);
