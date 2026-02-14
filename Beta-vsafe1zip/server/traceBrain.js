@@ -1471,6 +1471,13 @@ function sanitizeTone(text, options = {}) {
   let changed = false;
   const isCrisisMode = options.isCrisisMode || false;
   
+  // Strip "TRACE:" or "TRACE: " prefix — model sometimes outputs its own name
+  if (/^TRACE:\s*/i.test(result)) {
+    result = result.replace(/^TRACE:\s*/i, '');
+    changed = true;
+    console.log('[TONE SANITIZER] Stripped "TRACE:" prefix from response');
+  }
+  
   for (const { pattern, replacement } of THERAPY_PATTERNS) {
     // IMPORTANT: Reset regex lastIndex before each match (global regexes remember position)
     pattern.lastIndex = 0;

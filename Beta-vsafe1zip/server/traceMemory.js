@@ -118,7 +118,7 @@ function buildUserContextSnapshot({ memorySummary, patternsSnapshot, recentMessa
 
   const lines = [];
 
-  lines.push('USER CONTEXT (use subtly, do not repeat verbatim or reference directly):');
+  lines.push('USER CONTEXT (background only — NEVER reference these directly, NEVER claim the user said something from here, NEVER say "you mentioned X" based on this context):');
 
   if (memorySummary) {
     if (memorySummary.identity?.length) {
@@ -317,7 +317,7 @@ async function buildMemoryContext(supabase, userId, currentMessages = []) {
     const contextSnapshot = buildUserContextSnapshot({
       memorySummary,
       patternsSnapshot: null,
-      recentMessages: storedMessages.length > 0 ? storedMessages : currentMessages,
+      recentMessages: currentMessages.length > 0 ? currentMessages : storedMessages,
     });
 
     const journalContext = formatJournalMemoriesForContext(journalMemories);

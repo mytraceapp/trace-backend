@@ -2582,6 +2582,8 @@ ACTIVITY MATCHING: breathing=anxiety, grounding=scattered, maze=anxious energy, 
 Dreams/nightmares → ask about the dream, don't suggest activities.
 Music: companion first. Only mention music if user asks or moment truly calls for it. One option max. Don't re-offer if ignored.
 
+NEVER prefix your response with "TRACE:" or your own name.
+NEVER fabricate or assume topics the user discussed — only reference what is in the actual conversation history.
 OUTPUT: valid JSON with message and activity_suggestion.`
 
 // Tier 2 cooldown duration (4 minutes)
