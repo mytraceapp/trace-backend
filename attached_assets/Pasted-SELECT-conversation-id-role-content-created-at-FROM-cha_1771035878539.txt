@@ -1,0 +1,82 @@
+SELECT conversation_id, role, content, created_at 
+FROM chat_messages 
+WHERE user_id = 'your_test_user_id' 
+ORDER BY created_at DESC 
+LIMIT 20;
+```
+
+If you see multiple `conversation_id` values, the dinner message is in a different conversation than the current one.
+
+## Replit Prompt (If You Need to Re-implement)
+```
+TRACE memory fix: Server must hydrate conversation history from database before sending to AI.
+
+CONTEXT: Client (mobile app) only sends messages from local state. If user had prior session or app reloaded, old messages are missing. AI only sees what client sends, causing amnesia.
+
+FIX: Server-side message hydration in /api/chat endpoint.
+
+IMPLEMENTATION:
+
+1) Change messages declaration from const to let (line ~5187):
+   let messages = [
+     { role: 'system', content: systemPrompt },
+     ...previousMessages.map(m => ({ role: m.role, content: m.content })),
+     { role: 'user', content: userMessage }
+   ];
+
+2) Add hydration block after messages declaration:
+   // Hydrate with server history if client sent < 30 messages
+   if (previousMessages.length < 30 && effectiveUserId && conversationMeta?.conversation_id) {
+     try {
+       const serverHistory = await getChatHistory(effectiveUserId, conversationMeta.conversation_id);
+       
+       if (serverHistory?.length > 0) {
+         // Deduplicate: only add messages not in client set
+         const clientSet = new Set(
+           previousMessages.map(m => `${m.role}::${m.content.slice(0, 120)}`)
+         );
+         
+         const missingMessages = serverHistory.filter(m => 
+           !clientSet.has(`${m.role}::${m.content.slice(0, 120)}`)
+         );
+         
+         if (missingMessages.length > 0) {
+           console.log(`[CHAT_HYDRATION] Found ${missingMessages.length} server messages missing from client`);
+           
+           // Add older server messages before client messages
+           const earliestClientTs = previousMessages[0]?.created_at;
+           const olderMessages = earliestClientTs
+             ? missingMessages.filter(m => new Date(m.created_at) < new Date(earliestClientTs))
+             : missingMessages;
+           
+           messages = [
+             { role: 'system', content: systemPrompt },
+             ...olderMessages.map(m => ({ role: m.role, content: m.content })),
+             ...previousMessages.map(m => ({ role: m.role, content: m.content })),
+             { role: 'user', content: userMessage }
+           ];
+           
+           console.log(`[CHAT_HYDRATION] Hydrated ${olderMessages.length} server messages into context`);
+         }
+       }
+     } catch (err) {
+       console.warn('[CHAT_HYDRATION] Error fetching server history:', err);
+       // Continue with client messages only
+     }
+   }
+
+3) Verify getChatHistory works:
+   - Should query: SELECT role, content, created_at FROM chat_messages WHERE user_id = $1 AND conversation_id = $2 ORDER BY created_at ASC LIMIT 100
+   - Returns array: [{role: 'user', content: '...', created_at: '...'}, ...]
+
+4) Add debug logging:
+   console.log(`[CHAT_DEBUG] userId=${effectiveUserId} convId=${conversationMeta?.conversation_id} clientMsgs=${previousMessages.length} totalMsgs=${messages.length - 2}`);
+
+RESULT: AI receives full conversation history even if client only sends recent messages. User asks "remember what I said about dinner?" and AI can reference earlier messages.
+
+TEST:
+1) User: "I had pizza for dinner"
+2) Close app, reopen (or wait for state to reset)
+3) User: "Do you remember what I had for dinner?"
+4) Expected: AI says "yeah, pizza" (hydrated from server)
+5) Check logs show: [CHAT_HYDRATION] Hydrated X server messages

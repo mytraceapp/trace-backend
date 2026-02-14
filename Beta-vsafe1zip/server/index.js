@@ -5786,51 +5786,7 @@ app.post('/api/chat', async (req, res) => {
       console.error('[TRACE CHAT SAVE USER ERROR]', err.message || err);
     }
     
-    // ---- SERVER-SIDE HISTORY HYDRATION ----
-    // The client sends its local messages, but may be missing earlier conversation
-    // from prior sessions or app restarts. Fetch recent server history and merge
-    // any messages the client doesn't have, so the AI always has full context.
     console.log(`[CHAT_DEBUG] userId=${effectiveUserId} clientMessageCount=${messages.length}`);
-    
-    if (effectiveUserId && supabaseServer && messages.length < 30) {
-      try {
-        const serverHistory = await getChatHistory(effectiveUserId);
-        if (serverHistory.length > 0) {
-          const clientKeys = new Set(messages.map(m => `${m.role}::${(m.content || '').trim().toLowerCase().slice(0, 120)}`));
-          const missingMessages = serverHistory.filter(sm => {
-            const key = `${sm.role}::${(sm.content || '').trim().toLowerCase().slice(0, 120)}`;
-            return !clientKeys.has(key);
-          });
-          
-          if (missingMessages.length > 0) {
-            console.log(`[CHAT_DEBUG] Hydrating ${missingMessages.length} server messages not in client (client=${messages.length}, server=${serverHistory.length})`);
-            const earliestClientTs = messages.find(m => m.created_at)?.created_at;
-            const olderServerMsgs = earliestClientTs 
-              ? missingMessages.filter(sm => sm.created_at && new Date(sm.created_at) < new Date(earliestClientTs))
-              : missingMessages;
-            
-            if (olderServerMsgs.length > 0) {
-              const merged = [...olderServerMsgs, ...messages];
-              const maxTotal = 40;
-              messages = merged.length > maxTotal ? merged.slice(-maxTotal) : merged;
-              console.log(`[CHAT_DEBUG] Prepended ${olderServerMsgs.length} older server messages. Final count: ${messages.length}`);
-            } else {
-              console.log(`[CHAT_DEBUG] All missing server messages are concurrent/newer, skipping hydration`);
-            }
-          } else {
-            console.log(`[CHAT_DEBUG] No missing messages (client=${messages.length}, server=${serverHistory.length})`);
-          }
-        }
-      } catch (histErr) {
-        console.warn('[CHAT_DEBUG] Server history hydration failed (continuing with client messages):', histErr.message);
-      }
-    }
-    
-    console.log(`[CHAT_DEBUG] Sending ${messages.length} conversation messages to AI`);
-    if (messages.length > 0) {
-      const last3 = messages.slice(-3);
-      console.log('[CHAT_DEBUG] Last 3 messages:', last3.map(m => `[${m.role}] ${(m.content || '').slice(0, 60)}`));
-    }
     
     console.log('User name:', userName);
     console.log('Chat style:', chatStyle);
@@ -7399,8 +7355,44 @@ CRISIS OVERRIDE:
         const [storedCoreMemory, sessionSummaries, recentStored] = await Promise.all([
           memoryStore.fetchCoreMemory(supabaseServer, conversationId),
           memoryStore.fetchSessionSummaries(supabaseServer, conversationId, 3),
-          memoryStore.fetchRecentMessages(supabaseServer, conversationId, 30),
+          memoryStore.fetchRecentMessages(supabaseServer, conversationId, 50),
         ]);
+        
+        // ---- CONVERSATION-SCOPED HISTORY HYDRATION ----
+        // Client may be missing messages from prior sessions or app restarts.
+        // Use conversation-scoped trace_messages to fill gaps.
+        console.log(`[CHAT_HYDRATION] recentStored=${recentStored.length} clientMsgs=${messages.length} convId=${conversationId}`);
+        if (recentStored.length > 0 && messages.length < 30) {
+          const clientKeys = new Set(
+            messages.map(m => `${m.role}::${(m.content || '').trim().toLowerCase().slice(0, 120)}`)
+          );
+          const missingMessages = recentStored.filter(sm => {
+            const key = `${sm.role}::${(sm.content || '').trim().toLowerCase().slice(0, 120)}`;
+            return !clientKeys.has(key);
+          });
+          
+          if (missingMessages.length > 0) {
+            const earliestClientTs = messages.find(m => m.created_at)?.created_at;
+            const olderMessages = earliestClientTs
+              ? missingMessages.filter(sm => sm.created_at && new Date(sm.created_at) < new Date(earliestClientTs))
+              : missingMessages;
+            
+            if (olderMessages.length > 0) {
+              console.log(`[CHAT_HYDRATION] convId=${conversationId} client=${messages.length} server=${recentStored.length} hydrating=${olderMessages.length}`);
+              const merged = [
+                ...olderMessages.map(m => ({ role: m.role, content: m.content, created_at: m.created_at })),
+                ...messages
+              ];
+              const maxTotal = 40;
+              messages = merged.length > maxTotal ? merged.slice(-maxTotal) : merged;
+              console.log(`[CHAT_HYDRATION] Hydrated ${olderMessages.length} older messages. Final count: ${messages.length}`);
+            } else {
+              console.log(`[CHAT_HYDRATION] Missing messages are concurrent/newer, skipping (client=${messages.length})`);
+            }
+          } else {
+            console.log(`[CHAT_HYDRATION] No missing messages (client=${messages.length}, server=${recentStored.length})`);
+          }
+        }
         
         const memContext = coreMemory.buildMemoryContext(
           storedCoreMemory,
@@ -7422,6 +7414,39 @@ CRISIS OVERRIDE:
       } catch (memErr) {
         console.warn('[CORE MEMORY] Context fetch failed (continuing):', memErr.message);
       }
+    }
+    
+    // Fallback hydration for crisis mode or when Core Memory is skipped
+    // Crisis conversations still need context so the AI understands the situation
+    if (!conversationMeta && effectiveUserId && supabaseServer && messages.length < 30) {
+      try {
+        const fallbackHistory = await getChatHistory(effectiveUserId);
+        if (fallbackHistory.length > 0) {
+          const clientKeys = new Set(
+            messages.map(m => `${m.role}::${(m.content || '').trim().toLowerCase().slice(0, 120)}`)
+          );
+          const missingMessages = fallbackHistory.filter(sm => {
+            const key = `${sm.role}::${(sm.content || '').trim().toLowerCase().slice(0, 120)}`;
+            return !clientKeys.has(key);
+          });
+          if (missingMessages.length > 0) {
+            console.log(`[CHAT_HYDRATION_FALLBACK] Hydrating ${missingMessages.length} messages (crisis/fallback mode)`);
+            const merged = [
+              ...missingMessages.map(m => ({ role: m.role, content: m.content, created_at: m.created_at })),
+              ...messages
+            ];
+            messages = merged.length > 40 ? merged.slice(-40) : merged;
+          }
+        }
+      } catch (fallbackErr) {
+        console.warn('[CHAT_HYDRATION_FALLBACK] Error:', fallbackErr.message);
+      }
+    }
+    
+    console.log(`[CHAT_DEBUG] Sending ${messages.length} messages to AI. convId=${conversationMeta?.conversationId || 'none'}`);
+    if (messages.length > 0) {
+      const last3 = messages.slice(-3);
+      console.log('[CHAT_DEBUG] Last 3:', last3.map(m => `[${m.role}] ${(m.content || '').slice(0, 60)}`));
     }
     
     const fullContext = contextParts.filter(Boolean).join('\n\n');
