@@ -1,0 +1,70 @@
+The Pattern: Fake Politeness
+TRACE sounds like:
+
+A customer service rep ending a call
+Someone who doesn't actually care but is being polite
+A distant acquaintance, not a friend
+
+Examples of snobby/distant phrasing:
+
+"That can be tough" (patronizing)
+"Want to unpack this more" (therapist)
+"I haven't heard of it. It sounds interesting." (fake engagement)
+"Enjoy your time at the movies" (formal, stiff)
+"Hope you enjoy it" (polite but distant)
+
+
+Why This Happened
+The model is trying to:
+
+Be supportive (but overshoots into formal politeness)
+Validate the user (but repeats itself)
+Not be too brief (but becomes wordy and stiff)
+
+Result: Sounds like a snob who's humouring someone.
+
+What a Buddy Would Actually Say
+User: "I can't think"
+Buddy: "yeah, what's up?" or "tell me."
+
+User: "Hey"
+Buddy: "hey." or "what's going on?"
+
+User: "I'm going to the movies"
+Buddy: "nice, have fun."
+
+User: "I'm going to go watch good luck .. have you heard of this"
+Buddy: "nah, what is it?" or "haven't heard of it." or "no, but enjoy."
+NOT: "I haven't heard of it. It sounds interesting. Enjoy your time at the movies."
+
+User: "Yeah for sure"
+Buddy: "alright." or "cool." or nothing
+NOT: "Sounds like a nice plan. Hope you enjoy it."
+
+The Core Issue
+TRACE is stuck in "polite acquaintance" mode, not "buddy" mode.
+A buddy:
+
+Doesn't repeat "enjoy" three times
+Doesn't say "enjoy your time at the movies" (too formal)
+Doesn't fake interest ("it sounds interesting")
+Would just say "nice, have fun" and move on
+
+
+This Proves My Point
+The voice is inconsistent.
+Sometimes TRACE sounds right (the earlier "Anytime." was perfect).
+Sometimes TRACE sounds like therapy bot.
+Sometimes TRACE sounds like a snobby customer service rep.
+All in the same conversation.
+
+You Need the Prompt Compression
+This randomness = too many conflicting instructions in the prompt.
+The model is:
+
+Trying to be brief (kernel rules)
+Trying to be supportive (some phase instruction)
+Trying to validate (therapy-avoidance overcorrection)
+Trying to not ask too many questions (question throttling)
+
+Result: Incoherent voice that swings between buddy, therapist, and snob.

@@ -45,15 +45,15 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
   const modeHint = traceIntent?.trace_mode_hint || 'reflect';
   const qCooldown = qg.questionCooldown;
   const modeHintBlock = modeHint === 'regulate'
-    ? `APPROACH: Regulate (1–3 sentences).
-Shape: attune (1 line, name what you see) → guide (1 micro-step: breathe, feel feet, slow exhale, or sound cue) → action (1 grounding anchor).
-No analysis, no exploring deeper. Stay somatic and steady.${qCooldown ? ' Zero questions.' : ' Max 1 question.'}`
+    ? `APPROACH: Ground (1–3 sentences).
+Shape: notice (1 line, name what you see without therapist framing) → guide (1 micro-step: breathe, feel feet, slow exhale, or sound cue) → anchor (1 grounding thing).
+No analysis, no exploring deeper. Stay physical and steady. Talk like a friend coaching, not a therapist.${qCooldown ? ' Zero questions.' : ' Max 1 question.'}`
     : modeHint === 'blend'
-    ? `APPROACH: Blend. The user is stressed but not overwhelmed. Acknowledge what they're feeling, then gently reflect. One grounding cue is okay but don't lead with it.${qCooldown ? ' Zero questions.' : ' Max 1 question.'}`
+    ? `APPROACH: Blend. They're stressed but not overwhelmed. Name what they're feeling in plain words, then gently reflect. One grounding cue is okay but don't lead with it. Talk like a friend, not a counselor.${qCooldown ? ' Zero questions.' : ' Max 1 question.'}`
     : `APPROACH: Reflect.
-Shape: attune (1 line, mirror what they said back sharper) → guide (1 gentle hypothesis or observation) → action (offer a fork: 2 options, then a tiny next step).
+Shape: notice (1 line, mirror what they said back sharper) → observe (1 gentle hypothesis or observation) → offer (a fork: 2 options, then a tiny next step).
 Max 1 question.
-Never ask "how do you feel?" or variants ("how does that sit with you?", "how are you feeling about that?") more than once every 10 turns.`;
+Never ask "how do you feel?" or variants more than once every 10 turns.`;
 
   const qGuardBlock = qg.questionCooldown
     ? `QUESTION GUARD (HARD RULE): Your last response already contained a question. Do NOT include any question marks in this reply. Instead: attune to what they said, offer 2 options or a micro-step. No questions.\nIMPORTANT: Do not include any question marks in your reply.`
@@ -63,12 +63,12 @@ Never ask "how do you feel?" or variants ("how does that sit with you?", "how ar
     : '';
 
   const checkinSubstitutions = `CHECK-IN SUBSTITUTION (always active): Never default to "how are you feeling?" or variants. If you need a check-in, pick ONE:
-1) Body: "Where do you notice that — chest, throat, stomach, shoulders?"
-2) Need: "What do you need most right now — comfort, clarity, a plan, or rest?"
-3) Intensity: "If you had to put a number on it, 0–10, where does it land?"
-4) Fork: "Want to unpack this more, or regulate first?"
-5) Shift: "Want to stay here or change gears?"
-6) Anchor: "What's the one thing that's weighing heaviest right now?"`;
+1) Body: "where do you feel that — chest, throat, stomach?"
+2) Need: "what do you need right now — comfort, clarity, a plan, or rest?"
+3) Intensity: "0–10, where does it land?"
+4) Fork: "wanna keep talking about this or do something different?"
+5) Shift: "wanna stay here or switch it up?"
+6) Anchor: "what's the heaviest thing right now?"`;
 
   if (qg.questionCooldown) {
     c.allowQuestions = 0;

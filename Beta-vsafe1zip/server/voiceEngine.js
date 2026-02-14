@@ -16,7 +16,8 @@ const BANNED_PHRASES = [
   // Therapist-speak
   'I hear you', 'I understand', 'that sounds', 'it sounds like',
   'how does that make you feel', 'what I\'m hearing is',
-  'let\'s explore that', 'let\'s unpack that', 'processing',
+  'let\'s explore that', 'let\'s unpack that', 'unpack this',
+  'unpack that', 'regulate first', 'processing',
   'holding space', 'navigating', 'journey', 'healing journey',
   'self-care', 'boundaries', 'triggers', 'safe space',
   'emotional labor', 'validate', 'validating',
@@ -35,13 +36,22 @@ const BANNED_PHRASES = [
   'I\'m happy to', 'I\'d be happy to', 'absolutely',
   'great question', 'that\'s a great', 'certainly',
   
+  // Fake engagement / dismissive
+  'it sounds interesting', 'that sounds interesting',
+  'enjoy your time', 'hope you enjoy',
+  'sounds like a nice plan', 'sounds like a great plan',
+  'sounds like a good plan',
+  
   // Overly positive
   'amazing', 'wonderful', 'fantastic', 'incredible', 'awesome',
   'you\'re doing great', 'proud of you', 'so proud',
   
   // Filler
   'basically', 'essentially', 'actually', 'literally',
-  'in terms of', 'at the end of the day'
+  'in terms of', 'at the end of the day',
+  
+  // Attitude words (read as snobby in text — only standalone "mm.")
+  'mm.'
 ];
 
 // UNSOLICITED ACTIVITY OFFERS - these break the therapeutic container
@@ -112,26 +122,48 @@ const THERAPIST_FRAME_PATTERNS = [
   /(?:and|but|so) that(?:'s| is) (?:completely |totally |perfectly )?(?:valid|okay|understandable|normal|natural)/i,
 ];
 
-const BUDDY_OPENERS = [
-  'yeah.',
-  'mm.',
-  'oof.',
-  'damn.',
-  'real talk —',
-  'I feel that.',
-  'yeah, no, I get it.',
-  'rough.',
+const APPROVED_MICRO_ACKS = [
+  'yeah.', 'got you.', 'oh nice.', 'okay.', 'damn.', 'bet.', 'true.', 'fair.',
+  'nice.', 'cool.', 'love that.', 'lol fair.', 'for real.', 'heard.',
+  'hey.', 'rough.', 'okayyy.', 'ha fair.', 'alright.',
+];
+
+const VOICE_PALETTE = {
+  light: ['oh nice.', 'love that.', 'okayyy.', 'lol fair.', 'nice.', 'ha, fair.'],
+  neutral: ['got you.', 'yeah.', 'okay.', 'bet.', 'true.', 'cool.', 'for real.', 'heard.'],
+  heavy: ['damn.', 'yeah… okay.', 'i hear you.', 'that\'s real.', 'rough.', 'yeah. okay.'],
+};
+
+const BUDDY_OPENERS_EMOTIONAL = [
+  'yeah, i hear you.',
+  'that\'s a lot.',
+  'yeah, no, i get it.',
+  'damn. okay.',
   'that tracks.',
   'yeah that makes sense.',
-  'honestly?',
-  'heavy.',
+  'not gonna lie, that\'s rough.',
+  'yeah. that\'s real.',
+  'rough.',
+];
+
+const BUDDY_OPENERS_CASUAL = [
+  'oh nice.',
+  'wait really?',
+  'oh word?',
+  'ha, solid.',
+  'okay okay.',
+  'oh for real?',
+  'nice.',
+  'lol fair.',
+  'love that.',
+  'haha okay.',
 ];
 
 // TRACE voice characteristics
 const VOICE_MARKERS = {
   // Grounded openers (not "hi!" energy)
   openers: [
-    'hey.', 'mm.', 'yeah.', 'still here.', 'back.',
+    'hey.', 'yeah.', 'still here.', 'back.',
     'right here.', 'with you.', 'listening.'
   ],
   
@@ -340,12 +372,51 @@ function containsTherapistFrame(sentence) {
   return THERAPIST_FRAME_PATTERNS.some(p => p.test(sentence));
 }
 
-function pickBuddyOpener() {
-  return BUDDY_OPENERS[Math.floor(Math.random() * BUDDY_OPENERS.length)];
+function pickBuddyOpener(context = 'emotional') {
+  const pool = context === 'casual' ? BUDDY_OPENERS_CASUAL : BUDDY_OPENERS_EMOTIONAL;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+const DISMISSIVE_PATTERNS = [
+  /enjoy (?:the |your |it|that)/i,
+  /hope you (?:enjoy|have a|have fun)/i,
+  /have (?:a good|a great|a nice|fun) (?:time|day|one|evening|night|weekend)/i,
+  /sounds like a (?:nice|good|great|solid) plan/i,
+  /(?:that's|that is) (?:a )?(?:nice|good|great|solid) (?:plan|idea|choice)/i,
+  /enjoy your (?:time|day|evening|night|weekend)/i,
+  /(?:take care|stay safe)\b/i,
+  /^enjoy\.\s*$/i,
+];
+
+function isResponseDismissive(text) {
+  const lower = text.toLowerCase().trim();
+  if (DISMISSIVE_PATTERNS.some(p => p.test(lower))) return true;
+  const sentences = splitSentences(text);
+  const dismissiveCount = sentences.filter(s => 
+    DISMISSIVE_PATTERNS.some(p => p.test(s.trim().toLowerCase()))
+  ).length;
+  if (dismissiveCount > 0 && dismissiveCount >= sentences.length * 0.5) return true;
+  return false;
+}
+
+function stripDismissiveSentences(text) {
+  const sentences = splitSentences(text);
+  const kept = sentences.filter(s => 
+    !DISMISSIVE_PATTERNS.some(p => p.test(s.trim().toLowerCase()))
+  );
+  return kept.length > 0 ? kept.join(' ').trim() : null;
+}
+
+function detectConversationMood(recentHistory = []) {
+  if (!recentHistory || recentHistory.length === 0) return 'casual';
+  const lastUserMsg = (recentHistory.filter(m => m.role === 'user').slice(-1)[0]?.content || '').toLowerCase();
+  const emotionalWords = /sad|angry|anxious|stressed|overwhelmed|lonely|hurt|scared|frustrated|depressed|upset|tired|exhausted|can't sleep|can't think/i;
+  return emotionalWords.test(lastUserMsg) ? 'emotional' : 'casual';
 }
 
 function applyVoiceStyle(baseResponse, intent, options = {}) {
   const { recentHistory = [], userMessage = '' } = options;
+  const mood = detectConversationMood(recentHistory);
   
   let styled = baseResponse;
 
@@ -355,7 +426,7 @@ function applyVoiceStyle(baseResponse, intent, options = {}) {
     const firstSentence = styled.substring(0, firstSentenceEnd + 1);
     if (containsTherapistFrame(firstSentence)) {
       const rest = styled.substring(firstSentenceEnd + 1).trim();
-      const opener = pickBuddyOpener();
+      const opener = pickBuddyOpener(mood);
       styled = rest.length > 5 ? `${opener} ${rest}` : opener;
       console.log(`[VOICE] OPENER REWRITE: "${firstSentence.trim()}" → "${opener}"`);
     }
@@ -373,7 +444,7 @@ function applyVoiceStyle(baseResponse, intent, options = {}) {
     if (cleaned.length > 0) {
       styled = cleaned.join(' ').trim();
     } else {
-      styled = pickBuddyOpener();
+      styled = pickBuddyOpener(mood);
       console.log(`[VOICE] All sentences banned — replaced with buddy opener: "${styled}"`);
     }
   }
@@ -392,27 +463,59 @@ function applyVoiceStyle(baseResponse, intent, options = {}) {
       }
     }
     if (strippedCount > 0) {
-      styled = cleaned.length > 0 ? cleaned.join(' ').trim() : pickBuddyOpener();
+      styled = cleaned.length > 0 ? cleaned.join(' ').trim() : pickBuddyOpener(mood);
     }
   }
 
-  // 4. Lowercase first letter for grounded feel (unless it's "I")
+  // 4. DISMISSIVE RESPONSE CHECK: Catch polite sign-offs that lack curiosity
+  if (isResponseDismissive(styled)) {
+    console.log(`[VOICE] DISMISSIVE detected: "${styled}" — not how a friend talks`);
+    const stripped = stripDismissiveSentences(styled);
+    styled = stripped || pickBuddyOpener(mood);
+  }
+
+  // 5. Lowercase first letter for grounded feel (unless it's "I")
   if (styled.length > 0 && styled[0] !== 'I' && /^[A-Z]/.test(styled)) {
     styled = styled[0].toLowerCase() + styled.slice(1);
   }
   
-  // 5. Remove exclamation marks (too high energy)
+  // 6. Remove exclamation marks (too high energy)
   styled = styled.replace(/!/g, '.');
   
-  // 6. Shorten overly long sentences (slow cadence)
+  // 7. Shorten overly long sentences (slow cadence)
   const sentences = splitSentences(styled);
   if (sentences.length > 4) {
     styled = sentences.slice(0, 3).join(' ');
   }
   
-  // 7. Final safety: if everything got stripped, use a buddy fallback
+  // 8. BAN "mm." — always reads as attitude in text
+  if (/\bmm\b/i.test(styled)) {
+    const replacement = mood === 'emotional' 
+      ? VOICE_PALETTE.heavy[Math.floor(Math.random() * VOICE_PALETTE.heavy.length)]
+      : VOICE_PALETTE.neutral[Math.floor(Math.random() * VOICE_PALETTE.neutral.length)];
+    const cleanReplacement = replacement.replace(/\.$/, '');
+    styled = styled.replace(/\bmm\b[.,]?\s*/gi, cleanReplacement + ' ').replace(/\s{2,}/g, ' ').trim();
+    console.log(`[VOICE] Replaced "mm" → "${cleanReplacement}"`);
+  }
+
+  // 9. MICRO-ACK GUARD: if response is ≤2 words and not in approved list, replace with warmer ack
+  const wordCount = styled.trim().split(/\s+/).length;
+  if (wordCount <= 2) {
+    const normalized = styled.trim().toLowerCase().replace(/[^\w\s…]/g, '').trim();
+    const isApproved = APPROVED_MICRO_ACKS.some(a => 
+      a.toLowerCase().replace(/[^\w\s…]/g, '').trim() === normalized
+    );
+    if (!isApproved) {
+      const palette = mood === 'emotional' ? VOICE_PALETTE.heavy : VOICE_PALETTE.light;
+      const warmer = palette[Math.floor(Math.random() * palette.length)];
+      console.log(`[VOICE] Unapproved micro-ack "${styled}" → "${warmer}"`);
+      styled = warmer;
+    }
+  }
+  
+  // 9. Final safety: if everything got stripped, use a buddy fallback
   if (!styled || styled.trim().length < 3) {
-    styled = pickBuddyOpener();
+    styled = pickBuddyOpener(mood);
     console.log(`[VOICE] Empty after cleanup — buddy fallback: "${styled}"`);
   }
 
@@ -452,13 +555,20 @@ function buildVoicePromptInjection(intent, recentHistory = []) {
   const hasConversationContext = recentHistory && recentHistory.length >= 4;
   
   let voiceGuidance = `
-VOICE STYLE:
-- Speak grounded, not upbeat
+VOICE STYLE — "warm-minimal":
+- You are a FRIEND, not a therapist and not a polite stranger
+- Be curious and engaged — ask about what they're telling you, like a friend actually would
+- If they mention plans (movies, trips, events), ask about details: "what movie?", "who are you going with?", "oh nice, where?"
+- NEVER give polite sign-offs like "enjoy the movie", "have a good time", "hope you enjoy it" — that's how a customer service agent, not a friend
+- A friend says: "oh wait what movie?", "is it any good?", "tell me if it's worth watching"
+- NEVER say "mm." — it always reads as attitude. Use: "got you." / "yeah." / "okay." instead
+- One send-off max per message. Don't double up ("enjoy" + "hope you enjoy" = too much)
+- Approved micro-acks (1-2 words): yeah / got you / oh nice / okay / damn / bet / true / fair / nice / cool / love that
 - Use lowercase starts when natural
 - Short sentences, slow cadence
 - No exclamation marks
 - Never restart the conversation
-- Never use therapist phrases like "I hear you", "that sounds like", "let's explore"
+- Never use therapist phrases like "I hear you", "that sounds like", "let's explore", "unpack", "regulate"
 `;
 
   // CRITICAL: Anti-lazy-question guidance
@@ -554,28 +664,29 @@ function generateContextualContinuation(response, recentHistory = []) {
   const musicContinuations = [
     "let it play.",
     "this one's nice for just sitting with.",
-    "mm. good choice.",
+    "good choice.",
     "here with you.",
   ];
   
   const positiveContinuations = [
-    "good.",
-    "mm.",
-    "I'm here.",
     "nice.",
+    "got you.",
+    "cool.",
+    "love that.",
   ];
   
   const emotionalContinuations = [
     "still here.",
-    "mm.",
+    "got you.",
     "take your time.",
     "no rush.",
   ];
   
   const casualContinuations = [
-    "hey.",
-    "I'm here.",
-    "mm.",
+    "hey, what's good?",
+    "yo, what's happening?",
+    "hey — what's new?",
+    "hey. fill me in.",
   ];
   
   // Pick based on context
@@ -626,6 +737,8 @@ function validateResponse(response, intent, recentHistory = []) {
   
   const hasConversationContext = recentHistory && recentHistory.length >= 4;
   
+  const mood = detectConversationMood(recentHistory);
+
   // Check for banned phrases — actually strip them
   const banned = containsBannedPhrases(corrected);
   if (banned.length > 0) {
@@ -635,7 +748,7 @@ function validateResponse(response, intent, recentHistory = []) {
       const sLower = s.toLowerCase();
       return !banned.some(b => sLower.includes(b.toLowerCase()));
     });
-    corrected = cleaned.length > 0 ? cleaned.join(' ').trim() : pickBuddyOpener();
+    corrected = cleaned.length > 0 ? cleaned.join(' ').trim() : pickBuddyOpener(mood);
   }
   
   // Check for therapist validation frames — strip those sentences
@@ -652,8 +765,16 @@ function validateResponse(response, intent, recentHistory = []) {
       }
     }
     if (frameCount > 0) {
-      corrected = cleaned.length > 0 ? cleaned.join(' ').trim() : pickBuddyOpener();
+      corrected = cleaned.length > 0 ? cleaned.join(' ').trim() : pickBuddyOpener(mood);
     }
+  }
+  
+  // Check for dismissive sign-offs — a friend wouldn't just say "enjoy the movie" and peace out
+  if (isResponseDismissive(corrected)) {
+    issues.push(`Dismissive sign-off detected: "${corrected}" — STRIPPING`);
+    console.log(`[VOICE] ⚠️ DISMISSIVE: "${corrected}" — friends don't talk like this`);
+    const stripped = stripDismissiveSentences(corrected);
+    corrected = stripped || pickBuddyOpener(mood);
   }
   
   // Check for unsolicited activity/soundscape offers - these should be blocked
@@ -753,19 +874,26 @@ module.exports = {
   applyVoiceStyle,
   containsTherapistFrame,
   THERAPIST_FRAME_PATTERNS,
-  BUDDY_OPENERS,
+  APPROVED_MICRO_ACKS,
+  VOICE_PALETTE,
+  BUDDY_OPENERS_EMOTIONAL,
+  BUDDY_OPENERS_CASUAL,
   buildVoicePromptInjection,
   validateResponse,
   isConversationRestart,
+  isResponseDismissive,
+  stripDismissiveSentences,
   containsBannedPhrases,
   containsLazyQuestion,
   detectHollowResponse,
   rewriteHollowSentence,
   extractRecentTopics,
   generateContextualContinuation,
+  detectConversationMood,
   BANNED_PHRASES,
   LAZY_GENERIC_QUESTIONS,
   HOLLOW_PATTERNS,
+  DISMISSIVE_PATTERNS,
   VOICE_MARKERS,
   RESPONSE_TONE_MAP
 };
