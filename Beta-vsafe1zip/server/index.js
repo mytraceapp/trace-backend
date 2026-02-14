@@ -2544,7 +2544,7 @@ if (hasOpenAIKey) {
   openai = new OpenAI({
     baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || 'https://api.openai.com/v1',
     apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
-    timeout: 25000, // 25 second timeout per request
+    timeout: 30000,
   });
   console.log('OpenAI client initialized');
 } else {
@@ -8902,7 +8902,7 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
           messages: [{ role: 'user', content: structurePrompt }],
           max_tokens: 300,
           response_format: { type: "json_object" },
-        });
+        }, { timeout: 5000, signal: AbortSignal.timeout(5000) });
         
         const structureContent = structureResponse.choices[0]?.message?.content || '';
         if (structureContent.trim()) {
@@ -8985,7 +8985,7 @@ Your response (text only, no JSON):`;
             model: 'gpt-4o-mini',
             messages: [{ role: 'user', content: fallbackPrompt }],
             max_tokens: fallbackMaxTokens,
-          });
+          }, { timeout: 5000, signal: AbortSignal.timeout(5000) });
           textResult = fallbackResponse.choices[0]?.message?.content?.trim() || '';
         } catch (err) {
           console.error('[TRACE T2] Fallback text error:', err.message);
@@ -9189,9 +9189,9 @@ Your response (text only, no JSON):`;
     const cfg = getConfiguredModel();
     const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
     
-    // Total time budget: mobile client times out at 30s, so we must respond within 25s
-    // to leave margin for network latency. If we exceed this, accept whatever we have.
-    const TOTAL_TIME_BUDGET_MS = 25000;
+    // Total time budget: mobile client times out at 60s, so we have room.
+    // Target: L1 gets ~12s, L2 gets ~10s, L3 gets ~5s, post-processing ~3s = ~30s max
+    const TOTAL_TIME_BUDGET_MS = 30000;
     const timeBudgetExceeded = () => (Date.now() - requestStartTime) >= TOTAL_TIME_BUDGET_MS;
     
     // Token limit for long-form content (recipes, stories, detailed explanations)
@@ -9233,13 +9233,15 @@ Your response (text only, no JSON):`;
           openaiParams.temperature = chatTemperature;
         }
         const remainingBudget = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
-        const baseL1Timeout = isLongformL1 ? 55000 : 8000;
-        const l1Timeout = Math.min(baseL1Timeout, remainingBudget - 5000); // leave 5s for post-processing
+        const baseL1Timeout = isLongformL1 ? 55000 : 12000;
+        const l1Timeout = Math.min(baseL1Timeout, remainingBudget - 8000);
         if (l1Timeout < 3000) {
           console.warn(`[TRACE OPENAI L1] Remaining budget too low (${remainingBudget}ms), skipping L1 attempt ${attempt}`);
           break;
         }
-        const l1RequestOptions = { timeout: l1Timeout };
+        const l1Abort = AbortSignal.timeout(l1Timeout);
+        const l1RequestOptions = { timeout: l1Timeout, signal: l1Abort };
+        console.log(`[TIMING] L1 timeout set to ${l1Timeout}ms (budget remaining: ${remainingBudget}ms)`);
         const response = await openai.chat.completions.create(openaiParams, l1RequestOptions);
         const openaiDuration = Date.now() - openaiStart;
         console.log(`[TIMING] OpenAI L1 call took ${openaiDuration}ms (attempt ${attempt})`);
@@ -9321,13 +9323,15 @@ Your response (text only, no JSON):`;
             backupParams.temperature = chatTemperature;
           }
           const remainingBudgetL2 = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
-          const baseL2Timeout = (isLongFormRequest || traceIntent?.mode === 'longform') ? 60000 : 15000;
+          const baseL2Timeout = (isLongFormRequest || traceIntent?.mode === 'longform') ? 60000 : 10000;
           const l2Timeout = Math.min(baseL2Timeout, remainingBudgetL2 - 5000);
           if (l2Timeout < 3000) {
             console.warn(`[TRACE OPENAI L2] Remaining budget too low (${remainingBudgetL2}ms), skipping to L3`);
             break;
           }
-          const l2RequestOptions = { timeout: l2Timeout };
+          const l2Abort = AbortSignal.timeout(l2Timeout);
+          const l2RequestOptions = { timeout: l2Timeout, signal: l2Abort };
+          console.log(`[TIMING] L2 timeout set to ${l2Timeout}ms (budget remaining: ${remainingBudgetL2}ms)`);
           const response = await openai.chat.completions.create(backupParams, l2RequestOptions);
           
           recordOpenAICall(TRACE_BACKUP_MODEL, response, chatRequestId, openaiStart);
@@ -9533,12 +9537,14 @@ Your response:`;
         const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : 400;
         const remainingBudgetL3 = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
         const l3Timeout = Math.max(3000, Math.min(10000, remainingBudgetL3 - 3000));
+        const l3Abort = AbortSignal.timeout(l3Timeout);
+        console.log(`[TIMING] L3 timeout set to ${l3Timeout}ms (budget remaining: ${remainingBudgetL3}ms)`);
         const response = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
           messages: [{ role: 'user', content: plainPrompt }],
           max_tokens: l3MaxTokens,
           temperature: 0.8,
-        }, { timeout: l3Timeout });
+        }, { timeout: l3Timeout, signal: l3Abort });
         
         const plainText = response.choices[0]?.message?.content?.trim() || '';
         const l3FinishReason = response.choices[0]?.finish_reason;
