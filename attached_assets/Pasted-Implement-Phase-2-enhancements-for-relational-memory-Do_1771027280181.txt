@@ -1,0 +1,52 @@
+Implement Phase 2 enhancements for relational memory. Do not destabilize Phase 1.
+
+GOAL (Phase 2):
+- Add pending confirmation for explicit mentions that are uncertain (“my sister Emma” can be wrong, so confirm before persisting OR allow “soft persist” with confirmation).
+- Add lightweight pronoun resolution hints in-session (not stored), only when confident.
+- Add conservative post-processing guardrail for “your sister” -> “Emma” when we injected an anchor but the model didn’t use the name.
+
+DELIVERABLES (Phase 2):
+
+1) Pending confirmation flow (session-scoped):
+- If explicit mention is detected (“my sister Emma”) AND Emma not in DB:
+  Option A (safest): persist immediately (explicit) but still allow correction later.
+  Option B (more cautious): store pending in session:
+     session.pendingPerson = {relationship:'sister', display_name:'Emma', createdAt: now()}
+  Allow LLM to respond normally, but append a deterministic fixed one-liner (not generated):
+     "Just checking—Emma is your sister, right?"
+- If user replies with confirmation ("yes", "yeah", "correct"):
+     persist pendingPerson to DB (insert into people)
+     clear pendingPerson
+- If user denies ("no", "not my sister"):
+     discard pendingPerson
+     clear pendingPerson
+- Never store from vague mentions.
+- Add “correction” handling:
+     If user says "Emma is my cousin not sister"
+     update record relationship accordingly (or prompt to confirm change).
+
+2) Pronoun resolution (session only):
+- Track lastMentionedPerson = {relationship, display_name, messageIndex, confidence}
+- If user uses pronouns (she/he/they/her/him/them) within the last 3 messages AND there is exactly one high-salience person recently referenced:
+   Inject to the system prompt (soft hint):
+   "Recent reference: Emma (sister). If pronouns refer to someone else, ask briefly."
+- Clear hint after 5+ messages or when another person becomes dominant.
+
+3) Post-processing guardrail (conservative string replace):
+- If we injected anchor "Sister = Emma" and assistant reply contains exact "your sister" but not "Emma":
+   Replace:
+     "your sister's" -> "Emma's"
+     "your sister" -> "Emma"
+- Apply only when replacement is safe (exact phrase match).
+- Do not attempt aggressive NLP rewrites.
+
+4) Extra tests (Phase 2):
+- "my sister Emma called" -> assistant appends confirmation line; user says yes -> persisted
+- 10 unrelated messages -> "my sister" -> must use Emma
+- "she was upset" within 3 turns -> should treat as Emma or ask if ambiguous
+- "Emma is my cousin" -> update relationship, next “my sister” should not map to Emma
+
+FILES TO UPDATE:
+- server/relationalMemory.ts (add pending + pronoun utilities)
+- chat handler (inject hints + pending confirm flow)
+- optionally: session store module if you have one
