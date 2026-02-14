@@ -4552,7 +4552,8 @@ app.post('/api/chat', async (req, res) => {
         client_sound_state: clientSoundStateEarly,
         userMessageCount: currentUserMsgCount,
         assistantMessageCount: newAssistantCountEarly,
-        isCrisisMode: false
+        isCrisisMode: false,
+        tracksPlayedInState: safeClientState?.tracksPlayedInState || 0
       });
       
       if (earlyAtmosphereResult?.sound_state?.changed) {

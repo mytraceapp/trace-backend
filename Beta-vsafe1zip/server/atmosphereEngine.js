@@ -41,13 +41,11 @@ const SIGNAL_TABLES = {
     "that's true", "needed to hear that", "thank you for that"
   ],
   presence: [
-    "calm", "relaxed", "peaceful", "content", "happy", "chill", "great", "good",
-    "I'm good", "I'm okay", "I'm fine", "feeling good", "feeling better",
-    "I'm calm", "I'm relaxed", "at peace", "I'm content", "I'm happy",
-    "doing well", "pretty good", "not bad", "all good", "I'm great",
-    "feeling chill", "good day", "nice day", "just chilling", "just hanging",
-    "things are good", "life is good", "feeling at ease", "I'm at peace",
-    "vibing", "just vibing", "chillin", "all chill", "yeah good"
+    "I'm calm now", "I'm relaxed now", "feeling much better", "I feel better now",
+    "I'm at peace", "feeling at ease", "I'm content now",
+    "just chilling", "just vibing", "vibing", "chillin",
+    "life is good", "things are good", "all good now",
+    "I'm good now", "feeling good now", "I'm okay now"
   ]
 };
 
@@ -75,16 +73,17 @@ const ALLOWED_TRANSITIONS = {
   insight: ['presence', 'insight']
 };
 
-const DWELL_TIME_MS = 90000; // 90 seconds — soundscapes need time to breathe
-const OSCILLATION_WINDOW_MS = 120000;
-const OSCILLATION_THRESHOLD = 3;
-const FREEZE_DURATION_MS = 90000;
-const NEUTRAL_STREAK_THRESHOLD = 12; // 12 neutral messages before returning to presence
-const SIGNAL_TIMEOUT_MS = 900000; // 15 minutes - soundscapes persist longer
-const GROUNDING_CLEAR_THRESHOLD = 3; // Require 3 clear messages to exit grounding
-const MIN_STATE_PERSIST_MESSAGES = 10; // Minimum 10 messages before allowing state reassessment
-const INACTIVITY_TIMEOUT_MS = 300000; // 5 minutes - return to ambient after inactivity
-const BASELINE_WINDOW_MESSAGES = 2; // Accumulate signals over first 2 messages before making initial switch
+const DWELL_TIME_MS = 300000; // 5 minutes — soundscapes need to settle, not switch like a DJ
+const OSCILLATION_WINDOW_MS = 180000;
+const OSCILLATION_THRESHOLD = 2;
+const FREEZE_DURATION_MS = 180000;
+const NEUTRAL_STREAK_THRESHOLD = 25; // 25 neutral messages before returning to presence — stay committed
+const SIGNAL_TIMEOUT_MS = 1800000; // 30 minutes — emotional states linger, don't rush back
+const GROUNDING_CLEAR_THRESHOLD = 5; // Require 5 clear messages to exit grounding
+const MIN_STATE_PERSIST_MESSAGES = 25; // Minimum 25 messages before allowing state reassessment — finish the vibe
+const INACTIVITY_TIMEOUT_MS = 600000; // 10 minutes — generous inactivity window
+const BASELINE_WINDOW_MESSAGES = 3; // Accumulate signals over first 3 messages before making initial switch
+const MIN_TRACKS_BEFORE_SWITCH = 7; // Client must play all 7 tracks before server suggests a switch
 
 // ============================================================
 // SESSION STATE STORAGE (in-memory, keyed by userId)
@@ -102,14 +101,13 @@ function getSessionState(userId) {
       neutral_message_streak: 0,
       grounding_clear_streak: 0,
       freeze_until_timestamp: null,
-      messages_since_state_change: 0, // Track messages in current state for persistence
-      last_activity_timestamp: 0,     // 🎵 Track last activity for inactivity reset
-      // Baseline detection: accumulate signals over first few messages
-      baseline_window_active: true,   // True until first intelligent switch made
-      baseline_message_count: 0,      // Messages since session start
-      accumulated_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0 }, // Baseline scores
-      // Continuous assessment: rolling signals for reassessment after persistence
-      continuous_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0, presence: 0 }   // Rolling scores
+      messages_since_state_change: 0,
+      last_activity_timestamp: 0,
+      baseline_window_active: true,
+      baseline_message_count: 0,
+      accumulated_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0 },
+      continuous_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0, presence: 0 },
+      last_known_tracks_played: 0
     });
   }
   return sessionStates.get(userId);
@@ -186,10 +184,11 @@ function evaluateAtmosphere(input) {
     userId,
     current_message,
     recent_messages = [],
-    client_sound_state = null, // Client's current state for persistence
-    userMessageCount = 0,       // NEW: Cadence tracking - user messages
-    assistantMessageCount = 0,  // NEW: Cadence tracking - assistant messages
-    isCrisisMode = false        // 🚨 Crisis mode forces grounding soundscape
+    client_sound_state = null,
+    userMessageCount = 0,
+    assistantMessageCount = 0,
+    isCrisisMode = false,
+    tracksPlayedInState: clientTracksPlayed = 0
   } = input;
   
   const now = Date.now();
@@ -485,7 +484,7 @@ function evaluateAtmosphere(input) {
   
   const newContinuousAccumulated = { ...session.continuous_signals || { grounding: 0, comfort: 0, reflective: 0, insight: 0, presence: 0 } };
   for (const state of ['grounding', 'comfort', 'reflective', 'insight', 'presence']) {
-    newContinuousAccumulated[state] = (newContinuousAccumulated[state] * 0.92) + (scores[state] || 0);
+    newContinuousAccumulated[state] = (newContinuousAccumulated[state] * 0.97) + (scores[state] || 0);
   }
   
   console.log(`[ATMOSPHERE] 📊 Continuous signals: ${JSON.stringify(newContinuousAccumulated)}`);
@@ -498,18 +497,28 @@ function evaluateAtmosphere(input) {
   let reason = '';
   
   const persistenceWindowComplete = newMessagesSinceChange >= MIN_STATE_PERSIST_MESSAGES;
+  const tracksPlayedInState = Math.max(clientTracksPlayed, session.last_known_tracks_played || 0);
+  if (clientTracksPlayed > (session.last_known_tracks_played || 0)) {
+    session.last_known_tracks_played = clientTracksPlayed;
+  }
+  const trackGateMet = tracksPlayedInState >= MIN_TRACKS_BEFORE_SWITCH;
   const isInNonPresenceState = current_state !== 'presence';
+  const fullPersistenceMet = persistenceWindowComplete && trackGateMet;
+
+  if (!trackGateMet && isInNonPresenceState) {
+    console.log(`[ATMOSPHERE] 🎵 Track gate: ${tracksPlayedInState}/${MIN_TRACKS_BEFORE_SWITCH} tracks played — locked in ${current_state}`);
+  }
   
   // Priority order for detecting "more urgent" states
   const STATE_URGENCY = { grounding: 4, insight: 3, comfort: 2, reflective: 1, presence: 0 };
   const currentUrgency = STATE_URGENCY[current_state] || 0;
   
-  if (persistenceWindowComplete && isInNonPresenceState) {
+  if (fullPersistenceMet && isInNonPresenceState) {
     // ============================================================
-    // 🎯 REASSESSMENT POINT: Persistence window complete
+    // 🎯 REASSESSMENT POINT: Both gates met (25+ messages AND 7+ tracks)
     // Look at accumulated signals to decide next state
     // ============================================================
-    console.log(`[ATMOSPHERE] 🎯 REASSESSMENT: ${newMessagesSinceChange} messages complete, evaluating next state`);
+    console.log(`[ATMOSPHERE] 🎯 REASSESSMENT: ${newMessagesSinceChange} messages + ${tracksPlayedInState} tracks complete, evaluating next state`);
     
     // Find best state from continuous accumulation.
     // Default to CURRENT state (not presence) — only switch if there's a stronger signal.
@@ -531,7 +540,7 @@ function evaluateAtmosphere(input) {
     // (b) Current state signals fully exhausted AND neutral streak has built up, OR
     // (c) Signal timeout elapsed (no emotional signals for 10 min)
     const presenceAccumulated = newContinuousAccumulated['presence'] || 0;
-    const currentStateExhausted = (newContinuousAccumulated[current_state] || 0) < 0.3;
+    const currentStateExhausted = (newContinuousAccumulated[current_state] || 0) < 0.15;
     const neutralStreakMet = newNeutralStreak >= NEUTRAL_STREAK_THRESHOLD;
     const signalTimedOut = newSignalTimestamp > 0 && (now - newSignalTimestamp) >= SIGNAL_TIMEOUT_MS;
     
@@ -558,13 +567,14 @@ function evaluateAtmosphere(input) {
     // This preserves emotional inertia — a state that was entered for good reason
     // shouldn't vanish just because the user sends a few neutral messages.
     for (const state of ['grounding', 'comfort', 'reflective', 'insight', 'presence']) {
-      newContinuousAccumulated[state] = newContinuousAccumulated[state] * 0.7;
+      newContinuousAccumulated[state] = newContinuousAccumulated[state] * 0.9;
     }
-  } else if (!persistenceWindowComplete && isInNonPresenceState) {
+  } else if (!fullPersistenceMet && isInNonPresenceState) {
     // ============================================================
     // 🛡️ PERSISTENCE PROTECTION: Block downgrades, allow urgent upgrades
+    // Both 25+ messages AND 7+ tracks required to unlock reassessment
     // ============================================================
-    console.log(`[ATMOSPHERE] 🛡️ Persistence: ${newMessagesSinceChange}/${MIN_STATE_PERSIST_MESSAGES} - locked in ${current_state}`);
+    console.log(`[ATMOSPHERE] 🛡️ Persistence: msgs=${newMessagesSinceChange}/${MIN_STATE_PERSIST_MESSAGES}, tracks=${tracksPlayedInState}/${MIN_TRACKS_BEFORE_SWITCH} - locked in ${current_state}`);
     
     // Check for URGENT UPGRADES only (higher priority states can interrupt)
     if (maxConfidence !== 'low') {
@@ -735,7 +745,8 @@ function evaluateAtmosphere(input) {
     updates.last_change_timestamp = now;
     updates.state_change_history = [...state_change_history.slice(-10), now];
     updates.freeze_until_timestamp = null;
-    updates.messages_since_state_change = 0; // Reset counter on state change
+    updates.messages_since_state_change = 0;
+    updates.last_known_tracks_played = 0;
     console.log(`[ATMOSPHERE] State change: ${current_state} → ${finalState} (${reason})`);
   } else {
     console.log(`[ATMOSPHERE] Staying in ${finalState} (messages: ${newMessagesSinceChange}, reason: ${reason || 'no_change'})`);

@@ -14,6 +14,9 @@ The application is built with React 18, TypeScript, and Vite, using Framer Motio
 ## Audio & Sensory Design
 Custom tone generators, built with the Web Audio API, create dynamic, procedurally generated ambient soundscapes. The mobile app integrates three independent audio layers: a global ambient track, mood-based emotional soundscapes triggered by an Atmosphere Engine, and a Night Swim Player for streaming original tracks.
 
+### Soundscape Persistence System
+Emotional soundscapes are designed to persist — not switch like a DJ. Each state has 7 tracks that cycle through sequentially (no looping). State changes are queued and applied only when the current track finishes naturally. The Atmosphere Engine enforces dual gates: minimum 25 messages AND all 7 tracks must complete before allowing state reassessment. Server-side track counting persists the client's reported track progress. Crisis/extreme spike events bypass queuing for immediate response. Queued state changes survive pause/resume flows (activities, originals). Signal decay is slow (0.97/message, 0.9 at reassessment) to preserve emotional inertia. Presence triggers are intentionally narrow — only explicit "I'm calm now" phrases, not generic "good" or "okay."
+
 ## AI Integration
 An Express server acts as a proxy to the OpenAI API, defining TRACE AI's personality with relational language and a friend-like onboarding sequence including a therapy disclaimer. It features an Emotional Intelligence Module for mood analysis, an audit logging system, and configurable smart features via feature flags. Summaries are warm, grounded, and factual, avoiding jargon, with relational fallback messages for OpenAI failures.
 

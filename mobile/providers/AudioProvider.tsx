@@ -19,8 +19,9 @@ interface AudioContextType {
   resumeFromOriginals: () => Promise<void>;
   stopAll: () => Promise<void>;
   stopSoundscape: () => Promise<void>;
-  currentState: SoundState | null;  // null = no soundscape playing (global ambient mode)
+  currentState: SoundState | null;
   isPlaying: boolean;
+  tracksPlayedInState: number;
 }
 
 const AudioContext = createContext<AudioContextType | null>(null);
@@ -36,10 +37,11 @@ const STATE_FOLDERS: Record<SoundState, string> = {
 const TRACKS_PER_FOLDER = 7;
 const DEFAULT_VOLUME = 0.35;
 const DEFAULT_FADE_MS = 1200;
+const CROSSFADE_MS = 2400;
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const soundRef = useRef<Audio.Sound | null>(null);
-  const currentStateRef = useRef<SoundState | null>(null);  // null = global ambient mode
+  const currentStateRef = useRef<SoundState | null>(null);
   const playedTracksRef = useRef<Record<SoundState, number[]>>({
     presence: [],
     grounding: [],
@@ -49,8 +51,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   });
   const pausedByRef = useRef<'activity' | 'originals' | null>(null);
   const wasPlayingRef = useRef(false);
-  const [currentState, setCurrentState] = useState<SoundState | null>(null);  // null = global ambient mode
+  const [currentState, setCurrentState] = useState<SoundState | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [tracksPlayedInState, setTracksPlayedInState] = useState(0);
+
+  const queuedStateRef = useRef<SoundState | null>(null);
+  const tracksInCurrentStateRef = useRef(0);
+  const isTransitioningRef = useRef(false);
+  const playStateRef = useRef<((state: SoundState, fadeMs?: number) => Promise<void>) | null>(null);
 
   useEffect(() => {
     Audio.setAudioModeAsync({
@@ -60,17 +68,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // NOTE: Soundscapes are NOT auto-started on app load
-  // Global ambient track is the app's default audio (handled separately)
-  // Soundscapes only trigger when atmosphere engine detects mood via handleSoundState()
-
   const getNextTrack = useCallback((state: SoundState): number => {
     const played = playedTracksRef.current[state];
     const allTracks = Array.from({ length: TRACKS_PER_FOLDER }, (_, i) => i + 1);
     const available = allTracks.filter(t => !played.includes(t));
-    
+
     console.log(`[AUDIO] 🎵 Track rotation for "${state}": played=${JSON.stringify(played)}, available=${JSON.stringify(available)}`);
-    
+
     let selected: number;
     if (available.length === 0) {
       console.log(`[AUDIO] All ${TRACKS_PER_FOLDER} tracks played for "${state}", resetting rotation`);
@@ -79,7 +83,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     } else {
       selected = available[Math.floor(Math.random() * available.length)];
     }
-    
+
     playedTracksRef.current[state].push(selected);
     console.log(`[AUDIO] 🎵 Selected track #${selected} for "${state}" (${playedTracksRef.current[state].length}/${TRACKS_PER_FOLDER} in rotation)`);
     return selected;
@@ -88,7 +92,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const fadeVolume = useCallback(async (sound: Audio.Sound, from: number, to: number, durationMs: number) => {
     const steps = 12;
     const stepMs = durationMs / steps;
-    
+
     for (let i = 1; i <= steps; i++) {
       const volume = from + ((to - from) * i) / steps;
       try {
@@ -147,21 +151,35 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         7: require('../assets/soundscapes/Insight_Lift/Insight_Lift_track_7.m4a'),
       },
     };
-    
+
     return trackMap[folder]?.[trackNum];
   }, []);
 
   const playState = useCallback(async (state: SoundState, fadeMs = DEFAULT_FADE_MS) => {
-    console.log(`[AUDIO] playState: ${state} (fade: ${fadeMs}ms)`);
-    
-    const trackNum = getNextTrack(state);
-    const source = loadTrackSource(state, trackNum);
-    
-    if (!source) {
-      console.warn(`[AUDIO] No source for ${state} track ${trackNum}`);
+    if (isTransitioningRef.current) {
+      console.log(`[AUDIO] Already transitioning, queueing ${state}`);
+      queuedStateRef.current = state;
       return;
     }
-    
+
+    isTransitioningRef.current = true;
+    console.log(`[AUDIO] playState: ${state} (fade: ${fadeMs}ms)`);
+
+    const isSameState = currentStateRef.current === state;
+    if (!isSameState) {
+      tracksInCurrentStateRef.current = 0;
+      queuedStateRef.current = null;
+    }
+
+    const trackNum = getNextTrack(state);
+    const source = loadTrackSource(state, trackNum);
+
+    if (!source) {
+      console.warn(`[AUDIO] No source for ${state} track ${trackNum}`);
+      isTransitioningRef.current = false;
+      return;
+    }
+
     try {
       if (soundRef.current) {
         await fadeVolume(soundRef.current, DEFAULT_VOLUME, 0, fadeMs / 2);
@@ -169,64 +187,76 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         await soundRef.current.unloadAsync();
         soundRef.current = null;
       }
-      
+
       const { sound } = await Audio.Sound.createAsync(source, {
-        isLooping: true,
+        isLooping: false,
         volume: 0,
       });
-      
-      // Set up playback status listener for track completion fallback
+
       sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded) {
-          // If track finished (backup for looping failure)
-          if (status.didJustFinish && !status.isLooping) {
-            console.log('[AUDIO] Track finished, playing next...');
-            const nextState = currentStateRef.current;
-            if (nextState) {
-              playState(nextState, 800);
-            }
-          }
-          // If playback stopped unexpectedly
-          if (!status.isPlaying && !status.didJustFinish && isPlaying && !pausedByRef.current) {
-            console.warn('[AUDIO] Playback stopped unexpectedly, resuming...');
-            sound.playAsync().catch(console.error);
+        if (status.isLoaded && status.didJustFinish) {
+          const thisState = currentStateRef.current;
+          const queued = queuedStateRef.current;
+
+          console.log(`[AUDIO] 🎵 Track finished (${tracksInCurrentStateRef.current + 1} played in "${thisState}"). Queued: ${queued || 'none'}`);
+
+          tracksInCurrentStateRef.current++;
+          setTracksPlayedInState(tracksInCurrentStateRef.current);
+
+          if (queued && queued !== thisState) {
+            console.log(`[AUDIO] 🔄 Track finished — switching to queued state: ${queued}`);
+            queuedStateRef.current = null;
+            playStateRef.current?.(queued, CROSSFADE_MS);
+          } else if (thisState) {
+            console.log(`[AUDIO] 🎵 Auto-advancing to next track in "${thisState}"`);
+            playStateRef.current?.(thisState, CROSSFADE_MS);
           }
         }
       });
-      
+
       soundRef.current = sound;
       currentStateRef.current = state;
       setCurrentState(state);
-      
+
+      tracksInCurrentStateRef.current = isSameState ? tracksInCurrentStateRef.current : 0;
+      setTracksPlayedInState(tracksInCurrentStateRef.current);
+
       await sound.playAsync();
       setIsPlaying(true);
-      
+
       await fadeVolume(sound, 0, DEFAULT_VOLUME, fadeMs / 2);
-      
-      console.log(`[AUDIO] Now playing: ${STATE_FOLDERS[state]}/track_${trackNum}`);
+
+      console.log(`[AUDIO] Now playing: ${STATE_FOLDERS[state]}/track_${trackNum} (track ${tracksInCurrentStateRef.current + 1} in state)`);
     } catch (error) {
       console.error('[AUDIO] playState error:', error);
+    } finally {
+      isTransitioningRef.current = false;
     }
   }, [getNextTrack, loadTrackSource, fadeVolume]);
 
-  // Stop soundscape and return to global ambient
+  useEffect(() => {
+    playStateRef.current = playState;
+  }, [playState]);
+
   const stopSoundscape = useCallback(async () => {
     if (!soundRef.current) {
       console.log('[AUDIO] No soundscape playing to stop');
       return;
     }
-    
+
     try {
-      console.log('[AUDIO] Stopping soundscape, returning to global ambient');
+      const hadQueued = queuedStateRef.current;
+      console.log(`[AUDIO] Stopping soundscape, returning to global ambient (queued: ${hadQueued || 'none'})`);
       await fadeVolume(soundRef.current, DEFAULT_VOLUME, 0, DEFAULT_FADE_MS);
       await soundRef.current.stopAsync();
       await soundRef.current.unloadAsync();
       soundRef.current = null;
       currentStateRef.current = null;
+      tracksInCurrentStateRef.current = 0;
       setCurrentState(null);
       setIsPlaying(false);
-      
-      // TODO: Signal global ambient to resume (handled by separate audio system)
+      setTracksPlayedInState(0);
+
       console.log('[AUDIO] Soundscape stopped - global ambient should resume');
     } catch (error) {
       console.error('[AUDIO] stopSoundscape error:', error);
@@ -235,7 +265,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   const handleSoundState = useCallback(async (payload: SoundStatePayload) => {
     if (pausedByRef.current) {
-      console.log(`[AUDIO] Skipping state change (paused by ${pausedByRef.current})`);
+      if (payload.changed && payload.current !== currentStateRef.current) {
+        console.log(`[AUDIO] Paused by ${pausedByRef.current} — queueing state change to ${payload.current}`);
+        queuedStateRef.current = payload.current;
+      }
       return;
     }
 
@@ -245,20 +278,35 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (isFirstActivation) {
-      console.log(`[AUDIO] First activation: starting "${payload.current}" soundscape`);
-    } else {
-      console.log(`[AUDIO] State change: ${currentStateRef.current} → ${payload.current} (${payload.reason || 'no reason'})`);
+    if (payload.current === currentStateRef.current && !isFirstActivation) {
+      console.log(`[AUDIO] Already in "${payload.current}", ignoring`);
+      return;
     }
 
-    await playState(payload.current, DEFAULT_FADE_MS);
+    if (isFirstActivation) {
+      console.log(`[AUDIO] First activation: starting "${payload.current}" soundscape`);
+      await playState(payload.current, DEFAULT_FADE_MS);
+      return;
+    }
+
+    const isUrgent = payload.reason?.includes('extreme_spike') || payload.reason?.includes('crisis');
+
+    if (isUrgent) {
+      console.log(`[AUDIO] ⚡ URGENT state change: ${currentStateRef.current} → ${payload.current} (${payload.reason})`);
+      queuedStateRef.current = null;
+      await playState(payload.current, 600);
+      return;
+    }
+
+    console.log(`[AUDIO] 📋 Queueing state change: ${currentStateRef.current} → ${payload.current} (will switch after current track finishes)`);
+    queuedStateRef.current = payload.current;
   }, [playState]);
 
   const pauseForActivity = useCallback(async () => {
     if (!soundRef.current) return;
     pausedByRef.current = 'activity';
     wasPlayingRef.current = isPlaying;
-    
+
     try {
       await fadeVolume(soundRef.current, DEFAULT_VOLUME, 0, 400);
       await soundRef.current.pauseAsync();
@@ -272,9 +320,17 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const resumeFromActivity = useCallback(async () => {
     if (pausedByRef.current !== 'activity') return;
     pausedByRef.current = null;
-    
+
     if (!wasPlayingRef.current || !soundRef.current) return;
-    
+
+    const queued = queuedStateRef.current;
+    if (queued && queued !== currentStateRef.current) {
+      console.log(`[AUDIO] Resuming from activity with queued state: ${queued}`);
+      queuedStateRef.current = null;
+      await playState(queued, CROSSFADE_MS);
+      return;
+    }
+
     try {
       await soundRef.current.playAsync();
       await fadeVolume(soundRef.current, 0, DEFAULT_VOLUME, 400);
@@ -283,13 +339,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('[AUDIO] resumeFromActivity error:', error);
     }
-  }, [fadeVolume]);
+  }, [fadeVolume, playState]);
 
   const pauseForOriginals = useCallback(async () => {
     if (!soundRef.current) return;
     pausedByRef.current = 'originals';
     wasPlayingRef.current = isPlaying;
-    
+
     try {
       await fadeVolume(soundRef.current, DEFAULT_VOLUME, 0, 600);
       await soundRef.current.pauseAsync();
@@ -303,9 +359,17 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const resumeFromOriginals = useCallback(async () => {
     if (pausedByRef.current !== 'originals') return;
     pausedByRef.current = null;
-    
+
     if (!wasPlayingRef.current || !soundRef.current) return;
-    
+
+    const queued = queuedStateRef.current;
+    if (queued && queued !== currentStateRef.current) {
+      console.log(`[AUDIO] Resuming from Originals with queued state: ${queued}`);
+      queuedStateRef.current = null;
+      await playState(queued, CROSSFADE_MS);
+      return;
+    }
+
     try {
       await soundRef.current.playAsync();
       await fadeVolume(soundRef.current, 0, DEFAULT_VOLUME, 600);
@@ -314,17 +378,20 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('[AUDIO] resumeFromOriginals error:', error);
     }
-  }, [fadeVolume]);
+  }, [fadeVolume, playState]);
 
   const stopAll = useCallback(async () => {
     if (!soundRef.current) return;
-    
+
     try {
       await soundRef.current.stopAsync();
       await soundRef.current.unloadAsync();
       soundRef.current = null;
       setIsPlaying(false);
       pausedByRef.current = null;
+      queuedStateRef.current = null;
+      tracksInCurrentStateRef.current = 0;
+      setTracksPlayedInState(0);
       console.log('[AUDIO] Stopped all');
     } catch (error) {
       console.error('[AUDIO] stopAll error:', error);
@@ -344,6 +411,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         stopSoundscape,
         currentState,
         isPlaying,
+        tracksPlayedInState,
       }}
     >
       {children}

@@ -503,7 +503,7 @@ export default function ChatScreen() {
   const theme = colorScheme === 'dark' ? Colors.night : Colors.day;
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
-  const { handleSoundState, stopAll: stopAllAudio } = useAudio();
+  const { handleSoundState, stopAll: stopAllAudio, tracksPlayedInState } = useAudio();
   const params = useLocalSearchParams<{ 
     completedActivity?: string; 
     activityDuration?: string; 
@@ -606,6 +606,7 @@ export default function ChatScreen() {
     lastHookAt: number | null;
     lastHookGlobalAt: number | null;
     localNow: number;
+    tracksPlayedInState: number;
   }>({
     mode: 'chat',
     timeOfDay: getTimeOfDay(),
@@ -619,6 +620,7 @@ export default function ChatScreen() {
     lastHookAt: null,
     lastHookGlobalAt: null,
     localNow: Date.now(),
+    tracksPlayedInState: 0,
   });
 
   const [fontsLoaded] = useFonts({
@@ -1803,10 +1805,10 @@ export default function ChatScreen() {
         }
       }
 
-      // Update timeOfDay before each request
       clientStateRef.current.timeOfDay = getTimeOfDay();
       clientStateRef.current.localNow = Date.now();
       clientStateRef.current.sessionTurnCount = (clientStateRef.current.sessionTurnCount || 0) + 1;
+      clientStateRef.current.tracksPlayedInState = tracksPlayedInState;
       
       // Fetch weather context (cached, non-blocking - returns null if unavailable)
       let weatherContext: WeatherContext | null = null;
