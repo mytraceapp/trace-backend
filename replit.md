@@ -47,8 +47,14 @@ Music familiarity (new → aware → fan) is tracked per user and persisted to S
 ## Audio Control Path Resolution
 An audio control handler system differentiates between early interceptors and the Studios handler to prevent conflicts in stop/resume/pause commands, ensuring correct track context. It also includes logic to prevent replaying already-offered tracks.
 
-## Relational Memory (Phase 1)
+## Relational Memory (Phase 1 + Phase 2)
 Entity-anchored relational memory system (`server/relationalMemory.js`) that tracks people the user mentions. Extracts relationship mentions ("my mom", "my brother") from chat messages, normalizes synonyms (mom/mother/mama → mom), and resolves known people from the local PostgreSQL `people` table. Relational anchors (e.g., "mom = Sarah") are injected into the LLM system prompt so TRACE can reference people by name. Handles ambiguous relationships (multiple friends) with buddy-voice clarification. Auto-creates person records when users explicitly name someone ("my mom Sarah"). CRUD endpoints at `/api/memory/people` and `/api/memory/person`. High-salience people are always included in system prompt context even without explicit mentions.
+
+Phase 2 enhancements:
+- **Pending Confirmation**: Explicit mentions persist immediately but append a deterministic confirmation line ("Just checking—Emma is your sister, right?"). Handles yes/no on next turn; denied records are deleted. Guards against conflict with activity confirmation flow.
+- **Correction Detection**: Detects patterns like "Emma is my cousin not sister" and updates the DB relationship accordingly.
+- **Pronoun Resolution**: In-memory tracking of last-mentioned person per user. Injects soft pronoun hints ("Recent reference: Emma (sister)") into system prompt within 3-message window, auto-clears after 5 messages.
+- **Post-Processing Guardrail**: After LLM response, replaces "your sister" → "Emma" when anchor was injected but model didn't use the name. Conservative exact-phrase matching only.
 
 # External Dependencies
 

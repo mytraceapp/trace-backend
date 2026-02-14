@@ -265,6 +265,181 @@ function buildClarificationResponse(relationship, candidates, userMessage) {
   return `${prefix}When you say your ${relationship}\u2014${names.join(', ')}, or ${last}?`;
 }
 
+// ============================================================
+// PHASE 2: Pending confirmation flow
+// ============================================================
+const pendingPersons = new Map();
+
+function setPendingPerson(userId, person) {
+  pendingPersons.set(userId, { ...person, createdAt: Date.now() });
+}
+
+function getPendingPerson(userId) {
+  const pending = pendingPersons.get(userId);
+  if (!pending) return null;
+  if (Date.now() - pending.createdAt > 10 * 60 * 1000) {
+    pendingPersons.delete(userId);
+    return null;
+  }
+  return pending;
+}
+
+function clearPendingPerson(userId) {
+  pendingPersons.delete(userId);
+}
+
+function buildConfirmationLine(displayName, relationship) {
+  return `Just checking\u2014${displayName} is your ${relationship}, right?`;
+}
+
+const CONFIRM_YES = /^(yes|yeah|yep|yup|correct|that's right|right|mhm|uh huh|exactly)\.?!?$/i;
+const CONFIRM_NO = /^(no|nope|nah|not really|wrong|that's wrong|incorrect)\.?!?$/i;
+
+function isConfirmationYes(text) {
+  if (!text) return false;
+  return CONFIRM_YES.test(text.trim());
+}
+
+function isConfirmationNo(text) {
+  if (!text) return false;
+  return CONFIRM_NO.test(text.trim());
+}
+
+// ============================================================
+// PHASE 2: Correction detection
+// ============================================================
+const CORRECTION_REGEX = new RegExp(
+  `([A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\\- ]{0,30})\\s+is\\s+my\\s+(${SYNONYM_PATTERN})\\s*[,.]?\\s*not\\s+(?:my\\s+)?(${SYNONYM_PATTERN})`,
+  'i'
+);
+
+const CORRECTION_REGEX_ALT = new RegExp(
+  `(?:(?:she|he|they)'?s?|(?:she|he|they)\\s+(?:is|are))\\s+(?:not\\s+)?my\\s+(${SYNONYM_PATTERN})\\s*[,.]?\\s*(?:(?:she|he|they)'?s?|(?:she|he|they)\\s+(?:is|are))\\s+my\\s+(${SYNONYM_PATTERN})`,
+  'i'
+);
+
+function detectCorrection(text) {
+  if (!text) return null;
+
+  let m = CORRECTION_REGEX.exec(text);
+  if (m) {
+    const name = m[1].trim();
+    const correctRelationship = normalizeRelationship(m[2]);
+    const wrongRelationship = normalizeRelationship(m[3]);
+    if (correctRelationship && wrongRelationship && correctRelationship !== wrongRelationship) {
+      return { name, correctRelationship, wrongRelationship };
+    }
+  }
+
+  m = CORRECTION_REGEX_ALT.exec(text);
+  if (m) {
+    const wrongRelationship = normalizeRelationship(m[1]);
+    const correctRelationship = normalizeRelationship(m[2]);
+    if (correctRelationship && wrongRelationship && correctRelationship !== wrongRelationship) {
+      return { name: null, correctRelationship, wrongRelationship };
+    }
+  }
+
+  return null;
+}
+
+async function applyCorrection(pool, userId, correction) {
+  if (!pool || !userId || !correction) return null;
+  const { name, correctRelationship, wrongRelationship } = correction;
+
+  try {
+    let query, params;
+    if (name) {
+      query = `UPDATE people SET relationship = $1 WHERE owner_user_id = $2 AND LOWER(display_name) = LOWER($3) AND relationship = $4 RETURNING *`;
+      params = [correctRelationship, userId, name, wrongRelationship];
+    } else {
+      query = `UPDATE people SET relationship = $1 WHERE id = (SELECT id FROM people WHERE owner_user_id = $2 AND relationship = $3 ORDER BY last_mentioned_at DESC NULLS LAST LIMIT 1) RETURNING *`;
+      params = [correctRelationship, userId, wrongRelationship];
+    }
+    const { rows } = await pool.query(query, params);
+    if (rows && rows.length > 0) {
+      console.log(`[RELATIONAL MEMORY] Correction applied: ${wrongRelationship} -> ${correctRelationship} for ${rows[0].display_name}`);
+      return rows[0];
+    }
+    return null;
+  } catch (err) {
+    console.error('[RELATIONAL MEMORY] correction error:', err.message);
+    return null;
+  }
+}
+
+// ============================================================
+// PHASE 2: Pronoun resolution (session-scoped, in-memory)
+// ============================================================
+const pronounTracker = new Map();
+
+const PRONOUN_REGEX = /\b(she|he|they|her|him|them)\b/i;
+
+function updatePronounTracker(userId, person, messageIndex) {
+  pronounTracker.set(userId, {
+    relationship: person.relationship,
+    display_name: person.display_name,
+    messageIndex,
+    updatedAt: Date.now(),
+  });
+}
+
+function getPronounHint(userId, currentMessageIndex) {
+  const tracked = pronounTracker.get(userId);
+  if (!tracked) return null;
+  const distance = currentMessageIndex - tracked.messageIndex;
+  if (distance > 5 || Date.now() - tracked.updatedAt > 15 * 60 * 1000) {
+    pronounTracker.delete(userId);
+    return null;
+  }
+  return tracked;
+}
+
+function clearPronounTracker(userId) {
+  pronounTracker.delete(userId);
+}
+
+function hasPronounReference(text) {
+  if (!text) return false;
+  return PRONOUN_REGEX.test(text);
+}
+
+function buildPronounHintPrompt(trackedPerson) {
+  if (!trackedPerson) return null;
+  return `Recent reference: ${trackedPerson.display_name} (${trackedPerson.relationship}). If pronouns refer to someone else, ask briefly.`;
+}
+
+// ============================================================
+// PHASE 2: Post-processing guardrail
+// ============================================================
+function applyNameSubstitution(responseText, injectedAnchors) {
+  if (!responseText || !injectedAnchors || injectedAnchors.length === 0) return responseText;
+
+  let result = responseText;
+  for (const person of injectedAnchors) {
+    const rel = person.relationship;
+    const name = person.display_name;
+    if (!rel || !name) continue;
+
+    if (result.includes(name)) continue;
+
+    const patterns = [
+      { find: `your ${rel}'s`, replace: `${name}'s` },
+      { find: `Your ${rel}'s`, replace: `${name}'s` },
+      { find: `your ${rel}`, replace: name },
+      { find: `Your ${rel}`, replace: name },
+    ];
+
+    for (const p of patterns) {
+      if (result.includes(p.find)) {
+        result = result.split(p.find).join(p.replace);
+        console.log(`[RELATIONAL MEMORY] Post-process: "${p.find}" -> "${p.replace}"`);
+      }
+    }
+  }
+  return result;
+}
+
 module.exports = {
   normalizeRelationship,
   extractRelationshipMentions,
@@ -280,4 +455,18 @@ module.exports = {
   buildRelationalAnchors,
   buildClarificationResponse,
   RELATIONSHIP_MAP,
+  setPendingPerson,
+  getPendingPerson,
+  clearPendingPerson,
+  buildConfirmationLine,
+  isConfirmationYes,
+  isConfirmationNo,
+  detectCorrection,
+  applyCorrection,
+  updatePronounTracker,
+  getPronounHint,
+  clearPronounTracker,
+  hasPronounReference,
+  buildPronounHintPrompt,
+  applyNameSubstitution,
 };

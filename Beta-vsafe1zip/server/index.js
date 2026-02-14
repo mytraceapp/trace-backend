@@ -8982,16 +8982,65 @@ Your response (text only, no JSON):`;
     
     // ============================================================
     // RELATIONAL MEMORY: Extract mentions, resolve people, inject anchors
+    // Phase 1: Core anchoring + Phase 2: Pending confirm, pronoun, correction
     // ============================================================
     let relationalAnchors = null;
+    let injectedAnchorPeople = [];
+    let pendingConfirmationLine = null;
+    let relationalConfirmHandled = false;
     try {
       if (pool && effectiveUserId) {
         const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content || '';
+        const userMsgCount = messages.filter(m => m.role === 'user').length;
+
+        // Phase 2: Check for pending confirmation response FIRST
+        const pending = relationalMemory.getPendingPerson(effectiveUserId);
+        if (pending) {
+          if (relationalMemory.isConfirmationYes(lastUserMsg)) {
+            console.log(`[RELATIONAL MEMORY] Confirmed: ${pending.relationship} = ${pending.display_name}`);
+            relationalMemory.clearPendingPerson(effectiveUserId);
+            relationalConfirmHandled = true;
+          } else if (relationalMemory.isConfirmationNo(lastUserMsg)) {
+            console.log(`[RELATIONAL MEMORY] Denied pending: ${pending.display_name} as ${pending.relationship}`);
+            try {
+              await relationalMemory.deletePerson(pool, pending.id, effectiveUserId);
+            } catch (delErr) { /* already gone or never saved */ }
+            relationalMemory.clearPendingPerson(effectiveUserId);
+            relationalConfirmHandled = true;
+          } else {
+            relationalMemory.clearPendingPerson(effectiveUserId);
+          }
+        }
+
+        // Phase 2: Correction detection ("Emma is my cousin not sister")
+        const correction = relationalMemory.detectCorrection(lastUserMsg);
+        if (correction) {
+          const corrected = await relationalMemory.applyCorrection(pool, effectiveUserId, correction);
+          if (corrected) {
+            console.log(`[RELATIONAL MEMORY] Correction applied: ${correction.wrongRelationship} -> ${correction.correctRelationship}`);
+          }
+        }
+
         const mentionedRelationships = relationalMemory.extractRelationshipMentions(lastUserMsg);
         const explicitPersons = relationalMemory.extractExplicitPersonMentions(lastUserMsg);
 
+        // Phase 2: Explicit mentions persist immediately but queue confirmation
         for (const ep of explicitPersons) {
-          await relationalMemory.upsertPerson(pool, effectiveUserId, ep.relationship, ep.name);
+          const existing = await relationalMemory.resolvePersonByRelationship(pool, effectiveUserId, ep.relationship);
+          if (!existing || existing.ambiguous) {
+            const created = await relationalMemory.upsertPerson(pool, effectiveUserId, ep.relationship, ep.name);
+            if (created && created.id) {
+              pendingConfirmationLine = relationalMemory.buildConfirmationLine(ep.name, ep.relationship);
+              relationalMemory.setPendingPerson(effectiveUserId, {
+                id: created.id,
+                relationship: ep.relationship,
+                display_name: ep.name,
+              });
+              console.log(`[RELATIONAL MEMORY] Persisted + queued confirmation: ${ep.relationship} = ${ep.name}`);
+            }
+          } else {
+            await relationalMemory.upsertPerson(pool, effectiveUserId, ep.relationship, ep.name);
+          }
         }
 
         const resolvedPeople = [];
@@ -9010,6 +9059,7 @@ Your response (text only, no JSON):`;
             } else if (result) {
               resolvedPeople.push(result);
               await relationalMemory.bumpSalience(pool, result.id);
+              relationalMemory.updatePronounTracker(effectiveUserId, result, userMsgCount);
             }
           }
         }
@@ -9019,10 +9069,23 @@ Your response (text only, no JSON):`;
           resolvedPeople.push(...highSalience);
         }
 
+        injectedAnchorPeople = [...resolvedPeople];
         relationalAnchors = relationalMemory.buildRelationalAnchors(resolvedPeople);
         if (relationalAnchors) {
           systemPrompt += '\n\n' + relationalAnchors;
           console.log(`[RELATIONAL MEMORY] Injected ${resolvedPeople.length} anchors`);
+        }
+
+        // Phase 2: Pronoun hint injection
+        if (relationalMemory.hasPronounReference(lastUserMsg) && mentionedRelationships.size === 0) {
+          const pronounHint = relationalMemory.getPronounHint(effectiveUserId, userMsgCount);
+          if (pronounHint) {
+            const hintText = relationalMemory.buildPronounHintPrompt(pronounHint);
+            if (hintText) {
+              systemPrompt += '\n\n' + hintText;
+              console.log(`[RELATIONAL MEMORY] Pronoun hint: ${pronounHint.display_name} (${pronounHint.relationship})`);
+            }
+          }
         }
       }
     } catch (relErr) {
@@ -9503,10 +9566,30 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
     }
     
     // ============================================================
+    // RELATIONAL MEMORY Phase 2: Post-processing guardrail
+    // Replace "your sister" -> "Emma" when anchor injected but name not used
+    // ============================================================
+    if (parsed && parsed.message && injectedAnchorPeople.length > 0) {
+      parsed.message = relationalMemory.applyNameSubstitution(parsed.message, injectedAnchorPeople);
+    }
+
+    // ============================================================
+    // RELATIONAL MEMORY Phase 2: Append confirmation line
+    // ============================================================
+    if (parsed && parsed.message && pendingConfirmationLine) {
+      parsed.message = parsed.message.trimEnd() + '\n\n' + pendingConfirmationLine;
+      console.log(`[RELATIONAL MEMORY] Appended confirmation: "${pendingConfirmationLine}"`);
+    }
+
+    // ============================================================
     // SERVER-SIDE TWO-STEP CONFIRMATION ENFORCEMENT
     // ============================================================
+    // Skip if relational memory just handled a yes/no confirmation
     // Detect if user is confirming after an activity was offered
     const lastUserMessageLower = lastUserMessage.toLowerCase().trim();
+    if (relationalConfirmHandled) {
+      console.log('[TWO-STEP] Skipping activity confirmation — relational confirmation was handled');
+    }
     const confirmationPatterns = [
       /^yes[.!]?$/i,
       /^yes please[.!]?$/i,
@@ -9524,7 +9607,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       /^i'?d like (to|that)[.!]?$/i,
     ];
     
-    const isConfirmation = confirmationPatterns.some(pattern => pattern.test(lastUserMessageLower));
+    const isConfirmation = !relationalConfirmHandled && confirmationPatterns.some(pattern => pattern.test(lastUserMessageLower));
     
     // Look for activity offer in previous assistant messages
     let pendingActivity = null;
