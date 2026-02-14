@@ -3909,7 +3909,7 @@ app.post('/api/greeting', async (req, res) => {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: 'Generate the greeting.' },
       ],
-      temperature: 0.9, // Higher temperature for more variety
+      temperature: 0.7,
       max_tokens: 80,
     });
 
@@ -8440,6 +8440,7 @@ Just the response, nothing else.
 
             let caringMessage = caringResponse?.choices?.[0]?.message?.content?.trim();
             if (caringMessage) {
+              caringMessage = sanitizeTone(caringMessage, { userId: userId || 'anon', isCrisisMode: false });
               const contLog = { requestId, required: !!traceIntent?.continuity?.required, reason: traceIntent?.continuity?.reason || 'post_activity', source: 'model' };
               console.log('[CONTINUITY]', JSON.stringify(contLog));
               caringMessage = applyContinuityBridge({ traceIntent, response_source: 'activity_followup', messageText: caringMessage, requestId });
@@ -8979,6 +8980,10 @@ Your response (text only, no JSON):`;
         const t2FinishReason = textResponse.choices[0]?.finish_reason;
         textResult = textResponse.choices[0]?.message?.content?.trim() || '';
         
+        if (textResult) {
+          textResult = sanitizeTone(textResult, { userId: visitorId || 'anon', isCrisisMode: false });
+        }
+        
         if (t2FinishReason === 'length' && textResult && !isSentenceComplete(textResult)) {
           console.warn('[TRACE T2] Premium text truncated (finish_reason=length, incomplete sentence), discarding');
           textResult = '';
@@ -9001,7 +9006,7 @@ Your response (text only, no JSON):`;
         try {
           const fallbackPrompt = isLongformT2
             ? `Write the FULL content the user asked for. Do NOT truncate or summarize. Complete the entire piece.\n\nUser said: "${lastUserContent}"`
-            : `Respond warmly in 1-2 sentences to: "${lastUserContent}"`;
+            : `${TRACE_IDENTITY_COMPACT}\n\nSomeone just said: "${lastUserContent}". Respond like a friend — 1-2 sentences, casual, direct.`;
           const fallbackMaxTokens = isLongformT2 ? 2000 : 100;
           const fallbackResponse = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
@@ -9009,6 +9014,9 @@ Your response (text only, no JSON):`;
             max_tokens: fallbackMaxTokens,
           }, { timeout: 5000, signal: AbortSignal.timeout(5000) });
           textResult = fallbackResponse.choices[0]?.message?.content?.trim() || '';
+          if (textResult) {
+            textResult = sanitizeTone(textResult, { userId: visitorId || 'anon', isCrisisMode: false });
+          }
         } catch (err) {
           console.error('[TRACE T2] Fallback text error:', err.message);
         }
@@ -9569,19 +9577,20 @@ Continue the conversation naturally. Stay in the same emotional lane — if they
           model: 'gpt-4o-mini',
           messages: [{ role: 'user', content: plainPrompt }],
           max_tokens: l3MaxTokens,
-          temperature: 0.8,
+          temperature: 0.6,
         }, { timeout: l3Timeout, signal: l3Abort });
         
-        const plainText = response.choices[0]?.message?.content?.trim() || '';
+        let plainText = response.choices[0]?.message?.content?.trim() || '';
         const l3FinishReason = response.choices[0]?.finish_reason;
         if (l3FinishReason === 'length' && !isSentenceComplete(plainText)) {
           console.warn('[TRACE OPENAI L3] Plain text truncated (finish_reason=length), falling through to L4');
         } else if (plainText.length > 5) {
+          plainText = sanitizeTone(plainText, { userId: effectiveUserId, isCrisisMode });
           parsed = {
             message: plainText,
             activity_suggestion: { name: null, reason: null, should_navigate: false }
           };
-          console.log('[TRACE OPENAI L3] Success with plain text');
+          console.log('[TRACE OPENAI L3] Success with plain text (sanitized)');
         }
       } catch (err) {
         console.error('[TRACE OPENAI L3] Error:', err.message);
@@ -9616,16 +9625,17 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
           model: 'gpt-4o-mini',
           messages: [{ role: 'user', content: contextPrompt }],
           max_tokens: 300,
-          temperature: 0.9,
+          temperature: 0.6,
         });
         
-        const contextText = response.choices[0]?.message?.content?.trim() || '';
+        let contextText = response.choices[0]?.message?.content?.trim() || '';
         if (contextText.length > 5) {
+          contextText = sanitizeTone(contextText, { userId: effectiveUserId, isCrisisMode });
           parsed = {
             message: contextText,
             activity_suggestion: { name: null, reason: null, should_navigate: false }
           };
-          console.log('[TRACE OPENAI L4] Success with contextual generation');
+          console.log('[TRACE OPENAI L4] Success with contextual generation (sanitized)');
         }
       } catch (err) {
         console.error('[TRACE OPENAI L4] Error:', err.message);
@@ -9673,13 +9683,13 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
         const regenMessages = [
           ...messagesWithHydration,
           { role: 'assistant', content: originalResponse },
-          { role: 'user', content: 'Vary the opener. Keep the insight. Be shorter. Don\'t repeat.' }
+          { role: 'user', content: 'Vary the opener. Keep the insight. Be shorter. Don\'t repeat. Sound like a friend, not a therapist. No "It\'s natural to...", no "Feeling X is important", no explaining emotions. Start with: yeah/nice/makes sense/damn/mm.' }
         ];
         
         const regenCompletion = await openai.chat.completions.create({
           model: selectedModel,
           messages: regenMessages,
-          temperature: 0.8,
+          temperature: 0.6,
           max_tokens: 300,
         });
         
@@ -9690,8 +9700,8 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
                        (!regenText.includes('?') && originalResponse.includes('?'));
         
         if (!isWorse && regenText.length > 10) {
-          parsed.message = regenText;
-          console.log(`[TRACE BRAIN] Anti-repetition: { similarity: ${repetitionCheck.similarity.toFixed(2)}, actionTaken: "regen_used", usedFallback: false }`);
+          parsed.message = sanitizeTone(regenText, { userId: effectiveUserId, isCrisisMode });
+          console.log(`[TRACE BRAIN] Anti-repetition: { similarity: ${repetitionCheck.similarity.toFixed(2)}, actionTaken: "regen_used_sanitized", usedFallback: false }`);
         } else {
           console.log(`[TRACE BRAIN] Anti-repetition: { similarity: ${repetitionCheck.similarity.toFixed(2)}, actionTaken: "regen_discarded", usedFallback: true }`);
         }
@@ -9734,6 +9744,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
               const witnessJson = JSON.parse(witnessText);
               cleanWitness = witnessJson.message || witnessText;
             } catch (_) {}
+            cleanWitness = sanitizeTone(cleanWitness, { userId: effectiveUserId, isCrisisMode });
             const recheck = conversationState.runHardFilter(cleanWitness, controlMaxWords, controlQBudget);
             if (recheck.pass) {
               parsed.message = cleanWitness;

@@ -1447,6 +1447,18 @@ const THERAPY_PATTERNS = [
   { pattern: /\bIt sounds challenging\b/gi, replacement: "That's tough" },
   { pattern: /\bThat's a lot to navigate\b/gi, replacement: "That's a lot" },
   { pattern: /\bHow does that land for you\b/gi, replacement: "How's that feel" },
+  { pattern: /\bThank you for sharing that\b/gi, replacement: "" },
+  { pattern: /\bThank you for sharing\b/gi, replacement: "" },
+  { pattern: /\bThank you for trusting me\b/gi, replacement: "" },
+  { pattern: /\bI'm here to help\b/gi, replacement: "" },
+  { pattern: /\bI'm here to support\b/gi, replacement: "" },
+  { pattern: /\bThat's really brave\b/gi, replacement: "" },
+  { pattern: /\bThat takes courage\b/gi, replacement: "" },
+  { pattern: /\bI want you to know\b/gi, replacement: "" },
+  { pattern: /\bFamily dynamics can be\b[^.!?]*[.!?]?/gi, replacement: "" },
+  { pattern: /\bWorkplace stress\b/gi, replacement: "work stuff" },
+  { pattern: /\bLet's explore this together\b/gi, replacement: "" },
+  { pattern: /\bWhat options are you considering\b/gi, replacement: "" },
 ];
 
 // Cooldown tracking for "honestly/real talk" phrases (in-memory per user)

@@ -956,6 +956,13 @@ function buildControlBlock({
   lines.push(`- Questions allowed this turn: ${questionMode.budget}`);
   lines.push('- If QUESTIONS_ALLOWED=0: no \'?\' and no implied questions.');
   lines.push('- If SOUNDSCAPE is heavy: prefer micro/short.');
+  lines.push('');
+  lines.push('VOICE_LOCK (OVERRIDES ALL OTHER TONE):');
+  lines.push('- You are a friend at 2:47am. Not a therapist. Not a coach.');
+  lines.push('- ALLOWED first words: yeah, nice, makes sense, damn, I bet, oof, congrats, mm, ha, cool, that\'s huge, you should be');
+  lines.push('- BANNED first words: That\'s good to hear, It\'s natural, Feeling X is, Congratulations on, I\'m here to, Thank you for, I hear you, It sounds like, It\'s important');
+  lines.push('- NEVER explain WHY an emotion is valid. Just witness it.');
+  lines.push('- If you catch yourself starting with a banned pattern, STOP and use an allowed one.');
   lines.push('END_CONTROL_BLOCK');
 
   return lines.join('\n');
