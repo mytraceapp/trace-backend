@@ -1,0 +1,60 @@
+Fix TRACE conversation memory - AI doesn't remember what user said earlier in the session.
+
+PROBLEM: User asks "Do you remember what I told you I had for dinner?" and AI responds "I don't have that detail" even though dinner was mentioned in the same session.
+
+ROOT CAUSE: Either session history isn't being fetched from database, or it's not being passed to the AI in the messages array.
+
+DELIVERABLES:
+
+1) Add debug logging to /api/chat endpoint:
+   - Log sessionId, userId on every request
+   - Log conversation history length: console.log('[CHAT_DEBUG] sessionId=${sessionId} historyLength=${history?.length || 0}')
+   - Log last 3 messages from history: console.log('[CHAT_DEBUG] Last 3:', history?.slice(-3))
+   - Log total messages being sent to AI: console.log('[CHAT_DEBUG] Sending ${messages.length} messages to AI')
+
+2) Verify getSessionHistory(sessionId) is working:
+   - Should query session_messages table: SELECT role, content, created_at FROM session_messages WHERE session_id = $sessionId ORDER BY created_at ASC LIMIT 20
+   - Should return array of message objects: [{role: 'user', content: '...'}, {role: 'assistant', content: '...'}]
+   - Add error handling: if query fails, log error and return empty array (don't crash)
+
+3) Verify messages are being saved after each exchange:
+   - After AI responds, save BOTH user message and assistant response to session_messages table
+   - INSERT INTO session_messages (session_id, role, content, created_at) VALUES (...)
+   - Log confirmation: console.log('[CHAT_DEBUG] Saved user + assistant messages to session ${sessionId}')
+
+4) Fix /api/chat to pass full conversation history to AI:
+   - Fetch history: const history = await getSessionHistory(sessionId)
+   - Build messages array:
+     const messages = [
+       { role: 'system', content: systemPrompt },
+       ...history,  // ← All previous messages
+       { role: 'user', content: userMessage }  // ← Current message
+     ]
+   - Pass to Anthropic API:
+     const response = await anthropic.messages.create({
+       model: 'claude-sonnet-4-20250514',
+       messages: messages,
+       max_tokens: 1000
+     })
+
+5) Verify frontend sends sessionId:
+   - Check fetch('/api/chat', { body: JSON.stringify({ message, userId, sessionId }) })
+   - If sessionId is missing/null, log warning and create new session
+   - Return sessionId in response so frontend can persist it
+
+6) Test flow:
+   - User sends: "I had pizza for dinner"
+   - AI responds: "nice, how was it?"
+   - User sends: "Do you remember what I told you I had for dinner?"
+   - Expected: AI says "yeah, you had pizza" or similar (NOT "I don't have that detail")
+   - Check logs show: historyLength=2 or more (proving history is being passed)
+
+CRITICAL: Don't change AI system prompt or tone - only fix the conversation history plumbing. The issue is technical (history not reaching AI), not prompt-based.
+
+Debug output should show:
+[CHAT_DEBUG] sessionId=abc123 userId=user456 historyLength=4
+[CHAT_DEBUG] Last 3: [{role:'user',content:'...'},{role:'assistant',content:'...'},{role:'user',content:'...'}]
+[CHAT_DEBUG] Sending 6 messages to AI (system + 4 history + 1 current)
+[CHAT_DEBUG] Saved user + assistant messages to session abc123
+
+If historyLength=0, that's the bug. Fix the query or message saving.

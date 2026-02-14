@@ -5184,7 +5184,7 @@ app.post('/api/chat', async (req, res) => {
     }
     
     // Filter out garbage/corrupted messages AND sanitize banned assistant responses
-    const messages = (rawMessages || []).filter(msg => {
+    let messages = (rawMessages || []).filter(msg => {
       const content = (msg.content || '').trim();
       // Keep message only if it has meaningful content (not just whitespace/newlines)
       if (content.length === 0 || /^\s*$/.test(content)) {
@@ -5786,7 +5786,52 @@ app.post('/api/chat', async (req, res) => {
       console.error('[TRACE CHAT SAVE USER ERROR]', err.message || err);
     }
     
-    console.log('Received messages:', JSON.stringify(messages, null, 2));
+    // ---- SERVER-SIDE HISTORY HYDRATION ----
+    // The client sends its local messages, but may be missing earlier conversation
+    // from prior sessions or app restarts. Fetch recent server history and merge
+    // any messages the client doesn't have, so the AI always has full context.
+    console.log(`[CHAT_DEBUG] userId=${effectiveUserId} clientMessageCount=${messages.length}`);
+    
+    if (effectiveUserId && supabaseServer && messages.length < 30) {
+      try {
+        const serverHistory = await getChatHistory(effectiveUserId);
+        if (serverHistory.length > 0) {
+          const clientKeys = new Set(messages.map(m => `${m.role}::${(m.content || '').trim().toLowerCase().slice(0, 120)}`));
+          const missingMessages = serverHistory.filter(sm => {
+            const key = `${sm.role}::${(sm.content || '').trim().toLowerCase().slice(0, 120)}`;
+            return !clientKeys.has(key);
+          });
+          
+          if (missingMessages.length > 0) {
+            console.log(`[CHAT_DEBUG] Hydrating ${missingMessages.length} server messages not in client (client=${messages.length}, server=${serverHistory.length})`);
+            const earliestClientTs = messages.find(m => m.created_at)?.created_at;
+            const olderServerMsgs = earliestClientTs 
+              ? missingMessages.filter(sm => sm.created_at && new Date(sm.created_at) < new Date(earliestClientTs))
+              : missingMessages;
+            
+            if (olderServerMsgs.length > 0) {
+              const merged = [...olderServerMsgs, ...messages];
+              const maxTotal = 40;
+              messages = merged.length > maxTotal ? merged.slice(-maxTotal) : merged;
+              console.log(`[CHAT_DEBUG] Prepended ${olderServerMsgs.length} older server messages. Final count: ${messages.length}`);
+            } else {
+              console.log(`[CHAT_DEBUG] All missing server messages are concurrent/newer, skipping hydration`);
+            }
+          } else {
+            console.log(`[CHAT_DEBUG] No missing messages (client=${messages.length}, server=${serverHistory.length})`);
+          }
+        }
+      } catch (histErr) {
+        console.warn('[CHAT_DEBUG] Server history hydration failed (continuing with client messages):', histErr.message);
+      }
+    }
+    
+    console.log(`[CHAT_DEBUG] Sending ${messages.length} conversation messages to AI`);
+    if (messages.length > 0) {
+      const last3 = messages.slice(-3);
+      console.log('[CHAT_DEBUG] Last 3 messages:', last3.map(m => `[${m.role}] ${(m.content || '').slice(0, 60)}`));
+    }
+    
     console.log('User name:', userName);
     console.log('Chat style:', chatStyle);
     console.log('Local time:', localTime, localDay, localDate);
