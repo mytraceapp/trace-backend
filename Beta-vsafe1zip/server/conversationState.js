@@ -882,6 +882,83 @@ async function saveMusicFamiliarity(supabase, userId, state) {
   }
 }
 
+// ============================================================
+// TRACE CONTROL BLOCK
+// Prepended as a separate system message on every /api/chat call.
+// Provides deterministic constraints (length, question budget,
+// context anchors) so the LLM doesn't have to guess.
+// ============================================================
+
+const CONTROL_LENGTH_MODES = {
+  micro:  { label: 'micro',  maxWords: 5  },
+  short:  { label: 'short',  maxWords: 20 },
+  medium: { label: 'medium', maxWords: 50 },
+  long:   { label: 'long',   maxWords: 90 },
+};
+
+function computeLengthMode(rhythmNudge) {
+  if (!rhythmNudge || !rhythmNudge.tier) return CONTROL_LENGTH_MODES.short;
+  switch (rhythmNudge.tier) {
+    case LENGTH_TIERS.ULTRA_SHORT: return CONTROL_LENGTH_MODES.micro;
+    case LENGTH_TIERS.SHORT:       return CONTROL_LENGTH_MODES.short;
+    case LENGTH_TIERS.MEDIUM:      return CONTROL_LENGTH_MODES.medium;
+    case LENGTH_TIERS.LONG:        return CONTROL_LENGTH_MODES.long;
+    default:                       return CONTROL_LENGTH_MODES.short;
+  }
+}
+
+function computeQuestionMode(visitorId) {
+  const state = getState(visitorId);
+  const qStreak = state.qStreak || 0;
+  if (qStreak >= 1) {
+    return { mode: 'WITNESS_ONLY', budget: 0 };
+  }
+  return { mode: 'ALLOW_ONE', budget: 1 };
+}
+
+function buildControlBlock({
+  visitorId,
+  rhythmNudge,
+  soundscapeName,
+  mood,
+  localTime,
+  anchorsText,
+  sessionSummary,
+  doorContext,
+}) {
+  const lengthMode = computeLengthMode(rhythmNudge);
+  const questionMode = computeQuestionMode(visitorId);
+
+  const lines = [
+    'TRACE_CONTROL_BLOCK',
+    `SOUNDSCAPE: ${soundscapeName || 'presence'} | mood=${mood || 'neutral'}`,
+    `TIME: ${localTime || 'unknown'}`,
+  ];
+
+  lines.push('RELATIONAL_ANCHORS:');
+  lines.push(anchorsText || '(none)');
+  lines.push('');
+
+  lines.push('SESSION_CONTINUITY:');
+  lines.push(sessionSummary || '(new session)');
+  lines.push('');
+
+  lines.push(`LENGTH_MODE: ${lengthMode.label}`);
+  lines.push(`QUESTION_MODE: ${questionMode.mode}`);
+  lines.push(`QUESTION_BUDGET: ${questionMode.budget}`);
+  lines.push(`DOOR_CONTEXT: ${doorContext || 'none'}`);
+  lines.push('');
+
+  lines.push('OUTPUT_CONSTRAINTS:');
+  lines.push(`- Max words this turn: ${lengthMode.maxWords}`);
+  lines.push(`- Questions allowed this turn: ${questionMode.budget}`);
+  lines.push('- If QUESTIONS_ALLOWED=0: no \'?\' and no implied questions.');
+  lines.push('- If SOUNDSCAPE is heavy: prefer micro/short.');
+  lines.push('END_CONTROL_BLOCK');
+
+  return lines.join('\n');
+}
+
 module.exports = {
   STAGES,
   MOVE_TYPES,
@@ -918,4 +995,6 @@ module.exports = {
   buildRhythmPromptDirective,
   BUDDY_ACKNOWLEDGMENTS,
   getQuestionCooldown,
+  buildControlBlock,
+  computeQuestionMode,
 };

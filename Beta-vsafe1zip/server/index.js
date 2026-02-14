@@ -9092,6 +9092,34 @@ Your response (text only, no JSON):`;
       console.warn('[RELATIONAL MEMORY] Error (continuing without):', relErr.message);
     }
 
+    // ============================================================
+    // TRACE CONTROL BLOCK: Deterministic constraints for this turn
+    // Prepended as a separate system message so the LLM sees
+    // length limits, question budget, and context anchors upfront.
+    // ============================================================
+    const controlSoundscape = earlyAtmosphereResult?.sound_state?.current || safeClientState?.currentSoundState || 'presence';
+    const controlMood = detected_state || 'neutral';
+    const controlDoorContext = postActivityReflectionContext
+      ? `just_exited_${(postActivityReflectionContext.lastActivityName || 'activity').toLowerCase().replace(/\s+/g, '_')}`
+      : (doorwaysResult?.selectedDoorId ? `door_${doorwaysResult.selectedDoorId}` : 'none');
+
+    const controlAnchorsText = relationalAnchors || '(none)';
+    const controlSessionSummary = traceIntent?.continuity?.sessionSummary || null;
+
+    const controlBlock = conversationState.buildControlBlock({
+      visitorId: effectiveUserId,
+      rhythmNudge,
+      soundscapeName: controlSoundscape,
+      mood: controlMood,
+      localTime: localTime || null,
+      anchorsText: controlAnchorsText,
+      sessionSummary: controlSessionSummary,
+      doorContext: controlDoorContext,
+    });
+    const controlLengthLabel = rhythmNudge?.tier === 'ultra_short' ? 'micro' : rhythmNudge?.tier === 'short' ? 'short' : rhythmNudge?.tier === 'long' ? 'long' : 'medium';
+    const controlQBudget = conversationState.computeQuestionMode(effectiveUserId).budget;
+    console.log(`[CONTROL_BLOCK] LENGTH_MODE=${controlLengthLabel} QUESTION_BUDGET=${controlQBudget} soundscape=${controlSoundscape} mood=${controlMood} door=${controlDoorContext}`);
+
     // LAYER 1: Selected model with retries (skip if premium already handled)
     const preprocessTime = Date.now() - requestStartTime;
     console.log(`[TIMING] Pre-processing took ${preprocessTime}ms`);
@@ -9132,6 +9160,7 @@ Your response (text only, no JSON):`;
           model: selectedModel,
           messages: [
             { role: 'system', content: TRACE_BOSS_SYSTEM },
+            { role: 'system', content: controlBlock },
             { role: 'system', content: systemPrompt },
             ...messagesWithHydration
           ],
@@ -9219,6 +9248,7 @@ Your response (text only, no JSON):`;
             model: TRACE_BACKUP_MODEL,
             messages: [
               { role: 'system', content: TRACE_BOSS_SYSTEM },
+              { role: 'system', content: controlBlock },
               { role: 'system', content: systemPrompt },
               ...messagesWithHydration
             ],
@@ -9718,6 +9748,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
           const regenResponse = await openai.chat.completions.create({
             model: selectedModel,
             messages: [
+              { role: 'system', content: controlBlock },
               { role: 'system', content: systemPrompt + '\n\nIMPORTANT: Rewrite the reply to say the same thing but with different wording; keep the same tone and length. Do NOT repeat the exact same words. Respond in JSON format with a "message" field containing your rephrased response.' },
               ...messagesWithHydration,
               { role: 'assistant', content: assistantText },

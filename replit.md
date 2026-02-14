@@ -36,7 +36,7 @@ Supports Supabase anonymous authentication with persistent user ID recovery and 
 Manages welcome greetings to ensure variety and freshness by tracking past approaches and topics, and filtering against recent conversation topics.
 
 ## Prompt Architecture
-A two-layer V2 prompt system addresses prompt fragmentation with schema enforcement. Prompt Deduplication resolves overlapping directives across V2 directive, Studios gate, and T2 manifesto, ensuring consistent prompt instructions.
+A two-layer V2 prompt system addresses prompt fragmentation with schema enforcement. Prompt Deduplication resolves overlapping directives across V2 directive, Studios gate, and T2 manifesto, ensuring consistent prompt instructions. A TRACE Control Block is prepended as a separate system message on every /api/chat call, providing deterministic per-turn constraints: LENGTH_MODE (micro/short/medium with max word counts), QUESTION_MODE (WITNESS_ONLY or ALLOW_ONE with budget 0 or 1), soundscape state, relational anchors, session continuity summary, and door context. The control block leverages the existing rhythm system (conversationState.js) and question streak tracking (qStreak) to prevent back-to-back questions.
 
 ## Patterns Feature
 Identifies three pattern types: Peak Window, Energy Tides, and Stress Echoes, providing insights and a visual rhythm map.
