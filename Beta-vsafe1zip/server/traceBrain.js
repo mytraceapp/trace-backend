@@ -1331,6 +1331,16 @@ function maybeInsight({ userId, clientState, signals }) {
 // ============================================================
 const THERAPY_PATTERNS = [
   // === FULL SENTENCE REPLACEMENTS (match complete phrases - optional punctuation) ===
+  { pattern: /It's natural to doubt yourself[^.!?]*[.,;]?/gi, replacement: "Makes sense you'd second-guess it." },
+  { pattern: /It's natural to feel [^.!?]+[.,;]?/gi, replacement: "" },
+  { pattern: /It's (completely )?normal to feel [^.!?]+[.,;]?/gi, replacement: "" },
+  { pattern: /Feeling proud is important[.,;]?/gi, replacement: "" },
+  { pattern: /Acknowledging (your )?(achievements|accomplishments|progress|feelings) is [^.!?]+[.,;]?/gi, replacement: "" },
+  { pattern: /Congratulations on [^.!?]+[.,;]?/gi, replacement: "" },
+  { pattern: /That's (a )?(great|wonderful|amazing|fantastic) (achievement|accomplishment|step|milestone)[^.!?]*[.,;]?/gi, replacement: "" },
+  { pattern: /You should (be |feel )proud of yourself[^.!?]*[.,;]?/gi, replacement: "" },
+  { pattern: /It's important to (acknowledge|recognize|celebrate) [^.!?]+[.,;]?/gi, replacement: "" },
+  { pattern: /Remember that it's okay to [^.!?]+[.,;]?/gi, replacement: "" },
   { pattern: /I'm (really )?sorry to hear that you're feeling [^.!?]+[.,;]?/gi, replacement: "That's rough." },
   { pattern: /I'm (really )?sorry to hear that[.,;]?/gi, replacement: "That's rough." },
   { pattern: /I'm sorry you're feeling [^.!?]+[.,;]?/gi, replacement: "That sounds hard." },

@@ -1080,7 +1080,7 @@ function runHardFilter(responseText, maxWords, questionsAllowed) {
 }
 
 function buildWitnessRegenPrompt(maxWords, anchorsText) {
-  let prompt = `Rewrite the response in TRACE witness voice. No questions. No exclamation points. Under ${maxWords || 50} words.`;
+  let prompt = `Rewrite the response as TRACE — a steady, grounded companion (not a therapist). No questions. No exclamation points. Under ${maxWords || 50} words. Sound like a real person: direct, warm, no therapy-speak ("It's natural to...", "Feeling X is important", "It's okay to feel..."). Just be present with what they said.`;
   if (anchorsText && anchorsText !== '(none)') {
     prompt += ' Use relational anchor names.';
   }

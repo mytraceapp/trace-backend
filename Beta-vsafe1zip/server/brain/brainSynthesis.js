@@ -219,7 +219,7 @@ function inferIntentType({ currentMessage, cognitiveIntent, doorwaysResult, trac
   }
 
   const words = (currentMessage || "").trim().split(/\s+/).length;
-  if (words <= 3) {
+  if (words <= 2) {
     return { intentType: "other", mode: "micro" };
   }
   return { intentType: "other", mode: "normal" };

@@ -9525,13 +9525,17 @@ User said: "${lastUserContent}"
 
 Your complete response:`;
         } else {
+          const recentContext = (messagesWithHydration || []).slice(-6)
+            .map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${m.content}`)
+            .join('\n');
           plainPrompt = `${TRACE_IDENTITY_COMPACT}
 
-Respond naturally to what the user just said. Keep it warm and conversational, 1-2 sentences max.
+Recent conversation:
+${recentContext}
 
-User said: "${lastUserContent}"
+User just said: "${lastUserContent}"
 
-Your response:`;
+Continue the conversation naturally. Stay in the same emotional lane — if they're sharing something personal, match that energy. 1-3 sentences max. No JSON, just your response:`;
         }
         
         const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : 400;
@@ -9700,7 +9704,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
             messages: witnessMessages,
             temperature: 0.6,
             max_tokens: 200,
-          });
+          }, { timeout: 5000, signal: AbortSignal.timeout(5000) });
           const witnessText = witnessCompletion.choices[0]?.message?.content?.trim() || '';
           if (witnessText.length > 5) {
             let cleanWitness = witnessText;
