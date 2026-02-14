@@ -5160,14 +5160,10 @@ app.post('/api/chat', async (req, res) => {
     
     // Banned phrases that should not be in conversation history (causes AI to copy them)
     const BANNED_ASSISTANT_PHRASES = [
-      "I hear you.",
       "I'm here. No pressure.",
-      "mm, take your time. I'm listening.",
       "I'm here with you.",
-      "mm, I'm here.",
       "I'm listening.",
       "Tell me more about that.",
-      "What's on your mind?",
       "I want to understand better. Can you tell me more about that?",
       "I'm here with you. What's going on?",
       "That sounds challenging. Tell me more about what's going on with your family.",
@@ -5177,7 +5173,6 @@ app.post('/api/chat', async (req, res) => {
       "I'm having trouble connecting right now. Please check your internet connection and try again.",
       "I'm here — seems like we're offline for a moment.",
       "Just reconnecting... try sending that again in a moment.",
-      "mm, I missed that for a second. Say that again?",
     ];
     
     // Check if an assistant message is just a banned phrase
@@ -5442,6 +5437,7 @@ app.post('/api/chat', async (req, res) => {
     const prevAssistantContent = messages?.filter(m => m.role === 'assistant').pop()?.content || '';
     const activityPendingConfirmation = prevAssistantContent.includes("Let me know when you're ready") || 
                                         prevAssistantContent.includes("Ready when you are") ||
+                                        prevAssistantContent.includes("just say okay when you're ready") ||
                                         prevAssistantContent.includes("when you're ready") ||
                                         prevAssistantContent.includes("you might enjoy") ||
                                         prevAssistantContent.includes("might help") ||
@@ -5465,7 +5461,7 @@ app.post('/api/chat', async (req, res) => {
       if (pendingActivity) {
         console.log(`[ACTIVITY NAV] User confirmed, navigating to: ${pendingActivity}`);
         return finalizeTraceResponse(res, {
-          message: "Heading there now. I'll be here when you're back.",
+          message: "alright. I'll be here when you're done.",
           activity_suggestion: {
             name: pendingActivity,
             reason: `User confirmed navigation to ${pendingActivity}`,
@@ -5538,7 +5534,7 @@ app.post('/api/chat', async (req, res) => {
       
       console.log(`[ACTIVITY NAV] Returning navigation response for: ${requestedActivity}`);
       return finalizeTraceResponse(res, {
-        message: `${activityDescriptions[requestedActivity]} ${exitInstructions[requestedActivity]} Let me know when you're ready.`,
+        message: `${activityDescriptions[requestedActivity]} ${exitInstructions[requestedActivity]} just say okay when you're ready.`,
         activity_suggestion: {
           name: requestedActivity,
           reason: `User requested ${requestedActivity}`,
@@ -6483,7 +6479,7 @@ app.post('/api/chat', async (req, res) => {
             message: onboardBridge(`no pressure. just say okay when you're ready and we'll start ${activityLabel}.`),
             activity_suggestion: {
               name: pendingActivity,
-              reason: 'Ready when you are',
+              reason: 'Waiting for user confirmation',
               should_navigate: false,
             },
             response_source: 'onboarding_script',
@@ -9300,8 +9296,8 @@ Your response (text only, no JSON):`;
       console.warn(`[TIMING] Hard deadline hit at ${elapsed}ms — using relational fallback`);
       parsed = {
         message: isCrisisMode 
-          ? "I'm here with you. If you need immediate support, you can call or text 988 anytime."
-          : "I'm here. Take your time — no rush at all.",
+          ? "I'm here. you can call or text 988 anytime — they're there 24/7."
+          : "still here. take your time.",
         activity_suggestion: { name: null, reason: null, should_navigate: false }
       };
     }
@@ -9329,11 +9325,11 @@ Your response (text only, no JSON):`;
 The user said: "${lastUserContent}"
 
 You MUST include ALL of these in your response:
-1. Acknowledge their pain (NOT "That's rough")
+1. Acknowledge their pain — sound like a real person, not a hotline script
 2. Ask if they're safe right now
-3. ALWAYS mention 988 - say "You can call or text 988 anytime" 
+3. ALWAYS mention 988 — say "you can call or text 988 anytime"
 
-Example: "I hear you. That sounds incredibly heavy. Are you somewhere safe right now? You can call or text 988 anytime - they're there 24/7."
+Example: "that's heavy. are you safe right now? you can call or text 988 anytime — they're there 24/7."
 
 Your response (MUST include safety question AND 988):`;
         } else if (isCrisisMode) {
@@ -9357,26 +9353,26 @@ Your response (MUST include safety question AND 988):`;
 You asked "Are you somewhere safe?" and they said: "${lastUserContent}"
 
 Your response MUST:
-1. Stay calm and present (no panic)
+1. Stay calm — no panic, no formality
 2. Acknowledge you hear them
 3. Encourage calling 988 or 911 immediately
 4. Offer to help call someone they trust
 
-Example: "Okay. I'm staying with you. If you can, please call 911 right now. Or if you'd rather, I can help you call someone you trust. You can also call or text 988 anytime."
+Example: "okay. I'm staying with you. please call 911 right now if you can. or tell me who you trust and I can help you reach them. you can also call or text 988 anytime."
 
 Your response (URGENT - they are NOT safe):`;
           } else if (askedAboutSafety && userSaidYes) {
             // User is safe - gentle check-in
             console.log('[TRACE OPENAI L3] User said they ARE safe - gentle follow-up');
-            plainPrompt = `You are TRACE. The user just said they ARE safe. Stay present and supportive.
+            plainPrompt = `You are TRACE. The user just said they ARE safe. Stay present.
 
 You asked "Are you somewhere safe?" and they said: "${lastUserContent}"
 
-Acknowledge their response warmly, then gently ask who they can reach out to for support. Keep it human and caring.
+Acknowledge that, then ask who they can reach out to. Sound like a friend, not a counselor.
 
-Example: "Okay. I'm glad you're safe. Do you have someone you can talk to tonight - a friend, family member, or anyone you trust?"
+Example: "okay, good. do you have someone you can talk to tonight — a friend, anyone you trust?"
 
-Your response (gentle, supportive):`;
+Your response (brief, grounded):`;
           } else if (userSaidNo && hasRecentCrisisEscalation && noCount >= 2) {
             // CRITICAL: User repeatedly declining help in crisis - STAY WITH THEM, offer alternatives
             console.log('[TRACE OPENAI L3] User REPEATEDLY DECLINING help in crisis - staying present, offering alternatives');
@@ -9397,9 +9393,9 @@ Your response MUST:
 5. Keep 988 as a gentle reminder (text option may feel less overwhelming)
 
 Example responses (choose based on tone):
-- "I hear you. I'm not going to push. I'll just be here with you. If you want to talk, I'm listening. And whenever you're ready - 988 is always there, even just to text."
-- "Okay. I'm not leaving. We can just sit here together if that's what you need. You don't have to do anything right now."
-- "That's okay. I'm staying right here. You don't have to call anyone if you're not ready. Can you tell me one small thing that might help you feel a little safer in this moment?"
+- "I'm not going anywhere. we can just sit here. you don't have to do anything right now. and whenever you're ready — 988 is there, even just to text."
+- "okay. I'm not leaving. we can just be here. you don't have to call anyone if you're not ready."
+- "that's okay. you don't have to do anything. is there one small thing that might help you feel a little safer right now?"
 
 Your response (STAY PRESENT - do NOT reset or abandon):`;
           } else if (userSaidNo && hasRecentCrisisEscalation) {
@@ -9415,7 +9411,7 @@ Your response should:
 3. Offer an alternative (texting 988, sitting with them, asking what might help)
 4. Keep it brief and grounded
 
-Example: "Okay. I'm not going anywhere. If calling feels like too much, you can text 988 instead. Or we can just sit here together. Whatever you need."
+Example: "okay. I'm not going anywhere. if calling feels like too much, you can text 988 instead. or we can just sit here. whatever you need."
 
 Your response (stay present, offer alternative):`;
           } else {
@@ -9494,9 +9490,9 @@ Your response:`;
                                    lowerContent4.includes('end it all');
         
         if (isCrisisMode && isActiveSuicidal4) {
-          contextPrompt = `Someone said "${lastUserContent}". Respond with compassion, ask if they're safe, mention 988 is available 24/7. Example: "I hear you. Are you somewhere safe right now? 988 is always available if you need to talk."`;
+          contextPrompt = `Someone said "${lastUserContent}". Respond with compassion, ask if they're safe, mention 988 is available 24/7. Example: "that's heavy. are you safe right now? you can call or text 988 anytime."`;
         } else if (isCrisisMode) {
-          contextPrompt = `Generate a single warm, present response for someone in crisis who just said: "${lastUserContent}". Stay grounded and present. NEVER be cheerful or casual. Example: "I'm here. How are you doing right now?"`;
+          contextPrompt = `Generate a single warm, present response for someone in crisis who just said: "${lastUserContent}". Stay grounded and present. NEVER be cheerful or casual. Example: "I'm here. how are you doing right now?"`;
         } else {
           contextPrompt = `${TRACE_IDENTITY_COMPACT}
 
@@ -9532,15 +9528,15 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       // Relational fallbacks that still feel like TRACE and offer help
       const emergencyResponses = [
         {
-          message: "I'm here. I'm having trouble connecting, but you're not alone. Want to try Dreamscape or Breathwork while I reconnect?",
+          message: "something's off on my end. want to try Breathing or Dreamscape while I sort this out?",
           activity_suggestion: { name: "dreamscape", reason: "connection_issue", should_navigate: false }
         },
         {
-          message: "mm, something's not working on my end. But I'm still here. Want to try something grounding while I sort this out?",
+          message: "mm, having trouble connecting. want to try something grounding while I figure this out?",
           activity_suggestion: { name: "breathing", reason: "connection_issue", should_navigate: false }
         },
         {
-          message: "I'm having trouble right now, but you're not alone. Breathwork or Basin might help while I reconnect.",
+          message: "I'm glitching — try Breathing or Basin while I reconnect.",
           activity_suggestion: { name: "basin", reason: "connection_issue", should_navigate: false }
         }
       ];
@@ -9756,7 +9752,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       // If the message doesn't mention navigation, update it
       const msgToCheck = parsed.message || (parsed.messages && parsed.messages[0]) || '';
       if (!/heading|walking|taking|going|guide|i'll be here when/i.test(msgToCheck)) {
-        parsed.message = "Heading there now. I'll be here when you're back.";
+        parsed.message = "alright. I'll be here when you're done.";
         // Clear messages array if we're overriding with single message
         parsed.messages = null;
       }
@@ -10458,14 +10454,10 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         }
       }
       
-      // Only show disclaimer if: onboarding done + first chat pending + no chat history + not just affirming
+      // Disclaimer is now handled during onboarding — just mark first_chat_completed here
       if (supabaseServer && effectiveUserId && userProfile && 
           onboardingComplete && firstChatPending && !hasChatHistory && !userMsgIsAffirmation) {
         isFirstChat = true;
-        const disclaimerText = "Quick note: I'm not a therapist and I can't diagnose or treat anything — but I can support you through what you're feeling.\n\n";
-        finalAssistantText = disclaimerText + finalAssistantText;
-        
-        // Mark first chat as completed (non-blocking)
         supabaseServer
           .from('profiles')
           .update({ first_chat_completed: true })
@@ -10473,11 +10465,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
           .then(() => console.log('[TRACE DISCLAIMER] Marked first_chat_completed = true for user:', effectiveUserId))
           .catch(err => console.error('[TRACE DISCLAIMER] Failed to update first_chat_completed:', err.message));
         
-        console.log('[TRACE DISCLAIMER] Prepended disclaimer to first chat response (onboarding:', onboardingComplete, ')');
-      } else if (firstChatPending && !onboardingComplete) {
-        console.log('[TRACE DISCLAIMER] Skipped - onboarding not yet complete');
-      } else if (userMsgIsAffirmation) {
-        console.log('[TRACE DISCLAIMER] Skipped - user message is affirmation:', userText);
+        console.log('[TRACE DISCLAIMER] Onboarding already showed disclaimer, just marking first_chat_completed');
       }
     } catch (err) {
       console.error('[TRACE DISCLAIMER] Error checking first_chat_completed:', err.message);
@@ -11356,7 +11344,7 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
         if (cleaned.length > 0) {
           finalResponse.message = cleaned.join(' ');
         } else {
-          finalResponse.message = "I'm here. What's on your mind?";
+          finalResponse.message = "what's on your mind?";
         }
         console.log('[PHASE8_PLAYLIST_STRIP]', JSON.stringify({
           requestId: chatRequestId,
@@ -12484,12 +12472,12 @@ Just the response, nothing else.
       temperature: 0.7,
     });
 
-    const message = response?.choices?.[0]?.message?.content?.trim() || "Gotcha.";
+    const message = response?.choices?.[0]?.message?.content?.trim() || "got it.";
     console.log('[ACTIVITY ACK] Response:', message);
     return res.json({ message });
   } catch (error) {
     console.error('[ACTIVITY ACK] Error:', error.message);
-    return res.json({ message: "Gotcha." });
+    return res.json({ message: "got it." });
   }
 });
 
@@ -13499,15 +13487,15 @@ Generate a single short invitation (1-2 sentences) that:
 - Leaves space for "no" (it's an invitation)
 
 GOOD EXAMPLES:
-- "I read your entry. Want to talk about what happened next?"
-- "I saw what you wrote. Do you want to talk about it?"
-- "I read that. How are you feeling about it now?"
-- "I read what you wrote about [topic]. Do you want to talk about it?"
-- "That sounds really hard. Want to talk about it?"
+- "I read your entry. want to talk about what happened next?"
+- "I saw what you wrote. do you want to talk about it?"
+- "I read that. how are you feeling about it now?"
+- "I read what you wrote about [topic]. want to talk about it?"
+- "that's heavy. want to talk about it?"
 
 IF HEAVY/CRISIS TONE DETECTED:
 - "I read what you wrote. I'm here if you want to talk."
-- "That sounds really hard. Want to talk about it?"
+- "that's heavy. want to talk about it?"
 
 NEVER:
 - Summarize what they wrote (they know what they wrote)
