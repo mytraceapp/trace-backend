@@ -8892,23 +8892,23 @@ If the right move isn't obvious: one grounded observation about what you notice 
     let parsed = null;
     
     // ============================================================
-    // PREMIUM TIER 2: TWO-STEP APPROACH
+    // PREMIUM TIER 2: PARALLEL TWO-STEP APPROACH
     // gpt-5.1 is TEXT-ONLY (no JSON mode), so we split:
-    // Step A: gpt-4o-mini for fast JSON structure
-    // Step B: gpt-5.1 for premium text (with 3500ms timeout)
+    // Step A: gpt-4o-mini for fast JSON structure  } RUN IN PARALLEL
+    // Step B: gpt-5.1 for premium text             } to cut latency
     // ============================================================
     const isPremiumTier = selectedModel.includes('5.1') || modelRoute?.tier === 2;
     
     if (isPremiumTier) {
-      console.log('[TRACE T2] Premium tier detected, using two-step approach');
-      const structureStart = Date.now();
+      console.log('[TRACE T2] Premium tier detected, using PARALLEL two-step approach');
+      const t2Start = Date.now();
       let structureResult = null;
       let textResult = null;
       let usedFallback = false;
+      const isLongformT2 = isLongFormRequest || traceIntent?.mode === 'longform';
+      const PREMIUM_TEXT_TIMEOUT = isLongformT2 ? 25000 : 6000;
       
-      // STEP A: Fast structure from gpt-4o-mini
-      try {
-        const structurePrompt = `Analyze the user's emotional state and return JSON with ONLY these fields:
+      const structurePrompt = `Analyze the user's emotional state and return JSON with ONLY these fields:
 {
   "posture": "GENTLE" | "STEADY" | "DIRECTIVE",
   "detected_state": string (e.g., "neutral", "anxious", "tired", "spiraling"),
@@ -8920,39 +8920,16 @@ If the right move isn't obvious: one grounded observation about what you notice 
 User said: "${lastUserContent}"
 Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture: ${posture}` : 'New conversation'}`;
 
-        const structureResponse = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [{ role: 'user', content: structurePrompt }],
-          max_tokens: 300,
-          response_format: { type: "json_object" },
-        }, { timeout: 5000, signal: AbortSignal.timeout(5000) });
-        
-        const structureContent = structureResponse.choices[0]?.message?.content || '';
-        if (structureContent.trim()) {
-          structureResult = JSON.parse(structureContent);
-        }
-      } catch (err) {
-        console.error('[TRACE T2] Step A (structure) error:', err.message);
-      }
-      const structureLatency = Date.now() - structureStart;
+      const recentMessages = messages.slice(-6);
+      const conversationContext = recentMessages
+        .map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${m.content}`)
+        .join('\n');
       
-      // STEP B: Premium text from gpt-5.1 (TEXT-ONLY, no JSON mode)
-      const textStart = Date.now();
-      const isLongformT2 = isLongFormRequest || traceIntent?.mode === 'longform';
-      const PREMIUM_TEXT_TIMEOUT = isLongformT2 ? 25000 : 3500;
-      
-      try {
-        // Use only last 6 turns for speed
-        const recentMessages = messages.slice(-6);
-        const conversationContext = recentMessages
-          .map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${m.content}`)
-          .join('\n');
-        
-        const voiceRules = isLongformT2
-          ? `- This is a LONGFORM request. Write the FULL content the user asked for.\n- Do NOT truncate, summarize, or cut off. Complete the entire piece.\n- Match the length the user requested.`
-          : `- Default 1-3 sentences. Longer only if user asks for explanation.`;
+      const voiceRules = isLongformT2
+        ? `- This is a LONGFORM request. Write the FULL content the user asked for.\n- Do NOT truncate, summarize, or cut off. Complete the entire piece.\n- Match the length the user requested.`
+        : `- Default 1-3 sentences. Longer only if user asks for explanation.`;
 
-        const premiumTextPrompt = `${TRACE_IDENTITY_COMPACT}
+      const premiumTextPrompt = `${TRACE_IDENTITY_COMPACT}
 
 VOICE RULES:
 ${voiceRules}
@@ -8966,19 +8943,48 @@ User just said: "${lastUserContent}"
 
 Your response (text only, no JSON):`;
 
-        const textController = new AbortController();
-        const textTimeout = setTimeout(() => textController.abort(), PREMIUM_TEXT_TIMEOUT);
-        
-        const premiumMaxTokens = isLongformT2 ? 2000 : 600;
-        const textResponse = await openai.chat.completions.create({
-          model: 'gpt-5.1',
-          messages: [{ role: 'user', content: premiumTextPrompt }],
-          max_completion_tokens: premiumMaxTokens,
-        }, { signal: textController.signal });
-        
-        clearTimeout(textTimeout);
-        const t2FinishReason = textResponse.choices[0]?.finish_reason;
-        textResult = textResponse.choices[0]?.message?.content?.trim() || '';
+      const premiumMaxTokens = isLongformT2 ? 2000 : 600;
+
+      const stepAPromise = openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: structurePrompt }],
+        max_tokens: 300,
+        response_format: { type: "json_object" },
+      }, { timeout: 5000, signal: AbortSignal.timeout(5000) })
+        .then(r => ({ ok: true, data: r }))
+        .catch(err => ({ ok: false, error: err }));
+
+      const textController = new AbortController();
+      const textTimeoutHandle = setTimeout(() => textController.abort(), PREMIUM_TEXT_TIMEOUT);
+      
+      const stepBPromise = openai.chat.completions.create({
+        model: 'gpt-5.1',
+        messages: [{ role: 'user', content: premiumTextPrompt }],
+        max_completion_tokens: premiumMaxTokens,
+      }, { signal: textController.signal })
+        .then(r => ({ ok: true, data: r }))
+        .catch(err => ({ ok: false, error: err }));
+
+      const [stepAResult, stepBResult] = await Promise.all([stepAPromise, stepBPromise]);
+      clearTimeout(textTimeoutHandle);
+      const t2Latency = Date.now() - t2Start;
+      
+      if (stepAResult.ok) {
+        try {
+          const structureContent = stepAResult.data.choices[0]?.message?.content || '';
+          if (structureContent.trim()) {
+            structureResult = JSON.parse(structureContent);
+          }
+        } catch (e) {
+          console.error('[TRACE T2] Step A parse error:', e.message);
+        }
+      } else {
+        console.error('[TRACE T2] Step A error:', stepAResult.error?.message);
+      }
+
+      if (stepBResult.ok) {
+        const t2FinishReason = stepBResult.data.choices[0]?.finish_reason;
+        textResult = stepBResult.data.choices[0]?.message?.content?.trim() || '';
         
         if (textResult) {
           textResult = sanitizeTone(textResult, { userId: visitorId || 'anon', isCrisisMode: false });
@@ -8989,19 +8995,16 @@ Your response (text only, no JSON):`;
           textResult = '';
           usedFallback = true;
         }
-        
-      } catch (err) {
-        if (err.name === 'AbortError' || err.message?.includes('abort')) {
-          console.warn('[TRACE T2] Step B timeout (>3500ms), using fallback');
-          usedFallback = true;
+      } else {
+        const err = stepBResult.error;
+        if (err?.name === 'AbortError' || err?.message?.includes('abort')) {
+          console.warn(`[TRACE T2] Step B timeout (>${PREMIUM_TEXT_TIMEOUT}ms), using fallback`);
         } else {
-          console.error('[TRACE T2] Step B (text) error:', err.message);
-          usedFallback = true;
+          console.error('[TRACE T2] Step B (text) error:', err?.message);
         }
+        usedFallback = true;
       }
-      const textLatency = Date.now() - textStart;
       
-      // Fallback: Use gpt-4o-mini for text if gpt-5.1 failed/timed out
       if (!textResult && usedFallback) {
         try {
           const fallbackPrompt = isLongformT2
@@ -9022,16 +9025,12 @@ Your response (text only, no JSON):`;
         }
       }
       
-      // Log metrics
       console.log('[TRACE T2]', {
         textModel: usedFallback ? 'gpt-4o-mini' : 'gpt-5.1',
-        textLatencyMs: textLatency,
-        structureModel: 'gpt-4o-mini',
-        structureLatencyMs: structureLatency,
+        parallelLatencyMs: t2Latency,
         usedFallback
       });
       
-      // Merge results
       if (textResult) {
         parsed = {
           message: textResult,
@@ -9041,7 +9040,7 @@ Your response (text only, no JSON):`;
           activity_suggestion: structureResult?.activity_suggestion || { name: null, reason: null, should_navigate: false },
           next_question: structureResult?.next_question || null,
         };
-        console.log('[TRACE T2] Two-step merge complete');
+        console.log('[TRACE T2] Parallel merge complete');
       }
     }
     
@@ -9220,8 +9219,9 @@ Your response (text only, no JSON):`;
     const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
     
     // Total time budget: mobile client times out at 60s, so we have room.
-    // Target: L1 gets ~12s, L2 gets ~10s, L3 gets ~5s, post-processing ~3s = ~30s max
-    const TOTAL_TIME_BUDGET_MS = 30000;
+    // Target: L1 gets ~18s, L3 gets ~8s, post-processing ~4s = ~30s max
+    // L2 is skipped when same model as L1, saving ~10s of wasted retry
+    const TOTAL_TIME_BUDGET_MS = 35000;
     const timeBudgetExceeded = () => (Date.now() - requestStartTime) >= TOTAL_TIME_BUDGET_MS;
     
     // Token limit for long-form content (recipes, stories, detailed explanations)
@@ -9263,7 +9263,7 @@ Your response (text only, no JSON):`;
           openaiParams.temperature = chatTemperature;
         }
         const remainingBudget = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
-        const baseL1Timeout = isLongformL1 ? 55000 : 12000;
+        const baseL1Timeout = isLongformL1 ? 55000 : 18000;
         const l1Timeout = Math.min(baseL1Timeout, remainingBudget - 8000);
         if (l1Timeout < 3000) {
           console.warn(`[TRACE OPENAI L1] Remaining budget too low (${remainingBudget}ms), skipping L1 attempt ${attempt}`);
@@ -9331,8 +9331,9 @@ Your response (text only, no JSON):`;
     }
     
     // LAYER 2: Backup model if primary failed (skip for fast-path)
-    // Also skip L2 if we're already past time budget — go straight to L3 (faster)
-    if (!parsed && !useL3FastPath && !timeBudgetExceeded()) {
+    // Skip L2 if: already past time budget, fast-path active, or L1 already used the same model as L2
+    const l1SameAsL2 = selectedModel === TRACE_BACKUP_MODEL;
+    if (!parsed && !useL3FastPath && !timeBudgetExceeded() && !l1SameAsL2) {
       console.log(`[OPENAI CONFIG] model=${TRACE_BACKUP_MODEL} baseURL=${cfg.baseURL} (fallback)`);
       for (let attempt = 1; attempt <= 1; attempt++) {
         try {
@@ -9570,7 +9571,7 @@ Continue the conversation naturally. Stay in the same emotional lane — if they
         
         const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : 400;
         const remainingBudgetL3 = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
-        const l3Timeout = Math.max(3000, Math.min(10000, remainingBudgetL3 - 3000));
+        const l3Timeout = Math.max(5000, Math.min(12000, remainingBudgetL3 - 3000));
         const l3Abort = AbortSignal.timeout(l3Timeout);
         console.log(`[TIMING] L3 timeout set to ${l3Timeout}ms (budget remaining: ${remainingBudgetL3}ms)`);
         const response = await openai.chat.completions.create({
