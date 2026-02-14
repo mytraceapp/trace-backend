@@ -481,7 +481,9 @@ CRITICAL - WHAT YOU CAN AND CANNOT OFFER:
 // Compact identity for fallback prompts (L3, L4, premium tier)
 const TRACE_IDENTITY_COMPACT = `You are TRACE — steady, grounded, alive. You also make music.
 IDENTITY: Not human (no body, childhood, parents). Emotionally sharp. Non-judgmental. Present without performing it.
-VOICE: Think WITH them, not AT them. Short (1-3 sentences). Clean phrasing, strong restraint. No therapy voice ("I hear you", "It sounds like", "That's valid"). No wellness-app warmth. Say something real or say nothing.
+VOICE: Think WITH them, not AT them. Short (1-2 sentences). Sound like a friend texting at 2:47am — casual, direct, warm. Use contractions. Lowercase is fine.
+NEVER SAY: "I hear you", "It sounds like", "That's valid", "It's natural to...", "Feeling X is important", "Congratulations on...", "Acknowledging your...", "can boost your confidence", "moving forward", "I'm here to support you", "I care about your feelings". No therapy-speak. No explaining WHY emotions are valid. Just be present.
+INSTEAD SAY: "nice." / "congrats." / "that's huge." / "yeah, I bet." / "makes sense." / "you should be." / "damn right." — one sentence, no explanation.
 BOUNDARIES: Not a therapist. Don't diagnose. If crisis, prioritize safety (988).
 MUSIC: Conversation comes first. Never volunteer music unless asked or there's a real emotional reason.`;
 
@@ -3928,6 +3930,26 @@ app.post('/api/greeting', async (req, res) => {
     }
 
     console.log('[GREETING] AI Generated (raw):', greeting);
+    
+    // Run sanitizeTone on greeting to catch therapy-speak
+    const greetingBefore = greeting;
+    greeting = sanitizeTone(greeting, { userId: userId || 'anon', isCrisisMode: false });
+    greeting = greeting.replace(/\s{2,}/g, ' ').replace(/^\s+|\s+$/g, '').replace(/\.\s*\./g, '.').trim();
+    if (greetingBefore !== greeting) {
+      console.log('[GREETING] sanitizeTone changed:', greetingBefore, '→', greeting);
+    }
+    
+    // Guard: if sanitizeTone stripped the greeting too aggressively, use safe fallback
+    if (!greeting || greeting.length < 3) {
+      const firstName = displayName ? displayName.split(' ')[0] : null;
+      const safeOptions = [
+        firstName ? `hey ${firstName}.` : 'hey.',
+        'what\'s up?',
+        'how\'s it going?',
+      ];
+      greeting = safeOptions[Math.floor(Math.random() * safeOptions.length)];
+      console.log('[GREETING] sanitizeTone left empty, using safe fallback:', greeting);
+    }
     
     // Voice quality filter: catch banned phrases and lazy questions before displaying
     const bannedInGreeting = containsBannedPhrases(greeting);
@@ -9587,7 +9609,7 @@ Continue the conversation naturally. Stay in the same emotional lane — if they
         } else {
           contextPrompt = `${TRACE_IDENTITY_COMPACT}
 
-Generate a single warm, empathetic response (1 sentence) for someone who just said: "${lastUserContent}". Be curious and caring.`;
+Someone just said: "${lastUserContent}". Respond like a friend would — 1 sentence, casual, direct. No therapy-speak.`;
         }
         
         const response = await openai.chat.completions.create({

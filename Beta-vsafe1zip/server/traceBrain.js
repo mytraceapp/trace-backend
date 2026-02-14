@@ -1331,27 +1331,59 @@ function maybeInsight({ userId, clientState, signals }) {
 // ============================================================
 const THERAPY_PATTERNS = [
   // === FULL SENTENCE REPLACEMENTS (match complete phrases - optional punctuation) ===
-  { pattern: /It's natural to doubt yourself[^.!?]*[.,;]?/gi, replacement: "Makes sense you'd second-guess it." },
+  // "I care about / I'm here to support" — performative care
+  { pattern: /I care about your feelings[^.!?]*[.,;]?/gi, replacement: "" },
+  { pattern: /I care about what you're going through[^.!?]*[.,;]?/gi, replacement: "" },
+  { pattern: /I'm here to support you[^.!?]*[.,;]?/gi, replacement: "" },
+  // "It's natural/normal to..." — explaining emotions back
+  { pattern: /It's natural to doubt yourself[^.!?]*[.,;]?/gi, replacement: "makes sense you'd second-guess it." },
   { pattern: /It's natural to feel [^.!?]+[.,;]?/gi, replacement: "" },
   { pattern: /It's (completely )?normal to feel [^.!?]+[.,;]?/gi, replacement: "" },
-  { pattern: /Feeling proud is important[.,;]?/gi, replacement: "" },
-  { pattern: /Acknowledging (your )?(achievements|accomplishments|progress|feelings) is [^.!?]+[.,;]?/gi, replacement: "" },
-  { pattern: /Congratulations on [^.!?]+[.,;]?/gi, replacement: "" },
-  { pattern: /That's (a )?(great|wonderful|amazing|fantastic) (achievement|accomplishment|step|milestone)[^.!?]*[.,;]?/gi, replacement: "" },
-  { pattern: /You should (be |feel )proud of yourself[^.!?]*[.,;]?/gi, replacement: "" },
-  { pattern: /It's important to (acknowledge|recognize|celebrate) [^.!?]+[.,;]?/gi, replacement: "" },
+  { pattern: /It's natural to [^.!?]+[.,;]?/gi, replacement: "" },
+  // "Feeling X is important" — therapist validating emotions
+  { pattern: /Feeling proud is important[^.!?]*[.,;]?/gi, replacement: "" },
+  { pattern: /Feeling \w+ is (important|valid|okay|natural|normal)[^.!?]*[.,;]?/gi, replacement: "" },
+  // "Acknowledging your..." — self-help book language
+  { pattern: /Acknowledging (your )?(achievements?|accomplishments?|progress|feelings?|emotions?) (is |can )[^.!?]+[.,;]?/gi, replacement: "" },
+  // "Congratulations on..." — formal, distant
+  { pattern: /Congratulations on [^.!?]+[.,;]?/gi, replacement: "congrats." },
+  { pattern: /Congratulations[.,;!]?/gi, replacement: "congrats." },
+  // "Sounds like a big step" — coaching energy
+  { pattern: /Sounds like a big step[^.!?]*[.,;]?/gi, replacement: "" },
+  { pattern: /That's a (big|great|huge|important) (step|achievement|accomplishment|milestone)[^.!?]*[.,;]?/gi, replacement: "" },
+  // "You should be/feel proud" — prescribing emotions
+  { pattern: /You should (be |feel )proud[^.!?]*[.,;]?/gi, replacement: "you should be." },
+  // "It's important to..." — lecturing
+  { pattern: /It's important to (acknowledge|recognize|celebrate|remember|note) [^.!?]+[.,;]?/gi, replacement: "" },
+  { pattern: /It's worth (noting|remembering|acknowledging) [^.!?]+[.,;]?/gi, replacement: "" },
+  // "Remember that..." — prescriptive
   { pattern: /Remember that it's okay to [^.!?]+[.,;]?/gi, replacement: "" },
-  { pattern: /I'm (really )?sorry to hear that you're feeling [^.!?]+[.,;]?/gi, replacement: "That's rough." },
-  { pattern: /I'm (really )?sorry to hear that[.,;]?/gi, replacement: "That's rough." },
-  { pattern: /I'm sorry you're feeling [^.!?]+[.,;]?/gi, replacement: "That sounds hard." },
+  { pattern: /Remember that [^.!?]+[.,;]?/gi, replacement: "" },
+  // "can boost your confidence / moving forward" — coaching phrases
+  { pattern: /can boost your confidence[^.!?]*[.,;]?/gi, replacement: "" },
+  { pattern: / moving forward[.,;]?/gi, replacement: "." },
+  { pattern: / going forward[.,;]?/gi, replacement: "." },
+  // "What part of [experience]..." — facilitation questions
+  { pattern: /What part of (the |that |this )?[^?]+ surprised you[^?]*\??/gi, replacement: "what surprised you?" },
+  { pattern: /What part of (the |that |this )?[^?]+ resonated[^?]*\??/gi, replacement: "what stood out?" },
+  // "I'm sorry to hear..." — performative empathy
+  { pattern: /I'm (really )?sorry to hear that you're feeling [^.!?]+[.,;]?/gi, replacement: "that's rough." },
+  { pattern: /I'm (really )?sorry to hear that[.,;]?/gi, replacement: "that's rough." },
+  { pattern: /I'm sorry you're feeling [^.!?]+[.,;]?/gi, replacement: "that sounds hard." },
+  // "It's okay to feel..." — normalizing
   { pattern: /It's completely okay to feel stressed[;,.—–-]?/gi, replacement: "" },
   { pattern: /It's okay to feel overwhelmed sometimes[;,.—–-]?/gi, replacement: "" },
   { pattern: /It's okay to feel overwhelmed[;,.—–-]?/gi, replacement: "" },
   { pattern: /It's okay to feel stressed[;,.—–-]?/gi, replacement: "" },
   { pattern: /It's okay to feel that way[;,.—–-]?/gi, replacement: "" },
   { pattern: /It's okay to feel [^.!?—–]+[;,.—–-]?/gi, replacement: "" },
+  // "Your feelings are valid" — classic therapy
   { pattern: /Your feelings are valid[;,.]?/gi, replacement: "" },
   { pattern: /sometimes just talking about it can help[;,.]?/gi, replacement: "" },
+  // "That's good to hear" — formal / distant
+  { pattern: /That's good to hear[.,;]?/gi, replacement: "nice." },
+  // "especially with something important" — editorializing
+  { pattern: /,? especially (with|when|if) something (important|difficult|challenging|big)[^.,;!?]*[.,;]?/gi, replacement: "." },
   // === "IT SEEMS LIKE" THERAPY OPENERS (REMOVE OR REPLACE) ===
   { pattern: /It seems like you're facing some challenges[.!,]?/gi, replacement: "That sounds rough." },
   { pattern: /It seems like you're going through [^.!?]+[.!,]?/gi, replacement: "That sounds hard." },

@@ -20,6 +20,14 @@ const BANNED_PHRASES = [
   'holding space', 'navigating', 'journey', 'healing journey',
   'self-care', 'boundaries', 'triggers', 'safe space',
   'emotional labor', 'validate', 'validating',
+  // Performative care
+  'I\'m here to support you', 'I care about your feelings',
+  'I care about what you\'re going through',
+  // Therapy validation phrases
+  'it\'s natural to', 'it\'s normal to', 'it\'s okay to feel',
+  'feeling proud is important', 'acknowledging your',
+  'can boost your confidence', 'moving forward',
+  'sounds like a big step', 'congratulations on',
   
   // Robotic/generic
   'I\'m here to help', 'how can I assist', 'is there anything else',
