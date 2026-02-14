@@ -11282,9 +11282,9 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       conversationState.saveState(effectiveUserId, convoState);
     }
     
-    // VOICE ENGINE POST-PROCESSING: Additional cleanup
-    if (response.message && messages && messages.length >= 4) {
-      const voiceValidation = validateResponse(response.message, nextQuestionResult || {}, messages);
+    // VOICE ENGINE POST-PROCESSING: Runs on ALL responses (no message count gate)
+    if (response.message) {
+      const voiceValidation = validateResponse(response.message, nextQuestionResult || {}, messages || []);
       if (!voiceValidation.valid) {
         console.log('[VOICE] Post-processing issues:', voiceValidation.issues);
         response.message = voiceValidation.corrected;

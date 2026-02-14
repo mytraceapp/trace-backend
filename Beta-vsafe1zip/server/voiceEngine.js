@@ -87,6 +87,46 @@ const HOLLOW_PATTERNS = [
   /how does (?:that|this|it) (?:sit with|land for|resonate with) you/i,
 ];
 
+const THERAPIST_FRAME_PATTERNS = [
+  /(?:it's|that's|it is|that is) (?:really |so |pretty |very )?(?:tough|hard|difficult|challenging|frustrating|rough|overwhelming) (?:when|to|that)/i,
+  /(?:it's|that's|it is|that is) (?:really |so |pretty |very )?(?:tough|hard|difficult|challenging|frustrating|rough|overwhelming)\./i,
+  /(?:it can be|that can be) (?:really |so |pretty |very )?(?:tough|hard|difficult|challenging|frustrating|rough|overwhelming)/i,
+  /just take a moment/i,
+  /take a moment (?:to|for)/i,
+  /let it out/i,
+  /in whatever way feels right/i,
+  /(?:might|can|could|may) (?:really )?help you feel/i,
+  /(?:might|can|could|may) help (?:to )?(?:ease|calm|soothe|release|relieve)/i,
+  /(?:take|give) (?:a |some )?(?:moment|time|space) (?:for|to) yourself/i,
+  /(?:get|gets|getting) under your skin/i,
+  /give yourself (?:permission|grace|space)/i,
+  /you(?:'re| are) (?:allowed|permitted) to (?:feel|be|take)/i,
+  /(?:remember|don't forget) (?:that )?(?:you're|you are) (?:not alone|worthy|enough|deserving)/i,
+  /(?:it's okay|it is okay) to (?:not be okay|feel|take)/i,
+  /(?:be gentle|be kind) (?:with|to) yourself/i,
+  /what(?:'s| is) coming up for you/i,
+  /how (?:does|did) that (?:feel|land|sit|resonate) (?:for|with) you/i,
+  /(?:move|moving) through (?:this|that|it) (?:at your|in your|with)/i,
+  /(?:just )?sit with (?:that|this|it|those) (?:feeling|emotion|for a)/i,
+  /(?:honor|acknowledge|recognize) (?:what you(?:'re| are) feeling|your (?:feelings|emotions))/i,
+  /(?:and|but|so) that(?:'s| is) (?:completely |totally |perfectly )?(?:valid|okay|understandable|normal|natural)/i,
+];
+
+const BUDDY_OPENERS = [
+  'yeah.',
+  'mm.',
+  'oof.',
+  'damn.',
+  'real talk —',
+  'I feel that.',
+  'yeah, no, I get it.',
+  'rough.',
+  'that tracks.',
+  'yeah that makes sense.',
+  'honestly?',
+  'heavy.',
+];
+
 // TRACE voice characteristics
 const VOICE_MARKERS = {
   // Grounded openers (not "hi!" energy)
@@ -292,38 +332,90 @@ function shouldAddMusicContext(intent, recentHistory) {
 /**
  * Apply TRACE voice characteristics to a base response
  */
+function splitSentences(text) {
+  return text.match(/[^.!?]+[.!?]+/g) || [text];
+}
+
+function containsTherapistFrame(sentence) {
+  return THERAPIST_FRAME_PATTERNS.some(p => p.test(sentence));
+}
+
+function pickBuddyOpener() {
+  return BUDDY_OPENERS[Math.floor(Math.random() * BUDDY_OPENERS.length)];
+}
+
 function applyVoiceStyle(baseResponse, intent, options = {}) {
   const { recentHistory = [], userMessage = '' } = options;
   
   let styled = baseResponse;
-  
-  // 1. Remove banned phrases
+
+  // 1. HARD OPENER REWRITE: If first sentence starts with a therapist validation frame, replace it
+  const firstSentenceEnd = styled.search(/[.!?]/);
+  if (firstSentenceEnd > 0) {
+    const firstSentence = styled.substring(0, firstSentenceEnd + 1);
+    if (containsTherapistFrame(firstSentence)) {
+      const rest = styled.substring(firstSentenceEnd + 1).trim();
+      const opener = pickBuddyOpener();
+      styled = rest.length > 5 ? `${opener} ${rest}` : opener;
+      console.log(`[VOICE] OPENER REWRITE: "${firstSentence.trim()}" → "${opener}"`);
+    }
+  }
+
+  // 2. STRIP BANNED PHRASES: Remove entire sentences containing banned phrases
   const banned = containsBannedPhrases(styled);
   if (banned.length > 0) {
-    console.log(`[VOICE] Detected banned phrases: ${banned.join(', ')}`);
+    console.log(`[VOICE] Stripping banned phrases: ${banned.join(', ')}`);
+    const sentences = splitSentences(styled);
+    const cleaned = sentences.filter(s => {
+      const sLower = s.toLowerCase();
+      return !banned.some(b => sLower.includes(b.toLowerCase()));
+    });
+    if (cleaned.length > 0) {
+      styled = cleaned.join(' ').trim();
+    } else {
+      styled = pickBuddyOpener();
+      console.log(`[VOICE] All sentences banned — replaced with buddy opener: "${styled}"`);
+    }
   }
-  
-  // 2. Apply tone based on response type
-  const tone = RESPONSE_TONE_MAP[intent.response_type] || RESPONSE_TONE_MAP.presence;
-  
-  // 3. Lowercase first letter for grounded feel (unless it's "I")
+
+  // 3. STRIP THERAPIST FRAME SENTENCES: Remove any remaining therapist-frame sentences
+  {
+    const sentences = splitSentences(styled);
+    const cleaned = [];
+    let strippedCount = 0;
+    for (const s of sentences) {
+      if (containsTherapistFrame(s)) {
+        strippedCount++;
+        console.log(`[VOICE] THERAPIST FRAME stripped: "${s.trim()}"`);
+      } else {
+        cleaned.push(s);
+      }
+    }
+    if (strippedCount > 0) {
+      styled = cleaned.length > 0 ? cleaned.join(' ').trim() : pickBuddyOpener();
+    }
+  }
+
+  // 4. Lowercase first letter for grounded feel (unless it's "I")
   if (styled.length > 0 && styled[0] !== 'I' && /^[A-Z]/.test(styled)) {
     styled = styled[0].toLowerCase() + styled.slice(1);
   }
   
-  // 4. Remove exclamation marks (too high energy)
+  // 5. Remove exclamation marks (too high energy)
   styled = styled.replace(/!/g, '.');
   
-  // 5. Shorten overly long sentences (slow cadence)
-  const sentences = styled.split(/(?<=[.!?])\s+/);
+  // 6. Shorten overly long sentences (slow cadence)
+  const sentences = splitSentences(styled);
   if (sentences.length > 4) {
-    styled = sentences.slice(0, 4).join(' ');
+    styled = sentences.slice(0, 3).join(' ');
   }
   
-  // 6. Music awareness — handled entirely by V2 prompt directives now.
-  // Random phrase injection removed: it caused phrases like "quieter now"
-  // or "let the sound hold you" to appear in unrelated responses.
-  
+  // 7. Final safety: if everything got stripped, use a buddy fallback
+  if (!styled || styled.trim().length < 3) {
+    styled = pickBuddyOpener();
+    console.log(`[VOICE] Empty after cleanup — buddy fallback: "${styled}"`);
+  }
+
   return styled;
 }
 
@@ -534,10 +626,34 @@ function validateResponse(response, intent, recentHistory = []) {
   
   const hasConversationContext = recentHistory && recentHistory.length >= 4;
   
-  // Check for banned phrases
-  const banned = containsBannedPhrases(response);
+  // Check for banned phrases — actually strip them
+  const banned = containsBannedPhrases(corrected);
   if (banned.length > 0) {
-    issues.push(`Contains banned phrases: ${banned.join(', ')}`);
+    issues.push(`Contains banned phrases: ${banned.join(', ')} — STRIPPING`);
+    const sentences = splitSentences(corrected);
+    const cleaned = sentences.filter(s => {
+      const sLower = s.toLowerCase();
+      return !banned.some(b => sLower.includes(b.toLowerCase()));
+    });
+    corrected = cleaned.length > 0 ? cleaned.join(' ').trim() : pickBuddyOpener();
+  }
+  
+  // Check for therapist validation frames — strip those sentences
+  {
+    const sentences = splitSentences(corrected);
+    const cleaned = [];
+    let frameCount = 0;
+    for (const s of sentences) {
+      if (containsTherapistFrame(s)) {
+        frameCount++;
+        issues.push(`Therapist frame: "${s.trim()}" — STRIPPED`);
+      } else {
+        cleaned.push(s);
+      }
+    }
+    if (frameCount > 0) {
+      corrected = cleaned.length > 0 ? cleaned.join(' ').trim() : pickBuddyOpener();
+    }
   }
   
   // Check for unsolicited activity/soundscape offers - these should be blocked
@@ -559,7 +675,7 @@ function validateResponse(response, intent, recentHistory = []) {
   }
   
   // HOLLOW RESPONSE CHECK: Detect formulaic patterns that are topic-specific but emotionally dead
-  if (hasConversationContext) {
+  {
     const hollow = detectHollowResponse(corrected);
     if (hollow) {
       const topics = extractRecentTopics(recentHistory);
@@ -635,6 +751,9 @@ function validateResponse(response, intent, recentHistory = []) {
 
 module.exports = {
   applyVoiceStyle,
+  containsTherapistFrame,
+  THERAPIST_FRAME_PATTERNS,
+  BUDDY_OPENERS,
   buildVoicePromptInjection,
   validateResponse,
   isConversationRestart,
