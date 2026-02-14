@@ -688,8 +688,8 @@ function applyTimeOfDayRules(clientState, signals) {
   
   const maxSentences = {
     'morning': 3,
-    'day': 3,
-    'evening': 2,
+    'day': 4,
+    'evening': 3,
     'late_night': 2
   }[tone] || 3;
   

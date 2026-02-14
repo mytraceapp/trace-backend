@@ -9364,10 +9364,21 @@ Your response (text only, no JSON):`;
     if (!parsed && timeBudgetExceeded()) {
       const elapsed = Date.now() - requestStartTime;
       console.warn(`[TIMING] Hard deadline hit at ${elapsed}ms — using relational fallback`);
+      const fallbackPool = [
+        "still here. take your time.",
+        "I'm listening — no rush.",
+        "sitting with that for a sec.",
+        "heard you. take a breath if you need.",
+        "yeah — I'm not going anywhere.",
+        "right here whenever you're ready.",
+        "mm. let that land for a moment.",
+        "no rush at all. I'm here.",
+      ];
+      const fallbackMsg = isCrisisMode
+        ? "I'm here. you can call or text 988 anytime — they're there 24/7."
+        : fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
       parsed = {
-        message: isCrisisMode 
-          ? "I'm here. you can call or text 988 anytime — they're there 24/7."
-          : "still here. take your time.",
+        message: fallbackMsg,
         activity_suggestion: { name: null, reason: null, should_navigate: false }
       };
     }

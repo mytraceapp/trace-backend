@@ -205,20 +205,24 @@ function inferIntentType({ currentMessage, cognitiveIntent, doorwaysResult, trac
   }
 
   // fallback using cognitiveIntent if available
-  if (cognitiveIntent?.asks_for_help) return { intentType: "clarify", mode: "micro" };
+  if (cognitiveIntent?.asks_for_help) return { intentType: "clarify", mode: "normal" };
   if (cognitiveIntent?.emotional_context && cognitiveIntent.emotional_context !== "neutral") {
-    return { intentType: "presence", mode: "micro" };
+    return { intentType: "presence", mode: "normal" };
   }
 
   // Check traceBrain signals
   if (traceBrainSignals?.asksForHelp) {
-    return { intentType: "clarify", mode: "micro" };
+    return { intentType: "clarify", mode: "normal" };
   }
   if (traceBrainSignals?.highArousal || traceBrainSignals?.lowMood) {
-    return { intentType: "presence", mode: "micro" };
+    return { intentType: "presence", mode: "normal" };
   }
 
-  return { intentType: "other", mode: "micro" };
+  const words = (currentMessage || "").trim().split(/\s+/).length;
+  if (words <= 3) {
+    return { intentType: "other", mode: "micro" };
+  }
+  return { intentType: "other", mode: "normal" };
 }
 
 // --- Pattern matchers ---

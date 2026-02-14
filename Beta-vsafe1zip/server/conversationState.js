@@ -170,25 +170,27 @@ function getNextLengthNudge(visitorId, userMessage, opts = {}) {
   if (isCrisis) return { tier: LENGTH_TIERS.SHORT, reason: 'crisis_override', userEnergy };
   if (isOnboarding) return { tier: LENGTH_TIERS.MEDIUM, reason: 'onboarding', userEnergy };
 
+  const recent3 = (history || []).slice(-3);
+  const counts = {};
+  for (const t of recent3) counts[t] = (counts[t] || 0) + 1;
+  const stuckShort = (counts[LENGTH_TIERS.ULTRA_SHORT] || 0) + (counts[LENGTH_TIERS.SHORT] || 0) >= 3;
+
   if (userEnergy === 'low') {
-    const lowOptions = [LENGTH_TIERS.ULTRA_SHORT, LENGTH_TIERS.ULTRA_SHORT, LENGTH_TIERS.SHORT];
-    const pick = lowOptions[Math.floor(Math.random() * lowOptions.length)];
-    return { tier: pick, reason: 'user_low_energy', userEnergy };
+    if (stuckShort) {
+      return { tier: LENGTH_TIERS.SHORT, reason: 'low_energy_but_rhythm_break', userEnergy };
+    }
+    return { tier: LENGTH_TIERS.SHORT, reason: 'user_low_energy', userEnergy };
   }
 
   if (history.length < 2) {
     return { tier: LENGTH_TIERS.SHORT, reason: 'early_conversation', userEnergy };
   }
 
-  const recent3 = history.slice(-3);
-  const counts = {};
-  for (const t of recent3) counts[t] = (counts[t] || 0) + 1;
-
   if (counts[LENGTH_TIERS.MEDIUM] >= 2 || counts[LENGTH_TIERS.LONG] >= 2) {
     return { tier: LENGTH_TIERS.ULTRA_SHORT, reason: 'rhythm_break_after_density', userEnergy };
   }
 
-  if (counts[LENGTH_TIERS.ULTRA_SHORT] >= 2 || counts[LENGTH_TIERS.SHORT] >= 3) {
+  if (stuckShort) {
     if (userEnergy === 'high') {
       return { tier: LENGTH_TIERS.MEDIUM, reason: 'rhythm_break_user_searching', userEnergy };
     }
