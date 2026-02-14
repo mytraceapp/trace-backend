@@ -959,6 +959,157 @@ function buildControlBlock({
   return lines.join('\n');
 }
 
+// ============================================================
+// SERVER-SIDE ENFORCEMENT — "No Drift" Guardrails
+// Run after the model returns a draft, before sending to user.
+// ============================================================
+
+const FORBIDDEN_PHRASES = [
+  'i hear you saying',
+  'what i\'m hearing is',
+  'it\'s important to',
+  'it\'s okay to feel',
+  'remember that you',
+  'you deserve to',
+  'be gentle with yourself',
+  'give yourself grace',
+  'give yourself permission',
+  'practice self-care',
+  'practice self-compassion',
+  'take care of yourself',
+  'you are enough',
+  'you are worthy',
+  'you are not alone',
+  'you\'re not alone in this',
+  'you matter',
+  'i\'m here for you',
+  'i\'m so proud of you',
+  'sending you',
+  'sending love',
+  'sending hugs',
+  'virtual hug',
+  'big hug',
+  'safe space',
+  'coping mechanism',
+  'coping strategy',
+  'coping skill',
+  'have you tried',
+  'you might want to try',
+  'i would suggest',
+  'i would recommend',
+  'my suggestion is',
+  'let me suggest',
+  'one thing you can do',
+  'one thing that might help',
+  'a helpful strategy',
+  'tools in your toolbox',
+  'tools in your toolkit',
+  'that\'s perfectly normal',
+  'that\'s completely valid',
+  'your feelings are valid',
+  'it\'s completely normal',
+  'and that\'s okay',
+  'first of all',
+  'i want you to know',
+  'let\'s unpack that',
+  'let\'s explore that',
+  'let\'s dig into that',
+  'let me reflect back',
+  'what i notice is',
+  'i\'m sensing that',
+];
+
+const THERAPY_PATTERNS = [
+  /\b(it sounds like)\b/i,
+  /\b(i hear you)\b/i,
+  /\b(that must be)\b/i,
+  /\b(that sounds really)\b/i,
+  /\b(i can only imagine)\b/i,
+  /\b(how does that make you feel)\b/i,
+  /\b(what comes up for you)\b/i,
+  /\b(i want to hold space)\b/i,
+  /\b(hold space for)\b/i,
+  /\b(let's sit with that)\b/i,
+  /\b(i'm hearing that)\b/i,
+  /\b(thank you for sharing)\b/i,
+  /\b(thank you for trusting me)\b/i,
+  /\b(that takes courage)\b/i,
+  /\b(that takes a lot of courage)\b/i,
+  /\b(i appreciate you sharing)\b/i,
+  /\b(on a scale of)\b/i,
+];
+
+function runHardFilter(responseText, maxWords, questionsAllowed) {
+  if (!responseText || typeof responseText !== 'string') {
+    return { pass: true, reasons: [] };
+  }
+
+  const reasons = [];
+
+  if (responseText.includes('!')) {
+    reasons.push('exclamation');
+  }
+
+  const lowerText = responseText.toLowerCase();
+  for (const phrase of FORBIDDEN_PHRASES) {
+    if (lowerText.includes(phrase)) {
+      reasons.push(`forbidden:"${phrase}"`);
+      break;
+    }
+  }
+
+  const wordCount = responseText.split(/\s+/).filter(Boolean).length;
+  if (maxWords && wordCount > maxWords) {
+    reasons.push(`over_length:${wordCount}/${maxWords}`);
+  }
+
+  if (questionsAllowed === 0 && responseText.includes('?')) {
+    reasons.push('question_when_disallowed');
+  }
+
+  for (const pattern of THERAPY_PATTERNS) {
+    if (pattern.test(responseText)) {
+      reasons.push(`therapy_pattern:${pattern.source}`);
+      break;
+    }
+  }
+
+  return { pass: reasons.length === 0, reasons };
+}
+
+function buildWitnessRegenPrompt(maxWords, anchorsText) {
+  let prompt = `Rewrite the response in TRACE witness voice. No questions. No exclamation points. Under ${maxWords || 50} words.`;
+  if (anchorsText && anchorsText !== '(none)') {
+    prompt += ' Use relational anchor names.';
+  }
+  return prompt;
+}
+
+function enforceQuestionThrottle(responseText, questionsAllowed) {
+  if (!responseText || typeof responseText !== 'string') return responseText;
+  if (questionsAllowed !== 1) return responseText;
+
+  const questionCount = (responseText.match(/\?/g) || []).length;
+  if (questionCount <= 1) return responseText;
+
+  const sentences = responseText.split(/(?<=[.!?])\s+/);
+  let kept = false;
+  const rewritten = sentences.map(sentence => {
+    if (!sentence.includes('?')) return sentence;
+    if (!kept) {
+      kept = true;
+      return sentence;
+    }
+    return sentence
+      .replace(/\?$/, '.')
+      .replace(/^(do you|are you|have you|can you|would you|could you|did you|will you|is it|was it|does it|don't you|isn't it|aren't you|won't you|haven't you|hasn't it)/i, (match) => {
+        return match;
+      });
+  });
+
+  return rewritten.join(' ');
+}
+
 module.exports = {
   STAGES,
   MOVE_TYPES,
@@ -997,4 +1148,9 @@ module.exports = {
   getQuestionCooldown,
   buildControlBlock,
   computeQuestionMode,
+  runHardFilter,
+  buildWitnessRegenPrompt,
+  enforceQuestionThrottle,
+  FORBIDDEN_PHRASES,
+  THERAPY_PATTERNS,
 };

@@ -9118,7 +9118,24 @@ Your response (text only, no JSON):`;
     });
     const controlLengthLabel = rhythmNudge?.tier === 'ultra_short' ? 'micro' : rhythmNudge?.tier === 'short' ? 'short' : rhythmNudge?.tier === 'long' ? 'long' : 'medium';
     const controlQBudget = conversationState.computeQuestionMode(effectiveUserId).budget;
-    console.log(`[CONTROL_BLOCK] LENGTH_MODE=${controlLengthLabel} QUESTION_BUDGET=${controlQBudget} soundscape=${controlSoundscape} mood=${controlMood} door=${controlDoorContext}`);
+    const controlMaxWords = controlLengthLabel === 'micro' ? 5 : controlLengthLabel === 'short' ? 20 : controlLengthLabel === 'long' ? 90 : 50;
+    console.log(`[CONTROL_BLOCK] LENGTH_MODE=${controlLengthLabel} QUESTION_BUDGET=${controlQBudget} maxWords=${controlMaxWords} soundscape=${controlSoundscape} mood=${controlMood} door=${controlDoorContext}`);
+
+    // ============================================================
+    // BASIN SILENCE RULE: Skip LLM call entirely if user is in Basin
+    // Basin = pure stillness, no assistant message needed.
+    // ============================================================
+    const isBasinSoundscape = controlSoundscape && controlSoundscape.toLowerCase() === 'basin';
+    if (isBasinSoundscape && !parsed) {
+      console.log('[BASIN RULE] Soundscape is Basin — returning silence (empty response)');
+      const endTime = Date.now();
+      return res.json({
+        message: '',
+        soundscape: { name: 'basin', mood: controlMood },
+        detected_state: controlMood,
+        meta: { timing: { total: endTime - requestStartTime }, basin_silence: true },
+      });
+    }
 
     // LAYER 1: Selected model with retries (skip if premium already handled)
     const preprocessTime = Date.now() - requestStartTime;
@@ -9595,6 +9612,78 @@ Generate a single warm, empathetic response (1 sentence) for someone who just sa
       }
     }
     
+    // ============================================================
+    // SERVER-SIDE ENFORCEMENT: Hard Filter + Witness-Mode Regen
+    // If response contains !, forbidden phrases, therapy patterns,
+    // exceeds max words, or questions when disallowed → regen once.
+    // ============================================================
+    if (parsed && parsed.message) {
+      const hardFilterResult = conversationState.runHardFilter(
+        parsed.message,
+        controlMaxWords,
+        controlQBudget
+      );
+      if (!hardFilterResult.pass) {
+        console.log(`[HARD FILTER] FAILED: ${hardFilterResult.reasons.join(', ')} — regenerating in witness mode`);
+        try {
+          const witnessPrompt = conversationState.buildWitnessRegenPrompt(controlMaxWords, controlAnchorsText);
+          const witnessMessages = [
+            { role: 'system', content: controlBlock },
+            ...messagesWithHydration,
+            { role: 'assistant', content: parsed.message },
+            { role: 'user', content: witnessPrompt },
+          ];
+          const witnessCompletion = await openai.chat.completions.create({
+            model: selectedModel,
+            messages: witnessMessages,
+            temperature: 0.6,
+            max_tokens: 200,
+          });
+          const witnessText = witnessCompletion.choices[0]?.message?.content?.trim() || '';
+          if (witnessText.length > 5) {
+            let cleanWitness = witnessText;
+            try {
+              const witnessJson = JSON.parse(witnessText);
+              cleanWitness = witnessJson.message || witnessText;
+            } catch (_) {}
+            const recheck = conversationState.runHardFilter(cleanWitness, controlMaxWords, controlQBudget);
+            if (recheck.pass) {
+              parsed.message = cleanWitness;
+              console.log('[HARD FILTER] Witness regen accepted');
+            } else {
+              let stripped = cleanWitness.replace(/!/g, '.');
+              if (controlQBudget === 0) stripped = stripped.replace(/\?/g, '.');
+              parsed.message = stripped;
+              console.log(`[HARD FILTER] Witness regen still dirty (${recheck.reasons.join(', ')}) — stripped punctuation`);
+            }
+          } else {
+            let stripped = parsed.message.replace(/!/g, '.');
+            if (controlQBudget === 0) stripped = stripped.replace(/\?/g, '.');
+            parsed.message = stripped;
+            console.log('[HARD FILTER] Witness regen empty — stripped punctuation from original');
+          }
+        } catch (witnessErr) {
+          console.error('[HARD FILTER] Witness regen failed:', witnessErr.message);
+          let stripped = parsed.message.replace(/!/g, '.');
+          if (controlQBudget === 0) stripped = stripped.replace(/\?/g, '.');
+          parsed.message = stripped;
+        }
+      }
+    }
+
+    // ============================================================
+    // SERVER-SIDE ENFORCEMENT: Question Throttle
+    // If QUESTION_BUDGET=1 but response has 2+ questions,
+    // keep only the first and convert the rest to statements.
+    // ============================================================
+    if (parsed && parsed.message) {
+      const beforeThrottle = parsed.message;
+      parsed.message = conversationState.enforceQuestionThrottle(parsed.message, controlQBudget);
+      if (parsed.message !== beforeThrottle) {
+        console.log('[QUESTION THROTTLE] Reduced excess questions to 1');
+      }
+    }
+
     // ============================================================
     // RELATIONAL MEMORY Phase 2: Post-processing guardrail
     // Replace "your sister" -> "Emma" when anchor injected but name not used
