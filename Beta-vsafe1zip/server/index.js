@@ -91,7 +91,7 @@ const {
 const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways');
 const { processDoorways, bootstrapConversationState, DOORS, loadDoorwayProfile, saveDoorwayProfile } = require('./doorwaysV1');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
-const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
+const { buildNewsContextSummary, isNewsQuestion, isNewsFollowUp, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews, markNewsFetched, tickNewsState } = require('./newsClient');
 const { isCurrentEventsQuery, searchForContext } = require('./searchTools');
 const { 
   markUserInCrisis, 
@@ -6737,20 +6737,25 @@ app.post('/api/chat', async (req, res) => {
     }
 
     if (!isCrisisMode) {
-      // Load news context if user is asking about current events
       try {
+        tickNewsState(effectiveUserId);
         const isDirectNewsQuestion = isNewsQuestion(userText);
         const isConfirmingNews = isNewsConfirmation(userText, messages);
+        const followUpResult = isNewsFollowUp(userText, messages, effectiveUserId);
         const userInsisting = isInsistingOnNews(messages);
         
-        if (isDirectNewsQuestion || isConfirmingNews) {
-          console.log('[TRACE NEWS] News question detected, fetching...');
+        if (isDirectNewsQuestion || isConfirmingNews || followUpResult.isFollowUp) {
+          const triggerReason = isDirectNewsQuestion ? 'direct' : isConfirmingNews ? 'confirmation' : 'follow-up';
+          console.log(`[TRACE NEWS] News question detected (${triggerReason}), fetching...`);
           
           let searchTopic = userText;
           const directTopic = extractNewsTopic(userText);
           const isPronouns = /^(that|this|it|them|those|these)$/i.test((directTopic || '').trim());
           
-          if (isConfirmingNews || (isDirectNewsQuestion && (isPronouns || directTopic === 'general news'))) {
+          if (followUpResult.isFollowUp && followUpResult.topic) {
+            searchTopic = followUpResult.topic;
+            console.log('[TRACE NEWS] Using follow-up topic from recent news discussion:', searchTopic);
+          } else if (isConfirmingNews || (isDirectNewsQuestion && (isPronouns || directTopic === 'general news')) || (followUpResult.isFollowUp && isPronouns)) {
             const pendingTopic = extractPendingNewsTopic(messages);
             if (pendingTopic) {
               searchTopic = pendingTopic;
@@ -6775,7 +6780,9 @@ app.post('/api/chat', async (req, res) => {
           
           newsContext = rawNewsContext;
           if (newsContext) {
-            console.log('[TRACE NEWS] Loaded news context');
+            const resolvedTopic = extractNewsTopic(searchTopic);
+            markNewsFetched(effectiveUserId, resolvedTopic !== 'general news' ? resolvedTopic : searchTopic);
+            console.log('[TRACE NEWS] Loaded news context, marked state for follow-ups');
           }
         }
       } catch (err) {
@@ -8564,6 +8571,9 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
 
       if (fullContext) {
         systemPrompt += '\n\n' + fullContext;
+        if (fullContext.includes('NEWS_CONTEXT')) {
+          systemPrompt += '\n\nFACTUAL GROUNDING: You have real news data above. ONLY share specific details (names, places, numbers, events) that appear in the NEWS_CONTEXT. If the user asks a follow-up question and the answer is not in the provided data, say something like "I don\'t have those specific details" rather than guessing or making up information. Never fabricate names, victim counts, or event specifics.';
+        }
       }
 
       const attunementIncluded = systemPrompt.includes('[TRACE_ATTUNEMENT_V1]');

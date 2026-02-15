@@ -116,15 +116,12 @@ ${JSON.stringify(brief, null, 2)}`;
 
 function isNewsQuestion(text) {
   if (!text) return false;
-  // Normalize curly quotes to straight quotes
   const t = text.toLowerCase().trim().replace(/['']/g, "'");
 
-  // Simple check: if user mentions "news", fetch news
   if (t.includes('news')) {
     return true;
   }
 
-  // Also catch current events questions without the word "news"
   const eventPatterns = [
     'current events',
     "what's happening",
@@ -143,6 +140,74 @@ function isNewsQuestion(text) {
   ];
   
   return eventPatterns.some(pattern => t.includes(pattern));
+}
+
+const _newsConvoState = new Map();
+
+function markNewsFetched(userId, topic) {
+  _newsConvoState.set(userId, { topic, fetchedAt: Date.now(), turnsSince: 0 });
+}
+
+function tickNewsState(userId) {
+  const state = _newsConvoState.get(userId);
+  if (state) {
+    state.turnsSince++;
+    if (state.turnsSince > 5) {
+      _newsConvoState.delete(userId);
+    }
+  }
+}
+
+function getNewsState(userId) {
+  return _newsConvoState.get(userId) || null;
+}
+
+function isNewsFollowUp(text, messages, userId) {
+  if (!text || !messages?.length) return { isFollowUp: false, topic: null };
+  const t = text.toLowerCase().trim();
+  
+  const trackedState = userId ? getNewsState(userId) : null;
+  let newsWasDiscussed = !!trackedState;
+  let lastNewsTopic = trackedState?.topic || null;
+  
+  if (!newsWasDiscussed) {
+    const recentMessages = messages.slice(-10);
+    for (const msg of recentMessages) {
+      const content = (msg.content || '').toLowerCase();
+      if (msg.role === 'user' && isNewsQuestion(msg.content)) {
+        newsWasDiscussed = true;
+        const topic = extractNewsTopic(msg.content);
+        if (topic && topic !== 'general news') lastNewsTopic = topic;
+      }
+    }
+  }
+  
+  if (!newsWasDiscussed) return { isFollowUp: false, topic: null };
+  
+  const followUpPatterns = [
+    /who (got|was|were|did|is|are)/i,
+    /what happened/i,
+    /where (was|did|is|were)/i,
+    /when (did|was|were|is)/i,
+    /how many/i,
+    /how (did|was|is)/i,
+    /why (did|was|were|is)/i,
+    /tell me more/i,
+    /more (about|on|details)/i,
+    /what (about|else)/i,
+    /any (other|more|update)/i,
+    /details/i,
+    /what (exactly|specifically)/i,
+    /can you (tell|share|give)/i,
+    /do you know/i,
+  ];
+  
+  const matched = followUpPatterns.some(p => p.test(t));
+  if (matched) {
+    console.log('[NEWS] Detected follow-up question about recent news topic:', lastNewsTopic || 'general');
+    return { isFollowUp: true, topic: lastNewsTopic };
+  }
+  return { isFollowUp: false, topic: null };
 }
 
 // Check if user is repeatedly asking for news (insisting)
@@ -282,8 +347,11 @@ module.exports = {
   buildNewsContextSummary,
   fetchNewsArticles,
   isNewsQuestion,
+  isNewsFollowUp,
   isNewsConfirmation,
   extractPendingNewsTopic,
   extractNewsTopic,
   isInsistingOnNews,
+  markNewsFetched,
+  tickNewsState,
 };
