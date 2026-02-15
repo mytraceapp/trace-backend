@@ -1277,10 +1277,29 @@ function getCountryFromTimezone(timezone) {
 
 // ---- HOLIDAYS HELPER (AbstractAPI) ----
 
+const _holidayCache = new Map();
+const HOLIDAY_CACHE_TTL = 4 * 60 * 60 * 1000;
+
+function pickBestHoliday(holidays) {
+  if (!holidays || holidays.length === 0) return null;
+  const national = holidays.find(h => (h.type || '').toLowerCase().includes('national'));
+  if (national) return national;
+  const publicH = holidays.find(h => (h.type || '').toLowerCase().includes('public'));
+  if (publicH) return publicH;
+  const observance = holidays.find(h => (h.type || '').toLowerCase().includes('observance') && !(h.type || '').toLowerCase().includes('local'));
+  if (observance) return observance;
+  return holidays[0];
+}
+
 async function fetchHolidaysForDate(apiKey, country, date) {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
   const day = date.getDate();
+  const cacheKey = `${country}_${year}_${month}_${day}`;
+  const cached = _holidayCache.get(cacheKey);
+  if (cached && (Date.now() - cached.ts) < HOLIDAY_CACHE_TTL) {
+    return cached.data;
+  }
   const url =
     `https://holidays.abstractapi.com/v1/` +
     `?api_key=${encodeURIComponent(apiKey)}` +
@@ -1289,15 +1308,88 @@ async function fetchHolidaysForDate(apiKey, country, date) {
   try {
     const res = await fetch(url);
     if (!res.ok) {
-      console.error('[HOLIDAY] AbstractAPI error:', res.status, await res.text());
+      const errText = await res.text();
+      if (res.status === 429) {
+        console.warn('[HOLIDAY] Rate limited, using cache if available');
+        return cached?.data || [];
+      }
+      console.error('[HOLIDAY] AbstractAPI error:', res.status, errText);
       return [];
     }
     const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const result = Array.isArray(data) ? data : [];
+    _holidayCache.set(cacheKey, { data: result, ts: Date.now() });
+    return result;
   } catch (err) {
     console.error('[HOLIDAY] AbstractAPI fetch error:', err);
-    return [];
+    return cached?.data || [];
   }
+}
+
+async function getProactiveHolidayContext({ timezone, countryCode }) {
+  const apiKey = process.env.ABSTRACT_HOLIDAYS_API_KEY;
+  if (!apiKey) return null;
+
+  let country = countryCode;
+  if (!country && timezone) {
+    country = getCountryFromTimezone(timezone);
+  }
+  country = country || 'US';
+
+  let userLocalDate = new Date();
+  if (timezone) {
+    try {
+      const localStr = new Date().toLocaleString('en-US', { timeZone: timezone });
+      userLocalDate = new Date(localStr);
+    } catch (e) {}
+  }
+
+  const yesterday = new Date(userLocalDate);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const tomorrow = new Date(userLocalDate);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const todayHolidays = await fetchHolidaysForDate(apiKey, country, userLocalDate);
+  await new Promise(r => setTimeout(r, 600));
+  const yesterdayHolidays = await fetchHolidaysForDate(apiKey, country, yesterday);
+  await new Promise(r => setTimeout(r, 600));
+  const tomorrowHolidays = await fetchHolidaysForDate(apiKey, country, tomorrow);
+
+  const todayBest = pickBestHoliday(todayHolidays);
+  const yesterdayBest = pickBestHoliday(yesterdayHolidays);
+  const tomorrowBest = pickBestHoliday(tomorrowHolidays);
+
+  const dateParts = [];
+  if (yesterdayBest) {
+    dateParts.push(`Yesterday was ${yesterdayBest.name || yesterdayBest.local_name}`);
+  }
+  if (todayBest) {
+    dateParts.push(`Today IS ${todayBest.name || todayBest.local_name}`);
+  }
+  if (tomorrowBest) {
+    dateParts.push(`Tomorrow is ${tomorrowBest.name || tomorrowBest.local_name}`);
+  }
+
+  if (dateParts.length === 0) {
+    console.log('[HOLIDAY] No holidays today or nearby');
+    return { controlBlockLine: null, promptContext: null };
+  }
+
+  const holidayLine = dateParts.join('. ') + '.';
+  console.log('[HOLIDAY] Proactive context:', holidayLine);
+
+  let promptContext = `HOLIDAY_CONTEXT: ${holidayLine} `;
+  if (todayBest) {
+    const isPublic = (todayBest.type || '').toLowerCase().includes('public') || (todayBest.type || '').toLowerCase().includes('national');
+    promptContext += isPublic
+      ? `Today is a public holiday — many people may have the day off. `
+      : `It's observed by some people. `;
+  }
+  promptContext += `Be aware that holidays can bring up mixed emotions. ` +
+    `If the user asks about holidays, share this info naturally and accurately. ` +
+    `NEVER say a holiday is "tomorrow" if it was yesterday, or vice versa — use the ABSOLUTE DATE FACT above to verify.`;
+
+  return { controlBlockLine: holidayLine, promptContext };
 }
 
 async function getHolidayContext({ countryCode, timezone, date = new Date(), checkNearby = false }) {
@@ -1317,12 +1409,12 @@ async function getHolidayContext({ countryCode, timezone, date = new Date(), che
   country = country || 'US';
 
   const todayHolidays = await fetchHolidaysForDate(apiKey, country, date);
+  const todayBest = pickBestHoliday(todayHolidays);
 
-  if (todayHolidays.length > 0) {
-    const primary = todayHolidays[0];
-    const name = primary.name || primary.local_name || 'a holiday';
-    const type = primary.type || '';
-    const isPublic = String(type).toLowerCase().includes('public');
+  if (todayBest) {
+    const name = todayBest.name || todayBest.local_name || 'a holiday';
+    const type = todayBest.type || '';
+    const isPublic = String(type).toLowerCase().includes('public') || String(type).toLowerCase().includes('national');
     const summary =
       `HOLIDAY_CONTEXT: Today is ${name} in ${country}. ` +
       (isPublic
@@ -1340,24 +1432,23 @@ async function getHolidayContext({ countryCode, timezone, date = new Date(), che
     const tomorrow = new Date(date);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const [yesterdayHolidays, tomorrowHolidays] = await Promise.all([
-      fetchHolidaysForDate(apiKey, country, yesterday),
-      fetchHolidaysForDate(apiKey, country, tomorrow),
-    ]);
+    const yesterdayHolidays = await fetchHolidaysForDate(apiKey, country, yesterday);
+    await new Promise(r => setTimeout(r, 600));
+    const tomorrowHolidays = await fetchHolidaysForDate(apiKey, country, tomorrow);
 
+    const yesterdayBest = pickBestHoliday(yesterdayHolidays);
+    const tomorrowBest = pickBestHoliday(tomorrowHolidays);
     const parts = [];
-    if (yesterdayHolidays.length > 0) {
-      const name = yesterdayHolidays[0].name || yesterdayHolidays[0].local_name || 'a holiday';
-      parts.push(`Yesterday was ${name}`);
+    if (yesterdayBest) {
+      parts.push(`Yesterday was ${yesterdayBest.name || yesterdayBest.local_name}`);
     }
-    if (tomorrowHolidays.length > 0) {
-      const name = tomorrowHolidays[0].name || tomorrowHolidays[0].local_name || 'a holiday';
-      parts.push(`Tomorrow is ${name}`);
+    if (tomorrowBest) {
+      parts.push(`Tomorrow is ${tomorrowBest.name || tomorrowBest.local_name}`);
     }
 
     if (parts.length > 0) {
       const summary =
-        `HOLIDAY_CONTEXT: No holiday today in ${country}, but ${parts.join(' and ')}. ` +
+        `HOLIDAY_CONTEXT: No major holiday today in ${country}, but ${parts.join(' and ')}. ` +
         `If the user is asking about holidays, share this info naturally. ` +
         `Be aware that holiday weekends can affect people's moods and routines. ` +
         `Do not mention that you used a holiday API or call this HOLIDAY_CONTEXT by name.`;
@@ -6858,6 +6949,7 @@ app.post('/api/chat', async (req, res) => {
     let weatherContext = null;
     let dogContext = null;
     let holidayContext = null;
+    let proactiveHolidayLine = null;
     let foodContext = null;
     let jokeContext = null;
     let sunlightContext = null;
@@ -6986,6 +7078,9 @@ app.post('/api/chat', async (req, res) => {
         if (!isFactualTurn && isFactualQuestion(userText)) {
           isFactualTurn = true;
         }
+        if (!isFactualTurn && isHolidayRelated(userText)) {
+          isFactualTurn = true;
+        }
       } catch (err) {
         console.error('[TRACE NEWS] Failed to build news context:', err.message);
       }
@@ -7033,16 +7128,30 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
         console.error('[TRACE DOG] Failed to load dog context:', err.message);
       }
 
-      // Load holiday context if user mentions holidays
+      // Proactive holiday context — always fetch nearby holidays (cached 4h)
       try {
         const profileForHoliday = await getProfileBasicOnce();
-        const holidayResult = await maybeAttachHolidayContext({
-          messages,
-          profile: profileForHoliday,
-          requestTimezone: timezone,
+        const proactiveResult = await getProactiveHolidayContext({
+          timezone: profileForHoliday?.timezone || timezone,
+          countryCode: profileForHoliday?.country || null,
         });
-        if (holidayResult.holidaySummary) {
-          holidayContext = holidayResult.holidaySummary;
+        if (proactiveResult) {
+          if (proactiveResult.controlBlockLine) {
+            proactiveHolidayLine = proactiveResult.controlBlockLine;
+          }
+          if (proactiveResult.promptContext) {
+            holidayContext = proactiveResult.promptContext;
+          }
+        }
+        if (!holidayContext) {
+          const holidayResult = await maybeAttachHolidayContext({
+            messages,
+            profile: profileForHoliday,
+            requestTimezone: timezone,
+          });
+          if (holidayResult.holidaySummary) {
+            holidayContext = holidayResult.holidaySummary;
+          }
         }
       } catch (err) {
         console.error('[TRACE HOLIDAY] Failed to load holiday context:', err.message);
@@ -9368,13 +9477,14 @@ If the right move isn't obvious: one grounded observation about what you notice 
       anchorsText: controlAnchorsText,
       sessionSummary: controlSessionSummary,
       doorContext: controlDoorContext,
+      holidayLine: proactiveHolidayLine || null,
     });
     const controlLengthLabel = rhythmNudge?.tier === 'ultra_short' ? 'micro' : rhythmNudge?.tier === 'short' ? 'short' : rhythmNudge?.tier === 'long' ? 'long' : 'medium';
     const controlQBudget = conversationState.computeQuestionMode(effectiveUserId).budget;
-    const hasExternalContext = !!(newsContext || searchContext || weatherContext || foodContext);
+    const hasExternalContext = !!(newsContext || searchContext || weatherContext || foodContext || holidayContext);
     const baseMaxWords = controlLengthLabel === 'micro' ? 5 : controlLengthLabel === 'short' ? 20 : controlLengthLabel === 'long' ? 90 : 50;
     let controlMaxWords = baseMaxWords;
-    if (isFactualTurn && (newsContext || searchContext)) {
+    if (isFactualTurn && (newsContext || searchContext || holidayContext)) {
       controlMaxWords = Math.max(baseMaxWords, 200);
       console.log(`[CONTROL_BLOCK] Length override: ${baseMaxWords} → ${controlMaxWords} (factual turn with data)`);
     } else if (isFactualTurn) {
@@ -9383,6 +9493,9 @@ If the right move isn't obvious: one grounded observation about what you notice 
     } else if (hasExternalContext) {
       controlMaxWords = Math.max(baseMaxWords, 100);
       console.log(`[CONTROL_BLOCK] Length override: ${baseMaxWords} → ${controlMaxWords} (external context present)`);
+    }
+    if (proactiveHolidayLine) {
+      console.log(`[CONTROL_BLOCK] HOLIDAYS: ${proactiveHolidayLine}`);
     }
     console.log(`[CONTROL_BLOCK] LENGTH_MODE=${controlLengthLabel} QUESTION_BUDGET=${controlQBudget} maxWords=${controlMaxWords} soundscape=${controlSoundscape} mood=${controlMood} door=${controlDoorContext}`);
 
@@ -9905,14 +10018,17 @@ Your complete response:`;
           const recentContext = (messagesWithHydration || []).slice(-6)
             .map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${m.content}`)
             .join('\n');
-          plainPrompt = `${TRACE_IDENTITY_COMPACT}
+          const l3DateLine = (localDay && localDate) ? `\nTODAY IS: ${localDay}, ${localDate}. TIME: ${localTime || 'unknown'}.` : '';
+          const l3HolidayLine = proactiveHolidayLine ? `\nHOLIDAYS: ${proactiveHolidayLine}` : '';
+          const l3ContextLine = holidayContext ? `\n${holidayContext}` : '';
+          plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3DateLine}${l3HolidayLine}${l3ContextLine}
 
 Recent conversation:
 ${recentContext}
 
 User just said: "${lastUserContent}"
 
-Continue the conversation naturally. Stay in the same emotional lane — if they're sharing something personal, match that energy. 1-3 sentences max. No JSON, just your response:`;
+Continue the conversation naturally. Stay in the same emotional lane — if they're sharing something personal, match that energy. If the user asks about dates, holidays, or current events, use the date and holiday facts above — do NOT guess. 1-3 sentences max. No JSON, just your response:`;
         }
         
         const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : 400;
