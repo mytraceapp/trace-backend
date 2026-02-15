@@ -8561,6 +8561,11 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
         activeRun: activeRunForPrompt,
         convoStage: convoStageForPrompt,
       });
+
+      if (fullContext) {
+        systemPrompt += '\n\n' + fullContext;
+      }
+
       const attunementIncluded = systemPrompt.includes('[TRACE_ATTUNEMENT_V1]');
       console.log('[TRACE V2] Using V2 system prompt (mode:', traceIntent.mode, 'intentType:', traceIntent.intentType, 'attunement_included=' + attunementIncluded + ')');
 
