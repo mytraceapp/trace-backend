@@ -1,0 +1,124 @@
+You are my senior debugging assistant inside my Replit Node/Express backend for TRACE. The backend currently has problems with: (1) "memory / dates / recall" (conversation continuity and correct date handling) and (2) external data tools like NewsAPI not being pulled.
+
+CRITICAL CONTEXT FROM RECENT AUDIT:
+- The codebase has 19,713 lines in server/index.js
+- There are TWO PARALLEL PATHS for AI calls:
+  * Non-Premium: Uses gpt-4o-mini with FULL systemPrompt (includes date, news, memory, all context)
+  * Premium (T2): Uses gpt-5.1 with premiumTextPrompt (STRIPPED - only last 6 messages + identity)
+- The Premium path (line ~9166) is MISSING all context injections:
+  * NO CONTROL_BLOCK (no date)
+  * NO NEWS_CONTEXT
+  * NO MEMORY_CONTEXT (relational + topic + emotional)
+  * NO HOLIDAY_CONTEXT
+  * NO WEATHER_CONTEXT
+  * None of the 76 context injections reach gpt-5.1
+- This means Premium users have a functionally lobotomized AI
+
+Your job:
+Run a structured root-cause investigation and give me a concrete, minimal set of fixes (with code changes) that do NOT bloat prompts or destabilize the system.
+
+Context:
+- There is an Express API (port 3001) with endpoints like POST /api/chat and possibly /api/greeting, /api/analyze-emotion, /api/bubble-encouragement.
+- OpenAI requests are made from the backend.
+- We may be using environment variables like OPENAI_API_KEY and optionally a NewsAPI key.
+- The mobile app sends user messages to /api/chat.
+- NewsAPI IS integrated (server/newsClient.js, 469 lines) and IS being called
+- Date IS being injected in 3 places (CONTROL_BLOCK, TIME_AWARENESS, NEWS_CONTEXT)
+- BUT Premium T2 users don't get any of this
+
+Deliverables:
+A) A root-cause report with "what is broken" + "why it breaks" + "how to prove it" for each issue below.
+B) Code changes (diff/patch) with the smallest possible footprint.
+C) A "diagnostic mode" toggle that prints safe logs for debugging without leaking secrets.
+
+Issues to investigate (do ALL):
+
+0) **CRITICAL PRIORITY: PREMIUM T2 PATH MISSING CONTEXT**
+   - Locate line ~9166 where Premium path diverges
+   - Confirm that gpt-5.1 receives premiumTextPrompt instead of systemPrompt
+   - Verify that premiumTextPrompt does NOT include:
+     * CONTROL_BLOCK (has date)
+     * NEWS_CONTEXT (has fetched articles)
+     * MEMORY_CONTEXT (relational + topic + emotional)
+     * HOLIDAY_CONTEXT, WEATHER_CONTEXT, etc.
+   - FIX: Give gpt-5.1 the SAME full context that gpt-4o-mini gets
+   - Code change should be ~3 lines (replace premiumTextPrompt with systemPrompt in Step B)
+   - Add logging to show which path was taken (Premium T2 vs normal) and what context was included
+
+1) MEMORY / RECALL BROKEN
+   - Determine whether the backend is actually storing conversation history per user/conversationId.
+   - Check if conversation state is being overwritten, truncated incorrectly, or not persisted.
+   - Verify userId / conversationId is stable and passed from client; if missing, propose the least risky way to add it.
+   - Confirm the message array being sent to OpenAI includes the prior turns (and in the correct order).
+   - **SPECIFICALLY CHECK: Does Premium T2 path get memory context?** (It doesn't currently)
+   - Add logging to show: convo key, message count, last 2 user turns, last assistant turn lengths, which model path taken.
+
+2) DATES / "TODAY" WRONG
+   - Identify where "current date/time" is sourced.
+   - Confirm timezone handling (America/Los_Angeles).
+   - **KNOWN: Date IS in CONTROL_BLOCK (line 9515) but Premium T2 doesn't get CONTROL_BLOCK**
+   - Ensure the system prompt or tool context includes an explicit ISO timestamp and timezone each request.
+   - **FIX: Make sure Premium T2 receives CONTROL_BLOCK**
+   - Add a helper that injects a "time context" system message (short) without polluting the main prompt.
+   - Add a unit-like test or a simple endpoint /api/health/time that returns server time + LA time.
+   - Add logging to show: which date injection points were included in final prompt sent to model.
+
+3) NEWSAPI / EXTERNAL TOOLS FAILING
+   - **KNOWN: NewsAPI IS integrated and IS being called (server/newsClient.js)**
+   - **KNOWN: NEWS_CONTEXT is assembled at line 6966 and injected at line 7168**
+   - **PROBLEM: Premium T2 doesn't receive NEWS_CONTEXT**
+   - Find how NewsAPI is called (already found: newsClient.js).
+   - Verify env vars exist: NEWS_API_KEY (already confirmed exists).
+   - Check request construction (endpoint URL, query params, headers), and handle errors:
+       - 401/403 (bad key)
+       - 429 (rate limit)
+       - 5xx (NewsAPI)
+       - network/DNS issues in Replit
+   - **SPECIFICALLY CHECK: Is NEWS_CONTEXT included in premiumTextPrompt?** (It's not)
+   - Add a safe test endpoint /api/diag/news?q=... that runs one NewsAPI call and returns:
+       status code, brief error, and number of articles (no raw secrets).
+   - Add timeouts + retries (max 1 retry) and graceful fallback messaging if NewsAPI fails.
+   - Add logging to show: was news fetched? how many articles? was it included in prompt sent to model?
+
+4) "WHY TRACE CAN'T PULL ANYTHING" (GENERAL)
+   - Check that fetch/axios is available and not blocked.
+   - Confirm Node version and whether global fetch exists; if not, add node-fetch.
+   - Confirm CORS is not interfering (server-to-server should not be).
+   - Confirm request size limits and body parsing are not truncating messages.
+   - **HYPOTHESIS: Everything works for non-Premium, broken for Premium T2**
+
+Implementation rules:
+- Keep changes localized (prefer adding small helper modules).
+- No major refactors.
+- Do not log API keys or full user content in production logs.
+- Add DIAGNOSTIC_MODE=true env toggle for verbose logs.
+- Add /api/health endpoint showing: server up, openai configured (boolean), newsapi configured (boolean), memory store configured (boolean), current LA time string, which model path is default.
+- **CRITICAL: Add logging that shows WHICH PATH was taken (Premium T2 vs normal) for each request**
+
+Step-by-step instructions:
+1) Search the repo for: /api/chat, openai, messages array, memory, conversationId, userId, supabase, redis, store, NewsAPI, newsapi, axios, fetch, **premiumTextPrompt, gpt-5.1, line 9166**.
+2) **FIRST: Confirm Premium T2 path issue - show me the code at line ~9166**.
+3) Show me what you found and what is missing.
+4) **PRIORITY FIX: Give gpt-5.1 the full systemPrompt (3 line change)**.
+5) Implement the diagnostic endpoints + logging toggle.
+6) Run/test the endpoints in Replit and paste the results.
+7) Implement any remaining minimal fixes based on what diagnostics show.
+
+Output format:
+- First: **Confirm the Premium T2 path issue exists at line ~9166**
+- Then: bullet root-cause hypotheses for each issue.
+- Then: exact code diffs by file (or file content replacements).
+- Then: test commands/curl examples for each diagnostic endpoint.
+
+EXPECTED FINDINGS:
+- Premium T2 path uses premiumTextPrompt WITHOUT context
+- Non-Premium path uses systemPrompt WITH all context
+- NewsAPI IS working, just not reaching Premium users
+- Date IS being injected, just not reaching Premium users
+- Memory IS being tracked, just not reaching Premium users
+
+FIX PRIORITY:
+1. Premium T2 context (3 lines) - CRITICAL
+2. Diagnostic logging (show which path taken)
+3. Health endpoint
+4. Any remaining edge cases

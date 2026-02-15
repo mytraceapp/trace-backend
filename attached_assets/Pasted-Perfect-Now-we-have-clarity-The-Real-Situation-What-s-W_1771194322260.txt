@@ -1,0 +1,157 @@
+Perfect. Now we have clarity.
+
+The Real Situation
+✅ What's Working:
+
+Premium T2 primary path HAS full context (lines 9575-9588)
+L3 fallback NOW has date/holiday context (you just fixed it)
+
+❌ What's Broken:
+
+L1 timeouts are frequent (3 out of 4 requests falling to L3)
+T2 fallback is stripped (line 9630-9648, same issue L3 had)
+No diagnostic visibility (can't tell which path was taken without logs)
+
+
+Fix Priority
+Priority 1: Fix T2 Fallback (Same Pattern as L3)
+Line ~9630-9648, currently uses TRACE_IDENTITY_COMPACT (stripped).
+Apply the same fix you just did for L3:
+javascript// BEFORE (stripped fallback):
+const t2FallbackMessages = [
+  { role: 'system', content: TRACE_IDENTITY_COMPACT },
+  ...messagesWithHydration.slice(-6)
+];
+
+// AFTER (with context):
+const t2FallbackDateBlock = `TODAY: ${new Date().toLocaleDateString('en-US', { 
+  weekday: 'long', 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric',
+  timeZone: 'America/Los_Angeles'
+})}`;
+
+const t2FallbackHolidayBlock = holidayContext ? `\n\n${holidayContext}` : '';
+
+const t2FallbackMessages = [
+  { 
+    role: 'system', 
+    content: `${t2FallbackDateBlock}${t2FallbackHolidayBlock}\n\n${TRACE_IDENTITY_COMPACT}` 
+  },
+  ...messagesWithHydration.slice(-6)
+];
+
+console.log('[T2_FALLBACK] Using fallback with date/holiday context');
+This gives T2 fallback the same safety net L3 now has.
+
+Priority 2: Add Diagnostic Logging (Know Which Path Was Taken)
+Add these logs to track path usage:
+javascript// At start of Premium T2 block (line ~9575)
+console.log('[PATH_DIAGNOSTIC] Premium T2 PRIMARY path - full context');
+console.log('[PATH_DIAGNOSTIC] Context sizes:', {
+  boss: TRACE_BOSS_SYSTEM.length,
+  control: controlBlock.length,
+  system: systemPrompt.length,
+  messages: messagesWithHydration.length
+});
+
+// If T2 times out and fallback triggers (line ~9630)
+console.log('[PATH_DIAGNOSTIC] ⚠️ T2 FALLBACK - gpt-5.1 timeout');
+console.log('[PATH_DIAGNOSTIC] Using stripped fallback with date/holiday only');
+
+// At L1 call (line for gpt-4o-mini)
+console.log('[PATH_DIAGNOSTIC] L1 path - standard tier');
+
+// If L1 times out to L3 (line for L3 fallback)
+console.log('[PATH_DIAGNOSTIC] ⚠️ L3 FALLBACK - L1 timeout');
+console.log('[PATH_DIAGNOSTIC] Using fallback with date/holiday context (post-fix)');
+This lets you see in logs:
+
+Which path each request took
+How often timeouts happen
+Context sizes going to each model
+
+
+Priority 3: Add /api/health Endpoint
+javascriptapp.get('/api/health', (req, res) => {
+  const laTime = new Date().toLocaleString('en-US', { 
+    timeZone: 'America/Los_Angeles',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    laTime: laTime,
+    configured: {
+      openai: !!process.env.OPENAI_API_KEY,
+      newsapi: !!process.env.NEWS_API_KEY,
+      supabase: !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    },
+    paths: {
+      l1: 'gpt-4o-mini (standard)',
+      l3: 'fallback (has date/holiday)',
+      t2_primary: 'gpt-5.1 (premium, full context)',
+      t2_fallback: 'gpt-4o-mini (premium timeout, needs fix)'
+    },
+    recentStats: {
+      // Optional: track how many requests hit each path
+      // Could add simple counters if you want
+    }
+  });
+});
+Quick health check: curl http://localhost:3001/api/health
+
+Priority 4: Investigate L1 Timeouts (Why 75% Timeout Rate?)
+3 out of 4 L1 requests timing out is NOT normal.
+Possible causes:
+A) Network issues in Replit
+
+Replit → OpenAI connection flaky
+DNS resolution slow
+Firewall/proxy interference
+
+B) Request size too large
+
+systemPrompt is 6,000+ tokens
+Total request exceeds reasonable size
+OpenAI takes too long to process
+
+C) Timeout threshold too low
+
+Current timeout might be 5s
+OpenAI needs 10-15s for large prompts
+
+D) Rate limiting
+
+Hitting OpenAI rate limits
+Requests queuing/failing
+
+Check current timeout:
+javascript// Find where L1 is called
+const l1Response = await openai.chat.completions.create({
+  model: 'gpt-4o-mini',
+  messages: messages,
+  timeout: ???  // What's this set to?
+});
+If timeout is <30000ms (30s), increase it:
+javascripttimeout: 30000  // 30 seconds
+Or use Promise.race with longer deadline:
+javascriptconst L1_TIMEOUT = 30000; // 30s
+
+const l1Response = await Promise.race([
+  openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: messages
+  }),
+  new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('L1 timeout')), L1_TIMEOUT)
+  )
+]);
