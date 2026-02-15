@@ -9155,163 +9155,8 @@ If the right move isn't obvious: one grounded observation about what you notice 
     let rawContent = '';
     let parsed = null;
     
-    // ============================================================
-    // PREMIUM TIER 2: PARALLEL TWO-STEP APPROACH
-    // gpt-5.1 is TEXT-ONLY (no JSON mode), so we split:
-    // Step A: gpt-4o-mini for fast JSON structure  } RUN IN PARALLEL
-    // Step B: gpt-5.1 for premium text             } to cut latency
-    // ============================================================
+    // Premium tier detection — execution deferred until after controlBlock is built
     const isPremiumTier = selectedModel.includes('5.1') || modelRoute?.tier === 2;
-    
-    if (isPremiumTier) {
-     try {
-      console.log('[TRACE T2] Premium tier detected, using PARALLEL two-step approach');
-      const t2Start = Date.now();
-      let structureResult = null;
-      let textResult = null;
-      let usedFallback = false;
-      const isLongformT2 = isLongFormRequest || traceIntent?.mode === 'longform';
-      const PREMIUM_TEXT_TIMEOUT = isLongformT2 ? 25000 : 6000;
-      
-      const structurePrompt = `Analyze the user's emotional state and return JSON with ONLY these fields:
-{
-  "posture": "GENTLE" | "STEADY" | "DIRECTIVE",
-  "detected_state": string (e.g., "neutral", "anxious", "tired", "spiraling"),
-  "posture_confidence": number 0-1,
-  "activity_suggestion": { "name": string|null, "reason": string|null, "should_navigate": false },
-  "next_question": { "intent": string, "question": string }
-}
-
-User said: "${lastUserContent}"
-Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture: ${posture}` : 'New conversation'}`;
-
-      const recentMessages = messages.slice(-6);
-      const conversationContext = recentMessages
-        .map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${m.content}`)
-        .join('\n');
-      
-      const voiceRules = isLongformT2
-        ? `- This is a LONGFORM request. Write the FULL content the user asked for.\n- Do NOT truncate, summarize, or cut off. Complete the entire piece.\n- Match the length the user requested.`
-        : `- Default 1-3 sentences. Longer only if user asks for explanation.`;
-
-      const premiumTextPrompt = `${TRACE_IDENTITY_COMPACT}
-
-VOICE RULES:
-${voiceRules}
-- Do NOT reuse your last opening phrase.
-- NO emojis. NO bullet points.
-
-Recent conversation:
-${conversationContext}
-
-User just said: "${lastUserContent}"
-
-Your response (text only, no JSON):`;
-
-      const premiumMaxTokens = isLongformT2 ? 2000 : 600;
-
-      const stepAPromise = openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: structurePrompt }],
-        max_tokens: 300,
-        response_format: { type: "json_object" },
-      }, { timeout: 5000, signal: AbortSignal.timeout(5000) })
-        .then(r => ({ ok: true, data: r }))
-        .catch(err => ({ ok: false, error: err }));
-
-      const textController = new AbortController();
-      const textTimeoutHandle = setTimeout(() => textController.abort(), PREMIUM_TEXT_TIMEOUT);
-      
-      const stepBPromise = openai.chat.completions.create({
-        model: 'gpt-5.1',
-        messages: [{ role: 'user', content: premiumTextPrompt }],
-        max_completion_tokens: premiumMaxTokens,
-      }, { signal: textController.signal })
-        .then(r => ({ ok: true, data: r }))
-        .catch(err => ({ ok: false, error: err }));
-
-      const [stepAResult, stepBResult] = await Promise.all([stepAPromise, stepBPromise]);
-      clearTimeout(textTimeoutHandle);
-      const t2Latency = Date.now() - t2Start;
-      
-      if (stepAResult.ok) {
-        try {
-          const structureContent = stepAResult.data.choices[0]?.message?.content || '';
-          if (structureContent.trim()) {
-            structureResult = JSON.parse(structureContent);
-          }
-        } catch (e) {
-          console.error('[TRACE T2] Step A parse error:', e.message);
-        }
-      } else {
-        console.error('[TRACE T2] Step A error:', stepAResult.error?.message);
-      }
-
-      if (stepBResult.ok) {
-        const t2FinishReason = stepBResult.data.choices[0]?.finish_reason;
-        textResult = stepBResult.data.choices[0]?.message?.content?.trim() || '';
-        
-        if (textResult) {
-          textResult = sanitizeTone(textResult, { userId: effectiveUserId || 'anon', isCrisisMode: false });
-        }
-        
-        if (t2FinishReason === 'length' && textResult && !isSentenceComplete(textResult)) {
-          console.warn('[TRACE T2] Premium text truncated (finish_reason=length, incomplete sentence), discarding');
-          textResult = '';
-          usedFallback = true;
-        }
-      } else {
-        const err = stepBResult.error;
-        if (err?.name === 'AbortError' || err?.message?.includes('abort')) {
-          console.warn(`[TRACE T2] Step B timeout (>${PREMIUM_TEXT_TIMEOUT}ms), using fallback`);
-        } else {
-          console.error('[TRACE T2] Step B (text) error:', err?.message);
-        }
-        usedFallback = true;
-      }
-      
-      if (!textResult && usedFallback) {
-        try {
-          const fallbackPrompt = isLongformT2
-            ? `Write the FULL content the user asked for. Do NOT truncate or summarize. Complete the entire piece.\n\nUser said: "${lastUserContent}"`
-            : `${TRACE_IDENTITY_COMPACT}\n\nSomeone just said: "${lastUserContent}". Respond like a friend — 1-2 sentences, casual, direct.`;
-          const fallbackMaxTokens = isLongformT2 ? 2000 : 100;
-          const fallbackResponse = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: fallbackPrompt }],
-            max_tokens: fallbackMaxTokens,
-          }, { timeout: 5000, signal: AbortSignal.timeout(5000) });
-          textResult = fallbackResponse.choices[0]?.message?.content?.trim() || '';
-          if (textResult) {
-            textResult = sanitizeTone(textResult, { userId: effectiveUserId || 'anon', isCrisisMode: false });
-          }
-        } catch (err) {
-          console.error('[TRACE T2] Fallback text error:', err.message);
-        }
-      }
-      
-      console.log('[TRACE T2]', {
-        textModel: usedFallback ? 'gpt-4o-mini' : 'gpt-5.1',
-        parallelLatencyMs: t2Latency,
-        usedFallback
-      });
-      
-      if (textResult) {
-        parsed = {
-          message: textResult,
-          posture: structureResult?.posture || posture || 'STEADY',
-          detected_state: structureResult?.detected_state || detected_state || 'neutral',
-          posture_confidence: structureResult?.posture_confidence || postureConfidence || 0.6,
-          activity_suggestion: structureResult?.activity_suggestion || { name: null, reason: null, should_navigate: false },
-          next_question: structureResult?.next_question || null,
-        };
-        console.log('[TRACE T2] Parallel merge complete');
-      }
-     } catch (t2CriticalError) {
-      console.error('[TRACE T2] CRITICAL ERROR in premium path — silently degrading to T1:', t2CriticalError.message);
-      parsed = null;
-     }
-    }
     
     // ============================================================
     // FAST-PATH: Skip to L3 plain text for speed
@@ -9557,6 +9402,152 @@ Your response (text only, no JSON):`;
       });
     }
 
+    // ============================================================
+    // PREMIUM TIER 2: PARALLEL TWO-STEP APPROACH (deferred to here so controlBlock + systemPrompt are ready)
+    // gpt-5.1 is TEXT-ONLY (no JSON mode), so we split:
+    // Step A: gpt-4o-mini for fast JSON structure  } RUN IN PARALLEL
+    // Step B: gpt-5.1 for premium text with FULL context
+    // ============================================================
+    if (isPremiumTier) {
+     try {
+      console.log('[TRACE T2] Premium tier detected, using PARALLEL two-step approach');
+      const t2Start = Date.now();
+      let structureResult = null;
+      let textResult = null;
+      let usedFallback = false;
+      const isLongformT2 = isLongFormRequest || traceIntent?.mode === 'longform';
+      const PREMIUM_TEXT_TIMEOUT = isLongformT2 ? 25000 : 6000;
+      
+      const structurePrompt = `Analyze the user's emotional state and return JSON with ONLY these fields:
+{
+  "posture": "GENTLE" | "STEADY" | "DIRECTIVE",
+  "detected_state": string (e.g., "neutral", "anxious", "tired", "spiraling"),
+  "posture_confidence": number 0-1,
+  "activity_suggestion": { "name": string|null, "reason": string|null, "should_navigate": false },
+  "next_question": { "intent": string, "question": string }
+}
+
+User said: "${lastUserContent}"
+Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture: ${posture}` : 'New conversation'}`;
+
+      const premiumMaxTokens = isLongformT2 ? 2000 : 600;
+      const t2DateAnchor = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.` : '';
+
+      const stepAPromise = openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: structurePrompt }],
+        max_tokens: 300,
+        response_format: { type: "json_object" },
+      }, { timeout: 5000, signal: AbortSignal.timeout(5000) })
+        .then(r => ({ ok: true, data: r }))
+        .catch(err => ({ ok: false, error: err }));
+
+      const textController = new AbortController();
+      const textTimeoutHandle = setTimeout(() => textController.abort(), PREMIUM_TEXT_TIMEOUT);
+      
+      const t2VoiceRules = isLongformT2
+        ? `\nLONGFORM: Write the FULL content. Do NOT truncate or summarize.`
+        : `\nRESPONSE LENGTH: 1-3 sentences default. Longer only if user asks.`;
+      const t2SystemAddendum = `${t2VoiceRules}\nDo NOT reuse your last opening phrase. NO emojis. NO bullet points.\nRespond with text only — no JSON wrapping.`;
+      
+      const stepBPromise = openai.chat.completions.create({
+        model: 'gpt-5.1',
+        messages: [
+          { role: 'system', content: TRACE_BOSS_SYSTEM + t2DateAnchor },
+          { role: 'system', content: controlBlock },
+          { role: 'system', content: systemPrompt + '\n\n' + t2SystemAddendum },
+          ...messagesWithHydration
+        ],
+        max_completion_tokens: premiumMaxTokens,
+      }, { signal: textController.signal })
+        .then(r => ({ ok: true, data: r }))
+        .catch(err => ({ ok: false, error: err }));
+      
+      console.log(`[TRACE T2] Step B receives FULL context: boss=${TRACE_BOSS_SYSTEM.length} ctrl=${controlBlock.length} sys=${systemPrompt.length} msgs=${messagesWithHydration.length}`);
+
+      const [stepAResult, stepBResult] = await Promise.all([stepAPromise, stepBPromise]);
+      clearTimeout(textTimeoutHandle);
+      const t2Latency = Date.now() - t2Start;
+      
+      if (stepAResult.ok) {
+        try {
+          const structureContent = stepAResult.data.choices[0]?.message?.content || '';
+          if (structureContent.trim()) {
+            structureResult = JSON.parse(structureContent);
+          }
+        } catch (e) {
+          console.error('[TRACE T2] Step A parse error:', e.message);
+        }
+      } else {
+        console.error('[TRACE T2] Step A error:', stepAResult.error?.message);
+      }
+
+      if (stepBResult.ok) {
+        const t2FinishReason = stepBResult.data.choices[0]?.finish_reason;
+        textResult = stepBResult.data.choices[0]?.message?.content?.trim() || '';
+        
+        if (textResult) {
+          textResult = sanitizeTone(textResult, { userId: effectiveUserId || 'anon', isCrisisMode: false });
+        }
+        
+        if (t2FinishReason === 'length' && textResult && !isSentenceComplete(textResult)) {
+          console.warn('[TRACE T2] Premium text truncated (finish_reason=length, incomplete sentence), discarding');
+          textResult = '';
+          usedFallback = true;
+        }
+      } else {
+        const err = stepBResult.error;
+        if (err?.name === 'AbortError' || err?.message?.includes('abort')) {
+          console.warn(`[TRACE T2] Step B timeout (>${PREMIUM_TEXT_TIMEOUT}ms), using fallback`);
+        } else {
+          console.error('[TRACE T2] Step B (text) error:', err?.message);
+        }
+        usedFallback = true;
+      }
+      
+      if (!textResult && usedFallback) {
+        try {
+          const fallbackPrompt = isLongformT2
+            ? `Write the FULL content the user asked for. Do NOT truncate or summarize. Complete the entire piece.\n\nUser said: "${lastUserContent}"`
+            : `${TRACE_IDENTITY_COMPACT}\n\nSomeone just said: "${lastUserContent}". Respond like a friend — 1-2 sentences, casual, direct.`;
+          const fallbackMaxTokens = isLongformT2 ? 2000 : 100;
+          const fallbackResponse = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: fallbackPrompt }],
+            max_tokens: fallbackMaxTokens,
+          }, { timeout: 5000, signal: AbortSignal.timeout(5000) });
+          textResult = fallbackResponse.choices[0]?.message?.content?.trim() || '';
+          if (textResult) {
+            textResult = sanitizeTone(textResult, { userId: effectiveUserId || 'anon', isCrisisMode: false });
+          }
+        } catch (err) {
+          console.error('[TRACE T2] Fallback text error:', err.message);
+        }
+      }
+      
+      console.log('[TRACE T2]', {
+        textModel: usedFallback ? 'gpt-4o-mini' : 'gpt-5.1',
+        parallelLatencyMs: t2Latency,
+        usedFallback
+      });
+      
+      if (textResult) {
+        parsed = {
+          message: textResult,
+          posture: structureResult?.posture || posture || 'STEADY',
+          detected_state: structureResult?.detected_state || detected_state || 'neutral',
+          posture_confidence: structureResult?.posture_confidence || postureConfidence || 0.6,
+          activity_suggestion: structureResult?.activity_suggestion || { name: null, reason: null, should_navigate: false },
+          next_question: structureResult?.next_question || null,
+        };
+        console.log('[TRACE T2] Parallel merge complete');
+      }
+     } catch (t2CriticalError) {
+      console.error('[TRACE T2] CRITICAL ERROR in premium path — silently degrading to T1:', t2CriticalError.message);
+      parsed = null;
+     }
+    }
+
     // LAYER 1: Selected model with retries (skip if premium already handled)
     const preprocessTime = Date.now() - requestStartTime;
     const bossChars = TRACE_BOSS_SYSTEM.length;
@@ -9601,10 +9592,11 @@ Your response (text only, no JSON):`;
         if (attempt > 1) await sleep(200); // Reduced delay
         
         const openaiStart = Date.now();
+        const dateAnchor = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.` : '';
         const openaiParams = {
           model: selectedModel,
           messages: [
-            { role: 'system', content: TRACE_BOSS_SYSTEM },
+            { role: 'system', content: TRACE_BOSS_SYSTEM + dateAnchor },
             { role: 'system', content: controlBlock },
             { role: 'system', content: systemPrompt },
             ...messagesWithHydration
@@ -9692,10 +9684,11 @@ Your response (text only, no JSON):`;
         try {
           
           const openaiStart = Date.now();
+          const dateAnchorL2 = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.` : '';
           const backupParams = {
             model: TRACE_BACKUP_MODEL,
             messages: [
-              { role: 'system', content: TRACE_BOSS_SYSTEM },
+              { role: 'system', content: TRACE_BOSS_SYSTEM + dateAnchorL2 },
               { role: 'system', content: controlBlock },
               { role: 'system', content: systemPrompt },
               ...messagesWithHydration
@@ -11262,6 +11255,55 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     
     // Guardrail B: REMOVED - The hardcoded stats/music boundary line was too robotic
     // and triggered inappropriately. Let the AI handle stats questions naturally via system prompt.
+    
+    // ===== DATE ACCURACY GUARDRAIL =====
+    // Only activate when user asked about dates/days — prevents modifying user-quoted dates
+    const userAskedAboutDate = /\b(what('?s| is) (the |today'?s? ?)?(date|day)|today'?s date|what day is it|what'?s today|is it .*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)|holiday (today|tomorrow|yesterday))\b/i.test(lastUserContent || '');
+    if (userAskedAboutDate && localDate && localDay && tightenedText) {
+      const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+      const textLower = tightenedText.toLowerCase();
+      const hasDateMention = monthNames.some(m => textLower.includes(m)) || /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/.test(textLower);
+      
+      if (hasDateMention) {
+        const realDateParts = localDate.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (realDateParts) {
+          const realMonth = parseInt(realDateParts[1], 10);
+          const realDay = parseInt(realDateParts[2], 10);
+          const realYear = parseInt(realDateParts[3], 10);
+          const realMonthName = monthNames[realMonth - 1];
+          
+          const wrongDatePattern = new RegExp(
+            `${realMonthName}\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s*${realYear})?`,
+            'gi'
+          );
+          const wrongMatches = [...tightenedText.matchAll(wrongDatePattern)];
+          
+          for (const match of wrongMatches) {
+            const mentionedDay = parseInt(match[1], 10);
+            if (mentionedDay !== realDay && Math.abs(mentionedDay - realDay) <= 5) {
+              const corrected = match[0].replace(
+                new RegExp(`${mentionedDay}(st|nd|rd|th)?`),
+                `${realDay}`
+              );
+              tightenedText = tightenedText.replace(match[0], corrected);
+              console.log(`[DATE GUARDRAIL] Fixed wrong date: "${match[0]}" → "${corrected}" (real: ${realMonthName} ${realDay}, ${realYear})`);
+            }
+          }
+          
+          const slashDatePattern = new RegExp(`(\\d{1,2})/(\\d{1,2})/(${realYear})`, 'g');
+          const slashMatches = [...tightenedText.matchAll(slashDatePattern)];
+          for (const match of slashMatches) {
+            const mMonth = parseInt(match[1], 10);
+            const mDay = parseInt(match[2], 10);
+            if (mMonth === realMonth && mDay !== realDay && Math.abs(mDay - realDay) <= 5) {
+              const corrected = `${realMonth}/${realDay}/${realYear}`;
+              tightenedText = tightenedText.replace(match[0], corrected);
+              console.log(`[DATE GUARDRAIL] Fixed wrong slash date: "${match[0]}" → "${corrected}"`);
+            }
+          }
+        }
+      }
+    }
     
     // ===== CURIOSITY HOOKS (Pillar 8) =====
     // Non-manipulative, deterministic hooks for meaning-seeking users

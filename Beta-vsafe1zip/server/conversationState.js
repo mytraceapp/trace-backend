@@ -972,9 +972,12 @@ function buildControlBlock({
 
   const lines = [
     'TRACE_CONTROL_BLOCK',
-    `TODAY: ${dateStr}`,
-    `SOUNDSCAPE: ${soundscapeName || 'presence'} | mood=${mood || 'neutral'}`,
+    `═══ ABSOLUTE DATE FACT ═══`,
+    `TODAY IS: ${dateStr}`,
     `TIME: ${localTime || 'unknown'}`,
+    `This date is GROUND TRUTH. If the user asks about today, tomorrow, yesterday, or any date — calculate from THIS date. Never guess dates from conversation history. If your previous response mentioned a wrong date, IGNORE it and use THIS date.`,
+    `═══════════════════════════`,
+    `SOUNDSCAPE: ${soundscapeName || 'presence'} | mood=${mood || 'neutral'}`,
   ];
 
   lines.push('RELATIONAL_ANCHORS:');
