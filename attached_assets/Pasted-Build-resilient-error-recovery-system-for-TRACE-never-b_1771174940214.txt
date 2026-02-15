@@ -1,0 +1,352 @@
+Build resilient error recovery system for TRACE - never break conversation thread on errors.
+
+PROBLEM: When backend errors occur (visitorId undefined, T2 timeout, database failure), TRACE either crashes or resets conversation with "what's on your mind?" This breaks immersion and loses context. ChatGPT/Claude never do this - they recover gracefully and continue the conversation thread.
+
+GOAL: 5-layer safety net that preserves conversation context through any error.
+
+IMPLEMENTATION:
+
+═══════════════════════════════════════════════════════════════
+LAYER 1: FIX IMMEDIATE CRASH (visitorId bug)
+═══════════════════════════════════════════════════════════════
+
+LOCATION: Wherever visitorId is used (likely in analytics or user tracking)
+
+FIND: Code like:
+const visitorId = req.body.visitorId;
+// later used without null check
+analytics.track(visitorId, event);
+
+FIX: Add null check with fallback:
+const visitorId = req.body.visitorId || req.user?.id || 'anonymous';
+
+Or if visitorId is only for analytics:
+if (visitorId) {
+  analytics.track(visitorId, event);
+}
+
+CRITICAL: Search entire codebase for visitorId usage, add guards everywhere it's accessed.
+
+═══════════════════════════════════════════════════════════════
+LAYER 2: BULLETPROOF T2 PREMIUM PATH (graceful degradation)
+═══════════════════════════════════════════════════════════════
+
+LOCATION: Where T2 (premium model) is called in /api/chat
+
+CURRENT (probably):
+if (shouldUseT2Model) {
+  response = await callT2Model(messages);
+} else {
+  response = await callT1Model(messages);
+}
+
+NEW (with fallback):
+let response;
+let modelUsed = 'T1';
+
+if (shouldUseT2Model) {
+  try {
+    console.log('[MODEL_ROUTING] Attempting T2 (premium)');
+    response = await Promise.race([
+      callT2Model(messages),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('T2 timeout')), 30000)
+      )
+    ]);
+    modelUsed = 'T2';
+    console.log('[MODEL_ROUTING] T2 succeeded');
+  } catch (t2Error) {
+    console.warn('[MODEL_ROUTING] T2 failed, falling back to T1:', t2Error.message);
+    // Graceful degradation - user never knows
+    response = await callT1Model(messages);
+    modelUsed = 'T1_FALLBACK';
+  }
+} else {
+  response = await callT1Model(messages);
+}
+
+console.log(`[MODEL_ROUTING] Final model used: ${modelUsed}`);
+
+RESULT: T2 failures are invisible to user. Slightly less nuanced response, but conversation continues.
+
+═══════════════════════════════════════════════════════════════
+LAYER 3: SMART ERROR RECOVERY (context preservation)
+═══════════════════════════════════════════════════════════════
+
+LOCATION: Error recovery logic in /api/chat
+
+When an error occurs and needs fallback response:
+
+CURRENT (broken):
+catch (error) {
+  return { response: "something went wrong on my end. what's on your mind?" };
+}
+
+NEW (context-aware):
+catch (error) {
+  console.error('[CHAT_ERROR]', error);
+  
+  // Find last real user message (skip error messages)
+  const lastUserMessage = conversationHistory
+    .filter(m => m.role === 'user' && !m.isErrorRecovery)
+    .slice(-1)[0];
+  
+  const userMessage = lastUserMessage?.content || req.body.message;
+  
+  // Extract topic/emotion anchor from user's message
+  const topicAnchor = extractTopicAnchor(userMessage);
+  
+  // Generate context-aware fallback
+  const fallbackResponse = generateContextAwareFallback(userMessage, topicAnchor);
+  
+  // Mark this as error recovery so AI knows to skip it later
+  await saveMessage({
+    role: 'assistant',
+    content: fallbackResponse,
+    isErrorRecovery: true,
+    metadata: { error: error.message, timestamp: Date.now() }
+  });
+  
+  return { response: fallbackResponse };
+}
+
+HELPER FUNCTIONS:
+
+function extractTopicAnchor(message) {
+  // Simple keyword extraction
+  const emotionWords = ['stressed', 'anxious', 'proud', 'excited', 'worried'];
+  const topicWords = ['deadline', 'project', 'work', 'school', 'job'];
+  
+  const lowerMsg = message.toLowerCase();
+  
+  const emotion = emotionWords.find(w => lowerMsg.includes(w));
+  const topic = topicWords.find(w => lowerMsg.includes(w));
+  
+  return { emotion, topic, original: message.slice(0, 50) };
+}
+
+function generateContextAwareFallback(userMessage, anchor) {
+  // Context-aware fallback based on what user said
+  
+  if (anchor.emotion === 'stressed' && anchor.topic) {
+    return `hang on, lost you for a sec. you were saying about ${anchor.topic}?`;
+  }
+  
+  if (anchor.emotion) {
+    return `sorry, glitched for a sec. you were talking about feeling ${anchor.emotion}?`;
+  }
+  
+  if (anchor.topic) {
+    return `lost you there. something about ${anchor.topic}?`;
+  }
+  
+  // Generic fallback (only if we can't extract context)
+  return `sorry, lost that. what were you saying?`;
+}
+
+EXAMPLES:
+
+User: "I'm so stressed about deadlines"
+[Error occurs]
+TRACE: "hang on, lost you for a sec. you were saying about deadlines?"
+
+User: "I'm really proud of how the project turned out"
+[Error occurs]
+TRACE: "sorry, glitched for a sec. you were talking about feeling proud?"
+
+User: "I got the job"
+[Error occurs]
+TRACE: "lost you there. something about the job?"
+
+NEVER: "something went wrong. what's on your mind?"
+
+═══════════════════════════════════════════════════════════════
+LAYER 4: GLOBAL SAFETY NET (top-level wrapper)
+═══════════════════════════════════════════════════════════════
+
+LOCATION: Wrap entire /api/chat handler
+
+app.post('/api/chat', async (req, res) => {
+  const startTime = Date.now();
+  let userMessage = req.body.message;
+  
+  try {
+    // ═══ ENTIRE EXISTING CHAT LOGIC HERE ═══
+    // (model routing, voice engine, memory, etc.)
+    
+    const response = await processChatMessage(req);
+    const duration = Date.now() - startTime;
+    
+    console.log(`[CHAT_SUCCESS] ${duration}ms`);
+    res.json(response);
+    
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`[CHAT_FAILURE] ${duration}ms:`, error);
+    
+    // GLOBAL SAFETY NET - never let user see raw error
+    
+    // Extract context from user message
+    const anchor = extractTopicAnchor(userMessage);
+    const fallback = generateContextAwareFallback(userMessage, anchor);
+    
+    // Save error for debugging but don't expose to user
+    await logErrorToDatabase({
+      userId: req.user?.id,
+      message: userMessage,
+      error: error.message,
+      stack: error.stack,
+      timestamp: Date.now()
+    }).catch(() => {}); // Don't let logging failure break fallback
+    
+    // Mark fallback message as error recovery
+    await saveMessage({
+      userId: req.user?.id,
+      role: 'assistant',
+      content: fallback,
+      isErrorRecovery: true
+    }).catch(() => {}); // Don't let save failure break response
+    
+    // Always return a response (never 500 error to user)
+    res.json({ 
+      response: fallback,
+      metadata: { recoveredFromError: true }
+    });
+  }
+});
+
+RESULT: No matter what breaks (database down, OpenAI outage, undefined variable), user gets a warm context-aware fallback, not a crash or generic reset.
+
+═══════════════════════════════════════════════════════════════
+LAYER 5: ERROR MESSAGE HISTORY CLEANUP
+═══════════════════════════════════════════════════════════════
+
+LOCATION: Where conversation history is fetched and sent to AI
+
+CURRENT (broken):
+const history = await getConversationHistory(userId);
+const messages = [
+  { role: 'system', content: systemPrompt },
+  ...history,  // Includes error recovery messages
+  { role: 'user', content: userMessage }
+];
+
+NEW (filtered):
+const rawHistory = await getConversationHistory(userId);
+
+// Filter out error recovery messages - AI should never see them
+const cleanHistory = rawHistory.filter(msg => !msg.isErrorRecovery);
+
+// If we just recovered from an error, inject the context
+const lastMessage = rawHistory[rawHistory.length - 1];
+if (lastMessage?.isErrorRecovery) {
+  // Find the user message before the error
+  const lastUserMessage = rawHistory
+    .filter(m => m.role === 'user' && !m.isErrorRecovery)
+    .slice(-1)[0];
+  
+  if (lastUserMessage) {
+    console.log('[ERROR_RECOVERY] Re-injecting context from before error');
+    // Add context note to system prompt
+    systemPrompt += `\n\nNote: You just recovered from a brief technical issue. The user's last message was: "${lastUserMessage.content.slice(0, 100)}". Continue that thread naturally.`;
+  }
+}
+
+const messages = [
+  { role: 'system', content: systemPrompt },
+  ...cleanHistory,
+  { role: 'user', content: userMessage }
+];
+
+RESULT: AI never sees "something went wrong" as part of conversation. Knows to continue the thread from before the error.
+
+═══════════════════════════════════════════════════════════════
+DATABASE SCHEMA UPDATE (if needed)
+═══════════════════════════════════════════════════════════════
+
+Add isErrorRecovery flag to messages table:
+
+ALTER TABLE session_messages ADD COLUMN is_error_recovery BOOLEAN DEFAULT FALSE;
+ALTER TABLE chat_messages ADD COLUMN is_error_recovery BOOLEAN DEFAULT FALSE;
+
+Or use metadata JSON if you already have it:
+UPDATE messages SET metadata = jsonb_set(metadata, '{isErrorRecovery}', 'true') WHERE ...;
+
+═══════════════════════════════════════════════════════════════
+TESTING CHECKLIST
+═══════════════════════════════════════════════════════════════
+
+Test 1 - T2 timeout:
+- Simulate T2 model timeout (mock slow response)
+- Expected: Falls back to T1, conversation continues
+- User never sees error
+
+Test 2 - Database failure:
+- Disconnect database mid-request
+- Expected: Context-aware fallback ("lost you there. something about X?")
+- Next message continues the thread
+
+Test 3 - OpenAI API failure:
+- Mock OpenAI 500 error
+- Expected: Fallback message, conversation continues
+- Error logged but not exposed
+
+Test 4 - Undefined variable crash:
+- Introduce intentional undefined access
+- Expected: Global safety net catches it, fallback message
+- Never 500 error to user
+
+Test 5 - Error recovery continuation:
+User: "I'm so stressed about deadlines"
+[Simulated error]
+TRACE: "hang on, lost you for a sec. you were saying about deadlines?"
+User: "yeah I have 3 projects due"
+Expected: TRACE continues deadline conversation, doesn't reset
+
+Test 6 - visitorId undefined:
+- Send request without visitorId
+- Expected: No crash, analytics skipped or uses fallback ID
+
+═══════════════════════════════════════════════════════════════
+MONITORING & ALERTS
+═══════════════════════════════════════════════════════════════
+
+Add logging for error recovery:
+
+console.log('[ERROR_RECOVERY_STATS]', {
+  totalRequests: requestCount,
+  t2Failures: t2FailureCount,
+  databaseErrors: dbErrorCount,
+  globalFallbacks: globalFallbackCount,
+  errorRate: (globalFallbackCount / totalRequests * 100).toFixed(2) + '%'
+});
+
+Set up alerts if error rate > 5%:
+- Check if OpenAI having issues
+- Check if database degraded
+- Check if specific error pattern (all visitorId, all T2, etc.)
+
+═══════════════════════════════════════════════════════════════
+RESULT
+═══════════════════════════════════════════════════════════════
+
+BEFORE:
+User: "I'm so stressed about deadlines"
+[Error]
+TRACE: "something went wrong. what's on your mind?"
+User: [has to re-explain everything]
+
+AFTER:
+User: "I'm so stressed about deadlines"
+[Error - T2 timeout]
+TRACE: [T1 fallback, slightly less nuanced but instant] "what's the timeline?"
+
+OR if total failure:
+[Error - database down]
+TRACE: "hang on, lost you for a sec. you were saying about deadlines?"
+User: "yeah I have 3 projects due"
+TRACE: "okay, what's due first?"
+
+Thread never breaks. User never sees technical error. ChatGPT-level resilience.
+
+DO THIS: Implement all 5 layers in order. Test each layer. Ship when error recovery is invisible and context-preserving.
