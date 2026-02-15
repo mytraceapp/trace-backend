@@ -9532,6 +9532,7 @@ If the right move isn't obvious: one grounded observation about what you notice 
     // ============================================================
     if (isPremiumTier) {
      try {
+      console.log('[PATH] T2_PRIMARY — Premium tier, gpt-5.1 with full context');
       console.log('[TRACE T2] Premium tier detected, using PARALLEL two-step approach');
       const t2Start = Date.now();
       let structureResult = null;
@@ -9629,15 +9630,28 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
       
       if (!textResult && usedFallback) {
         try {
+          console.log('[PATH] T2_FALLBACK \u2014 gpt-5.1 unavailable, using gpt-4o-mini with context');
+          const t2FbDateLine = (localDay && localDate) ? `\nTODAY IS: ${localDay}, ${localDate}. TIME: ${localTime || 'unknown'}.` : '';
+          const t2FbHolidayLine = proactiveHolidayLine ? `\nHOLIDAYS: ${proactiveHolidayLine}` : '';
+          const t2FbRecentContext = (messagesWithHydration || []).slice(-6)
+            .map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${m.content}`)
+            .join('\n');
           const fallbackPrompt = isLongformT2
             ? `Write the FULL content the user asked for. Do NOT truncate or summarize. Complete the entire piece.\n\nUser said: "${lastUserContent}"`
-            : `${TRACE_IDENTITY_COMPACT}\n\nSomeone just said: "${lastUserContent}". Respond like a friend — 1-2 sentences, casual, direct.`;
-          const fallbackMaxTokens = isLongformT2 ? 2000 : 100;
+            : `${TRACE_IDENTITY_COMPACT}${t2FbDateLine}${t2FbHolidayLine}
+
+Recent conversation:
+${t2FbRecentContext}
+
+User just said: "${lastUserContent}"
+
+Continue naturally. If the user asks about dates, holidays, or current events, use the facts above \u2014 do NOT guess. 1-3 sentences max. No JSON, just your response:`;
+          const fallbackMaxTokens = isLongformT2 ? 2000 : 400;
           const fallbackResponse = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [{ role: 'user', content: fallbackPrompt }],
             max_tokens: fallbackMaxTokens,
-          }, { timeout: 5000, signal: AbortSignal.timeout(5000) });
+          }, { timeout: 8000, signal: AbortSignal.timeout(8000) });
           textResult = fallbackResponse.choices[0]?.message?.content?.trim() || '';
           if (textResult) {
             textResult = sanitizeTone(textResult, { userId: effectiveUserId || 'anon', isCrisisMode: false });
@@ -9685,9 +9699,9 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
     const chatRequestId = req.body?.requestId || `chat_${Date.now()}`;
     
     // Total time budget: mobile client times out at 60s, so we have room.
-    // Target: L1 gets ~18s, L3 gets ~8s, post-processing ~4s = ~30s max
-    // L2 is skipped when same model as L1, saving ~10s of wasted retry
-    const TOTAL_TIME_BUDGET_MS = 35000;
+    // Target: L1 gets ~25s, L3 gets ~10s, post-processing ~4s = ~39s max
+    // Increased from 35s to 45s: L1 was timing out 75% of requests at 18s
+    const TOTAL_TIME_BUDGET_MS = 45000;
     const timeBudgetExceeded = () => (Date.now() - requestStartTime) >= TOTAL_TIME_BUDGET_MS;
     
     // Token limit for long-form content (recipes, stories, detailed explanations)
@@ -9699,6 +9713,7 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
     
     // Skip L1 if premium tier already produced a result
     if (!parsed) {
+      console.log(`[PATH] L1_STANDARD — ${selectedModel} with full context`);
       console.log(`[OPENAI CONFIG] model=${selectedModel} baseURL=${cfg.baseURL}`);
     }
     
@@ -9730,7 +9745,7 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
           openaiParams.temperature = chatTemperature;
         }
         const remainingBudget = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
-        const baseL1Timeout = isLongformL1 ? 55000 : 18000;
+        const baseL1Timeout = isLongformL1 ? 55000 : 25000;
         const l1Timeout = Math.min(baseL1Timeout, remainingBudget - 8000);
         if (l1Timeout < 3000) {
           console.warn(`[TRACE OPENAI L1] Remaining budget too low (${remainingBudget}ms), skipping L1 attempt ${attempt}`);
@@ -9888,6 +9903,7 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
     
     // LAYER 3: Plain text mode (no JSON format requirement)
     if (!parsed) {
+      console.log('[PATH] L3_FALLBACK — L1 failed, using plain text with date/holiday context');
       console.log('[TRACE OPENAI L3] Trying plain text mode...');
       try {
         // CRITICAL: Use crisis-aware prompt if in crisis mode
@@ -12169,6 +12185,11 @@ const SERVER_START_TIME = Date.now();
 
 app.get('/api/health', (req, res) => {
   const uptimeSeconds = (Date.now() - SERVER_START_TIME) / 1000;
+  const laTime = new Date().toLocaleString('en-US', {
+    timeZone: 'America/Los_Angeles',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
   
   res.json({
     ok: true,
@@ -12176,12 +12197,25 @@ app.get('/api/health', (req, res) => {
     env: process.env.NODE_ENV || 'development',
     uptimeSeconds: Math.round(uptimeSeconds * 10) / 10,
     time: new Date().toISOString(),
+    laTime,
     runtime: {
       node: process.version,
     },
     deps: {
       openaiConfigured: Boolean(process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY),
+      newsapiConfigured: Boolean(process.env.NEWS_API_KEY),
       supabaseConfigured: Boolean((process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL) && process.env.SUPABASE_SERVICE_ROLE_KEY),
+    },
+    paths: {
+      l1: 'gpt-4o-mini (standard, full context, JSON mode)',
+      l3: 'gpt-4o-mini (fallback, plain text, date/holiday context)',
+      t2_primary: 'gpt-5.1 (premium, full context)',
+      t2_fallback: 'gpt-4o-mini (premium timeout, date/holiday/recent context)',
+    },
+    budgets: {
+      totalMs: 45000,
+      l1TimeoutMs: 25000,
+      t2TimeoutMs: 6000,
     },
   });
 });
