@@ -1,19 +1,42 @@
 const NEWS_API_KEY = process.env.NEWS_API_KEY;
 
-// Get ISO date string for N days ago
 function getDateDaysAgo(days) {
   const date = new Date();
   date.setDate(date.getDate() - days);
-  return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+  return date.toISOString().split('T')[0];
 }
 
-// Extract the actual topic from a user message (removes filler words)
+const _newsArticleCache = new Map();
+const NEWS_CACHE_TTL = 30 * 60 * 1000;
+
+function getCachedArticles(userId) {
+  const cached = _newsArticleCache.get(userId);
+  if (!cached) return null;
+  if (Date.now() - cached.fetchedAt > NEWS_CACHE_TTL) {
+    _newsArticleCache.delete(userId);
+    return null;
+  }
+  return cached;
+}
+
+function cacheArticles(userId, topic, articles) {
+  _newsArticleCache.set(userId, { topic, articles, fetchedAt: Date.now() });
+}
+
+function hasSpecificTopic(text) {
+  if (!text) return false;
+  const hasProperNouns = /[A-Z][a-z]{2,}/.test(text);
+  const hasYear = /\b20[0-9]{2}\b/.test(text);
+  const hasEventWords = /\b(shooting|attack|incident|case|scandal|crash|explosion|earthquake|hurricane|wildfire|flood|protest|riot|strike|coup|war|invasion|election|trial|verdict|ruling|recall|outbreak)\b/i.test(text);
+  const hasLocationEvent = /\b(in|at|near|from)\s+[A-Z][a-z]+/i.test(text);
+  return hasProperNouns || hasYear || hasEventWords || hasLocationEvent;
+}
+
 function extractNewsTopic(text) {
   if (!text) return 'general news';
   
   const t = text.toLowerCase().trim();
   
-  // First, try to extract topic from common patterns
   const topicPatterns = [
     /news (?:about |on |in |regarding |for )(.+?)(?:\?|$)/i,
     /(?:about |on |in |regarding )(.+?)(?:\s+news|\?|$)/i,
@@ -21,6 +44,8 @@ function extractNewsTopic(text) {
     /what is going on (?:in |with )(.+?)(?:\?|$)/i,
     /tell me (?:about )?(?:the )?news (?:in |on |about )(.+?)(?:\?|$)/i,
     /headlines? (?:about |on |in |for )(.+?)(?:\?|$)/i,
+    /who (?:are|were|is|was) (?:the )?(.+?)(?:\?|$)/i,
+    /what (?:happened|is happening) (?:in |at |with |to )(.+?)(?:\?|$)/i,
   ];
   
   for (const pattern of topicPatterns) {
@@ -34,7 +59,6 @@ function extractNewsTopic(text) {
     }
   }
   
-  // Fallback: strip common prefixes and look for what's left
   let topic = t
     .replace(/^(can you |could you |please |i'm stressed |i am stressed )/gi, '')
     .replace(/^(tell me |share |what's |what is )/gi, '')
@@ -42,19 +66,70 @@ function extractNewsTopic(text) {
     .replace(/\?$/g, '')
     .trim();
   
-  // Remove remaining filler
   topic = topic
     .replace(/^(about |on |in |regarding |for )/gi, '')
     .replace(/^(the |a |an )/gi, '')
     .trim();
   
-  if (topic && topic.length >= 3 && topic.split(' ').length <= 5 && !isPronoun(topic)) {
+  if (topic && topic.length >= 3 && topic.split(' ').length <= 8 && !isPronoun(topic)) {
     console.log('[NEWS] Extracted topic from user message:', topic);
     return topic;
   }
   
   console.log('[NEWS] Could not extract specific topic, using general');
   return 'general news';
+}
+
+function isGeneralKnowledgeQuestion(text) {
+  if (!text) return false;
+  const t = text.toLowerCase().trim();
+  
+  const realTimeIndicators = [
+    /what(?:'s|\s+is)\s+happening/i,
+    /\b(latest|recent|today|yesterday|this week|this month|right now|breaking)\b/i,
+    /\bcurrent\s+(news|events?|situation|score)/i,
+    /\bwho\s+won\b/i,
+    /\bscore(?:s)?\b/i,
+  ];
+  
+  if (realTimeIndicators.some(p => p.test(t))) return false;
+  
+  const knowledgePatterns = [
+    /\bwho\s+(?:was|is|were)\s+[A-Z]/,
+    /\bwhat\s+(?:was|is|were)\s+(?:the\s+)?[A-Z]/,
+    /\bhistory\s+of\b/i,
+    /\bculture\s+(?:of|in)\b/i,
+    /\bwhen\s+(?:was|did|were)\b/i,
+    /\bwhat\s+(?:caused|started|led\s+to)\b/i,
+    /\btell\s+me\s+about\s+(?:the\s+)?(?:history|culture|tradition|origin|story)\b/i,
+    /\bwhat\s+(?:does|do)\s+.+\s+mean\b/i,
+    /\bexplain\b/i,
+    /\bwhy\s+(?:is|are|do|did|was|were)\b/i,
+    /\bhow\s+(?:does|do|did|was|were)\b/i,
+  ];
+  
+  return knowledgePatterns.some(p => p.test(t));
+}
+
+function isFactualQuestion(text) {
+  if (!text) return false;
+  const t = text.toLowerCase().trim();
+  
+  const factualPatterns = [
+    /^who\s/i,
+    /^what\s/i,
+    /^when\s/i,
+    /^where\s/i,
+    /^how\s+(many|much|old|long|far|did|does|do|was|were|is)\b/i,
+    /^why\s/i,
+    /^tell\s+me\s+about\b/i,
+    /^explain\b/i,
+    /\bvictim/i,
+    /\bcasualt/i,
+    /\bhow\s+many\s+(people|died|killed|injured|hurt)\b/i,
+  ];
+  
+  return factualPatterns.some(p => p.test(t));
 }
 
 async function fetchNewsArticles(query) {
@@ -163,7 +238,7 @@ function getNewsState(userId) {
 }
 
 function isNewsFollowUp(text, messages, userId) {
-  if (!text || !messages?.length) return { isFollowUp: false, topic: null };
+  if (!text || !messages?.length) return { isFollowUp: false, topic: null, hasOwnTopic: false };
   const t = text.toLowerCase().trim();
   
   const trackedState = userId ? getNewsState(userId) : null;
@@ -192,9 +267,10 @@ function isNewsFollowUp(text, messages, userId) {
   }
   
   if (!newsWasDiscussed) {
-    console.log('[NEWS FOLLOWUP] No news context found in recent messages');
-    return { isFollowUp: false, topic: null };
+    return { isFollowUp: false, topic: null, hasOwnTopic: false };
   }
+  
+  const msgHasSpecificTopic = hasSpecificTopic(text);
   
   const followUpPatterns = [
     /who('s| is| was| got| were| did| are)/i,
@@ -223,10 +299,17 @@ function isNewsFollowUp(text, messages, userId) {
   
   const matched = followUpPatterns.some(p => p.test(t));
   if (matched) {
-    console.log('[NEWS] Detected follow-up question about recent news topic:', lastNewsTopic || 'general');
-    return { isFollowUp: true, topic: lastNewsTopic };
+    if (msgHasSpecificTopic) {
+      const ownTopic = extractNewsTopic(text);
+      if (ownTopic && ownTopic !== 'general news') {
+        console.log('[NEWS] Follow-up detected but message has its OWN specific topic:', ownTopic, '(ignoring cached:', lastNewsTopic, ')');
+        return { isFollowUp: true, topic: ownTopic, hasOwnTopic: true };
+      }
+    }
+    console.log('[NEWS] Detected vague follow-up, using cached topic:', lastNewsTopic || 'general');
+    return { isFollowUp: true, topic: lastNewsTopic, hasOwnTopic: false };
   }
-  return { isFollowUp: false, topic: null };
+  return { isFollowUp: false, topic: null, hasOwnTopic: false };
 }
 
 // Check if user is repeatedly asking for news (insisting)
@@ -373,4 +456,9 @@ module.exports = {
   isInsistingOnNews,
   markNewsFetched,
   tickNewsState,
+  hasSpecificTopic,
+  getCachedArticles,
+  cacheArticles,
+  isGeneralKnowledgeQuestion,
+  isFactualQuestion,
 };

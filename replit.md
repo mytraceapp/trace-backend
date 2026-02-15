@@ -20,6 +20,15 @@ Emotional soundscapes are designed to persist — not switch like a DJ. Each sta
 ## AI Integration
 An Express server acts as a proxy to the OpenAI API, defining TRACE AI's personality with relational language and a friend-like onboarding sequence including a therapy disclaimer. It features an Emotional Intelligence Module for mood analysis, an audit logging system, and configurable smart features via feature flags. Summaries are warm, grounded, and factual, avoiding jargon, with relational fallback messages for OpenAI failures.
 
+### Factual Accuracy System
+TRACE handles news, culture, and history questions with accuracy:
+- **Smart Topic Detection**: `hasSpecificTopic()` detects proper nouns, events, locations. When a user message has a specific new topic, it always wins over cached follow-up topics. Vague follow-ups ("tell me more") use the cached topic.
+- **Article Caching**: Fetched news articles are cached per user (30min TTL) so follow-up questions reference the same data without re-fetching.
+- **Dynamic Word Limits**: Factual turns with data get 200-word max (vs normal 20-50). Factual turns without data get 150. This only applies on factual turns -- normal conversation cadence is untouched.
+- **Factual Grounding Prompt**: When NEWS_CONTEXT is present, explicit instructions tell the AI to share specific headlines, cite sources, never paraphrase vaguely.
+- **General Knowledge Mode**: For culture/history questions that don't need real-time data, the AI is instructed to answer confidently from its training data rather than deflecting.
+- **FACTS_GUARD**: Only intercepts truly time-sensitive political questions ("who is the current president") -- does not block culture/history.
+
 ### Conversation Management & Continuity
 The system employs advanced mechanisms for conversational coherence including a Continuity Guard to prevent resets, Primary Mode Gating for single authoritative responses, and an Interaction Contract Lock for action-response consistency. A Studios Run Mode maintains context during music exploration, while Retrieval Budget and Mode-Scoped Context optimize relevance. Latency + Confidence Smoothing adjusts communication style, and Micro-Anticipation selects clear next conversational moves. An Output Contract Lock and `finalizeTraceResponse()` helper ensure premium response quality and consistent response envelopes.
 

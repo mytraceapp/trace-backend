@@ -96,7 +96,7 @@ const {
 const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways');
 const { processDoorways, bootstrapConversationState, DOORS, loadDoorwayProfile, saveDoorwayProfile } = require('./doorwaysV1');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
-const { buildNewsContextSummary, isNewsQuestion, isNewsFollowUp, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews, markNewsFetched, tickNewsState } = require('./newsClient');
+const { buildNewsContextSummary, isNewsQuestion, isNewsFollowUp, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews, markNewsFetched, tickNewsState, hasSpecificTopic, getCachedArticles, cacheArticles, isGeneralKnowledgeQuestion, isFactualQuestion } = require('./newsClient');
 const { isCurrentEventsQuery, searchForContext } = require('./searchTools');
 const { 
   markUserInCrisis, 
@@ -6846,6 +6846,8 @@ app.post('/api/chat', async (req, res) => {
       console.log('[TRACE STRESS] User indicated stress earlier in conversation');
     }
 
+    let isFactualTurn = false;
+
     if (!isCrisisMode) {
       try {
         tickNewsState(effectiveUserId);
@@ -6857,15 +6859,36 @@ app.post('/api/chat', async (req, res) => {
         if (isDirectNewsQuestion || isConfirmingNews || followUpResult.isFollowUp) {
           const triggerReason = isDirectNewsQuestion ? 'direct' : isConfirmingNews ? 'confirmation' : 'follow-up';
           console.log(`[TRACE NEWS] News question detected (${triggerReason}), fetching...`);
+          isFactualTurn = true;
           
           let searchTopic = userText;
           const directTopic = extractNewsTopic(userText);
           const isPronouns = /^(that|this|it|them|those|these)$/i.test((directTopic || '').trim());
-          
-          if (followUpResult.isFollowUp && followUpResult.topic) {
+          const msgHasOwnTopic = hasSpecificTopic(userText);
+
+          if (msgHasOwnTopic && directTopic && directTopic !== 'general news') {
+            searchTopic = directTopic;
+            console.log('[TRACE NEWS] User has SPECIFIC new topic:', searchTopic);
+          } else if (followUpResult.isFollowUp && followUpResult.hasOwnTopic && followUpResult.topic) {
             searchTopic = followUpResult.topic;
-            console.log('[TRACE NEWS] Using follow-up topic from recent news discussion:', searchTopic);
-          } else if (isConfirmingNews || (isDirectNewsQuestion && (isPronouns || directTopic === 'general news')) || (followUpResult.isFollowUp && isPronouns)) {
+            console.log('[TRACE NEWS] Follow-up with own topic:', searchTopic);
+          } else if (followUpResult.isFollowUp && !followUpResult.hasOwnTopic && followUpResult.topic) {
+            const cached = getCachedArticles(effectiveUserId);
+            if (cached && cached.topic === followUpResult.topic) {
+              console.log('[TRACE NEWS] Vague follow-up — using CACHED articles for:', cached.topic);
+              const brief = cached.articles.slice(0, 5).map(a => ({
+                title: a.title,
+                source: a.source?.name,
+                publishedAt: a.publishedAt,
+                description: a.description,
+              }));
+              newsContext = `NEWS_CONTEXT for "${cached.topic}" (cached from earlier in this conversation):\n${JSON.stringify(brief, null, 2)}\n\nThe user is asking a follow-up question. Use THESE articles to answer with specific details.`;
+              markNewsFetched(effectiveUserId, cached.topic);
+            } else {
+              searchTopic = followUpResult.topic;
+              console.log('[TRACE NEWS] Vague follow-up, re-fetching topic:', searchTopic);
+            }
+          } else if (isConfirmingNews || (isDirectNewsQuestion && (isPronouns || directTopic === 'general news'))) {
             const pendingTopic = extractPendingNewsTopic(messages);
             if (pendingTopic) {
               searchTopic = pendingTopic;
@@ -6876,24 +6899,47 @@ app.post('/api/chat', async (req, res) => {
             }
           }
           
-          let rawNewsContext = await buildNewsContextSummary(searchTopic);
-          
-          // If user was stressed earlier BUT not insisting, add stress-aware instruction
-          // If user is insisting (asked multiple times), respect their choice and share all headlines
-          if (userWasStressed && rawNewsContext && !userInsisting) {
-            rawNewsContext += `\n\nIMPORTANT: The user indicated stress/overwhelm earlier in this conversation (they mentioned needing a break or distraction). Before sharing these headlines, acknowledge this tension and ask if they truly want news right now, OR share only the most neutral/lightest item. Do NOT list multiple potentially heavy headlines and then ask "How does this sit with you?" - that adds stress.`;
-            console.log('[TRACE NEWS] Added stress-aware context');
-          } else if (userInsisting && rawNewsContext) {
-            rawNewsContext += `\n\nNOTE: The user has asked multiple times about this news topic. They clearly want the information. Share ALL the headlines you found - do not filter or withhold. Respect their choice.`;
-            console.log('[TRACE NEWS] User insisting - will share all headlines');
-          }
-          
-          newsContext = rawNewsContext;
-          if (newsContext) {
+          if (!newsContext) {
             const resolvedTopic = extractNewsTopic(searchTopic);
-            markNewsFetched(effectiveUserId, resolvedTopic !== 'general news' ? resolvedTopic : searchTopic);
-            console.log('[TRACE NEWS] Loaded news context, marked state for follow-ups');
+            const cacheTopic = resolvedTopic !== 'general news' ? resolvedTopic : searchTopic;
+            
+            const rawArticles = await fetchNewsArticles(cacheTopic);
+            
+            let rawNewsContext;
+            if (!rawArticles || rawArticles.length === 0) {
+              rawNewsContext = `NEWS_CONTEXT: No recent major coverage found for "${cacheTopic}".`;
+            } else {
+              cacheArticles(effectiveUserId, cacheTopic, rawArticles);
+              console.log('[TRACE NEWS] Cached', rawArticles.length, 'articles for follow-ups');
+              
+              const brief = rawArticles.slice(0, 5).map(a => ({
+                title: a.title,
+                source: a.source?.name,
+                publishedAt: a.publishedAt,
+                description: a.description,
+              }));
+              rawNewsContext = `NEWS_CONTEXT for "${cacheTopic}" (recent headlines, may be incomplete):\n${JSON.stringify(brief, null, 2)}`;
+            }
+            
+            if (userWasStressed && rawNewsContext && !userInsisting) {
+              rawNewsContext += `\n\nIMPORTANT: The user indicated stress/overwhelm earlier in this conversation (they mentioned needing a break or distraction). Before sharing these headlines, acknowledge this tension and ask if they truly want news right now, OR share only the most neutral/lightest item. Do NOT list multiple potentially heavy headlines and then ask "How does this sit with you?" - that adds stress.`;
+              console.log('[TRACE NEWS] Added stress-aware context');
+            } else if (userInsisting && rawNewsContext) {
+              rawNewsContext += `\n\nNOTE: The user has asked multiple times about this news topic. They clearly want the information. Share ALL the headlines you found - do not filter or withhold. Respect their choice.`;
+              console.log('[TRACE NEWS] User insisting - will share all headlines');
+            }
+            
+            newsContext = rawNewsContext;
+            if (newsContext) {
+              const resolvedTopic = extractNewsTopic(searchTopic);
+              markNewsFetched(effectiveUserId, resolvedTopic !== 'general news' ? resolvedTopic : searchTopic);
+              console.log('[TRACE NEWS] Loaded news context, marked state for follow-ups');
+            }
           }
+        }
+        
+        if (!isFactualTurn && isFactualQuestion(userText)) {
+          isFactualTurn = true;
         }
       } catch (err) {
         console.error('[TRACE NEWS] Failed to build news context:', err.message);
@@ -7007,7 +7053,6 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
         console.error('[TRACE ANNIVERSARY] Failed to load anniversary context:', err.message);
       }
 
-      // General search — catches movies, sports, current events, etc. that specific APIs missed
       if (!newsContext && !weatherContext) {
         try {
           if (isCurrentEventsQuery(userText)) {
@@ -7015,6 +7060,7 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
             const result = await searchForContext(userText, effectiveUserId);
             if (result) {
               searchContext = result;
+              isFactualTurn = true;
               console.log('[TRACE SEARCH] Search context attached');
             }
           }
@@ -7710,14 +7756,20 @@ CONTEXT REFERENCES - "U KNOW", "I JUST TOLD U":
 - Acknowledge what they said earlier and continue that thread.
 
 SEARCH / CURRENT EVENTS DATA:
-- When SEARCH_CONTEXT or NEWS_CONTEXT is provided, USE IT. The data is real and current.
+- When SEARCH_CONTEXT or NEWS_CONTEXT is provided, USE IT. Share SPECIFIC details — headlines, names, numbers, dates.
 - Share the info like you already knew it — "yeah, [fact]." NOT "According to my search..."
 - Never mention APIs, data sources, or searching. Just share the info naturally.
-- Keep it brief unless they ask for details. Buddy voice, not news anchor.
+- When the user asks for details and the data HAS the answer, give it. Do NOT say "I don't have those details" when the data is right there.
 - If no search data was provided but you genuinely don't know something current, say so honestly: "not sure about that one" or "haven't heard." Don't make things up.
 - For movies/shows: "yeah, [movie] came out [when], heard it's [brief take]."
 - For sports: "lakers won 115-108." Not a paragraph.
-- For weather: answer naturally like you looked outside.`;
+- For weather: answer naturally like you looked outside.
+
+CULTURE / HISTORY / GENERAL KNOWLEDGE:
+- You have extensive knowledge about history, culture, science, and general facts. Answer these CONFIDENTLY with specific details.
+- Share dates, names, events, context. Be factual and precise.
+- Only deflect if the question requires CURRENT/RECENT information you don't have.
+- Do NOT say "I don't have a live news feed" for questions about history, culture, or established facts.`;
       
       // Add extra instruction for long-form requests
       if (isLongFormRequest) {
@@ -8734,7 +8786,36 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
       if (fullContext) {
         systemPrompt += '\n\n' + fullContext;
         if (fullContext.includes('NEWS_CONTEXT')) {
-          systemPrompt += '\n\nFACTUAL GROUNDING: You have real news data above. ONLY share specific details (names, places, numbers, events) that appear in the NEWS_CONTEXT. If the user asks a follow-up question and the answer is not in the provided data, say something like "I don\'t have those specific details" rather than guessing or making up information. Never fabricate names, victim counts, or event specifics.';
+          systemPrompt += `\n\nFACTUAL GROUNDING — CRITICAL:
+You have REAL news data above. Your job is to answer with SPECIFIC details from this data:
+- Share actual headlines and key facts (names, numbers, dates, locations)
+- Cite sources naturally ("according to [source]...")
+- If the data contains the answer, SHARE IT — do not paraphrase vaguely
+- If the user asks something NOT covered in the data, say: "that specific detail wasn't in the articles i found — want me to look for something more specific?"
+- Never fabricate names, victim counts, or event specifics not in the data
+
+DO NOT:
+- Give vague summaries like "there's been some news about..."
+- Say "I don't have those details" when the data IS right there
+- Withhold headlines or facts from the provided articles`;
+        }
+      }
+
+      if (isFactualTurn && !fullContext?.includes('NEWS_CONTEXT')) {
+        const isGenKnowledge = isGeneralKnowledgeQuestion(userText);
+        if (isGenKnowledge) {
+          systemPrompt += `\n\nGENERAL KNOWLEDGE MODE:
+The user is asking about history, culture, or general knowledge. You have extensive training data on these topics. Answer confidently and specifically:
+- Share dates, names, events, and context
+- Be factual and precise — give real information
+- Keep your warm, grounded tone but don't deflect or say "I'm not sure about that"
+- Only say you don't know if you genuinely don't have the information
+- Do NOT say "I don't have a live news feed" for history/culture questions — you know this stuff`;
+          console.log('[FACTUAL] Injected general knowledge mode for culture/history question');
+        } else {
+          systemPrompt += `\n\nFACTUAL RESPONSE MODE:
+The user is asking a factual question. Answer with specific details — names, numbers, dates, locations. Be accurate and direct. If you genuinely don't know, say so honestly, but don't deflect when you DO have the knowledge to answer.`;
+          console.log('[FACTUAL] Injected factual response mode');
         }
       }
 
@@ -9400,8 +9481,15 @@ Your response (text only, no JSON):`;
     const controlQBudget = conversationState.computeQuestionMode(effectiveUserId).budget;
     const hasExternalContext = !!(newsContext || searchContext || weatherContext || foodContext);
     const baseMaxWords = controlLengthLabel === 'micro' ? 5 : controlLengthLabel === 'short' ? 20 : controlLengthLabel === 'long' ? 90 : 50;
-    const controlMaxWords = hasExternalContext ? Math.max(baseMaxWords, 80) : baseMaxWords;
-    if (hasExternalContext && controlMaxWords > baseMaxWords) {
+    let controlMaxWords = baseMaxWords;
+    if (isFactualTurn && (newsContext || searchContext)) {
+      controlMaxWords = Math.max(baseMaxWords, 200);
+      console.log(`[CONTROL_BLOCK] Length override: ${baseMaxWords} → ${controlMaxWords} (factual turn with data)`);
+    } else if (isFactualTurn) {
+      controlMaxWords = Math.max(baseMaxWords, 150);
+      console.log(`[CONTROL_BLOCK] Length override: ${baseMaxWords} → ${controlMaxWords} (factual turn, no external data)`);
+    } else if (hasExternalContext) {
+      controlMaxWords = Math.max(baseMaxWords, 100);
       console.log(`[CONTROL_BLOCK] Length override: ${baseMaxWords} → ${controlMaxWords} (external context present)`);
     }
     console.log(`[CONTROL_BLOCK] LENGTH_MODE=${controlLengthLabel} QUESTION_BUDGET=${controlQBudget} maxWords=${controlMaxWords} soundscape=${controlSoundscape} mood=${controlMood} door=${controlDoorContext}`);
