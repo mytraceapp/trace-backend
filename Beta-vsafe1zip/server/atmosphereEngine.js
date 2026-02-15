@@ -580,16 +580,20 @@ async function evaluateAtmosphere(input) {
   let reason = '';
   
   const persistenceWindowComplete = newMessagesSinceChange >= MIN_STATE_PERSIST_MESSAGES;
-  const tracksPlayedInState = Math.max(clientTracksPlayed, session.last_known_tracks_played || 0);
+  const clientReported = Math.max(clientTracksPlayed, session.last_known_tracks_played || 0);
   if (clientTracksPlayed > (session.last_known_tracks_played || 0)) {
     session.last_known_tracks_played = clientTracksPlayed;
   }
+  const elapsedInStateMs = now - last_change_timestamp;
+  const AVG_TRACK_DURATION_MS = 180000;
+  const serverEstimatedTracks = Math.floor(elapsedInStateMs / AVG_TRACK_DURATION_MS);
+  const tracksPlayedInState = clientReported > 0 ? clientReported : serverEstimatedTracks;
   const trackGateMet = tracksPlayedInState >= MIN_TRACKS_BEFORE_SWITCH;
   const isInNonPresenceState = current_state !== 'presence';
   const fullPersistenceMet = persistenceWindowComplete && trackGateMet;
 
   if (!trackGateMet && isInNonPresenceState) {
-    console.log(`[ATMOSPHERE] 🎵 Track gate: ${tracksPlayedInState}/${MIN_TRACKS_BEFORE_SWITCH} tracks played — locked in ${current_state}`);
+    console.log(`[ATMOSPHERE] 🎵 Track gate: ${tracksPlayedInState}/${MIN_TRACKS_BEFORE_SWITCH} tracks played (client=${clientReported}, server_est=${serverEstimatedTracks}) — locked in ${current_state}`);
   }
   
   // Priority order for detecting "more urgent" states
@@ -601,7 +605,7 @@ async function evaluateAtmosphere(input) {
     // 🎯 REASSESSMENT POINT: Both gates met (25+ messages AND 7+ tracks)
     // Look at accumulated signals to decide next state
     // ============================================================
-    console.log(`[ATMOSPHERE] 🎯 REASSESSMENT: ${newMessagesSinceChange} messages + ${tracksPlayedInState} tracks complete, evaluating next state`);
+    console.log(`[ATMOSPHERE] 🎯 REASSESSMENT: ${newMessagesSinceChange} msgs + ${tracksPlayedInState} tracks (client=${clientReported}, est=${serverEstimatedTracks}), evaluating next state`);
     
     // Find best state from continuous accumulation.
     // Default to CURRENT state (not presence) — only switch if there's a stronger signal.
@@ -657,7 +661,7 @@ async function evaluateAtmosphere(input) {
     // 🛡️ PERSISTENCE PROTECTION: Block downgrades, allow urgent upgrades
     // Both 25+ messages AND 7+ tracks required to unlock reassessment
     // ============================================================
-    console.log(`[ATMOSPHERE] 🛡️ Persistence: msgs=${newMessagesSinceChange}/${MIN_STATE_PERSIST_MESSAGES}, tracks=${tracksPlayedInState}/${MIN_TRACKS_BEFORE_SWITCH} - locked in ${current_state}`);
+    console.log(`[ATMOSPHERE] 🛡️ Persistence: msgs=${newMessagesSinceChange}/${MIN_STATE_PERSIST_MESSAGES}, tracks=${tracksPlayedInState}/${MIN_TRACKS_BEFORE_SWITCH} (client=${clientReported}, est=${serverEstimatedTracks}) - locked in ${current_state}`);
     
     // Check for URGENT UPGRADES only (higher priority states can interrupt)
     if (maxConfidence !== 'low') {
