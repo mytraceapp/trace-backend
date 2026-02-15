@@ -502,16 +502,29 @@ function buildContinuity({ topicAnchor, previousAnchor, conversationState, cogni
   const hasPendingFollowup = pf && !pf.expired;
   const studiosContinuation = primaryMode === 'studios' && topicAnchor?.domain === 'music';
 
-  const lastAssistant = (historyMessages || []).filter(m => m.role === 'assistant').pop();
+  const allAssistant = (historyMessages || []).filter(m => m.role === 'assistant');
+  const lastAssistant = allAssistant[allAssistant.length - 1];
   const lastAssistantText = (lastAssistant?.content || '').toLowerCase();
-  const wasErrorFallback = lastAssistantText.includes('something went wrong') ||
-    lastAssistantText.includes('give me a sec') ||
-    lastAssistantText.includes('glitching') ||
-    lastAssistantText.includes('try again') ||
-    lastAssistantText.includes('reconnect');
+  const errorPatterns = ['something went wrong', 'give me a sec', 'glitched for a sec',
+    'lost you for a sec', 'lost the thread', 'hang on, lost', 'hang on, glitched',
+    'sorry, lost that', 'what were you saying', 'say that again'];
+  const wasErrorFallback = errorPatterns.some(p => lastAssistantText.includes(p));
   if (wasErrorFallback) {
-    console.log('[CONTINUITY] Last assistant message was error fallback — resetting continuity');
-    return { required: false, reason: 'error_fallback_recovery', topicAnchor: null, sessionSummary: null };
+    console.log('[CONTINUITY] Last assistant message was error fallback — PRESERVING topic anchor for recovery');
+    const lastRealUserMsg = (historyMessages || [])
+      .filter(m => m.role === 'user')
+      .pop();
+    const preservedAnchor = topicAnchor || previousAnchor || null;
+    const anchorLabel = preservedAnchor?.label || 'open conversation';
+    console.log('[CONTINUITY] Recovered anchor:', anchorLabel, '| Last user msg:', (lastRealUserMsg?.content || '').slice(0, 50));
+    return {
+      required: !!preservedAnchor && anchorLabel !== 'open conversation',
+      reason: 'error_recovery_with_context',
+      topicAnchor: preservedAnchor,
+      sessionSummary: `Recovering from brief error. User was discussing: ${anchorLabel}. Continue that thread naturally.`,
+      errorRecovery: true,
+      lastUserMessage: lastRealUserMsg?.content?.slice(0, 150) || null
+    };
   }
 
   let required = false;

@@ -4431,6 +4431,109 @@ function findLastPlayedTrackFromHistory(messages) {
   return null;
 }
 
+// ============================================================
+// CONTEXT-AWARE ERROR RECOVERY SYSTEM
+// Extracts topic/emotion from user's message so error fallbacks
+// feel like a brief connection glitch, not a conversation reset.
+// ============================================================
+const ERROR_FALLBACK_MARKER = '[TRACE_ERROR_RECOVERY]';
+
+function extractTopicAnchorFromMessage(message) {
+  if (!message) return { emotion: null, topic: null, original: '' };
+  const t = message.toLowerCase();
+  
+  const emotionMap = [
+    { words: ['stressed', 'stress'], label: 'stressed' },
+    { words: ['anxious', 'anxiety', 'panic', 'panicking'], label: 'anxious' },
+    { words: ['sad', 'depressed', 'down', 'low'], label: 'sad' },
+    { words: ['tired', 'exhausted', 'drained', 'burnt out', 'wiped'], label: 'tired' },
+    { words: ['angry', 'mad', 'furious', 'pissed'], label: 'angry' },
+    { words: ['proud', 'excited', 'happy', 'great', 'amazing'], label: 'proud' },
+    { words: ['worried', 'scared', 'afraid', 'nervous'], label: 'worried' },
+    { words: ['overwhelmed', 'overwhelm', 'too much'], label: 'overwhelmed' },
+    { words: ['lonely', 'alone', 'isolated'], label: 'lonely' },
+    { words: ['confused', 'lost', 'stuck', 'uncertain'], label: 'confused' },
+    { words: ['hurt', 'heartbroken', 'betrayed'], label: 'hurt' },
+    { words: ['spiraling', 'racing', 'looping', 'intrusive'], label: 'spiraling' },
+  ];
+  
+  const topicMap = [
+    { words: ['deadline', 'deadlines', 'due date'], label: 'deadlines' },
+    { words: ['project', 'assignment', 'homework'], label: 'the project' },
+    { words: ['school', 'class', 'college', 'university', 'exam', 'test', 'grade'], label: 'school' },
+    { words: ['work', 'job', 'boss', 'coworker', 'office', 'career'], label: 'work' },
+    { words: ['family', 'mom', 'dad', 'parent', 'brother', 'sister'], label: 'family' },
+    { words: ['friend', 'friendship', 'friends'], label: 'your friend' },
+    { words: ['relationship', 'partner', 'boyfriend', 'girlfriend', 'dating', 'breakup'], label: 'your relationship' },
+    { words: ['sleep', 'insomnia', 'nightmares', 'dreams'], label: 'sleep' },
+    { words: ['money', 'rent', 'bills', 'debt', 'financial'], label: 'money' },
+    { words: ['health', 'doctor', 'sick', 'pain', 'medical'], label: 'your health' },
+    { words: ['move', 'moving', 'apartment', 'housing'], label: 'moving' },
+    { words: ['interview', 'application', 'apply', 'resume'], label: 'the interview' },
+  ];
+  
+  let emotion = null;
+  for (const em of emotionMap) {
+    if (em.words.some(w => t.includes(w))) { emotion = em.label; break; }
+  }
+  
+  let topic = null;
+  for (const tp of topicMap) {
+    if (tp.words.some(w => t.includes(w))) { topic = tp.label; break; }
+  }
+  
+  return { emotion, topic, original: message.slice(0, 80) };
+}
+
+function generateContextAwareFallback(userMessage, anchor) {
+  if (!anchor) anchor = extractTopicAnchorFromMessage(userMessage);
+  
+  if (anchor.emotion && anchor.topic) {
+    const templates = [
+      `hang on, lost you for a sec. you were saying about ${anchor.topic}?`,
+      `sorry, glitched for a sec. you were talking about ${anchor.topic}?`,
+      `lost the thread for a moment. you were telling me about ${anchor.topic}?`,
+    ];
+    return templates[Math.floor(Math.random() * templates.length)];
+  }
+  
+  if (anchor.emotion) {
+    const templates = [
+      `sorry, glitched for a sec. you were saying you felt ${anchor.emotion}?`,
+      `hang on, lost that. you were talking about feeling ${anchor.emotion}?`,
+      `lost the thread for a moment. you mentioned feeling ${anchor.emotion}?`,
+    ];
+    return templates[Math.floor(Math.random() * templates.length)];
+  }
+  
+  if (anchor.topic) {
+    const templates = [
+      `lost you there for a sec. something about ${anchor.topic}?`,
+      `hang on, glitched. you were saying about ${anchor.topic}?`,
+      `sorry, lost that. you were telling me about ${anchor.topic}?`,
+    ];
+    return templates[Math.floor(Math.random() * templates.length)];
+  }
+  
+  const generic = [
+    "sorry, lost that for a sec. what were you saying?",
+    "hang on, glitched for a moment. say that again?",
+    "lost the thread there. what were you telling me?",
+  ];
+  return generic[Math.floor(Math.random() * generic.length)];
+}
+
+function isErrorFallbackMessage(content) {
+  if (!content) return false;
+  const t = content.toLowerCase();
+  return t.includes(ERROR_FALLBACK_MARKER.toLowerCase()) ||
+    (t.includes('something went wrong') && t.includes('give me a sec')) ||
+    (t.includes('lost you') && t.includes('glitch')) ||
+    (t.includes('hang on') && t.includes('lost')) ||
+    (t.includes('sorry') && t.includes('glitched') && t.includes('sec')) ||
+    (t.includes('lost the thread') && (t.includes('what were you') || t.includes('you were')));
+}
+
 app.post('/api/chat', async (req, res) => {
   // Build dedup key BEFORE try block so it's available for caching on success
   const dedupKey = getDedupKey(req);
@@ -7430,6 +7533,38 @@ CRISIS OVERRIDE:
       console.log(`[HISTORY_CAP] Capped messages from ${originalCount} to ${MAX_HISTORY_MESSAGES}`);
     }
 
+    // ============================================================
+    // LAYER 5: FILTER ERROR FALLBACK MESSAGES FROM AI CONTEXT
+    // The AI should never see "something went wrong" or "glitched for a sec"
+    // as part of the real conversation. Remove error recovery messages
+    // and inject a recovery context note so it continues naturally.
+    // ============================================================
+    let errorRecoveryContextNote = null;
+    const preFilterCount = messagesWithHydration.length;
+    const errorMsgIndices = [];
+    for (let i = 0; i < messagesWithHydration.length; i++) {
+      if (messagesWithHydration[i].role === 'assistant' && isErrorFallbackMessage(messagesWithHydration[i].content)) {
+        errorMsgIndices.push(i);
+      }
+    }
+    if (errorMsgIndices.length > 0) {
+      const lastErrorIdx = errorMsgIndices[errorMsgIndices.length - 1];
+      const userMsgBeforeError = messagesWithHydration
+        .slice(0, lastErrorIdx)
+        .filter(m => m.role === 'user')
+        .pop();
+      
+      messagesWithHydration = messagesWithHydration.filter((_, i) => !errorMsgIndices.includes(i));
+      console.log(`[ERROR_CLEANUP] Filtered ${errorMsgIndices.length} error fallback messages from AI context (${preFilterCount} → ${messagesWithHydration.length})`);
+      
+      if (userMsgBeforeError) {
+        const recoveryAnchor = extractTopicAnchorFromMessage(userMsgBeforeError.content);
+        const anchorDesc = recoveryAnchor.topic || recoveryAnchor.emotion || 'their previous topic';
+        errorRecoveryContextNote = `\n\nIMPORTANT: You just recovered from a brief technical issue. The user's last substantive message was: "${userMsgBeforeError.content.slice(0, 120)}". Continue that thread about ${anchorDesc} naturally — do NOT re-introduce yourself or ask "what's on your mind?" as if starting fresh.`;
+        console.log('[ERROR_CLEANUP] Recovery context note injected for:', anchorDesc);
+      }
+    }
+
     // traceIntent and V2 selection will be handled after all signals are computed
     let traceIntent = null;
     let useV2 = false;
@@ -8805,6 +8940,18 @@ If the right move isn't obvious: one grounded observation about what you notice 
     }
     console.log(`[RHYTHM] nudge: ${rhythmNudge.tier}, reason: ${rhythmNudge.reason}, userEnergy: ${rhythmNudge.userEnergy}, history: [${(conversationState.getState(effectiveUserId)?.rhythmHistory || []).join(',')}]`);
     
+    // Inject error recovery context note if we filtered error messages from history
+    if (errorRecoveryContextNote) {
+      systemPrompt += errorRecoveryContextNote;
+      console.log('[ERROR_RECOVERY] Injected recovery context note into system prompt');
+    }
+    
+    // Also inject recovery note from brainSynthesis continuity if it detected error recovery
+    if (traceIntent?.continuity?.errorRecovery && traceIntent?.continuity?.sessionSummary) {
+      systemPrompt += `\n\n${traceIntent.continuity.sessionSummary}`;
+      console.log('[ERROR_RECOVERY] Injected continuity recovery summary into system prompt');
+    }
+    
     // ============================================================
     // PHASE 3 GUARDRAILS: Log prompt metrics + injection status
     // ============================================================
@@ -8869,6 +9016,7 @@ If the right move isn't obvious: one grounded observation about what you notice 
     const isPremiumTier = selectedModel.includes('5.1') || modelRoute?.tier === 2;
     
     if (isPremiumTier) {
+     try {
       console.log('[TRACE T2] Premium tier detected, using PARALLEL two-step approach');
       const t2Start = Date.now();
       let structureResult = null;
@@ -8956,7 +9104,7 @@ Your response (text only, no JSON):`;
         textResult = stepBResult.data.choices[0]?.message?.content?.trim() || '';
         
         if (textResult) {
-          textResult = sanitizeTone(textResult, { userId: visitorId || 'anon', isCrisisMode: false });
+          textResult = sanitizeTone(textResult, { userId: effectiveUserId || 'anon', isCrisisMode: false });
         }
         
         if (t2FinishReason === 'length' && textResult && !isSentenceComplete(textResult)) {
@@ -8987,7 +9135,7 @@ Your response (text only, no JSON):`;
           }, { timeout: 5000, signal: AbortSignal.timeout(5000) });
           textResult = fallbackResponse.choices[0]?.message?.content?.trim() || '';
           if (textResult) {
-            textResult = sanitizeTone(textResult, { userId: visitorId || 'anon', isCrisisMode: false });
+            textResult = sanitizeTone(textResult, { userId: effectiveUserId || 'anon', isCrisisMode: false });
           }
         } catch (err) {
           console.error('[TRACE T2] Fallback text error:', err.message);
@@ -9011,6 +9159,10 @@ Your response (text only, no JSON):`;
         };
         console.log('[TRACE T2] Parallel merge complete');
       }
+     } catch (t2CriticalError) {
+      console.error('[TRACE T2] CRITICAL ERROR in premium path — silently degrading to T1:', t2CriticalError.message);
+      parsed = null;
+     }
     }
     
     // ============================================================
@@ -11587,14 +11739,29 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       _provenance,
     }, chatRequestId);
   } catch (error) {
-    console.error('TRACE API error:', error.message || error);
+    console.error('[CHAT_FAILURE]', error.message || error);
+    console.error('[CHAT_FAILURE] Stack:', error.stack?.split('\n').slice(0, 5).join('\n'));
+    
+    const userMessage = req.body?.message || req.body?.messages?.filter(m => m.role === 'user')?.pop()?.content || '';
+    const anchor = extractTopicAnchorFromMessage(userMessage);
+    const fallbackMessage = generateContextAwareFallback(userMessage, anchor);
+    
+    console.log('[ERROR_RECOVERY]', {
+      userMessagePreview: userMessage.slice(0, 60),
+      anchor,
+      fallbackMessage,
+      errorType: error.constructor?.name,
+      errorMsg: (error.message || '').slice(0, 100)
+    });
+    
     return finalizeTraceResponse(res, { 
       ok: false, 
       error: 'Failed to get response', 
-      message: "something went wrong on my end. give me a sec.",
-      response_source: 'model',
-      _provenance: { path: 'error_fallback', requestId: req.body?.requestId, ts: Date.now(), error: (error.message || '').slice(0, 100) }
-    }, req.body?.requestId, { statusCode: 500 });
+      message: fallbackMessage,
+      is_error_recovery: true,
+      response_source: 'error_recovery',
+      _provenance: { path: 'error_fallback_context_aware', requestId: req.body?.requestId, ts: Date.now(), error: (error.message || '').slice(0, 100), anchor }
+    }, req.body?.requestId, { statusCode: 200 });
   }
 });
 
