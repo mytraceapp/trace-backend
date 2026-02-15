@@ -123,7 +123,7 @@ function extractSearchQuery(text) {
   return text.trim().slice(0, 80);
 }
 
-async function searchForContext(userMessage, userId) {
+async function searchForContext(userMessage, userId, { localDay, localDate } = {}) {
   if (!canSearch(userId)) {
     console.log('[SEARCH] Cooldown active for user', userId);
     return null;
@@ -146,9 +146,11 @@ async function searchForContext(userMessage, userId) {
 
     const articles = await fetchNewsArticles(query);
 
+    const todayStr = localDay && localDate ? `${localDay}, ${localDate}` : localDate || new Date().toISOString().split('T')[0];
+
     if (!articles || articles.length === 0) {
       console.log('[SEARCH] No results found for:', query);
-      return `SEARCH_CONTEXT for "${query}": No recent news articles found, but this is likely a topic you know about from your training data. Answer confidently from your knowledge. Share what you know about ${query} — stats, context, recent developments. If you genuinely have no knowledge of this topic, say so naturally. Don't make anything up, but don't deflect if you do know.`;
+      return `SEARCH_CONTEXT for "${query}" (today is ${todayStr}): No recent news articles found, but this is likely a topic you know about from your training data. Answer confidently from your knowledge. Share what you know about ${query} — stats, context, recent developments. If you genuinely have no knowledge of this topic, say so naturally. Don't make anything up, but don't deflect if you do know.`;
     }
 
     const brief = articles.slice(0, 5).map(a => ({
@@ -160,10 +162,10 @@ async function searchForContext(userMessage, userId) {
 
     console.log('[SEARCH] Found', brief.length, 'results for:', query);
 
-    return `SEARCH_CONTEXT for "${query}" (real data — use it):
+    return `SEARCH_CONTEXT for "${query}" (today is ${todayStr} — use article dates to determine what already happened vs what's upcoming):
 ${JSON.stringify(brief, null, 2)}
 
-INSTRUCTIONS: Weave this info into your response naturally. Keep buddy voice. Don't say "according to search results" or "I found that" — just share the info like you already knew it. Be brief unless they ask for detail. Never mention APIs, sources, or search unless they ask where you heard it.`;
+INSTRUCTIONS: Weave this info into your response naturally. Keep buddy voice. Don't say "according to search results" or "I found that" — just share the info like you already knew it. Be brief unless they ask for detail. Never mention APIs, sources, or search unless they ask where you heard it. Use the article dates to determine correct timing — say "yesterday" or "last night" for past events, "today" for same-day, "tomorrow" for future.`;
   } catch (err) {
     console.error('[SEARCH] Error:', err.message);
     return null;

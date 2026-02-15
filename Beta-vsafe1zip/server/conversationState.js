@@ -952,6 +952,8 @@ function buildControlBlock({
   soundscapeName,
   mood,
   localTime,
+  localDay,
+  localDate,
   anchorsText,
   sessionSummary,
   doorContext,
@@ -959,8 +961,18 @@ function buildControlBlock({
   const lengthMode = computeLengthMode(rhythmNudge);
   const questionMode = computeQuestionMode(visitorId);
 
+  let dateStr = 'unknown';
+  if (localDay && localDate) {
+    dateStr = `${localDay}, ${localDate}`;
+  } else if (localDate) {
+    dateStr = localDate;
+  } else if (localDay) {
+    dateStr = localDay;
+  }
+
   const lines = [
     'TRACE_CONTROL_BLOCK',
+    `TODAY: ${dateStr}`,
     `SOUNDSCAPE: ${soundscapeName || 'presence'} | mood=${mood || 'neutral'}`,
     `TIME: ${localTime || 'unknown'}`,
   ];

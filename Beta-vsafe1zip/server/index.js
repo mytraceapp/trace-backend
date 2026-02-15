@@ -1277,18 +1277,36 @@ function getCountryFromTimezone(timezone) {
 
 // ---- HOLIDAYS HELPER (AbstractAPI) ----
 
-async function getHolidayContext({ countryCode, timezone, date = new Date() }) {
+async function fetchHolidaysForDate(apiKey, country, date) {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const url =
+    `https://holidays.abstractapi.com/v1/` +
+    `?api_key=${encodeURIComponent(apiKey)}` +
+    `&country=${encodeURIComponent(country)}` +
+    `&year=${year}&month=${month}&day=${day}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('[HOLIDAY] AbstractAPI error:', res.status, await res.text());
+      return [];
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error('[HOLIDAY] AbstractAPI fetch error:', err);
+    return [];
+  }
+}
+
+async function getHolidayContext({ countryCode, timezone, date = new Date(), checkNearby = false }) {
   const apiKey = process.env.ABSTRACT_HOLIDAYS_API_KEY;
   if (!apiKey) {
     console.warn('[HOLIDAY] ABSTRACT_HOLIDAYS_API_KEY is missing');
     return null;
   }
 
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth() + 1;
-  const day = date.getUTCDate();
-
-  // Priority: explicit country code > timezone-derived country > fallback to US
   let country = countryCode;
   if (!country && timezone) {
     country = getCountryFromTimezone(timezone);
@@ -1298,44 +1316,60 @@ async function getHolidayContext({ countryCode, timezone, date = new Date() }) {
   }
   country = country || 'US';
 
-  const url =
-    `https://holidays.abstractapi.com/v1/` +
-    `?api_key=${encodeURIComponent(apiKey)}` +
-    `&country=${encodeURIComponent(country)}` +
-    `&year=${year}&month=${month}&day=${day}`;
+  const todayHolidays = await fetchHolidaysForDate(apiKey, country, date);
 
-  let holidays;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) {
-      console.error('[HOLIDAY] AbstractAPI error:', res.status, await res.text());
-      return null;
+  if (todayHolidays.length > 0) {
+    const primary = todayHolidays[0];
+    const name = primary.name || primary.local_name || 'a holiday';
+    const type = primary.type || '';
+    const isPublic = String(type).toLowerCase().includes('public');
+    const summary =
+      `HOLIDAY_CONTEXT: Today is ${name} in ${country}. ` +
+      (isPublic
+        ? `It's generally treated as a public holiday where many people may have different routines. `
+        : `It's observed by some people but may not change everyone's schedule. `) +
+      `Be gentle and aware that holidays can bring up mixed emotions—joy, grief, loneliness, or stress. ` +
+      `Use this context only if the user mentions the date, the weekend, or the holiday itself. ` +
+      `Do not mention that you used a holiday API or call this HOLIDAY_CONTEXT by name.`;
+    return { summary, raw: todayHolidays };
+  }
+
+  if (checkNearby) {
+    const yesterday = new Date(date);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const tomorrow = new Date(date);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const [yesterdayHolidays, tomorrowHolidays] = await Promise.all([
+      fetchHolidaysForDate(apiKey, country, yesterday),
+      fetchHolidaysForDate(apiKey, country, tomorrow),
+    ]);
+
+    const parts = [];
+    if (yesterdayHolidays.length > 0) {
+      const name = yesterdayHolidays[0].name || yesterdayHolidays[0].local_name || 'a holiday';
+      parts.push(`Yesterday was ${name}`);
     }
-    holidays = await res.json();
-  } catch (err) {
-    console.error('[HOLIDAY] AbstractAPI fetch error:', err);
-    return null;
+    if (tomorrowHolidays.length > 0) {
+      const name = tomorrowHolidays[0].name || tomorrowHolidays[0].local_name || 'a holiday';
+      parts.push(`Tomorrow is ${name}`);
+    }
+
+    if (parts.length > 0) {
+      const summary =
+        `HOLIDAY_CONTEXT: No holiday today in ${country}, but ${parts.join(' and ')}. ` +
+        `If the user is asking about holidays, share this info naturally. ` +
+        `Be aware that holiday weekends can affect people's moods and routines. ` +
+        `Do not mention that you used a holiday API or call this HOLIDAY_CONTEXT by name.`;
+      console.log('[HOLIDAY] Found nearby holidays:', parts.join(', '));
+      return { summary, raw: [...yesterdayHolidays, ...tomorrowHolidays] };
+    }
+
+    console.log('[HOLIDAY] No holidays today or nearby');
+    return { summary: `HOLIDAY_CONTEXT: No holidays today or nearby in ${country}. If the user asks about holidays, let them know there aren't any major holidays right now but ask what's on their mind about it.`, raw: [] };
   }
 
-  if (!Array.isArray(holidays) || holidays.length === 0) {
-    return null;
-  }
-
-  const primary = holidays[0];
-  const name = primary.name || primary.local_name || 'a holiday';
-  const type = primary.type || '';
-  const isPublic = String(type).toLowerCase().includes('public');
-
-  const summary =
-    `HOLIDAY_CONTEXT: Today is ${name} in ${country}. ` +
-    (isPublic
-      ? `It's generally treated as a public holiday where many people may have different routines. `
-      : `It's observed by some people but may not change everyone's schedule. `) +
-    `Be gentle and aware that holidays can bring up mixed emotions—joy, grief, loneliness, or stress. ` +
-    `Use this context only if the user mentions the date, the weekend, or the holiday itself. ` +
-    `Do not mention that you used a holiday API or call this HOLIDAY_CONTEXT by name.`;
-
-  return { summary, raw: holidays };
+  return null;
 }
 
 function isHolidayRelated(text) {
@@ -1366,13 +1400,23 @@ async function maybeAttachHolidayContext({ messages, profile, requestTimezone })
     return { messages, holidaySummary: null };
   }
 
-  console.log('[HOLIDAY] Holiday-related message detected');
+  console.log('[HOLIDAY] Holiday-related message detected:', lastUser.content.slice(0, 40));
 
-  // Use explicit country if set, otherwise let getHolidayContext derive from timezone
-  // Priority: profile country > profile timezone > request timezone (from device)
   const countryCode = profile?.country || null;
   const timezone = profile?.timezone || requestTimezone || null;
-  const ctx = await getHolidayContext({ countryCode, timezone });
+
+  let userLocalDate = new Date();
+  if (timezone) {
+    try {
+      const localStr = new Date().toLocaleString('en-US', { timeZone: timezone });
+      userLocalDate = new Date(localStr);
+      console.log('[HOLIDAY] Using user local date:', userLocalDate.toISOString().split('T')[0], 'tz:', timezone);
+    } catch (e) {
+      console.warn('[HOLIDAY] Could not parse timezone, using UTC');
+    }
+  }
+
+  const ctx = await getHolidayContext({ countryCode, timezone, date: userLocalDate, checkNearby: true });
 
   if (!ctx) {
     return { messages, holidaySummary: null };
@@ -6918,7 +6962,8 @@ app.post('/api/chat', async (req, res) => {
                 publishedAt: a.publishedAt,
                 description: a.description,
               }));
-              rawNewsContext = `NEWS_CONTEXT for "${cacheTopic}" (recent headlines, may be incomplete):\n${JSON.stringify(brief, null, 2)}`;
+              const todayLabel = localDay && localDate ? `${localDay}, ${localDate}` : localDate || new Date().toISOString().split('T')[0];
+              rawNewsContext = `NEWS_CONTEXT for "${cacheTopic}" (today is ${todayLabel} — compare article dates to determine past vs current vs upcoming):\n${JSON.stringify(brief, null, 2)}\n\nUse article publishedAt dates to say "yesterday" / "last night" / "today" / "tomorrow" accurately. Never guess what day events happened — check the dates.`;
             }
             
             if (userWasStressed && rawNewsContext && !userInsisting) {
@@ -7057,7 +7102,7 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
         try {
           if (isCurrentEventsQuery(userText)) {
             console.log('[TRACE SEARCH] Current events query detected:', userText.slice(0, 60));
-            const result = await searchForContext(userText, effectiveUserId);
+            const result = await searchForContext(userText, effectiveUserId, { localDay, localDate });
             if (result) {
               searchContext = result;
               isFactualTurn = true;
@@ -9473,6 +9518,8 @@ Your response (text only, no JSON):`;
       soundscapeName: controlSoundscape,
       mood: controlMood,
       localTime: localTime || null,
+      localDay: localDay || null,
+      localDate: localDate || null,
       anchorsText: controlAnchorsText,
       sessionSummary: controlSessionSummary,
       doorContext: controlDoorContext,
