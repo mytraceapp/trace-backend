@@ -187,6 +187,8 @@ const memoryStore = require('./memoryStore');
 const sessionManager = require('./sessionManager');
 const coreMemory = require('./coreMemory');
 const relationalMemory = require('./relationalMemory');
+const topicMemory = require('./topicMemory');
+const emotionalCarryover = require('./emotionalCarryover');
 
 /**
  * Feature Flags - Panic switches for smart features
@@ -7411,6 +7413,26 @@ CRISIS OVERRIDE:
         
         sessionRotation = await sessionManager.checkAndRotateSession(supabaseServer, conversation, memoryStore);
         
+        if (sessionRotation?.rotated && conversation.current_session_id && supabaseServer) {
+          try {
+            const recentForTone = await memoryStore.fetchRecentMessages(supabaseServer, conversationId, 20);
+            if (recentForTone && recentForTone.length > 0) {
+              const tone = emotionalCarryover.classifyEmotionalTone(recentForTone);
+              const activeTopicsForSummary = pool
+                ? await topicMemory.fetchActiveTopics(pool, effectiveUserId, conversationId, 5)
+                : [];
+              const topicNames = activeTopicsForSummary.map(t => t.topic);
+              const summary = emotionalCarryover.generateSessionEndSummary(recentForTone, topicNames);
+              emotionalCarryover.saveEmotionalTone(
+                supabaseServer, conversationId, conversation.current_session_id, tone, summary
+              ).catch(err => console.warn('[EMOTIONAL_CARRYOVER] Background save error:', err.message));
+              console.log(`[EMOTIONAL_CARRYOVER] Session rotated — saved tone: ${tone}, summary: ${summary.slice(0, 60)}`);
+            }
+          } catch (toneErr) {
+            console.warn('[EMOTIONAL_CARRYOVER] Session tone save error:', toneErr.message);
+          }
+        }
+        
         const [storedCoreMemory, sessionSummaries, recentStored] = await Promise.all([
           memoryStore.fetchCoreMemory(supabaseServer, conversationId),
           memoryStore.fetchSessionSummaries(supabaseServer, conversationId, 3),
@@ -9293,6 +9315,61 @@ Your response (text only, no JSON):`;
       }
     } catch (relErr) {
       console.warn('[RELATIONAL MEMORY] Error (continuing without):', relErr.message);
+    }
+
+    // ============================================================
+    // LAYER 2: TOPIC MEMORY - Persistent topic tracking
+    // ============================================================
+    let topicContextPrompt = '';
+    const memConversationId = conversationMeta?.conversationId || req.body.conversationId || req.body.conversation_id || null;
+    try {
+      if (effectiveUserId && pool) {
+        const userTopics = topicMemory.extractTopics(lastUserContent);
+        if (userTopics.length > 0 && memConversationId) {
+          topicMemory.storeTopics(pool, effectiveUserId, memConversationId, userTopics).catch(err => {
+            console.warn('[TOPIC_MEMORY] Background store error:', err.message);
+          });
+        }
+
+        if (topicMemory.detectResolution(lastUserContent) && memConversationId) {
+          const activeTopics = await topicMemory.fetchActiveTopics(pool, effectiveUserId, memConversationId, 3);
+          if (activeTopics.length > 0) {
+            const topicsToResolve = activeTopics.slice(0, 2).map(t => t.topic);
+            topicMemory.resolveTopicsForUser(pool, effectiveUserId, topicsToResolve).catch(err => {
+              console.warn('[TOPIC_MEMORY] Background resolve error:', err.message);
+            });
+          }
+        }
+
+        const activeTopics = memConversationId
+          ? await topicMemory.fetchActiveTopics(pool, effectiveUserId, memConversationId)
+          : [];
+        const recentTopics = await topicMemory.fetchRecentCrossSessionTopics(pool, effectiveUserId, memConversationId);
+        
+        topicContextPrompt = topicMemory.buildTopicContextPrompt(activeTopics, recentTopics);
+        if (topicContextPrompt) {
+          systemPrompt += '\n' + topicContextPrompt;
+          console.log(`[TOPIC_MEMORY] Injected: ${activeTopics.length} active, ${recentTopics.length} cross-session`);
+        }
+      }
+    } catch (topicErr) {
+      console.warn('[TOPIC_MEMORY] Error (continuing without):', topicErr.message);
+    }
+
+    // ============================================================
+    // LAYER 3: EMOTIONAL CARRYOVER - Tone from last session
+    // ============================================================
+    try {
+      if (effectiveUserId && supabaseServer) {
+        const lastSession = await emotionalCarryover.fetchLastSessionTone(supabaseServer, effectiveUserId, memConversationId);
+        const carryoverPrompt = emotionalCarryover.buildEmotionalCarryoverPrompt(lastSession);
+        if (carryoverPrompt) {
+          systemPrompt += carryoverPrompt;
+          console.log(`[EMOTIONAL_CARRYOVER] Injected: tone=${lastSession.emotional_tone}, hoursAgo=${Math.round((Date.now() - new Date(lastSession.ended_at).getTime()) / 3600000)}`);
+        }
+      }
+    } catch (emoErr) {
+      console.warn('[EMOTIONAL_CARRYOVER] Error (continuing without):', emoErr.message);
     }
 
     // ============================================================
@@ -11541,6 +11618,24 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
           if (coreMemory.shouldSummarize(memConv || conversationMeta.conversation, sessionRotation?.rotated)) {
             const recentMsgs = await memoryStore.fetchRecentMessages(supabaseServer, conversationId, 50);
             coreMemory.runSessionSummary(openai, supabaseServer, conversationId, sessionId, recentMsgs);
+          }
+          
+          // Update emotional tone periodically (every 5th message) so it's fresh if app closes
+          const convState = memConv || conversationMeta?.conversation;
+          const msgCount = convState?.user_msg_count_since_summary || convState?.turn_count || 0;
+          if (supabaseServer && sessionId && msgCount > 0 && msgCount % 5 === 0) {
+            try {
+              const toneMessages = await memoryStore.fetchRecentMessages(supabaseServer, conversationId, 15);
+              if (toneMessages && toneMessages.length > 0) {
+                const currentTone = emotionalCarryover.classifyEmotionalTone(toneMessages);
+                const activeT = pool ? await topicMemory.fetchActiveTopics(pool, effectiveUserId, conversationId, 5) : [];
+                const toneSummary = emotionalCarryover.generateSessionEndSummary(toneMessages, activeT.map(t => t.topic));
+                await emotionalCarryover.saveEmotionalTone(supabaseServer, conversationId, sessionId, currentTone, toneSummary);
+                console.log(`[EMOTIONAL_CARRYOVER] Periodic tone update: ${currentTone}`);
+              }
+            } catch (toneErr) {
+              console.warn('[EMOTIONAL_CARRYOVER] Periodic save error:', toneErr.message);
+            }
           }
         } catch (memErr) {
           console.warn('[CORE MEMORY] Post-response processing error:', memErr.message);
@@ -19453,6 +19548,11 @@ async function runDailyMaintenance() {
 
     // 3. Reset daily stats
     resetSummaryStats();
+
+    // 4. Clean up old resolved conversation topics
+    if (pool) {
+      await topicMemory.cleanupOldResolvedTopics(pool);
+    }
 
     console.log('[MAINTENANCE] Daily maintenance completed');
   } catch (error) {

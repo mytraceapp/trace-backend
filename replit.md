@@ -50,7 +50,9 @@ Music familiarity (new → aware → fan) is tracked per user and persisted to S
 ## Audio Control Path Resolution
 An audio control handler system differentiates between early interceptors and the Studios handler to prevent conflicts in stop/resume/pause commands, ensuring correct track context. It also includes logic to prevent replaying already-offered tracks.
 
-## Relational Memory (Phase 1 + Phase 2)
+## 3-Layer Memory System
+
+### Layer 1: Relational Memory (Phase 1 + Phase 2)
 Entity-anchored relational memory system (`server/relationalMemory.js`) that tracks people the user mentions. Extracts relationship mentions ("my mom", "my brother") from chat messages, normalizes synonyms (mom/mother/mama → mom), and resolves known people from the local PostgreSQL `people` table. Relational anchors (e.g., "mom = Sarah") are injected into the LLM system prompt so TRACE can reference people by name. Handles ambiguous relationships (multiple friends) with buddy-voice clarification. Auto-creates person records when users explicitly name someone ("my mom Sarah"). CRUD endpoints at `/api/memory/people` and `/api/memory/person`. High-salience people are always included in system prompt context even without explicit mentions.
 
 Phase 2 enhancements:
@@ -58,6 +60,17 @@ Phase 2 enhancements:
 - **Correction Detection**: Detects patterns like "Emma is my cousin not sister" and updates the DB relationship accordingly.
 - **Pronoun Resolution**: In-memory tracking of last-mentioned person per user. Injects soft pronoun hints ("Recent reference: Emma (sister)") into system prompt within 3-message window, auto-clears after 5 messages.
 - **Post-Processing Guardrail**: After LLM response, replaces "your sister" → "Emma" when anchor was injected but model didn't use the name. Conservative exact-phrase matching only.
+
+### Layer 2: Topic Memory (`server/topicMemory.js`)
+Persistent topic tracking across conversations using PostgreSQL `conversation_topics` table. Extracts topics from user messages (31 patterns covering work, school, relationships, health, creative, finances, etc.) with parent-child dedup (e.g., "deadlines" suppresses generic "work"). Topics are stored per user/conversation with mention counts and resolution status. Active topics from current conversation and recent cross-session topics (last 7 days) are injected into the system prompt. Resolution detection marks completed topics (e.g., "that's done", "worked out"). Daily cleanup removes old resolved topics after 30 days. All operations are fire-and-forget with graceful degradation.
+
+### Layer 3: Emotional Carryover (`server/emotionalCarryover.js`)
+Prevents tone whiplash between sessions. Classifies conversation emotional tone (crisis > heavy > positive > neutral) using pattern matching on recent messages. Tone is saved to Supabase `trace_sessions` table at session rotation and periodically (every 5th message). On next session, fetches last session's tone and injects context into system prompt: after crisis/heavy sessions, instructs minimal greetings ("hey." not "hey! what's up?"); after positive, matches energy. Provides greeting hints with time-aware logic (< 3h, < 24h, > 24h). All layers have independent try/catch — any single layer failure doesn't affect the others.
+
+### Memory Integration
+All 3 layers are injected into the system prompt after relational anchors, before the TRACE Control Block. Each layer fetches data independently and degrades gracefully. The `conversationMeta.conversationId` (from `memoryStore.ensureConversation`) is used as the authoritative conversation ID across all layers.
+
+**Note**: Layer 3 requires `emotional_tone`, `emotional_summary`, and `tone_updated_at` columns on the Supabase `trace_sessions` table. Until these are added in Supabase, emotional carryover saves will fail silently and the layer will skip gracefully.
 
 # External Dependencies
 
