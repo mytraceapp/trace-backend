@@ -527,12 +527,11 @@ export function ChatScreen({
         content: userMsg
       }]);
       
-      // Save user message to Supabase
-      getCurrentUserId().then(userId => {
-        if (userId) {
-          saveTraceMessage(userId, 'user', userMsg);
-        }
-      });
+      // Get userId for memory persistence
+      const currentUsrId = await getCurrentUserId();
+      if (currentUsrId) {
+        saveTraceMessage(currentUsrId, 'user', userMsg);
+      }
       
       setUserMessage(userMsg);
       setHasResponded(true);
@@ -543,7 +542,7 @@ export function ChatScreen({
       try {
         // Get real response from TRACE AI (now returns object with message and activity_suggestion)
         const chatStyle = (currentProfile?.chat_style as 'minimal' | 'conversation') || 'conversation';
-        const traceResponse = await sendMessageToTrace(userMsg, userName, chatStyle);
+        const traceResponse = await sendMessageToTrace(userMsg, userName, chatStyle, currentUsrId);
         const { message: responseMessage, activity_suggestion } = traceResponse;
         
         // Detect emotion and animate orb accordingly

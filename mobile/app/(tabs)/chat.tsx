@@ -470,6 +470,28 @@ const getConversationStorageKey = (userId: string | null): string => {
   return userId ? `trace:conversation_history:${userId}` : 'trace:conversation_history:anonymous';
 };
 
+const CONVERSATION_ID_STORAGE_KEY = 'trace:conversation_id';
+
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+async function getOrCreateConversationId(): Promise<string> {
+  try {
+    const existing = await AsyncStorage.getItem(CONVERSATION_ID_STORAGE_KEY);
+    if (existing) return existing;
+  } catch (e) {}
+  const id = generateUUID();
+  try {
+    await AsyncStorage.setItem(CONVERSATION_ID_STORAGE_KEY, id);
+  } catch (e) {}
+  return id;
+}
+
 // Save conversation to AsyncStorage (keyed by userId)
 const saveConversationToStorage = async (msgs: ChatMessage[], userId: string | null): Promise<void> => {
   try {
@@ -526,12 +548,20 @@ export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
   
   // Keep a ref to authUserId so callbacks can access current value
   const authUserIdRef = useRef<string | null>(null);
   useEffect(() => {
     authUserIdRef.current = authUserId;
   }, [authUserId]);
+  
+  useEffect(() => {
+    getOrCreateConversationId().then(id => {
+      conversationIdRef.current = id;
+      console.log('📱 TRACE conversation_id:', id);
+    });
+  }, []);
   
   // Save to AsyncStorage whenever messages change (keyed by userId)
   const addMessage = useCallback((msg: ChatMessage) => {
@@ -1851,6 +1881,7 @@ export default function ChatScreen() {
         weatherContext,
         isGreetingResponse: isFirstReplyToGreeting,
         greetingText: isFirstReplyToGreeting ? pendingGreeting : null,
+        conversation_id: conversationIdRef.current,
       });
 
       console.log('📥 TRACE received reply:', result);

@@ -7416,9 +7416,9 @@ CRISIS OVERRIDE:
       console.log('[TRACE] Hydration hint added to conversation');
     }
 
-    // Cap conversation history at 20 messages to prevent context drowning
-    // Keeps enough for recall without overwhelming the kernel
-    const MAX_HISTORY_MESSAGES = 20;
+    // Cap conversation history — 40 messages (~20 turns) gives meaningful recall
+    // while staying within token budgets. Server-side hydration backfills from DB.
+    const MAX_HISTORY_MESSAGES = 40;
     if (messagesWithHydration.length > MAX_HISTORY_MESSAGES) {
       const originalCount = messagesWithHydration.length;
       messagesWithHydration = messagesWithHydration.slice(-MAX_HISTORY_MESSAGES);

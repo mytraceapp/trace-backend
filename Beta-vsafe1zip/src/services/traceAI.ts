@@ -1,8 +1,8 @@
 // TRACE AI Service - calls backend API which handles OpenAI integration
 
 // Maximum number of messages to keep in conversation history
-// This ensures TRACE remembers context without exceeding token limits
-const MAX_CONVERSATION_HISTORY = 12;
+// 40 messages = ~20 turns of context, enough for meaningful recall
+const MAX_CONVERSATION_HISTORY = 40;
 
 // Get a unique AI-generated greeting from TRACE
 export async function getAIGreeting(userName?: string | null, userId?: string | null): Promise<string> {
@@ -50,6 +50,32 @@ export interface ChatMessage {
 }
 
 const CONVERSATION_STORAGE_KEY = 'trace_conversation_history';
+const CONVERSATION_ID_KEY = 'trace_conversation_id';
+
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+function getOrCreateConversationId(): string {
+  try {
+    const existing = localStorage.getItem(CONVERSATION_ID_KEY);
+    if (existing) return existing;
+  } catch (e) {}
+  const id = generateUUID();
+  try {
+    localStorage.setItem(CONVERSATION_ID_KEY, id);
+  } catch (e) {}
+  return id;
+}
+
+const conversationId = getOrCreateConversationId();
 
 // Load conversation from localStorage
 function loadConversationHistory(): ChatMessage[] {
@@ -112,7 +138,7 @@ export interface TraceResponse {
   ui_action?: UiAction | null;
 }
 
-export async function sendMessageToTrace(userMessage: string, userName?: string | null, chatStyle: 'minimal' | 'conversation' = 'conversation'): Promise<TraceResponse> {
+export async function sendMessageToTrace(userMessage: string, userName?: string | null, chatStyle: 'minimal' | 'conversation' = 'conversation', userId?: string | null): Promise<TraceResponse> {
   // Add user message to history
   conversationHistory.push({
     role: 'user',
@@ -138,7 +164,9 @@ export async function sendMessageToTrace(userMessage: string, userName?: string 
           role: msg.role,
           content: msg.content,
         })),
+        conversation_id: conversationId,
         userName: userName || null,
+        userId: userId || null,
         chatStyle: chatStyle,
         localTime: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
         localDay: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
