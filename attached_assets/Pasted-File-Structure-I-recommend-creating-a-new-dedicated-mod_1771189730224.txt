@@ -1,0 +1,362 @@
+File Structure
+I recommend creating a new dedicated module to keep this isolated:
+/utils
+  └── sessionCloseInvite.js  (NEW - all logic here)
+/routes
+  └── chat.js  (MINIMAL modification - just one function call)
+
+1. NEW FILE: /utils/sessionCloseInvite.js
+javascript/**
+ * Session Close Invitation System
+ * Adds a gentle "i'm here whenever you need me" type message
+ * when the user is likely ending the conversation.
+ * 
+ * Design: Non-invasive, non-repetitive, contextually appropriate.
+ */
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+const INVITE_LIBRARY = [
+  "i'm here whenever you need me.",
+  "come back anytime.",
+  "no rush — i'm here.",
+  "we can pick this up whenever.",
+  "i'll be here.",
+  "if you want to pause here, that's okay.",
+  "whenever you're ready, we can continue.",
+  "you can come back to this anytime."
+];
+
+const COOLDOWN_TURNS = 8; // Don't add invite if added within last N turns
+const SIMILARITY_THRESHOLD = 0.6; // Don't use invite too similar to last one
+
+// ============================================================================
+// STATE MANAGEMENT (In-memory for now - migrate to Redis/DB if needed)
+// ============================================================================
+
+// Structure: { userId: { lastInviteTimestamp, lastInviteText, lastInviteIndex, turnsSinceInvite } }
+const userInviteState = new Map();
+
+function getUserState(userId) {
+  if (!userInviteState.has(userId)) {
+    userInviteState.set(userId, {
+      lastInviteTimestamp: 0,
+      lastInviteText: '',
+      lastInviteIndex: -1,
+      turnsSinceInvite: 999 // Start high so first invite can trigger
+    });
+  }
+  return userInviteState.get(userId);
+}
+
+function updateUserState(userId, inviteText, inviteIndex) {
+  const state = getUserState(userId);
+  state.lastInviteTimestamp = Date.now();
+  state.lastInviteText = inviteText;
+  state.lastInviteIndex = inviteIndex;
+  state.turnsSinceInvite = 0;
+}
+
+function incrementTurnCounter(userId) {
+  const state = getUserState(userId);
+  state.turnsSinceInvite++;
+}
+
+// ============================================================================
+// HEURISTIC: Detect if user is likely leaving
+// ============================================================================
+
+function calculateLeaveScore(userText) {
+  if (!userText || typeof userText !== 'string') return 0;
+  
+  const text = userText.toLowerCase().trim();
+  let score = 0;
+
+  // Explicit goodbye signals (strong)
+  const goodbyePatterns = [
+    /\b(bye|goodbye|later|gtg|gotta go|see ya|peace|cya)\b/,
+    /\b(talk later|catch you later)\b/
+  ];
+  if (goodbyePatterns.some(pattern => pattern.test(text))) {
+    score += 50;
+  }
+
+  // Gratitude (medium-strong signal of wrapping up)
+  const thanksPatterns = [
+    /\b(thanks|thank you|thx|ty|appreciate|grateful)\b/
+  ];
+  if (thanksPatterns.some(pattern => pattern.test(text))) {
+    score += 30;
+  }
+
+  // Acknowledgment of completion
+  const donePatterns = [
+    /\b(that's all|i'm good|all set|that's it|got it|perfect|awesome)\b/,
+    /\b(sounds good|works for me|okay|ok|cool)\b/
+  ];
+  if (donePatterns.some(pattern => pattern.test(text))) {
+    score += 20;
+  }
+
+  // Very short messages (possible disengagement)
+  if (text.length <= 15 && text.split(/\s+/).length <= 3) {
+    score += 10;
+  }
+
+  // Single word acknowledgments
+  if (/^(ok|okay|cool|nice|great|alright|sure|yeah|yep|yup|k)\.?$/.test(text)) {
+    score += 15;
+  }
+
+  return score;
+}
+
+const LEAVE_THRESHOLD = 25; // Adjust based on testing
+
+// ============================================================================
+// GATES: Check if it's appropriate to add an invite
+// ============================================================================
+
+function passesAppropriatenessGates(assistantText, userText) {
+  if (!assistantText || typeof assistantText !== 'string') return false;
+  
+  const text = assistantText.trim();
+  
+  // Gate 1: Must end with period/complete thought, NOT a question
+  if (text.endsWith('?')) {
+    return false;
+  }
+  
+  // Gate 2: Must end with sentence-ending punctuation
+  if (!/[.!]$/.test(text)) {
+    return false;
+  }
+
+  // Gate 3: Don't add if assistant already contains similar sentiment
+  const alreadyHasSentiment = [
+    /\bhere (for you )?(anytime|whenever)/i,
+    /\bcome back anytime/i,
+    /\bi'll be here/i,
+    /\bwhenever you need/i,
+    /\byou can (return|come back)/i
+  ];
+  if (alreadyHasSentiment.some(pattern => pattern.test(text))) {
+    return false;
+  }
+
+  // Gate 4: Crisis/safety keywords - NEVER add invite during crisis
+  const crisisKeywords = [
+    /\b(suicide|kill myself|end (my|it all)|harm myself|hurt myself)\b/i,
+    /\b(crisis|emergency|urgent|immediate help)\b/i,
+    /\b(988|hotline|emergency services)\b/i
+  ];
+  const fullContext = (userText + ' ' + assistantText).toLowerCase();
+  if (crisisKeywords.some(pattern => pattern.test(fullContext))) {
+    return false;
+  }
+
+  return true;
+}
+
+// ============================================================================
+// INVITE SELECTION: Deterministic, non-repetitive
+// ============================================================================
+
+function calculateSimilarity(str1, str2) {
+  // Simple word-based Jaccard similarity
+  const words1 = new Set(str1.toLowerCase().split(/\s+/));
+  const words2 = new Set(str2.toLowerCase().split(/\s+/));
+  
+  const intersection = new Set([...words1].filter(w => words2.has(w)));
+  const union = new Set([...words1, ...words2]);
+  
+  return intersection.size / union.size;
+}
+
+function selectInvite(userId) {
+  const state = getUserState(userId);
+  const lastIndex = state.lastInviteIndex;
+  const lastText = state.lastInviteText;
+  
+  // Deterministic cycling: try next invite in sequence
+  let attempts = 0;
+  let candidateIndex = (lastIndex + 1) % INVITE_LIBRARY.length;
+  
+  while (attempts < INVITE_LIBRARY.length) {
+    const candidate = INVITE_LIBRARY[candidateIndex];
+    
+    // Check similarity to last used invite
+    if (!lastText || calculateSimilarity(candidate, lastText) < SIMILARITY_THRESHOLD) {
+      return { text: candidate, index: candidateIndex };
+    }
+    
+    // Try next
+    candidateIndex = (candidateIndex + 1) % INVITE_LIBRARY.length;
+    attempts++;
+  }
+  
+  // Fallback: use next in sequence even if similar (shouldn't happen often)
+  candidateIndex = (lastIndex + 1) % INVITE_LIBRARY.length;
+  return { text: INVITE_LIBRARY[candidateIndex], index: candidateIndex };
+}
+
+// ============================================================================
+// MAIN FUNCTION: Post-process assistant reply
+// ============================================================================
+
+/**
+ * Post-processes the assistant's reply to potentially add a session-close invite.
+ * 
+ * @param {Object} params
+ * @param {string} params.userId - User identifier
+ * @param {string} params.userText - The user's last message
+ * @param {string} params.assistantText - The assistant's generated reply
+ * @returns {string} - Final assistant text (possibly with invite appended)
+ */
+function postProcessAssistantReply({ userId, userText, assistantText }) {
+  // Always increment turn counter
+  incrementTurnCounter(userId);
+  
+  // Step 1: Calculate leave likelihood
+  const leaveScore = calculateLeaveScore(userText);
+  
+  if (leaveScore < LEAVE_THRESHOLD) {
+    return assistantText; // User not leaving
+  }
+  
+  // Step 2: Check appropriateness gates
+  if (!passesAppropriatenessGates(assistantText, userText)) {
+    return assistantText; // Not appropriate to add invite
+  }
+  
+  // Step 3: Check cooldown
+  const state = getUserState(userId);
+  if (state.turnsSinceInvite < COOLDOWN_TURNS) {
+    return assistantText; // Too soon since last invite
+  }
+  
+  // Step 4: Select invite
+  const { text: inviteText, index: inviteIndex } = selectInvite(userId);
+  
+  // Step 5: Update state
+  updateUserState(userId, inviteText, inviteIndex);
+  
+  // Step 6: Append invite (single line, natural)
+  return `${assistantText}\n\n${inviteText}`;
+}
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
+module.exports = {
+  postProcessAssistantReply,
+  
+  // Export for testing/debugging
+  _internal: {
+    calculateLeaveScore,
+    passesAppropriatenessGates,
+    selectInvite,
+    getUserState,
+    LEAVE_THRESHOLD
+  }
+};
+
+2. MODIFICATION: /routes/chat.js (or wherever your chat endpoint is)
+Find your chat endpoint where you call OpenAI and return the assistant response. Add just ONE LINE:
+javascriptconst { postProcessAssistantReply } = require('../utils/sessionCloseInvite');
+
+// ... your existing imports and code ...
+
+router.post('/chat', async (req, res) => {
+  try {
+    // ... your existing code to get userId, messages, etc. ...
+    
+    // Your existing OpenAI call
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4', // or whatever model you use
+      messages: messages,
+      // ... other params ...
+    });
+    
+    let assistantText = completion.choices[0].message.content;
+    
+    // ===== NEW: Post-process for session-close invite =====
+    const userText = req.body.message || req.body.text || ''; // adjust to your schema
+    const userId = req.user?.id || req.session?.userId || 'anonymous'; // adjust to your auth
+    
+    assistantText = postProcessAssistantReply({
+      userId,
+      userText,
+      assistantText
+    });
+    // ===== END NEW =====
+    
+    // ... rest of your existing code (save to DB, return response, etc.) ...
+    
+    res.json({ reply: assistantText });
+    
+  } catch (error) {
+    // ... your error handling ...
+  }
+});
+
+3. Testing Checklist
+javascript// Add this to a test file or run manually:
+
+const { postProcessAssistantReply, _internal } = require('./utils/sessionCloseInvite');
+
+// Test 1: Leave detection
+console.log('Leave score for "thanks bye":', _internal.calculateLeaveScore('thanks bye')); // Should be high
+console.log('Leave score for "tell me more":', _internal.calculateLeaveScore('tell me more')); // Should be low
+
+// Test 2: Gates
+console.log('Passes gates (period):', _internal.passesAppropriatenessGates('That sounds good.', 'ok thanks'));
+console.log('Passes gates (question):', _internal.passesAppropriatenessGates('Want to continue?', 'ok thanks')); // Should be false
+
+// Test 3: Full flow
+const result1 = postProcessAssistantReply({
+  userId: 'test123',
+  userText: 'thanks so much, bye!',
+  assistantText: 'Glad I could help.'
+});
+console.log('Result 1:', result1); // Should have invite appended
+
+const result2 = postProcessAssistantReply({
+  userId: 'test123',
+  userText: 'thanks!',
+  assistantText: 'You got it!'
+});
+console.log('Result 2:', result2); // Should NOT have invite (cooldown)
+
+4. Migration Path (if needed later)
+If you need to scale this beyond in-memory storage:
+javascript// Replace the Map with Redis/database calls:
+
+// In sessionCloseInvite.js, add:
+const redis = require('./redisClient'); // your Redis client
+
+async function getUserState(userId) {
+  const key = `invite_state:${userId}`;
+  const data = await redis.get(key);
+  return data ? JSON.parse(data) : {
+    lastInviteTimestamp: 0,
+    lastInviteText: '',
+    lastInviteIndex: -1,
+    turnsSinceInvite: 999
+  };
+}
+
+async function updateUserState(userId, inviteText, inviteIndex) {
+  const key = `invite_state:${userId}`;
+  const state = await getUserState(userId);
+  state.lastInviteTimestamp = Date.now();
+  state.lastInviteText = inviteText;
+  state.lastInviteIndex = inviteIndex;
+  state.turnsSinceInvite = 0;
+  await redis.set(key, JSON.stringify(state), 'EX', 86400 * 7); // 7 day expiry
+}
+
+// Make postProcessAssistantReply async
