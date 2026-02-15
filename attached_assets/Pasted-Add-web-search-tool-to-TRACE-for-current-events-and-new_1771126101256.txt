@@ -1,0 +1,258 @@
+Add web search tool to TRACE for current events and news queries.
+
+CONTEXT: Users sometimes ask TRACE about current events, news, or information that changes (sports scores, weather, recent events, etc.). TRACE should be able to search the web for this information instead of saying "I don't know" or making up outdated information.
+
+GOAL: Enable TRACE to use web search when user asks about current/recent information, while maintaining buddy voice and not overusing it for general conversation.
+
+IMPLEMENTATION:
+
+1) ADD WEB SEARCH TOOL TO BACKEND (server/index.ts or wherever you call OpenAI):
+
+Install Anthropic SDK if not already installed:
+npm install @anthropic-ai/sdk
+
+Or if using OpenAI native function calling, define the tool:
+
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "web_search",
+      description: "Search the web for current information, news, events, or facts that change over time. Use when user asks about recent events, current news, sports scores, weather, or anything time-sensitive.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Search query (keep to 1-6 words for best results)"
+          }
+        },
+        required: ["query"]
+      }
+    }
+  }
+];
+
+2) ADD WEB SEARCH IMPLEMENTATION:
+
+Using a search API (recommend Tavily, Serper, or Brave Search):
+
+// Install: npm install tavily
+const { TavilySearchAPIClient } = require('tavily');
+const tavily = new TavilySearchAPIClient({ apiKey: process.env.TAVILY_API_KEY });
+
+async function performWebSearch(query) {
+  try {
+    const response = await tavily.search(query, {
+      searchDepth: "basic",
+      maxResults: 3
+    });
+    
+    // Format results for the model
+    const results = response.results.map(r => ({
+      title: r.title,
+      url: r.url,
+      snippet: r.content.slice(0, 200)
+    }));
+    
+    return {
+      query: query,
+      results: results
+    };
+  } catch (err) {
+    console.error('[WEB_SEARCH] Error:', err);
+    return { error: 'Search failed' };
+  }
+}
+
+Alternative (free but requires scraping): Use Brave Search API or custom Google search
+
+3) MODIFY CHAT ENDPOINT TO HANDLE TOOL CALLS:
+
+// In your /api/chat endpoint
+const response = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: messages,
+  tools: tools,
+  temperature: 0.5
+});
+
+const assistantMessage = response.choices[0].message;
+
+// Check if model wants to use tools
+if (assistantMessage.tool_calls) {
+  const toolCall = assistantMessage.tool_calls[0];
+  
+  if (toolCall.function.name === 'web_search') {
+    const args = JSON.parse(toolCall.function.arguments);
+    const searchResults = await performWebSearch(args.query);
+    
+    // Add tool call to messages
+    messages.push(assistantMessage);
+    messages.push({
+      role: 'tool',
+      tool_call_id: toolCall.id,
+      content: JSON.stringify(searchResults)
+    });
+    
+    // Call model again with search results
+    const finalResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: messages,
+      temperature: 0.5
+    });
+    
+    return finalResponse.choices[0].message.content;
+  }
+}
+
+return assistantMessage.content;
+
+4) UPDATE SYSTEM PROMPT WITH WEB SEARCH GUIDANCE:
+
+Add to your compressed system prompt (in the feature hooks section):
+
+WEB SEARCH:
+You have access to web search for current information. Use it ONLY when:
+- User asks about recent news/events
+- User asks about current sports scores, weather, stock prices
+- User asks "what's happening with..." (current events)
+- Information is time-sensitive and you don't know the answer
+
+Do NOT use web search for:
+- General knowledge questions you can answer
+- Historical facts
+- User's personal situation
+- Emotional support conversations
+
+When you get search results:
+- Keep response brief (1-2 sentences with the answer)
+- Use buddy voice: "yeah, [team] won 3-2." NOT "According to search results, the game ended..."
+- Don't cite sources unless asked
+- Stay in character (buddy at 2:47 a.m., not a news anchor)
+
+5) ADD RATE LIMITING (prevent abuse):
+
+const searchCache = new Map();
+const SEARCH_COOLDOWN = 60000; // 1 minute between searches per user
+
+function canSearch(userId) {
+  const lastSearch = searchCache.get(userId);
+  if (!lastSearch) return true;
+  return Date.now() - lastSearch > SEARCH_COOLDOWN;
+}
+
+function markSearched(userId) {
+  searchCache.set(userId, Date.now());
+}
+
+// In chat endpoint before search:
+if (toolCall.function.name === 'web_search') {
+  if (!canSearch(userId)) {
+    return "hold on, just searched recently. give me a sec.";
+  }
+  markSearched(userId);
+  // ... perform search
+}
+
+6) ENVIRONMENT VARIABLES:
+
+Add to your .env:
+TAVILY_API_KEY=your_api_key_here
+
+Or if using Serper:
+SERPER_API_KEY=your_api_key_here
+
+Or if using Brave Search:
+BRAVE_SEARCH_API_KEY=your_api_key_here
+
+Get free API keys:
+- Tavily: https://tavily.com (1000 searches/month free)
+- Serper: https://serper.dev (2500 searches free)
+- Brave Search: https://brave.com/search/api (2000 queries/month free)
+
+7) TESTING:
+
+Test 1 - Current news:
+User: "what's happening with the election?"
+Expected: TRACE searches, responds with recent news in buddy voice
+NOT: "I don't have current information" or making up old info
+
+Test 2 - Sports score:
+User: "did the lakers win last night?"
+Expected: TRACE searches, responds "yeah, they won 115-108" or similar
+NOT: Long explanation with source citations
+
+Test 3 - Weather:
+User: "what's the weather like today?"
+Expected: TRACE searches (if location known) or asks "where?"
+NOT: "I can't check weather"
+
+Test 4 - General knowledge (should NOT search):
+User: "what's the capital of France?"
+Expected: "paris." (no search needed)
+NOT: Searching for basic facts
+
+Test 5 - Emotional conversation (should NOT search):
+User: "I'm feeling stressed"
+Expected: "what's going on?" (no search)
+NOT: Searching for stress information
+
+Test 6 - Rate limiting:
+User asks 3 questions requiring search in 30 seconds
+Expected: First two work, third gets cooldown message
+
+VOICE CONSISTENCY:
+
+When using search results, maintain buddy voice:
+
+❌ WRONG:
+"According to recent reports, the Lakers defeated the Warriors 115-108 in last night's game."
+
+✓ CORRECT:
+"yeah, lakers won 115-108."
+
+❌ WRONG:
+"Based on current weather data, it's 72 degrees and sunny in Los Angeles."
+
+✓ CORRECT:
+"72 and sunny."
+
+❌ WRONG:
+"Search results indicate that the election is still being contested in several key states."
+
+✓ CORRECT:
+"still being contested in a few states."
+
+Keep responses brief, use search results to inform your answer, but respond like a buddy who just looked it up, not a news anchor.
+
+FALLBACK HANDLING:
+
+If search fails:
+- Don't say "search failed" or expose technical error
+- Say: "can't find that right now." or "not sure, actually."
+- Maintain buddy voice even in failure case
+
+ERROR CASES:
+
+If API rate limit hit:
+return "hold on, can't search right now."
+
+If network error:
+return "can't check that right now."
+
+If no results found:
+return "couldn't find anything on that."
+
+All in buddy voice, never expose technical details.
+
+OPTIONAL ENHANCEMENT (if you want to show sources):
+
+Only show source if user explicitly asks:
+
+User: "where'd you see that?"
+TRACE: "saw it on [source name]." or "couple news sites mentioned it."
+
+Don't volunteer sources unless asked.
+
+DO THIS: Add web search tool to backend, update system prompt with usage guidance, test with current events queries. Keep buddy voice when using search results.
