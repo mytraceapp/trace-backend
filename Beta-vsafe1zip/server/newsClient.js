@@ -27,7 +27,7 @@ function extractNewsTopic(text) {
     const match = t.match(pattern);
     if (match && match[1]) {
       const topic = match[1].trim();
-      if (topic && topic.length >= 3) {
+      if (topic && topic.length >= 3 && !isPronoun(topic)) {
         console.log('[NEWS] Extracted topic from user message:', topic);
         return topic;
       }
@@ -48,8 +48,7 @@ function extractNewsTopic(text) {
     .replace(/^(the |a |an )/gi, '')
     .trim();
   
-  // If we have something reasonable, use it
-  if (topic && topic.length >= 3 && topic.split(' ').length <= 5) {
+  if (topic && topic.length >= 3 && topic.split(' ').length <= 5 && !isPronoun(topic)) {
     console.log('[NEWS] Extracted topic from user message:', topic);
     return topic;
   }
@@ -224,17 +223,14 @@ function isNewsConfirmation(userMessage, previousMessages) {
 function extractPendingNewsTopic(messages) {
   if (!messages?.length) return null;
   
-  // Look for recent user messages that mentioned a topic
-  const recentUser = messages.filter(m => m.role === 'user').slice(-5);
+  const recentUser = messages.filter(m => m.role === 'user').slice(-8);
   
   for (const msg of recentUser.reverse()) {
     const content = (msg.content || '').toLowerCase();
     
-    // Skip very short messages or pure confirmations
     if (content.length < 5) continue;
     if (/^(yes|yeah|ok|okay|sure|please)!?$/i.test(content.trim())) continue;
     
-    // Look for news-related messages with topics
     if (content.includes('news') || content.includes('happening')) {
       const topic = extractNewsTopic(content);
       if (topic && topic !== 'general news') {
@@ -242,13 +238,44 @@ function extractPendingNewsTopic(messages) {
       }
     }
     
-    // If the message is a single topic word, return it
     if (/^[a-z]+$/i.test(content.trim()) && content.trim().length >= 4) {
       return content.trim();
     }
   }
   
+  const allMessages = messages.slice(-12);
+  for (const msg of [...allMessages].reverse()) {
+    const content = (msg.content || '').toLowerCase();
+    if (content.length < 8) continue;
+    
+    const topicHints = content.match(/(?:about |regarding |with |in )((?:[A-Z][a-z]+\s*){1,4})/i);
+    if (topicHints && topicHints[1]) {
+      const hint = topicHints[1].trim();
+      if (hint.length >= 3 && !isPronoun(hint)) {
+        console.log('[NEWS] Resolved contextual topic from conversation:', hint);
+        return hint;
+      }
+    }
+    
+    const namedEntities = (msg.content || '').match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b/g);
+    if (namedEntities) {
+      const filtered = namedEntities.filter(e => 
+        e.length >= 3 && 
+        !['Any', 'The', 'What', 'How', 'Can', 'Could', 'Would', 'Should', 'Yeah', 'Sure', 'Thanks', 'Okay', 'Sorry'].includes(e)
+      );
+      if (filtered.length > 0) {
+        console.log('[NEWS] Resolved topic from named entities:', filtered[0]);
+        return filtered[0];
+      }
+    }
+  }
+  
   return null;
+}
+
+function isPronoun(word) {
+  const pronouns = ['that', 'this', 'it', 'them', 'they', 'those', 'these', 'him', 'her', 'he', 'she', 'we', 'us'];
+  return pronouns.includes(word.toLowerCase().trim());
 }
 
 module.exports = {

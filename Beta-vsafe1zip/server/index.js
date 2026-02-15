@@ -6746,16 +6746,16 @@ app.post('/api/chat', async (req, res) => {
         if (isDirectNewsQuestion || isConfirmingNews) {
           console.log('[TRACE NEWS] News question detected, fetching...');
           
-          // Determine the topic to search for
           let searchTopic = userText;
-          if (isConfirmingNews) {
-            // User is confirming after TRACE offered - look for pending topic
+          const directTopic = extractNewsTopic(userText);
+          const isPronouns = /^(that|this|it|them|those|these)$/i.test((directTopic || '').trim());
+          
+          if (isConfirmingNews || (isDirectNewsQuestion && (isPronouns || directTopic === 'general news'))) {
             const pendingTopic = extractPendingNewsTopic(messages);
             if (pendingTopic) {
               searchTopic = pendingTopic;
-              console.log('[TRACE NEWS] Using pending topic from earlier:', pendingTopic);
+              console.log('[TRACE NEWS] Using pending topic from conversation context:', pendingTopic);
             } else if (/^[a-z]+$/i.test(userText.trim()) && userText.trim().length >= 4) {
-              // User replied with a single topic word (like "Immigration")
               searchTopic = userText.trim();
               console.log('[TRACE NEWS] Using single-word topic from user:', searchTopic);
             }
@@ -9154,7 +9154,12 @@ Your response (text only, no JSON):`;
     });
     const controlLengthLabel = rhythmNudge?.tier === 'ultra_short' ? 'micro' : rhythmNudge?.tier === 'short' ? 'short' : rhythmNudge?.tier === 'long' ? 'long' : 'medium';
     const controlQBudget = conversationState.computeQuestionMode(effectiveUserId).budget;
-    const controlMaxWords = controlLengthLabel === 'micro' ? 5 : controlLengthLabel === 'short' ? 20 : controlLengthLabel === 'long' ? 90 : 50;
+    const hasExternalContext = !!(newsContext || searchContext || weatherContext || foodContext);
+    const baseMaxWords = controlLengthLabel === 'micro' ? 5 : controlLengthLabel === 'short' ? 20 : controlLengthLabel === 'long' ? 90 : 50;
+    const controlMaxWords = hasExternalContext ? Math.max(baseMaxWords, 80) : baseMaxWords;
+    if (hasExternalContext && controlMaxWords > baseMaxWords) {
+      console.log(`[CONTROL_BLOCK] Length override: ${baseMaxWords} → ${controlMaxWords} (external context present)`);
+    }
     console.log(`[CONTROL_BLOCK] LENGTH_MODE=${controlLengthLabel} QUESTION_BUDGET=${controlQBudget} maxWords=${controlMaxWords} soundscape=${controlSoundscape} mood=${controlMood} door=${controlDoorContext}`);
 
     // ============================================================
