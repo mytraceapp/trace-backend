@@ -6527,7 +6527,9 @@ app.post('/api/chat', async (req, res) => {
     let memoryContext = '';
     try {
       if (supabaseServer && effectiveUserId) {
-        memoryContext = await buildMemoryContext(supabaseServer, effectiveUserId, messages);
+        const prevState = conversationState.getState(effectiveUserId);
+        const prevAnchor = prevState?.topicAnchor || null;
+        memoryContext = await buildMemoryContext(supabaseServer, effectiveUserId, messages, prevAnchor);
         if (memoryContext) {
           console.log('[TRACE MEMORY] Loaded memory context for user:', effectiveUserId.slice(0, 8) + '...');
         }

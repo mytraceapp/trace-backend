@@ -109,7 +109,7 @@ async function loadTraceLongTermMemory(supabase, userId) {
  * @param {Array<{role: string, content: string}>} params.recentMessages
  * @returns {string}
  */
-function buildUserContextSnapshot({ memorySummary, patternsSnapshot, recentMessages }) {
+function buildUserContextSnapshot({ memorySummary, patternsSnapshot, recentMessages, currentTopicAnchor }) {
   const lastFewUserTurns = (recentMessages || [])
     .filter(m => m.role === 'user')
     .slice(-3)
@@ -120,17 +120,31 @@ function buildUserContextSnapshot({ memorySummary, patternsSnapshot, recentMessa
 
   lines.push('USER CONTEXT (background only — NEVER reference these directly, NEVER claim the user said something from here, NEVER say "you mentioned X" based on this context):');
 
+  const isCasualConversation = !currentTopicAnchor ||
+    currentTopicAnchor.label === 'open conversation' ||
+    currentTopicAnchor.domain === 'music' ||
+    currentTopicAnchor.domain === 'activity';
+
   if (memorySummary) {
     if (memorySummary.identity?.length) {
       lines.push(`- Who they are: ${memorySummary.identity.slice(0, 3).join('; ')}`);
     }
     if (memorySummary.coreThemes?.length) {
-      lines.push(`- Core themes: ${memorySummary.coreThemes.slice(0, 4).join('; ')}`);
+      if (isCasualConversation) {
+        const neutralThemes = memorySummary.coreThemes.filter(t =>
+          !/sad|depress|anxious|stress|grief|anger|sleep|insomnia|overwhelm|panic|lonely|hurt/i.test(t)
+        );
+        if (neutralThemes.length > 0) {
+          lines.push(`- Core themes: ${neutralThemes.slice(0, 3).join('; ')}`);
+        }
+      } else {
+        lines.push(`- Core themes: ${memorySummary.coreThemes.slice(0, 4).join('; ')}`);
+      }
     }
     if (memorySummary.goals?.length) {
       lines.push(`- Goals: ${memorySummary.goals.slice(0, 3).join('; ')}`);
     }
-    if (memorySummary.triggers?.length) {
+    if (memorySummary.triggers?.length && !isCasualConversation) {
       lines.push(`- Emotional triggers: ${memorySummary.triggers.slice(0, 3).join('; ')}`);
     }
     if (memorySummary.preferences?.length) {
@@ -304,7 +318,7 @@ Return empty arrays if nothing fits a category.`;
  * @param {Array<{role: string, content: string}>} currentMessages - messages in current chat session
  * @returns {Promise<string>}
  */
-async function buildMemoryContext(supabase, userId, currentMessages = []) {
+async function buildMemoryContext(supabase, userId, currentMessages = [], currentTopicAnchor = null) {
   if (!supabase || !userId) return '';
 
   try {
@@ -318,6 +332,7 @@ async function buildMemoryContext(supabase, userId, currentMessages = []) {
       memorySummary,
       patternsSnapshot: null,
       recentMessages: currentMessages.length > 0 ? currentMessages : storedMessages,
+      currentTopicAnchor,
     });
 
     const journalContext = formatJournalMemoriesForContext(journalMemories);

@@ -84,6 +84,8 @@ function createDefaultState() {
     lastAccessed: Date.now(),
     consecutiveProbes: 0,
     lastTopicKeywords: [],
+    topicKeywordAge: 0,
+    neutralTurnCount: 0,
     topicAnchor: null,
     lastPrimaryMode: null,
     pendingFollowup: null,
@@ -583,7 +585,26 @@ function advanceStage(state, userMessage) {
   
   if (topics.length > 0) {
     state.lastTopicKeywords = topics;
+    state.topicKeywordAge = 0;
+    state.neutralTurnCount = 0;
     state.userSetTopic = true;
+  } else {
+    state.topicKeywordAge = (state.topicKeywordAge || 0) + 1;
+    const isEmotionalTopic = (state.lastTopicKeywords || []).some(t =>
+      ['sadness', 'anxiety', 'stress', 'breakup', 'sleep'].includes(t)
+    );
+    const isCasualMessage = !/\b(sad|anxious|stressed|worried|overwhelmed|scared|depressed|hurt|angry|upset)\b/i.test(userMessage);
+    if (isCasualMessage) {
+      state.neutralTurnCount = (state.neutralTurnCount || 0) + 1;
+    } else {
+      state.neutralTurnCount = 0;
+    }
+    if (isEmotionalTopic && state.neutralTurnCount >= 3 && state.topicKeywordAge >= 3) {
+      console.log(`[CONVO_STATE] Topic keywords expired: [${state.lastTopicKeywords.join(', ')}] after ${state.topicKeywordAge} turns neutral`);
+      state.lastTopicKeywords = [];
+      state.topicKeywordAge = 0;
+      state.userSetTopic = false;
+    }
   }
   
   if (state.turnCount >= 3 && (state.stage === STAGES.ARRIVAL || state.stage === STAGES.OPENING)) {
@@ -830,7 +851,7 @@ function updateStateAfterResponse(visitorId, response) {
   state.feelingCheckins.push(isFeelingCheckin ? 1 : 0);
   if (state.feelingCheckins.length > 10) state.feelingCheckins = state.feelingCheckins.slice(-10);
   
-  console.log(`[CONVO_STATE] After response: { stage: ${state.stage}, moveType: ${moveType}, turn: ${state.turnCount}, topics: [${state.lastTopicKeywords.join(', ')}] }`);
+  console.log(`[CONVO_STATE] After response: { stage: ${state.stage}, moveType: ${moveType}, turn: ${state.turnCount}, topics: [${state.lastTopicKeywords.join(', ')}], neutralTurns: ${state.neutralTurnCount || 0}, topicAge: ${state.topicKeywordAge || 0} }`);
   console.log(`[Q_GUARD] qStreak=${state.qStreak} feelingCheckins10=${state.feelingCheckins.filter(x=>x).length}`);
   
   saveState(visitorId, state);

@@ -403,15 +403,23 @@ function buildTopicAnchor({
   } else if (domain === 'activity') {
     label = 'activity';
   } else {
+    const neutralTurns = conversationState?.neutralTurnCount || 0;
+    const isEmotionalAnchor = previousHasContent && /sadness|anxiety|stress|sleep|breakup|grief|anger|depression/i.test(previousAnchor.label);
+    const maxCarryAge = isEmotionalAnchor && neutralTurns >= 2 ? 2 : 4;
+
     if (topicKeywords.length > 0) {
       label = topicKeywords.slice(0, 2).join(' & ');
     } else if (cognitiveIntent?.emotional_context && cognitiveIntent.emotional_context !== 'neutral') {
       label = cognitiveIntent.emotional_context;
-    } else if (previousHasContent && (previousAnchor.turnAge || 0) < 6) {
+    } else if (previousHasContent && (previousAnchor.turnAge || 0) < maxCarryAge && !isEmotionalAnchor) {
+      label = previousAnchor.label;
+    } else if (isEmotionalAnchor && neutralTurns >= 2) {
+      console.log(`[ANCHOR] Dropping stale emotional anchor "${previousAnchor.label}" after ${neutralTurns} neutral turns`);
+      label = 'open conversation';
+    } else if (previousHasContent && (previousAnchor.turnAge || 0) < maxCarryAge) {
       label = previousAnchor.label;
     } else {
-      const recoveredLabel = recoverTopicFromHistory(historyMessages);
-      label = recoveredLabel || (previousHasContent ? previousAnchor.label : 'open conversation');
+      label = 'open conversation';
     }
   }
 
