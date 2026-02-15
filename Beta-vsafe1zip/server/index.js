@@ -92,6 +92,7 @@ const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways
 const { processDoorways, bootstrapConversationState, DOORS, loadDoorwayProfile, saveDoorwayProfile } = require('./doorwaysV1');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews } = require('./newsClient');
+const { isCurrentEventsQuery, searchForContext } = require('./searchTools');
 const { 
   markUserInCrisis, 
   isUserInCrisisWindow, 
@@ -6706,6 +6707,7 @@ app.post('/api/chat', async (req, res) => {
     let sunlightContext = null;
     let anniversaryContext = null;
     let musicContext = null;
+    let searchContext = null;
 
     // ============================================================
     // SERVER-SIDE STRESS DETECTION
@@ -6886,6 +6888,22 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
         console.error('[TRACE ANNIVERSARY] Failed to load anniversary context:', err.message);
       }
 
+      // General search — catches movies, sports, current events, etc. that specific APIs missed
+      if (!newsContext && !weatherContext) {
+        try {
+          if (isCurrentEventsQuery(userText)) {
+            console.log('[TRACE SEARCH] Current events query detected:', userText.slice(0, 60));
+            const result = await searchForContext(userText, effectiveUserId);
+            if (result) {
+              searchContext = result;
+              console.log('[TRACE SEARCH] Search context attached');
+            }
+          }
+        } catch (err) {
+          console.error('[TRACE SEARCH] Failed:', err.message);
+        }
+      }
+
       console.log(`[PROFILE_CACHE] db_hits=${_profileBasicDbHits} cached=${_profileBasicCache !== undefined} userId=${effectiveUserId?.slice(0,8) || 'none'}`);
 
       // Check if user is commenting on recently played music (conversation context)
@@ -6962,6 +6980,9 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
     }
     if (musicContext) {
       contextParts.push(musicContext);
+    }
+    if (searchContext) {
+      contextParts.push(searchContext);
     }
     
     // Add personalized activity suggestion context (if user is seeking help)
@@ -7515,7 +7536,17 @@ CONTEXT REFERENCES - "U KNOW", "I JUST TOLD U":
 - If user says "u know", "you know", "I just told you", "I already said", etc., they are FRUSTRATED that you're not remembering.
 - NEVER respond with generic phrases like "Got it. Let me know what you need."
 - You MUST look at the conversation history and reference SPECIFIC things they mentioned.
-- Acknowledge what they said earlier and continue that thread.`;
+- Acknowledge what they said earlier and continue that thread.
+
+SEARCH / CURRENT EVENTS DATA:
+- When SEARCH_CONTEXT or NEWS_CONTEXT is provided, USE IT. The data is real and current.
+- Share the info like you already knew it — "yeah, [fact]." NOT "According to my search..."
+- Never mention APIs, data sources, or searching. Just share the info naturally.
+- Keep it brief unless they ask for details. Buddy voice, not news anchor.
+- If no search data was provided but you genuinely don't know something current, say so honestly: "not sure about that one" or "haven't heard." Don't make things up.
+- For movies/shows: "yeah, [movie] came out [when], heard it's [brief take]."
+- For sports: "lakers won 115-108." Not a paragraph.
+- For weather: answer naturally like you looked outside.`;
       
       // Add extra instruction for long-form requests
       if (isLongFormRequest) {

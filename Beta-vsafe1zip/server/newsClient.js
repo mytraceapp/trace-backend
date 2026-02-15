@@ -253,6 +253,7 @@ function extractPendingNewsTopic(messages) {
 
 module.exports = {
   buildNewsContextSummary,
+  fetchNewsArticles,
   isNewsQuestion,
   isNewsConfirmation,
   extractPendingNewsTopic,
