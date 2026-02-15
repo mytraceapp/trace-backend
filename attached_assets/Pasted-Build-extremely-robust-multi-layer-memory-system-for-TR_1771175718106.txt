@@ -1,0 +1,567 @@
+Build extremely robust multi-layer memory system for TRACE - remembers like a real person across all sessions.
+
+VISION: TRACE is a fixed entity who knows you. Not "remembers some things sometimes" - KNOWS you. Remembers names, relationships, ongoing situations, recent topics, emotional context. Never asks you to re-explain what he already knows.
+
+GOAL: 3-layer memory system that's reliable, persistent, and contextually aware.
+
+═══════════════════════════════════════════════════════════════
+LAYER 1: RELATIONAL MEMORY (LONG-LIVED, PERMANENT)
+═══════════════════════════════════════════════════════════════
+
+PURPOSE: People, relationships, stable facts about user's life.
+
+DATABASE SCHEMA (if not already exists):
+
+CREATE TABLE people (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id),
+  relationship TEXT NOT NULL,  -- 'sister', 'brother', 'mom', 'friend', 'therapist', 'boss'
+  display_name TEXT NOT NULL,  -- 'Emma', 'Jake', 'Dr. Smith'
+  aliases TEXT[] DEFAULT '{}',  -- ['sis', 'little sis', 'Emmy']
+  notes TEXT,  -- 'lives in Seattle, works in tech, called recently'
+  importance FLOAT DEFAULT 0.7,  -- 0.0-1.0, higher = mentioned more
+  last_mentioned_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  UNIQUE(user_id, relationship, display_name)
+);
+
+CREATE INDEX idx_people_user_id ON people(user_id);
+CREATE INDEX idx_people_last_mentioned ON people(user_id, last_mentioned_at DESC);
+
+EXTRACTION LOGIC:
+
+When user mentions a person for the first time:
+
+Pattern: "my {relationship} {name}" or "{name} is my {relationship}"
+Examples:
+- "my sister Emma called" → extract: {relationship: 'sister', name: 'Emma'}
+- "talked to Jake, my brother" → extract: {relationship: 'brother', name: 'Jake'}
+- "my therapist Dr. Smith" → extract: {relationship: 'therapist', name: 'Dr. Smith'}
+
+CONFIRMATION FLOW (already have this, make it robust):
+
+1) First mention detected:
+   TRACE: "just noting — Emma is your sister, right?"
+   
+2) If user confirms ("yes" / "yeah" / "yep"):
+   - Create person record
+   - Never ask again
+   
+3) If user corrects ("no, she's my cousin"):
+   - Update relationship field
+   - Store correction in notes
+   
+4) If user adds detail ("yeah, she lives in Seattle"):
+   - Extract detail to notes field
+   - Increment importance score
+
+USAGE IN CONTEXT:
+
+Every chat request, fetch user's people:
+
+const people = await db.query(`
+  SELECT relationship, display_name, notes, importance
+  FROM people
+  WHERE user_id = $1
+  ORDER BY importance DESC, last_mentioned_at DESC
+  LIMIT 10
+`, [userId]);
+
+Inject into system prompt:
+
+PEOPLE YOU KNOW:
+${people.map(p => `${p.display_name} (${p.relationship})${p.notes ? ` - ${p.notes}` : ''}`).join('\n')}
+
+CRITICAL RULES:
+- Use their names, not relationships. "how's Emma?" NOT "how's your sister?"
+- Never ask who they are if you already know
+- If user says "my sister" and you have Emma, assume Emma unless they specify differently
+
+UPDATE ON MENTION:
+
+When user mentions a person in conversation:
+
+await db.query(`
+  UPDATE people
+  SET 
+    last_mentioned_at = NOW(),
+    importance = LEAST(importance + 0.1, 1.0)
+  WHERE user_id = $1 AND display_name = $2
+`, [userId, personName]);
+
+DECAY OVER TIME (optional, run weekly):
+
+await db.query(`
+  UPDATE people
+  SET importance = GREATEST(importance - 0.05, 0.3)
+  WHERE user_id = $1 
+    AND last_mentioned_at < NOW() - INTERVAL '30 days'
+`, [userId]);
+
+People mentioned recently stay important. Old mentions decay.
+
+═══════════════════════════════════════════════════════════════
+LAYER 2: TOPIC MEMORY (SHORT-LIVED, SESSION-SCOPED)
+═══════════════════════════════════════════════════════════════
+
+PURPOSE: Recent topics discussed, ongoing situations, threads to continue.
+
+DATABASE SCHEMA:
+
+CREATE TABLE conversation_topics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id),
+  conversation_id UUID NOT NULL,
+  topic TEXT NOT NULL,  -- 'work stress', 'deadlines', 'new job', 'project'
+  first_mentioned_at TIMESTAMPTZ DEFAULT NOW(),
+  last_mentioned_at TIMESTAMPTZ DEFAULT NOW(),
+  mention_count INT DEFAULT 1,
+  resolved BOOLEAN DEFAULT FALSE,  -- true if topic reached natural conclusion
+  
+  UNIQUE(user_id, conversation_id, topic)
+);
+
+CREATE INDEX idx_topics_user_conversation ON conversation_topics(user_id, conversation_id);
+CREATE INDEX idx_topics_active ON conversation_topics(user_id, resolved) WHERE resolved = FALSE;
+
+EXTRACTION LOGIC:
+
+After each AI response, extract topics from user message:
+
+function extractTopics(userMessage) {
+  const msg = userMessage.toLowerCase();
+  const topics = [];
+  
+  // Work/career
+  if (msg.match(/work|job|boss|career|office|meeting|deadline|project/)) {
+    if (msg.includes('deadline')) topics.push('deadlines');
+    if (msg.includes('project')) topics.push('project');
+    if (msg.includes('boss')) topics.push('work relationships');
+    if (msg.includes('new job') || msg.includes('starting')) topics.push('new job');
+    if (!topics.length) topics.push('work');
+  }
+  
+  // School/education
+  if (msg.match(/school|class|homework|assignment|exam|teacher|study/)) {
+    if (msg.includes('deadline') || msg.includes('due')) topics.push('school deadlines');
+    if (msg.includes('project')) topics.push('school project');
+    if (!topics.length) topics.push('school');
+  }
+  
+  // Relationships
+  if (msg.match(/relationship|dating|girlfriend|boyfriend|partner|spouse/)) {
+    topics.push('relationship');
+  }
+  
+  // Family
+  if (msg.match(/family|mom|dad|parent|sibling|sister|brother/)) {
+    topics.push('family');
+  }
+  
+  // Mental health
+  if (msg.match(/therapy|therapist|medication|anxiety|depression/)) {
+    topics.push('mental health');
+  }
+  
+  // Health
+  if (msg.match(/doctor|medical|health|sick|pain|appointment/)) {
+    topics.push('health');
+  }
+  
+  // Creative/hobbies
+  if (msg.match(/writing|music|art|hobby|project/)) {
+    if (msg.includes('music')) topics.push('music');
+    if (msg.includes('writing')) topics.push('writing');
+  }
+  
+  return topics.slice(0, 3); // Max 3 topics per message
+}
+
+STORAGE:
+
+const topics = extractTopics(userMessage);
+
+for (const topic of topics) {
+  await db.query(`
+    INSERT INTO conversation_topics (user_id, conversation_id, topic)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (user_id, conversation_id, topic)
+    DO UPDATE SET
+      last_mentioned_at = NOW(),
+      mention_count = conversation_topics.mention_count + 1
+  `, [userId, conversationId, topic]);
+}
+
+RETRIEVAL:
+
+Get active topics for current conversation:
+
+const activeTopics = await db.query(`
+  SELECT topic, mention_count, last_mentioned_at
+  FROM conversation_topics
+  WHERE user_id = $1 
+    AND conversation_id = $2
+    AND resolved = FALSE
+  ORDER BY last_mentioned_at DESC
+  LIMIT 5
+`, [userId, conversationId]);
+
+Also get recent topics from past conversations (last 7 days):
+
+const recentTopics = await db.query(`
+  SELECT DISTINCT topic
+  FROM conversation_topics
+  WHERE user_id = $1
+    AND conversation_id != $2
+    AND last_mentioned_at > NOW() - INTERVAL '7 days'
+    AND resolved = FALSE
+  ORDER BY last_mentioned_at DESC
+  LIMIT 3
+`, [userId, conversationId]);
+
+INJECT INTO CONTEXT:
+
+RECENT TOPICS:
+${activeTopics.map(t => `${t.topic} (mentioned ${t.mention_count}x)`).join(', ')}
+
+${recentTopics.length > 0 ? `From recent conversations: ${recentTopics.map(t => t.topic).join(', ')}` : ''}
+
+USAGE EXAMPLES:
+
+User: "still thinking about it"
+Active topics: deadlines, work stress
+TRACE: "work stuff?" or "the deadlines?"
+
+User: "talked to her today"
+Recent people: Emma (sister)
+TRACE: "how's Emma?" or "how'd that go with Emma?"
+
+User: "it's getting better"
+Active topics: new job, anxiety
+TRACE: "the new job?" or "work settling in?"
+
+RESOLUTION DETECTION:
+
+When topic reaches natural conclusion, mark resolved:
+
+Patterns that indicate resolution:
+- "that's done now"
+- "all finished with that"
+- "turned out fine"
+- "it worked out"
+
+await db.query(`
+  UPDATE conversation_topics
+  SET resolved = TRUE
+  WHERE user_id = $1 
+    AND topic = $2
+`, [userId, resolvedTopic]);
+
+CLEANUP (run daily):
+
+Delete old resolved topics:
+
+await db.query(`
+  DELETE FROM conversation_topics
+  WHERE resolved = TRUE
+    AND last_mentioned_at < NOW() - INTERVAL '30 days'
+`);
+
+═══════════════════════════════════════════════════════════════
+LAYER 3: EMOTIONAL CARRYOVER (SHORT-LIVED, COARSE)
+═══════════════════════════════════════════════════════════════
+
+PURPOSE: Prevent tone whiplash between sessions. Don't greet cheerfully after heavy conversation.
+
+DATABASE SCHEMA:
+
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS emotional_tone TEXT;
+-- Values: 'crisis', 'heavy', 'neutral', 'positive'
+
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS session_summary TEXT;
+-- Brief summary of what was discussed
+
+CLASSIFICATION LOGIC:
+
+After conversation ends (user leaves or session times out):
+
+function classifyEmotionalTone(conversationHistory) {
+  const recentMessages = conversationHistory.slice(-10);
+  const text = recentMessages.map(m => m.content).join(' ').toLowerCase();
+  
+  // Crisis indicators (highest priority)
+  if (text.match(/suicid|kill myself|want to die|hurt myself|end it all|no reason to live/)) {
+    return 'crisis';
+  }
+  
+  // Heavy indicators
+  if (text.match(/stressed|anxious|overwhelmed|can't handle|breaking down|exhausted|burnt out|depressed|struggling|difficult|hard time/)) {
+    return 'heavy';
+  }
+  
+  // Positive indicators
+  if (text.match(/proud|excited|happy|great|amazing|went well|worked out|relieved|better/)) {
+    return 'positive';
+  }
+  
+  return 'neutral';
+}
+
+STORAGE:
+
+const emotionalTone = classifyEmotionalTone(conversationHistory);
+const summary = generateSessionSummary(conversationHistory);
+
+await db.query(`
+  UPDATE sessions
+  SET 
+    emotional_tone = $1,
+    session_summary = $2,
+    ended_at = NOW()
+  WHERE id = $3
+`, [emotionalTone, summary, sessionId]);
+
+SESSION SUMMARY GENERATION:
+
+function generateSessionSummary(conversationHistory) {
+  // Extract key points (simple keyword approach)
+  const topics = extractTopics(conversationHistory.map(m => m.content).join(' '));
+  const people = extractMentionedPeople(conversationHistory);
+  
+  let summary = [];
+  if (topics.length > 0) summary.push(`Discussed: ${topics.join(', ')}`);
+  if (people.length > 0) summary.push(`Mentioned: ${people.join(', ')}`);
+  
+  return summary.join('. ') || 'General conversation';
+}
+
+RETRIEVAL:
+
+Get last session's emotional state:
+
+const lastSession = await db.query(`
+  SELECT emotional_tone, session_summary, ended_at
+  FROM sessions
+  WHERE user_id = $1
+    AND id != $2
+    AND ended_at IS NOT NULL
+  ORDER BY ended_at DESC
+  LIMIT 1
+`, [userId, currentSessionId]);
+
+USAGE IN GREETING:
+
+const timeSinceLastSession = Date.now() - new Date(lastSession.ended_at).getTime();
+const hoursAgo = timeSinceLastSession / (1000 * 60 * 60);
+
+let greeting;
+
+if (hoursAgo < 3) {
+  // Very recent return
+  if (lastSession.emotional_tone === 'crisis') {
+    greeting = "you back? you doing okay?";
+  } else if (lastSession.emotional_tone === 'heavy') {
+    greeting = "hey."; // Minimal, no chipper energy
+  } else {
+    greeting = "back?";
+  }
+} else if (hoursAgo < 24) {
+  // Same day return
+  if (lastSession.emotional_tone === 'heavy' || lastSession.emotional_tone === 'crisis') {
+    greeting = "hey."; // Still minimal
+  } else {
+    greeting = "hey. what's up?";
+  }
+} else {
+  // Next day or later
+  greeting = "hey. what's up?";
+}
+
+INJECT LAST SESSION CONTEXT:
+
+If last session was within 48 hours:
+
+LAST CONVERSATION (${Math.round(hoursAgo)}h ago):
+Tone: ${lastSession.emotional_tone}
+Summary: ${lastSession.session_summary}
+
+Don't re-ask about things that were just discussed unless user brings them up.
+
+═══════════════════════════════════════════════════════════════
+MEMORY INTEGRATION (PUTTING IT ALL TOGETHER)
+═══════════════════════════════════════════════════════════════
+
+In /api/chat endpoint, before calling AI:
+
+// 1) Fetch relational memory
+const people = await fetchPeople(userId);
+
+// 2) Fetch topic memory
+const activeTopics = await fetchActiveTopics(userId, conversationId);
+const recentTopics = await fetchRecentTopics(userId, conversationId);
+
+// 3) Fetch emotional carryover
+const lastSession = await fetchLastSession(userId, currentSessionId);
+
+// 4) Build memory context
+const memoryContext = buildMemoryContext(people, activeTopics, recentTopics, lastSession);
+
+// 5) Inject into system prompt
+const systemPrompt = `
+${baseSystemPrompt}
+
+${memoryContext}
+`;
+
+HELPER FUNCTION:
+
+function buildMemoryContext(people, activeTopics, recentTopics, lastSession) {
+  let context = '';
+  
+  // People
+  if (people.length > 0) {
+    context += '\nPEOPLE YOU KNOW:\n';
+    context += people.map(p => 
+      `${p.display_name} (${p.relationship})${p.notes ? ` - ${p.notes}` : ''}`
+    ).join('\n');
+    context += '\n\nUSE NAMES: When user mentions "my sister" and you know Emma, say "how\'s Emma?" not "how\'s your sister?"';
+  }
+  
+  // Active topics
+  if (activeTopics.length > 0) {
+    context += '\n\nCURRENT TOPICS:\n';
+    context += activeTopics.map(t => t.topic).join(', ');
+    context += '\n\nIf user says "still thinking about it" or "it\'s getting better", assume they mean one of these topics.';
+  }
+  
+  // Recent topics from other conversations
+  if (recentTopics.length > 0) {
+    context += '\n\nRECENT TOPICS (from past conversations): ';
+    context += recentTopics.map(t => t.topic).join(', ');
+  }
+  
+  // Last session context
+  if (lastSession) {
+    const hoursAgo = (Date.now() - new Date(lastSession.ended_at).getTime()) / (1000 * 60 * 60);
+    if (hoursAgo < 48) {
+      context += `\n\nLAST CONVERSATION (${Math.round(hoursAgo)}h ago):\n`;
+      context += `Tone: ${lastSession.emotional_tone}\n`;
+      context += `Summary: ${lastSession.session_summary}\n`;
+      context += 'Don\'t re-ask about things just discussed unless user brings them up.';
+    }
+  }
+  
+  return context;
+}
+
+═══════════════════════════════════════════════════════════════
+MEMORY ROBUSTNESS GUARANTEES
+═══════════════════════════════════════════════════════════════
+
+1) NEVER FORGET NAMES:
+   - Once Emma is confirmed as sister, ALWAYS use Emma
+   - Never ask "who is your sister?" after confirmation
+   - If database query fails, fall back to cached people list
+
+2) NEVER LOSE TOPIC THREADS:
+   - If user says "still thinking about it", check active topics
+   - If multiple topics active, ask "work stuff?" or "the deadlines?"
+   - Don't force user to re-explain context
+
+3) NEVER WHIPLASH TONE:
+   - After crisis/heavy session, minimal greeting
+   - Never "hey! what's up?" after they were in crisis 2 hours ago
+   - Respect emotional carryover for at least 24 hours
+
+4) GRACEFUL DEGRADATION:
+   - If people query fails → continue without relational memory (don't crash)
+   - If topics query fails → continue without topic memory
+   - If last session query fails → use neutral greeting
+   - Log errors but never break conversation
+
+ERROR HANDLING:
+
+try {
+  const people = await fetchPeople(userId);
+} catch (err) {
+  console.error('[MEMORY_ERROR] Failed to fetch people:', err);
+  people = []; // Continue without relational memory
+}
+
+try {
+  const activeTopics = await fetchActiveTopics(userId, conversationId);
+} catch (err) {
+  console.error('[MEMORY_ERROR] Failed to fetch topics:', err);
+  activeTopics = [];
+}
+
+// Same for all memory layers - fail gracefully
+
+═══════════════════════════════════════════════════════════════
+TESTING CHECKLIST
+═══════════════════════════════════════════════════════════════
+
+Test 1 - Relational memory (names):
+Session 1: User mentions "my sister Emma"
+TRACE confirms, stores Emma (sister)
+Session 2: User says "my sister called"
+Expected: TRACE says "how's Emma?" (uses name, not "your sister")
+
+Test 2 - Topic continuity within session:
+User: "work is killing me"
+Topics stored: ['work']
+User (3 messages later): "still thinking about it"
+Expected: TRACE says "work stuff?" (remembers topic)
+
+Test 3 - Topic continuity across sessions:
+Session 1: Talk about deadlines, work stress
+Session 2 (6 hours later): User says "it's getting better"
+Expected: TRACE says "work settling down?" or "the deadlines?"
+
+Test 4 - Emotional carryover (crisis):
+Session 1: User in crisis, heavy conversation
+Session 2 (2 hours later): User returns
+Expected: TRACE says "you back? you doing okay?" NOT "hey! what's up?"
+
+Test 5 - Emotional carryover (heavy):
+Session 1: Stressed about deadlines, anxious
+Session 2 (next morning): User returns
+Expected: TRACE says "hey." (minimal) NOT "good morning! how are you?"
+
+Test 6 - Multiple people remembered:
+User mentions Emma (sister), Jake (brother), Dr. Smith (therapist)
+All confirmed and stored
+User: "talked to him today"
+Last mentioned: Jake
+Expected: TRACE says "how's Jake?" or "what'd Jake say?"
+
+Test 7 - Topic resolution:
+User: "deadline is done"
+Mark topic resolved
+User (next day): "it's better now"
+Expected: TRACE doesn't assume "it" = deadline (topic resolved)
+
+Test 8 - Graceful degradation:
+Simulate database failure for people query
+Expected: Conversation continues without relational memory
+User doesn't see error
+
+═══════════════════════════════════════════════════════════════
+RESULT
+═══════════════════════════════════════════════════════════════
+
+TRACE remembers like a real person:
+- Names and relationships (permanent, never forgets)
+- Ongoing situations and topics (remembers threads, doesn't force re-explanation)
+- Recent emotional context (doesn't whiplash tone after heavy sessions)
+
+Memory is:
+- Robust (multiple layers, graceful degradation)
+- Persistent (cross-session, long-lived where appropriate)
+- Contextually aware (uses memory appropriately, not robotically)
+
+User feels: "TRACE knows me. I don't have to re-explain everything."
+
+DO THIS: Implement all 3 memory layers, test all 8 scenarios, ensure graceful degradation on failures. Ship when memory is bulletproof.
