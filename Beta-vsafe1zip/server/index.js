@@ -8994,13 +8994,21 @@ Your response (text only, no JSON):`;
     }
     
     // ============================================================
-    // FAST-PATH: Skip to L3 plain text for emotional distress states
+    // FAST-PATH: Skip to L3 plain text for speed
+    // JSON response_format on gpt-4o-mini frequently times out (18s),
+    // then L3 plain text succeeds in ~3s. For short/micro messages on
+    // the mini model, skip L1 entirely to cut response time in half.
     // ============================================================
     const highArousalStates = ['spiraling', 'panicking', 'anxious', 'overwhelmed', 'stressed', 'crisis'];
-    const useL3FastPath = !parsed && highArousalStates.includes(detected_state) && selectedModel.includes('mini');
+    const isMiniModel = selectedModel.includes('mini');
+    const isShortMode = traceIntent?.mode === 'micro' || traceIntent?.mode === 'short';
+    const useL3FastPath = !parsed && isMiniModel && (
+      highArousalStates.includes(detected_state) || isShortMode
+    );
     
     if (useL3FastPath) {
-      console.log(`[FAST-PATH] Detected ${detected_state} + mini model, skipping to L3 for speed`);
+      const reason = highArousalStates.includes(detected_state) ? detected_state : `${traceIntent?.mode}_mode`;
+      console.log(`[FAST-PATH] Skipping L1 JSON → L3 plain text (reason: ${reason}, model: ${selectedModel})`);
     }
     
     // ============================================================
