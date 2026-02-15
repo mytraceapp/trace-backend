@@ -9701,9 +9701,6 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     // ============================================================
     if (parsed && parsed.message) {
       parsed.message = parsed.message.replace(/!/g, '.');
-      if (controlQBudget === 0) {
-        parsed.message = parsed.message.replace(/\?/g, '.');
-      }
 
       const hardFilterResult = conversationState.runHardFilter(
         parsed.message,

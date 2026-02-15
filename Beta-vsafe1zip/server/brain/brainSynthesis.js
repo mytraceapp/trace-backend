@@ -151,6 +151,7 @@ CAPABILITY-AWARE ACTIONS:
     cognitiveIntent,
     primaryMode: intent.primaryMode,
     getPendingFollowup: getPendingFollowupFn,
+    historyMessages: historyMessages || [],
   });
 
   const synthConfidence = intent.continuity?.required ? 'high'
@@ -493,13 +494,25 @@ function logTraceIntent({ requestId, effectiveUserId, traceIntent, model, route 
   }
 }
 
-function buildContinuity({ topicAnchor, previousAnchor, conversationState, cognitiveIntent, primaryMode, getPendingFollowup }) {
+function buildContinuity({ topicAnchor, previousAnchor, conversationState, cognitiveIntent, primaryMode, getPendingFollowup, historyMessages }) {
   const noTopicShift = !cognitiveIntent?.topic_shift;
   const anchorExists = !!topicAnchor && topicAnchor.domain !== 'conversation';
   const topicEstablished = !!conversationState?.topicEstablished;
   const pf = typeof getPendingFollowup === 'function' ? getPendingFollowup(conversationState) : null;
   const hasPendingFollowup = pf && !pf.expired;
   const studiosContinuation = primaryMode === 'studios' && topicAnchor?.domain === 'music';
+
+  const lastAssistant = (historyMessages || []).filter(m => m.role === 'assistant').pop();
+  const lastAssistantText = (lastAssistant?.content || '').toLowerCase();
+  const wasErrorFallback = lastAssistantText.includes('something went wrong') ||
+    lastAssistantText.includes('give me a sec') ||
+    lastAssistantText.includes('glitching') ||
+    lastAssistantText.includes('try again') ||
+    lastAssistantText.includes('reconnect');
+  if (wasErrorFallback) {
+    console.log('[CONTINUITY] Last assistant message was error fallback — resetting continuity');
+    return { required: false, reason: 'error_fallback_recovery', topicAnchor: null, sessionSummary: null };
+  }
 
   let required = false;
   let reason = 'no_prior_context';

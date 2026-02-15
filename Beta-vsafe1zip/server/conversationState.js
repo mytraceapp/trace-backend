@@ -595,17 +595,19 @@ function advanceStage(state, userMessage) {
     state.userSetTopic = true;
   } else {
     state.topicKeywordAge = (state.topicKeywordAge || 0) + 1;
-    const isEmotionalTopic = (state.lastTopicKeywords || []).some(t =>
-      ['sadness', 'anxiety', 'stress', 'breakup', 'sleep'].includes(t)
-    );
     const isCasualMessage = !/\b(sad|anxious|stressed|worried|overwhelmed|scared|depressed|hurt|angry|upset)\b/i.test(userMessage);
     if (isCasualMessage) {
       state.neutralTurnCount = (state.neutralTurnCount || 0) + 1;
     } else {
       state.neutralTurnCount = 0;
     }
-    if (isEmotionalTopic && state.neutralTurnCount >= 3 && state.topicKeywordAge >= 3) {
-      console.log(`[CONVO_STATE] Topic keywords expired: [${state.lastTopicKeywords.join(', ')}] after ${state.topicKeywordAge} turns neutral`);
+    const isEmotionalTopic = (state.lastTopicKeywords || []).some(t =>
+      ['sadness', 'anxiety', 'stress', 'breakup', 'sleep'].includes(t)
+    );
+    const emotionalExpiry = isEmotionalTopic && state.neutralTurnCount >= 3 && state.topicKeywordAge >= 3;
+    const generalExpiry = !isEmotionalTopic && state.topicKeywordAge >= 4;
+    if (emotionalExpiry || generalExpiry) {
+      console.log(`[CONVO_STATE] Topic keywords expired: [${state.lastTopicKeywords.join(', ')}] after ${state.topicKeywordAge} turns (neutral=${state.neutralTurnCount})`);
       state.lastTopicKeywords = [];
       state.topicKeywordAge = 0;
       state.userSetTopic = false;
@@ -1084,9 +1086,6 @@ function runHardFilter(responseText, maxWords, questionsAllowed) {
     }
   }
 
-  if (questionsAllowed === 0 && responseText.includes('?')) {
-    reasons.push('question_when_disallowed');
-  }
 
   for (const pattern of THERAPY_PATTERNS) {
     if (pattern.test(responseText)) {
@@ -1108,24 +1107,32 @@ function buildWitnessRegenPrompt(maxWords, anchorsText) {
 
 function enforceQuestionThrottle(responseText, questionsAllowed) {
   if (!responseText || typeof responseText !== 'string') return responseText;
-  if (questionsAllowed !== 1) return responseText;
+  if (typeof questionsAllowed !== 'number') return responseText;
 
   const questionCount = (responseText.match(/\?/g) || []).length;
-  if (questionCount <= 1) return responseText;
+  if (questionCount <= questionsAllowed) return responseText;
+
+  if (questionsAllowed === 0) {
+    const qCount = (responseText.match(/\?/g) || []).length;
+    if (qCount <= 1) return responseText;
+    const sents = responseText.split(/(?<=[.!?])\s+/);
+    let keptFirst = false;
+    return sents.map(s => {
+      if (!s.includes('?')) return s;
+      if (!keptFirst) { keptFirst = true; return s; }
+      return s.replace(/\?$/, '.');
+    }).join(' ');
+  }
 
   const sentences = responseText.split(/(?<=[.!?])\s+/);
-  let kept = false;
+  let kept = 0;
   const rewritten = sentences.map(sentence => {
     if (!sentence.includes('?')) return sentence;
-    if (!kept) {
-      kept = true;
+    if (kept < questionsAllowed) {
+      kept++;
       return sentence;
     }
-    return sentence
-      .replace(/\?$/, '.')
-      .replace(/^(do you|are you|have you|can you|would you|could you|did you|will you|is it|was it|does it|don't you|isn't it|aren't you|won't you|haven't you|hasn't it)/i, (match) => {
-        return match;
-      });
+    return sentence.replace(/\?$/, '.');
   });
 
   return rewritten.join(' ');
