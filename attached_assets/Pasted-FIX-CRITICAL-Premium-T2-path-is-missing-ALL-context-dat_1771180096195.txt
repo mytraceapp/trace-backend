@@ -1,0 +1,256 @@
+FIX CRITICAL: Premium T2 path is missing ALL context (date, news, memory, everything).
+
+DIAGNOSIS CONFIRMED: Line 9166 Premium path uses premiumTextPrompt which includes ONLY last 6 messages + TRACE_IDENTITY_COMPACT. All 76 context injections (date, news, memory, relational anchors, holiday, weather, etc.) are built but ONLY sent to gpt-4o-mini (Step A), NOT to gpt-5.1 (the premium model).
+
+RESULT: Premium users have an AI that doesn't know the date, can't use news data, has no memory, can't access any context.
+
+GOAL: Give Premium T2 path the FULL assembled context while preserving all working cadences.
+
+CRITICAL CONSTRAINTS:
+- DO NOT touch any other flows (early returns, post-processing, context assembly)
+- DO NOT modify non-Premium paths
+- ONLY fix what Premium T2 receives
+- Preserve all existing context assembly logic (it's working for non-Premium)
+
+IMPLEMENTATION:
+
+═══════════════════════════════════════════════════════════════
+LOCATE THE PROBLEM (around line 9166)
+═══════════════════════════════════════════════════════════════
+
+Find this block:
+
+if (model === 'gpt-5.1') {
+  // Premium T2 path
+  const premiumTextPrompt = buildPremiumTextPrompt(...);
+  
+  // Parallel call to both models
+  const [stepAResponse, stepBResponse] = await Promise.allSettled([
+    // Step A: gpt-4o-mini with full JSON structure
+    openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },  // ← FULL CONTEXT
+        ...messages
+      ]
+    }),
+    
+    // Step B: gpt-5.1 with simplified prompt  
+    openai.chat.completions.create({
+      model: 'gpt-5.1',
+      messages: [
+        { role: 'system', content: premiumTextPrompt },  // ← STRIPPED CONTEXT
+        ...last6Messages
+      ]
+    })
+  ]);
+}
+
+THE PROBLEM: premiumTextPrompt is missing all context.
+
+═══════════════════════════════════════════════════════════════
+THE FIX (MINIMAL CHANGE)
+═══════════════════════════════════════════════════════════════
+
+OPTION A - GIVE PREMIUM THE FULL PROMPT (SAFEST):
+
+Replace the Step B call:
+
+// Step B: gpt-5.1 with FULL CONTEXT (same as Step A)
+openai.chat.completions.create({
+  model: 'gpt-5.1',
+  messages: [
+    { role: 'system', content: TRACE_BOSS_SYSTEM },
+    { role: 'system', content: CONTROL_BLOCK },  // ← HAS DATE
+    { role: 'system', content: systemPrompt },   // ← HAS EVERYTHING
+    ...messages  // Full conversation history, not just last 6
+  ],
+  response_format: { type: "text" }  // Not JSON mode
+})
+
+WHY THIS WORKS:
+- Premium gets ALL context (date, news, memory, everything)
+- Still uses gpt-5.1 (premium model)
+- Still runs parallel with gpt-4o-mini
+- No other code changes needed
+
+RISK: Slightly higher token usage for Premium users (but they're paying for it)
+
+═══════════════════════════════════════════════════════════════
+OPTION B - BUILD PREMIUM PROMPT WITH KEY CONTEXT (MORE SURGICAL)
+═══════════════════════════════════════════════════════════════
+
+If you want to keep Premium prompt smaller but fix the critical missing pieces:
+
+Find where premiumTextPrompt is built (likely a function buildPremiumTextPrompt).
+
+Add CRITICAL context to it:
+
+function buildPremiumTextPrompt(controlBlock, newsContext, memoryContext, holidayContext, weatherContext) {
+  let prompt = TRACE_IDENTITY_COMPACT;
+  
+  // ADD CRITICAL CONTEXT
+  
+  // 1) Date (from CONTROL_BLOCK)
+  prompt += `\n\n${controlBlock}`;  // Contains TODAY: Sunday, 2/15/2026
+  
+  // 2) News data (if fetched)
+  if (newsContext && newsContext.length > 0) {
+    prompt += `\n\nNEWS DATA:\n${newsContext}`;
+  }
+  
+  // 3) Memory (relational + topics)
+  if (memoryContext && memoryContext.length > 0) {
+    prompt += `\n\nMEMORY:\n${memoryContext}`;
+  }
+  
+  // 4) Holiday context (if today is special)
+  if (holidayContext && holidayContext.length > 0) {
+    prompt += `\n\n${holidayContext}`;
+  }
+  
+  // 5) Weather context (if user asked)
+  if (weatherContext && weatherContext.length > 0) {
+    prompt += `\n\n${weatherContext}`;
+  }
+  
+  return prompt;
+}
+
+Then pass these to the function:
+
+const premiumTextPrompt = buildPremiumTextPrompt(
+  CONTROL_BLOCK,
+  NEWS_CONTEXT,
+  MEMORY_CONTEXT,
+  HOLIDAY_CONTEXT,
+  WEATHER_CONTEXT
+);
+
+WHY THIS WORKS:
+- Premium gets date, news, memory, holidays, weather
+- Still smaller than full systemPrompt
+- Keeps token usage reasonable
+- Fixes the critical gaps
+
+═══════════════════════════════════════════════════════════════
+RECOMMENDED APPROACH
+═══════════════════════════════════════════════════════════════
+
+Use OPTION A (give Premium the full prompt).
+
+REASONING:
+- Simplest fix (3 lines changed)
+- No risk of missing something important
+- Premium users are paying for the better model - give them the full context
+- All 76 context injections work for Premium too
+- No new bugs from rebuilding Premium prompt
+
+CODE CHANGE (EXACT):
+
+Find line ~9166 where Step B is called.
+
+BEFORE:
+```javascript
+// Step B: gpt-5.1
+openai.chat.completions.create({
+  model: 'gpt-5.1',
+  messages: [
+    { role: 'system', content: premiumTextPrompt },
+    ...last6Messages
+  ],
+  temperature: 0.7
+})
+```
+
+AFTER:
+```javascript
+// Step B: gpt-5.1 with FULL CONTEXT
+openai.chat.completions.create({
+  model: 'gpt-5.1',
+  messages: [
+    { role: 'system', content: TRACE_BOSS_SYSTEM },
+    { role: 'system', content: CONTROL_BLOCK },
+    { role: 'system', content: systemPrompt },
+    ...messages  // Full conversation, not just last 6
+  ],
+  temperature: 0.7,
+  response_format: { type: "text" }
+})
+```
+
+THAT'S IT. 3 line change.
+
+═══════════════════════════════════════════════════════════════
+TESTING AFTER FIX
+═══════════════════════════════════════════════════════════════
+
+Test with Premium account (T2 model):
+
+Test 1 - Date:
+User: "what's today's date?"
+Expected: "it's Sunday, February 15, 2026." or similar
+NOT: "I don't have access to current date"
+
+Test 2 - News:
+User: "what's happening with immigration?"
+Expected: Specific headlines and details from NEWS_CONTEXT
+NOT: Vague summary or "I don't have current news"
+
+Test 3 - Memory:
+Session 1: User mentions "my sister Emma"
+Session 2: User says "my sister called"
+Expected: "how's Emma?"
+NOT: "how's your sister?"
+
+Test 4 - Holiday:
+Test on a holiday (or fake one in HOLIDAY_CONTEXT)
+User: "what's special about today?"
+Expected: Mentions the holiday
+NOT: "nothing I'm aware of"
+
+Test 5 - Verify non-Premium still works:
+Test same queries with non-Premium account
+Expected: Everything still works as before
+
+═══════════════════════════════════════════════════════════════
+WHY REPLIT KEEPS SAYING "FIXED" BUT IT'S NOT
+═══════════════════════════════════════════════════════════════
+
+Replit has been fixing the context assembly (steps 24-76).
+
+Those fixes ARE working - for non-Premium users.
+
+But Premium users never get that assembled context because of the parallel path fork at line 9166.
+
+Every fix to context assembly makes gpt-4o-mini (Step A) smarter, but gpt-5.1 (Step B) still gets nothing.
+
+You've been testing on non-Premium, seeing it work, thinking it's fixed.
+Or Replit tests on non-Premium, sees it work, says "fixed."
+But Premium users still have a lobotomized AI.
+
+This fix gives Premium users the SAME context non-Premium users have been getting.
+
+═══════════════════════════════════════════════════════════════
+RESULT AFTER FIX
+═══════════════════════════════════════════════════════════════
+
+Premium T2 users will have:
+✓ Current date (from CONTROL_BLOCK)
+✓ News data (from NEWS_CONTEXT)
+✓ Relational memory (Emma is sister)
+✓ Topic memory (work deadlines)
+✓ Holiday awareness
+✓ Weather context
+✓ All 76 context injections
+✓ Same capabilities as non-Premium users
+✓ Plus better model quality (gpt-5.1)
+
+Non-Premium users:
+✓ Everything still works exactly as before
+✓ No changes to their flow
+
+All working cadences:
+✓ Preserved (no changes to early returns, post-processing, context assembly)
+
+DO THIS: Apply OPTION A fix (3 lines), test with Premium account, verify date/news/memory all work.
