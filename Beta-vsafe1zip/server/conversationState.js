@@ -474,6 +474,11 @@ function extractTopicKeywords(message) {
     { pattern: /\b(health|sick|pain|doctor|hospital|medication|meds)\b/i, topic: 'health' },
     { pattern: /\b(breakup|broke up|ex|divorce|separated)\b/i, topic: 'breakup' },
     { pattern: /\b(move|moving|new place|apartment|house)\b/i, topic: 'life change' },
+    { pattern: /\b(news|headline|shooting|shot|killed|victim|arrest|immigration|election|politic|protest|war|conflict|attack|bomb|hurricane|earthquake|disaster|tornado)\b/i, topic: 'current events' },
+    { pattern: /\b(weather|rain|snow|storm|temperature|forecast|hot|cold|humid)\b/i, topic: 'weather' },
+    { pattern: /\b(dog|cat|pet|puppy|kitten|animal|breed)\b/i, topic: 'pets' },
+    { pattern: /\b(holiday|christmas|thanksgiving|easter|halloween|new year|birthday|celebration|valentine)\b/i, topic: 'holidays' },
+    { pattern: /\b(food|cook|recipe|eat|meal|dinner|lunch|breakfast|restaurant|hungry)\b/i, topic: 'food' },
   ];
   
   for (const { pattern, topic } of topicPatterns) {
@@ -1071,21 +1076,12 @@ function runHardFilter(responseText, maxWords, questionsAllowed) {
 
   const reasons = [];
 
-  if (responseText.includes('!')) {
-    reasons.push('exclamation');
-  }
-
   const lowerText = responseText.toLowerCase();
   for (const phrase of FORBIDDEN_PHRASES) {
     if (lowerText.includes(phrase)) {
       reasons.push(`forbidden:"${phrase}"`);
       break;
     }
-  }
-
-  const wordCount = responseText.split(/\s+/).filter(Boolean).length;
-  if (maxWords && wordCount > maxWords) {
-    reasons.push(`over_length:${wordCount}/${maxWords}`);
   }
 
   if (questionsAllowed === 0 && responseText.includes('?')) {

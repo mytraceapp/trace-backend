@@ -171,7 +171,7 @@ function isNewsFollowUp(text, messages, userId) {
   let lastNewsTopic = trackedState?.topic || null;
   
   if (!newsWasDiscussed) {
-    const recentMessages = messages.slice(-10);
+    const recentMessages = messages.slice(-14);
     for (const msg of recentMessages) {
       const content = (msg.content || '').toLowerCase();
       if (msg.role === 'user' && isNewsQuestion(msg.content)) {
@@ -179,27 +179,46 @@ function isNewsFollowUp(text, messages, userId) {
         const topic = extractNewsTopic(msg.content);
         if (topic && topic !== 'general news') lastNewsTopic = topic;
       }
+      if (msg.role === 'assistant' && (
+        content.includes('shooting') || content.includes('headline') ||
+        content.includes('incident') || content.includes('victim') ||
+        content.includes('report') || content.includes('coverage') ||
+        content.includes('killed') || content.includes('arrested') ||
+        content.includes('immigration') || content.includes('breaking')
+      )) {
+        newsWasDiscussed = true;
+      }
     }
   }
   
-  if (!newsWasDiscussed) return { isFollowUp: false, topic: null };
+  if (!newsWasDiscussed) {
+    console.log('[NEWS FOLLOWUP] No news context found in recent messages');
+    return { isFollowUp: false, topic: null };
+  }
   
   const followUpPatterns = [
+    /who('s| is| was| got| were| did| are)/i,
     /who (got|was|were|did|is|are)/i,
+    /who .*(victim|killed|shot|died|hurt|injured|involved|arrested|responsible)/i,
+    /the victim/i,
     /what happened/i,
-    /where (was|did|is|were)/i,
+    /where (was|did|is|were|exactly)/i,
     /when (did|was|were|is)/i,
     /how many/i,
     /how (did|was|is)/i,
     /why (did|was|were|is)/i,
     /tell me more/i,
-    /more (about|on|details)/i,
+    /more (about|on|details|info)/i,
     /what (about|else)/i,
-    /any (other|more|update)/i,
+    /any (other|more|update|detail)/i,
     /details/i,
     /what (exactly|specifically)/i,
     /can you (tell|share|give)/i,
     /do you know/i,
+    /what .*(cause|reason|motive)/i,
+    /is (there|that|it) (true|real|confirmed)/i,
+    /any (arrest|suspect|update|casualt)/i,
+    /how (bad|serious|many)/i,
   ];
   
   const matched = followUpPatterns.some(p => p.test(t));

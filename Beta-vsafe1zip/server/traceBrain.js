@@ -341,35 +341,20 @@ function isDeepMode(userText) {
 function enforceBrevity(text, mode = 'strict') {
   if (!text) return text;
   
-  const limits = {
-    strict: { chars: 300, sentences: 3, bullets: 0 },
-    deep: { chars: 400, sentences: 4, bullets: 2 },
-    crisis: { chars: 200, sentences: 2, bullets: 2 },
-  };
-  
-  const limit = limits[mode] || limits.strict;
+  if (mode !== 'crisis') {
+    return text;
+  }
+
   let result = text;
-  
-  // Remove bullets if not allowed
-  if (limit.bullets === 0) {
-    const lines = result.split('\n');
-    result = lines.filter(line => {
-      const trimmed = line.trim();
-      return !(/^[\-\*]\s/.test(trimmed) || /^\d+[\.\)]\s/.test(trimmed));
-    }).join('\n').trim();
-  }
-  
-  // Sentence limiting
   const sentences = result.match(/[^.!?]+[.!?]+/g) || [result];
-  if (sentences.length > limit.sentences) {
-    result = sentences.slice(0, limit.sentences).join(' ').trim();
+  if (sentences.length > 2) {
+    result = sentences.slice(0, 2).join(' ').trim();
   }
   
-  // Character limiting (truncate at sentence boundary if possible)
-  if (result.length > limit.chars) {
-    const truncated = result.substring(0, limit.chars);
+  if (result.length > 200) {
+    const truncated = result.substring(0, 200);
     const lastPeriod = Math.max(truncated.lastIndexOf('.'), truncated.lastIndexOf('!'), truncated.lastIndexOf('?'));
-    if (lastPeriod > limit.chars * 0.5) {
+    if (lastPeriod > 100) {
       result = truncated.substring(0, lastPeriod + 1);
     } else {
       result = truncated.trim() + '...';
@@ -927,59 +912,14 @@ function decideSuggestion(clientState, signals, rules = null) {
 function tightenResponse(text, options = {}) {
   if (!text) return text;
   
-  const maxSentences = options.maxSentences || 6;
   let result = text;
-  
-  const listPatterns = [
-    /^here are \d+[^.]*[.:]/gim,
-    /^here's \d+[^.]*[.:]/gim,
-    /^there are \d+ (things|ways|options)[^.]*[.:]/gim,
-  ];
-  for (const pattern of listPatterns) {
-    result = result.replace(pattern, '');
-  }
-  
-  const lines = result.split('\n');
-  const cleanedLines = lines.filter(line => {
-    const trimmed = line.trim();
-    if (/^[\-\*]\s/.test(trimmed)) return false;
-    if (/^\d+[\.\)]\s/.test(trimmed)) return false;
-    return true;
-  });
-  result = cleanedLines.join('\n').trim();
   
   const questionMarks = (result.match(/\?/g) || []).length;
   if (questionMarks > 2) {
-    // Only truncate if 3+ questions (allow statement + follow-up question pattern)
     const secondQIndex = result.indexOf('?', result.indexOf('?') + 1);
     if (secondQIndex !== -1) {
       result = result.substring(0, secondQIndex + 1).trim();
     }
-  }
-  
-  let protectedText = result;
-  const abbrevMap = {};
-  ABBREVIATIONS.forEach((abbr, i) => {
-    const regex = new RegExp(`\\b${abbr}\\.`, 'g');
-    const placeholder = `__ABBR${i}__`;
-    protectedText = protectedText.replace(regex, placeholder);
-    abbrevMap[placeholder] = `${abbr}.`;
-  });
-  
-  const sentences = protectedText.match(/[^.!?]+[.!?]+/g) || [protectedText];
-  
-  const restoredSentences = sentences.map(s => {
-    let restored = s;
-    Object.keys(abbrevMap).forEach(placeholder => {
-      restored = restored.replace(new RegExp(placeholder, 'g'), abbrevMap[placeholder]);
-    });
-    return restored;
-  });
-  
-  if (restoredSentences.length > maxSentences) {
-    result = restoredSentences.slice(0, maxSentences).join(' ').trim();
-  } else {
-    result = restoredSentences.join(' ').trim();
   }
   
   return result;

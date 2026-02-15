@@ -9696,62 +9696,23 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     }
     
     // ============================================================
-    // SERVER-SIDE ENFORCEMENT: Hard Filter + Witness-Mode Regen
-    // If response contains !, forbidden phrases, therapy patterns,
-    // exceeds max words, or questions when disallowed → regen once.
+    // SERVER-SIDE ENFORCEMENT: Hard Filter (lightweight)
+    // Strip exclamation marks. Only regen for forbidden/therapy phrases.
     // ============================================================
     if (parsed && parsed.message) {
+      parsed.message = parsed.message.replace(/!/g, '.');
+      if (controlQBudget === 0) {
+        parsed.message = parsed.message.replace(/\?/g, '.');
+      }
+
       const hardFilterResult = conversationState.runHardFilter(
         parsed.message,
         controlMaxWords,
         controlQBudget
       );
       if (!hardFilterResult.pass) {
-        console.log(`[HARD FILTER] FAILED: ${hardFilterResult.reasons.join(', ')} — regenerating in witness mode`);
-        try {
-          const witnessPrompt = conversationState.buildWitnessRegenPrompt(controlMaxWords, controlAnchorsText);
-          const witnessMessages = [
-            { role: 'system', content: controlBlock },
-            ...messagesWithHydration,
-            { role: 'assistant', content: parsed.message },
-            { role: 'user', content: witnessPrompt },
-          ];
-          const witnessCompletion = await openai.chat.completions.create({
-            model: selectedModel,
-            messages: witnessMessages,
-            temperature: 0.6,
-            max_tokens: 200,
-          }, { timeout: 5000, signal: AbortSignal.timeout(5000) });
-          const witnessText = witnessCompletion.choices[0]?.message?.content?.trim() || '';
-          if (witnessText.length > 5) {
-            let cleanWitness = witnessText;
-            try {
-              const witnessJson = JSON.parse(witnessText);
-              cleanWitness = witnessJson.message || witnessText;
-            } catch (_) {}
-            cleanWitness = sanitizeTone(cleanWitness, { userId: effectiveUserId, isCrisisMode });
-            const recheck = conversationState.runHardFilter(cleanWitness, controlMaxWords, controlQBudget);
-            if (recheck.pass) {
-              parsed.message = cleanWitness;
-              console.log('[HARD FILTER] Witness regen accepted');
-            } else {
-              let stripped = cleanWitness.replace(/!/g, '.');
-              if (controlQBudget === 0) stripped = stripped.replace(/\?/g, '.');
-              parsed.message = stripped;
-              console.log(`[HARD FILTER] Witness regen still dirty (${recheck.reasons.join(', ')}) — stripped punctuation`);
-            }
-          } else {
-            let stripped = parsed.message.replace(/!/g, '.');
-            if (controlQBudget === 0) stripped = stripped.replace(/\?/g, '.');
-            parsed.message = stripped;
-            console.log('[HARD FILTER] Witness regen empty — stripped punctuation from original');
-          }
-        } catch (witnessErr) {
-          console.error('[HARD FILTER] Witness regen failed:', witnessErr.message);
-          let stripped = parsed.message.replace(/!/g, '.');
-          if (controlQBudget === 0) stripped = stripped.replace(/\?/g, '.');
-          parsed.message = stripped;
-        }
+        console.log(`[HARD FILTER] FAILED: ${hardFilterResult.reasons.join(', ')} — applying sanitizeTone`);
+        parsed.message = sanitizeTone(parsed.message, { userId: effectiveUserId, isCrisisMode });
       }
     }
 
