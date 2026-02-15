@@ -40,8 +40,9 @@ function extractNewsTopic(text) {
   const topicPatterns = [
     /news (?:about |on |in |regarding |for )(.+?)(?:\?|$)/i,
     /(?:about |on |in |regarding )(.+?)(?:\s+news|\?|$)/i,
-    /what's happening (?:in |with )(.+?)(?:\?|$)/i,
-    /what is going on (?:in |with )(.+?)(?:\?|$)/i,
+    /(?:w?hat'?s?) happening (?:in |with )(?:the )?(.+?)(?:\?|$)/i,
+    /(?:w?hat'?s?) going on (?:in |with )(?:the )?(.+?)(?:\?|$)/i,
+    /happening (?:in |with )(?:the )?(.+?)(?:\?|$)/i,
     /tell me (?:about )?(?:the )?news (?:in |on |about )(.+?)(?:\?|$)/i,
     /headlines? (?:about |on |in |for )(.+?)(?:\?|$)/i,
     /who (?:are|were|is|was) (?:the )?(.+?)(?:\?|$)/i,
@@ -202,6 +203,8 @@ function isNewsQuestion(text) {
     "what's happening",
     'whats happening',
     'what is happening',
+    "hat's happening",
+    "hats happening",
     "what's going on",
     'whats going on',
     'what is going on',
@@ -212,6 +215,8 @@ function isNewsQuestion(text) {
     'want to know what',
     'tell me what',
     'headlines',
+    'happening with the',
+    'happening in the',
   ];
   
   return eventPatterns.some(pattern => t.includes(pattern));

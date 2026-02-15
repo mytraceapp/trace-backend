@@ -76,7 +76,8 @@ function extractSearchQuery(text) {
     /(?:latest|recent|new|upcoming) (.+?)(?:\?|$)/i,
     /tell me (?:about|something about) (?:the )?(?:latest |recent |new )?(.+?)(?:\?|$)/i,
     /who won (?:the )?(.+?)(?:\?|$)/i,
-    /what(?:'s| is) (?:going on|happening) (?:with |in )(.+?)(?:\?|$)/i,
+    /(?:what'?s?|w?hat'?s?) (?:going on|happening) (?:with |in )(?:the )?(.+?)(?:\?|$)/i,
+    /(?:going on|happening) (?:with |in )(?:the )?(.+?)(?:\?|$)/i,
   ];
 
   for (const pattern of extractPatterns) {
@@ -84,6 +85,7 @@ function extractSearchQuery(text) {
     if (match && match[1]) {
       const topic = match[1].trim().replace(/[?.!]+$/, '').trim();
       if (topic.length >= 2 && topic.length <= 80) {
+        console.log('[SEARCH] Extracted topic from pattern:', topic);
         return topic;
       }
     }
@@ -106,11 +108,15 @@ function extractSearchQuery(text) {
   }
 
   let cleaned = t
-    .replace(/^(?:hey |yo |trace |so |um |like |just |okay |ok )/gi, '')
+    .replace(/^(?:hey |yo |trace |so |um |like |just |okay |ok |w?hat'?s? |what is |what are |how is |how are |where is |where are |who is |who are |when is |when are |tell me about (?:the )?)/gi, '')
+    .replace(/\b(?:happening|going on)\b/gi, '')
+    .replace(/\b(?:with the|with|in the|in|about the|about|right now|today|lately|currently)\b/gi, '')
     .replace(/\?+$/, '')
+    .replace(/\s+/g, ' ')
     .trim();
 
-  if (cleaned.length >= 5 && cleaned.length <= 80) {
+  if (cleaned.length >= 2 && cleaned.length <= 80) {
+    console.log('[SEARCH] Extracted topic from cleanup:', cleaned);
     return cleaned;
   }
 
@@ -142,7 +148,7 @@ async function searchForContext(userMessage, userId) {
 
     if (!articles || articles.length === 0) {
       console.log('[SEARCH] No results found for:', query);
-      return `SEARCH_CONTEXT for "${query}": No recent results found. If you genuinely don't know the answer, say so naturally — "not sure about that one" or "haven't heard about that." Don't make anything up.`;
+      return `SEARCH_CONTEXT for "${query}": No recent news articles found, but this is likely a topic you know about from your training data. Answer confidently from your knowledge. Share what you know about ${query} — stats, context, recent developments. If you genuinely have no knowledge of this topic, say so naturally. Don't make anything up, but don't deflect if you do know.`;
     }
 
     const brief = articles.slice(0, 5).map(a => ({
