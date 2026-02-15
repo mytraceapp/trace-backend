@@ -1,0 +1,518 @@
+Make TRACE sharp and accurate on news, culture, and history - like Claude and GPT.
+
+PROBLEM: TRACE gives vague, deflecting responses to factual questions. Says "I don't have those details" when he should be specific. Follow-up questions break topic tracking. Word limits force vagueness. Culture/history questions get deflected unnecessarily.
+
+GOAL: TRACE answers factual questions with specific details, handles multi-turn news conversations, and uses his training knowledge confidently for culture/history.
+
+IMPLEMENTATION:
+
+═══════════════════════════════════════════════════════════════
+LAYER 1: SMART TOPIC DETECTION (FIX FOLLOW-UP OVERRIDE)
+═══════════════════════════════════════════════════════════════
+
+CURRENT PROBLEM:
+User: "what's happening with immigration?"
+[Fetches immigration news, caches topic: "immigration"]
+User: "what about the Minnesota ice shooting?"
+[System thinks: follow-up to "immigration", searches "immigration Minnesota"]
+WRONG - user asked about a NEW specific topic
+
+FIX - SPECIFIC TOPIC ALWAYS WINS:
+
+function detectNewsQuery(userMessage, lastNewsTopic) {
+  const msg = userMessage.toLowerCase();
+  
+  // Check if message contains specific topic indicators
+  const specificIndicators = [
+    /[A-Z][a-z]+\s+[A-Z][a-z]+/,  // Proper nouns: "Minnesota ice", "Trump Russia"
+    /\d{4}/,  // Years: "2024 election"
+    /shooting|attack|incident|case|scandal/,  // Specific events
+    /"[^"]+"/  // Quoted phrases
+  ];
+  
+  const hasSpecificTopic = specificIndicators.some(pattern => pattern.test(userMessage));
+  
+  // Vague follow-up indicators
+  const vagueIndicators = [
+    /tell me more/i,
+    /what about (it|that|them|this)/i,
+    /any updates/i,
+    /what else/i,
+    /go on/i,
+    /continue/i
+  ];
+  
+  const isVagueFollowup = vagueIndicators.some(pattern => pattern.test(msg));
+  
+  // Decision logic
+  if (hasSpecificTopic) {
+    // User mentioned specific topic - ALWAYS use it, ignore cached topic
+    const newTopic = extractSpecificTopic(userMessage);
+    return { topic: newTopic, isFollowup: false, useCache: false };
+  } else if (isVagueFollowup && lastNewsTopic) {
+    // Vague follow-up AND we have cached topic - use cached
+    return { topic: lastNewsTopic, isFollowup: true, useCache: true };
+  } else {
+    // Neither specific nor vague follow-up - extract from message
+    const topic = extractTopic(userMessage);
+    return { topic, isFollowup: false, useCache: false };
+  }
+}
+
+function extractSpecificTopic(message) {
+  // Extract the actual topic from user message
+  // Examples:
+  // "Minnesota ice shooting" → "Minnesota ice shooting"
+  // "Trump Russia investigation" → "Trump Russia investigation"
+  // "what about the Minnesota shooting?" → "Minnesota shooting"
+  
+  // Simple approach: take noun phrases after "about", "what's", "tell me"
+  const patterns = [
+    /(?:about|regarding)\s+(?:the\s+)?([A-Za-z0-9\s]+)/i,
+    /what(?:'s|\s+is)\s+(?:happening\s+with\s+)?(?:the\s+)?([A-Za-z0-9\s]+)/i,
+    /tell\s+me\s+about\s+(?:the\s+)?([A-Za-z0-9\s]+)/i
+  ];
+  
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    if (match) {
+      return match[1].trim();
+    }
+  }
+  
+  // Fallback: just use the whole message (web search will handle it)
+  return message.trim();
+}
+
+USAGE IN ENDPOINT:
+
+let newsCache = {}; // Store per conversation: {conversationId: {topic, articles, fetchedAt}}
+
+app.post('/api/chat', async (req, res) => {
+  const { message, conversationId } = req.body;
+  
+  // Check if this is a news query
+  const isNewsQuery = detectIfNewsQuery(message);
+  
+  if (isNewsQuery) {
+    const lastNewsTopic = newsCache[conversationId]?.topic;
+    const { topic, isFollowup, useCache } = detectNewsQuery(message, lastNewsTopic);
+    
+    let newsArticles;
+    
+    if (useCache && newsCache[conversationId]) {
+      // Use cached articles for vague follow-up
+      console.log('[NEWS] Using cached articles for follow-up');
+      newsArticles = newsCache[conversationId].articles;
+    } else {
+      // Fetch fresh articles for specific topic
+      console.log('[NEWS] Fetching fresh articles for topic:', topic);
+      newsArticles = await fetchNewsArticles(topic);
+      
+      // Cache for future follow-ups
+      newsCache[conversationId] = {
+        topic,
+        articles: newsArticles,
+        fetchedAt: Date.now()
+      };
+    }
+    
+    // Continue with newsArticles...
+  }
+});
+
+═══════════════════════════════════════════════════════════════
+LAYER 2: KEEP NEWS CONTEXT ACROSS TURNS (SHORT-TERM MEMORY)
+═══════════════════════════════════════════════════════════════
+
+CURRENT PROBLEM:
+Each news fetch is independent. Follow-up questions can't reference same data.
+
+FIX - CACHE LAST FETCHED ARTICLES:
+
+// In-memory cache (or store in session metadata)
+const newsCache = new Map();
+// Structure: Map<conversationId, {topic, articles, fetchedAt}>
+
+// Cache timeout: 30 minutes
+const NEWS_CACHE_TTL = 30 * 60 * 1000;
+
+function getCachedNews(conversationId) {
+  const cached = newsCache.get(conversationId);
+  if (!cached) return null;
+  
+  const age = Date.now() - cached.fetchedAt;
+  if (age > NEWS_CACHE_TTL) {
+    newsCache.delete(conversationId);
+    return null;
+  }
+  
+  return cached;
+}
+
+function cacheNews(conversationId, topic, articles) {
+  newsCache.set(conversationId, {
+    topic,
+    articles,
+    fetchedAt: Date.now()
+  });
+}
+
+MULTI-TURN FLOW:
+
+Turn 1:
+User: "what's happening with immigration?"
+→ Fetch immigration articles
+→ Cache: {topic: "immigration", articles: [...]}
+→ Respond with details from articles
+
+Turn 2:
+User: "what about the victims?"
+→ Detect: vague follow-up
+→ Use cached articles (still about immigration)
+→ Extract victim info from cached articles
+→ Respond with details
+
+Turn 3:
+User: "what about the Minnesota ice shooting?"
+→ Detect: NEW specific topic
+→ Fetch fresh articles about Minnesota shooting
+→ Cache: {topic: "Minnesota ice shooting", articles: [...]}
+→ Respond with details from NEW articles
+
+Turn 4:
+User: "how many people died?"
+→ Detect: vague follow-up
+→ Use cached articles (Minnesota shooting)
+→ Extract death count from cached articles
+→ Respond with specific number
+
+INJECT CACHED ARTICLES INTO CONTEXT:
+
+If using cached articles for follow-up:
+
+const cachedNews = getCachedNews(conversationId);
+
+if (cachedNews) {
+  systemPrompt += `\n\nRECENT NEWS DATA (from your last search about "${cachedNews.topic}"):\n`;
+  cachedNews.articles.forEach((article, i) => {
+    systemPrompt += `\n[${i+1}] ${article.title}\n${article.snippet}\nSource: ${article.source}\n`;
+  });
+  systemPrompt += `\nThe user is asking a follow-up question about this topic. Use these articles to answer.`;
+}
+
+═══════════════════════════════════════════════════════════════
+LAYER 3: RAISE WORD LIMIT FOR FACTUAL ANSWERS
+═══════════════════════════════════════════════════════════════
+
+CURRENT PROBLEM:
+80-word cap forces vagueness. Can't share real headlines and details.
+
+FIX - CONTEXT-AWARE WORD LIMITS:
+
+In system prompt, update length rules:
+
+RESPONSE LENGTH:
+- Casual conversation: 1-2 sentences (10-30 words)
+- Emotional support: 1-3 sentences (20-50 words)
+- Factual information (news, culture, history): 2-4 sentences (50-150 words)
+- Crisis: As needed for safety
+
+When answering factual questions, you have more room to be specific.
+
+DYNAMIC LIMIT BASED ON CONTEXT:
+
+const responseType = detectResponseType(userMessage, hasNewsData);
+
+let maxWords;
+if (responseType === 'news' || responseType === 'factual') {
+  maxWords = 150;
+} else if (responseType === 'crisis') {
+  maxWords = 200; // Safety first
+} else {
+  maxWords = 50; // Normal TRACE brevity
+}
+
+systemPrompt += `\nMAX WORDS FOR THIS RESPONSE: ${maxWords}`;
+
+DETECTION:
+
+function detectResponseType(userMessage, hasNewsData) {
+  const msg = userMessage.toLowerCase();
+  
+  if (hasNewsData) return 'news';
+  
+  if (msg.match(/what|when|where|who|how many|tell me about|explain/)) {
+    return 'factual';
+  }
+  
+  if (msg.match(/crisis|suicid|hurt|die/)) {
+    return 'crisis';
+  }
+  
+  return 'casual';
+}
+
+═══════════════════════════════════════════════════════════════
+LAYER 4: STRENGTHEN INSTRUCTION TO USE FETCHED DATA
+═══════════════════════════════════════════════════════════════
+
+CURRENT PROBLEM:
+AI paraphrases vaguely instead of sharing specific details from articles.
+
+FIX - EXPLICIT INSTRUCTION:
+
+When news data is present:
+
+CRITICAL INSTRUCTION - USE THE DATA:
+
+News data has been provided below. Your job is to answer the user's question with SPECIFIC details from this data:
+- Share actual headlines
+- Use real names, numbers, dates from the articles
+- Cite sources when relevant ("according to [source]")
+- If the user asks something NOT in the data, say: "couldn't find that in the articles i saw. want me to search for something more specific?"
+
+DO NOT:
+- Paraphrase vaguely ("there's been some news about...")
+- Give generic summaries ("things are complicated...")
+- Pretend to know details not in the data
+
+BE SPECIFIC. USE THE DATA.
+
+EXAMPLE INJECTION:
+
+systemPrompt += `\n\nNEWS DATA:\n`;
+articles.forEach((article, i) => {
+  systemPrompt += `\n[${i+1}] ${article.title}\n`;
+  systemPrompt += `Source: ${article.source}\n`;
+  systemPrompt += `Snippet: ${article.snippet}\n`;
+  if (article.date) systemPrompt += `Date: ${article.date}\n`;
+});
+
+systemPrompt += `\n\nCRITICAL: Answer the user's question using SPECIFIC details from these articles. Share headlines, names, numbers. Don't be vague.`;
+
+═══════════════════════════════════════════════════════════════
+LAYER 5: DON'T DEFLECT ON CULTURE AND HISTORY
+═══════════════════════════════════════════════════════════════
+
+CURRENT PROBLEM:
+AI says "I don't have a live news feed" for culture/history questions that don't need real-time data.
+
+FIX - DIFFERENTIATE NEWS VS GENERAL KNOWLEDGE:
+
+function needsRealTimeData(userMessage) {
+  const msg = userMessage.toLowerCase();
+  
+  // These need real-time data (web search)
+  const realTimeIndicators = [
+    /what(?:'s|\s+is)\s+happening/,
+    /latest|recent|today|yesterday|this week/,
+    /current|now|right now/,
+    /breaking|update|news/,
+    /score|result|outcome/ // Sports
+  ];
+  
+  if (realTimeIndicators.some(pattern => pattern.test(msg))) {
+    return true;
+  }
+  
+  // These are general knowledge (AI can answer)
+  const generalKnowledgeIndicators = [
+    /who (?:was|is) [A-Z]/,  // "who was Einstein"
+    /what (?:was|is) the [A-Za-z\s]+ war/,  // "what was the Cold War"
+    /when (?:was|did)/,  // "when was WW2"
+    /history of/,
+    /culture of/,
+    /explain|tell me about/ // Unless combined with "latest"
+  ];
+  
+  if (generalKnowledgeIndicators.some(pattern => pattern.test(msg))) {
+    return false; // General knowledge, no web search needed
+  }
+  
+  return true; // Default to needing real-time data if unsure
+}
+
+UPDATE SYSTEM PROMPT:
+
+For general knowledge questions (culture, history):
+
+You have extensive knowledge about history, culture, science, and general facts from your training. Answer these questions confidently and specifically:
+- Share dates, names, events
+- Explain context clearly
+- Be factual and precise
+
+Only deflect if the question requires CURRENT/RECENT information you don't have.
+
+EXAMPLES:
+
+Good (general knowledge):
+User: "who was Martin Luther King Jr?"
+TRACE: "civil rights leader in the 1960s. led the movement for racial equality in America. assassinated in 1968. known for 'I have a dream' speech."
+
+Good (history):
+User: "what was the Cold War?"
+TRACE: "post-WW2 geopolitical tension between US and Soviet Union. lasted roughly 1947-1991. never direct military conflict but proxy wars, arms race, space race. ended with fall of Berlin Wall and Soviet collapse."
+
+Good (culture):
+User: "what's Diwali?"
+TRACE: "Hindu festival of lights. celebrates victory of light over darkness. usually in October or November. people light lamps, exchange gifts, eat sweets."
+
+Bad (needs real-time):
+User: "what's happening with the war in Ukraine?"
+TRACE: [Use web search - needs current info]
+
+Bad (needs real-time):
+User: "who won the Super Bowl?"
+TRACE: [Use web search - needs recent result]
+
+═══════════════════════════════════════════════════════════════
+LAYER 6: FACTUAL ACCURACY INSTRUCTION (WHEN DATA PROVIDED)
+═══════════════════════════════════════════════════════════════
+
+When news data IS provided:
+
+FACTUAL ACCURACY RULES:
+
+1) Share actual headlines from the data
+   Good: "saw headlines about 'Border crossings surge' and 'Immigration reform stalls in Congress'"
+   Bad: "there's been some news about immigration"
+
+2) Use real names and numbers
+   Good: "3 people died in the shooting. victims were ages 24, 31, and 47."
+   Bad: "several people were killed"
+
+3) If user asks something NOT in the data, say so
+   Good: "couldn't find details about the victims' names in what i saw. want me to search more specifically?"
+   Bad: [Making up details or being vaguely evasive]
+
+4) Cite sources when relevant
+   Good: "according to CNN, the suspect was arrested yesterday."
+   Bad: "the suspect was arrested"
+
+5) Stay in TRACE voice even when factual
+   Good: "yeah, saw that. 3 dead, 5 injured. happened at an ice rink in Minneapolis yesterday."
+   Bad: "According to multiple sources, the incident resulted in three fatalities and five injuries at a Minneapolis ice skating facility on the date in question."
+
+BUDDY VOICE + FACTUAL ACCURACY:
+
+User: "what about the Minnesota ice shooting?"
+TRACE: "yeah, happened yesterday at an ice rink in Minneapolis. 3 dead, 5 injured. shooter in custody. saw headlines saying it was a domestic dispute that escalated."
+
+NOT: "there was an incident in Minnesota. details are still emerging."
+
+User: "how many people died?"
+TRACE: "3. victims were 24, 31, and 47 years old."
+
+NOT: "I don't have those specific details."
+
+User: "what were their names?"
+TRACE: "couldn't find names in the articles i saw. want me to search more specifically?"
+
+NOT: [Making up names or deflecting generically]
+
+═══════════════════════════════════════════════════════════════
+COMPLETE FLOW EXAMPLE
+═══════════════════════════════════════════════════════════════
+
+Turn 1:
+User: "what's happening with immigration?"
+System: Detect news query → Fetch articles about "immigration" → Cache
+TRACE: "lot going on. saw headlines about border crossings up 15% this month, and the Senate immigration bill is stalled again. Republicans want more enforcement, Democrats pushing for pathway to citizenship. Biden administration announced new asylum restrictions yesterday."
+[135 words - within factual limit]
+
+Turn 2:
+User: "what about the victims?"
+System: Detect vague follow-up → Use cached immigration articles → Search for "victim" mentions
+TRACE: "couldn't find specific info about victims in the immigration articles i saw. were you asking about something specific? like people who died crossing the border, or victims of a particular incident?"
+
+Turn 3:
+User: "what about the Minnesota ice shooting?"
+System: Detect NEW specific topic → Fetch fresh articles → Cache new topic
+TRACE: "yeah, that was yesterday. happened at an ice rink in Minneapolis. 3 dead, 5 injured. shooter's in custody. police say it was a domestic dispute that escalated. victims were 24, 31, and 47."
+[40 words - specific details, buddy voice]
+
+Turn 4:
+User: "who was the shooter?"
+System: Detect vague follow-up → Use cached Minnesota articles → Extract shooter info
+TRACE: "saw the name James Peterson, 42. police say he knew the victims. motive still under investigation."
+
+Turn 5:
+User: "what were the victims' names?"
+System: Check cached articles for victim names
+TRACE: "couldn't find the victims' names in what i saw. might not be released yet. want me to search for more recent updates?"
+
+═══════════════════════════════════════════════════════════════
+TESTING CHECKLIST
+═══════════════════════════════════════════════════════════════
+
+Test 1 - Specific topic overrides follow-up:
+User: "what's happening with immigration?"
+[Caches "immigration"]
+User: "what about the Minnesota ice shooting?"
+Expected: Fetches NEW topic (Minnesota shooting), doesn't search "immigration Minnesota"
+
+Test 2 - Vague follow-up uses cache:
+User: "what's happening with immigration?"
+[Fetches and caches]
+User: "tell me more"
+Expected: Uses cached immigration articles, no new fetch
+
+Test 3 - Multi-turn with cache:
+User: "what about the Minnesota shooting?"
+[Fetches and caches]
+User: "how many died?"
+Expected: Extracts from cached articles: "3. victims were 24, 31, and 47."
+
+Test 4 - Factual specificity:
+User: "what about the Minnesota shooting?"
+Expected: Specific details (numbers, names, dates), NOT vague summary
+
+Test 5 - Missing info honesty:
+User: "what were the victims' names?"
+[Not in articles]
+Expected: "couldn't find names in what i saw. want me to search more specifically?"
+
+Test 6 - General knowledge (no search needed):
+User: "who was Martin Luther King Jr?"
+Expected: Confident answer from training, no "I don't have current info" deflection
+
+Test 7 - History (no search needed):
+User: "what was the Cold War?"
+Expected: Specific answer (dates, events, outcome), no deflection
+
+Test 8 - Recent news (needs search):
+User: "who won the Super Bowl?"
+Expected: Web search triggered, specific answer with date
+
+Test 9 - Buddy voice + factual:
+User: "tell me about the shooting"
+Expected: Specific facts in buddy voice ("yeah, 3 dead, 5 injured. happened yesterday...")
+NOT formal/clinical tone
+
+Test 10 - Source citation:
+User: "where'd you see that?"
+Expected: "saw it on CNN" or "couple news sites mentioned it"
+
+═══════════════════════════════════════════════════════════════
+RESULT
+═══════════════════════════════════════════════════════════════
+
+TRACE handles factual questions like Claude and GPT:
+- Sharp topic detection (specific topics always win)
+- Multi-turn context (caches articles for follow-ups)
+- Adequate word budget (50-150 words for factual answers)
+- Uses fetched data specifically (headlines, names, numbers)
+- Confident on general knowledge (culture, history from training)
+- Honest about missing info (doesn't deflect vaguely)
+- Maintains buddy voice (specific but not formal)
+
+User experience:
+"What happened in Minnesota?" → Gets specific details, real numbers
+"Tell me more" → References same articles, no re-fetch
+"Who was MLK?" → Gets confident answer, no deflection
+"What were the victims' names?" → Honest "couldn't find that"
+
+TRACE is sharp and informed. Like Claude. Like GPT.
+
+DO THIS: Implement all 6 layers, test all 10 scenarios, ensure buddy voice + factual accuracy coexist. Ship when TRACE is as sharp as you expect.
