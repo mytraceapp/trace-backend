@@ -946,6 +946,51 @@ function computeQuestionMode(visitorId) {
   return { mode: 'ALLOW_ONE', budget: 1 };
 }
 
+// ============================================================
+// SESSION CLOSE WARMTH — Wind-down detection + prompt hint
+// ============================================================
+
+const windDownState = new Map();
+const WINDDOWN_COOLDOWN_TURNS = 8;
+
+function detectWindDown(userId, userText, isCrisisMode, lastAssistantText) {
+  if (!userText || typeof userText !== 'string') return { isWindingDown: false };
+  if (isCrisisMode) return { isWindingDown: false };
+
+  if (lastAssistantText && typeof lastAssistantText === 'string' && lastAssistantText.trim().endsWith('?')) {
+    return { isWindingDown: false, reason: 'assistant_asked_question' };
+  }
+
+  const text = userText.toLowerCase().trim();
+  let score = 0;
+
+  if (/\b(bye|goodbye|later|gtg|gotta go|see ya|peace|cya|talk later|catch you later|night|goodnight|gn)\b/.test(text)) score += 50;
+  if (/\b(thanks|thank you|thx|ty|appreciate it)\b/.test(text)) score += 30;
+  if (/\b(that's all|i'm good|all set|that's it|got it|perfect)\b/.test(text)) score += 25;
+  if (/^(ok|okay|cool|nice|great|alright|sure|yeah|yep|yup|k|sounds good)\.?$/i.test(text)) score += 15;
+  if (text.length <= 12 && text.split(/\s+/).length <= 3) score += 10;
+
+  const isWindingDown = score >= 25;
+
+  if (!isWindingDown) return { isWindingDown: false };
+
+  const state = windDownState.get(userId) || { turnsSinceLastInvite: 999, lastInviteTime: 0 };
+  if (state.turnsSinceLastInvite < WINDDOWN_COOLDOWN_TURNS) {
+    return { isWindingDown: false, reason: 'cooldown' };
+  }
+
+  return { isWindingDown: true, score };
+}
+
+function recordWindDownInvite(userId) {
+  windDownState.set(userId, { turnsSinceLastInvite: 0, lastInviteTime: Date.now() });
+}
+
+function incrementWindDownTurn(userId) {
+  const state = windDownState.get(userId);
+  if (state) state.turnsSinceLastInvite++;
+}
+
 function buildControlBlock({
   visitorId,
   rhythmNudge,
@@ -958,6 +1003,7 @@ function buildControlBlock({
   sessionSummary,
   doorContext,
   holidayLine,
+  windingDown,
 }) {
   const lengthMode = computeLengthMode(rhythmNudge);
   const questionMode = computeQuestionMode(visitorId);
@@ -999,6 +1045,14 @@ function buildControlBlock({
   lines.push(`QUESTION_BUDGET: ${questionMode.budget}`);
   lines.push(`DOOR_CONTEXT: ${doorContext || 'none'}`);
   lines.push('');
+
+  if (windingDown) {
+    lines.push('');
+    lines.push('SESSION_CLOSE_WARMTH: The user seems to be wrapping up.');
+    lines.push('- End your reply with a brief, warm closing that invites them back (e.g., "i\'m here whenever." or "come back anytime.")');
+    lines.push('- Keep it natural — 1 short sentence max. Do NOT ask a follow-up question.');
+    lines.push('- Do NOT use therapy-speak ("take care of yourself", "be gentle with yourself"). Just be a friend saying bye.');
+  }
 
   lines.push('CONSTRAINTS:');
   lines.push(`- Max words: ${lengthMode.maxWords} | Questions: ${questionMode.budget}`);
@@ -1197,6 +1251,9 @@ module.exports = {
   getQuestionCooldown,
   buildControlBlock,
   computeQuestionMode,
+  detectWindDown,
+  recordWindDownInvite,
+  incrementWindDownTurn,
   runHardFilter,
   buildWitnessRegenPrompt,
   enforceQuestionThrottle,

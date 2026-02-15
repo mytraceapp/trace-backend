@@ -9466,6 +9466,14 @@ If the right move isn't obvious: one grounded observation about what you notice 
     const controlAnchorsText = relationalAnchors || '(none)';
     const controlSessionSummary = traceIntent?.continuity?.sessionSummary || null;
 
+    conversationState.incrementWindDownTurn(effectiveUserId);
+    const lastAssistantForWindDown = rawMessages?.filter(m => m.role === 'assistant').pop()?.content || '';
+    const windDownResult = conversationState.detectWindDown(effectiveUserId, lastUserContent, isCrisisMode, lastAssistantForWindDown);
+    const isWindingDown = windDownResult.isWindingDown && !postActivityReflectionContext;
+    if (isWindingDown) {
+      console.log(`[SESSION_CLOSE] Wind-down detected (score=${windDownResult.score}), adding warmth hint`);
+    }
+
     const controlBlock = conversationState.buildControlBlock({
       visitorId: effectiveUserId,
       rhythmNudge,
@@ -9478,6 +9486,7 @@ If the right move isn't obvious: one grounded observation about what you notice 
       sessionSummary: controlSessionSummary,
       doorContext: controlDoorContext,
       holidayLine: proactiveHolidayLine || null,
+      windingDown: isWindingDown,
     });
     const controlLengthLabel = rhythmNudge?.tier === 'ultra_short' ? 'micro' : rhythmNudge?.tier === 'short' ? 'short' : rhythmNudge?.tier === 'long' ? 'long' : 'medium';
     const controlQBudget = conversationState.computeQuestionMode(effectiveUserId).budget;
@@ -11826,6 +11835,9 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       conversationState.updateStateAfterResponse(effectiveUserId, response.message);
       const recordedTier = conversationState.recordResponseLength(effectiveUserId, response.message);
       console.log(`[RHYTHM] recorded: ${recordedTier}, text_preview: "${(response.message || '').slice(0, 40)}..."`);
+      if (isWindingDown) {
+        conversationState.recordWindDownInvite(effectiveUserId);
+      }
       conversationState.saveState(effectiveUserId, convoState);
     }
     

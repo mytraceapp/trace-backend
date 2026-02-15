@@ -47,6 +47,9 @@ Supports Supabase anonymous authentication with persistent user ID recovery and 
 ## Greeting Deduplication
 Manages welcome greetings to ensure variety and freshness by tracking past approaches and topics, and filtering against recent conversation topics.
 
+## Session Close Warmth
+Wind-down detection system (`conversationState.js`) that scores user messages for goodbye/thanks/completion signals. When triggered (score >= 25), injects a `SESSION_CLOSE_WARMTH` hint into the CONTROL_BLOCK so the AI naturally ends with a brief warm closing (e.g., "i'm here whenever.") in its own voice — no static text appended. Gates: never fires during crisis mode, when TRACE just asked a question, during post-activity reflection, or within 8 turns of the last invite. In-memory cooldown tracking prevents repetition.
+
 ## Prompt Architecture
 A two-layer V2 prompt system addresses prompt fragmentation with schema enforcement. Prompt Deduplication resolves overlapping directives across V2 directive, Studios gate, and T2 manifesto, ensuring consistent prompt instructions. A TRACE Control Block is prepended as a separate system message on every /api/chat call, providing deterministic per-turn constraints: LENGTH_MODE (micro/short/medium with max word counts), QUESTION_MODE (WITNESS_ONLY or ALLOW_ONE with budget 0 or 1), soundscape state, relational anchors, session continuity summary, and door context. The control block leverages the existing rhythm system (conversationState.js) and question streak tracking (qStreak) to prevent back-to-back questions.
 
