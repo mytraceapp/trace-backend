@@ -1,0 +1,441 @@
+DIAGNOSTIC AUDIT: Find why TRACE is disjointed and can't access current information.
+
+PROBLEM: TRACE doesn't know current date, can't pull news API data, gives inaccurate facts about current events. Suspect 20,000+ lines of patchwork code creating conflicts.
+
+GOAL: Systematic audit to find exactly where the system is broken and why.
+
+DELIVERABLES:
+
+═══════════════════════════════════════════════════════════════
+STEP 1: MAP THE ENTIRE /api/chat FLOW
+═══════════════════════════════════════════════════════════════
+
+Create a flow diagram of what ACTUALLY happens when a message comes in.
+
+Run this diagnostic in your /api/chat endpoint at the very top:
+
+app.post('/api/chat', async (req, res) => {
+  console.log('\n═══════════════════════════════════════════════════════════');
+  console.log('[DIAGNOSTIC] NEW REQUEST RECEIVED');
+  console.log('[DIAGNOSTIC] Timestamp:', new Date().toISOString());
+  console.log('[DIAGNOSTIC] User message:', req.body.message?.slice(0, 100));
+  console.log('═══════════════════════════════════════════════════════════\n');
+  
+  const flowLog = [];
+  
+  function logStep(step, data) {
+    const entry = { step, timestamp: Date.now(), data };
+    flowLog.push(entry);
+    console.log(`[FLOW] ${step}:`, data);
+  }
+  
+  try {
+    logStep('1_REQUEST_START', { 
+      hasMessage: !!req.body.message,
+      hasUserId: !!req.body.userId,
+      hasConversationId: !!req.body.conversationId
+    });
+    
+    // ... rest of your endpoint code ...
+    
+    // At the very end, before sending response:
+    logStep('FINAL_RESPONSE', {
+      responseLength: finalResponse?.length,
+      totalSteps: flowLog.length,
+      duration: Date.now() - flowLog[0].timestamp
+    });
+    
+    console.log('\n[DIAGNOSTIC] COMPLETE FLOW LOG:');
+    console.log(JSON.stringify(flowLog, null, 2));
+    
+  } catch (error) {
+    logStep('ERROR', { message: error.message, stack: error.stack });
+    console.log('\n[DIAGNOSTIC] FLOW LOG AT ERROR:');
+    console.log(JSON.stringify(flowLog, null, 2));
+  }
+});
+
+Then send a test message: "what's today's date?"
+
+Copy the ENTIRE flow log output and paste it here. This will show us:
+- Every function being called
+- What order things happen
+- Where it's breaking
+- What's being passed between steps
+
+═══════════════════════════════════════════════════════════════
+STEP 2: CHECK IF NEWS API IS EVEN INTEGRATED
+═══════════════════════════════════════════════════════════════
+
+Search your codebase for these patterns:
+
+grep -r "tavily\|serper\|brave.*search\|newsapi" server/
+grep -r "web_search\|fetch.*news\|news.*api" server/
+grep -r "TAVILY_API_KEY\|SERPER_API_KEY\|NEWS_API_KEY" server/
+
+If no results, NEWS API ISN'T INTEGRATED YET.
+
+If results found, check:
+
+1) Is API key in environment variables?
+   console.log('[DIAGNOSTIC] News API keys:', {
+     tavily: !!process.env.TAVILY_API_KEY,
+     serper: !!process.env.SERPER_API_KEY,
+     newsapi: !!process.env.NEWS_API_KEY
+   });
+
+2) Is the function being called?
+   Add logging to your news fetch function:
+   
+   async function fetchNews(query) {
+     console.log('[DIAGNOSTIC] fetchNews CALLED with query:', query);
+     try {
+       const result = await actualFetchLogic(query);
+       console.log('[DIAGNOSTIC] fetchNews SUCCESS:', {
+         articleCount: result?.length,
+         firstHeadline: result?.[0]?.title
+       });
+       return result;
+     } catch (error) {
+       console.log('[DIAGNOSTIC] fetchNews FAILED:', error.message);
+       throw error;
+     }
+   }
+
+3) Is it being passed to the AI?
+   console.log('[DIAGNOSTIC] System prompt includes news data:', 
+     systemPrompt.includes('NEWS DATA') || systemPrompt.includes('ARTICLES')
+   );
+
+═══════════════════════════════════════════════════════════════
+STEP 3: CHECK CURRENT DATE INJECTION
+═══════════════════════════════════════════════════════════════
+
+Find where system prompt is built. Add diagnostic:
+
+const systemPrompt = buildSystemPrompt(...);
+
+console.log('[DIAGNOSTIC] System prompt check:', {
+  length: systemPrompt.length,
+  includesDate: systemPrompt.includes('2026') || systemPrompt.includes('current date'),
+  includesCurrentInfo: systemPrompt.includes('current') || systemPrompt.includes('today'),
+  first500chars: systemPrompt.slice(0, 500)
+});
+
+The system prompt MUST include current date. Check if this line exists:
+
+const currentDate = new Date().toLocaleDateString('en-US', { 
+  weekday: 'long', 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric' 
+});
+
+systemPrompt = `Current date: ${currentDate}\n\n${systemPrompt}`;
+
+If NOT there, AI doesn't know current date.
+
+═══════════════════════════════════════════════════════════════
+STEP 4: TRACE THE PROMPT CONSTRUCTION CHAIN
+═══════════════════════════════════════════════════════════════
+
+Find every place that modifies the system prompt:
+
+1) Base prompt file
+2) Voice engine additions
+3) Mode/phase injections
+4) Memory context
+5) News data
+6) Any post-processing
+
+Log EACH addition:
+
+let systemPrompt = basePrompt;
+console.log('[DIAGNOSTIC] 1_BASE:', systemPrompt.length);
+
+systemPrompt += voiceEngineAdditions;
+console.log('[DIAGNOSTIC] 2_VOICE:', systemPrompt.length);
+
+systemPrompt += modeInstructions;
+console.log('[DIAGNOSTIC] 3_MODE:', systemPrompt.length);
+
+systemPrompt += memoryContext;
+console.log('[DIAGNOSTIC] 4_MEMORY:', systemPrompt.length);
+
+systemPrompt += newsData;
+console.log('[DIAGNOSTIC] 5_NEWS:', systemPrompt.length);
+
+console.log('[DIAGNOSTIC] FINAL_PROMPT_LENGTH:', systemPrompt.length);
+console.log('[DIAGNOSTIC] FINAL_PROMPT_PREVIEW:', systemPrompt.slice(0, 1000));
+
+If final length > 8000 characters, it's probably too long (model might truncate).
+
+═══════════════════════════════════════════════════════════════
+STEP 5: CHECK MODEL CONFIGURATION
+═══════════════════════════════════════════════════════════════
+
+Right before calling OpenAI/Anthropic:
+
+console.log('[DIAGNOSTIC] Model call config:', {
+  model: modelName,
+  messagesCount: messages.length,
+  systemPromptLength: messages[0]?.content?.length || systemPrompt?.length,
+  temperature: temperature,
+  maxTokens: max_tokens,
+  hasTools: !!tools,
+  toolsCount: tools?.length
+});
+
+Check if tools (web search) are defined:
+
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "web_search",
+      description: "Search the web for current information",
+      parameters: { ... }
+    }
+  }
+];
+
+console.log('[DIAGNOSTIC] Tools defined:', !!tools);
+console.log('[DIAGNOSTIC] Tools passed to model:', JSON.stringify(tools));
+
+If tools undefined or not passed, model CAN'T search web.
+
+═══════════════════════════════════════════════════════════════
+STEP 6: CHECK RESPONSE POST-PROCESSING
+═══════════════════════════════════════════════════════════════
+
+After getting AI response:
+
+const rawResponse = response.choices[0].message.content;
+console.log('[DIAGNOSTIC] RAW_RESPONSE:', rawResponse);
+
+// Then trace every modification:
+
+let processedResponse = rawResponse;
+console.log('[DIAGNOSTIC] POST_1_START:', processedResponse);
+
+processedResponse = sanitizer(processedResponse);
+console.log('[DIAGNOSTIC] POST_2_SANITIZER:', processedResponse);
+
+processedResponse = hardFilter(processedResponse);
+console.log('[DIAGNOSTIC] POST_3_FILTER:', processedResponse);
+
+processedResponse = tightener(processedResponse);
+console.log('[DIAGNOSTIC] POST_4_TIGHTENER:', processedResponse);
+
+console.log('[DIAGNOSTIC] FINAL_TO_USER:', processedResponse);
+
+If RAW response is good but FINAL is bad, post-processing is destroying it.
+
+═══════════════════════════════════════════════════════════════
+STEP 7: TEST WITH MINIMAL ENDPOINT
+═══════════════════════════════════════════════════════════════
+
+Create a NEW test endpoint that bypasses all complexity:
+
+app.post('/api/chat-test-minimal', async (req, res) => {
+  const { message } = req.body;
+  
+  const currentDate = new Date().toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  const systemPrompt = `
+Current date: ${currentDate}
+
+You are TRACE. Buddy at 2:47 a.m. Be brief, direct, warm.
+
+When asked about current events or news:
+- Tell the user you don't have access to real-time news yet
+- Suggest they ask about something else
+
+When asked about the date:
+- Tell them the current date from the system
+
+Examples:
+User: "what's today's date?"
+You: "it's ${currentDate}."
+
+User: "what's happening with immigration?"
+You: "don't have access to live news yet. anything else i can help with?"
+`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: message }
+      ],
+      temperature: 0.5,
+      max_tokens: 200
+    });
+    
+    const answer = response.choices[0].message.content;
+    
+    console.log('[TEST_MINIMAL] Success:', {
+      userMessage: message,
+      aiResponse: answer
+    });
+    
+    res.json({ response: answer });
+    
+  } catch (error) {
+    console.error('[TEST_MINIMAL] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+Test this endpoint:
+1) "what's today's date?" → Should return actual date
+2) "what's happening with immigration?" → Should say "don't have access to live news yet"
+
+If THIS works but main endpoint doesn't:
+→ Main endpoint has too much complexity breaking it
+
+If THIS ALSO fails:
+→ Problem is with OpenAI API key, model access, or network
+
+═══════════════════════════════════════════════════════════════
+STEP 8: FIND ALL FILES THAT MODIFY CHAT BEHAVIOR
+═══════════════════════════════════════════════════════════════
+
+List every file that touches the chat endpoint:
+
+find server/ -type f -name "*.js" -o -name "*.ts" | xargs grep -l "chat\|prompt\|message\|response"
+
+For each file found, add a log at the top:
+
+console.log('[DIAGNOSTIC] File loaded: filename.js');
+
+Run the server and check startup logs. This shows you ALL files being loaded.
+
+Then count lines in each:
+
+wc -l server/**/*.js server/**/*.ts
+
+If you see files with 2000+ lines, that's where patchwork accumulated.
+
+═══════════════════════════════════════════════════════════════
+STEP 9: CHECK FOR CONFLICTING INSTRUCTIONS
+═══════════════════════════════════════════════════════════════
+
+Search for ALL places that add instructions to system prompt:
+
+grep -r "systemPrompt\s*+=" server/
+grep -r "systemPrompt\s*=" server/
+grep -r "prompt\s*+=" server/
+
+For each result, check what's being added. Look for conflicts:
+
+Example conflicts:
+- "Be brief" in one place, "Be detailed" in another
+- "Use web search" in one place, "Don't search" in another  
+- "Current date is X" in one place, nothing in another
+
+═══════════════════════════════════════════════════════════════
+STEP 10: FINAL DIAGNOSTIC REPORT
+═══════════════════════════════════════════════════════════════
+
+After running steps 1-9, create a report:
+
+1) Does TRACE know current date?
+   YES / NO
+   Evidence: [paste log output]
+
+2) Is news API integrated?
+   YES / NO / PARTIALLY
+   Evidence: [which API, is it being called, what's the error]
+
+3) Is news data reaching the AI?
+   YES / NO
+   Evidence: [system prompt includes it? tool calls work?]
+
+4) How many processing steps between user → AI → user?
+   Count: [number]
+   List: [step 1, step 2, step 3...]
+
+5) Is post-processing destroying responses?
+   YES / NO
+   Evidence: [raw vs final comparison]
+
+6) What's the total system prompt length?
+   Length: [characters]
+   Too long? [YES/NO if >8000]
+
+7) How many files modify chat behavior?
+   Count: [number]
+   Top 5 largest: [filenames with line counts]
+
+8) Are there conflicting instructions?
+   YES / NO
+   Examples: [specific conflicts found]
+
+═══════════════════════════════════════════════════════════════
+EXPECTED FINDINGS (MY PREDICTION)
+═══════════════════════════════════════════════════════════════
+
+Based on symptoms, I predict you'll find:
+
+1) NEWS API NOT INTEGRATED AT ALL
+   - No fetchNews function exists
+   - Or exists but never called
+   - Or called but API key missing
+
+2) CURRENT DATE NOT INJECTED
+   - System prompt doesn't include date
+   - Or includes it but AI ignores due to conflicting instructions
+
+3) 15+ PROCESSING STEPS
+   - Request → phase detection → mode selection → voice engine → memory → crisis check → post-processing → sanitizer → filter → tightener → response
+   - Each step fighting the others
+
+4) POST-PROCESSING DESTROYING FACTS
+   - AI gives good factual response
+   - Sanitizer/filter/tightener strip it down to vague summary
+   - User sees bad response even though AI was good
+
+5) 20+ FILES TOUCHING CHAT
+   - index.js (5000 lines)
+   - voiceEngine.js (3000 lines)
+   - promptBuilder.js (2000 lines)
+   - modeDetector.js (1500 lines)
+   - etc.
+
+6) CONFLICTING INSTRUCTIONS
+   - Base prompt: "Be brief"
+   - News mode: "Be detailed with facts"
+   - Voice engine: "Maximum 80 words"
+   - Crisis mode: "Be as long as needed"
+   
+   AI doesn't know which to follow → defaults to safe/vague
+
+═══════════════════════════════════════════════════════════════
+WHAT TO DO AFTER DIAGNOSTIC
+═══════════════════════════════════════════════════════════════
+
+Once you run this and find the issues:
+
+1) SHARE THE DIAGNOSTIC REPORT
+   Paste the full output here
+
+2) I'LL GIVE YOU EXACT FIX
+   Based on what's actually broken
+   Not guessing anymore - surgical fix
+
+3) LIKELY FIXES:
+   - Add current date injection (3 lines)
+   - Integrate news API (50 lines)
+   - Remove post-processing pipeline (delete 500+ lines)
+   - Consolidate system prompt (delete 90% of additions)
+
+But we need the diagnostic first to know EXACTLY what's broken.
+
+DO THIS: Run steps 1-10, collect all outputs, paste the diagnostic report here.
