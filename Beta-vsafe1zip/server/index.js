@@ -6254,7 +6254,7 @@ app.post('/api/chat', async (req, res) => {
         
         let chatMessage;
         if (!disclaimerShown) {
-          chatMessage = `cool. so, I'm not therapy — just a space to talk and regulate when you need it. you can talk to me, or try something like Breathing if you want to settle in. what feels right?`;
+          chatMessage = `cool. so, i'm not therapy — but i can stay with you and help you regulate. you can talk to me, or try something like Breathing if you want to settle in. what feels right?`;
           
           await markDisclaimerShown();
         } else {
@@ -6304,7 +6304,7 @@ app.post('/api/chat', async (req, res) => {
         
         let chatMessage;
         if (!disclaimerShown) {
-          chatMessage = `cool. so, I'm not therapy — just a space to talk and regulate when you need it. what's on your mind?`;
+          chatMessage = `cool. so, i'm not therapy — but i can stay with you and help you regulate. what's on your mind?`;
           await markDisclaimerShown();
         } else {
           chatMessage = "cool. what's on your mind?";
@@ -6443,7 +6443,7 @@ app.post('/api/chat', async (req, res) => {
           reflectionAck = "got it. glad you tried it.";
         }
         
-        const disclaimerText = "\n\nquick thing — I'm not therapy, but I can sit with you through this. what else is going on?";
+        const disclaimerText = "\n\nquick thing — i'm not therapy — but i can stay with you and help you regulate. what else is going on?";
         
         // Mark disclaimer as shown
         await markDisclaimerShown();
