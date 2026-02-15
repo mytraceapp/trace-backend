@@ -526,6 +526,8 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
   const { handleSoundState, stopAll: stopAllAudio, tracksPlayedInState } = useAudio();
+  const tracksPlayedRef = useRef(0);
+  useEffect(() => { tracksPlayedRef.current = tracksPlayedInState; }, [tracksPlayedInState]);
   const params = useLocalSearchParams<{ 
     completedActivity?: string; 
     activityDuration?: string; 
@@ -629,6 +631,7 @@ export default function ChatScreen() {
     recentSentiment: string | null;
     nowPlaying: { trackId: string; title: string; album?: string } | null;
     lastNowPlaying: { trackId: string; title: string; album?: string; stoppedAt: number } | null;
+    currentSoundState: string | null;
     lastSuggestion: { suggestion_id?: string; type: string; id: string; ts: number; accepted?: boolean | null } | null;
     lastActivity: { id: string; ts: number } | null;
     doorwayState: Record<string, unknown> | null;
@@ -643,6 +646,7 @@ export default function ChatScreen() {
     recentSentiment: null,
     nowPlaying: null,
     lastNowPlaying: null,
+    currentSoundState: null,
     lastSuggestion: null,
     lastActivity: null,
     doorwayState: null,
@@ -1838,7 +1842,7 @@ export default function ChatScreen() {
       clientStateRef.current.timeOfDay = getTimeOfDay();
       clientStateRef.current.localNow = Date.now();
       clientStateRef.current.sessionTurnCount = (clientStateRef.current.sessionTurnCount || 0) + 1;
-      clientStateRef.current.tracksPlayedInState = tracksPlayedInState;
+      clientStateRef.current.tracksPlayedInState = tracksPlayedRef.current;
       
       // Fetch weather context (cached, non-blocking - returns null if unavailable)
       let weatherContext: WeatherContext | null = null;

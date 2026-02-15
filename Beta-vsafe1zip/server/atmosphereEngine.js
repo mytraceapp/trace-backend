@@ -81,42 +81,125 @@ const NEUTRAL_STREAK_THRESHOLD = 25; // 25 neutral messages before returning to 
 const SIGNAL_TIMEOUT_MS = 1800000; // 30 minutes — emotional states linger, don't rush back
 const GROUNDING_CLEAR_THRESHOLD = 5; // Require 5 clear messages to exit grounding
 const MIN_STATE_PERSIST_MESSAGES = 25; // Minimum 25 messages before allowing state reassessment — finish the vibe
-const INACTIVITY_TIMEOUT_MS = 600000; // 10 minutes — generous inactivity window
+const INACTIVITY_TIMEOUT_MS = 1800000; // 30 minutes — emotional states linger, don't rush back
 const BASELINE_WINDOW_MESSAGES = 3; // Accumulate signals over first 3 messages before making initial switch
 const MIN_TRACKS_BEFORE_SWITCH = 7; // Client must play all 7 tracks before server suggests a switch
 
 // ============================================================
-// SESSION STATE STORAGE (in-memory, keyed by userId)
+// SESSION STATE STORAGE (in-memory cache + PostgreSQL persistence)
 // ============================================================
 
 const sessionStates = new Map();
+let _dbPool = null;
+
+function setDbPool(pool) {
+  _dbPool = pool;
+}
+
+function defaultSessionState() {
+  return {
+    current_state: 'presence',
+    last_change_timestamp: 0,
+    state_change_history: [],
+    last_signal_timestamp: 0,
+    neutral_message_streak: 0,
+    grounding_clear_streak: 0,
+    freeze_until_timestamp: null,
+    messages_since_state_change: 0,
+    last_activity_timestamp: 0,
+    baseline_window_active: true,
+    baseline_message_count: 0,
+    accumulated_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0 },
+    continuous_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0, presence: 0 },
+    last_known_tracks_played: 0
+  };
+}
+
+async function loadSessionFromDb(userId) {
+  if (!_dbPool) return null;
+  try {
+    const { rows } = await _dbPool.query(
+      'SELECT * FROM atmosphere_sessions WHERE user_id = $1',
+      [userId]
+    );
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    return {
+      current_state: row.current_state,
+      last_change_timestamp: Number(row.last_change_timestamp),
+      state_change_history: row.state_change_history || [],
+      last_signal_timestamp: Number(row.last_signal_timestamp),
+      neutral_message_streak: row.neutral_message_streak,
+      grounding_clear_streak: row.grounding_clear_streak,
+      freeze_until_timestamp: row.freeze_until_timestamp ? Number(row.freeze_until_timestamp) : null,
+      messages_since_state_change: row.messages_since_state_change,
+      last_activity_timestamp: Number(row.last_activity_timestamp),
+      baseline_window_active: row.baseline_window_active,
+      baseline_message_count: row.baseline_message_count,
+      accumulated_signals: row.accumulated_signals || { grounding: 0, comfort: 0, reflective: 0, insight: 0 },
+      continuous_signals: row.continuous_signals || { grounding: 0, comfort: 0, reflective: 0, insight: 0, presence: 0 },
+      last_known_tracks_played: row.last_known_tracks_played || 0
+    };
+  } catch (err) {
+    console.warn('[ATMOSPHERE] DB load failed:', err.message);
+    return null;
+  }
+}
+
+function saveSessionToDb(userId, state) {
+  if (!_dbPool) return;
+  _dbPool.query(
+    `INSERT INTO atmosphere_sessions (user_id, current_state, last_change_timestamp, state_change_history,
+      last_signal_timestamp, neutral_message_streak, grounding_clear_streak, freeze_until_timestamp,
+      messages_since_state_change, last_activity_timestamp, baseline_window_active, baseline_message_count,
+      accumulated_signals, continuous_signals, last_known_tracks_played, updated_at)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW())
+    ON CONFLICT (user_id) DO UPDATE SET
+      current_state = $2, last_change_timestamp = $3, state_change_history = $4,
+      last_signal_timestamp = $5, neutral_message_streak = $6, grounding_clear_streak = $7,
+      freeze_until_timestamp = $8, messages_since_state_change = $9, last_activity_timestamp = $10,
+      baseline_window_active = $11, baseline_message_count = $12, accumulated_signals = $13,
+      continuous_signals = $14, last_known_tracks_played = $15, updated_at = NOW()`,
+    [
+      userId, state.current_state, state.last_change_timestamp,
+      JSON.stringify(state.state_change_history || []),
+      state.last_signal_timestamp, state.neutral_message_streak, state.grounding_clear_streak,
+      state.freeze_until_timestamp, state.messages_since_state_change, state.last_activity_timestamp,
+      state.baseline_window_active, state.baseline_message_count,
+      JSON.stringify(state.accumulated_signals || {}),
+      JSON.stringify(state.continuous_signals || {}),
+      state.last_known_tracks_played || 0
+    ]
+  ).catch(err => console.warn('[ATMOSPHERE] DB save failed:', err.message));
+}
 
 function getSessionState(userId) {
   if (!sessionStates.has(userId)) {
-    sessionStates.set(userId, {
-      current_state: 'presence',
-      last_change_timestamp: 0,
-      state_change_history: [],
-      last_signal_timestamp: 0,
-      neutral_message_streak: 0,
-      grounding_clear_streak: 0,
-      freeze_until_timestamp: null,
-      messages_since_state_change: 0,
-      last_activity_timestamp: 0,
-      baseline_window_active: true,
-      baseline_message_count: 0,
-      accumulated_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0 },
-      continuous_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0, presence: 0 },
-      last_known_tracks_played: 0
-    });
+    sessionStates.set(userId, defaultSessionState());
   }
   return sessionStates.get(userId);
+}
+
+async function getSessionStateAsync(userId) {
+  if (sessionStates.has(userId)) {
+    return sessionStates.get(userId);
+  }
+  const dbState = await loadSessionFromDb(userId);
+  if (dbState) {
+    console.log(`[ATMOSPHERE] Restored session from DB for ${userId.slice(0,8)}: state=${dbState.current_state}, msgs=${dbState.messages_since_state_change}`);
+    sessionStates.set(userId, dbState);
+    return dbState;
+  }
+  const fresh = defaultSessionState();
+  sessionStates.set(userId, fresh);
+  return fresh;
 }
 
 function updateSessionState(userId, updates) {
   const state = getSessionState(userId);
   Object.assign(state, updates);
   sessionStates.set(userId, state);
+  saveSessionToDb(userId, state);
   return state;
 }
 
@@ -179,7 +262,7 @@ function detectStrongGroundingSignal(message) {
 // MAIN EVALUATION FUNCTION
 // ============================================================
 
-function evaluateAtmosphere(input) {
+async function evaluateAtmosphere(input) {
   const {
     userId,
     current_message,
@@ -198,7 +281,7 @@ function evaluateAtmosphere(input) {
   // When user is in crisis, they need the most supportive sound environment
   // ============================================================
   if (isCrisisMode) {
-    const session = getSessionState(userId);
+    const session = await getSessionStateAsync(userId);
     const wasGrounding = session.current_state === 'grounding';
     
     // Force grounding state for crisis
@@ -239,10 +322,10 @@ function evaluateAtmosphere(input) {
     };
   }
   
-  const session = getSessionState(userId);
+  const session = await getSessionStateAsync(userId);
   
   // ============================================================
-  // 🎵 INACTIVITY CHECK: Return to ambient after 5 minutes of no activity
+  // 🎵 INACTIVITY CHECK: Return to ambient after extended inactivity
   // ============================================================
   const lastActivity = session.last_activity_timestamp || 0;
   const timeSinceLastActivity = now - lastActivity;
@@ -771,7 +854,9 @@ function evaluateAtmosphere(input) {
 module.exports = {
   evaluateAtmosphere,
   getSessionState,
+  getSessionStateAsync,
   updateSessionState,
+  setDbPool,
   SIGNAL_TABLES,
   STATE_PRIORITY
 };

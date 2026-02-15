@@ -23,6 +23,11 @@ const pool = process.env.DATABASE_URL ? new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 }) : null;
+
+if (pool) {
+  const { setDbPool: setAtmosphereDbPoolEarly } = require('./atmosphereEngine');
+  setAtmosphereDbPoolEarly(pool);
+}
 const {
   buildMemoryContext,
   summarizeToLongTermMemory,
@@ -115,7 +120,7 @@ const { processIntent: processCoginitiveIntent, gateScript } = require('./cognit
 const { buildVoicePromptInjection, validateResponse, containsBannedPhrases, containsLazyQuestion } = require('./voiceEngine');
 const conversationState = require('./conversationState');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
-const { evaluateAtmosphere } = require('./atmosphereEngine');
+const { evaluateAtmosphere, setDbPool: setAtmosphereDbPool } = require('./atmosphereEngine');
 const { brainSynthesis, logTraceIntent, buildSessionSummary } = require('./brain/brainSynthesis');
 const { classifyMusicRequest, buildActionFromClassification, enforceContractPolicies, validateContractCompliance, mapActionToResponse } = require('./contracts/interactionContract');
 const { 
@@ -4546,7 +4551,7 @@ app.post('/api/chat', async (req, res) => {
       const clientSoundStateEarly = safeClientState?.currentSoundState || null;
       const newAssistantCountEarly = currentAssistantMsgCount + 1;
       
-      earlyAtmosphereResult = evaluateAtmosphere({
+      earlyAtmosphereResult = await evaluateAtmosphere({
         userId: effectiveUserId,
         current_message: earlyCurrentMsg || earlyRecentUserMsgs[earlyRecentUserMsgs.length - 1] || '',
         recent_messages: earlyRecentUserMsgs.slice(0, -1),
