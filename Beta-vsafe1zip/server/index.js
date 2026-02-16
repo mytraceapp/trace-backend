@@ -12454,6 +12454,7 @@ app.post('/api/chat/bootstrap', async (req, res) => {
           }, { onConflict: 'user_id' });
         console.log('[ONBOARDING] Sending new intro greeting');
         console.log('[ONBOARDING] Intro sent, awaiting regulate/reflect choice');
+        console.log('[ONBOARDING] intro raw:', JSON.stringify(introMessage));
       } catch (err) {
         console.warn('[CHAT BOOTSTRAP] Failed to create profile:', err.message);
       }
@@ -12490,6 +12491,7 @@ app.post('/api/chat/bootstrap', async (req, res) => {
           .eq('user_id', effectiveUserId);
         console.log('[ONBOARDING] Sending new intro greeting');
         console.log('[ONBOARDING] Intro sent, awaiting regulate/reflect choice');
+        console.log('[ONBOARDING] intro raw:', JSON.stringify(introMessage));
       } catch (err) {
         console.warn('[CHAT BOOTSTRAP] Failed to update onboarding_step:', err.message);
       }
