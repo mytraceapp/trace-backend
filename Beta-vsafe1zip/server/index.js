@@ -121,7 +121,7 @@ const { processIntent: processCoginitiveIntent, gateScript } = require('./cognit
 const { buildVoicePromptInjection, validateResponse, containsBannedPhrases, containsLazyQuestion } = require('./voiceEngine');
 const conversationState = require('./conversationState');
 const { requireAuth, optionalAuth } = require('./middleware/auth');
-const { chatIpLimiter, chatUserLimiter, generalApiLimiter } = require('./middleware/rateLimit');
+const { chatIpLimiter, chatUserLimiter, generalApiLimiter, isAdminUser, ADMIN_USER_IDS } = require('./middleware/rateLimit');
 const { validateChatRequest, validateBodySize } = require('./middleware/validateRequest');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
 const { evaluateAtmosphere, setDbPool: setAtmosphereDbPool } = require('./atmosphereEngine');
@@ -2731,7 +2731,7 @@ const TIER2_COOLDOWN_MS = 240000;
  * GPT-5+ models use max_completion_tokens, older models use max_tokens
  * GPT-5-mini doesn't support custom temperature
  */
-const OPENAI_MAX_TOKENS_CAP = 600;
+const OPENAI_MAX_TOKENS_CAP = parseInt(process.env.MAX_TOKENS_PER_REQUEST, 10) || 600;
 
 function getTokenParams(model, limit = 500) {
   const cappedLimit = Math.min(limit, OPENAI_MAX_TOKENS_CAP);
@@ -2743,10 +2743,13 @@ function getTokenParams(model, limit = 500) {
 }
 
 const dailyMessageCounts = new Map();
-const DAILY_MESSAGE_CAP = 200;
+const DAILY_MESSAGE_CAP = parseInt(process.env.DAILY_MESSAGE_CAP, 10) || 0;
+const DAILY_CAP_ENABLED = DAILY_MESSAGE_CAP > 0;
 
-function checkDailyMessageCap(userId) {
+function checkDailyMessageCap(userId, req) {
+  if (!DAILY_CAP_ENABLED) return { allowed: true };
   if (!userId) return { allowed: true };
+  if (req && isAdminUser(req)) return { allowed: true, admin: true };
   const today = new Date().toISOString().slice(0, 10);
   const key = `${userId}:${today}`;
   const count = dailyMessageCounts.get(key) || 0;
@@ -4820,12 +4823,12 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     const requestId = clientRequestId || `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     const capUserId = req.authUserId || userId;
-    const capCheck = checkDailyMessageCap(capUserId);
+    const capCheck = checkDailyMessageCap(capUserId, req);
     if (!capCheck.allowed) {
       return res.status(429).json({
         ok: false,
         error: 'Daily message limit reached. Come back tomorrow.',
-        response: "hey — you've sent a lot today. take a break and come back when you're ready.",
+        response: "hey — you've been really present today, and that matters. let's pick this back up tomorrow with fresh energy.",
       });
     }
     
@@ -14969,6 +14972,9 @@ function printSecurityChecklist() {
   console.log(`  Auth middleware: ENABLED (optional JWT on protected routes)`);
   console.log(`  Body size limit: 50KB`);
   console.log(`  Message length limit: 4000 chars`);
+  console.log(`  Admin users: ${ADMIN_USER_IDS.length} configured`);
+  console.log(`  Daily message cap: ${DAILY_CAP_ENABLED ? `${DAILY_MESSAGE_CAP}/day` : 'DISABLED'}`);
+  console.log(`  Max tokens/request: ${OPENAI_MAX_TOKENS_CAP}`);
   console.log('=========================================\n');
 
   const missing = Object.entries(checks).filter(([, v]) => !v).map(([k]) => k);

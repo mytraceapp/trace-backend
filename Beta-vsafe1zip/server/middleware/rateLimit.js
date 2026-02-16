@@ -1,5 +1,15 @@
 const rateLimit = require('express-rate-limit');
 
+const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || '')
+  .split(',')
+  .map(id => id.trim())
+  .filter(Boolean);
+
+function isAdminUser(req) {
+  const userId = req.authUserId || req.body?.userId;
+  return userId && ADMIN_USER_IDS.includes(userId);
+}
+
 const chatIpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 60,
@@ -16,7 +26,10 @@ const chatUserLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => req.authUserId || req.body?.userId || 'anon',
   message: { ok: false, error: 'Message limit reached. Please wait before sending more.' },
-  skip: (req) => !req.authUserId && !req.body?.userId,
+  skip: (req) => {
+    if (isAdminUser(req)) return true;
+    return !req.authUserId && !req.body?.userId;
+  },
   validate: { ip: false },
 });
 
@@ -29,4 +42,4 @@ const generalApiLimiter = rateLimit({
   validate: { ip: false },
 });
 
-module.exports = { chatIpLimiter, chatUserLimiter, generalApiLimiter };
+module.exports = { chatIpLimiter, chatUserLimiter, generalApiLimiter, isAdminUser, ADMIN_USER_IDS };
