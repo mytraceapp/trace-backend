@@ -10099,7 +10099,6 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
             ...messagesWithHydration
           ],
           ...getTokenParams(selectedModel, tokenLimit),
-          response_format: { type: "json_object" },
         };
         if (supportsCustomTemperature(selectedModel)) {
           openaiParams.temperature = chatTemperature;
@@ -10122,7 +10121,7 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
         if (process.env.NODE_ENV !== 'production') {
           console.log('[TRACE MODEL]', { intendedModel: selectedModel, actualModel: response?.model });
         }
-        rawContent = response.choices[0]?.message?.content || '';
+        rawContent = (response.choices[0]?.message?.content || '').replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
         const l1FinishReason = response.choices[0]?.finish_reason;
         
         if (l1FinishReason === 'length') {
@@ -10205,7 +10204,6 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
               ...messagesWithHydration
             ],
             ...getTokenParams(TRACE_BACKUP_MODEL, tokenLimit),
-            response_format: { type: "json_object" },
           };
           if (supportsCustomTemperature(TRACE_BACKUP_MODEL)) {
             backupParams.temperature = chatTemperature;
@@ -10224,7 +10222,7 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
           
           recordOpenAICall(TRACE_BACKUP_MODEL, response, chatRequestId, openaiStart);
           console.log(`[OPENAI RESPONSE] model=${response.model || 'unknown'} (fallback)`);
-          rawContent = response.choices[0]?.message?.content || '';
+          rawContent = (response.choices[0]?.message?.content || '').replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
           const l2FinishReason = response.choices[0]?.finish_reason;
           
           if (l2FinishReason === 'length') {
@@ -10776,10 +10774,10 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
             ],
             ...getTokenParams(selectedModel, 500),
             temperature: 0.8,
-            response_format: { type: "json_object" },
           });
           
-          const regenContent = regenResponse.choices[0]?.message?.content || '';
+          const regenContentRaw = regenResponse.choices[0]?.message?.content || '';
+          const regenContent = regenContentRaw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
           const regenFinish = regenResponse.choices[0]?.finish_reason;
           if (regenContent.trim() && regenFinish !== 'length') {
             try {
