@@ -1362,7 +1362,7 @@ const THERAPY_PATTERNS = [
   { pattern: /\bThat must be hard\./gi, replacement: "That's hard." },
   { pattern: /\bThat can feel\b/gi, replacement: "That feels" },
   { pattern: /\bIt's interesting how\b/gi, replacement: "Yeah," },
-  { pattern: /\bIt really does\b/gi, replacement: "Yeah, it" },
+  { pattern: /\bIt really does\b/gi, replacement: "Yeah, it does" },
   { pattern: /\bAbsolutely, those\b/gi, replacement: "Yeah, those" },
   { pattern: /\bI appreciate the\b/gi, replacement: "Thanks for" },
   { pattern: /\bI appreciate you sharing\b/gi, replacement: "Thanks for sharing" },
@@ -1387,18 +1387,18 @@ const THERAPY_PATTERNS = [
   { pattern: /\bIt sounds challenging\b/gi, replacement: "That's tough" },
   { pattern: /\bThat's a lot to navigate\b/gi, replacement: "That's a lot" },
   { pattern: /\bHow does that land for you\b/gi, replacement: "How's that feel" },
-  { pattern: /\bThank you for sharing that\b/gi, replacement: "" },
-  { pattern: /\bThank you for sharing\b/gi, replacement: "" },
-  { pattern: /\bThank you for trusting me\b/gi, replacement: "" },
-  { pattern: /\bI'm here to help\b/gi, replacement: "" },
-  { pattern: /\bI'm here to support\b/gi, replacement: "" },
-  { pattern: /\bThat's really brave\b/gi, replacement: "" },
-  { pattern: /\bThat takes courage\b/gi, replacement: "" },
-  { pattern: /\bI want you to know\b/gi, replacement: "" },
+  { pattern: /(?:^|[.!?]\s+)Thank you for sharing that\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
+  { pattern: /(?:^|[.!?]\s+)Thank you for sharing\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
+  { pattern: /(?:^|[.!?]\s+)Thank you for trusting me\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
+  { pattern: /(?:^|[.!?]\s+)I'm here to help\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
+  { pattern: /(?:^|[.!?]\s+)I'm here to support\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
+  { pattern: /(?:^|[.!?]\s+)That's really brave\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
+  { pattern: /(?:^|[.!?]\s+)That takes courage\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
+  { pattern: /(?:^|[.!?]\s+)I want you to know\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
   { pattern: /\bFamily dynamics can be\b[^.!?]*[.!?]?/gi, replacement: "" },
   { pattern: /\bWorkplace stress\b/gi, replacement: "work stuff" },
-  { pattern: /\bLet's explore this together\b/gi, replacement: "" },
-  { pattern: /\bWhat options are you considering\b/gi, replacement: "" },
+  { pattern: /\bLet's explore this together\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
+  { pattern: /\bWhat options are you considering\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
 ];
 
 // Cooldown tracking for "honestly/real talk" phrases (in-memory per user)
@@ -1461,7 +1461,55 @@ function sanitizeTone(text, options = {}) {
   result = result.replace(/\.\s*\./g, '.');
   // Clean up double spaces and leading punctuation
   result = result.replace(/\s{2,}/g, ' ').trim();
-  result = result.replace(/^\s*[,\.]\s*/, '');
+  result = result.replace(/^\s*[,\.;]\s*/, '');
+
+  // Remove orphaned short fragments (1-2 words ending in period that aren't meaningful sentences)
+  // Only applies when patterns actually changed the text (to avoid removing valid short responses)
+  if (changed) {
+    result = result.replace(/^[a-z][a-z\s]{0,15}\.\s*/i, function(match) {
+      const words = match.trim().replace(/\.$/, '').split(/\s+/);
+      const phrase = words.join(' ').toLowerCase();
+      const safeStarts = ['yeah', 'nice', 'cool', 'okay', 'ok', 'sure', 'congrats', 'right', 'same', 'true', 'got it', 'exactly', 'fair', 'makes sense', 'for real', 'for sure', 'no way', 'oh wow', 'damn', 'wow', 'wild', 'rough', 'oof', 'yikes'];
+      if (words.length <= 2 && !safeStarts.some(s => phrase === s || phrase === s + '.')) {
+        return '';
+      }
+      return match;
+    });
+  }
+
+  // Remove trailing orphaned fragments (e.g., leftover "you through this" at end)
+  // Only applies when patterns actually changed the text
+  if (changed) {
+    result = result.replace(/\.\s+[a-z][a-z\s]{0,12}$/i, function(match) {
+      const fragment = match.replace(/^\.\s+/, '').trim();
+      const words = fragment.split(/\s+/);
+      const phrase = words.join(' ').toLowerCase();
+      const safeEndings = ['for real', 'no way', 'for sure', 'oh well', 'you know', 'right now', 'at all', 'so much', 'out loud', 'not yet'];
+      if (words.length <= 2 && !/[.!?]$/.test(fragment) && !safeEndings.includes(phrase)) {
+        return '.';
+      }
+      return match;
+    });
+  }
+
+  // Ensure first character is capitalized (pattern removal can expose lowercase starts)
+  if (result.length > 0) {
+    result = result.charAt(0).toUpperCase() + result.slice(1);
+  }
+
+  // Final cleanup pass: collapse multiple periods/spaces again
+  result = result.replace(/\.\s*\./g, '.').replace(/\s{2,}/g, ' ').trim();
+  // Remove leading punctuation one more time after fragment removal
+  result = result.replace(/^\s*[,\.;]\s*/, '');
+  // Capitalize again after final cleanup
+  if (result.length > 0) {
+    result = result.charAt(0).toUpperCase() + result.slice(1);
+  }
+
+  // Ensure result ends with punctuation if it originally did
+  if (changed && result.length > 0 && /[a-zA-Z0-9]$/.test(result)) {
+    result = result + '.';
+  }
   
   if (changed) {
     console.log('[TONE SANITIZER] Cleaned therapy-speak from response');
