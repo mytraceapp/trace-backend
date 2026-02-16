@@ -10961,7 +10961,6 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       const mood = emotionalState.categories[0] || 'calm';
       const trackNum = getTrackForMood(mood, effectiveUserId, sessionHistory);
       
-      // Convert to 0-based index for frontend (track 1 → index 0)
       audioAction = buildAudioAction('open', {
         source: 'originals',
         album: 'night_swim',
@@ -10971,14 +10970,33 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       addToSessionHistory(effectiveUserId, trackNum);
       const trackInfo = getTrackInfo(trackNum);
       console.log(`[TRACE ORIGINALS] Night Swim requested, playing Track ${trackNum}: ${trackInfo?.name || 'Unknown'} (index ${trackNum - 1})`);
+    } else if (responsePlayingTrackNum && !(trackIsActive && !isExplicitMusicCommand)) {
+      // PRIORITY: If the AI response explicitly says "Playing [track name]", honor THAT specific track.
+      // This MUST come before mood-based isNightSwimOffer to prevent text/audio mismatch.
+      audioAction = buildAudioAction('open', {
+        source: 'originals',
+        album: 'night_swim',
+        track: responsePlayingTrackNum - 1,
+        autoplay: true
+      });
+      addToSessionHistory(effectiveUserId, responsePlayingTrackNum);
+      const trackInfo = getTrackInfo(responsePlayingTrackNum);
+      console.log(`[TRACE ORIGINALS] Response mentions playing track, emitting audio_action: Track ${responsePlayingTrackNum}: ${trackInfo?.name || 'Unknown'} (index ${responsePlayingTrackNum - 1})`);
     } else if (isNightSwimOffer && !(trackIsActive && !isExplicitMusicCommand)) {
-      // TRACE is offering Night Swim - pick track based on emotional context
-      // GUARD: Skip if a track is already playing and user didn't explicitly request music
-      const emotionalState = detectEmotionalState(lastUserMsgForAudio);
-      const mood = emotionalState.categories[0] || 'calm';
-      const trackNum = getTrackForMood(mood, effectiveUserId, sessionHistory);
+      // TRACE is offering Night Swim — use the specific track the AI mentioned if available,
+      // otherwise fall back to mood-based selection
+      const respTrackInOffer = detectTrackInText(responseLower);
+      let trackNum;
+      if (respTrackInOffer) {
+        trackNum = respTrackInOffer;
+        console.log(`[TRACE ORIGINALS] Night Swim offer — using AI-mentioned track: ${trackNum}`);
+      } else {
+        const emotionalState = detectEmotionalState(lastUserMsgForAudio);
+        const mood = emotionalState.categories[0] || 'calm';
+        trackNum = getTrackForMood(mood, effectiveUserId, sessionHistory);
+        console.log(`[TRACE ORIGINALS] Night Swim offer — mood-based track: ${trackNum} (mood: ${mood})`);
+      }
       
-      // Convert to 0-based index for frontend (track 1 → index 0)
       audioAction = buildAudioAction('recommend', {
         source: 'originals',
         album: 'night_swim',
@@ -10998,9 +11016,18 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       // Check user's response to the immediate offer
       // GUARD: Skip if a track is already playing and user didn't explicitly request music
       if (isUserAgreeing(lastUserMsgForAudio)) {
-        const emotionalState = detectEmotionalState(lastUserMsgForAudio);
-        const mood = emotionalState.categories[0] || 'calm';
-        const trackNum = getTrackForMood(mood, effectiveUserId, sessionHistory);
+        // Use the specific track from the previous offer if available, not mood-based
+        const prevTrackInOffer = detectTrackInText(prevMsgLower);
+        let trackNum;
+        if (prevTrackInOffer) {
+          trackNum = prevTrackInOffer;
+          console.log(`[TRACE ORIGINALS] User agreed — using prev-msg track: ${trackNum}`);
+        } else {
+          const emotionalState = detectEmotionalState(lastUserMsgForAudio);
+          const mood = emotionalState.categories[0] || 'calm';
+          trackNum = getTrackForMood(mood, effectiveUserId, sessionHistory);
+          console.log(`[TRACE ORIGINALS] User agreed — mood-based track: ${trackNum}`);
+        }
         
         audioAction = buildAudioAction('open', {
           source: 'originals',
@@ -11016,17 +11043,6 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       }
     } else if (immediateNightSwimOffer && trackIsActive && !isExplicitMusicCommand) {
       console.log('[PHASE8c_TRACK_GUARD] Suppressed immediateNightSwimOffer — track already active');
-    } else if (responsePlayingTrackNum && !(trackIsActive && !isExplicitMusicCommand)) {
-      // Current response says "Playing Ocean Breathing now" — emit audio_action to actually play it
-      audioAction = buildAudioAction('open', {
-        source: 'originals',
-        album: 'night_swim',
-        track: responsePlayingTrackNum - 1,
-        autoplay: true
-      });
-      addToSessionHistory(effectiveUserId, responsePlayingTrackNum);
-      const trackInfo = getTrackInfo(responsePlayingTrackNum);
-      console.log(`[TRACE ORIGINALS] Response mentions playing track, emitting audio_action: Track ${responsePlayingTrackNum}: ${trackInfo?.name || 'Unknown'} (index ${responsePlayingTrackNum - 1})`);
     } else if (!audioAction && curationResult.shouldOffer && curationResult.type === 'track' && !(trackIsActive && !isExplicitMusicCommand) && !musicOfferSuppressed) {
       // V2 CURATION FALLBACK: Offer was cued pre-LLM but response didn't use "night swim" string
       // (e.g., SEED level: "I have something for this mood")
@@ -11058,7 +11074,10 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       
       if (v2OfferDelivered) {
         const offerType = curationResult.type || 'track';
-        const offerItemId = curationResult.item?.id || (audioAction ? `track_${(audioAction.track ?? 0) + 1}` : 'unknown');
+        const aiMentionedTrackNum = detectTrackInText(responseLower);
+        const aiMentionedTrackInfo = aiMentionedTrackNum ? getTrackInfo(aiMentionedTrackNum) : null;
+        const useAiTrack = aiMentionedTrackNum && aiMentionedTrackInfo;
+        const offerItemId = useAiTrack ? `track_${aiMentionedTrackNum}` : (curationResult.item?.id || (audioAction ? `track_${(audioAction.track ?? 0) + 1}` : 'unknown'));
         recordMusicOffer(effectiveUserId, offerType, offerItemId, curationTurn);
         
         const offerState = conversationState.getState(effectiveUserId);
@@ -11067,13 +11086,15 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
         offerState.pendingMusicOffer = {
           type: offerType,
           itemId: offerItemId,
-          item: curationResult.item ? { number: curationResult.item.number, name: curationResult.item.name, id: curationResult.item.id } : null,
+          item: useAiTrack
+            ? { number: aiMentionedTrackNum, name: aiMentionedTrackInfo.name, id: `track_${aiMentionedTrackNum}` }
+            : (curationResult.item ? { number: curationResult.item.number, name: curationResult.item.name, id: curationResult.item.id } : null),
           offerLevel: curationResult.offerLevelName,
           timestamp: Date.now()
         };
         conversationState.saveState(effectiveUserId, offerState);
         
-        console.log('[MUSIC_CURATION_V2] Recorded offer + saved pending:', JSON.stringify({ type: offerType, itemId: offerItemId, level: curationResult.offerLevelName }));
+        console.log('[MUSIC_CURATION_V2] Recorded offer + saved pending:', JSON.stringify({ type: offerType, itemId: offerItemId, level: curationResult.offerLevelName, aiOverride: useAiTrack }));
       }
       
       // SPONTANEOUS TRACK OFFER: AI mentioned a track in an offer context without curation triggering it
