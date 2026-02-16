@@ -2729,7 +2729,8 @@ function detectLongFormRequest(text) {
     /full list/i, /complete list/i, /all the steps/i, /step by step/i,
     /explain in detail/i, /detailed/i, /give me the full/i, /don't cut off/i, /do not cut/i, /don't summarize/i, /do not summarize/i,
     /entire/i, /whole thing/i, /from start to finish/i,
-    /\d{2,}\s*(words|sentences|paragraphs)/i
+    /\d{2,}\s*(words|sentences|paragraphs)/i,
+    /lyrics/i, /share the lyrics/i, /send the lyrics/i, /read the lyrics/i, /what are the lyrics/i, /can i see the lyrics/i, /the words to/i
   ];
   return longFormPatterns.some(p => p.test(t));
 }
@@ -9536,13 +9537,17 @@ If the right move isn't obvious: one grounded observation about what you notice 
       doorContext: controlDoorContext,
       holidayLine: proactiveHolidayLine || null,
       windingDown: isWindingDown,
+      isLongForm: isLongFormRequest,
     });
     const controlLengthLabel = rhythmNudge?.tier === 'ultra_short' ? 'micro' : rhythmNudge?.tier === 'short' ? 'short' : rhythmNudge?.tier === 'long' ? 'long' : 'medium';
     const controlQBudget = conversationState.computeQuestionMode(effectiveUserId).budget;
     const hasExternalContext = !!(newsContext || searchContext || weatherContext || foodContext || holidayContext);
     const baseMaxWords = controlLengthLabel === 'micro' ? 5 : controlLengthLabel === 'short' ? 20 : controlLengthLabel === 'long' ? 90 : 50;
     let controlMaxWords = baseMaxWords;
-    if (isFactualTurn && (newsContext || searchContext || holidayContext)) {
+    if (isLongFormRequest) {
+      controlMaxWords = 600;
+      console.log(`[CONTROL_BLOCK] Length override: ${baseMaxWords} → ${controlMaxWords} (long-form request — lyrics/story/recipe)`);
+    } else if (isFactualTurn && (newsContext || searchContext || holidayContext)) {
       controlMaxWords = Math.max(baseMaxWords, 200);
       console.log(`[CONTROL_BLOCK] Length override: ${baseMaxWords} → ${controlMaxWords} (factual turn with data)`);
     } else if (isFactualTurn) {

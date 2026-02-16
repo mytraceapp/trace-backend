@@ -1004,8 +1004,12 @@ function buildControlBlock({
   doorContext,
   holidayLine,
   windingDown,
+  isLongForm,
 }) {
-  const lengthMode = computeLengthMode(rhythmNudge);
+  let lengthMode = computeLengthMode(rhythmNudge);
+  if (isLongForm) {
+    lengthMode = { label: 'unlimited', maxWords: 600 };
+  }
   const questionMode = computeQuestionMode(visitorId);
 
   let dateStr = 'unknown';
