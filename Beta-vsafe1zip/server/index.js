@@ -7397,7 +7397,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
             
             let rawNewsContext;
             if (!rawArticles || rawArticles.length === 0) {
-              rawNewsContext = `NEWS_CONTEXT: No recent major coverage found for "${cacheTopic}".`;
+              rawNewsContext = `NEWS_CONTEXT for "${cacheTopic}": The news API returned no recent articles, but this is a real topic the user is asking about. Use your training knowledge to share what you know about ${cacheTopic} — recent developments, context, key facts. Be specific and informative. Do NOT say "I'm not sure about the latest" or "it's tough to keep up" — that's a deflection. If you genuinely have no knowledge, say so honestly, but most major topics you DO know about. Share what you know confidently.`;
             } else {
               cacheArticles(effectiveUserId, cacheTopic, rawArticles);
               console.log('[TRACE NEWS] Cached', rawArticles.length, 'articles for follow-ups');
@@ -7436,7 +7436,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
           isFactualTurn = true;
         }
       } catch (err) {
-        console.error('[TRACE NEWS] Failed to build news context:', err.message);
+        console.error('[TRACE NEWS] Failed to build news context:', err.message, err.stack?.split('\n').slice(0, 3).join('\n'));
       }
 
       // Load weather context - prefer client-provided data (mobile app sends this)
@@ -9644,13 +9644,16 @@ If the right move isn't obvious: one grounded observation about what you notice 
     const highArousalStates = ['spiraling', 'panicking', 'anxious', 'overwhelmed', 'stressed', 'crisis'];
     const isMiniModel = selectedModel.includes('mini');
     const isShortMode = traceIntent?.mode === 'micro' || traceIntent?.mode === 'short';
-    const useL3FastPath = !parsed && isMiniModel && (
+    const hasExternalData = !!(newsContext || searchContext);
+    const useL3FastPath = !parsed && isMiniModel && !hasExternalData && (
       highArousalStates.includes(detected_state) || isShortMode
     );
     
     if (useL3FastPath) {
       const reason = highArousalStates.includes(detected_state) ? detected_state : `${traceIntent?.mode}_mode`;
       console.log(`[FAST-PATH] Skipping L1 JSON → L3 plain text (reason: ${reason}, model: ${selectedModel})`);
+    } else if (!parsed && isMiniModel && hasExternalData && isShortMode) {
+      console.log(`[FAST-PATH] BLOCKED — external data present (news/search), using full L1 path to include context`);
     }
     
     // ============================================================
@@ -10470,14 +10473,20 @@ Your complete response:`;
           const l3DateLine = (localDay && localDate) ? `\nTODAY IS: ${localDay}, ${localDate}. TIME: ${localTime || 'unknown'}.` : '';
           const l3HolidayLine = proactiveHolidayLine ? `\nHOLIDAYS: ${proactiveHolidayLine}` : '';
           const l3ContextLine = holidayContext ? `\n${holidayContext}` : '';
-          plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3DateLine}${l3HolidayLine}${l3ContextLine}
+          const l3NewsLine = newsContext ? `\n${newsContext}` : '';
+          const l3SearchLine = (!newsContext && searchContext) ? `\n${searchContext}` : '';
+          const l3WeatherLine = weatherContext ? `\n${weatherContext}` : '';
+          const l3MusicLine = musicContext ? `\n${musicContext}` : '';
+          const hasDataContext = !!(newsContext || searchContext || weatherContext || musicContext);
+          const l3DataInstruction = hasDataContext ? `\nIMPORTANT: You have real data above. USE IT to answer the user's question. Share the facts naturally like you already knew them. NEVER say "I'm not sure about the latest" or deflect — you HAVE the information.` : '';
+          plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3DateLine}${l3HolidayLine}${l3ContextLine}${l3NewsLine}${l3SearchLine}${l3WeatherLine}${l3MusicLine}${l3DataInstruction}
 
 Recent conversation:
 ${recentContext}
 
 User just said: "${lastUserContent}"
 
-Continue the conversation naturally. Stay in the same emotional lane — if they're sharing something personal, match that energy. If the user asks about dates, holidays, or current events, use the date and holiday facts above — do NOT guess. 1-3 sentences max. No JSON, just your response:`;
+Continue the conversation naturally. Stay in the same emotional lane — if they're sharing something personal, match that energy. If the user asks about dates, holidays, current events, or news, use the data and facts above — do NOT guess or deflect. 1-3 sentences max. No JSON, just your response:`;
         }
         
         const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : (isCrisisMode ? 800 : 400);

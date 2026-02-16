@@ -133,36 +133,51 @@ function isFactualQuestion(text) {
   return factualPatterns.some(p => p.test(t));
 }
 
-async function fetchNewsArticles(query) {
+async function fetchNewsArticles(query, retries = 2) {
   if (!NEWS_API_KEY) {
     console.error('[NEWS] Missing NEWS_API_KEY');
     return [];
   }
 
-  try {
-    // Filter to last 2 days for fresh news (free tier allows up to 30 days)
-    const fromDate = getDateDaysAgo(2);
-    const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
-      query
-    )}&from=${fromDate}&pageSize=5&sortBy=publishedAt&language=en&apiKey=${NEWS_API_KEY}`;
+  const fromDate = getDateDaysAgo(2);
+  const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
+    query
+  )}&from=${fromDate}&pageSize=5&sortBy=publishedAt&language=en&apiKey=${NEWS_API_KEY}`;
 
-    console.log('[NEWS] Fetching articles from:', fromDate, 'query:', query);
+  for (let attempt = 1; attempt <= retries + 1; attempt++) {
+    try {
+      console.log(`[NEWS] Fetching articles (attempt ${attempt}/${retries + 1}) from:`, fromDate, 'query:', query);
 
-    const res = await fetch(url);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error('[NEWS] API error:', res.status, errorText);
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`[NEWS] API error (attempt ${attempt}):`, res.status, errorText);
+        if (attempt <= retries && (res.status === 429 || res.status >= 500)) {
+          console.log(`[NEWS] Retrying in ${attempt * 1000}ms...`);
+          await new Promise(r => setTimeout(r, attempt * 1000));
+          continue;
+        }
+        return [];
+      }
+
+      const data = await res.json();
+      console.log('[NEWS] Found', data.articles?.length || 0, 'articles');
+      return data.articles || [];
+    } catch (err) {
+      console.error(`[NEWS] Fetch error (attempt ${attempt}):`, err.message);
+      if (attempt <= retries) {
+        console.log(`[NEWS] Retrying in ${attempt * 1000}ms...`);
+        await new Promise(r => setTimeout(r, attempt * 1000));
+        continue;
+      }
       return [];
     }
-
-    const data = await res.json();
-    console.log('[NEWS] Found', data.articles?.length || 0, 'articles');
-    return data.articles || [];
-  } catch (err) {
-    console.error('[NEWS] Fetch error:', err.message);
-    return [];
   }
+  return [];
 }
 
 async function buildNewsContextSummary(userMessage) {

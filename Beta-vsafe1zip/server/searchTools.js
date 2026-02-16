@@ -21,6 +21,8 @@ function isCurrentEventsQuery(text) {
     /\b(?:latest|recent|upcoming)\b/i,
     /\bnew\b.*\b(?:movie|show|album|song|game|release|episode|season|book|trailer)\b/i,
     /\bcurrent\b.*\b(?:events?|situation|news|score)\b/i,
+    /\bnews\s+(?:about|on|in|regarding|for)\b/i,
+    /\bany\s+news\b/i,
     /\bdid (?:you )?(?:hear|see|know|watch)\b/i,
     /\bhave you (?:heard|seen)\b/i,
     /\bwhat(?:'s| is) (?:going on|happening)\b/i,
@@ -150,7 +152,7 @@ async function searchForContext(userMessage, userId, { localDay, localDate } = {
 
     if (!articles || articles.length === 0) {
       console.log('[SEARCH] No results found for:', query);
-      return `SEARCH_CONTEXT for "${query}" (today is ${todayStr}): No recent news articles found, but this is likely a topic you know about from your training data. Answer confidently from your knowledge. Share what you know about ${query} — stats, context, recent developments. If you genuinely have no knowledge of this topic, say so naturally. Don't make anything up, but don't deflect if you do know.`;
+      return `SEARCH_CONTEXT for "${query}" (today is ${todayStr}): No recent news articles found, but this is a real topic the user is asking about. Use your training knowledge to share what you know about ${query} — recent developments, context, key facts. Be specific and informative. Do NOT say "I'm not sure about the latest" or "it's tough to keep up" — that's a deflection. If you genuinely have no knowledge, say so honestly, but most major topics you DO know about. Share what you know confidently.`;
     }
 
     const brief = articles.slice(0, 5).map(a => ({
