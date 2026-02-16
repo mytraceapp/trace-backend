@@ -10536,7 +10536,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
           model: selectedModel,
           messages: regenMessages,
           temperature: 0.6,
-          max_tokens: 300,
+          ...getTokenParams(selectedModel, 300),
         });
         
         const regenText = regenCompletion.choices[0]?.message?.content?.trim() || '';
@@ -10746,7 +10746,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
               { role: 'assistant', content: assistantText },
               { role: 'user', content: '[SYSTEM: Your previous reply was identical to your last message. Please rephrase while keeping the same meaning. Respond as JSON with a "message" field.]' }
             ],
-            max_tokens: 500,
+            ...getTokenParams(selectedModel, 500),
             temperature: 0.8,
             response_format: { type: "json_object" },
           });
