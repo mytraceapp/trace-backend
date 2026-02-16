@@ -1,0 +1,60 @@
+TASK: Wire Supabase `trace_memory` into welcome/return-to-chat greetings and enforce memory-grounding.
+
+Context:
+I added a new Supabase table `public.trace_memory` (RLS enabled). Backend is Node/Express on Replit (server/index.js). We already generate welcome greetings via buildReturningGreetingPrompt and an OpenAI call, but the model sometimes hallucinates.
+
+Goal:
+- Welcome greetings must reference ONLY verified memory rows from `trace_memory` and/or recent messages.
+- No invented callbacks.
+- Lowercase greeting line.
+- 2 lines max.
+
+Implementation steps:
+
+1) Create `server/memory/traceMemory.js` with functions:
+   - getGreetingMemory(userId): fetch up to 5 rows from `trace_memory` where:
+       status='active' AND confidence >= 0.85
+     order by:
+       (type='open_loop') desc, last_seen_at desc
+   - upsertMemoryItem({userId, type, key, value, status, confidence, source, source_ref, evidence})
+     (use Supabase upsert on (user_id, key))
+
+2) Add Supabase server-side client usage (service role key) for backend reads/writes:
+   - Use SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars.
+   - NOTE: service role bypasses RLS; still filter by user_id in queries.
+
+3) Update the welcome greeting pipeline:
+   - In buildReturningGreetingPrompt (or equivalent), include a strict ALLOWED REFERENCES block listing ONLY:
+       a) memory rows from getGreetingMemory(userId) (type/key/value/evidence)
+       b) last N user messages (plain text)
+   - In the prompt: “Do not reference anything not in ALLOWED REFERENCES.”
+
+4) Add post-generation validator `server/guards/greetingGuard.js`:
+   - Validate:
+       a) exactly 2 lines (or 1-2 lines)
+       b) line 1 is lowercase (or force-lowercase it)
+       c) line 2 contains no phrases implying unverified memory (“you mentioned”, “did you end up”, etc.) unless the referenced topic is from memory type=open_loop
+       d) noun/entity grounding: any extracted keyword must appear in either a memory.value OR recent messages text
+   - If validator fails:
+       - regenerate once with a “STRICT REPAIR” prompt including the failure reason and ALLOWED REFERENCES again
+       - if fails again, fallback to minimal:
+         "hey.\nwant to regulate or reflect?"
+
+5) Lowercase enforcement:
+   - Always force line 1 to lowercase in code before returning.
+
+6) Tests:
+   - Add a small test harness (or logs) that prints:
+     - memory used
+     - recent messages used
+     - generated greeting
+     - validator pass/fail
+   - Confirm it never mentions “smoothie” unless “smoothie” exists in memory or recent.
+
+Deliverable:
+- Code changes in server/index.js (or wherever welcome is generated)
+- New files:
+  - server/memory/traceMemory.js
+  - server/guards/greetingGuard.js
+- Updated prompt builder
+- Example logs showing 10 greetings generated safely

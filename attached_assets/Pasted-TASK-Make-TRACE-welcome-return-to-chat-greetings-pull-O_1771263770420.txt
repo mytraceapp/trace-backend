@@ -1,0 +1,97 @@
+TASK: Make TRACE welcome / return-to-chat greetings pull ONLY from VERIFIED memory (not generic, not hallucinated) + force lowercase greetings.
+
+Context:
+TRACE has memory (stored summaries + memory items). The welcome greeting should feel personal by referencing REAL memory, but it must NEVER invent details. Current issue: it hallucinates (“smoothie recipe”) when not present.
+
+Goals:
+1) Welcome / return-to-chat greeting MUST reference ONLY:
+   A) VERIFIED MEMORY ITEMS (structured memory objects we store), and/or
+   B) VERIFIED RECENT CONTEXT (last N user messages in this thread)
+   It must NOT invent anything beyond those sources.
+
+2) NO GENERIC WELCOMES by default.
+   - Do NOT fall back to generic lines unless there is literally zero verified memory + zero relevant recent context.
+   - If fallback is needed, keep it minimal and non-specific (no claims, no callbacks).
+
+3) Enforce LOWERCASE greetings:
+   - Greeting line must always be lowercase.
+   - Examples: "morning." "hey." "hi." "you’re back."
+   - Never: "Morning, Nina!" "Good Morning!"
+
+4) Output format:
+   - max 2 lines
+   - line 1 = greeting (lowercase)
+   - line 2 = memory-grounded question OR a recent-context question
+   - never include “you mentioned / like you said / that thing you told me” phrasing
+
+Memory + Recency rules:
+A) Memory objects must have:
+   - id
+   - type (preference | ongoing_project | relationship | goal | routine | last_open_loop | etc.)
+   - value (string)
+   - evidence (source: "memory_store" OR "recent_messages"; and if recent, the exact snippet)
+   - confidence (0-1)
+
+B) Only use memory items with confidence >= 0.85.
+   - If below threshold, discard it.
+
+C) When referencing memory, do it as a QUESTION not a STATEMENT.
+   - Allowed: "still working on TRACE today?"
+   - Disallowed: "can’t wait for your launch next week!" (unless launch date is a verified memory item)
+   - Allowed: "want to keep building TRACE, or take a breath first?"
+   - Disallowed: “did you end up doing X?” unless X is a verified open loop memory item.
+
+D) Open loop memory:
+   - We should store “open loops” explicitly (things the user said they might do next).
+   - Welcome can ask about an open loop ONLY if it exists as an open_loop memory item with high confidence.
+   - Example open loop: {type:"open_loop", value:"apple developer enrollment", confidence:0.92}
+
+Implementation requirements:
+1) In server/index.js (or wherever welcome is generated), implement:
+   - getVerifiedMemory(user_id): returns list of memory items with confidence + type
+   - getRecentUserMessages(conversation_id, limit=6)
+   - chooseWelcomeTopic(verifiedMemory, recentMessages)
+   - generateWelcomeCard(topic, time_of_day)
+
+2) Topic selection priority:
+   a) open_loop (unfinished action user actually said)
+   b) ongoing_project (TRACE build, apple dev enrollment, beta testing)
+   c) preference/routine (only if explicitly stored: e.g., “prefers short replies”)
+   d) last user message theme (summarize last message into 2-4 tokens, verified)
+
+3) Hard guardrail: NO fabricated nouns.
+   - Before returning the welcome, run a “grounding validator”:
+     - extract candidate entities/nouns from line 2 (simple regex or NLP-lite)
+     - verify each entity appears in either:
+       * memory.value (exact/substring match), OR
+       * recent user text snippets
+     - if any entity fails verification → regenerate using a different verified topic.
+     - if no verified topic exists → minimal fallback.
+
+Fallback (only when memory + recent context are empty):
+- "hey.\nwant to regulate or reflect?"
+(THIS SHOULD BE RARE.)
+
+Examples (memory-grounded, safe):
+- "morning.\nstill in apple dev enrollment, or did that get sorted?"
+- "hey.\nwant to keep building TRACE, or regulate first?"
+- "you’re back.\ndo you want to pick up the beta tester plan?"
+- "hi.\nwant to work on plans (free vs studio) or something else?"
+
+Examples (disallowed unless verified):
+- "did you end up trying that smoothie recipe?"
+- "how was your meeting?"
+- "did you talk to your sister?"
+- "how did your flight go?"
+
+Acceptance tests:
+- If memory contains: open_loop="apple developer enrollment" → welcome references only that.
+- If memory contains: ongoing_project="TRACE app launch prep" → welcome can reference TRACE.
+- If memory is empty but recent messages include "beta testers" → welcome references beta testers.
+- If neither memory nor recent contain "smoothie" → welcome must never mention smoothie.
+- Greeting line always lowercase.
+
+Deliverable:
+- Implement the functions + validator + topic selection
+- Provide code diff
+- Provide test logs showing 10 generated welcomes with their memory/recent sources + validator pass/fail.
