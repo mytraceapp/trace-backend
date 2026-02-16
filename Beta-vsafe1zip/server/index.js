@@ -10479,7 +10479,10 @@ Your complete response:`;
           const l3MusicLine = musicContext ? `\n${musicContext}` : '';
           const hasDataContext = !!(newsContext || searchContext || weatherContext || musicContext);
           const l3DataInstruction = hasDataContext ? `\nIMPORTANT: You have real data above. USE IT to answer the user's question. Share the facts naturally like you already knew them. NEVER say "I'm not sure about the latest" or deflect — you HAVE the information.` : '';
-          plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3DateLine}${l3HolidayLine}${l3ContextLine}${l3NewsLine}${l3SearchLine}${l3WeatherLine}${l3MusicLine}${l3DataInstruction}
+          const l3QLine = (controlQBudget === 0) ? `\nQUESTION RULE: Do NOT ask any questions. Make a statement or observation instead. No "?" in your response.` : '';
+          const userEnergyLow = conversationState.classifyUserEnergy(lastUserContent) === 'low';
+          const l3EnergyLine = userEnergyLow ? `\nUSER ENERGY: Low. They gave a short/minimal answer. Do NOT keep probing or asking follow-ups. Just acknowledge briefly and leave space. If they seem done with a topic, move on or sit with it.` : '';
+          plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3DateLine}${l3HolidayLine}${l3ContextLine}${l3NewsLine}${l3SearchLine}${l3WeatherLine}${l3MusicLine}${l3DataInstruction}${l3QLine}${l3EnergyLine}
 
 Recent conversation:
 ${recentContext}

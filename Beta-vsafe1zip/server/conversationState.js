@@ -932,7 +932,7 @@ function computeQuestionMode(visitorId, opts = {}) {
 
   if (qStreak >= 1) {
     const roll = Math.random();
-    if (roll < 0.6) {
+    if (roll < 0.8) {
       return { mode: 'OBSERVE_ONLY', budget: 0, reason: 'natural_spacing_after_question' };
     }
     return { mode: 'ALLOW_ONE', budget: 1, reason: 'allow_after_streak_roll' };
@@ -1218,15 +1218,18 @@ function enforceQuestionThrottle(responseText, questionsAllowed) {
   if (questionCount <= questionsAllowed) return responseText;
 
   if (questionsAllowed === 0) {
-    const qCount = (responseText.match(/\?/g) || []).length;
-    if (qCount <= 1) return responseText;
     const sents = responseText.split(/(?<=[.!?])\s+/);
-    let keptFirst = false;
-    return sents.map(s => {
-      if (!s.includes('?')) return s;
-      if (!keptFirst) { keptFirst = true; return s; }
-      return s.replace(/\?$/, '.');
-    }).join(' ');
+    const nonQuestionSents = sents.filter(s => !s.includes('?'));
+    if (nonQuestionSents.length > 0 && nonQuestionSents.length < sents.length) {
+      console.log('[QUESTION THROTTLE] Budget=0: dropped question sentences, keeping statements');
+      return nonQuestionSents.join(' ');
+    }
+    if (nonQuestionSents.length === 0) {
+      console.log('[QUESTION THROTTLE] Budget=0: all sentences were questions, using safe acknowledgment');
+      const acks = ['yeah, makes sense.', 'got it.', 'mm, yeah.', 'noted.', 'fair enough.'];
+      return acks[Math.floor(Math.random() * acks.length)];
+    }
+    return responseText;
   }
 
   const sentences = responseText.split(/(?<=[.!?])\s+/);
