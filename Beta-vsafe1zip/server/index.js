@@ -2793,6 +2793,18 @@ function isSentenceComplete(text) {
   return true;
 }
 
+function salvageTruncatedText(text) {
+  if (!text) return null;
+  const trimmed = text.trim();
+  if (trimmed.length <= 10) return null;
+  if (isSentenceComplete(trimmed)) return trimmed;
+  const match = trimmed.match(/^([\s\S]*[.!?…])\s*/);
+  if (match && match[1].trim().length > 10) {
+    return match[1].trim();
+  }
+  return trimmed + '.';
+}
+
 // Detect if user is asking for long-form content (recipes, stories, lists, etc.)
 function detectLongFormRequest(text) {
   if (!text) return false;
@@ -5089,8 +5101,9 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     }
     
     // TRACE Studios interception - music/lyrics conversations (BLOCKED in crisis mode)
+    const clientCrisisFlagEarly = req.body.client_state?.crisisMode === true;
     const studiosUserMsg = rawMessages?.filter(m => m.role === 'user').pop();
-    if (studiosUserMsg?.content && !isEarlyCrisisMode) {
+    if (studiosUserMsg?.content && !isEarlyCrisisMode && !clientCrisisFlagEarly) {
       // Get last assistant message for context-aware responses
       const lastAssistantMsg = rawMessages?.filter(m => m.role === 'assistant').pop()?.content || '';
       const clientState = req.body.traceStudiosContext ? { traceStudiosContext: req.body.traceStudiosContext } : {};
@@ -5410,6 +5423,11 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
           ui_action_type: studiosUiAction?.type || null,
           message: studioResponse.message?.substring(0, 50),
         }));
+        if (isEarlyCrisisMode || clientCrisisFlagEarly) {
+          console.log('[CRISIS GUARDRAIL] Studios intercept reached during crisis — stripping all music actions');
+          if (studioResponse.audio_action) delete studioResponse.audio_action;
+          studiosUiAction = null;
+        }
         storeDedupResponse(dedupKey, studioResponse);
         return finalizeTraceResponse(res, { 
           ...studioResponse, 
@@ -9974,9 +9992,21 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
         }
         
         if (t2FinishReason === 'length' && textResult && !isSentenceComplete(textResult)) {
-          console.warn('[TRACE T2] Premium text truncated (finish_reason=length, incomplete sentence), discarding');
-          textResult = '';
-          usedFallback = true;
+          if (isCrisisMode) {
+            const salvaged = salvageTruncatedText(textResult);
+            if (salvaged) {
+              textResult = salvaged;
+              console.log('[TRACE T2] Crisis mode — salvaged truncated premium text (never discard safety messaging)');
+            } else {
+              console.warn('[TRACE T2] Crisis mode — truncated and unsalvageable, using fallback');
+              textResult = '';
+              usedFallback = true;
+            }
+          } else {
+            console.warn('[TRACE T2] Premium text truncated (finish_reason=length, incomplete sentence), discarding');
+            textResult = '';
+            usedFallback = true;
+          }
         }
       } else {
         const err = stepBResult.error;
@@ -10162,6 +10192,15 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
           const hasValidMessages = testParse.messages && Array.isArray(testParse.messages) && testParse.messages.length > 0;
           if (hasValidMessage || hasValidMessages) {
             if (hasValidMessage && !isSentenceComplete(testParse.message)) {
+              if (isCrisisMode) {
+                const salvaged = salvageTruncatedText(testParse.message);
+                if (salvaged) {
+                  testParse.message = salvaged;
+                  parsed = testParse;
+                  console.log('[TRACE OPENAI L1] Crisis mode — accepted salvaged response (never discard safety messaging)');
+                  break;
+                }
+              }
               console.warn('[TRACE OPENAI L1] Message appears truncated (incomplete sentence):', testParse.message.slice(-40));
               continue;
             }
@@ -10235,6 +10274,15 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
             const hasValidMessages = testParse.messages && Array.isArray(testParse.messages) && testParse.messages.length > 0;
             if (hasValidMessage || hasValidMessages) {
               if (hasValidMessage && !isSentenceComplete(testParse.message) && l2FinishReason === 'length') {
+                if (isCrisisMode) {
+                  const salvaged = salvageTruncatedText(testParse.message);
+                  if (salvaged) {
+                    testParse.message = salvaged;
+                    parsed = testParse;
+                    console.log('[TRACE OPENAI L2] Crisis mode — accepted salvaged response (never discard safety messaging)');
+                    break;
+                  }
+                }
                 console.warn('[TRACE OPENAI L2] Message truncated (incomplete sentence + finish_reason=length), falling through');
               } else {
                 parsed = testParse;
@@ -10447,8 +10495,19 @@ Continue the conversation naturally. Stay in the same emotional lane — if they
         let plainText = response.choices[0]?.message?.content?.trim() || '';
         const l3FinishReason = response.choices[0]?.finish_reason;
         if (l3FinishReason === 'length' && !isSentenceComplete(plainText)) {
-          console.warn('[TRACE OPENAI L3] Plain text truncated (finish_reason=length), falling through to L4');
-        } else if (plainText.length > 5) {
+          if (isCrisisMode) {
+            const salvaged = salvageTruncatedText(plainText);
+            if (salvaged) {
+              plainText = salvaged;
+              console.log('[TRACE OPENAI L3] Crisis mode — salvaged truncated text (never discard safety messaging)');
+            } else {
+              console.warn('[TRACE OPENAI L3] Crisis mode — truncated and unsalvageable, falling through to L4');
+            }
+          } else {
+            console.warn('[TRACE OPENAI L3] Plain text truncated (finish_reason=length), falling through to L4');
+          }
+        }
+        if (plainText.length > 5) {
           if (!isCrisisMode) {
             plainText = sanitizeTone(plainText, { userId: effectiveUserId, isCrisisMode });
           }
@@ -12529,8 +12588,27 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       contractAudioAction = mapped.audio_action;
       contractActionSource = mapped.action_source;
     }
-    const effectiveUiAction = contractUiAction || pipelineUiAction;
-    const effectiveAudioAction = contractAudioAction || finalResponse.audio_action || null;
+    let effectiveUiAction = contractUiAction || pipelineUiAction;
+    let effectiveAudioAction = contractAudioAction || finalResponse.audio_action || null;
+
+    if (isCrisisMode) {
+      if (effectiveAudioAction) {
+        console.log('[CRISIS GUARDRAIL] Stripped audio_action — music is blocked during crisis mode');
+        effectiveAudioAction = null;
+      }
+      if (finalResponse.audio_action) {
+        delete finalResponse.audio_action;
+      }
+      const musicActivityNames = ['dreamscape', 'rooted_playlist', 'low_orbit_playlist', 'first_light_playlist'];
+      if (finalResponse.activity_suggestion?.name && musicActivityNames.includes(finalResponse.activity_suggestion.name.toLowerCase())) {
+        console.log('[CRISIS GUARDRAIL] Stripped music activity_suggestion —', finalResponse.activity_suggestion.name);
+        finalResponse.activity_suggestion = { name: null, reason: null, should_navigate: false };
+      }
+      if (effectiveUiAction?.type === 'PLAY_IN_APP_TRACK') {
+        console.log('[CRISIS GUARDRAIL] Stripped PLAY_IN_APP_TRACK ui_action');
+        effectiveUiAction = null;
+      }
+    }
 
     if (traceIntent?.primaryMode === 'studios' && finalResponse.activity_suggestion?.name) {
       finalResponse.activity_suggestion = { name: null, reason: null, should_navigate: false };
