@@ -6083,6 +6083,29 @@ app.post('/api/chat', async (req, res) => {
           return { triggered: true, severity: 'moderate' };
         }
         
+        // BROADER ideation patterns — phrases that express doubt about living
+        const ideationPatterns = [
+          /life\s*(is|isn'?t|isnt)\s*(not\s+)?worth/i,
+          /don'?t\s+know\s+if\s+(life|living|it'?s)\s*(is\s+)?worth/i,
+          /is\s+life\s+(even\s+)?worth/i,
+          /life\s+(even\s+)?worth\s+(it|living)/i,
+          /why\s+(am\s+i|should\s+i)\s+(still\s+)?(here|alive|living)/i,
+          /why\s+am\s+i\s+(even\s+)?here/i,
+          /no\s+point\s+(in\s+)?(being\s+)?(alive|here|living)/i,
+          /what'?s\s+the\s+point\s+of\s+(living|being\s+alive|life|it\s+all)/i,
+          /rather\s+(not\s+)?be\s+(alive|here|dead)/i,
+          /tired\s+of\s+(being\s+alive|living|existing)/i,
+          /don'?t\s+(want|wanna)\s+to\s+(be\s+here|exist|wake\s+up)/i,
+          /if\s+i\s+(just\s+)?(wasn'?t|weren'?t|wasnt)\s+(here|alive)/i,
+          /world\s+.*\s+better\s+without\s+me/i,
+          /should\s+i\s+(even\s+)?(be\s+here|keep\s+going|bother)/i,
+        ];
+        
+        if (ideationPatterns.some(p => p.test(t))) {
+          console.log('[CRISIS] Ideation pattern detected:', t.slice(0, 50));
+          return { triggered: true, severity: 'moderate' };
+        }
+        
         return null;
       };
       
@@ -6439,6 +6462,19 @@ app.post('/api/chat', async (req, res) => {
       // STEP: awaiting_regulate_or_reflect -> User replies to "do you want to regulate or reflect?"
       if (onboardingStep === 'awaiting_regulate_or_reflect') {
         const t = userText.toLowerCase().trim();
+
+        // Priority 0: Re-check crisis (user may have expressed distress as their "choice")
+        const crisisRecheck = detectCrisis(userText);
+        if (crisisRecheck) {
+          console.log('[CRISIS] Detected in awaiting_regulate_or_reflect - overriding');
+          await updateOnboardingStep('crisis_safety_check');
+          return finalizeTraceResponse(res, {
+            message: "I'm glad you told me. are you safe right now?",
+            crisis_resources: { triggered: true, severity: crisisRecheck.severity },
+            response_source: 'crisis',
+            _provenance: { path: 'onboarding_crisis_in_regulate_reflect', requestId, ts: Date.now() }
+          }, requestId);
+        }
 
         // Priority 1: Question / confusion detection — explain, don't act
         const questionPatterns = [
