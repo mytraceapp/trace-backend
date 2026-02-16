@@ -6439,13 +6439,34 @@ app.post('/api/chat', async (req, res) => {
       // STEP: awaiting_regulate_or_reflect -> User replies to "do you want to regulate or reflect?"
       if (onboardingStep === 'awaiting_regulate_or_reflect') {
         const t = userText.toLowerCase().trim();
-        const regulateMatch = /regulate|steady|calm|settle|ground|breathe/i.test(t);
+
+        // Priority 1: Question / confusion detection — explain, don't act
+        const questionPatterns = [
+          /what is this/i, /what('s| is) (trace|this place|this app|going on)/i,
+          /who are you/i, /what do you do/i,
+          /what does?\s*(regulate|reflect)\s*mean/i, /what('s| is) (regulate|reflect)/i,
+          /i don'?t (understand|get it|know)/i, /confused/i, /explain/i,
+          /how does this work/i, /what can you do/i, /what happens/i,
+          /huh/i, /what\?/i,
+        ];
+        const isQuestion = questionPatterns.some(p => p.test(t)) || (t.includes('?') && t.length < 80);
+
+        if (isQuestion) {
+          console.log('[ONBOARDING] Question detected, explaining options:', t.substring(0, 50));
+          return finalizeTraceResponse(res, {
+            message: onboardBridge("i'm trace — a calm space to land when things feel heavy.\n\nregulate = calm your nervous system with sound + breathing.\nreflect = talk through what's going on.\n\nboth start with sound. which feels right?"),
+            activity_suggestion: { name: null, should_navigate: false, reason: 'Question — explained options' },
+            response_source: 'onboarding_script',
+            _provenance: { path: 'onboarding_question_explain', requestId, ts: Date.now() }
+          }, requestId);
+        }
+
+        // Priority 2: Explicit reflect choice
         const reflectMatch = /reflect|talk|think|clarity|process|vent/i.test(t);
+        const regulateMatch = /regulate|steady|calm|settle|ground|breathe/i.test(t);
 
         if (reflectMatch && !regulateMatch) {
-          await updateOnboardingStep('conversation_started');
           console.log('[ONBOARDING] User chose: reflect');
-
           const disclaimerShown = await checkDisclaimerShown();
           let chatMessage;
           if (!disclaimerShown) {
@@ -6454,7 +6475,7 @@ app.post('/api/chat', async (req, res) => {
           } else {
             chatMessage = "cool. what's on your mind?";
           }
-
+          await updateOnboardingStep('conversation_started');
           return finalizeTraceResponse(res, {
             message: onboardBridge(chatMessage),
             activity_suggestion: { name: null, userReportedState: null, should_navigate: false, reason: 'User chose reflect' },
@@ -6463,25 +6484,76 @@ app.post('/api/chat', async (req, res) => {
           }, requestId);
         }
 
-        // Regulate (explicit or default)
-        const regReason = regulateMatch ? 'regulate' : 'regulate_default';
-        const regMsg = regulateMatch
-          ? "alright. let the sound settle you for 30 seconds."
-          : "yeah. let the sound settle you for a bit.";
+        // Priority 3: Explicit regulate choice — ask for consent first, don't launch activity
+        if (regulateMatch) {
+          console.log('[ONBOARDING] User chose: regulate — asking consent');
+          await updateOnboardingStep('awaiting_breathing_consent');
+          return finalizeTraceResponse(res, {
+            message: onboardBridge("want to try a quick breathing exercise? it's about 30 seconds."),
+            activity_suggestion: { name: null, should_navigate: false, reason: 'Regulate consent prompt' },
+            response_source: 'onboarding_script',
+            _provenance: { path: 'onboarding_regulate_consent_ask', requestId, ts: Date.now() }
+          }, requestId);
+        }
 
-        await updateOnboardingStep('regulating');
-        console.log('[ONBOARDING] User chose:', regReason);
-
+        // Priority 4: Fallback — nothing matched, explain and re-ask (never auto-launch)
+        console.log('[ONBOARDING] Ambiguous input, explaining options:', t.substring(0, 50));
         return finalizeTraceResponse(res, {
-          message: onboardBridge(regMsg),
-          activity_suggestion: {
-            name: 'breathing',
-            reason: `User chose ${regReason}`,
-            should_navigate: true,
-            route: '/activities/breathing',
-          },
+          message: onboardBridge("no worries.\n\nregulate = calm your nervous system with sound + breathing.\nreflect = talk through what's on your mind.\n\nwhich one?"),
+          activity_suggestion: { name: null, should_navigate: false, reason: 'Ambiguous — explained options' },
           response_source: 'onboarding_script',
-          _provenance: { path: `onboarding_${regReason}_choice`, requestId, ts: Date.now() }
+          _provenance: { path: 'onboarding_ambiguous_explain', requestId, ts: Date.now() }
+        }, requestId);
+      }
+
+      // STEP: awaiting_breathing_consent -> User responds to "want to try a quick breathing exercise?"
+      if (onboardingStep === 'awaiting_breathing_consent') {
+        const t = userText.toLowerCase().trim();
+        const yesMatch = /^(yeah|yes|sure|ok|okay|please|yep|yea|do it|go ahead|let'?s|absolutely|definitely|for sure|bet|go for it|ya|alright|down|i'?m down)\b/i.test(t);
+        const noMatch = /^(no|nah|not now|later|skip|pass|nope|i'?m good|don'?t want|not really)\b/i.test(t);
+
+        if (yesMatch) {
+          console.log('[ONBOARDING] Breathing consent: yes');
+          await updateOnboardingStep('regulating');
+          return finalizeTraceResponse(res, {
+            message: onboardBridge("alright. let the sound settle you for 30 seconds."),
+            activity_suggestion: {
+              name: 'breathing',
+              reason: 'User consented to breathing',
+              should_navigate: true,
+              route: '/activities/breathing',
+            },
+            response_source: 'onboarding_script',
+            _provenance: { path: 'onboarding_breathing_consent_yes', requestId, ts: Date.now() }
+          }, requestId);
+        }
+
+        if (noMatch) {
+          console.log('[ONBOARDING] Breathing consent: no — routing to reflect');
+          const disclaimerShown = await checkDisclaimerShown();
+          let chatMessage;
+          if (!disclaimerShown) {
+            chatMessage = "no problem. quick thing — i'm not therapy, but i can stay with you.\n\nwhat's on your mind?";
+            await markDisclaimerShown();
+          } else {
+            chatMessage = "no problem. what's on your mind?";
+          }
+          await updateOnboardingStep('conversation_started');
+          return finalizeTraceResponse(res, {
+            message: onboardBridge(chatMessage),
+            activity_suggestion: { name: null, should_navigate: false, reason: 'Declined breathing — reflect path' },
+            response_source: 'onboarding_script',
+            _provenance: { path: 'onboarding_breathing_consent_no', requestId, ts: Date.now() }
+          }, requestId);
+        }
+
+        // Ambiguous response to consent question — re-ask simply
+        console.log('[ONBOARDING] Breathing consent: ambiguous, re-asking');
+        return finalizeTraceResponse(res, {
+          message: onboardBridge("breathing exercise — yes or no?"),
+          activity_suggestion: { name: null, should_navigate: false, reason: 'Re-asking breathing consent' },
+          response_source: 'onboarding_script',
+          _provenance: { path: 'onboarding_breathing_consent_reask', requestId, ts: Date.now() }
         }, requestId);
       }
 
