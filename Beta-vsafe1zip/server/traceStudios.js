@@ -517,10 +517,16 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
     };
   }
   
-  // Check what TRACE just mentioned
+  // Determine if we're in a music context (used for recent-history fallbacks)
+  const inMusicContext = clientState?.mode === 'trace_studios' || clientState?.traceStudiosContext || 
+    lastMsg.includes('track') || lastMsg.includes('song') || lastMsg.includes('music') || 
+    lastMsg.includes('night swim') || lastMsg.includes('listen');
+
+  // Check what TRACE just mentioned (includes recent history fallback only in music context)
+  const recentMsgsText = (recentAssistantMessages || []).slice(-3).join(' ').toLowerCase();
   const justOfferedPlaylist = PLAYLIST_NAMES.some(p => lastMsg.includes(p));
-  const justMentionedNightSwim = lastMsg.includes('night swim');
-  const justMentionedNeonPromise = lastMsg.includes('neon promise');
+  const justMentionedNightSwim = lastMsg.includes('night swim') || (inMusicContext && recentMsgsText.includes('night swim'));
+  const justMentionedNeonPromise = lastMsg.includes('neon promise') || (inMusicContext && recentMsgsText.includes('neon promise'));
   const justRevealedMakesMusic = lastMsg.includes('i make music') || 
     lastMsg.includes('i write music') || 
     lastMsg.includes('music, mostly') ||
@@ -553,7 +559,21 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
   ]);
   
   // Also check what track was just mentioned by TRACE
-  const mentionedTrack = detectRequestedTrack(lastMsg);
+  let mentionedTrack = detectRequestedTrack(lastMsg);
+  
+  // FALLBACK: If TRACE's last message doesn't mention a track, scan recent messages
+  // GATED: Only activates in music context (determined above)
+  if (!mentionedTrack && inMusicContext && recentAssistantMessages && recentAssistantMessages.length > 0) {
+    for (let i = recentAssistantMessages.length - 1; i >= Math.max(0, recentAssistantMessages.length - 3); i--) {
+      const recentMsg = (recentAssistantMessages[i] || '').toLowerCase();
+      const foundTrack = detectRequestedTrack(recentMsg);
+      if (foundTrack) {
+        mentionedTrack = foundTrack;
+        console.log('[TRACE STUDIOS] Track found in recent history:', foundTrack.title, '(message index:', i, ')');
+        break;
+      }
+    }
+  }
   
   // Check if there's a track in the context (from previous description)
   const contextTrackId = clientState?.traceStudiosContext;
