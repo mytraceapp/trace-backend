@@ -2031,10 +2031,8 @@ export default function ChatScreen() {
         console.log('[CHAT] sound_state received:', JSON.stringify(result.sound_state));
         handleSoundState(result.sound_state);
         
-        // Track the current sound state in client state (for server persistence on restart)
-        if (result.sound_state.changed && result.sound_state.current) {
+        if (result.sound_state.current) {
           clientStateRef.current.currentSoundState = result.sound_state.current;
-          console.log(`[CHAT] Updated client sound state: ${result.sound_state.current}`);
         }
       }
 

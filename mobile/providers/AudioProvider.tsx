@@ -294,18 +294,25 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
 
     const isFirstActivation = !currentStateRef.current && !soundRef.current;
+    const soundscapeDied = currentStateRef.current && !soundRef.current;
 
-    if (!payload.changed && !isFirstActivation) {
+    if (!payload.changed && !isFirstActivation && !soundscapeDied) {
       return;
     }
 
-    if (payload.current === currentStateRef.current && !isFirstActivation) {
+    if (payload.current === currentStateRef.current && !isFirstActivation && !soundscapeDied) {
       console.log(`[AUDIO] Already in "${payload.current}", ignoring`);
       return;
     }
 
     if (isFirstActivation) {
       console.log(`[AUDIO] First activation: starting "${payload.current}" soundscape`);
+      await playState(payload.current, DEFAULT_FADE_MS);
+      return;
+    }
+
+    if (soundscapeDied && payload.current === currentStateRef.current) {
+      console.log(`[AUDIO] 🔧 Soundscape died while in "${payload.current}" — restarting`);
       await playState(payload.current, DEFAULT_FADE_MS);
       return;
     }
