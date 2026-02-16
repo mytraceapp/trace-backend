@@ -169,7 +169,7 @@ function getNextLengthNudge(visitorId, userMessage, opts = {}) {
   const isCrisis = opts.isCrisis || false;
   const isOnboarding = opts.isOnboarding || false;
 
-  if (isCrisis) return { tier: LENGTH_TIERS.SHORT, reason: 'crisis_override', userEnergy };
+  if (isCrisis) return { tier: LENGTH_TIERS.LONG, reason: 'crisis_override', userEnergy };
   if (isOnboarding) return { tier: LENGTH_TIERS.MEDIUM, reason: 'onboarding', userEnergy };
 
   const recent3 = (history || []).slice(-3);

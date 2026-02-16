@@ -661,12 +661,15 @@ function enforceAutonomyGuard(text) {
   
   // Check for crisis safety language - preserve these
   const crisisSafetyPatterns = [
-    /call (911|999|112|000|emergency)/i,
+    /call (911|988|999|112|000|emergency)/i,
     /crisis (line|hotline|text)/i,
     /suicide (prevention|hotline|line)/i,
     /emergency services/i,
     /if you('re| are) (in|feeling) (immediate )?danger/i,
     /please reach out to/i,
+    /not going anywhere/i,
+    /i('m| am) (right )?here/i,
+    /you don'?t have to (hold|carry|face|do) this alone/i,
   ];
   
   const isCrisisSafetyMessage = crisisSafetyPatterns.some(p => p.test(text));
@@ -1771,6 +1774,9 @@ function isHighDistressText(text) {
     t.includes('end it all') ||
     t.includes('ending it all') ||  // "I keep thinking about ending it all"
     t.includes('ending it') ||  // catches variations
+    /\b(want|going|gonna|ready|trying|plan|need)\s+to\s+end\s+it\b/.test(t) ||
+    /\bi('m| am)\s+(going to|gonna|ready to|about to)\s+end\s+it\b/.test(t) ||
+    /\bgonna\s+end\s+it\b/.test(t) ||
     t.includes('thinking about ending') ||  // "thinking about ending my life/it all"
     t.includes("i'm done with life") ||
     t.includes("done with life") ||
@@ -9834,7 +9840,10 @@ If the right move isn't obvious: one grounded observation about what you notice 
     const hasExternalContext = !!(newsContext || searchContext || weatherContext || foodContext || holidayContext);
     const baseMaxWords = controlLengthLabel === 'micro' ? 5 : controlLengthLabel === 'short' ? 20 : controlLengthLabel === 'long' ? 90 : 50;
     let controlMaxWords = baseMaxWords;
-    if (isLongFormRequest) {
+    if (isCrisisMode) {
+      controlMaxWords = 120;
+      console.log(`[CONTROL_BLOCK] Length override: ${baseMaxWords} → ${controlMaxWords} (CRISIS MODE — safety messaging needs room)`);
+    } else if (isLongFormRequest) {
       controlMaxWords = 600;
       console.log(`[CONTROL_BLOCK] Length override: ${baseMaxWords} → ${controlMaxWords} (long-form request — lyrics/story/recipe)`);
     } else if (isFactualTurn && (newsContext || searchContext || holidayContext)) {
