@@ -120,6 +120,9 @@ const { buildEmotionalIntelligenceContext } = require('./emotionalIntelligence')
 const { processIntent: processCoginitiveIntent, gateScript } = require('./cognitiveEngine');
 const { buildVoicePromptInjection, validateResponse, containsBannedPhrases, containsLazyQuestion } = require('./voiceEngine');
 const conversationState = require('./conversationState');
+const { requireAuth, optionalAuth } = require('./middleware/auth');
+const { chatIpLimiter, chatUserLimiter, generalApiLimiter } = require('./middleware/rateLimit');
+const { validateChatRequest, validateBodySize } = require('./middleware/validateRequest');
 const { logPatternFallback, logEmotionalIntelligenceFallback, logPatternExplanation, logPatternCorrection, TRIGGERS } = require('./patternAuditLog');
 const { evaluateAtmosphere, setDbPool: setAtmosphereDbPool } = require('./atmosphereEngine');
 const { brainSynthesis, logTraceIntent, buildSessionSummary } = require('./brain/brainSynthesis');
@@ -2624,10 +2627,32 @@ async function logEventsBatch({ user_id, events }) {
   }
 }
 
-// CORS configuration for mobile apps (Expo Go, dev builds, production)
+// CORS configuration — locked down for beta
+const isDev = (process.env.NODE_ENV || 'development') === 'development';
+const allowedOriginsRaw = process.env.ALLOWED_ORIGINS || '';
+const allowedOrigins = allowedOriginsRaw
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+if (!isDev && allowedOrigins.length === 0) {
+  console.warn('[SECURITY] WARNING: ALLOWED_ORIGINS is empty in non-dev mode. CORS will block all cross-origin requests. Set ALLOWED_ORIGINS env var.');
+}
+
 const corsOptions = {
-  origin: true, // Allow all origins in development
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (isDev) return callback(null, true);
+    if (allowedOrigins.length === 0) {
+      return callback(new Error('CORS: no allowed origins configured'));
+    }
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (allowedOrigins.some(o => origin.endsWith(o.replace(/^\*\./, '.')) || origin === o)) {
+      return callback(null, true);
+    }
+    callback(new Error('CORS: origin not allowed'));
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
   preflightContinue: false,
@@ -2635,10 +2660,19 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-app.use(express.json());
+app.use(express.json({ limit: '50kb' }));
+app.use(express.urlencoded({ extended: false, limit: '50kb' }));
+
+app.use(generalApiLimiter);
 
 app.use((req, res, next) => {
-  console.log(`[TRACE API] ${new Date().toISOString()} ${req.method} ${req.url}`);
+  const userId = req.body?.userId || req.query?.userId || '-';
+  const shortId = typeof userId === 'string' && userId.length > 6 ? userId.slice(-6) : userId;
+  const start = Date.now();
+  res.on('finish', () => {
+    const latency = Date.now() - start;
+    console.log(`[TRACE API] ${req.method} ${req.path} u:${shortId} ${res.statusCode} ${latency}ms`);
+  });
   next();
 });
 
@@ -2697,12 +2731,36 @@ const TIER2_COOLDOWN_MS = 240000;
  * GPT-5+ models use max_completion_tokens, older models use max_tokens
  * GPT-5-mini doesn't support custom temperature
  */
+const OPENAI_MAX_TOKENS_CAP = 600;
+
 function getTokenParams(model, limit = 500) {
+  const cappedLimit = Math.min(limit, OPENAI_MAX_TOKENS_CAP);
   const isGpt5 = model && (model.startsWith('gpt-5') || model.startsWith('o1') || model.startsWith('o3'));
   if (isGpt5) {
-    return { max_completion_tokens: limit };
+    return { max_completion_tokens: cappedLimit };
   }
-  return { max_tokens: limit };
+  return { max_tokens: cappedLimit };
+}
+
+const dailyMessageCounts = new Map();
+const DAILY_MESSAGE_CAP = 200;
+
+function checkDailyMessageCap(userId) {
+  if (!userId) return { allowed: true };
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `${userId}:${today}`;
+  const count = dailyMessageCounts.get(key) || 0;
+  if (count >= DAILY_MESSAGE_CAP) {
+    return { allowed: false, count, limit: DAILY_MESSAGE_CAP };
+  }
+  dailyMessageCounts.set(key, count + 1);
+  if (dailyMessageCounts.size > 10000) {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    for (const [k] of dailyMessageCounts) {
+      if (!k.endsWith(today) && !k.endsWith(yesterday)) dailyMessageCounts.delete(k);
+    }
+  }
+  return { allowed: true, count: count + 1, limit: DAILY_MESSAGE_CAP };
 }
 
 function isSentenceComplete(text) {
@@ -3114,7 +3172,7 @@ function getConfiguredModel() {
     tier1Model: TRACE_TIER1_MODEL,
     tier2Model: TRACE_TIER2_MODEL,
     baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || 'https://api.openai.com/v1',
-    apiKeyPrefix: apiKey.slice(0, 7) || 'none',
+    apiKeyConfigured: !!apiKey,
     provider: 'openai',
     hasKey: !!apiKey,
   };
@@ -3572,7 +3630,7 @@ Do NOT add commentary or extra text.`,
 }
 
 // Endpoint for emotion analysis
-app.post('/api/analyze-emotion', async (req, res) => {
+app.post('/api/analyze-emotion', optionalAuth, async (req, res) => {
   try {
     const { text } = req.body;
     const result = await analyzeEmotion(text);
@@ -3608,10 +3666,10 @@ app.post('/api/events', async (req, res) => {
 // ===== GREETING FLOW =====
 
 // Unified greeting: Handles both first-run and returning users
-app.post('/api/greeting', async (req, res) => {
+app.post('/api/greeting', optionalAuth, async (req, res) => {
   try {
     const { userId, deviceId, isNewUser, isReturningUser } = req.body;
-    console.log('[TRACE GREETING] Request received - userId:', userId, 'deviceId:', deviceId, 'isNewUser:', isNewUser, 'isReturningUser:', isReturningUser);
+    console.log('[TRACE GREETING] Request received - isNewUser:', isNewUser, 'isReturningUser:', isReturningUser);
     
     if (!userId && !deviceId) {
       return res.status(400).json({ error: 'userId or deviceId required' });
@@ -4190,7 +4248,7 @@ app.post('/api/weekly-letter', async (req, res) => {
 });
 
 // Bubble activity encouragement messages - AI generated
-app.post('/api/bubble-encouragement', async (req, res) => {
+app.post('/api/bubble-encouragement', optionalAuth, async (req, res) => {
   try {
     const { count = 8 } = req.body;
     
@@ -4734,7 +4792,7 @@ function isErrorFallbackMessage(content) {
     (t.includes('lost the thread') && (t.includes('what were you') || t.includes('you were')));
 }
 
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChatRequest, async (req, res) => {
   // Build dedup key BEFORE try block so it's available for caching on success
   const dedupKey = getDedupKey(req);
   
@@ -4760,6 +4818,16 @@ app.post('/api/chat', async (req, res) => {
     
     // Generate stable requestId for this request
     const requestId = clientRequestId || `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const capUserId = req.authUserId || userId;
+    const capCheck = checkDailyMessageCap(capUserId);
+    if (!capCheck.allowed) {
+      return res.status(429).json({
+        ok: false,
+        error: 'Daily message limit reached. Come back tomorrow.',
+        response: "hey — you've sent a lot today. take a break and come back when you're ready.",
+      });
+    }
     
     // Music curation v2 result — declared at handler scope so post-LLM pipeline can use it
     let curationResult = { shouldOffer: false, reason: 'not_evaluated' };
@@ -6974,7 +7042,7 @@ app.post('/api/chat', async (req, res) => {
     const isReGreeting = /^(hi|hello|hey|yo|sup|heya|hiya|heyy|hii)$/i.test((lastUserMsg?.content || '').trim());
     
     if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && !traceJustAskedQuestion && !hasSubstantiveConversation && !isReGreeting) {
-      console.log('[TRACE CHAT] Light closure detected (no prior context), sending short ack:', lastUserMsg.content);
+      console.log('[TRACE CHAT] Light closure detected (no prior context), sending short ack');
       const closureResponse = normalizeChatResponse({
         message: pickRandomNoRepeat(LIGHT_ACKS, effectiveUserId),
         activity_suggestion: {
@@ -7981,7 +8049,7 @@ CRISIS OVERRIDE:
     console.log(`[CHAT_DEBUG] Sending ${messages.length} messages to AI. convId=${conversationMeta?.conversationId || 'none'}`);
     if (messages.length > 0) {
       const last3 = messages.slice(-3);
-      console.log('[CHAT_DEBUG] Last 3:', last3.map(m => `[${m.role}] ${(m.content || '').slice(0, 60)}`));
+      console.log('[CHAT_DEBUG] Last 3 message roles:', last3.map(m => m.role));
     }
     
     const fullContext = contextParts.filter(Boolean).join('\n\n');
@@ -12726,12 +12794,7 @@ app.post('/api/chat/history/sync', async (req, res) => {
     const userIdShort = rawUserId?.slice?.(0, 8) || 'none';
     const userId = normalizeUserId(rawUserId);
     
-    console.log('[CHAT SYNC] Request:', { 
-      userIdFull: userId,
-      userIdShort,
-      messageCount: messages?.length || 0,
-      syncedAt 
-    });
+    console.log('[CHAT SYNC] Request: messageCount=' + (messages?.length || 0));
     
     if (!userId) {
       return res.status(400).json({ success: false, error: 'userId is required' });
@@ -12811,7 +12874,7 @@ app.post('/api/chat/history/sync', async (req, res) => {
       }
     }
     
-    console.log('[CHAT SYNC] Synced', syncedCount, 'messages for user:', userIdFull);
+    console.log('[CHAT SYNC] Synced', syncedCount, 'messages');
     
     return res.json({
       success: true,
@@ -13238,7 +13301,7 @@ const recentActivityReturnCalls = new Map(); // userId -> timestamp
 // POST /api/chat/activity-return - Returns natural acknowledgment after activity completion
 // This endpoint replaces any hardcoded "Welcome back" messages
 app.post('/api/chat/activity-return', async (req, res) => {
-  console.log('[ACTIVITY RETURN] Request received, body:', JSON.stringify(req.body));
+  console.log('[ACTIVITY RETURN] Request received');
   
   try {
     // Accept multiple field name conventions for flexibility
@@ -13344,7 +13407,7 @@ Just the question, nothing else.
 // endpoint is called after the user responds to that check-in
 app.post('/api/chat/activity-acknowledgment', async (req, res) => {
   console.log('[ACTIVITY ACK] Called after user reflection');
-  console.log('[ACTIVITY ACK] Body received:', JSON.stringify(req.body || {}));
+  console.log('[ACTIVITY ACK] Request received');
   
   const { userId, activityType, activityName, activity_name, activity_type, reflection, userMessage, user_reflection } = req.body || {};
   const activity = activityType || activityName || activity_name || activity_type || 'activity';
@@ -14884,6 +14947,40 @@ app.use((req, res, next) => {
 if (process.env.SENTRY_DSN) {
   Sentry.setupExpressErrorHandler(app);
 }
+
+// ============================================
+// STARTUP SECURITY CHECKLIST
+// ============================================
+function printSecurityChecklist() {
+  const checks = {
+    OPENAI_API_KEY: !!(process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY),
+    SUPABASE_URL: !!(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
+    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    DATABASE_URL: !!process.env.DATABASE_URL,
+    SENTRY_DSN: !!process.env.SENTRY_DSN,
+  };
+
+  console.log('\n========== SECURITY CHECKLIST ==========');
+  for (const [key, present] of Object.entries(checks)) {
+    console.log(`  ${key}: ${present ? 'OK' : 'MISSING'}`);
+  }
+  console.log(`  CORS origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'ALL (dev mode)'}`);
+  console.log(`  Rate limiting: ENABLED (chat: 60/IP + 30/user per 10min)`);
+  console.log(`  Auth middleware: ENABLED (optional JWT on protected routes)`);
+  console.log(`  Body size limit: 50KB`);
+  console.log(`  Message length limit: 4000 chars`);
+  console.log('=========================================\n');
+
+  const missing = Object.entries(checks).filter(([, v]) => !v).map(([k]) => k);
+  if (missing.includes('OPENAI_API_KEY')) {
+    console.warn('[SECURITY] WARNING: No OpenAI API key — chat will use fallback responses');
+  }
+  if (missing.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+    console.warn('[SECURITY] WARNING: No Supabase service key — auth verification disabled');
+  }
+}
+
+printSecurityChecklist();
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {

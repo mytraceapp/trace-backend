@@ -9,85 +9,65 @@ Preferred communication style: Simple, everyday language.
 # System Architecture
 
 ## Frontend
-The application is built with React 18, TypeScript, and Vite, using Framer Motion for animations and Tailwind CSS v4 for styling. It features a screen-based architecture, React Context API for state management, and a bottom navigation bar. Distinct Day (sage greens, warm earth tones) and Night (deep olive-charcoal, desert sand undertones) themes are used, with a visual language emphasizing soft gradients, subtle grain textures, rounded corners, and specific typography.
+The application is built with React 18, TypeScript, and Vite, utilizing Framer Motion for animations and Tailwind CSS v4 for styling. It features a screen-based architecture, React Context API for state management, and a bottom navigation bar. Distinct Day and Night themes are implemented with a visual language emphasizing soft gradients, subtle grain textures, rounded corners, and specific typography.
 
 ## Audio & Sensory Design
-Custom tone generators, built with the Web Audio API, create dynamic, procedurally generated ambient soundscapes. The mobile app integrates three independent audio layers: a global ambient track, mood-based emotional soundscapes triggered by an Atmosphere Engine, and a Night Swim Player for streaming original tracks.
-
-### Soundscape Persistence System
-Emotional soundscapes are designed to persist — not switch like a DJ. Each state has 7 tracks that cycle through sequentially (no looping). State changes are queued and applied only when the current track finishes naturally. The Atmosphere Engine enforces dual gates: minimum 25 messages AND all 7 tracks must complete before allowing state reassessment. Server-side track counting persists the client's reported track progress. Crisis/extreme spike events bypass queuing for immediate response. Queued state changes survive pause/resume flows (activities, originals). Signal decay is slow (0.97/message, 0.9 at reassessment) to preserve emotional inertia. Presence triggers are intentionally narrow — only explicit "I'm calm now" phrases, not generic "good" or "okay."
+Custom tone generators using the Web Audio API create dynamic, procedurally generated ambient soundscapes. The mobile app integrates three independent audio layers: a global ambient track, mood-based emotional soundscapes managed by an Atmosphere Engine, and a Night Swim Player for streaming original tracks. A soundscape persistence system ensures smooth transitions and emotional inertia by queuing state changes and enforcing track completion rules.
 
 ## AI Integration
-An Express server acts as a proxy to the OpenAI API, defining TRACE AI's personality with relational language and a friend-like onboarding sequence including a therapy disclaimer. It features an Emotional Intelligence Module for mood analysis, an audit logging system, and configurable smart features via feature flags. Summaries are warm, grounded, and factual, avoiding jargon, with relational fallback messages for OpenAI failures.
+An Express server acts as a proxy to the OpenAI API, defining TRACE AI's personality with relational language and a friend-like onboarding. It includes an Emotional Intelligence Module for mood analysis, an audit logging system, and configurable smart features. The AI provides warm, grounded, and factual summaries, with relational fallback messages for OpenAI failures.
 
 ### Factual Accuracy System
-TRACE handles news, culture, and history questions with accuracy:
-- **Smart Topic Detection**: `hasSpecificTopic()` detects proper nouns, events, locations. When a user message has a specific new topic, it always wins over cached follow-up topics. Vague follow-ups ("tell me more") use the cached topic.
-- **Article Caching**: Fetched news articles are cached per user (30min TTL) so follow-up questions reference the same data without re-fetching.
-- **Dynamic Word Limits**: Factual turns with data get 200-word max (vs normal 20-50). Factual turns without data get 150. This only applies on factual turns -- normal conversation cadence is untouched.
-- **Factual Grounding Prompt**: When NEWS_CONTEXT is present, explicit instructions tell the AI to share specific headlines, cite sources, never paraphrase vaguely.
-- **General Knowledge Mode**: For culture/history questions that don't need real-time data, the AI is instructed to answer confidently from its training data rather than deflecting.
-- **FACTS_GUARD**: Only intercepts truly time-sensitive political questions ("who is the current president") -- does not block culture/history.
+TRACE handles factual questions by using smart topic detection, per-user article caching, dynamic word limits for factual turns, and a factual grounding prompt to ensure citations. A general knowledge mode allows the AI to answer confidently for non-real-time culture/history questions.
 
 ### Conversation Management & Continuity
-The system employs advanced mechanisms for conversational coherence including a Continuity Guard to prevent resets, Primary Mode Gating for single authoritative responses, and an Interaction Contract Lock for action-response consistency. A Studios Run Mode maintains context during music exploration, while Retrieval Budget and Mode-Scoped Context optimize relevance. Latency + Confidence Smoothing adjusts communication style, and Micro-Anticipation selects clear next conversational moves. An Output Contract Lock and `finalizeTraceResponse()` helper ensure premium response quality and consistent response envelopes.
+The system employs mechanisms like a Continuity Guard, Primary Mode Gating, and an Interaction Contract Lock for conversational coherence. Studios Run Mode maintains context during music exploration, while Retrieval Budget and Mode-Scoped Context optimize relevance. Latency + Confidence Smoothing adjusts communication style, and Micro-Anticipation selects next conversational moves. An Output Contract Lock ensures premium response quality.
 
 ### Voice Quality Systems
-The system includes Hollow-Response Detection to remove emotionally empty patterns, Dynamic Stage-Aware Fallbacks with topic-specific and stage-aware response pools, and a T2 Manifesto v2 to guide the model towards thinking *with* the user. A Response Rhythm System enforces natural response-length variation, utilizing length tiers, rhythm tracking, user energy detection, and buddy acknowledgment pools.
+Hollow-Response Detection removes empty patterns, Dynamic Stage-Aware Fallbacks provide topic-specific responses, and a T2 Manifesto guides the model to think *with* the user. A Response Rhythm System enforces natural response-length variation based on user energy.
 
 ## Privacy by Design
-TRACE prioritizes privacy by storing primarily AI-generated, non-identifying summaries (max 15 words) of user content in Supabase with Row Level Security (RLS). GDPR-compliant endpoints are included for data management.
+TRACE stores primarily AI-generated, non-identifying summaries (max 15 words) of user content in Supabase with Row Level Security (RLS). GDPR-compliant endpoints are included.
 
 ## Journal & Activity Integration
-High-level themes from journal entries can be extracted with user consent to inform chat context. The system correlates activity completions with mood check-ins to suggest mood-improving activities. Context continuity across activities ensures music and topic context persist. Interactive activities include a procedural Maze game, Breathing Exercises, 5-4-3-2-1 Grounding, "Rising" (WebGL), Power Nap, Pearl Ripple, and Walking Reset, all with auto-save. A unified `Entry` interface supports five journal types, visualized in a calendar, with AI-generated daily reflections.
+High-level themes from journal entries can inform chat context. Activity completions are correlated with mood check-ins to suggest mood-improving activities. Context continuity persists across activities. Interactive activities include a procedural Maze game, Breathing Exercises, 5-4-3-2-1 Grounding, "Rising" (WebGL), Power Nap, Pearl Ripple, and Walking Reset, all with auto-save. A unified `Entry` interface supports five journal types with AI-generated daily reflections.
 
 ## Authentication & Subscription
 Supports Supabase anonymous authentication with persistent user ID recovery and server-side data migration. Subscription plans (Light/Free, Premium, Studio) are managed globally for feature gating.
 
 ## Greeting Deduplication & Grounding Guard
-Manages welcome greetings to ensure variety and freshness by tracking past approaches and topics, and filtering against recent conversation topics. A post-generation Grounding Guard (`server/guards/greetingGuard.js`) validates that AI-generated greetings reference ONLY verified memory (long_term_memories, core_memory user_facts, conversation topics, recent user messages). It extracts content nouns, checks each against a verified corpus, catches hallucination phrases ("you mentioned", "did you end up"), and rejects greetings with unverified references. On failure, the system retries once with a strict repair prompt, then falls back to "hey.\nwant to regulate or reflect?". All greetings are enforced lowercase, max 2 lines. The prompt uses an ALLOWED REFERENCES block listing only verified data sources.
+Manages welcome greetings for variety and freshness. A Grounding Guard validates AI-generated greetings against verified memory, rejecting unverified references and falling back to a default greeting if validation fails.
 
 ## Session Close Warmth
-Wind-down detection system (`conversationState.js`) that scores user messages for goodbye/thanks/completion signals. When triggered (score >= 25), injects a `SESSION_CLOSE_WARMTH` hint into the CONTROL_BLOCK so the AI naturally ends with a brief warm closing (e.g., "i'm here whenever.") in its own voice — no static text appended. Gates: never fires during crisis mode, when TRACE just asked a question, during post-activity reflection, or within 8 turns of the last invite. In-memory cooldown tracking prevents repetition.
+A wind-down detection system triggers warm closing messages from the AI based on user signals, preventing static text and adhering to specific gating rules to ensure natural conversation flow.
 
 ## Prompt Architecture
-A two-layer V2 prompt system addresses prompt fragmentation with schema enforcement. Prompt Deduplication resolves overlapping directives across V2 directive, Studios gate, and T2 manifesto, ensuring consistent prompt instructions. A TRACE Control Block is prepended as a separate system message on every /api/chat call, providing deterministic per-turn constraints: LENGTH_MODE (micro/short/medium with max word counts), QUESTION_MODE (WITNESS_ONLY or ALLOW_ONE with budget 0 or 1), soundscape state, relational anchors, session continuity summary, and door context. The control block leverages the existing rhythm system (conversationState.js) and question streak tracking (qStreak) to prevent back-to-back questions.
+A two-layer V2 prompt system addresses fragmentation with schema enforcement and prompt deduplication. A TRACE Control Block, prepended as a separate system message, provides deterministic per-turn constraints including length mode, question mode, soundscape state, and door context.
 
 ## Patterns Feature
 Identifies three pattern types: Peak Window, Energy Tides, and Stress Echoes, providing insights and a visual rhythm map.
 
 ## Persistence
-Music familiarity (new → aware → fan) is tracked per user and persisted to Supabase. Doorways v1 user profiles (affinity scores, hit history) are also persisted to Supabase for cross-session unlock rules.
+Music familiarity and Doorways v1 user profiles (affinity scores, hit history) are tracked per user and persisted to Supabase for cross-session unlock rules.
 
 ## Audio Control Path Resolution
-An audio control handler system differentiates between early interceptors and the Studios handler to prevent conflicts in stop/resume/pause commands, ensuring correct track context. It also includes logic to prevent replaying already-offered tracks.
+An audio control handler system differentiates between early interceptors and the Studios handler to prevent conflicts in stop/resume/pause commands, ensuring correct track context and preventing replaying already-offered tracks.
 
 ## 3-Layer Memory System
 
-### Layer 1: Relational Memory (Phase 1 + Phase 2)
-Entity-anchored relational memory system (`server/relationalMemory.js`) that tracks people the user mentions. Extracts relationship mentions ("my mom", "my brother") from chat messages, normalizes synonyms (mom/mother/mama → mom), and resolves known people from the local PostgreSQL `people` table. Relational anchors (e.g., "mom = Sarah") are injected into the LLM system prompt so TRACE can reference people by name. Handles ambiguous relationships (multiple friends) with buddy-voice clarification. Auto-creates person records when users explicitly name someone ("my mom Sarah"). CRUD endpoints at `/api/memory/people` and `/api/memory/person`. High-salience people are always included in system prompt context even without explicit mentions.
+### Layer 1: Relational Memory
+An entity-anchored relational memory system tracks and resolves people mentioned by the user, injecting relational anchors into the LLM system prompt. It includes pending confirmation for new relationships, correction detection, pronoun resolution, and a post-processing guardrail to ensure correct name usage in AI responses.
 
-Phase 2 enhancements:
-- **Pending Confirmation**: Explicit mentions persist immediately but append a deterministic confirmation line ("Just checking—Emma is your sister, right?"). Handles yes/no on next turn; denied records are deleted. Guards against conflict with activity confirmation flow.
-- **Correction Detection**: Detects patterns like "Emma is my cousin not sister" and updates the DB relationship accordingly.
-- **Pronoun Resolution**: In-memory tracking of last-mentioned person per user. Injects soft pronoun hints ("Recent reference: Emma (sister)") into system prompt within 3-message window, auto-clears after 5 messages.
-- **Post-Processing Guardrail**: After LLM response, replaces "your sister" → "Emma" when anchor was injected but model didn't use the name. Conservative exact-phrase matching only.
+### Layer 2: Topic Memory
+Persistent topic tracking extracts and stores conversation topics from user messages. Active and recent cross-session topics are injected into the system prompt, and resolution detection marks completed topics.
 
-### Layer 2: Topic Memory (`server/topicMemory.js`)
-Persistent topic tracking across conversations using PostgreSQL `conversation_topics` table. Extracts topics from user messages (31 patterns covering work, school, relationships, health, creative, finances, etc.) with parent-child dedup (e.g., "deadlines" suppresses generic "work"). Topics are stored per user/conversation with mention counts and resolution status. Active topics from current conversation and recent cross-session topics (last 7 days) are injected into the system prompt. Resolution detection marks completed topics (e.g., "that's done", "worked out"). Daily cleanup removes old resolved topics after 30 days. All operations are fire-and-forget with graceful degradation.
-
-### Layer 3: Emotional Carryover (`server/emotionalCarryover.js`)
-Prevents tone whiplash between sessions. Classifies conversation emotional tone (crisis > heavy > positive > neutral) using pattern matching on recent messages. Tone is saved to Supabase `trace_sessions` table at session rotation and periodically (every 5th message). On next session, fetches last session's tone and injects context into system prompt: after crisis/heavy sessions, instructs minimal greetings ("hey." not "hey! what's up?"); after positive, matches energy. Provides greeting hints with time-aware logic (< 3h, < 24h, > 24h). All layers have independent try/catch — any single layer failure doesn't affect the others.
-
-### Memory Integration
-All 3 layers are injected into the system prompt after relational anchors, before the TRACE Control Block. Each layer fetches data independently and degrades gracefully. The `conversationMeta.conversationId` (from `memoryStore.ensureConversation`) is used as the authoritative conversation ID across all layers.
-
-**Note**: Layer 3 requires `emotional_tone`, `emotional_summary`, and `tone_updated_at` columns on the Supabase `trace_sessions` table. Until these are added in Supabase, emotional carryover saves will fail silently and the layer will skip gracefully.
+### Layer 3: Emotional Carryover
+Prevents tone whiplash by classifying and saving conversation emotional tone between sessions. On a new session, it fetches the last session's tone and adjusts the system prompt to match the energy or provide minimal greetings accordingly.
 
 # External Dependencies
 
--   **OpenAI API**: For TRACE AI chat completions.
--   **Supabase**: Backend database for user data, authentication, and real-time sync.
+-   **OpenAI API**: AI chat completions.
+-   **Supabase**: Backend database, user data, authentication, real-time sync.
 -   **Stripe**: Payment processing for subscription management.
 -   **Radix UI**: Unstyled, accessible component primitives.
 -   **Lucide React**: Icon system.
@@ -103,3 +83,4 @@ All 3 layers are injected into the system prompt after relational anchors, befor
 -   **Web Audio API**: Browser-native audio synthesis.
 -   **localStorage**: Client-side persistence.
 -   **PostgreSQL**: Server-side relational database.
+-   **express-rate-limit**: API rate limiting.

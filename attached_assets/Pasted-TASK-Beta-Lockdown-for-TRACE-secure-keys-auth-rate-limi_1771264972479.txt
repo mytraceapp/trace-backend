@@ -1,0 +1,64 @@
+TASK: “Beta Lockdown” for TRACE — secure keys, auth, rate limits, logging, and CORS.
+
+Context:
+Backend is Node/Express on Replit (server/index.js). Mobile app calls the backend. We are about to start beta. We must ensure:
+- No secret keys are exposed to the client or logs
+- Only authenticated users can call /api/chat
+- Rate limiting prevents abuse and surprise costs
+- CORS is not wide open in production/beta
+
+GOALS (non-negotiable):
+1) Secrets:
+   - Ensure OPENAI_API_KEY and SUPABASE_SERVICE_ROLE_KEY exist ONLY as Replit Secrets (environment variables).
+   - Confirm no secrets are hardcoded anywhere in the repo.
+   - Add a startup check that throws a clear error if required env vars are missing.
+   - NEVER return any env var values in responses.
+
+2) Auth gate:
+   - Require a valid Supabase JWT for /api/chat, /api/greeting, /api/analyze-emotion, /api/bubble-encouragement.
+   - Extract the token from Authorization header: "Bearer <token>".
+   - Verify token using Supabase server client.
+   - Derive user_id from the verified token and use that as the only user identifier.
+   - If missing/invalid, return 401.
+
+3) Rate limiting + payload limits:
+   - Add express-rate-limit on /api/chat:
+       per-IP: e.g. 60 requests / 10 minutes
+       and per-user: e.g. 30 requests / 10 minutes (keyed by user_id if authed)
+   - Add body size limit (e.g. 50kb).
+   - Add message length limit (e.g. 4,000 chars) and reject above with 400.
+
+4) Logging privacy:
+   - Remove any logs that print raw user messages, memory content, or AI responses.
+   - Keep only minimal logs: request id, user_id hash (or last 6), route, latency, status code.
+   - Ensure error logs do not include request bodies.
+
+5) CORS:
+   - In production/beta, do NOT use "*" wildcard.
+   - Allow only:
+       - the Expo dev client during dev (if needed)
+       - the website domain(s)
+       - the production app scheme/origins if applicable
+   - Make allowed origins configurable via env var ALLOWED_ORIGINS (comma-separated).
+
+6) OpenAI cost guardrails (server-side):
+   - Cap max tokens per request.
+   - Optionally reject if user exceeds daily message cap (stub function ok).
+   - Ensure crisis detection runs BEFORE any OpenAI call (keep existing behavior).
+
+DELIVERABLE:
+- Provide code changes (diff) for server/index.js (or the relevant server files).
+- Add helper modules if needed:
+   /server/middleware/auth.js
+   /server/middleware/rateLimit.js
+   /server/middleware/validateRequest.js
+- Provide a short “Security Checklist Verified” log output at startup:
+   - env vars present (true/false, do not print values)
+   - CORS origins loaded (print domains only)
+   - rate limits enabled
+   - auth enabled on protected routes
+
+IMPORTANT:
+- Do not change TRACE copy/tone.
+- Do not break current endpoints; only add protections.
+- Keep code simple and production-ready.
