@@ -6099,6 +6099,8 @@ app.post('/api/chat', async (req, res) => {
           /if\s+i\s+(just\s+)?(wasn'?t|weren'?t|wasnt)\s+(here|alive)/i,
           /world\s+.*\s+better\s+without\s+me/i,
           /should\s+i\s+(even\s+)?(be\s+here|keep\s+going|bother)/i,
+          /wish\s+i\s+(wouldn'?t|won'?t|didn'?t|don'?t|could\s+just\s+not)\s+(wake\s+up|exist|be\s+here|be\s+alive)/i,
+          /sometimes\s+i\s+(wish|think|wonder|hope)\s+i\s+(wouldn'?t|won'?t|didn'?t|don'?t)\s+wake/i,
         ];
         
         if (ideationPatterns.some(p => p.test(t))) {
@@ -6477,11 +6479,13 @@ app.post('/api/chat', async (req, res) => {
         }
 
         // Priority 1: Question / confusion detection — explain, don't act
+        // SAFETY: "i don't know" must NOT match when followed by crisis language
+        // e.g. "i don't know if life is worth living" is crisis, NOT a question
         const questionPatterns = [
           /what is this/i, /what('s| is) (trace|this place|this app|going on)/i,
           /who are you/i, /what do you do/i,
           /what does?\s*(regulate|reflect)\s*mean/i, /what('s| is) (regulate|reflect)/i,
-          /i don'?t (understand|get it|know)/i, /confused/i, /explain/i,
+          /i don'?t (understand|get it)$/i, /^i don'?t know$/i, /confused/i, /explain/i,
           /how does this work/i, /what can you do/i, /what happens/i,
           /huh/i, /what\?/i,
         ];
