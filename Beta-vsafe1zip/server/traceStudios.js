@@ -978,7 +978,7 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
         "Neon Promise is a track on Night Swim. It carries this quiet kind of hope — the feeling when you're not okay but you know you will be.",
         "Neon Promise… that one means a lot to me. It's the track people tend to find when they need it most.",
         "It's about holding onto something — even when you're not sure what. Neon Promise has this gentle pull to it.",
-        "Neon Promise is the sixth track on Night Swim. Written around 3am, like most of them. It's for the hopeful moments.",
+        "Neon Promise is the last track on Night Swim. Written around 3am, like most of them. It's for the hopeful moments.",
       ];
       const soften = pickRotating(BEFORE_LYRICS_SOFTENERS, seed + "::soften");
       const desc = pickRotating(neonPromiseDescriptions, seed);

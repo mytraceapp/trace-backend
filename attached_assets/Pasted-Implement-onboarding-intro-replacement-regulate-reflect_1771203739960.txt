@@ -1,0 +1,82 @@
+Implement onboarding intro replacement + regulate/reflect routing in TRACE backend.
+
+GOAL
+Replace current “hey. i’m TRACE. what’s going on?” style onboarding greeting with the exact new intro text (no personalization), then route the next user message into either regulate or reflect, while preserving all existing crisis/distress detection and activity logic.
+
+NEW INTRO (EXACT TEXT, preserve newlines):
+i'm trace — i help you regulate + reflect through sound + guided reflection.
+
+headphones on for the full experience.
+
+do you want to regulate or reflect?
+
+RULES
+- Do NOT add the user’s name.
+- Do NOT modify crisis detection, distress detection, or activity suggestion logic. Preserve it and ensure it still triggers appropriately.
+- Add a new onboarding step/state: awaiting_regulate_or_reflect
+- Add logs:
+  console.log('[ONBOARDING] Sending new intro greeting');
+  console.log('[ONBOARDING] Intro sent, awaiting regulate/reflect choice');
+
+TASKS
+1) Locate onboarding greeting code:
+Search in server/index.js (or onboarding module) for greeting variants containing:
+- "hey. i'm TRACE. what's going on?"
+- "hey {name}. i'm TRACE. what's going on?"
+- "i'm TRACE. you doing okay?"
+Identify the function/branch that sends the first greeting to brand new users (likely in /api/chat/bootstrap or the first-time chat flow).
+
+2) Replace greeting logic with a single constant intro:
+Remove variants and set:
+const onboardingIntro = `i'm trace — i help you regulate + reflect through sound + guided reflection.
+
+headphones on for the full experience.
+
+do you want to regulate or reflect?`;
+
+Send this as the first greeting for brand-new users only.
+
+3) Update onboarding state after sending intro:
+After sending onboardingIntro, update onboarding state:
+step: 'awaiting_regulate_or_reflect'
+intro_sent: true
+
+4) Add response handler for awaiting_regulate_or_reflect:
+In the onboarding response handling section (where you interpret user’s next message), add:
+
+- IMPORTANT: Run existing crisis detection BEFORE this handler (or early-return to crisis if detected).
+- If state.step === 'awaiting_regulate_or_reflect':
+  a) if message matches regulate intent => send: "alright. let the sound settle you for 30 seconds."
+     set step: 'regulating', path: 'regulate'
+  b) if message matches reflect intent => send: "cool. what's on your mind?"
+     set step: 'conversation_started', path: 'reflect'
+  c) otherwise default to regulate:
+     send: "yeah. let the sound settle you for a bit."
+     set step: 'regulating', path: 'regulate_default'
+  return (do not fall through)
+
+Use matching:
+regulate: /regulate|steady|calm|settle|ground|breathe/
+reflect: /reflect|talk|think|clarity|process|vent/
+
+5) Ensure intro is only sent once:
+If onboardingState.intro_sent is true or step is not “new user” step, do not resend intro.
+
+6) Preserve crisis/distress detection:
+Do NOT remove or weaken existing crisis detection.
+Ensure crisis messages like “i want to die” do not get routed into the default regulate branch; crisis handler must override.
+
+7) Add testing notes:
+Provide curl test examples or a local test plan for:
+- user says “regulate”
+- user says “reflect”
+- user says “i can’t sleep”
+- user says “i want to die” (crisis handler triggers)
+
+OUTPUT
+Return a concise code diff (file-by-file edits) showing:
+- where intro is defined
+- where intro is sent
+- onboarding state update
+- the new awaiting_regulate_or_reflect handler
+- logs added

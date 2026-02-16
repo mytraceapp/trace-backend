@@ -3692,11 +3692,12 @@ app.post('/api/greeting', async (req, res) => {
             .from('profiles')
             .upsert({ 
               user_id: userId, 
-              onboarding_step: 'intro_sent',
+              onboarding_step: 'awaiting_regulate_or_reflect',
               onboarding_completed: false,
               updated_at: new Date().toISOString() 
             }, { onConflict: 'user_id' });
-          console.log('[TRACE GREETING] Created profile with intro_sent step for user:', userId.slice(0, 8));
+          console.log('[ONBOARDING] Sending new intro greeting');
+          console.log('[ONBOARDING] Intro sent, awaiting regulate/reflect choice for user:', userId.slice(0, 8));
         } catch (err) {
           console.warn('[TRACE GREETING] Failed to create profile:', err.message);
         }
@@ -4220,40 +4221,15 @@ app.post('/api/mood-checkin', async (req, res) => {
 });
 
 // ==================== ONBOARDING INTRO VARIANTS ====================
-// One-time personalized intro for users still in onboarding
+// One-time onboarding intro — single exact text, no personalization, no variants
+const ONBOARDING_INTRO = `i'm trace — i help you regulate + reflect through sound + guided reflection.
 
-const ONBOARDING_INTRO_WITH_NAME = [
-  "hey {name}. I'm TRACE. what's going on?",
-  "hey {name}. I'm TRACE. you doing okay?",
-  "{name}, hey. I'm TRACE. what's happening?",
-  "I'm TRACE, {name}. what's on your mind?",
-];
+headphones on for the full experience.
 
-const ONBOARDING_INTRO_NO_NAME = [
-  "hey. I'm TRACE. what's going on?",
-  "I'm TRACE. you doing okay?",
-  "hey. I'm TRACE. what's happening?",
-  "I'm TRACE. what's on your mind?",
-];
+do you want to regulate or reflect?`;
 
 function pickOnboardingIntroVariant(userId, name) {
-  // Deterministic selection based on userId hash (consistent per user)
-  let hash = 0;
-  const str = userId || 'default';
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  
-  // Use named variants if we have a name, otherwise use no-name variants
-  if (name && name.trim()) {
-    const index = Math.abs(hash) % ONBOARDING_INTRO_WITH_NAME.length;
-    return ONBOARDING_INTRO_WITH_NAME[index].replace('{name}', name.trim());
-  } else {
-    const index = Math.abs(hash) % ONBOARDING_INTRO_NO_NAME.length;
-    return ONBOARDING_INTRO_NO_NAME[index];
-  }
+  return ONBOARDING_INTRO;
 }
 
 // ==================== RETURN-TO-LIFE HELPER FUNCTIONS ====================
@@ -6459,7 +6435,78 @@ app.post('/api/chat', async (req, res) => {
         }, requestId);
       }
       
-      // STEP: intro_sent -> After first user reply, detect state and either suggest activity or move to conversation
+      // STEP: awaiting_regulate_or_reflect -> User replies to "do you want to regulate or reflect?"
+      if (onboardingStep === 'awaiting_regulate_or_reflect') {
+        const t = userText.toLowerCase().trim();
+        const regulateMatch = /regulate|steady|calm|settle|ground|breathe/i.test(t);
+        const reflectMatch = /reflect|talk|think|clarity|process|vent/i.test(t);
+
+        if (reflectMatch && !regulateMatch) {
+          await updateOnboardingStep('conversation_started');
+          console.log('[ONBOARDING] User chose: reflect');
+
+          const disclaimerShown = await checkDisclaimerShown();
+          let chatMessage;
+          if (!disclaimerShown) {
+            chatMessage = "cool. quick thing — i'm not therapy, but i can stay with you.\n\nwhat's on your mind?";
+            await markDisclaimerShown();
+          } else {
+            chatMessage = "cool. what's on your mind?";
+          }
+
+          return finalizeTraceResponse(res, {
+            message: onboardBridge(chatMessage),
+            activity_suggestion: { name: null, userReportedState: null, should_navigate: false, reason: 'User chose reflect' },
+            response_source: 'onboarding_script',
+            _provenance: { path: 'onboarding_reflect_choice', requestId, ts: Date.now() }
+          }, requestId);
+        }
+
+        // Regulate (explicit or default)
+        const regReason = regulateMatch ? 'regulate' : 'regulate_default';
+        const regMsg = regulateMatch
+          ? "alright. let the sound settle you for 30 seconds."
+          : "yeah. let the sound settle you for a bit.";
+
+        await updateOnboardingStep('regulating');
+        console.log('[ONBOARDING] User chose:', regReason);
+
+        return finalizeTraceResponse(res, {
+          message: onboardBridge(regMsg),
+          activity_suggestion: {
+            name: 'breathing',
+            reason: `User chose ${regReason}`,
+            should_navigate: true,
+            route: '/activities/breathing',
+          },
+          response_source: 'onboarding_script',
+          _provenance: { path: `onboarding_${regReason}_choice`, requestId, ts: Date.now() }
+        }, requestId);
+      }
+
+      // STEP: regulating -> User returns after regulate activity
+      if (onboardingStep === 'regulating') {
+        await updateOnboardingStep('conversation_started');
+        console.log('[ONBOARDING] Regulate complete, entering conversation');
+
+        const disclaimerShown = await checkDisclaimerShown();
+        let chatMessage;
+        if (!disclaimerShown) {
+          chatMessage = "nice. quick thing — i'm not therapy, but i can stay with you.\n\nhow'd that feel?";
+          await markDisclaimerShown();
+        } else {
+          chatMessage = "nice. how'd that feel?";
+        }
+
+        return finalizeTraceResponse(res, {
+          message: onboardBridge(chatMessage),
+          activity_suggestion: { name: null, userReportedState: null, should_navigate: false, reason: 'Post-regulate check-in' },
+          response_source: 'onboarding_script',
+          _provenance: { path: 'onboarding_post_regulate', requestId, ts: Date.now() }
+        }, requestId);
+      }
+
+      // STEP: intro_sent -> Legacy handler for users already at intro_sent step
       if (onboardingStep === 'intro_sent') {
         const detected = detectEmotionalState(userText);
         
@@ -12319,17 +12366,17 @@ app.post('/api/chat/bootstrap', async (req, res) => {
       const introMessage = pickOnboardingIntroVariant(effectiveUserId, userName || null);
       console.log('[CHAT BOOTSTRAP] New user without profile, showing intro');
       
-      // Try to create a minimal profile with onboarding_step set
       try {
         await supabaseServer
           .from('profiles')
           .upsert({ 
             user_id: effectiveUserId, 
-            onboarding_step: 'intro_sent',
+            onboarding_step: 'awaiting_regulate_or_reflect',
             onboarding_completed: false,
             updated_at: new Date().toISOString() 
           }, { onConflict: 'user_id' });
-        console.log('[CHAT BOOTSTRAP] Created profile with intro_sent step');
+        console.log('[ONBOARDING] Sending new intro greeting');
+        console.log('[ONBOARDING] Intro sent, awaiting regulate/reflect choice');
       } catch (err) {
         console.warn('[CHAT BOOTSTRAP] Failed to create profile:', err.message);
       }
@@ -12359,13 +12406,13 @@ app.post('/api/chat/bootstrap', async (req, res) => {
       const introMessage = pickOnboardingIntroVariant(effectiveUserId, effectiveUserName);
       console.log('[CHAT BOOTSTRAP] Returning onboarding intro for user:', effectiveUserId.slice(0, 8), 'name:', effectiveUserName || 'none');
       
-      // Mark bootstrap as shown by setting onboarding_step to intro_sent
       try {
         await supabaseServer
           .from('profiles')
-          .update({ onboarding_step: 'intro_sent', updated_at: new Date().toISOString() })
+          .update({ onboarding_step: 'awaiting_regulate_or_reflect', updated_at: new Date().toISOString() })
           .eq('user_id', effectiveUserId);
-        console.log('[CHAT BOOTSTRAP] Set onboarding_step to intro_sent');
+        console.log('[ONBOARDING] Sending new intro greeting');
+        console.log('[ONBOARDING] Intro sent, awaiting regulate/reflect choice');
       } catch (err) {
         console.warn('[CHAT BOOTSTRAP] Failed to update onboarding_step:', err.message);
       }
