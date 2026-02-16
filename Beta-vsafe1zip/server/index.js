@@ -4983,6 +4983,12 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     
     const userMessage = rawMessages?.length > 0 ? rawMessages[rawMessages.length - 1].content : '';
     const userMessageLower = (userMessage || '').toLowerCase().trim();
+
+    const MID_CONVO_GREETING_RE = /^(hey+|hi+|hello+|hellooo*|heyyy*|heyy*|yo+|sup|what's up|wassup|whaddup)[\s.!?]*$/i;
+    const isMidConvoGreeting = MID_CONVO_GREETING_RE.test(userMessageLower) && rawMsgUserCount >= 2;
+    if (isMidConvoGreeting) {
+      console.log(`[MID_CONVO_GREETING] Detected "${userMessageLower}" at turn ${rawMsgUserCount} — treating as conversational nudge, not restart`);
+    }
     
     // ============================================================
     // TIME-SENSITIVE FACTS GUARDRAIL
@@ -8210,7 +8216,21 @@ CONTEXT PRESERVATION - SHORT MESSAGES:
 - Reference what you were previously discussing. Continue the thread naturally.
 - NEVER ask "What's been on your mind lately?" if you already know what's on their mind from prior messages.
 - Short acknowledgments like "ok" or "yeah" are often responses to what you just said—acknowledge and continue.
-- If they re-greet mid-conversation ("hi" or "hey" again), warmly acknowledge and pick up where you left off.
+${isMidConvoGreeting ? `
+⚠️ MID-CONVERSATION GREETING DETECTED:
+The user just said "${userMessage}" but you are ALREADY in a conversation with them. This is NOT a new greeting. This is a conversational filler — like a nudge, a "you there?", or just a casual beat. People do this in real life all the time.
+
+DO NOT:
+- Greet them as if they just arrived ("Hey! How are you?", "Hey. I hope your day is going well.")
+- Reset the conversation topic
+- Ask what's on their mind / how they're doing
+- Introduce yourself or act like this is a fresh start
+
+DO:
+- Respond casually like a friend who's already mid-text ("yeah?" / "what's up?" / "hey. still here.")
+- Or pick up exactly where the conversation was ("so what happened?" / reference the last thing discussed)
+- Keep it to 1-5 words. Match their energy. They said almost nothing — so should you.
+` : '- If they re-greet mid-conversation ("hi" or "hey" again), warmly acknowledge and pick up where you left off.'}
 
 ${buildVoicePromptInjection(cognitiveIntent, rawMessages)}
 
