@@ -22,6 +22,7 @@ interface AudioContextType {
   currentState: SoundState | null;
   isPlaying: boolean;
   tracksPlayedInState: number;
+  getTracksPlayedSync: () => number;
 }
 
 const AudioContext = createContext<AudioContextType | null>(null);
@@ -59,6 +60,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const tracksInCurrentStateRef = useRef(0);
   const isTransitioningRef = useRef(false);
   const playStateRef = useRef<((state: SoundState, fadeMs?: number) => Promise<void>) | null>(null);
+  const stateChangeEpochRef = useRef(0);
 
   useEffect(() => {
     Audio.setAudioModeAsync({
@@ -168,7 +170,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const isSameState = currentStateRef.current === state;
     if (!isSameState) {
       tracksInCurrentStateRef.current = 0;
+      stateChangeEpochRef.current++;
       queuedStateRef.current = null;
+      console.log(`[AUDIO] State change: ${currentStateRef.current} → ${state}, counter reset to 0, epoch=${stateChangeEpochRef.current}`);
     }
 
     const trackNum = getNextTrack(state);
@@ -193,8 +197,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         volume: 0,
       });
 
+      const epochAtStart = stateChangeEpochRef.current;
       sound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && status.didJustFinish) {
+          if (stateChangeEpochRef.current !== epochAtStart) {
+            console.log(`[AUDIO] Ignoring stale didJustFinish (epoch ${epochAtStart} vs ${stateChangeEpochRef.current})`);
+            return;
+          }
+
           const thisState = currentStateRef.current;
           const queued = queuedStateRef.current;
 
@@ -203,13 +213,23 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
           tracksInCurrentStateRef.current++;
           setTracksPlayedInState(tracksInCurrentStateRef.current);
 
+          const advance = (targetState: SoundState, fade: number) => {
+            Promise.resolve(playStateRef.current?.(targetState, fade)).catch((err) => {
+              console.error(`[AUDIO] Auto-advance error for "${targetState}":`, err);
+              setTimeout(() => {
+                console.log(`[AUDIO] Retrying auto-advance for "${targetState}"...`);
+                playStateRef.current?.(targetState, fade);
+              }, 1000);
+            });
+          };
+
           if (queued && queued !== thisState) {
             console.log(`[AUDIO] 🔄 Track finished — switching to queued state: ${queued}`);
             queuedStateRef.current = null;
-            playStateRef.current?.(queued, CROSSFADE_MS);
+            advance(queued, CROSSFADE_MS);
           } else if (thisState) {
             console.log(`[AUDIO] 🎵 Auto-advancing to next track in "${thisState}"`);
-            playStateRef.current?.(thisState, CROSSFADE_MS);
+            advance(thisState, CROSSFADE_MS);
           }
         }
       });
@@ -253,6 +273,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       soundRef.current = null;
       currentStateRef.current = null;
       tracksInCurrentStateRef.current = 0;
+      stateChangeEpochRef.current++;
       setCurrentState(null);
       setIsPlaying(false);
       setTracksPlayedInState(0);
@@ -380,6 +401,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fadeVolume, playState]);
 
+  const getTracksPlayedSync = useCallback(() => {
+    return tracksInCurrentStateRef.current;
+  }, []);
+
   const stopAll = useCallback(async () => {
     if (!soundRef.current) return;
 
@@ -391,6 +416,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       pausedByRef.current = null;
       queuedStateRef.current = null;
       tracksInCurrentStateRef.current = 0;
+      stateChangeEpochRef.current++;
       setTracksPlayedInState(0);
       console.log('[AUDIO] Stopped all');
     } catch (error) {
@@ -412,6 +438,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         currentState,
         isPlaying,
         tracksPlayedInState,
+        getTracksPlayedSync,
       }}
     >
       {children}

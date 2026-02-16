@@ -595,13 +595,28 @@ async function evaluateAtmosphere(input) {
   let candidate_state = null;
   let reason = '';
   
-  const clientReported = Math.max(clientTracksPlayed, session.last_known_tracks_played || 0);
-  if (clientTracksPlayed > (session.last_known_tracks_played || 0)) {
-    session.last_known_tracks_played = clientTracksPlayed;
-  }
   const elapsedInStateMs = now - last_change_timestamp;
   const AVG_TRACK_DURATION_MS = 180000;
+  const MIN_TRACK_DURATION_MS = 120000;
   const serverEstimatedTracks = Math.floor(elapsedInStateMs / AVG_TRACK_DURATION_MS);
+  const maxPossibleTracks = Math.ceil(elapsedInStateMs / MIN_TRACK_DURATION_MS) + 1;
+
+  const trackResetAt = session._track_counter_reset_at || 0;
+  const timeSinceReset = trackResetAt > 0 ? (now - trackResetAt) : elapsedInStateMs;
+  const tooSoonAfterReset = trackResetAt > 0 && timeSinceReset < MIN_TRACK_DURATION_MS;
+
+  let clientReported = Math.max(clientTracksPlayed, session.last_known_tracks_played || 0);
+  if (tooSoonAfterReset && clientReported > 1) {
+    console.warn(`[ATMOSPHERE] ⚠️ Client reported ${clientReported} tracks but state just changed ${Math.floor(timeSinceReset/1000)}s ago — resetting to 0 (stale counter)`);
+    clientReported = 0;
+    session.last_known_tracks_played = 0;
+  } else if (clientReported > maxPossibleTracks) {
+    console.warn(`[ATMOSPHERE] ⚠️ Client reported ${clientReported} tracks but only ${maxPossibleTracks} possible in ${Math.floor(elapsedInStateMs/1000)}s — capping (likely stale counter from previous state)`);
+    clientReported = Math.min(clientReported, maxPossibleTracks);
+  }
+  if (clientTracksPlayed > (session.last_known_tracks_played || 0) && clientTracksPlayed <= maxPossibleTracks && !tooSoonAfterReset) {
+    session.last_known_tracks_played = clientTracksPlayed;
+  }
   const tracksPlayedInState = clientReported > 0 ? clientReported : serverEstimatedTracks;
   const trackGateMet = tracksPlayedInState >= MIN_TRACKS_BEFORE_SWITCH;
   const timeGateMet = elapsedInStateMs >= MIN_TIME_IN_STATE_MS;
@@ -833,7 +848,8 @@ async function evaluateAtmosphere(input) {
     updates.freeze_until_timestamp = null;
     updates.messages_since_state_change = 0;
     updates.last_known_tracks_played = 0;
-    console.log(`[ATMOSPHERE] State change: ${current_state} → ${finalState} (${reason})`);
+    updates._track_counter_reset_at = now;
+    console.log(`[ATMOSPHERE] State change: ${current_state} → ${finalState} (${reason}) — track counter reset`);
   } else if (fullPersistenceMet) {
     // Reassessment ran but decided to stay — reset the 30-min window for next cycle
     updates.last_change_timestamp = now;
