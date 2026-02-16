@@ -297,12 +297,19 @@ async function evaluateAtmosphere(input) {
     const session = await getSessionStateAsync(userId);
     const wasGrounding = session.current_state === 'grounding';
     
+    // Save pre-crisis state so we can restore it when crisis clears
+    if (!wasGrounding && !session._pre_crisis_state) {
+      console.log(`[ATMOSPHERE] Saving pre-crisis state: ${session.current_state}`);
+    }
+    
     // Force grounding state for crisis
     updateSessionState(userId, {
       current_state: 'grounding',
       last_change_timestamp: wasGrounding ? session.last_change_timestamp : now,
       last_activity_timestamp: now,
-      messages_since_state_change: wasGrounding ? session.messages_since_state_change + 1 : 0
+      messages_since_state_change: wasGrounding ? session.messages_since_state_change + 1 : 0,
+      _pre_crisis_state: session._pre_crisis_state || (wasGrounding ? null : session.current_state),
+      _crisis_entered_at: session._crisis_entered_at || now
     });
     
     console.log(`[ATMOSPHERE] 🚨 CRISIS MODE - forcing grounding soundscape (was: ${session.current_state})`);
@@ -315,6 +322,44 @@ async function evaluateAtmosphere(input) {
         cadence: { userMessageCount, assistantMessageCount, met: true }
       }
     };
+  }
+  
+  // 🔄 CRISIS EXIT: If we were in crisis-forced grounding, restore to presence
+  // Only triggers when: (1) current state is grounding, (2) crisis markers exist, (3) crisis entered recently (< 24h)
+  {
+    const session = await getSessionStateAsync(userId);
+    const crisisEnteredAt = session._crisis_entered_at || 0;
+    const crisisAge = now - crisisEnteredAt;
+    const MAX_CRISIS_AGE = 24 * 60 * 60 * 1000;
+    
+    if (session.current_state === 'grounding' && crisisEnteredAt > 0 && crisisAge < MAX_CRISIS_AGE) {
+      const restoredState = 'presence';
+      console.log(`[ATMOSPHERE] Crisis cleared — restoring to ${restoredState} (was crisis-forced grounding for ${Math.round(crisisAge / 60000)}min, pre-crisis: ${session._pre_crisis_state || 'unknown'})`);
+      updateSessionState(userId, {
+        current_state: restoredState,
+        last_change_timestamp: now,
+        last_activity_timestamp: now,
+        messages_since_state_change: 0,
+        _pre_crisis_state: null,
+        _crisis_entered_at: null,
+        baseline_window_active: true,
+        baseline_message_count: 0,
+        accumulated_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0 },
+        continuous_signals: { grounding: 0, comfort: 0, reflective: 0, insight: 0, presence: 0 }
+      });
+      
+      return {
+        sound_state: {
+          current: restoredState,
+          changed: true,
+          reason: 'crisis_exit_restore',
+          cadence: { userMessageCount, assistantMessageCount, met: true }
+        }
+      };
+    } else if (crisisEnteredAt > 0 && crisisAge >= MAX_CRISIS_AGE) {
+      console.log('[ATMOSPHERE] Stale crisis markers cleared (> 24h old)');
+      updateSessionState(userId, { _pre_crisis_state: null, _crisis_entered_at: null });
+    }
   }
   
   // ============================================================

@@ -10996,7 +10996,9 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     
     const userMsgLowerForAudio = lastUserMsgForAudio.toLowerCase();
     const isExplicitMusicCommand = /^(play|put on|stop|pause|resume|start|can you play|could you play|let me hear|i want to hear|play some|play me)\b/i.test(userMsgLowerForAudio) || 
-      /\b(play again|replay|one more time|switch to|change to)\b/i.test(userMsgLowerForAudio);
+      /\b(play again|replay|one more time|switch to|change to|play a different|different (one|track|song)|next (track|song|one)|another (track|song|one)|skip (this|it)|put something (else|different) on)\b/i.test(userMsgLowerForAudio) ||
+      /\b(yeah play|sure play|yes play|yeah put it on|sure put it on|ok play it|okay play it)\b/i.test(userMsgLowerForAudio) ||
+      /\b(something else|play something)\b/i.test(userMsgLowerForAudio);
     
     if (trackIsActive && !isExplicitMusicCommand) {
       console.log('[PHASE8c_TRACK_GUARD] Track already active, skipping mood-based audio_action', JSON.stringify({
@@ -11019,7 +11021,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     
     const userDeclinedMusic = /^no\b|^nah\b|^nope|don't want|dont want|i'm good|im good|i'm okay|im okay|no thanks|not right now|stop|pass\b|skip\b/i.test(lastUserMsgForAudio.trim());
     
-    const musicOfferSuppressed = musicOfferOnCooldown || sessionMusicOfferCapped || userDeclinedMusic;
+    const musicOfferSuppressed = (musicOfferOnCooldown && !isExplicitMusicCommand) || sessionMusicOfferCapped || userDeclinedMusic;
     
     if (musicOfferOnCooldown) {
       console.log(`[MUSIC GOVERNOR] Cooldown active — last offer ${Math.round((Date.now() - lastMusicOfferAt) / 1000)}s ago`);
@@ -11074,7 +11076,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     ];
     const MUSIC_OFFER_RE = /\b(how about|try|want to hear|listen to|play|put on|check out|got just the|have just the|have something)\b.*\b(track|song|it|one|this|for you|right now)\b/i;
     const MUSIC_OFFER_DIRECT_RE = /\b(how about|want to (?:hear|listen|try)|let me (?:play|put)|i('?ll| will) (?:play|put on)|maybe (?:try|listen to)|we could (?:try|play|listen)|i think you.{0,15}(?:love|like|enjoy)|putting on|here.{0,10}(?:try|listen|play))\b/i;
-    const PLAYING_NOW_RE = /\b(playing|putting on|spinning|starting)\b.{0,30}\b(now|for you|right now)\b|\b(now|here'?s)\b.{0,20}\b(playing|putting on)\b|\bplaying\b.{1,40}(ocean breathing|neon promise|midnight underwater|slow tides|tidal house)/i;
+    const PLAYING_NOW_RE = /\b(playing|putting on|spinning|starting|queuing|loading)\b.{0,30}\b(now|for you|right now|up)\b|\b(now|here'?s|here is)\b.{0,20}\b(playing|putting on)\b|\bplaying\b.{1,40}(ocean breathing|neon promise|midnight underwater|slow tides|tidal house|undertow|euphoria|slow tides)|\b(let me put on|putting on|i('?ll| will) play|here comes|dropping)\b/i;
     const QUOTED_TRACK_RE = /[""]([^""]+)[""]|"([^"]+)"/;
 
     function detectTrackInText(text) {
@@ -11102,7 +11104,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
 
     let responsePlayingTrackNum = null;
     const respTrackNum = detectTrackInText(responseLower);
-    if (respTrackNum && PLAYING_NOW_RE.test(responseLower)) {
+    if (respTrackNum && (PLAYING_NOW_RE.test(responseLower) || MUSIC_OFFER_DIRECT_RE.test(responseLower))) {
       responsePlayingTrackNum = respTrackNum;
     }
     
@@ -11324,7 +11326,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       // V2 CURATION FALLBACK: Offer was cued pre-LLM but response didn't use "night swim" string
       // (e.g., SEED level: "I have something for this mood")
       // Detect if AI delivered a generic music offer
-      const genericOfferDelivered = /\b(want me to|put something on|have something for|made something|play it|have just the thing)\b/i.test(responseLower);
+      const genericOfferDelivered = /\b(want me to|put something on|have something for|made something|play it|have just the thing|how about some music|could play something|play something|something gentle|something for this|got something|i('?ve| have) got|want to hear something|let me play|i('?ll| will) put|something that might|music for this|track for this|have a track|the right thing)\b/i.test(responseLower);
       if (genericOfferDelivered && curationResult.item) {
         const trackNum = curationResult.item.number;
         audioAction = buildAudioAction('recommend', {

@@ -53,6 +53,15 @@ Music familiarity and Doorways v1 user profiles (affinity scores, hit history) a
 ## Audio Control Path Resolution
 An audio control handler system differentiates between early interceptors and the Studios handler to prevent conflicts in stop/resume/pause commands, ensuring correct track context and preventing replaying already-offered tracks.
 
+## Tone Sanitizer (sanitizeTone)
+A post-processing system that strips therapy-speak from AI responses (e.g., "It's okay to feel...", "I'm here for you"). Uses 80+ regex THERAPY_PATTERNS in `traceBrain.js`. Includes mid-text fragment repair that detects incoherent sentence joins caused by pattern removal (checks subject+verb presence, safe sentence whitelist). Also enforces "honestly/real talk" cooldowns.
+
+## Music Playback Pipeline (Backend)
+Music suggestion → playback uses `buildAudioAction()` from `musicRecommendation.js`. The pipeline detects: explicit user requests, AI responses mentioning track names (via `detectTrackInText`), curation engine offers, and generic offer phrasing. `isExplicitMusicCommand` regex controls whether the 5-minute cooldown and session cap can be bypassed. `PLAYING_NOW_RE` and `MUSIC_OFFER_DIRECT_RE` detect AI playing/offering language. Cooldown only suppresses proactive offers — explicit user commands always bypass it.
+
+## Atmosphere Engine Crisis Recovery
+When crisis mode activates, the atmosphere engine saves pre-crisis state markers (`_pre_crisis_state`, `_crisis_entered_at`). When crisis clears and the current state is still crisis-forced grounding, the engine restores to 'presence' and resets baseline signals. Stale crisis markers (>24h) are auto-cleared.
+
 ## 3-Layer Memory System
 
 ### Layer 1: Relational Memory

@@ -1463,13 +1463,68 @@ function sanitizeTone(text, options = {}) {
   result = result.replace(/\s{2,}/g, ' ').trim();
   result = result.replace(/^\s*[,\.;]\s*/, '');
 
+  // === MID-TEXT FRAGMENT REPAIR ===
+  // When patterns rip out text from the middle, leftover fragments can join into nonsense.
+  // E.g., "fine is all [REMOVED] One option could be" → "fine is all One option could be"
+  // Detect and remove these garbled mid-sentence joins.
+  if (changed) {
+    const sentences = result.split(/(?<=[.!?])\s+/);
+    const repairedSentences = [];
+    
+    const SAFE_SENTENCE_WORDS = new Set([
+      'yeah', 'nice', 'cool', 'okay', 'ok', 'sure', 'congrats', 'right', 'same',
+      'true', 'exactly', 'fair', 'damn', 'wow', 'wild', 'rough', 'oof', 'yikes',
+      'gotcha', 'noted', 'heard', 'got it', 'makes sense', 'for real', 'for sure'
+    ]);
+
+    for (const sentence of sentences) {
+      const trimmed = sentence.trim();
+      if (!trimmed) continue;
+      
+      const cleanSentence = trimmed.replace(/[.!?,;]+$/, '').trim();
+      const words = cleanSentence.split(/\s+/).filter(w => w.length > 0);
+      
+      if (words.length <= 1 && !SAFE_SENTENCE_WORDS.has(cleanSentence.toLowerCase())) {
+        console.log('[TONE SANITIZER] Removed orphaned single word:', trimmed);
+        continue;
+      }
+      
+      if (words.length >= 4 && words.length <= 8) {
+        const lower = cleanSentence.toLowerCase();
+        const SAFE_SHORT_SENTENCES = [
+          'not really', 'probably not', 'no idea', 'not sure', 'not yet',
+          'same here', 'good point', 'fair enough', 'hard to say',
+          'for real though', 'makes sense though', 'kind of yeah'
+        ];
+        if (SAFE_SHORT_SENTENCES.some(s => lower.includes(s))) {
+          repairedSentences.push(trimmed);
+          continue;
+        }
+        
+        const hasSubject = /\b(i|you|we|they|he|she|it|that|this|there|what|how|who|not|no|never|maybe|probably|definitely|always)\b/i.test(lower);
+        const hasVerb = /\b(is|are|was|were|am|be|been|have|has|had|do|does|did|can|could|would|should|will|shall|may|might|feel|think|know|want|need|get|go|come|make|take|see|say|tell|give|find|try|keep|let|mean|seem|look|hear|show|turn|move|play|run|set|help|start|hold|put|bring|sound|stand|happen)\b/i.test(lower);
+        
+        if (!hasSubject && !hasVerb) {
+          console.log('[TONE SANITIZER] Removed incoherent mid-fragment:', trimmed);
+          continue;
+        }
+      }
+      
+      repairedSentences.push(trimmed);
+    }
+    
+    if (repairedSentences.length > 0) {
+      result = repairedSentences.join(' ');
+    }
+  }
+
   // Remove orphaned short fragments (1-2 words ending in period that aren't meaningful sentences)
   // Only applies when patterns actually changed the text (to avoid removing valid short responses)
   if (changed) {
     result = result.replace(/^[a-z][a-z\s]{0,15}\.\s*/i, function(match) {
       const words = match.trim().replace(/\.$/, '').split(/\s+/);
       const phrase = words.join(' ').toLowerCase();
-      const safeStarts = ['yeah', 'nice', 'cool', 'okay', 'ok', 'sure', 'congrats', 'right', 'same', 'true', 'got it', 'exactly', 'fair', 'makes sense', 'for real', 'for sure', 'no way', 'oh wow', 'damn', 'wow', 'wild', 'rough', 'oof', 'yikes'];
+      const safeStarts = ['yeah', 'nice', 'cool', 'okay', 'ok', 'sure', 'congrats', 'right', 'same', 'true', 'got it', 'exactly', 'fair', 'makes sense', 'for real', 'for sure', 'no way', 'oh wow', 'damn', 'wow', 'wild', 'rough', 'oof', 'yikes', 'gotcha'];
       if (words.length <= 2 && !safeStarts.some(s => phrase === s || phrase === s + '.')) {
         return '';
       }
