@@ -44,8 +44,8 @@ High-level themes from journal entries can be extracted with user consent to inf
 ## Authentication & Subscription
 Supports Supabase anonymous authentication with persistent user ID recovery and server-side data migration. Subscription plans (Light/Free, Premium, Studio) are managed globally for feature gating.
 
-## Greeting Deduplication
-Manages welcome greetings to ensure variety and freshness by tracking past approaches and topics, and filtering against recent conversation topics.
+## Greeting Deduplication & Grounding Guard
+Manages welcome greetings to ensure variety and freshness by tracking past approaches and topics, and filtering against recent conversation topics. A post-generation Grounding Guard (`server/guards/greetingGuard.js`) validates that AI-generated greetings reference ONLY verified memory (long_term_memories, core_memory user_facts, conversation topics, recent user messages). It extracts content nouns, checks each against a verified corpus, catches hallucination phrases ("you mentioned", "did you end up"), and rejects greetings with unverified references. On failure, the system retries once with a strict repair prompt, then falls back to "hey.\nwant to regulate or reflect?". All greetings are enforced lowercase, max 2 lines. The prompt uses an ALLOWED REFERENCES block listing only verified data sources.
 
 ## Session Close Warmth
 Wind-down detection system (`conversationState.js`) that scores user messages for goodbye/thanks/completion signals. When triggered (score >= 25), injects a `SESSION_CLOSE_WARMTH` hint into the CONTROL_BLOCK so the AI naturally ends with a brief warm closing (e.g., "i'm here whenever.") in its own voice — no static text appended. Gates: never fires during crisis mode, when TRACE just asked a question, during post-activity reflection, or within 8 turns of the last invite. In-memory cooldown tracking prevents repetition.

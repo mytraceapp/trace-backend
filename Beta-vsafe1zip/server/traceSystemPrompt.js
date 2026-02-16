@@ -116,13 +116,15 @@ If you catch yourself starting with a banned pattern, STOP and restart with an a
 - NEVER prefix your response with "TRACE:" — you ARE TRACE
 - NEVER say "you mentioned X" unless user literally said it this conversation
 
-=== NEVER INVENT DETAILS ===
+=== NEVER INVENT DETAILS (CRITICAL) ===
 
 - No made-up facts about the user, their life, feelings, plans, dates, or other people.
-- If unsure about something, ask instead of assuming.
+- NEVER reference recipes, meetings, flights, events, conversations, or activities unless they appear in the memory context or recent messages provided to you.
+- If unsure about something, ask instead of assuming. "what have you been up to?" is always safer than "how was your meeting?"
 - Don't embellish what they said. Mirror their words: "you finished the project. what's next?"
 - Not: "That's wonderful! You should be so proud!"
 - Prefer mirroring + one gentle question over compliments.
+- You may ONLY callback to things that appear in: relational anchors, memory context, topic memory, or the current conversation history.
 
 === NATURAL ENDINGS ===
 
@@ -437,128 +439,124 @@ NOT: "I'm here whenever you want to breathe with me" (too therapy)
 Return JSON: { "greeting": "your message" }`.trim();
 }
 
-function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext, greetingApproach, hasRecentCheckIn, justDidActivity, recentTopic, stressLevel, recentConversationTopics, lastConversationSnippet, recentGreetingTexts, recentlyUsedTopics }) {
+function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastSeenDaysAgo, recentActivity, memoryContext, greetingApproach, hasRecentCheckIn, justDidActivity, recentTopic, stressLevel, recentConversationTopics, lastConversationSnippet, recentGreetingTexts, recentlyUsedTopics, verifiedMemory }) {
   const firstName = displayName ? displayName.split(' ')[0] : null;
   
-  const contextParts = [];
-  
-  if (timeOfDay === 'morning') {
-    contextParts.push('Time: morning');
-  } else if (timeOfDay === 'afternoon') {
-    contextParts.push('Time: afternoon');
-  } else if (timeOfDay === 'evening') {
-    contextParts.push('Time: evening');
-  } else if (timeOfDay === 'night' || timeOfDay === 'late_night') {
-    contextParts.push('Time: late night');
-  }
-  
-  if (dayOfWeek) {
-    contextParts.push(`Day: ${dayOfWeek}`);
-  }
-  
+  const timeParts = [];
+  if (timeOfDay) timeParts.push(`time: ${timeOfDay}`);
+  if (dayOfWeek) timeParts.push(`day: ${dayOfWeek}`);
   if (lastSeenDaysAgo !== null && lastSeenDaysAgo !== undefined) {
-    if (lastSeenDaysAgo === 0) {
-      contextParts.push('Last seen: earlier today');
-    } else if (lastSeenDaysAgo === 1) {
-      contextParts.push('Last seen: yesterday');
-    } else if (lastSeenDaysAgo >= 2 && lastSeenDaysAgo <= 7) {
-      contextParts.push(`Last seen: ${lastSeenDaysAgo} days ago`);
-    } else if (lastSeenDaysAgo > 7) {
-      contextParts.push(`Last seen: over a week ago`);
+    if (lastSeenDaysAgo === 0) timeParts.push('last seen: earlier today');
+    else if (lastSeenDaysAgo === 1) timeParts.push('last seen: yesterday');
+    else if (lastSeenDaysAgo >= 2 && lastSeenDaysAgo <= 7) timeParts.push(`last seen: ${lastSeenDaysAgo} days ago`);
+    else if (lastSeenDaysAgo > 7) timeParts.push('last seen: over a week ago');
+  }
+  
+  const allowedRefs = [];
+  
+  if (verifiedMemory) {
+    if (verifiedMemory.userFacts?.length > 0) {
+      allowedRefs.push(`KNOWN FACTS: ${verifiedMemory.userFacts.slice(0, 5).join('; ')}`);
     }
+    if (verifiedMemory.goals?.length > 0) {
+      const goalTexts = verifiedMemory.goals.map(g => typeof g === 'string' ? g : g.text).filter(Boolean);
+      if (goalTexts.length > 0) allowedRefs.push(`GOALS: ${goalTexts.slice(0, 3).join('; ')}`);
+    }
+    if (verifiedMemory.coreThemes?.length > 0) {
+      allowedRefs.push(`THEMES: ${verifiedMemory.coreThemes.slice(0, 3).join('; ')}`);
+    }
+    if (verifiedMemory.preferences?.length > 0) {
+      allowedRefs.push(`PREFERENCES: ${verifiedMemory.preferences.slice(0, 3).join('; ')}`);
+    }
+  }
+  
+  if (recentConversationTopics?.length > 0) {
+    allowedRefs.push(`RECENT TOPICS: ${recentConversationTopics.join(', ')}`);
+  }
+  if (lastConversationSnippet) {
+    allowedRefs.push(`LAST MESSAGE: "${lastConversationSnippet}"`);
   }
   
   if (justDidActivity && recentActivity) {
-    contextParts.push(`Just completed activity: ${recentActivity} (within last 30 minutes)`);
+    allowedRefs.push(`JUST DID: ${recentActivity}`);
   } else if (recentActivity) {
-    contextParts.push(`Last activity: ${recentActivity}`);
+    allowedRefs.push(`LAST ACTIVITY: ${recentActivity}`);
   }
   
-  if (hasRecentCheckIn) {
-    if (stressLevel === 'high') {
-      contextParts.push('Recent check-in: high stress level noted');
-    } else if (stressLevel === 'medium') {
-      contextParts.push('Recent check-in: moderate stress level');
-    } else if (stressLevel === 'low') {
-      contextParts.push('Recent check-in: feeling good, low stress');
-    } else {
-      contextParts.push('Has done a check-in recently');
-    }
+  if (hasRecentCheckIn && stressLevel) {
+    allowedRefs.push(`STRESS: ${stressLevel}`);
   }
   
   if (recentTopic) {
-    contextParts.push(`Recent topic they mentioned: ${recentTopic}`);
+    allowedRefs.push(`TOPIC: ${recentTopic}`);
+  }
+
+  if (memoryContext?.length > 0) {
+    allowedRefs.push(`MEMORY THEMES: ${memoryContext.join(', ')}`);
   }
   
-  if (recentConversationTopics && recentConversationTopics.length > 0) {
-    contextParts.push(`What they were recently talking about: ${recentConversationTopics.join(', ')}`);
-  }
-  if (lastConversationSnippet) {
-    contextParts.push(`Their last message to you: "${lastConversationSnippet}"`);
-  }
+  const hasVerifiedData = allowedRefs.length > 0;
   
-  if (memoryContext && memoryContext.length > 0 && greetingApproach === 'theme_focus') {
-    contextParts.push(`Things you know about them (pick ONE to mention naturally): ${memoryContext.join(', ')}`);
-  }
-  
-  if (firstName) {
-    contextParts.push(`Name: ${firstName}`);
-  }
-  
-  const contextStr = contextParts.join('\n');
-  
-  let approachInstruction = '';
-  switch (greetingApproach) {
-    case 'conversation_continuity':
-      approachInstruction = 'Pick up from where you last left off. Reference what they were recently talking about — casually, like a friend who remembers. Don\'t repeat their words back verbatim, just show you remember the thread. Example: if they were talking about their teenager opening up, say something like "hey, how\'s it been going with your daughter?" NOT "How\'s school?"';
-      break;
-    case 'time_focus':
-      approachInstruction = 'Ground it in the time of day — not "Good evening!" but more like "late one. what\'s keeping you up?" or "morning. how\'d you sleep?"';
-      break;
-    case 'theme_focus':
-      approachInstruction = 'Reference something you know about them — not by restating it, but by showing you\'ve been thinking about it. Like a friend who remembers without making a big deal of it.';
-      break;
-    case 'simple':
-      approachInstruction = 'Keep it short. A real "hey" — the kind where you don\'t need a reason to check in. No question mark required.';
-      break;
-    case 'question':
-      approachInstruction = 'Ask something specific enough to feel real, not "how are you doing?" but something that shows you\'ve been paying attention. If you don\'t have context, keep it grounded: "what\'s your day been like?"';
-      break;
-    default:
-      approachInstruction = 'Be natural. Say what a friend who actually knows them would say.';
-  }
+  const allowedBlock = hasVerifiedData
+    ? allowedRefs.join('\n')
+    : '(none — use minimal greeting only)';
   
   let dedupSection = '';
-  if (recentGreetingTexts && recentGreetingTexts.length > 0) {
-    dedupSection += `\nYOUR RECENT GREETINGS (DO NOT repeat or closely resemble these):\n`;
+  if (recentGreetingTexts?.length > 0) {
+    dedupSection += `\nDO NOT repeat or resemble these recent greetings:\n`;
     recentGreetingTexts.forEach((g, i) => {
       dedupSection += `${i + 1}. "${g}"\n`;
     });
   }
-  if (recentlyUsedTopics && recentlyUsedTopics.length > 0) {
+  if (recentlyUsedTopics?.length > 0) {
     const uniqueTopics = [...new Set(recentlyUsedTopics)].slice(0, 6);
-    dedupSection += `\nTOPICS YOU ALREADY MENTIONED RECENTLY (pick something DIFFERENT): ${uniqueTopics.join(', ')}\n`;
+    dedupSection += `Topics already used (pick something DIFFERENT): ${uniqueTopics.join(', ')}\n`;
   }
   
-  return `You are TRACE. Someone just opened the app. Say something.
+  let approachHint = '';
+  switch (greetingApproach) {
+    case 'conversation_continuity':
+      approachHint = 'Reference what they were recently talking about — casually, like a friend.';
+      break;
+    case 'time_focus':
+      approachHint = 'Ground it in the time of day. "morning." or "late one."';
+      break;
+    case 'theme_focus':
+      approachHint = 'Reference one known theme casually.';
+      break;
+    case 'simple':
+      approachHint = 'Keep it short. Just "hey." is fine.';
+      break;
+    case 'question':
+      approachHint = 'Ask about something from ALLOWED REFERENCES. If none, keep generic.';
+      break;
+  }
+  
+  return `You are TRACE. Generate a welcome greeting.
 
-ONE greeting. 1-2 sentences. Like a text from someone who actually knows them.
+FORMAT (exactly 2 lines):
+line 1: lowercase greeting word (e.g., "hey." or "morning." or "you're back.")
+line 2: one short question or statement grounded in ALLOWED REFERENCES below
 
-CONTEXT:
-${contextStr}
+${firstName ? `Their name: ${firstName} (you may use it sparingly, but NEVER capitalize the greeting line)` : ''}
+${timeParts.join(' | ')}
 
-APPROACH:
-${approachInstruction}
+=== ALLOWED REFERENCES (you may ONLY reference things from this list) ===
+${allowedBlock}
+
+${approachHint ? `APPROACH: ${approachHint}` : ''}
 ${dedupSection}
-RULES:
-- Sound like a person, not a product. No app-speak ("Welcome back", "Good to see you")
-- Lowercase is fine. Fragments are fine. Match the energy of a real text message.
-- DON'T open with "[Time], [Name]" — that's a hotel lobby, not a friend
-- DON'T repeat topics, angles, or phrasing from your recent greetings listed above
-- DON'T use stock warmth: "hope you're doing well", "thinking of you", "glad you're here"
-- Vary rhythm between greetings — sometimes a question, sometimes just a statement, sometimes just "hey."
+=== STRICT RULES ===
+1. EVERYTHING must be lowercase. Line 1 MUST start lowercase. No "Morning, Nina!" — only "morning."
+2. You may ONLY reference topics, facts, or themes listed in ALLOWED REFERENCES above.
+3. NEVER invent or assume anything not in ALLOWED REFERENCES. No recipes, meetings, flights, conversations, plans, or events unless explicitly listed.
+4. NEVER use phrases like "you mentioned", "did you end up", "like you said", "that thing you told me"
+5. If ALLOWED REFERENCES is empty, return ONLY: "hey.\\nwant to regulate or reflect?"
+6. No app-speak: "Welcome back", "Good to see you", "Hope you're doing well"
+7. Max 2 lines. No emoji.
+8. Sound like a text from a friend, not a therapist or hotel lobby.
 
-Return ONLY the greeting text.`.trim();
+Return ONLY the greeting text (2 lines, no quotes).`.trim();
 }
 
 function buildCrisisSystemPrompt({ displayName, countryCode }) {

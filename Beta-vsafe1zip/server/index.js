@@ -46,6 +46,7 @@ const {
   buildCrisisSystemPrompt,
   buildPatternsEnginePrompt,
 } = require('./traceSystemPrompt');
+const { validateGreeting, enforceLowercase, buildRepairPrompt, MINIMAL_FALLBACK } = require('./guards/greetingGuard');
 const { buildRhythmicLine } = require('./traceRhythm');
 const { generateWeeklyLetter, getExistingWeeklyLetter } = require('./traceWeeklyLetter');
 const { handleTraceStudios, TRACKS, checkStudiosRepeat, recordStudiosVisual, checkConceptRepeat, recordStudiosConcept, UI_ACTION_TYPES } = require('./traceStudios');
@@ -3865,23 +3866,52 @@ app.post('/api/greeting', async (req, res) => {
       }
     }
     
-    // Get memory context (themes, goals, etc.) - used as FALLBACK when no recent conversation topics
+    // Load VERIFIED memory — always load for grounding validation, not just as fallback
     let memoryContext = [];
-    if (userId && supabaseServer && recentConversationTopics.length === 0) {
+    let verifiedMemory = { userFacts: [], goals: [], coreThemes: [], preferences: [] };
+    if (userId && supabaseServer) {
       try {
         const memoryData = await loadTraceLongTermMemory(supabaseServer, userId);
-        if (memoryData?.coreThemes && memoryData.coreThemes.length > 0) {
-          const shuffled = [...memoryData.coreThemes].sort(() => Math.random() - 0.5);
-          // Filter out themes already used in recent greetings
-          const freshThemes = shuffled.filter(t => !recentlyUsedTopics.includes(t));
-          const themePool = freshThemes.length > 0 ? freshThemes : shuffled;
-          if (Math.random() > 0.5) {
-            memoryContext = themePool.slice(0, Math.floor(Math.random() * 2) + 1);
+        if (memoryData) {
+          verifiedMemory.coreThemes = memoryData.coreThemes || [];
+          verifiedMemory.goals = memoryData.goals || [];
+          verifiedMemory.preferences = memoryData.preferences || [];
+          
+          if (memoryData.coreThemes?.length > 0 && recentConversationTopics.length === 0) {
+            const shuffled = [...memoryData.coreThemes].sort(() => Math.random() - 0.5);
+            const freshThemes = shuffled.filter(t => !recentlyUsedTopics.includes(t));
+            const themePool = freshThemes.length > 0 ? freshThemes : shuffled;
+            memoryContext = themePool.slice(0, 2);
           }
         }
-        console.log('[GREETING] Memory fallback loaded:', { themes: memoryContext.length, data: memoryContext });
+        console.log('[GREETING] Verified memory loaded:', { 
+          themes: verifiedMemory.coreThemes.length, 
+          goals: verifiedMemory.goals.length,
+          preferences: verifiedMemory.preferences.length,
+          memoryContext: memoryContext.length 
+        });
       } catch (e) {
         console.warn('[GREETING] Failed to load memory:', e.message);
+      }
+    }
+    
+    // Also load core memory (user_facts from conversation extraction) if available
+    if (userId && supabaseServer) {
+      try {
+        const { data: convData } = await supabaseServer
+          .from('trace_conversations')
+          .select('core_memory')
+          .eq('user_id', userId)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (convData?.core_memory?.user_facts) {
+          verifiedMemory.userFacts = convData.core_memory.user_facts.filter(f => typeof f === 'string').slice(0, 8);
+          console.log('[GREETING] Core memory user_facts loaded:', verifiedMemory.userFacts.length);
+        }
+      } catch (e) {
+        // No core memory available — that's fine
       }
     }
     
@@ -3931,45 +3961,76 @@ app.post('/api/greeting', async (req, res) => {
       lastConversationSnippet,
       recentGreetingTexts,
       recentlyUsedTopics,
+      verifiedMemory,
     });
+    
+    // Build verified sources for grounding validation
+    const recentUserMsgTexts = [];
+    if (userId && supabaseServer) {
+      try {
+        const { data: recentMsgData } = await supabaseServer
+          .from('chat_messages')
+          .select('content')
+          .eq('user_id', userId)
+          .eq('role', 'user')
+          .order('created_at', { ascending: false })
+          .limit(6);
+        if (recentMsgData) {
+          recentMsgData.forEach(m => { if (m.content) recentUserMsgTexts.push(m.content); });
+        }
+      } catch (e) { /* ignore */ }
+    }
+    
+    const verifiedSources = {
+      memoryItems: [
+        ...(verifiedMemory.userFacts || []).map(f => ({ value: f })),
+        ...(verifiedMemory.goals || []).map(g => ({ value: typeof g === 'string' ? g : g.text })),
+      ],
+      conversationTopics: recentConversationTopics || [],
+      recentUserMessages: recentUserMsgTexts,
+      displayName,
+      coreThemes: verifiedMemory.coreThemes || [],
+      goals: verifiedMemory.goals || [],
+      userFacts: verifiedMemory.userFacts || [],
+    };
 
     if (!openai) {
       const firstName = displayName ? displayName.split(' ')[0] : null;
       const fallback = firstName
-        ? `Hey ${firstName}. How's your ${timeOfDay} going?`
-        : `Hey. How's your ${timeOfDay} going?`;
+        ? `hey ${firstName.toLowerCase()}.\nhow's your ${timeOfDay} going?`
+        : `hey.\nhow's your ${timeOfDay} going?`;
       return res.json({ greeting: fallback, firstRun: false });
     }
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: 'Generate the greeting.' },
-      ],
-      temperature: 0.7,
-      max_tokens: 80,
-    });
+    // Generate greeting with grounding validation + retry
+    async function generateAndValidateGreeting(prompt, attempt = 1) {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: prompt },
+          { role: 'user', content: 'Generate the greeting.' },
+        ],
+        temperature: attempt === 1 ? 0.7 : 0.3,
+        max_tokens: 80,
+      });
 
-    let greeting = completion.choices?.[0]?.message?.content?.trim() || 
-      `hey... how's it going?`;
-    
-    // Clean up any quotes the AI might have added
-    greeting = greeting.replace(/^["']|["']$/g, '').trim();
-    
-    // If AI returned JSON anyway, extract the greeting
-    if (greeting.startsWith('{')) {
-      try {
-        const parsed = JSON.parse(greeting);
-        if (parsed.greeting) greeting = parsed.greeting;
-      } catch (e) {
-        // Not valid JSON, use as-is
+      let raw = completion.choices?.[0]?.message?.content?.trim() || '';
+      raw = raw.replace(/^["']|["']$/g, '').trim();
+      
+      if (raw.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed.greeting) raw = parsed.greeting;
+        } catch (e) { /* not JSON */ }
       }
-    }
 
-    console.log('[GREETING] AI Generated (raw):', greeting);
+      console.log(`[GREETING] AI Generated (attempt ${attempt}, raw):`, raw);
+      return raw;
+    }
     
-    // Run sanitizeTone on greeting to catch therapy-speak
+    let greeting = await generateAndValidateGreeting(systemPrompt, 1);
+    
+    // Run sanitizeTone
     const greetingBefore = greeting;
     greeting = sanitizeTone(greeting, { userId: userId || 'anon', isCrisisMode: false });
     greeting = greeting.replace(/\s{2,}/g, ' ').replace(/^\s+|\s+$/g, '').replace(/\.\s*\./g, '.').trim();
@@ -3977,39 +4038,62 @@ app.post('/api/greeting', async (req, res) => {
       console.log('[GREETING] sanitizeTone changed:', greetingBefore, '→', greeting);
     }
     
-    // Guard: if sanitizeTone stripped the greeting too aggressively, use safe fallback
     if (!greeting || greeting.length < 3) {
-      const firstName = displayName ? displayName.split(' ')[0] : null;
-      const safeOptions = [
-        firstName ? `hey ${firstName}.` : 'hey.',
-        'what\'s up?',
-        'how\'s it going?',
-      ];
-      greeting = safeOptions[Math.floor(Math.random() * safeOptions.length)];
-      console.log('[GREETING] sanitizeTone left empty, using safe fallback:', greeting);
+      greeting = MINIMAL_FALLBACK;
+      console.log('[GREETING] sanitizeTone left empty, using minimal fallback');
     }
     
-    // Voice quality filter: catch banned phrases and lazy questions before displaying
+    // Voice quality filter
     const bannedInGreeting = containsBannedPhrases(greeting);
     const lazyInGreeting = containsLazyQuestion(greeting);
     
     if (bannedInGreeting.length > 0 || lazyInGreeting.length > 0) {
       console.log('[GREETING] Voice filter caught:', { banned: bannedInGreeting, lazy: lazyInGreeting });
-      
-      // Fall back to a safe, on-brand greeting
-      const firstName = displayName ? displayName.split(' ')[0] : null;
-      const timeLabel = timeOfDay === 'night' || timeOfDay === 'late_night' ? 'late one' : (timeOfDay || 'day');
+      const firstName = displayName ? displayName.split(' ')[0].toLowerCase() : null;
       const safeGreetings = [
         firstName ? `hey ${firstName}.` : 'hey.',
-        timeOfDay === 'night' || timeOfDay === 'late_night' 
-          ? `late one. what's keeping you up?` 
-          : `how's your ${timeLabel} going?`,
-        firstName ? `${firstName}. good to catch you.` : 'good to catch you.',
-        `what's your ${timeLabel} been like?`,
+        `hey.\nwhat's your ${timeOfDay || 'day'} been like?`,
       ];
       greeting = safeGreetings[Math.floor(Math.random() * safeGreetings.length)];
       console.log('[GREETING] Replaced with safe greeting:', greeting);
     }
+    
+    // === GROUNDING VALIDATION ===
+    const validation = validateGreeting(greeting, verifiedSources);
+    console.log('[GREETING_GUARD] Validation result:', { 
+      valid: validation.valid, 
+      failures: validation.failures,
+      sourcesAvailable: {
+        topics: (verifiedSources.conversationTopics || []).length,
+        themes: (verifiedSources.coreThemes || []).length,
+        facts: (verifiedSources.userFacts || []).length,
+        messages: (verifiedSources.recentUserMessages || []).length,
+      }
+    });
+    
+    if (!validation.valid) {
+      console.log('[GREETING_GUARD] First attempt FAILED, retrying with repair prompt...');
+      
+      const repairPrompt = buildRepairPrompt(greeting, validation.failures, verifiedSources);
+      let retryGreeting = await generateAndValidateGreeting(repairPrompt, 2);
+      
+      retryGreeting = sanitizeTone(retryGreeting, { userId: userId || 'anon', isCrisisMode: false });
+      retryGreeting = retryGreeting.replace(/\s{2,}/g, ' ').replace(/^\s+|\s+$/g, '').replace(/\.\s*\./g, '.').trim();
+      
+      const retryValidation = validateGreeting(retryGreeting, verifiedSources);
+      console.log('[GREETING_GUARD] Retry validation:', { valid: retryValidation.valid, failures: retryValidation.failures });
+      
+      if (retryValidation.valid && retryGreeting && retryGreeting.length >= 3) {
+        greeting = retryGreeting;
+        console.log('[GREETING_GUARD] Retry PASSED:', greeting);
+      } else {
+        greeting = MINIMAL_FALLBACK;
+        console.log('[GREETING_GUARD] Retry also FAILED, using minimal fallback');
+      }
+    }
+    
+    // === ENFORCE LOWERCASE (final pass) ===
+    greeting = enforceLowercase(greeting);
     
     console.log('[GREETING] Final:', greeting);
     
