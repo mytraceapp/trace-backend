@@ -167,9 +167,25 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
   } catch (err: any) {
     clearTimeout(timeout);
 
+    const isAbort =
+      err?.name === 'AbortError' ||
+      /abort|canceled|request was aborted/i.test(err?.message || '');
+
+    if (isAbort) {
+      console.log('Chat request aborted (timeout or user cancel) — silent');
+      return {
+        message: "mm, I missed that for a second. Say that again?",
+        activity_suggestion: {
+          name: null,
+          reason: null,
+          should_navigate: false,
+          dreamscapeTrackId: null,
+        },
+      };
+    }
+
     console.log('Chat API failed:', err?.message);
 
-    // Sound like TRACE even when there's a connection issue
     return {
       message: "mm, I missed that for a second. Say that again?",
       activity_suggestion: {

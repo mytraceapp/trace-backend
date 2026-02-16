@@ -6,6 +6,13 @@ if (process.env.SENTRY_DSN) {
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV || 'development',
     tracesSampleRate: 0.1,
+    beforeSend(event) {
+      const msg = event.exception?.values?.[0]?.value || '';
+      if (/AbortError|Request was aborted|canceled|aborted/i.test(msg)) {
+        return null;
+      }
+      return event;
+    },
   });
   console.log('Sentry initialized for error tracking');
 }
