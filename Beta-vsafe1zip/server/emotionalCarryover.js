@@ -60,8 +60,26 @@ async function saveEmotionalTone(supabase, conversationId, sessionId, tone, summ
   }
 }
 
+let _tableVerified = false;
+let _tableExists = false;
+
 async function fetchLastSessionTone(supabase, userId, currentConversationId) {
   if (!supabase || !userId) return null;
+
+  if (!_tableVerified) {
+    _tableVerified = true;
+    try {
+      const { error: checkErr } = await supabase
+        .from('trace_sessions')
+        .select('conversation_id')
+        .limit(1);
+      _tableExists = !checkErr;
+      if (!_tableExists) {
+        console.warn('[EMOTIONAL_CARRYOVER] trace_sessions table not available — skipping for this session');
+      }
+    } catch { _tableExists = false; }
+  }
+  if (!_tableExists) return null;
 
   try {
     const { data, error } = await supabase

@@ -2731,7 +2731,7 @@ const TIER2_COOLDOWN_MS = 240000;
  * GPT-5+ models use max_completion_tokens, older models use max_tokens
  * GPT-5-mini doesn't support custom temperature
  */
-const OPENAI_MAX_TOKENS_CAP = parseInt(process.env.MAX_TOKENS_PER_REQUEST, 10) || 600;
+const OPENAI_MAX_TOKENS_CAP = parseInt(process.env.MAX_TOKENS_PER_REQUEST, 10) || 800;
 
 function getTokenParams(model, limit = 500) {
   const cappedLimit = Math.min(limit, OPENAI_MAX_TOKENS_CAP);
@@ -10087,21 +10087,35 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
         const l1FinishReason = response.choices[0]?.finish_reason;
         
         if (l1FinishReason === 'length') {
-          // If we're running out of time, accept the truncated response rather than retrying
-          if (timeBudgetExceeded() || attempt >= maxL1Retries) {
-            console.warn(`[TRACE OPENAI L1] Token limit hit but accepting (time_budget_exceeded=${timeBudgetExceeded()}, attempt=${attempt}/${maxL1Retries})`);
-            // Try to use what we have
-            try {
-              const truncParse = JSON.parse(rawContent);
-              if (truncParse.message && truncParse.message.trim().length > 10) {
-                parsed = truncParse;
-                console.log('[TRACE OPENAI L1] Accepted truncated response to avoid timeout');
+          console.warn(`[TRACE OPENAI L1] Token limit hit (finish_reason=length, attempt=${attempt}/${maxL1Retries})`);
+          try {
+            const truncParse = JSON.parse(rawContent);
+            if (truncParse.message && truncParse.message.trim().length > 10) {
+              parsed = truncParse;
+              console.log('[TRACE OPENAI L1] Accepted truncated JSON response (valid message found)');
+              break;
+            }
+          } catch (e) {
+            const msgMatch = rawContent.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+            if (msgMatch && msgMatch[1].length > 10) {
+              let extractedMsg = msgMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+              if (!isSentenceComplete(extractedMsg)) {
+                const lastSentenceEnd = extractedMsg.search(/[.!?…][^.!?…]*$/);
+                if (lastSentenceEnd > 10) {
+                  extractedMsg = extractedMsg.substring(0, lastSentenceEnd + 1);
+                }
+              }
+              if (extractedMsg.length > 10) {
+                parsed = { message: extractedMsg };
+                console.log(`[TRACE OPENAI L1] Extracted message from truncated JSON (${extractedMsg.length} chars)`);
                 break;
               }
-            } catch (e) { /* not valid JSON, fall through */ }
+            }
           }
-          console.warn('[TRACE OPENAI L1] Token limit hit (finish_reason=length), response likely truncated — retrying');
-          continue;
+          if (attempt < maxL1Retries) {
+            console.warn('[TRACE OPENAI L1] Could not extract message from truncated response — retrying');
+            continue;
+          }
         }
         
         if (rawContent.trim()) {
