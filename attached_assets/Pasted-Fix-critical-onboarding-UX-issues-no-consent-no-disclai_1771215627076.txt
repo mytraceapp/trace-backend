@@ -1,0 +1,196 @@
+Fix critical onboarding UX issues: no consent, no disclaimer, auto-launching activities on confusion.
+
+PROBLEM: When new user said "what is this place", TRACE immediately launched breathing activity with no explanation, no disclaimer, no consent. Jarring and broken UX.
+
+ROOT CAUSE: The awaiting_regulate_or_reflect handler treats ALL unrecognized input as regulate_default → breathing launches without consent.
+
+ISSUES FOUND:
+1. No handling for questions/confusion (all treated as regulate)
+2. Disclaimer only shows on reflect path, not regulate path
+3. No consent before launching breathing activity
+4. Default behavior during onboarding is an action (should be explain + re-ask)
+
+FIX REQUIREMENTS:
+- Add question/confusion detection (what is this, what does regulate mean, etc)
+- Explain options when confused, don't auto-launch activity
+- Get explicit consent before breathing activity ("want to try a quick breathing exercise?")
+- Show disclaimer on ALL paths (regulate and reflect)
+- Change fallback to explain + re-ask, not auto-regulate
+
+IMPLEMENTATION:
+
+1) ADD QUESTION DETECTION (BEFORE regulate/reflect checks):
+
+if (onboardingState.step === 'awaiting_regulate_or_reflect') {
+  
+  const userMessage = message.toLowerCase();
+  
+  const questionPatterns = [
+    /what is this/,
+    /what does.*mean/,
+    /who are you/,
+    /what.*regulate/,
+    /what.*reflect/,
+    /i don't understand/,
+    /confused/,
+    /explain/,
+    /help/,
+    /\?/
+  ];
+  
+  if (questionPatterns.some(pattern => pattern.test(userMessage))) {
+    
+    const explanation = `regulate = calm your nervous system with sound + breathing.
+
+reflect = talk through what's going on.
+
+both start with sound. which feels right?`;
+    
+    await sendTraceMessage(explanation);
+    
+    await updateUserOnboardingState(userId, {
+      step: 'awaiting_regulate_or_reflect',
+      explanation_given: true
+    });
+    
+    return;
+  }
+}
+
+2) ADD CONSENT TO REGULATE PATH:
+
+if (userMessage.match(/regulate|steady|calm|settle|ground|breathe/)) {
+  
+  await sendTraceMessage("want to try a quick breathing exercise?");
+  
+  await updateUserOnboardingState(userId, {
+    step: 'awaiting_breathing_consent',
+    path: 'regulate'
+  });
+  
+  return;
+}
+
+3) ADD BREATHING CONSENT HANDLER (NEW STATE):
+
+if (onboardingState.step === 'awaiting_breathing_consent') {
+  
+  const userMessage = message.toLowerCase();
+  
+  if (userMessage.match(/yes|yeah|sure|okay|ok|let's|yep/)) {
+    
+    await sendTraceMessage("alright. let the sound settle you for 30 seconds.");
+    
+    await updateUserOnboardingState(userId, {
+      step: 'regulating',
+      path: 'regulate',
+      activity: 'breathing'
+    });
+    
+    return;
+  }
+  
+  if (userMessage.match(/no|nah|not now|later/)) {
+    
+    await sendTraceMessage("cool. what's on your mind?");
+    
+    await updateUserOnboardingState(userId, {
+      step: 'conversation_started',
+      path: 'reflect_from_decline'
+    });
+    
+    return;
+  }
+  
+  await sendTraceMessage("breathing exercise, yes or no?");
+  return;
+}
+
+4) SHOW DISCLAIMER AFTER BREATHING:
+
+if (onboardingState.step === 'post_breathing_checkin') {
+  
+  const disclaimer = "quick thing — i'm not therapy, but i can sit with you through this. what else is going on?";
+  
+  await sendTraceMessage(disclaimer);
+  
+  await updateUserOnboardingState(userId, {
+    step: 'conversation_started',
+    disclaimer_shown: true
+  });
+  
+  return;
+}
+
+5) KEEP DISCLAIMER ON REFLECT PATH:
+
+if (userMessage.match(/reflect|talk|think|clarity|process|vent/)) {
+  
+  const disclaimer = "cool. quick thing — i'm not therapy, but i can sit with you through this. what's on your mind?";
+  
+  await sendTraceMessage(disclaimer);
+  
+  await updateUserOnboardingState(userId, {
+    step: 'conversation_started',
+    path: 'reflect',
+    disclaimer_shown: true
+  });
+  
+  return;
+}
+
+6) FIX FALLBACK (NO AUTO-REGULATE):
+
+const fallbackExplanation = `didn't catch that.
+
+regulate = calm your nervous system.
+reflect = talk through what's on your mind.
+
+which one?`;
+
+await sendTraceMessage(fallbackExplanation);
+
+await updateUserOnboardingState(userId, {
+  step: 'awaiting_regulate_or_reflect',
+  fallback_triggered: true
+});
+
+return;
+
+TESTING AFTER FIX:
+
+Test 1 - Question handling:
+User: "what is this place"
+Expected: Explanation of regulate vs reflect, re-ask choice
+NOT: Breathing activity launches
+
+Test 2 - Regulate with consent:
+User: "regulate"
+Expected: "want to try a quick breathing exercise?"
+User: "yes"
+Expected: Breathing launches
+NOT: Immediate launch without asking
+
+Test 3 - Decline breathing:
+User: "regulate"
+TRACE: "want to try a quick breathing exercise?"
+User: "no"
+Expected: "cool. what's on your mind?" (reflect path)
+
+Test 4 - Reflect path:
+User: "reflect"
+Expected: Disclaimer shows, conversation starts
+NOT: Breathing activity
+
+Test 5 - Ambiguous input:
+User: "idk"
+Expected: "didn't catch that. regulate = calm... which one?"
+NOT: Breathing activity launches
+
+Test 6 - Disclaimer on all paths:
+Regulate → breathing → post-breathing → disclaimer ✓
+Reflect → disclaimer immediately ✓
+
+RESULT: New users get proper onboarding - explanations when confused, consent before activities, disclaimer on all paths. No jarring auto-launches.
+
+DO THIS: Add all 6 fixes, test all 6 scenarios, verify no auto-launch on confusion.
