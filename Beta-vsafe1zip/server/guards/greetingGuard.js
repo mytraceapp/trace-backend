@@ -64,6 +64,19 @@ const HALLUCINATION_PHRASES = [
   /hope (?:your|the) .+ went well/i,
 ];
 
+const HEALTH_BAN_PATTERNS = [
+  /\b(?:headache|migraine|cold|flu|fever|cough|sick|illness|nausea|pain|ache|sore|injury|injured|hurt|hurting)\b/i,
+  /\b(?:doctor|hospital|clinic|medication|medicine|prescription|diagnosis|symptom|condition|treatment|surgery|therapy|therapist)\b/i,
+  /\b(?:health\s*(?:issue|problem|concern|condition|struggle))\b/i,
+  /\b(?:feeling\s+(?:sick|unwell|ill|nauseous|dizzy|faint))\b/i,
+  /\b(?:getting\s+(?:sick|worse|ill))\b/i,
+  /\b(?:your\s+(?:health|body|back|knee|stomach|throat|chest|head)\s+(?:is|was|been|still|better|worse|okay|ok|hurting|bothering))\b/i,
+  /\b(?:recover|recovering|recovery)\b/i,
+  /\b(?:allergies|allergy|asthma|diabetes|infection|virus|disease)\b/i,
+  /\b(?:hope you(?:'re| are) feeling better)\b/i,
+  /\b(?:take care of yourself)\b/i,
+];
+
 function extractContentNouns(text) {
   const cleaned = text
     .toLowerCase()
@@ -206,6 +219,13 @@ function validateGreeting(greeting, verifiedSources) {
     if (pattern.test(greeting)) {
       result.valid = false;
       result.failures.push(`hallucination_phrase: ${pattern.source}`);
+    }
+  }
+  
+  for (const pattern of HEALTH_BAN_PATTERNS) {
+    if (pattern.test(greeting)) {
+      result.valid = false;
+      result.failures.push(`health_reference_banned: ${pattern.source}`);
     }
   }
   

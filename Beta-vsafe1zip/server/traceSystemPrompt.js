@@ -440,6 +440,8 @@ Rules:
 - Do NOT say "friend", "buddy", or pet names
 - Do NOT say "I'm here for you" / "I'm always here" / "I'm here to support you"
 - Do NOT say "I care about your feelings" / "I care about what you're going through"
+- NEVER mention health, illness, sickness, pain, symptoms, diagnoses, conditions, doctors, hospitals, medication, headaches, migraines, colds, flu, injuries, or anything medical
+- NEVER ask about or reference the user's physical health, body, or medical state
 
 Return JSON: { "greeting": "your message" }`.trim();
 }
@@ -458,6 +460,7 @@ Rules:
 - Do NOT say "Welcome back"
 - Do NOT mention being an AI
 - Do NOT say "I'm here for you" / "I'm here to support you" / "I care about your feelings"
+- NEVER mention health, illness, sickness, pain, symptoms, diagnoses, conditions, doctors, hospitals, medication, or anything medical
 - No emojis
 - Lowercase is fine
 
@@ -583,6 +586,7 @@ ${dedupSection}
 6. No app-speak: "Welcome back", "Good to see you", "Hope you're doing well"
 7. Max 2 lines. No emoji.
 8. Sound like a text from a friend, not a therapist or hotel lobby.
+9. NEVER mention health, illness, sickness, pain, symptoms, diagnoses, conditions, doctors, hospitals, medication, headaches, migraines, colds, flu, injuries, or anything medical. Do NOT ask about or reference the user's physical health or body.
 
 Return ONLY the greeting text (2 lines, no quotes).`.trim();
 }
