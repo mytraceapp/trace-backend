@@ -9791,6 +9791,7 @@ If the right move isn't obvious: one grounded observation about what you notice 
       console.log(`[SESSION_CLOSE] Wind-down detected (score=${windDownResult.score}), adding warmth hint`);
     }
 
+    const controlUserEnergy = rhythmNudge?.userEnergy || 'medium';
     const controlBlock = conversationState.buildControlBlock({
       visitorId: effectiveUserId,
       rhythmNudge,
@@ -9805,9 +9806,11 @@ If the right move isn't obvious: one grounded observation about what you notice 
       holidayLine: proactiveHolidayLine || null,
       windingDown: isWindingDown,
       isLongForm: isLongFormRequest,
+      userEnergy: controlUserEnergy,
     });
     const controlLengthLabel = rhythmNudge?.tier === 'ultra_short' ? 'micro' : rhythmNudge?.tier === 'short' ? 'short' : rhythmNudge?.tier === 'long' ? 'long' : 'medium';
-    const controlQBudget = conversationState.computeQuestionMode(effectiveUserId).budget;
+    const controlQMode = conversationState.computeQuestionMode(effectiveUserId, { userEnergy: controlUserEnergy });
+    const controlQBudget = controlQMode.budget;
     const hasExternalContext = !!(newsContext || searchContext || weatherContext || foodContext || holidayContext);
     const baseMaxWords = controlLengthLabel === 'micro' ? 5 : controlLengthLabel === 'short' ? 20 : controlLengthLabel === 'long' ? 90 : 50;
     let controlMaxWords = baseMaxWords;
@@ -9827,7 +9830,7 @@ If the right move isn't obvious: one grounded observation about what you notice 
     if (proactiveHolidayLine) {
       console.log(`[CONTROL_BLOCK] HOLIDAYS: ${proactiveHolidayLine}`);
     }
-    console.log(`[CONTROL_BLOCK] LENGTH_MODE=${controlLengthLabel} QUESTION_BUDGET=${controlQBudget} maxWords=${controlMaxWords} soundscape=${controlSoundscape} mood=${controlMood} door=${controlDoorContext}`);
+    console.log(`[CONTROL_BLOCK] LENGTH_MODE=${controlLengthLabel} Q_MODE=${controlQMode.mode}(${controlQMode.reason}) BUDGET=${controlQBudget} energy=${controlUserEnergy} maxWords=${controlMaxWords} soundscape=${controlSoundscape} mood=${controlMood} door=${controlDoorContext}`);
 
     // ============================================================
     // BASIN SILENCE RULE: Skip LLM call entirely if user is in Basin

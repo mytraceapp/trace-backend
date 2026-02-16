@@ -644,56 +644,34 @@ function advanceStage(state, userMessage) {
  */
 function buildStatePromptInjection(state, userHadContent) {
   let injection = `
-=== CONVERSATION STATE (CRITICAL) ===
-Stage: ${state.stage}
-Last Move Type: ${state.lastMoveType || 'NONE'}
-Topic Established: ${state.topicEstablished}
-Topics Mentioned: ${state.lastTopicKeywords.length > 0 ? state.lastTopicKeywords.join(', ') : 'none yet'}
-Turn Count: ${state.turnCount}
+=== CONVERSATIONAL INTUITION ===
+Turn: ${state.turnCount} | Topics: ${state.lastTopicKeywords.length > 0 ? state.lastTopicKeywords.join(', ') : 'none yet'}
 `;
 
-  // HARD RULE: No consecutive open probes
   if (state.lastMoveType === MOVE_TYPES.OPEN_PROBE) {
     injection += `
-CRITICAL RULE - DO NOT VIOLATE:
-Your last message was an OPEN_PROBE (generic question like "what's on your mind?").
-You CANNOT ask another generic open-ended question. This would feel repetitive and distant.
-
-REQUIRED: Your next response MUST be one of:
-- REFLECT: Mirror what they said, show you heard them ("sounds like...", "that's real")
-- SPECIFIC_FOLLOWUP: Ask about something SPECIFIC they mentioned
-- VALIDATE: Acknowledge their experience without questioning
-- Or simply be present without asking anything
-
-DO NOT say:
-- "What's on your mind?"
-- "How are you feeling?"
-- "Want to share more?"
-- "Anything else?"
-- "What would you like to talk about?"
-- "Is there something specific?"
-- Any variation of these generic probes
+You already asked something open-ended. Do NOT ask again. Instead, choose one:
+- Name what you notice: "that keeps coming back to the same thing."
+- Connect dots: "sounds like the work stuff and the sleep stuff are tangled up."
+- Just acknowledge: "yeah." / "that's real." / "heavy."
+- Or say nothing extra. Presence > questions.
 `;
   }
 
   if (userHadContent && state.topicEstablished) {
-    injection += `
-USER PROVIDED CONTENT - RESPOND TO IT:
-They shared something real. Reference it. Don't reset with a generic question.
-If they mentioned: ${state.lastTopicKeywords.join(', ') || 'a topic'} — stay with that.
-`;
+    injection += `They're talking about: ${state.lastTopicKeywords.join(', ') || 'something real'}. Stay in it. Don't redirect.\n`;
   }
 
-  if (state.stage === STAGES.ARRIVAL || state.stage === STAGES.OPENING) {
-    injection += `
-You're in early conversation. One gentle probe is acceptable, but make it warm, not clinical.
+  injection += `
+HOW TO BE INTUITIVE (not interrogative):
+- Not every turn needs a question. Most don't. A friend who keeps asking questions feels like an interview.
+- When they share something heavy: sit with it. "damn." or "yeah, that's a lot." No question needed.
+- When they share something good: celebrate briefly. "nice." or "that's huge." Don't immediately ask what's next.
+- When you notice a pattern across what they've said: name it as an observation, not a question. "you keep circling back to that" > "why do you think you keep circling back?"
+- When they're processing out loud: let them. Mirror one thing, then stop. They'll keep going if they want.
+- When the conversation feels stuck: make a small observation or share a brief thought. Don't probe harder.
+- Questions are for genuine curiosity about something SPECIFIC ("wait — what happened with that?"), never for keeping the conversation going.
 `;
-  } else if (state.stage === STAGES.SHARING || state.stage === STAGES.EXPLORING) {
-    injection += `
-They're sharing. Follow their thread. Reflect, validate, or ask something SPECIFIC to what they said.
-Generic probes are NOT allowed at this stage.
-`;
-  }
 
   return injection;
 }
@@ -937,13 +915,54 @@ function computeLengthMode(rhythmNudge) {
   }
 }
 
-function computeQuestionMode(visitorId) {
+function computeQuestionMode(visitorId, opts = {}) {
   const state = getState(visitorId);
   const qStreak = state.qStreak || 0;
-  if (qStreak >= 1) {
-    return { mode: 'WITNESS_ONLY', budget: 0 };
+  const turnCount = state.turnCount || 0;
+  const userEnergy = opts.userEnergy || 'medium';
+  const lastMoveType = state.lastMoveType;
+
+  if (qStreak >= 2) {
+    return { mode: 'PRESENCE_ONLY', budget: 0, reason: 'asked_2_in_a_row' };
   }
-  return { mode: 'ALLOW_ONE', budget: 1 };
+
+  if (qStreak >= 1 && userEnergy === 'low') {
+    return { mode: 'PRESENCE_ONLY', budget: 0, reason: 'asked_last_turn_and_low_energy' };
+  }
+
+  if (qStreak >= 1) {
+    const roll = Math.random();
+    if (roll < 0.6) {
+      return { mode: 'OBSERVE_ONLY', budget: 0, reason: 'natural_spacing_after_question' };
+    }
+    return { mode: 'ALLOW_ONE', budget: 1, reason: 'allow_after_streak_roll' };
+  }
+
+  if (turnCount <= 2) {
+    return { mode: 'ALLOW_ONE', budget: 1, reason: 'early_conversation' };
+  }
+
+  if (userEnergy === 'high') {
+    const roll = Math.random();
+    if (roll < 0.4) {
+      return { mode: 'OBSERVE_ONLY', budget: 0, reason: 'high_energy_let_them_lead' };
+    }
+    return { mode: 'ALLOW_ONE', budget: 1, reason: 'high_energy_followup' };
+  }
+
+  if (userEnergy === 'low') {
+    const roll = Math.random();
+    if (roll < 0.7) {
+      return { mode: 'PRESENCE_ONLY', budget: 0, reason: 'low_energy_just_be_there' };
+    }
+    return { mode: 'ALLOW_ONE', budget: 1, reason: 'low_energy_gentle_check' };
+  }
+
+  const roll = Math.random();
+  if (roll < 0.35) {
+    return { mode: 'OBSERVE_ONLY', budget: 0, reason: 'natural_variety' };
+  }
+  return { mode: 'ALLOW_ONE', budget: 1, reason: 'default_allow' };
 }
 
 // ============================================================
@@ -1005,12 +1024,13 @@ function buildControlBlock({
   holidayLine,
   windingDown,
   isLongForm,
+  userEnergy,
 }) {
   let lengthMode = computeLengthMode(rhythmNudge);
   if (isLongForm) {
     lengthMode = { label: 'unlimited', maxWords: 600 };
   }
-  const questionMode = computeQuestionMode(visitorId);
+  const questionMode = computeQuestionMode(visitorId, { userEnergy: userEnergy || 'medium' });
 
   let dateStr = 'unknown';
   if (localDay && localDate) {
@@ -1060,7 +1080,13 @@ function buildControlBlock({
 
   lines.push('CONSTRAINTS:');
   lines.push(`- Max words: ${lengthMode.maxWords} | Questions: ${questionMode.budget}`);
-  lines.push('- If QUESTIONS=0: no "?" at all.');
+  if (questionMode.mode === 'PRESENCE_ONLY') {
+    lines.push('- QUESTION_MODE=PRESENCE_ONLY: No questions this turn. Just be with them. Acknowledge, observe, or sit with what they said. A period is more powerful than a question mark right now.');
+  } else if (questionMode.mode === 'OBSERVE_ONLY') {
+    lines.push('- QUESTION_MODE=OBSERVE_ONLY: No questions this turn. Instead: name what you notice, connect dots between things they\'ve said, or make a brief observation. "that\'s been coming up a lot." beats "why do you think that keeps coming up?"');
+  } else {
+    lines.push('- QUESTION_MODE=ALLOW_ONE: You may ask ONE question IF it\'s genuinely specific to what they just said. Generic questions ("how does that make you feel?") are never okay. If nothing specific calls for a question, don\'t force one.');
+  }
   lines.push('- NEVER restate user\'s words. Move forward.');
   lines.push('- Each sentence adds NEW info. No filler.');
   lines.push('- Agreement (okay/sure/yes) = ACT, don\'t echo.');
