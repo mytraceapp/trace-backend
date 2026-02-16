@@ -10282,7 +10282,11 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
                                   lowerContent.includes('kill myself') || 
                                   lowerContent.includes('end my life') ||
                                   lowerContent.includes('hurt myself') ||
-                                  lowerContent.includes('end it all');
+                                  lowerContent.includes('end it all') ||
+                                  /\b(want|going|gonna|ready|need)\s+to\s+end\s+it\b/.test(lowerContent) ||
+                                  lowerContent.includes('worth living') ||
+                                  lowerContent.includes('not worth it') ||
+                                  lowerContent.includes('no reason to live');
         
         if (isCrisisMode && isActiveSuicidal) {
           // ACTIVE SUICIDAL STATEMENT - needs proper crisis response
@@ -10423,7 +10427,7 @@ User just said: "${lastUserContent}"
 Continue the conversation naturally. Stay in the same emotional lane — if they're sharing something personal, match that energy. If the user asks about dates, holidays, or current events, use the date and holiday facts above — do NOT guess. 1-3 sentences max. No JSON, just your response:`;
         }
         
-        const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : 400;
+        const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : (isCrisisMode ? 800 : 400);
         const remainingBudgetL3 = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
         const l3Timeout = Math.max(5000, Math.min(12000, remainingBudgetL3 - 3000));
         const l3Abort = AbortSignal.timeout(l3Timeout);
@@ -10440,12 +10444,14 @@ Continue the conversation naturally. Stay in the same emotional lane — if they
         if (l3FinishReason === 'length' && !isSentenceComplete(plainText)) {
           console.warn('[TRACE OPENAI L3] Plain text truncated (finish_reason=length), falling through to L4');
         } else if (plainText.length > 5) {
-          plainText = sanitizeTone(plainText, { userId: effectiveUserId, isCrisisMode });
+          if (!isCrisisMode) {
+            plainText = sanitizeTone(plainText, { userId: effectiveUserId, isCrisisMode });
+          }
           parsed = {
             message: plainText,
             activity_suggestion: { name: null, reason: null, should_navigate: false }
           };
-          console.log('[TRACE OPENAI L3] Success with plain text (sanitized)');
+          console.log(`[TRACE OPENAI L3] Success with plain text${isCrisisMode ? ' (crisis - no sanitize)' : ' (sanitized)'}`);
         }
       } catch (err) {
         console.error('[TRACE OPENAI L3] Error:', err.message);
@@ -10464,7 +10470,11 @@ Continue the conversation naturally. Stay in the same emotional lane — if they
                                    lowerContent4.includes('kill myself') || 
                                    lowerContent4.includes('end my life') ||
                                    lowerContent4.includes('hurt myself') ||
-                                   lowerContent4.includes('end it all');
+                                   lowerContent4.includes('end it all') ||
+                                   /\b(want|going|gonna|ready|need)\s+to\s+end\s+it\b/.test(lowerContent4) ||
+                                   lowerContent4.includes('worth living') ||
+                                   lowerContent4.includes('not worth it') ||
+                                   lowerContent4.includes('no reason to live');
         
         if (isCrisisMode && isActiveSuicidal4) {
           contextPrompt = `Someone said "${lastUserContent}". Respond with compassion, ask if they're safe, mention 988 is available 24/7. Example: "that's heavy. are you safe right now? you can call or text 988 anytime."`;
@@ -10568,8 +10578,9 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     // ============================================================
     // SERVER-SIDE ENFORCEMENT: Hard Filter (lightweight)
     // Strip exclamation marks. Only regen for forbidden/therapy phrases.
+    // NEVER in crisis mode — preserve safety responses exactly as generated
     // ============================================================
-    if (parsed && parsed.message) {
+    if (parsed && parsed.message && !isCrisisMode) {
       parsed.message = parsed.message.replace(/!/g, '.');
 
       const hardFilterResult = conversationState.runHardFilter(
@@ -10587,8 +10598,9 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     // SERVER-SIDE ENFORCEMENT: Question Throttle
     // If QUESTION_BUDGET=1 but response has 2+ questions,
     // keep only the first and convert the rest to statements.
+    // NEVER in crisis mode — safety questions like "are you safe?" must be preserved
     // ============================================================
-    if (parsed && parsed.message) {
+    if (parsed && parsed.message && !isCrisisMode) {
       const beforeThrottle = parsed.message;
       parsed.message = conversationState.enforceQuestionThrottle(parsed.message, controlQBudget);
       if (parsed.message !== beforeThrottle) {
@@ -11766,7 +11778,11 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
                                   lastUserForCrisis.includes('end my life') ||
                                   lastUserForCrisis.includes('hurt myself') ||
                                   lastUserForCrisis.includes('ending it') ||
-                                  lastUserForCrisis.includes('not worth living');
+                                  /\b(want|going|gonna|ready|need)\s+to\s+end\s+it\b/.test(lastUserForCrisis) ||
+                                  lastUserForCrisis.includes('worth living') ||
+                                  lastUserForCrisis.includes('not worth it') ||
+                                  lastUserForCrisis.includes('not worth living') ||
+                                  lastUserForCrisis.includes('no reason to live');
     
     if (isCrisisMode && isActiveSuicidalFinal && !tightenedText.includes('988')) {
       // Add 988 if missing from crisis response
@@ -12245,8 +12261,8 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       conversationState.saveState(effectiveUserId, convoState);
     }
     
-    // VOICE ENGINE POST-PROCESSING: Runs on ALL responses (no message count gate)
-    if (response.message) {
+    // VOICE ENGINE POST-PROCESSING: Runs on ALL responses EXCEPT crisis mode
+    if (response.message && !isCrisisMode) {
       const voiceValidation = validateResponse(response.message, nextQuestionResult || {}, messages || []);
       if (!voiceValidation.valid) {
         console.log('[VOICE] Post-processing issues:', voiceValidation.issues);
@@ -12254,8 +12270,8 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       }
     }
     
-    // QUESTION GUARD POST-PROCESSING: Hard strip questions when cooldown active
-    if (traceIntent?.questionGuard?.questionCooldown && response.message && /\?/.test(response.message)) {
+    // QUESTION GUARD POST-PROCESSING: Hard strip questions when cooldown active (NEVER in crisis)
+    if (!isCrisisMode && traceIntent?.questionGuard?.questionCooldown && response.message && /\?/.test(response.message)) {
       const sentences = response.message.split(/(?<=[.!?])\s+/);
       const nonQ = sentences.filter(s => !/\?/.test(s));
       if (nonQ.length > 0) {
