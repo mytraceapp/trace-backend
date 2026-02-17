@@ -1,0 +1,128 @@
+The Core Problem
+TRACE has two separate memory failures happening simultaneously:
+Problem 1 — Same session: The 40-message cap means conversations get truncated mid-session. If you're in a long chat, Claude literally loses the beginning of the conversation because only the last 40 messages get sent to the AI.
+Problem 2 — Cross-session (days later): When a new session starts, only Core Memory summaries carry over. But those summaries only run every 10 messages, are capped at 12 facts/5 themes, and likely miss emotionally or contextually important details.
+
+Fix 1 — Same-Session Memory (Most Urgent)
+The 40-message window is your biggest problem. The fix is a rolling context summarizer that compresses older messages rather than dropping them.
+How it works: Instead of cutting off at message 41, you summarize messages 1–20 into a compact "earlier in this conversation" block, then keep messages 21–40 in full. The AI always receives: [session summary] + [last 20 full messages].
+javascript// Trigger this when message count hits 40, then every 10 after
+async function compressOlderMessages(sessionId, messages) {
+  const toCompress = messages.slice(0, 20); // oldest 20
+  const keepFull = messages.slice(20);      // most recent 20
+  
+  const compressionPrompt = `
+    Summarize this conversation segment. Preserve:
+    - Specific facts the user shared (names, dates, numbers, decisions)
+    - Emotional context and tone
+    - Any commitments or action items
+    - Topics they want to return to
+    
+    Be specific. Don't generalize. Keep proper nouns.
+    
+    Conversation: ${JSON.stringify(toCompress)}
+  `;
+  
+  const summary = await callAI(compressionPrompt);
+  
+  // Save compressed summary to supabase
+  await supabase.from('session_compressions').insert({
+    session_id: sessionId,
+    summary,
+    covers_message_range: [0, 20],
+    created_at: new Date()
+  });
+  
+  return [
+    { role: 'system', content: `[Earlier in this conversation]: ${summary}` },
+    ...keepFull
+  ];
+}
+Then when you build the prompt for Claude, prepend any session compressions before the live messages.
+
+Fix 2 — Trigger Extraction Earlier and More Often
+Every 10 messages is too slow. Change to every 3 user messages, and add an importance trigger that fires immediately when certain signals appear.
+javascriptconst IMPORTANCE_SIGNALS = [
+  /my name is/i, /I'm called/i,
+  /I feel/i, /I'm struggling/i, /I've been/i,
+  /my (mom|dad|sister|brother|wife|husband|partner|friend)/i,
+  /I decided/i, /I want to/i, /my goal/i,
+  /I was diagnosed/i, /I have \w+ (disorder|condition|anxiety|depression)/i,
+  /I live in/i, /I work/i, /I'm \d+ years/i
+];
+
+function shouldTriggerImmediateExtraction(message) {
+  return IMPORTANCE_SIGNALS.some(signal => signal.test(message));
+}
+
+// In your message handler:
+if (shouldTriggerImmediateExtraction(userMessage) || userMessageCount % 3 === 0) {
+  await runCoreMemoryExtraction(sessionId, userId);
+}
+```
+
+---
+
+## Fix 3 — Better Extraction Prompt
+
+Your current prompt looks for "stable user information" which is too narrow. Rewrite it to capture **what the user would expect TRACE to remember:**
+```
+Extract memory from this conversation. Capture EVERYTHING the user would be 
+disappointed if TRACE forgot tomorrow. Include:
+
+FACTS: Specific personal details (name, age, location, job, relationships, health)
+EVENTS: Things they told you happened (past or upcoming)  
+EMOTIONAL STATE: How they're feeling and why, what they're worried about
+GOALS: What they're trying to do, achieve, or figure out
+CONTEXT: Important background that makes their situation make sense
+SPECIFIC DETAILS: Any numbers, names, dates, places mentioned
+
+Do NOT generalize. "User seems stressed about work" is bad. 
+"User's manager Sarah told them their Q1 report was rejected and their job 
+may be at risk" is good.
+
+Current facts stored: [existing facts]
+Only add NEW facts not already captured.
+
+Fix 4 — Cross-Session Hydration (3-Day Window)
+When a new session starts, pull from multiple sources instead of just Core Memory:
+javascriptasync function hydrateNewSession(userId) {
+  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+  
+  // 1. Core memory (always)
+  const coreMemory = await getCoreMemory(userId);
+  
+  // 2. Recent session summaries (last 3 days)
+  const recentSummaries = await supabase
+    .from('session_summaries')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('created_at', threeDaysAgo)
+    .order('created_at', { ascending: false })
+    .limit(5);
+  
+  // 3. Session compressions from recent sessions
+  const recentCompressions = await supabase
+    .from('session_compressions')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('created_at', threeDaysAgo);
+  
+  // 4. Last 10 messages from the most recent session
+  const lastSessionMessages = await getLastNMessagesFromPreviousSession(userId, 10);
+  
+  return buildSystemContext({
+    coreMemory,
+    recentSummaries: recentSummaries.data,
+    compressions: recentCompressions.data,
+    lastSessionMessages
+  });
+}
+
+Fix 5 — Raise the Storage Caps
+12 facts and 5 themes is aggressively low. For a product meant to have persistent memory, consider:
+
+User facts: 12 → 40
+Themes: 5 → 15
+Add a new category: "recent events" (capped at 10, auto-expires after 7 days)
+Add "pending topics" — things the user said they'd come back to
