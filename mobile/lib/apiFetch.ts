@@ -1,4 +1,4 @@
-const API_BASE = 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev';
 
 export function getApiUrl(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
