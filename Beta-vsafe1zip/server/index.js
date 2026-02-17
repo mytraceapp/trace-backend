@@ -8027,10 +8027,11 @@ CRISIS OVERRIDE:
           }
         }
         
-        const [storedCoreMemory, sessionSummaries, recentStored] = await Promise.all([
+        const [storedCoreMemory, sessionSummaries, recentStored, storedCompressions] = await Promise.all([
           memoryStore.fetchCoreMemory(supabaseServer, conversationId),
           memoryStore.fetchSessionSummaries(supabaseServer, conversationId, 3),
           memoryStore.fetchRecentMessages(supabaseServer, conversationId, 50),
+          memoryStore.fetchSessionCompressions(supabaseServer, conversationId, 2),
         ]);
         
         // ---- CONVERSATION-SCOPED HISTORY HYDRATION ----
@@ -8074,7 +8075,8 @@ CRISIS OVERRIDE:
           storedCoreMemory,
           sessionSummaries,
           recentStored.length > 0 ? recentStored : messages,
-          0
+          0,
+          storedCompressions
         );
         
         if (memContext) {
@@ -8140,13 +8142,46 @@ CRISIS OVERRIDE:
       console.log('[TRACE] Hydration hint added to conversation');
     }
 
-    // Cap conversation history — 40 messages (~20 turns) gives meaningful recall
-    // while staying within token budgets. Server-side hydration backfills from DB.
+    // Rolling session compression — instead of just dropping old messages,
+    // compress them into a context summary so TRACE never forgets the beginning
     const MAX_HISTORY_MESSAGES = 40;
+    let sessionCompressionContext = null;
     if (messagesWithHydration.length > MAX_HISTORY_MESSAGES) {
       const originalCount = messagesWithHydration.length;
-      messagesWithHydration = messagesWithHydration.slice(-MAX_HISTORY_MESSAGES);
-      console.log(`[HISTORY_CAP] Capped messages from ${originalCount} to ${MAX_HISTORY_MESSAGES}`);
+      
+      // Try to compress older messages into a summary (async, non-blocking on failure)
+      try {
+        const compressionResult = await coreMemory.compressOlderMessages(
+          openai, supabaseServer, conversationId, sessionId, messagesWithHydration
+        );
+        if (compressionResult) {
+          sessionCompressionContext = compressionResult.compressionContext;
+          messagesWithHydration = compressionResult.recentMessages;
+          console.log(`[HISTORY_COMPRESS] Compressed ${originalCount} messages: ${originalCount - messagesWithHydration.length} compressed → summary, keeping ${messagesWithHydration.length} recent`);
+        } else {
+          // Compression didn't run (lock held or too few messages) — use existing compressions from DB
+          const existingCompressions = await memoryStore.fetchSessionCompressions(supabaseServer, conversationId, 1);
+          if (existingCompressions.length > 0) {
+            sessionCompressionContext = { role: 'system', content: `[Earlier in this conversation]:\n${existingCompressions[0].summary}` };
+            console.log(`[HISTORY_COMPRESS] Using existing compression from DB (${existingCompressions[0].covers_message_count} messages)`);
+          }
+          messagesWithHydration = messagesWithHydration.slice(-MAX_HISTORY_MESSAGES);
+          console.log(`[HISTORY_CAP] Capped messages from ${originalCount} to ${MAX_HISTORY_MESSAGES}`);
+        }
+      } catch (compErr) {
+        console.warn('[HISTORY_COMPRESS] Compression failed, falling back to simple cap:', compErr.message);
+        messagesWithHydration = messagesWithHydration.slice(-MAX_HISTORY_MESSAGES);
+        console.log(`[HISTORY_CAP] Capped messages from ${originalCount} to ${MAX_HISTORY_MESSAGES}`);
+      }
+    } else if (messagesWithHydration.length > 20) {
+      // Even below cap, check if we have prior compressions from this session to inject
+      try {
+        const existingCompressions = await memoryStore.fetchSessionCompressions(supabaseServer, conversationId, 1);
+        if (existingCompressions.length > 0) {
+          sessionCompressionContext = { role: 'system', content: `[Earlier in this conversation]:\n${existingCompressions[0].summary}` };
+          console.log(`[HISTORY_COMPRESS] Injecting existing compression (${existingCompressions[0].covers_message_count} messages summarized earlier)`);
+        }
+      } catch (e) { /* ignore */ }
     }
 
     // ============================================================
@@ -10163,14 +10198,18 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
         
         const openaiStart = Date.now();
         const dateAnchor = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.` : '';
-        const openaiParams = {
-          model: selectedModel,
-          messages: [
+        const l1Messages = [
             { role: 'system', content: TRACE_BOSS_SYSTEM + dateAnchor },
             { role: 'system', content: controlBlock },
             { role: 'system', content: systemPrompt },
-            ...messagesWithHydration
-          ],
+        ];
+        if (sessionCompressionContext) {
+          l1Messages.push(sessionCompressionContext);
+        }
+        l1Messages.push(...messagesWithHydration);
+        const openaiParams = {
+          model: selectedModel,
+          messages: l1Messages,
           ...getTokenParams(selectedModel, tokenLimit),
         };
         if (supportsCustomTemperature(selectedModel)) {
@@ -10288,14 +10327,18 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
           
           const openaiStart = Date.now();
           const dateAnchorL2 = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.` : '';
-          const backupParams = {
-            model: TRACE_BACKUP_MODEL,
-            messages: [
+          const l2Messages = [
               { role: 'system', content: TRACE_BOSS_SYSTEM + dateAnchorL2 },
               { role: 'system', content: controlBlock },
               { role: 'system', content: systemPrompt },
-              ...messagesWithHydration
-            ],
+          ];
+          if (sessionCompressionContext) {
+            l2Messages.push(sessionCompressionContext);
+          }
+          l2Messages.push(...messagesWithHydration);
+          const backupParams = {
+            model: TRACE_BACKUP_MODEL,
+            messages: l2Messages,
             ...getTokenParams(TRACE_BACKUP_MODEL, tokenLimit),
           };
           if (supportsCustomTemperature(TRACE_BACKUP_MODEL)) {
@@ -10521,6 +10564,7 @@ Your complete response:`;
           const recentContext = (messagesWithHydration || []).slice(-6)
             .map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${m.content}`)
             .join('\n');
+          const l3CompressionLine = sessionCompressionContext ? `\n[Earlier context]: ${sessionCompressionContext.content.replace('[Earlier in this conversation]:\n', '').substring(0, 500)}` : '';
           const l3DateLine = (localDay && localDate) ? `\nTODAY IS: ${localDay}, ${localDate}. TIME: ${localTime || 'unknown'}.` : '';
           const l3HolidayLine = proactiveHolidayLine ? `\nHOLIDAYS: ${proactiveHolidayLine}` : '';
           const l3ContextLine = holidayContext ? `\n${holidayContext}` : '';
@@ -10533,7 +10577,7 @@ Your complete response:`;
           const l3QLine = (controlQBudget === 0) ? `\nQUESTION RULE: Do NOT ask any questions. Make a statement or observation instead. No "?" in your response.` : '';
           const userEnergyLow = conversationState.classifyUserEnergy(lastUserContent) === 'low';
           const l3EnergyLine = userEnergyLow ? `\nUSER ENERGY: Low. They gave a short/minimal answer. Do NOT keep probing or asking follow-ups. Just acknowledge briefly and leave space. If they seem done with a topic, move on or sit with it.` : '';
-          plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3DateLine}${l3HolidayLine}${l3ContextLine}${l3NewsLine}${l3SearchLine}${l3WeatherLine}${l3MusicLine}${l3DataInstruction}${l3QLine}${l3EnergyLine}
+          plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3CompressionLine}${l3DateLine}${l3HolidayLine}${l3ContextLine}${l3NewsLine}${l3SearchLine}${l3WeatherLine}${l3MusicLine}${l3DataInstruction}${l3QLine}${l3EnergyLine}
 
 Recent conversation:
 ${recentContext}
@@ -12471,9 +12515,10 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
             console.log('[CORE MEMORY] Skipping Supabase persist — session not established (in-memory only)');
           }
           
-          // Check if extraction should run
+          // Check if extraction should run (with importance signal detection)
           const memConv = memoryStore.getInMemoryConversation(conversationId);
-          if (coreMemory.shouldExtract(memConv || conversationMeta.conversation)) {
+          const recentForSignals = messagesWithHydration.slice(-10);
+          if (coreMemory.shouldExtract(memConv || conversationMeta.conversation, recentForSignals)) {
             const recentMsgs = await memoryStore.fetchRecentMessages(supabaseServer, conversationId, 30);
             coreMemory.runExtraction(openai, supabaseServer, conversationId, recentMsgs);
           }

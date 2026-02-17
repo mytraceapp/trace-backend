@@ -5,25 +5,40 @@
 
 const memoryStore = require('./memoryStore');
 
-const EXTRACTION_THRESHOLD = 10;
+const EXTRACTION_THRESHOLD = 5;
 const SUMMARY_THRESHOLD = 25;
 
+const IMPORTANCE_SIGNALS = [
+  /\bmy (?:name|partner|wife|husband|girlfriend|boyfriend|kid|child|daughter|son|mom|dad|brother|sister|friend|boss|job|work)\b/i,
+  /\bI (?:just|recently|finally|actually)\b/i,
+  /\bI (?:got|started|quit|lost|found|moved|broke up|married|divorced|graduated)\b/i,
+  /\bmy (?:birthday|anniversary|wedding|funeral|diagnosis|surgery|test|exam|interview)\b/i,
+  /\bI (?:feel|felt|think|believe|want|need|hope|wish|worry|hate|love|miss|remember)\b/i,
+  /\b(?:died|passed away|pregnant|engaged|fired|promoted|hired|admitted|accepted|rejected)\b/i,
+  /\b(?:trigger|trauma|anxiety|depression|panic|addiction|abuse|assault|suicide|self-harm)\b/i,
+  /\bI['']?m (?:scared|afraid|terrified|worried|nervous|stressed|overwhelmed|exhausted|lonely|angry|sad|happy|excited|proud)\b/i,
+  /\b(?:next week|tomorrow|this weekend|coming up|planning to|going to|decided to)\b/i,
+  /\b(?:goal|dream|aspiration|plan|resolution|commitment|promise)\b/i,
+];
+
 const CORE_MEMORY_CAPS = {
-  user_facts: 12,
-  goals: 10,
+  user_facts: 25,
+  goals: 15,
   constraints: 10,
   commitments: 10,
-  themes: 5,
+  themes: 10,
+  pending_topics: 8,
   emotion_timeline: 5,
   contradictions: 10,
 };
 
 const TRIMMED_CAPS = {
-  user_facts: 5,
-  goals: 3,
+  user_facts: 10,
+  goals: 5,
   constraints: 3,
   commitments: 3,
-  themes: 3,
+  themes: 5,
+  pending_topics: 4,
   emotion_timeline: 3,
 };
 
@@ -34,6 +49,7 @@ function validateCoreMemory(raw) {
     constraints: [],
     commitments: [],
     themes: [],
+    pending_topics: [],
     emotion_timeline: [],
     contradictions: [],
     updated_at: new Date().toISOString(),
@@ -73,6 +89,12 @@ function validateCoreMemory(raw) {
     validated.themes = raw.themes
       .filter(t => typeof t === 'string')
       .slice(0, CORE_MEMORY_CAPS.themes);
+  }
+
+  if (Array.isArray(raw.pending_topics)) {
+    validated.pending_topics = raw.pending_topics
+      .filter(t => typeof t === 'string')
+      .slice(0, CORE_MEMORY_CAPS.pending_topics);
   }
 
   if (Array.isArray(raw.emotion_timeline)) {
@@ -130,6 +152,14 @@ function mergeCoreMemory(existing, extracted) {
       .slice(-CORE_MEMORY_CAPS.themes);
   }
 
+  if (extracted.pending_topics?.length) {
+    const newTopics = extracted.pending_topics.filter(
+      t => !existing.pending_topics?.some(et => et.toLowerCase() === t.toLowerCase())
+    );
+    merged.pending_topics = [...(existing.pending_topics || []), ...newTopics]
+      .slice(-CORE_MEMORY_CAPS.pending_topics);
+  }
+
   if (extracted.emotion_timeline?.length) {
     merged.emotion_timeline = [
       ...(existing.emotion_timeline || []),
@@ -171,16 +201,25 @@ async function runExtraction(openai, supabase, conversationId, messages) {
       return;
     }
 
-    const prompt = `Extract stable user information from these messages. Return JSON:
+    const prompt = `You are extracting SPECIFIC, CONCRETE personal details from a conversation for long-term memory. Prioritize details that would help a close friend remember important things about this person.
+
+Return JSON with these fields:
 {
-  "user_facts": ["string facts about user, max 12"],
-  "goals": [{"text": "goal", "started_at": "ISO date"}],
-  "constraints": [{"type": "time|money|health|family|work|other", "description": "..."}],
-  "themes": ["recurring topics, max 5"],
-  "emotion_timeline": [{"emotion": "word", "context": "brief", "timestamp": "ISO"}]
+  "user_facts": ["SPECIFIC facts: names, places, dates, occupations, relationships, pets, hobbies, habits, preferences. Example: 'Has a daughter named Lily who is 7', 'Works as a nurse at St. Mary\\'s', 'Lives in Portland, OR'. Max 25 items."],
+  "goals": [{"text": "Specific goal with details — not vague. Example: 'Wants to start running again — used to run 5K before knee injury'", "started_at": "ISO date or null"}],
+  "constraints": [{"type": "time|money|health|family|work|other", "description": "Specific constraint. Example: 'Can\\'t exercise much due to chronic back pain'"}],
+  "themes": ["Recurring emotional themes with context. Example: 'Feeling disconnected from partner since moving to new city'. Max 10 items."],
+  "pending_topics": ["Things the user mentioned wanting to revisit, follow up on, or things left unresolved. Example: 'Wants to talk more about job interview next Tuesday', 'Was about to share something about their mom but conversation shifted'. Max 8 items."],
+  "emotion_timeline": [{"emotion": "word", "context": "brief specific context", "timestamp": "ISO"}]
 }
 
-Only include what's clearly stated. Keep facts concise.`;
+RULES:
+- Extract NAMES, DATES, PLACES, SPECIFIC DETAILS — never vague summaries
+- "Has anxiety" is too vague → "Gets anxiety attacks at work, especially before presentations"
+- Include relationship dynamics: "Mentioned tension with brother over family inheritance"
+- Track life events: "Just moved to a new apartment last week", "Started therapy in January"
+- pending_topics: capture anything the user started discussing but didn't finish, or explicitly said they want to come back to
+- Only include what's clearly stated or strongly implied. Do NOT fabricate.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -277,55 +316,100 @@ function computeContinuityVector(coreMemory, recentUserMessages) {
   return { primaryTheme, recentEmotion };
 }
 
-function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLevel = 0) {
-  const lines = [];
+const MEMORY_CONTEXT_TOKEN_BUDGET = 2500;
+
+function estimateTokens(text) {
+  return Math.ceil(text.length / 3.5);
+}
+
+function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLevel = 0, compressions) {
+  const sections = [];
+  let totalTokens = 0;
 
   const caps = trimLevel > 0 ? TRIMMED_CAPS : CORE_MEMORY_CAPS;
   const summaryLimit = trimLevel > 1 ? 1 : 3;
-  const messageLimit = trimLevel > 1 ? 12 : trimLevel > 0 ? 20 : 30;
+  const messageLimit = trimLevel > 1 ? 5 : trimLevel > 0 ? 8 : 10;
+
+  function addSection(text, priority) {
+    const tokens = estimateTokens(text);
+    if (totalTokens + tokens <= MEMORY_CONTEXT_TOKEN_BUDGET) {
+      sections.push({ text, priority, tokens });
+      totalTokens += tokens;
+      return true;
+    }
+    const remaining = MEMORY_CONTEXT_TOKEN_BUDGET - totalTokens;
+    if (remaining > 50) {
+      const charBudget = Math.floor(remaining * 3.5);
+      const truncated = text.slice(0, charBudget) + '...';
+      sections.push({ text: truncated, priority, tokens: remaining });
+      totalTokens += remaining;
+      return true;
+    }
+    return false;
+  }
 
   if (coreMemory) {
-    lines.push('USER MEMORY (use implicitly, never quote):');
+    const coreLines = ['USER MEMORY (reference naturally, never quote verbatim):'];
 
     if (coreMemory.user_facts?.length) {
-      lines.push(`- Facts: ${coreMemory.user_facts.slice(0, caps.user_facts).join('; ')}`);
-    }
-    if (coreMemory.themes?.length) {
-      lines.push(`- Themes: ${coreMemory.themes.slice(0, caps.themes).join(', ')}`);
+      coreLines.push(`- About them: ${coreMemory.user_facts.slice(0, caps.user_facts).join('; ')}`);
     }
     if (coreMemory.goals?.length) {
       const goalTexts = coreMemory.goals.slice(0, caps.goals).map(g => g.text);
-      lines.push(`- Goals: ${goalTexts.join('; ')}`);
+      coreLines.push(`- Their goals: ${goalTexts.join('; ')}`);
+    }
+    if (coreMemory.themes?.length) {
+      coreLines.push(`- Recurring themes: ${coreMemory.themes.slice(0, caps.themes).join('; ')}`);
+    }
+    if (coreMemory.pending_topics?.length) {
+      coreLines.push(`- Unfinished topics (they may want to revisit): ${coreMemory.pending_topics.slice(0, caps.pending_topics).join('; ')}`);
+    }
+    if (coreMemory.constraints?.length) {
+      const constraintTexts = coreMemory.constraints.slice(0, caps.constraints).map(c => c.description);
+      coreLines.push(`- Constraints: ${constraintTexts.join('; ')}`);
     }
     if (coreMemory.emotion_timeline?.length) {
       const recent = coreMemory.emotion_timeline.slice(-caps.emotion_timeline);
-      const emotions = recent.map(e => e.emotion).join(' → ');
-      lines.push(`- Recent emotions: ${emotions}`);
+      const emotions = recent.map(e => `${e.emotion}${e.context ? ` (${e.context})` : ''}`).join(' → ');
+      coreLines.push(`- Emotional arc: ${emotions}`);
     }
-  }
 
-  if (sessionSummaries?.length) {
-    lines.push('\nPRIOR SESSIONS:');
-    sessionSummaries.slice(0, summaryLimit).forEach((s, i) => {
-      lines.push(`${i + 1}. ${s.summary}`);
-    });
+    addSection(coreLines.join('\n'), 1);
   }
 
   if (recentMessages?.length) {
     const trimmed = recentMessages.slice(-messageLimit);
     const userMsgs = trimmed.filter(m => m.role === 'user').slice(-5);
     if (userMsgs.length) {
-      lines.push('\nRECENT USER MESSAGES:');
+      const msgLines = ['\nRECENT (PREVIOUS SESSION):'];
       userMsgs.forEach(m => {
-        const truncated = m.content.length > 80
-          ? m.content.slice(0, 80) + '...'
+        const truncated = m.content.length > 120
+          ? m.content.slice(0, 120) + '...'
           : m.content;
-        lines.push(`- "${truncated}"`);
+        msgLines.push(`- "${truncated}"`);
       });
+      addSection(msgLines.join('\n'), 2);
     }
   }
 
-  return lines.length > 1 ? lines.join('\n') : '';
+  if (sessionSummaries?.length) {
+    const summaryLines = ['\nPRIOR SESSIONS:'];
+    sessionSummaries.slice(0, summaryLimit).forEach((s, i) => {
+      summaryLines.push(`${i + 1}. ${s.summary}`);
+    });
+    addSection(summaryLines.join('\n'), 3);
+  }
+
+  if (compressions?.length) {
+    const compLines = ['\nEARLIER CONTEXT:'];
+    compressions.slice(0, 2).forEach(c => {
+      compLines.push(`- ${c.summary}`);
+    });
+    addSection(compLines.join('\n'), 4);
+  }
+
+  if (sections.length === 0) return '';
+  return sections.sort((a, b) => a.priority - b.priority).map(s => s.text).join('\n');
 }
 
 function buildGreetingResponse(gapHours, recentEmotion) {
@@ -338,8 +422,114 @@ function buildGreetingResponse(gapHours, recentEmotion) {
   return "Hey. I'm here. Where do you want to start today?";
 }
 
-function shouldExtract(conversation) {
-  return (conversation.user_msg_count_since_extraction || 0) >= EXTRACTION_THRESHOLD;
+const COMPRESSION_THRESHOLD = 40;
+const COMPRESSION_KEEP_RECENT = 20;
+
+async function compressOlderMessages(openai, supabase, conversationId, sessionId, messages) {
+  if (!openai || messages.length <= COMPRESSION_THRESHOLD) return null;
+
+  if (!memoryStore.acquireLock(conversationId, 'compression')) {
+    console.log('[SESSION COMPRESS] Already running for:', conversationId);
+    return null;
+  }
+
+  try {
+    const existingCompressions = await memoryStore.fetchSessionCompressions(supabase, conversationId, 1);
+    const alreadyCompressedCount = existingCompressions.reduce((sum, c) => sum + (c.covers_message_count || 0), 0);
+
+    const uncompressedStart = alreadyCompressedCount;
+    const keepCount = COMPRESSION_KEEP_RECENT;
+    const toCompressEnd = messages.length - keepCount;
+
+    if (toCompressEnd <= uncompressedStart || toCompressEnd - uncompressedStart < 6) {
+      console.log(`[SESSION COMPRESS] Not enough new messages to compress (already=${alreadyCompressedCount}, total=${messages.length})`);
+      const keepFull = messages.slice(-keepCount);
+      if (existingCompressions.length > 0) {
+        return {
+          compressionContext: { role: 'system', content: `[Earlier in this conversation]:\n${existingCompressions[0].summary}` },
+          recentMessages: keepFull,
+        };
+      }
+      return null;
+    }
+
+    const toCompress = messages.slice(uncompressedStart, toCompressEnd);
+    const keepFull = messages.slice(-keepCount);
+
+    const conversationText = toCompress
+      .map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${m.content}`)
+      .join('\n');
+
+    const priorSummary = existingCompressions.length > 0
+      ? `\n\nPrior context (already summarized):\n${existingCompressions[0].summary}\n\nNew conversation segment to add to summary:`
+      : '';
+
+    const compressionPrompt = `Summarize this conversation segment for context continuity.${priorSummary} Preserve:
+- Specific facts the user shared (names, dates, numbers, decisions, places)
+- Emotional context and tone shifts
+- Any commitments, action items, or things they said they'd come back to
+- Topics they want to revisit
+- Key relationship details mentioned (people, pets, work relationships)
+
+Be SPECIFIC. Don't generalize. Keep proper nouns. Use concise bullet points.
+Bad: "User discussed work stress"
+Good: "User's manager Sarah rejected their Q1 report. Worried about job security."
+
+${priorSummary ? 'Integrate the prior context with the new segment into one cohesive summary.' : ''}
+Conversation to summarize:
+${conversationText}`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: compressionPrompt }],
+      temperature: 0.3,
+      max_tokens: 500,
+    });
+
+    const summary = completion.choices[0]?.message?.content?.trim();
+    if (!summary || summary.length < 20) {
+      console.warn('[SESSION COMPRESS] Summary too short, skipping');
+      return null;
+    }
+
+    const totalCompressed = alreadyCompressedCount + toCompress.length;
+    await memoryStore.saveSessionCompression(supabase, conversationId, sessionId, summary, totalCompressed);
+    console.log(`[SESSION COMPRESS] Compressed ${toCompress.length} new messages (total covered: ${totalCompressed}) → ${summary.length} char summary, keeping ${keepFull.length} recent`);
+
+    return {
+      compressionContext: { role: 'system', content: `[Earlier in this conversation]:\n${summary}` },
+      recentMessages: keepFull,
+    };
+  } catch (err) {
+    console.error('[SESSION COMPRESS] Error:', err.message);
+    return null;
+  } finally {
+    memoryStore.releaseLock(conversationId, 'compression');
+  }
+}
+
+function hasImportanceSignals(recentMessages) {
+  if (!recentMessages || recentMessages.length === 0) return false;
+  const userMessages = recentMessages
+    .filter(m => m.role === 'user')
+    .slice(-5);
+  
+  for (const msg of userMessages) {
+    const content = msg.content || '';
+    let signalCount = 0;
+    for (const pattern of IMPORTANCE_SIGNALS) {
+      if (pattern.test(content)) signalCount++;
+    }
+    if (signalCount >= 2 || content.length > 100) return true;
+  }
+  return false;
+}
+
+function shouldExtract(conversation, recentMessages) {
+  const count = conversation.user_msg_count_since_extraction || 0;
+  if (count >= EXTRACTION_THRESHOLD) return true;
+  if (count >= 3 && hasImportanceSignals(recentMessages)) return true;
+  return false;
 }
 
 function shouldSummarize(conversation, rotated) {
@@ -357,6 +547,8 @@ module.exports = {
   buildGreetingResponse,
   shouldExtract,
   shouldSummarize,
+  compressOlderMessages,
   EXTRACTION_THRESHOLD,
   SUMMARY_THRESHOLD,
+  COMPRESSION_THRESHOLD,
 };

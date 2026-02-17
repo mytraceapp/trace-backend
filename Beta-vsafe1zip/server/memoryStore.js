@@ -398,6 +398,73 @@ function getInMemoryConversation(conversationId) {
   return mem.conversations.get(conversationId);
 }
 
+async function saveSessionCompression(supabase, conversationId, sessionId, summary, messageCount) {
+  if (!supabase) {
+    console.warn('[MEMORY STORE] Cannot save compression without Supabase');
+    return;
+  }
+  try {
+    const { error } = await supabase.from('session_compressions').insert({
+      conversation_id: conversationId,
+      session_id: sessionId || null,
+      summary,
+      covers_message_count: messageCount,
+      compressed_at: new Date().toISOString(),
+    });
+    if (error) throw error;
+    console.log(`[MEMORY STORE] Saved session compression (${messageCount} messages → summary)`);
+  } catch (err) {
+    console.error('[MEMORY STORE] saveSessionCompression error:', err.message);
+  }
+}
+
+async function fetchSessionCompressions(supabase, conversationId, limit = 3) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('session_compressions')
+      .select('summary, covers_message_count, compressed_at')
+      .eq('conversation_id', conversationId)
+      .order('compressed_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('[MEMORY STORE] fetchSessionCompressions error:', err.message);
+    return [];
+  }
+}
+
+async function fetchLastSessionMessages(supabase, userId, limit = 10) {
+  if (!supabase || !userId) return [];
+  try {
+    const { data: sessions, error: sessErr } = await supabase
+      .from('trace_sessions')
+      .select('session_id, conversation_id')
+      .order('started_at', { ascending: false })
+      .limit(5);
+    if (sessErr || !sessions?.length) return [];
+
+    const convIds = [...new Set(sessions.map(s => s.conversation_id))];
+
+    for (const convId of convIds) {
+      const { data: msgs, error: msgErr } = await supabase
+        .from('trace_messages')
+        .select('role, content, created_at')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (!msgErr && msgs?.length > 0) {
+        return msgs.reverse();
+      }
+    }
+    return [];
+  } catch (err) {
+    console.error('[MEMORY STORE] fetchLastSessionMessages error:', err.message);
+    return [];
+  }
+}
+
 module.exports = {
   validateOrGenerateConversationId,
   ensureConversation,
@@ -413,4 +480,7 @@ module.exports = {
   releaseLock,
   flushPendingWrites,
   getInMemoryConversation,
+  saveSessionCompression,
+  fetchSessionCompressions,
+  fetchLastSessionMessages,
 };
