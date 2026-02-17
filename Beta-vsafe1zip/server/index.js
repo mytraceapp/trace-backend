@@ -1296,6 +1296,23 @@ function getCountryFromTimezone(timezone) {
 const _holidayCache = new Map();
 const HOLIDAY_CACHE_TTL = 4 * 60 * 60 * 1000;
 
+const _holidayMentionedTracker = new Map();
+const HOLIDAY_MENTION_TTL = 12 * 60 * 60 * 1000;
+
+function markHolidayMentioned(userId) {
+  _holidayMentionedTracker.set(userId, { at: Date.now(), count: (_holidayMentionedTracker.get(userId)?.count || 0) + 1 });
+}
+
+function getHolidayMentionCount(userId) {
+  const entry = _holidayMentionedTracker.get(userId);
+  if (!entry) return 0;
+  if (Date.now() - entry.at > HOLIDAY_MENTION_TTL) {
+    _holidayMentionedTracker.delete(userId);
+    return 0;
+  }
+  return entry.count;
+}
+
 function pickBestHoliday(holidays) {
   if (!holidays || holidays.length === 0) return null;
   const national = holidays.find(h => (h.type || '').toLowerCase().includes('national'));
@@ -4180,6 +4197,15 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
     
     // === ENFORCE LOWERCASE (final pass) ===
     greeting = enforceLowercase(greeting);
+    
+    // Track if greeting mentions a holiday so chat turns don't repeat it
+    const holidayNames = ['presidents', 'chinese new year', 'ash wednesday', 'valentine', 'christmas', 'thanksgiving', 'easter', 'memorial', 'independence', 'labor day', 'mlk', 'martin luther', 'juneteenth', 'halloween', 'new year', 'holiday', 'hanukkah', 'kwanzaa', 'diwali', 'ramadan', 'eid'];
+    const greetingLower = greeting.toLowerCase();
+    const greetingMentionsHoliday = holidayNames.some(h => greetingLower.includes(h));
+    if (greetingMentionsHoliday && userId) {
+      markHolidayMentioned(userId);
+      console.log('[GREETING] Holiday mentioned in greeting — marked for chat dedup');
+    }
     
     console.log('[GREETING] Final:', greeting);
     
@@ -7483,6 +7509,10 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
       }
 
       // Proactive holiday context — always fetch nearby holidays (cached 4h)
+      // BUT: suppress proactive injection if holiday was already mentioned (greeting or earlier turn)
+      const holidayMentionCount = getHolidayMentionCount(effectiveUserId);
+      const isUserAskingAboutHoliday = /\b(holiday|what\s+day|presidents|chinese\s+new\s+year|ash\s+wednesday|what'?s\s+today|is\s+it\s+a\s+holiday|day\s+off)\b/i.test(userText);
+      
       try {
         const profileForHoliday = await getProfileBasicOnce();
         const proactiveResult = await getProactiveHolidayContext({
@@ -7491,13 +7521,23 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
         });
         if (proactiveResult) {
           if (proactiveResult.controlBlockLine) {
-            proactiveHolidayLine = proactiveResult.controlBlockLine;
+            if (holidayMentionCount === 0 || isUserAskingAboutHoliday) {
+              proactiveHolidayLine = proactiveResult.controlBlockLine;
+            } else {
+              console.log(`[HOLIDAY] Suppressing proactive holiday line (already mentioned ${holidayMentionCount}x)`);
+            }
           }
           if (proactiveResult.promptContext) {
-            holidayContext = proactiveResult.promptContext;
+            if (isUserAskingAboutHoliday) {
+              holidayContext = proactiveResult.promptContext;
+            } else if (holidayMentionCount === 0) {
+              holidayContext = proactiveResult.promptContext + ` You may mention this ONCE if it fits naturally. Do NOT bring it up again after mentioning it.`;
+            } else {
+              console.log(`[HOLIDAY] Suppressing holiday prompt context (already mentioned ${holidayMentionCount}x)`);
+            }
           }
         }
-        if (!holidayContext) {
+        if (!holidayContext && isUserAskingAboutHoliday) {
           const holidayResult = await maybeAttachHolidayContext({
             messages,
             profile: profileForHoliday,
@@ -10223,7 +10263,18 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
         }
         console.warn('[TRACE OPENAI L1] Empty/invalid on attempt', attempt);
       } catch (err) {
-        console.error('[TRACE OPENAI L1] Error on attempt', attempt, ':', err.message);
+        if (err instanceof SyntaxError && rawContent && rawContent.trim().length > 10) {
+          const plainText = rawContent.replace(/^["'\s]+|["'\s]+$/g, '').trim();
+          if (plainText.length > 10 && isSentenceComplete(plainText)) {
+            parsed = { message: plainText, activity_suggestion: { name: null, reason: null, should_navigate: false } };
+            console.log(`[TRACE OPENAI L1] JSON parse failed but recovered plain text (${plainText.length} chars)`);
+            break;
+          } else {
+            console.warn('[TRACE OPENAI L1] JSON parse failed, plain text too short or incomplete:', (plainText || '').substring(0, 80));
+          }
+        } else {
+          console.error('[TRACE OPENAI L1] Error on attempt', attempt, ':', err.message);
+        }
       }
     }
     
@@ -10492,7 +10543,7 @@ User just said: "${lastUserContent}"
 Continue the conversation naturally. Stay in the same emotional lane — if they're sharing something personal, match that energy. If the user asks about dates, holidays, current events, or news, use the data and facts above — do NOT guess or deflect. 1-3 sentences max. No JSON, just your response:`;
         }
         
-        const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : (isCrisisMode ? 800 : 400);
+        const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : (isCrisisMode ? 800 : 600);
         const remainingBudgetL3 = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
         const l3Timeout = Math.max(5000, Math.min(12000, remainingBudgetL3 - 3000));
         const l3Abort = AbortSignal.timeout(l3Timeout);
@@ -10610,6 +10661,16 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     
     const finalMsgLength = parsed.messages ? parsed.messages.join('').length : (parsed.message || '').length;
     console.log('[TRACE OPENAI FINAL] message length:', finalMsgLength, parsed.messages ? `(${parsed.messages.length} messages)` : '');
+    
+    // Track holiday mention in response to prevent over-repetition
+    if (parsed.message) {
+      const responseLower = (parsed.message || '').toLowerCase();
+      const holidayKeywords = ['presidents', 'chinese new year', 'ash wednesday', 'valentine', 'christmas', 'thanksgiving', 'easter', 'memorial', 'independence day', 'labor day', 'mlk', 'juneteenth', 'halloween', 'new year', 'hanukkah', 'kwanzaa', 'diwali', 'ramadan', 'eid', 'holiday'];
+      if (holidayKeywords.some(h => responseLower.includes(h))) {
+        markHolidayMentioned(effectiveUserId);
+        console.log('[HOLIDAY] AI mentioned holiday in response — tracked for dedup');
+      }
+    }
     
     // ============================================================
     // PREMIUM CONVERSATION ENGINE v1: Anti-Repetition Check

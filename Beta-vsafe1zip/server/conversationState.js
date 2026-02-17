@@ -1234,16 +1234,26 @@ function enforceQuestionThrottle(responseText, questionsAllowed) {
 
   const sentences = responseText.split(/(?<=[.!?])\s+/);
   let kept = 0;
-  const rewritten = sentences.map(sentence => {
-    if (!sentence.includes('?')) return sentence;
+  const result = [];
+  for (const sentence of sentences) {
+    if (!sentence.includes('?')) {
+      result.push(sentence);
+      continue;
+    }
     if (kept < questionsAllowed) {
       kept++;
-      return sentence;
+      result.push(sentence);
+    } else {
+      console.log(`[QUESTION THROTTLE] Dropped excess question: "${sentence.substring(0, 60)}"`);
     }
-    return sentence.replace(/\?$/, '.');
-  });
+  }
+  
+  if (result.length === 0) {
+    const acks = ['yeah, makes sense.', 'got it.', 'mm, yeah.', 'noted.', 'fair enough.'];
+    return acks[Math.floor(Math.random() * acks.length)];
+  }
 
-  return rewritten.join(' ');
+  return result.join(' ');
 }
 
 module.exports = {
