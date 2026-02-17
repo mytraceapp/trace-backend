@@ -40,6 +40,9 @@ const DEFAULT_VOLUME = 0.35;
 const DEFAULT_FADE_MS = 1200;
 const CROSSFADE_MS = 2400;
 
+const MIN_TRACKS_BEFORE_STATE_CHANGE = 7;
+const MIN_DURATION_BEFORE_STATE_CHANGE_MS = 30 * 60 * 1000;
+
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const soundRef = useRef<Audio.Sound | null>(null);
   const currentStateRef = useRef<SoundState | null>(null);
@@ -61,6 +64,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const isTransitioningRef = useRef(false);
   const playStateRef = useRef<((state: SoundState, fadeMs?: number) => Promise<void>) | null>(null);
   const stateChangeEpochRef = useRef(0);
+  const stateActivatedAtRef = useRef<number | null>(null);
+  const deferredStateRef = useRef<SoundState | null>(null);
 
   useEffect(() => {
     Audio.setAudioModeAsync({
@@ -172,7 +177,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       tracksInCurrentStateRef.current = 0;
       stateChangeEpochRef.current++;
       queuedStateRef.current = null;
-      console.log(`[AUDIO] State change: ${currentStateRef.current} → ${state}, counter reset to 0, epoch=${stateChangeEpochRef.current}`);
+      deferredStateRef.current = null;
+      stateActivatedAtRef.current = Date.now();
+      console.log(`[AUDIO] State change: ${currentStateRef.current} → ${state}, counter reset to 0, epoch=${stateChangeEpochRef.current}, lock started`);
     }
 
     const trackNum = getNextTrack(state);
@@ -228,8 +235,24 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
             queuedStateRef.current = null;
             advance(queued, CROSSFADE_MS);
           } else if (thisState) {
-            console.log(`[AUDIO] 🎵 Auto-advancing to next track in "${thisState}"`);
-            advance(thisState, CROSSFADE_MS);
+            const tracksPlayed = tracksInCurrentStateRef.current;
+            const deferred = deferredStateRef.current;
+            const activatedAt = stateActivatedAtRef.current;
+            const elapsed = activatedAt ? Date.now() - activatedAt : 0;
+            const tracksMet = tracksPlayed >= MIN_TRACKS_BEFORE_STATE_CHANGE;
+            const durationMet = elapsed >= MIN_DURATION_BEFORE_STATE_CHANGE_MS;
+
+            if (deferred && deferred !== thisState && (tracksMet || durationMet)) {
+              console.log(`[AUDIO] 🔓 Lock expired after ${tracksPlayed} tracks / ${(elapsed / 60000).toFixed(1)}min — applying deferred state: ${deferred}`);
+              deferredStateRef.current = null;
+              advance(deferred, CROSSFADE_MS);
+            } else {
+              if (deferred && thisState !== 'presence') {
+                console.log(`[AUDIO] 🔒 Lock active (${tracksPlayed}/${MIN_TRACKS_BEFORE_STATE_CHANGE} tracks, ${(elapsed / 60000).toFixed(1)}min) — continuing "${thisState}", deferred: "${deferred}"`);
+              }
+              console.log(`[AUDIO] 🎵 Auto-advancing to next track in "${thisState}"`);
+              advance(thisState, CROSSFADE_MS);
+            }
           }
         }
       });
@@ -274,6 +297,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       currentStateRef.current = null;
       tracksInCurrentStateRef.current = 0;
       stateChangeEpochRef.current++;
+      stateActivatedAtRef.current = null;
+      deferredStateRef.current = null;
       setCurrentState(null);
       setIsPlaying(false);
       setTracksPlayedInState(0);
@@ -283,6 +308,20 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       console.error('[AUDIO] stopSoundscape error:', error);
     }
   }, [fadeVolume]);
+
+  const isStateLocked = useCallback((): boolean => {
+    const current = currentStateRef.current;
+    if (!current || current === 'presence') return false;
+
+    const tracksPlayed = tracksInCurrentStateRef.current;
+    const activatedAt = stateActivatedAtRef.current;
+    const elapsed = activatedAt ? Date.now() - activatedAt : 0;
+
+    const tracksMet = tracksPlayed >= MIN_TRACKS_BEFORE_STATE_CHANGE;
+    const durationMet = elapsed >= MIN_DURATION_BEFORE_STATE_CHANGE_MS;
+
+    return !tracksMet && !durationMet;
+  }, []);
 
   const handleSoundState = useCallback(async (payload: SoundStatePayload) => {
     if (pausedByRef.current) {
@@ -321,14 +360,24 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     if (isUrgent) {
       console.log(`[AUDIO] ⚡ URGENT state change: ${currentStateRef.current} → ${payload.current} (${payload.reason})`);
+      deferredStateRef.current = null;
       queuedStateRef.current = null;
       await playState(payload.current, 600);
       return;
     }
 
+    if (isStateLocked()) {
+      const tracksPlayed = tracksInCurrentStateRef.current;
+      const activatedAt = stateActivatedAtRef.current;
+      const elapsedMin = activatedAt ? ((Date.now() - activatedAt) / 60000).toFixed(1) : '0';
+      console.log(`[AUDIO] 🔒 STATE LOCKED: "${currentStateRef.current}" has only played ${tracksPlayed}/${MIN_TRACKS_BEFORE_STATE_CHANGE} tracks (${elapsedMin}min elapsed). Deferring "${payload.current}" until lock expires.`);
+      deferredStateRef.current = payload.current;
+      return;
+    }
+
     console.log(`[AUDIO] 📋 Queueing state change: ${currentStateRef.current} → ${payload.current} (will switch after current track finishes)`);
     queuedStateRef.current = payload.current;
-  }, [playState]);
+  }, [playState, isStateLocked]);
 
   const pauseForActivity = useCallback(async () => {
     if (!soundRef.current) return;
@@ -359,6 +408,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const deferred = deferredStateRef.current;
+    if (deferred && deferred !== currentStateRef.current && !isStateLocked()) {
+      console.log(`[AUDIO] 🔓 Lock expired during pause — applying deferred state on resume: ${deferred}`);
+      deferredStateRef.current = null;
+      await playState(deferred, CROSSFADE_MS);
+      return;
+    }
+
     try {
       await soundRef.current.playAsync();
       await fadeVolume(soundRef.current, 0, DEFAULT_VOLUME, 400);
@@ -367,7 +424,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('[AUDIO] resumeFromActivity error:', error);
     }
-  }, [fadeVolume, playState]);
+  }, [fadeVolume, playState, isStateLocked]);
 
   const pauseForOriginals = useCallback(async () => {
     if (!soundRef.current) return;
@@ -398,6 +455,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const deferred = deferredStateRef.current;
+    if (deferred && deferred !== currentStateRef.current && !isStateLocked()) {
+      console.log(`[AUDIO] 🔓 Lock expired during Originals — applying deferred state on resume: ${deferred}`);
+      deferredStateRef.current = null;
+      await playState(deferred, CROSSFADE_MS);
+      return;
+    }
+
     try {
       await soundRef.current.playAsync();
       await fadeVolume(soundRef.current, 0, DEFAULT_VOLUME, 600);
@@ -406,7 +471,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('[AUDIO] resumeFromOriginals error:', error);
     }
-  }, [fadeVolume, playState]);
+  }, [fadeVolume, playState, isStateLocked]);
 
   const getTracksPlayedSync = useCallback(() => {
     return tracksInCurrentStateRef.current;
