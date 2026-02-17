@@ -1,0 +1,73 @@
+": "comfort", "reason": "no_change"}
+ LOG  [AUDIO_CADENCE] 🎵 Backend wants soundscape: comfort (reason: no_change)
+ LOG  [AUDIO_CADENCE] 🎯 Soundscape check conditions: {"assistantCount": 30, "cadenceMet": true, "isAppForeground": true, "isChatFocused": true, "isHardStopped": false, "isInActivity": false, "isPlayerActive": false, "isResumingSoundscape": true, "soundStateChanged": false, "soundStateCurrent": "comfort", "userCount": 30}
+ LOG  [AUDIO_CADENCE] ✅ ALLOWED - processing sound_state
+ LOG  [AUDIO_CADENCE] 🎵 sound_state=comfort -> playing specified soundscape
+ LOG  [useSoundStateIntegration] 🔍 handleSoundState called with: {"soundStateChanged": false, "soundStateConfidence": undefined, "soundStateCurrent": "comfort", "soundStateExists": true}
+ LOG  [useSoundStateIntegration] 📊 Soundscape status: {"currentState": "presence", "isEmotionalSoundscape": false, "newState": "comfort", "trackExists": true, "trackPlaying": false}
+ LOG  [useSoundStateIntegration] 🎵 INITIALIZING soundscape: {"newState": "comfort", "reason": "no_change"}
+ LOG  [AUDIO_GATE] updateSoundState_enter {"hardStop":false,"stopGateReason":null,"stopGateAt":null,"mediaVol":0.14250000000000002,"page":"chat","soundscapeActive":true,"hasActiveSound":true,"incoming":"comfort"}
+ LOG  [AudioContext.updateSoundState] 📍 State change: presence → comfort
+ LOG  [AudioContext.updateSoundState] 🔄 Sound active - queuing state change to comfort (waiting for current track to finish)
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=state_change_queued
+ LOG  [SOUNDCONTEXT] activated state=comfort hasTrack=true
+ LOG  [SoundContextManager] 🎵 Soundscape activated: comfort (track: true)
+ LOG  [useSoundStateIntegration] ✅ Soundscape activated successfully
+ LOG  [AUDIO_CADENCE] ✅ Soundscape check complete - inactivity_timer_reset reason=sound_state_applied
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "assistantMessageCount": 30, "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-17T23:36:54.715Z"}, "lastActivityTimestamp": 1771371415704, "lastAssistantHash": "86d27c2ba00ae3430087a8534d05df337e54d92c51815716e7c36cd13106a8a1", "lastAssistantText": "I might have missed something.", "lastGuidedStepTurn": 30, "lastQuestionIntent": "clarify", "lastUserAt": 1771371414716, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1771351214967, "sessionTurnCount": 30, "soundscapeCadenceMet": true, "userMessageCount": 30}
+ LOG  [CADENCE] Updated cadence state: {"assistant": 30, "met": true, "user": 30}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-17T23:36:54.715Z"}
+ LOG  [TRACE MIRROR] Session turn count: 30
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 30
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  [TRACE CHAT] Updated last visit timestamp (assistant responded)
+ LOG  [AUDIO_CADENCE] trace_reply_count=30
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=trace_response
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [CHAT_FREEZE_RECOVERED] afterMs=1268 count=75
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [CHAT_FREEZE_DETECTED] deltaMs=3883 count=76
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #1 (4/7 in rotation) {"alreadyPlayed": [7, 2, 6], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #1
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #1
+ LOG  [setupAutoPlay] 🔄 Track finished - applying pending state change: presence → comfort
+ LOG  [SoundStateManager] 🎵 Playing "comfort" track #2 (1/7 in rotation) {"alreadyPlayed": [], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: comfort #2
+ LOG  [SoundStateManager] 🎵 Loading "comfort" track 2...
+ LOG  [SoundStateManager] ✅ Track loaded: "comfort" #2
+ LOG  [SoundStateManager] 🎵 Playing "comfort" track #1 (2/7 in rotation) {"alreadyPlayed": [2], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: comfort #1
+ LOG  [SoundStateManager] 📁 Next track asset ready: comfort #1
+ LOG  [setupAutoPlay] ✅ State transition complete: presence → comfort
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [AudioContext] ⏱️ Inactivity timeout triggered
+ LOG  [AudioContext] 🎵 Soundscape still active - skipping return to ambient
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #4 (5/7 in rotation) {"alreadyPlayed": [7, 2, 6, 1], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #4
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #4
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #5 (6/7 in rotation) {"alreadyPlayed": [7, 2, 6, 1, 4], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #5
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #5
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
