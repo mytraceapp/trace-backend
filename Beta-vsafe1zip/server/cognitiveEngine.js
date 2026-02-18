@@ -88,12 +88,23 @@ function detectTopicShift(currentMessage, recentMessages = []) {
     .slice(-3)
     .map(m => m.content?.toLowerCase() || '');
   
-  // Simple topic coherence check - are they talking about similar things?
-  // This is a basic implementation; could be enhanced with embeddings
-  const currentWords = new Set(lower.split(/\s+/).filter(w => w.length > 3));
-  const recentWords = new Set(
-    recentUserMessages.join(' ').split(/\s+/).filter(w => w.length > 3)
-  );
+  // Common words that appear across many topics and inflate overlap scores
+  const CROSS_TOPIC_STOPWORDS = new Set([
+    'feel', 'felt', 'feeling', 'just', 'really', 'like', 'know', 'think',
+    'want', 'need', 'been', 'have', 'that', 'this', 'what', 'about',
+    'when', 'with', 'from', 'they', 'them', 'their', 'than', 'more',
+    'some', 'even', 'also', 'still', 'much', 'very', 'well', 'only',
+    'keep', 'kept', 'make', 'made', 'going', 'getting', 'being',
+    'work', 'home', 'hurt', 'lost', 'hard', 'long', 'life', 'time',
+    'things', 'stuff', 'something', 'everything', 'anything', 'nothing',
+    'always', 'never', 'maybe', 'kind', 'sort', 'could', 'would', 'should',
+  ]);
+
+  const filterWords = (text) => text.split(/\s+/)
+    .filter(w => w.length > 3 && !CROSS_TOPIC_STOPWORDS.has(w));
+
+  const currentWords = new Set(filterWords(lower));
+  const recentWords = new Set(filterWords(recentUserMessages.join(' ')));
   
   // Calculate overlap
   let overlap = 0;
@@ -113,17 +124,19 @@ function detectTopicShift(currentMessage, recentMessages = []) {
 
 /**
  * Determine primary emotional context from message
+ * 
+ * When the current message is short or returns neutral, scans the last 3
+ * user messages for emotional signal so context doesn't evaporate on
+ * "okay", "yeah", or other brief replies.
  */
-function detectEmotionalContext(message, recentSentiment = null) {
+function detectEmotionalContext(message, recentSentiment = null, recentMessages = []) {
   const lower = message.toLowerCase();
   
-  // Crisis indicators (highest priority)
   const crisisSignals = ['want to die', 'end it', 'kill myself', 'hurt myself', 'suicide'];
   if (crisisSignals.some(s => lower.includes(s))) {
     return 'crisis';
   }
   
-  // Emotional state detection
   const emotionMap = {
     anxious: ['anxious', 'worried', 'nervous', 'stressed', 'panicking', 'overwhelmed', 'scared'],
     sad: ['sad', 'depressed', 'down', 'crying', 'tears', 'heartbroken', 'grief', 'miss'],
@@ -134,13 +147,34 @@ function detectEmotionalContext(message, recentSentiment = null) {
     calm: ['calm', 'peaceful', 'relaxed', 'at peace', 'content']
   };
   
-  for (const [emotion, signals] of Object.entries(emotionMap)) {
-    if (signals.some(s => lower.includes(s))) {
-      return emotion;
+  const detectFromText = (text) => {
+    const t = text.toLowerCase();
+    if (crisisSignals.some(s => t.includes(s))) return 'crisis';
+    for (const [emotion, signals] of Object.entries(emotionMap)) {
+      if (signals.some(s => t.includes(s))) return emotion;
+    }
+    return null;
+  };
+  
+  const directResult = detectFromText(message);
+  if (directResult) return directResult;
+  
+  const short = isShortMessage(message);
+  if (short || !directResult) {
+    const recentUserMsgs = (recentMessages || [])
+      .filter(m => m.role === 'user')
+      .slice(-3);
+    
+    for (let i = recentUserMsgs.length - 1; i >= 0; i--) {
+      const content = recentUserMsgs[i].content || '';
+      const carried = detectFromText(content);
+      if (carried) {
+        console.log(`[COGNITIVE] Emotional carryover from recent message: ${carried}`);
+        return carried;
+      }
     }
   }
   
-  // Fall back to recent sentiment if available
   if (recentSentiment) {
     return recentSentiment;
   }
@@ -219,7 +253,7 @@ function processIntent(params) {
   // Core analysis
   const is_short_message = isShortMessage(currentMessage);
   const topic_shift_result = detectTopicShift(currentMessage, conversationHistory);
-  const primary_emotional_context = detectEmotionalContext(currentMessage, user_sentiment_recent);
+  const primary_emotional_context = detectEmotionalContext(currentMessage, user_sentiment_recent, conversationHistory);
   const references_activity = detectsActivityReflection(currentMessage);
   
   // Determine response type based on emotional context
