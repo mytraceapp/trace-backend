@@ -33,8 +33,13 @@ async function storeSignal(pool, signal) {
     signal.userAskedForActivity || null,
   ];
   
-  const result = await pool.query(query, values);
-  return result.rows[0]?.id;
+  try {
+    const result = await pool.query(query, values);
+    return result.rows[0]?.id;
+  } catch (err) {
+    console.error(`[FEEDBACK] storeSignal failed for user ${signal.userId?.substring(0, 8)}:`, err.message);
+    return null;
+  }
 }
 
 async function getSignalsForUser(pool, userId, limit = 100) {
@@ -360,7 +365,7 @@ function buildAdaptedPromptSection(learnings) {
   if (learnings.preferredResponseTone === 'warm') {
     adaptations.push('[ADAPTATION] Lean into warmth, emotional resonance, comfort.');
   } else if (learnings.preferredResponseTone === 'practical') {
-    adaptations.push('[ADAPTATION] Focus on practical advice, actionable steps.');
+    adaptations.push('[ADAPTATION] This user sometimes finds practical next steps useful — offer them when the moment fits, not as default mode. Presence first.');
   } else if (learnings.preferredResponseTone === 'reflective') {
     adaptations.push('[ADAPTATION] Encourage introspection, deeper thinking.');
   }
