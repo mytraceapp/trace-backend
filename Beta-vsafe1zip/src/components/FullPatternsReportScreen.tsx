@@ -209,14 +209,7 @@ export function FullPatternsReportScreen({
         });
         if (!cancelled && res.ok) {
           const json = await res.json();
-          const s = json.sections ?? null;
-          const valid = s && (s.weekShape || s.recurringThemes || s.whatsShifting || s.whatWorked);
-          if (valid) {
-            const parts = [s.weekShape, s.recurringThemes, s.whatsShifting, s.whatWorked].filter(Boolean);
-            setWeeklyNarrative(parts.join(' '));
-          } else {
-            setWeeklyNarrative(json.summaryText ?? null);
-          }
+          setWeeklyNarrative(json.weeklyNarrative || json.summaryText || null);
         }
       } catch (err) {
         console.error('TRACE/weeklySummary ❌', err);

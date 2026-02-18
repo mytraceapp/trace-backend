@@ -92,7 +92,7 @@ interface WeeklySectionsData {
 async function fetchWeeklySummary(params: {
   userId: string | null;
   deviceId: string | null;
-}): Promise<WeeklySectionsData | null> {
+}): Promise<string | null> {
   try {
     const res = await apiFetch('/api/patterns/weekly-summary', {
       method: 'POST',
@@ -100,9 +100,11 @@ async function fetchWeeklySummary(params: {
     });
     if (!res.ok) return null;
     const json = await res.json();
-    const sections = json.sections;
-    if (sections && (sections.weekShape || sections.recurringThemes || sections.whatsShifting || sections.whatWorked)) {
-      return sections;
+    if (json.weeklyNarrative && typeof json.weeklyNarrative === 'string') {
+      return json.weeklyNarrative;
+    }
+    if (json.summaryText && typeof json.summaryText === 'string') {
+      return json.summaryText;
     }
     return null;
   } catch (err) {
@@ -207,20 +209,14 @@ export default function PatternsReport() {
       setInsightsLoading(true);
       setPatternsSummaryLoading(true);
 
-      const [result, dedicatedSections] = await Promise.all([
+      const [result, dedicatedResult] = await Promise.all([
         fetchPatternsInsights({ userId, deviceId: stableId }),
         fetchWeeklySummary({ userId, deviceId: stableId }),
       ]);
 
       setInsights(result);
 
-      const sections = dedicatedSections || result.weeklySections || null;
-      if (sections) {
-        const narrative = [sections.weekShape, sections.recurringThemes, sections.whatsShifting, sections.whatWorked].filter(Boolean).join(' ');
-        setWeeklyNarrative(narrative || null);
-      } else {
-        setWeeklyNarrative(null);
-      }
+      setWeeklyNarrative(dedicatedResult || null);
     } catch (err) {
       console.error('[PATTERNS] insights fetch error:', err);
       setInsights(null);

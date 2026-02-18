@@ -16609,30 +16609,42 @@ app.post('/api/patterns/weekly-summary', async (req, res) => {
     if (chatDigest) weekDataBlockParts.push(`\n--- CHAT TOPICS (sampled) ---\n${chatDigest}`);
     const weekDataBlock = weekDataBlockParts.join('\n');
 
-    const systemPrompt = `You are TRACE's pattern engine. You have a week of someone's emotional and behavioral data — activities, journal entries, mood check-ins, conversation themes, and how this week compares to last week.
+    const systemPrompt = `You are TRACE. You've been given a full week of someone's data — conversations, journal entries, mood check-ins, activities, and how this week compares to last week.
 
-Your job is to find the signal in the noise. Not what happened — what it reveals.
+This is not a summary. This is not a report. This is TRACE sitting down and telling someone what their week actually revealed about them.
 
 DATA:
 ${weekDataBlock}
 
-Return JSON with exactly these fields:
-{
-  "weekShape": "What did the arc of this week actually look like? Not a schedule — a shape. Did they start heavy and find footing? Did they hold steady then drop? Did something specific change the trajectory mid-week? Name the shape and what seems to have caused it. 2-3 sentences.",
-  "recurringThemes": "What kept coming back across journal AND conversation AND mood — the emotional undercurrent that showed up in multiple forms? Don't list topics — identify the single thread connecting them. What are they actually working through right now? 2-3 sentences.",
-  "whatsShifting": "Compare this week to last week honestly. Something moved — either they're doing better in a specific way, or a pattern is deepening, or something new entered. Name the actual shift, not just the direction. 'Less anxious' is weak. 'The Sunday dread seems quieter this week — the week started differently' is real. 1-2 sentences.",
-  "whatWorked": "Look at where mood improved or heaviness lifted and trace it back to what preceded it. Activities, conversations, journal entries — what specifically seemed to correlate with feeling better? And what does that reveal about what this person actually needs? 1-2 sentences."
-}
+Write "Your Week" as one continuous piece — 150-200 words. No headers. No bullet points. No stats preamble. Just TRACE's voice, straight through.
 
-RULES:
-- These four sections will be read as ONE flowing paragraph. Write them to connect, not as separate observations
-- The most valuable insight is the one they wouldn't have noticed themselves
-- If week-over-week shows a real pattern (third week of Wednesday lows, etc.) — say it
-- Specific over general at all times
-- No therapy-speak, no cheerleading, no "it's great that you..."
-- Return ONLY valid JSON`;
+The structure underneath (don't make it visible):
+- Open with the emotional shape of the week — not what happened, what it FELT like to live it
+- Name the thing that kept coming back — the thread running under everything, even when they weren't talking about it directly
+- Say what shifted compared to last week — specifically, not directionally
+- End with the one observation they probably haven't made themselves — the line that makes them stop and read it twice
 
-    const userPrompt = `Return the JSON object with weekShape, recurringThemes, whatsShifting, and whatWorked.`;
+TRACE VOICE RULES:
+- Short sentences. Fragments are fine. "That's real." "It kept coming back."
+- Direct. If something is true, say it plainly. No hedging, no "perhaps", no "it seems like", no "might be"
+- Specific over general. "Wednesday dropped" not "mid-week was harder"
+- Present tense observations. "This is what heavy looks like for you" not "you seemed to be experiencing heaviness"
+- No therapy language. No "processing", "moving through", "sitting with", "holding space", "navigating"
+- No cheerleading. No "it's great that you", no "you should be proud"
+- Sound like someone who has been quietly paying attention all week and just decided to say what they actually see
+
+NEVER DO:
+- Restate numbers, counts, percentages, or session totals
+- Lead with stats or data points
+- Describe surface actions ("you checked in", "you had sessions")
+- Use: "impressive", "significant", "journey", "introspection", "perhaps", "might", "seems like", "a tiny"
+
+THE BAR: Someone should read this, stop scrolling, and think "how does it know that." If it doesn't clear that bar, it's not done.
+
+Return JSON: { "weeklyNarrative": "..." }
+Return ONLY valid JSON. No markdown, no preamble.`;
+
+    const userPrompt = `Return the JSON object with weeklyNarrative.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -16641,25 +16653,17 @@ RULES:
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.75,
-      max_tokens: 1000,
+      max_tokens: 600,
       response_format: { type: 'json_object' },
     });
 
     const raw = completion?.choices?.[0]?.message?.content?.trim();
-    let sections = null;
     let summaryText = '';
 
     try {
       const parsed = JSON.parse(raw);
-      if (parsed.weekShape || parsed.recurringThemes || parsed.whatsShifting || parsed.whatWorked) {
-        sections = {
-          weekShape: parsed.weekShape || null,
-          recurringThemes: parsed.recurringThemes || null,
-          whatsShifting: parsed.whatsShifting || null,
-          whatWorked: parsed.whatWorked || null,
-        };
-        summaryText = [sections.weekShape, sections.recurringThemes, sections.whatsShifting, sections.whatWorked].filter(Boolean).join(' ');
-      } else {
+      summaryText = parsed.weeklyNarrative || '';
+      if (!summaryText) {
         summaryText = raw || 'Your week is still taking shape.';
       }
     } catch (parseErr) {
@@ -16667,12 +16671,13 @@ RULES:
       summaryText = raw || 'Your week is still taking shape.';
     }
 
-    console.log('🧠 /api/patterns/weekly-summary generated sections:', JSON.stringify(sections)?.slice(0, 300));
+    console.log('🧠 /api/patterns/weekly-summary narrative length:', summaryText.length);
 
     res.json({
       ok: true,
       summaryText,
-      sections,
+      weeklyNarrative: summaryText,
+      sections: null,
     });
   } catch (err) {
     console.error('🧠 /api/patterns/weekly-summary error:', err);
