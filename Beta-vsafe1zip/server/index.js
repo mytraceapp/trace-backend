@@ -3898,6 +3898,32 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
       return res.json({ greeting: introMessage, firstRun: true });
     }
 
+    // Check for unanswered greeting — if user saw a greeting but never responded, show the same one
+    if (userId && supabaseServer) {
+      try {
+        const { data: lastGreeting } = await supabaseServer
+          .from('welcome_history')
+          .select('greeting, responded, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (lastGreeting && lastGreeting.responded === false && lastGreeting.greeting) {
+          const greetingAge = Date.now() - new Date(lastGreeting.created_at).getTime();
+          const MAX_UNANSWERED_AGE = 24 * 60 * 60 * 1000; // 24 hours
+          if (greetingAge < MAX_UNANSWERED_AGE) {
+            console.log('[GREETING] Returning unanswered greeting (age:', Math.round(greetingAge / 60000), 'min)');
+            return res.json({ greeting: lastGreeting.greeting, firstRun: false, recalled: true });
+          } else {
+            console.log('[GREETING] Previous greeting expired (age:', Math.round(greetingAge / 3600000), 'hrs) — generating fresh');
+          }
+        }
+      } catch (e) {
+        // No previous greeting or query error — continue to generate new one
+      }
+    }
+
     // For returning users, gather context for personalized AI greeting
     const { 
       localTime, 
@@ -9730,6 +9756,16 @@ The user is asking a factual question. Answer with specific details — names, n
     if (convoState.turnCount === 0 && messages && messages.length > 1) {
       conversationState.reconstructStateFromMessages(convoState, messages);
       conversationState.saveState(effectiveUserId, convoState);
+    }
+    
+    if (convoState.turnCount === 0 && effectiveUserId && supabaseServer) {
+      supabaseServer
+        .from('welcome_history')
+        .update({ responded: true })
+        .eq('user_id', effectiveUserId)
+        .eq('responded', false)
+        .then(() => console.log('[GREETING] Marked unanswered greeting as responded'))
+        .catch(() => {});
     }
     const recentAssistantTexts = (messages || []).filter(m => m.role === 'assistant').slice(-5).map(m => m.content || '');
     const recentUserTexts = (messages || []).filter(m => m.role === 'user').slice(-5).map(m => m.content || '');

@@ -42,7 +42,7 @@ High-level themes from journal entries can inform chat context. Activity complet
 Supports Supabase anonymous authentication with persistent user ID recovery and server-side data migration. Subscription plans (Light/Free, Premium, Studio) are managed globally for feature gating.
 
 ## Greeting Deduplication & Grounding Guard
-Manages welcome greetings for variety and freshness. A Grounding Guard validates AI-generated greetings against verified memory, rejecting unverified references and falling back to a default greeting if validation fails.
+Manages welcome greetings for variety and freshness. A Grounding Guard validates AI-generated greetings against verified memory, rejecting unverified references and falling back to a default greeting if validation fails. Unanswered greetings persist: if a user sees a greeting but doesn't respond, the same greeting is returned on their next visit (within 24 hours). The `welcome_history` table tracks a `responded` boolean, which is set to true when the user sends their first chat message.
 
 ## Session Close Warmth
 A wind-down detection system triggers warm closing messages from the AI based on user signals, preventing static text and adhering to specific gating rules to ensure natural conversation flow.
