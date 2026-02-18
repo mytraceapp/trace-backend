@@ -9458,7 +9458,7 @@ Just the response, nothing else.
 
             let caringMessage = caringResponse?.choices?.[0]?.message?.content?.trim();
             if (caringMessage) {
-              caringMessage = sanitizeTone(caringMessage, { userId: userId || 'anon', isCrisisMode: false });
+              caringMessage = sanitizeTone(caringMessage, { userId: userId || 'anon', isCrisisMode: false, turnCount: convoStateObj?.turnCount || 0 });
               const contLog = { requestId, required: !!traceIntent?.continuity?.required, reason: traceIntent?.continuity?.reason || 'post_activity', source: 'model' };
               console.log('[CONTINUITY]', JSON.stringify(contLog));
               caringMessage = applyContinuityBridge({ traceIntent, response_source: 'activity_followup', messageText: caringMessage, requestId });
@@ -10331,7 +10331,7 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
         textResult = stepBResult.data.choices[0]?.message?.content?.trim() || '';
         
         if (textResult) {
-          textResult = sanitizeTone(textResult, { userId: effectiveUserId || 'anon', isCrisisMode: false });
+          textResult = sanitizeTone(textResult, { userId: effectiveUserId || 'anon', isCrisisMode: false, turnCount: convoStateObj?.turnCount || 0 });
         }
         
         if (t2FinishReason === 'length' && textResult && !isSentenceComplete(textResult)) {
@@ -10387,7 +10387,7 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
           }, { timeout: 8000, signal: AbortSignal.timeout(8000) });
           textResult = fallbackResponse.choices[0]?.message?.content?.trim() || '';
           if (textResult) {
-            textResult = sanitizeTone(textResult, { userId: effectiveUserId || 'anon', isCrisisMode: false });
+            textResult = sanitizeTone(textResult, { userId: effectiveUserId || 'anon', isCrisisMode: false, turnCount: convoStateObj?.turnCount || 0 });
           }
         } catch (err) {
           console.error('[TRACE T2] Fallback text error:', err.message);

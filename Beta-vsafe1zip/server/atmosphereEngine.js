@@ -938,6 +938,9 @@ async function evaluateAtmosphere(input) {
     } else if (isStrongGroundingSignal && candidate_state === 'grounding') {
       shouldChange = true;
       console.log('[ATMOSPHERE] Strong grounding signal - bypassing dwell time');
+    } else if (current_state === 'presence' && allowedNext.includes(candidate_state)) {
+      shouldChange = true;
+      console.log('[ATMOSPHERE] Presence → emotional state: bypassing dwell time (presence is always responsive)');
     } else if (fullPersistenceMet && allowedNext.includes(candidate_state)) {
       // 30-min gate already satisfied — reassessment decided, skip dwell time
       shouldChange = true;
