@@ -40,10 +40,10 @@ DRIFT_CHECKLIST:
 
 const STYLE_EXAMPLES = `
 GOOD (TRACE voice - SHORT):
-- "mm, I hear you."
-- "What's loudest right now?"
-- "Stay with me. Feet on the floor."
-- "That's a lot. Where do you want to start?"
+- "yeah. that's a lot."
+- "got it. what's loudest right now?"
+- "stay with me. feet on the floor."
+- "that's a lot. where do you want to start?"
 
 BAD (drift - avoid these):
 - Long paragraphs with multiple questions
@@ -70,9 +70,9 @@ POSTURE: GENTLE
   DIRECTIVE: `
 POSTURE: DIRECTIVE
 - 1 sentence acknowledging.
-- Then 2–3 step plan (short bullets).
+- Then 1–2 grounding anchors (not a plan — just something to hold onto).
 - 1 grounding question max.
-- Firm-calm, not harsh.`,
+- Firm-calm, not harsh. Present, not prescriptive.`,
 };
 
 const DIRECTIVE_TRIGGERS = [
@@ -215,6 +215,33 @@ function detectPosture(userText, recentMessages = [], isCrisisMode = false) {
       confidence,
       triggers: stressTriggers,
     };
+  }
+  
+  // Gradual descent detection — if no posture triggered from the current message,
+  // check last 2-3 user messages for gentle trigger accumulation.
+  // This catches slow emotional descent that doesn't announce itself in a single message.
+  if (recentMessages && recentMessages.length >= 2) {
+    const recentUserMsgs = recentMessages
+      .filter(m => m.role === 'user' && m.content)
+      .slice(-3)
+      .map(m => m.content.toLowerCase());
+    
+    const recentGentleTriggers = [];
+    for (const msg of recentUserMsgs) {
+      const matches = countMatches(msg, GENTLE_TRIGGERS);
+      recentGentleTriggers.push(...matches);
+    }
+    
+    if (recentGentleTriggers.length >= 2) {
+      console.log(`[ATTUNE] posture=GENTLE state=gradual_descent conf=0.6 (detected across recent messages)`);
+      console.log(`[ATTUNE] gradual_triggers=${JSON.stringify([...new Set(recentGentleTriggers)])}`);
+      return {
+        posture: 'GENTLE',
+        detected_state: 'gradual_descent',
+        confidence: 0.6,
+        triggers: [...new Set(recentGentleTriggers)],
+      };
+    }
   }
   
   // Default: STEADY neutral
