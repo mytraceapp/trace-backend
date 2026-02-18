@@ -131,11 +131,11 @@ const APPROVED_MICRO_ACKS = [
 const VOICE_PALETTE = {
   light: ['oh nice.', 'love that.', 'okayyy.', 'lol fair.', 'nice.', 'ha, fair.'],
   neutral: ['got you.', 'yeah.', 'okay.', 'bet.', 'true.', 'cool.', 'for real.', 'heard.'],
-  heavy: ['damn.', 'yeah… okay.', 'i hear you.', 'that\'s real.', 'rough.', 'yeah. okay.'],
+  heavy: ['damn.', 'yeah… okay.', 'yeah. i\'m here.', 'that\'s real.', 'rough.', 'yeah. okay.'],
 };
 
 const BUDDY_OPENERS_EMOTIONAL = [
-  'yeah, i hear you.',
+  'yeah. i\'m here.',
   'that\'s a lot.',
   'yeah, no, i get it.',
   'damn. okay.',
@@ -252,8 +252,8 @@ function rewriteHollowSentence(text, recentTopics) {
       `${topicPhrase}. that's real.`,
     ] : [
       "yeah. that's not nothing.",
-      "mm. you're not making that up.",
-      "that's real.",
+      "that's real. you're not making it up.",
+      "you felt that for a reason.",
     ];
     const pick = aliveReplacements[Math.floor(Math.random() * aliveReplacements.length)];
     console.log(`[VOICE] Single hollow sentence — alive replacement: "${pick}"`);
@@ -365,7 +365,7 @@ function shouldAddMusicContext(intent, recentHistory) {
  * Apply TRACE voice characteristics to a base response
  */
 function splitSentences(text) {
-  return text.match(/[^.!?]+[.!?]+/g) || [text];
+  return text.match(/[^.!?…]+(?:[.!?](?!\s*\w\.)|…|$)+/g)?.filter(s => s.trim()) || [text];
 }
 
 function containsTherapistFrame(sentence) {

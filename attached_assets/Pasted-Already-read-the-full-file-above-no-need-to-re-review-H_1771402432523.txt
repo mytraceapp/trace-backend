@@ -1,0 +1,39 @@
+Already read the full file above — no need to re-review. Here's the verdict:
+
+Verdict: The best-built file in the codebase
+This is genuinely impressive engineering. The layered defense system — prompt injection shapes generation, applyVoiceStyle strips at output, validateResponse catches anything that survived both — is exactly the right architecture. Most products pick one layer. TRACE has three, and they're coherent with each other.
+The specific things that are well done:
+The played-vs-offered distinction logic echoed from studios is here too, in the echo-back detection at line 816. Someone agreeing to a song gets a different replacement than someone just saying "okay" in conversation. That's thoughtful.
+The garbled sentence detector at line 870 is something most products never think about. Model outputs occasionally produce broken grammar from pattern removal — detecting and stripping those before they reach the user is real quality control.
+The generateContextualContinuation function replacing lazy questions rather than just deleting them is the right call. Deletion leaves holes. Replacement maintains presence.
+The lowercase first letter transform at line 478 is a small thing that does a lot. "yeah, that tracks" reads completely differently than "Yeah, that tracks." The former is a friend. The latter is a notification.
+
+Three things to fix
+1. One banned phrase in VOICE_PALETTE.heavy
+Line 134:
+jsheavy: ['damn.', 'yeah… okay.', 'i hear you.', 'that\'s real.', 'rough.', 'yeah. okay.'],
+'i hear you.' is in BANNED_PHRASES at line 17. So applyVoiceStyle could pick it as a replacement, then immediately strip it in the next pass, leaving a hole. The two lists contradict each other.
+Replace 'i hear you.' in VOICE_PALETTE.heavy with 'yeah. i'm here.'
+2. rewriteHollowSentence fallbacks contain "mm."
+Line 255-256:
+js"yeah. that's not nothing.",
+"mm. you're not making that up.",
+"mm." is banned everywhere else in this file. Remove that line, replace with:
+js"yeah. that's not nothing.",
+"that's real. you're not making it up.",
+"you felt that for a reason.",
+3. splitSentences is fragile
+Used everywhere in this file:
+jsfunction splitSentences(text) {
+  return text.match(/[^.!?]+[.!?]+/g) || [text];
+}
+This fails on ellipses ("yeah… okay.") and em-dashes ("that's real — stay with me."), which are core to TRACE's voice palette. A sentence like "yeah… okay. what happened?" gets treated as one unit, so if it contains a banned phrase the whole thing gets stripped including the clean part.
+Replace with:
+jsfunction splitSentences(text) {
+  // Split on sentence-ending punctuation but preserve ellipses and em-dashes
+  return text.match(/[^.!?…]+(?:[.!?](?!\s*\w\.)|…|$)+/g)?.filter(s => s.trim()) || [text];
+}
+
+One observation
+The BANNED_PHRASES list contains 'amazing', 'wonderful', 'fantastic', 'incredible', 'awesome' as standalone word bans. These are correct for TRACE's voice — but they're whole-word substring matches, not word-boundary matches. So "I find this amazingly clear" would get the sentence stripped because "amazing" is inside "amazingly".
+This is low risk in practice since the model rarely uses those constructions in TRACE's context, but worth tightening the match to word boundaries if you ever see false-positive stripping.
