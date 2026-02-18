@@ -1393,22 +1393,24 @@ async function getProactiveHolidayContext({ timezone, countryCode }) {
   const tomorrowBest = pickBestHoliday(tomorrowHolidays);
 
   const dateParts = [];
+  const nearbyParts = [];
   if (yesterdayBest) {
-    dateParts.push(`Yesterday was ${yesterdayBest.name || yesterdayBest.local_name}`);
+    nearbyParts.push(`Yesterday was ${yesterdayBest.name || yesterdayBest.local_name}`);
   }
   if (todayBest) {
     dateParts.push(`Today IS ${todayBest.name || todayBest.local_name}`);
   }
   if (tomorrowBest) {
-    dateParts.push(`Tomorrow is ${tomorrowBest.name || tomorrowBest.local_name}`);
+    nearbyParts.push(`Tomorrow is ${tomorrowBest.name || tomorrowBest.local_name}`);
   }
 
-  if (dateParts.length === 0) {
+  if (dateParts.length === 0 && nearbyParts.length === 0) {
     console.log('[HOLIDAY] No holidays today or nearby');
     return { controlBlockLine: null, promptContext: null };
   }
 
-  const holidayLine = dateParts.join('. ') + '.';
+  const holidayLine = [...dateParts, ...nearbyParts].join('. ') + '.';
+  const proactiveLine = dateParts.length > 0 ? dateParts.join('. ') + '.' : null;
   console.log('[HOLIDAY] Proactive context:', holidayLine);
 
   let promptContext = `HOLIDAY_CONTEXT: ${holidayLine} `;
@@ -1420,9 +1422,11 @@ async function getProactiveHolidayContext({ timezone, countryCode }) {
   }
   promptContext += `Be aware that holidays can bring up mixed emotions. ` +
     `If the user asks about holidays, share this info naturally and accurately. ` +
-    `NEVER say a holiday is "tomorrow" if it was yesterday, or vice versa — use the ABSOLUTE DATE FACT above to verify.`;
+    `CRITICAL DATE RULE: Only say "today" for holidays listed as "Today IS". ` +
+    `Yesterday's holidays happened YESTERDAY — never call them "today's". ` +
+    `Tomorrow's holidays are TOMORROW — never call them "today's".`;
 
-  return { controlBlockLine: holidayLine, promptContext };
+  return { controlBlockLine: holidayLine, proactiveLine, promptContext };
 }
 
 async function getHolidayContext({ countryCode, timezone, date = new Date(), checkNearby = false }) {
@@ -7521,21 +7525,16 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
           countryCode: profileForHoliday?.country || null,
         });
         if (proactiveResult) {
-          if (proactiveResult.controlBlockLine) {
-            if (holidayMentionCount === 0 || isUserAskingAboutHoliday) {
-              proactiveHolidayLine = proactiveResult.controlBlockLine;
-            } else {
-              console.log(`[HOLIDAY] Suppressing proactive holiday line (already mentioned ${holidayMentionCount}x)`);
-            }
-          }
-          if (proactiveResult.promptContext) {
-            if (isUserAskingAboutHoliday) {
-              holidayContext = proactiveResult.promptContext;
-            } else if (holidayMentionCount === 0) {
+          if (isUserAskingAboutHoliday) {
+            proactiveHolidayLine = proactiveResult.controlBlockLine;
+            holidayContext = proactiveResult.promptContext;
+          } else if (holidayMentionCount === 0) {
+            proactiveHolidayLine = proactiveResult.proactiveLine || null;
+            if (proactiveResult.proactiveLine) {
               holidayContext = proactiveResult.promptContext + ` You may mention this ONCE if it fits naturally. Do NOT bring it up again after mentioning it.`;
-            } else {
-              console.log(`[HOLIDAY] Suppressing holiday prompt context (already mentioned ${holidayMentionCount}x)`);
             }
+          } else {
+            console.log(`[HOLIDAY] Suppressing proactive holiday (already mentioned ${holidayMentionCount}x)`);
           }
         }
         if (!holidayContext && isUserAskingAboutHoliday) {
