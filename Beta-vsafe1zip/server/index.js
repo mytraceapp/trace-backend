@@ -8145,7 +8145,7 @@ CRISIS OVERRIDE:
           recentStored.length > 0 ? recentStored : messages,
           0,
           storedCompressions,
-          { isMetaMemoryQuestion: isMetaMemory || isMemoryFrustration }
+          { isMetaMemoryQuestion: isMetaMemory || isMemoryFrustration, turnCount: currentAssistantMsgCount }
         );
         
         if (memContext) {

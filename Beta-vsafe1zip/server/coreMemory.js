@@ -435,10 +435,12 @@ function isMetaMemoryFrustration(text) {
   return META_MEMORY_FRUSTRATION_RE.test(text || '');
 }
 
-function buildMetaMemoryInstruction(coreMemory, rp) {
+function buildMetaMemoryInstruction(coreMemory, rp, opts = {}) {
   const factCount = (coreMemory.user_facts || []).length;
   const hasProfile = !!(rp.communication_style || rp.emotional_patterns || (rp.things_they_care_about || []).length);
   const trustLevel = rp.trust_level || 'early';
+  const turnCount = opts.turnCount || 0;
+  const isMidConversation = turnCount > 4;
 
   const lines = [];
   lines.push('USER IS ASKING WHAT YOU KNOW ABOUT THEM — THIS IS A RELATIONSHIP MOMENT.');
@@ -446,6 +448,11 @@ function buildMetaMemoryInstruction(coreMemory, rp) {
   lines.push('DO NOT list facts like a database. Respond like a friend who has been paying attention.');
   lines.push('Weave what you know into warmth and observation — show you SEE them, not just that you stored data.');
   lines.push('');
+
+  if (isMidConversation) {
+    lines.push('IMPORTANT: You are already IN a conversation with them right now. Do NOT ask catch-up questions like "How have you been?" or "How\'s everything going?" — you already know, you\'ve been talking. Stay in the flow of this conversation.');
+    lines.push('');
+  }
 
   if (factCount <= 3 && !hasProfile) {
     lines.push('You don\'t know much yet — be HONEST about that. But frame it with warmth and curiosity:');
@@ -467,7 +474,11 @@ function buildMetaMemoryInstruction(coreMemory, rp) {
   }
 
   lines.push('');
-  lines.push('ALWAYS end with genuine curiosity — "What am I missing?" or "What else should I know?"');
+  if (isMidConversation) {
+    lines.push('End with genuine curiosity about what you might be missing — "What am I getting wrong?" or "What else should I know?" Do NOT ask how they\'ve been or what\'s going on — you\'re already in the middle of it.');
+  } else {
+    lines.push('ALWAYS end with genuine curiosity — "What am I missing?" or "What else should I know?"');
+  }
   lines.push('If they seem frustrated that you don\'t know enough, acknowledge it honestly: "You\'re right — I want to do better at remembering. Tell me what matters most."');
 
   return lines.join('\n');
@@ -630,7 +641,7 @@ function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLe
     const trustLevel = rp.trust_level || 'early';
 
     const memoryHeader = opts.isMetaMemoryQuestion
-      ? buildMetaMemoryInstruction(coreMemory, rp)
+      ? buildMetaMemoryInstruction(coreMemory, rp, { turnCount: opts.turnCount || 0 })
       : 'USER MEMORY (reference naturally, never quote verbatim — use memory as seasoning, not structure):';
     const coreLines = [memoryHeader];
 
