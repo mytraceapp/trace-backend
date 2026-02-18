@@ -52,9 +52,11 @@ const DEFAULT_RELATIONSHIP_PROFILE = {
   things_they_avoid: [],
   open_threads: [],
   held_context: [],
+  unfinished_threads: [],
   trust_level: 'early',
   energy_trend: '',
   multi_session_arc: '',
+  longer_arc_intention: '',
   session_count: 0,
 };
 
@@ -141,10 +143,13 @@ function validateCoreMemory(raw) {
       ? rp.open_threads.filter(t => typeof t === 'string').slice(0, 8) : [],
     held_context: Array.isArray(rp.held_context)
       ? rp.held_context.filter(t => typeof t === 'string').slice(0, 5) : [],
+    unfinished_threads: Array.isArray(rp.unfinished_threads)
+      ? rp.unfinished_threads.filter(t => typeof t === 'string').slice(0, 5) : [],
     trust_level: VALID_TRUST_LEVELS.includes(rp.trust_level) ? rp.trust_level : 'early',
     energy_trend: typeof rp.energy_trend === 'string' ? rp.energy_trend.slice(0, 100) : '',
     impression: typeof rp.impression === 'string' ? rp.impression.slice(0, 250) : '',
     multi_session_arc: typeof rp.multi_session_arc === 'string' ? rp.multi_session_arc.slice(0, 150) : '',
+    longer_arc_intention: typeof rp.longer_arc_intention === 'string' ? rp.longer_arc_intention.slice(0, 200) : '',
     session_count: typeof rp.session_count === 'number' ? rp.session_count : 0,
   };
 
@@ -229,11 +234,16 @@ function mergeCoreMemory(existing, extracted) {
         ...(existRP.held_context || []),
         ...(newRP.held_context || []),
       ])].slice(0, 5),
+      unfinished_threads: [...new Set([
+        ...(existRP.unfinished_threads || []),
+        ...(newRP.unfinished_threads || []),
+      ])].slice(0, 5),
       trust_level: newRP.trust_level && VALID_TRUST_LEVELS.includes(newRP.trust_level)
         ? newRP.trust_level : existRP.trust_level || 'early',
       energy_trend: newRP.energy_trend || existRP.energy_trend || '',
       impression: newRP.impression || existRP.impression || '',
       multi_session_arc: existRP.multi_session_arc || '',
+      longer_arc_intention: newRP.longer_arc_intention || existRP.longer_arc_intention || '',
       session_count: (existRP.session_count || 0) + 1,
     };
   }
@@ -290,7 +300,9 @@ Return JSON with these fields:
     "things_they_avoid": ["Topics they deflect from, change subject on, or seem uncomfortable discussing. Example: ['work stress details', 'relationship with mother']"],
     "open_threads": ["Unresolved things worth following up on — stuff that was mentioned but never fully explored, or upcoming events/decisions. Example: ['mentioned being tired a lot but never said why', 'spring break trip to Florida — plans still forming', 'job situation seems stressful but hasn\\'t opened up about it']"],
     "held_context": ["Heavy or sensitive things the user shared but hasn\\'t revisited — things to hold quietly, not surface. Example: ['opened up about feeling like a failure as a parent but changed topic quickly', 'mentioned a loss but didn\\'t go deeper']"],
-    "impression": "One sentence — a loving characterization of who this person IS. Not facts, not patterns — an impression. Like a friend would describe them to someone else. Example: 'Someone who takes care of everyone and then forgets to ask for anything back.' or 'A person who\\'s braver than they think they are, and funnier than they realize.' This should feel like recognition, not analysis.",
+    "unfinished_threads": ["Things the user STARTED to say but trailed off, redirected, or abandoned. 'I\\'ve just been thinking about — anyway, it doesn\\'t matter.' / 'there\\'s this thing with — never mind.' / 'I almost told him that I—' These are precious. Don\\'t chase them now. Just hold them. They may come back weeks later. Max 5."],
+    "impression": "One sentence — a loving characterization of who this person IS. Not facts, not patterns — an impression. Like a friend would describe them to someone else. Example: 'Someone who takes care of everyone and then forgets to ask for anything back.' This can EVOLVE — if the person grows or changes, let the impression grow with them.",
+    "longer_arc_intention": "A quiet orientation toward this person right now — not a goal, not advice. Examples: 'this person needs to be believed in right now' / 'this person needs permission to rest' / 'this person needs someone to just be normal with them' / 'this person is rebuilding and needs steady ground.' Never stated. Just lives underneath every response.",
     "trust_level": "early | building | established — based on how much they share, how personal they get, how comfortable they seem",
     "energy_trend": "Overall energy pattern across this conversation. Example: 'started low-energy, warmed up mid-conversation, got excited about trip planning'"
   }
@@ -676,6 +688,14 @@ function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLe
 
     if (rp.held_context?.length) {
       coreLines.push(`- HELD QUIETLY (do NOT mention these directly — just let them make you a little gentler, a little more patient. The user hasn't brought these up again and that's their choice): ${rp.held_context.join('; ')}`);
+    }
+
+    if (rp.unfinished_threads?.length && trustLevel !== 'early') {
+      coreLines.push(`- UNFINISHED SENTENCES (the user started to say these things and then stopped, redirected, or said "never mind." This is sacred. Don't chase them. But much later — when trust is deep and the moment is right — you might say: "you said something a while back that you didn't finish. you don't have to. but I noticed." That's an act of love. It says: I was listening even to the parts you abandoned.): ${rp.unfinished_threads.join('; ')}`);
+    }
+
+    if (rp.longer_arc_intention) {
+      coreLines.push(`- QUIET INTENTION (this is NEVER stated, never revealed, never hinted at explicitly. It just lives underneath how you show up. It shapes your tone, your patience, your word choices. The user never sees this line — they just feel it.): ${rp.longer_arc_intention}`);
     }
 
     if (coreMemory.contradictions?.length && trustLevel !== 'early') {
