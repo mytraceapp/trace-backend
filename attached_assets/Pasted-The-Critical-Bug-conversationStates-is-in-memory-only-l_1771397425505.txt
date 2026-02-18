@@ -1,0 +1,24 @@
+The Critical Bug
+conversationStates is in-memory only — line 30:
+jsconst conversationStates = new Map();
+This means every time the Replit server restarts — which happens frequently on Replit during inactivity — every user's conversation state is wiped. Stage, qStreak, rhythmHistory, music familiarity, pending followups — all gone.
+When the server comes back up and a user sends a message, getState() returns a fresh ARRIVAL state. So TRACE greets a returning user mid-conversation like it's their first message. The memory in Supabase survives but the conversation state that governs how TRACE responds doesn't.
+This is almost certainly behind some of the "TRACE forgot who I was" experiences.
+The fix: Persist conversation state to Supabase or at minimum to the Replit database on every saveState() call, and hydrate it on getState() when the in-memory map is empty.
+
+The Architectural Risk
+STATE_TTL_MS is 30 minutes — line 31.
+If a user pauses a conversation for 31 minutes and comes back, their state resets to ARRIVAL. That's too aggressive for an app built around relationship continuity. Someone putting their phone down for dinner and coming back shouldn't be treated as a stranger.
+Recommend extending to at minimum 4 hours, ideally 24 hours — especially since you have the emotional carryover system that's designed to bridge sessions.
+
+Two Small Issues
+classifyMoveType at line 507 checks for "sounds like" and "seems like" as REFLECT patterns — but those are also in your FORBIDDEN_PHRASES list. If the tone sanitizer is working correctly those phrases never make it to classifyMoveType. Fine, but worth noting the overlap.
+reconstructStateFromMessages at line 533 — this rebuilds state from message history when state is lost, which is good. But it only reconstructs stage, turnCount, qStreak, and lastTopicKeywords. It doesn't reconstruct rhythmHistory or musicFamiliarity. So after a server restart, the rhythm engine starts fresh even if messages are hydrated. TRACE might respond with long messages to someone whose rhythm history says they prefer ultra-short.
+
+What to fix right now
+Fix 1 — Critical — Extend STATE_TTL to 4 hours minimum:
+jsconst STATE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+Fix 2 — Important — Persist state to DB on saveState:
+Tell Replit to add Supabase persistence to saveState() and hydration to getState(). Even just persisting stage, qStreak, rhythmHistory, and musicFamiliarity would cover the most important cases.
+Fix 3 — Minor — Reconstruct rhythmHistory from messages:
+Add rhythm reconstruction to reconstructStateFromMessages — classify the last 6 assistant message lengths and rebuild the history array.

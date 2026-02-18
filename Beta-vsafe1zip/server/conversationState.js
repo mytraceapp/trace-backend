@@ -28,7 +28,74 @@ const MOVE_TYPES = {
 
 // In-memory state storage (keyed by visitorId)
 const conversationStates = new Map();
-const STATE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const STATE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+let _supabaseRef = null;
+function setSupabase(client) {
+  _supabaseRef = client;
+}
+
+const PERSIST_FIELDS = [
+  'stage', 'lastMoveType', 'topicEstablished', 'userSetTopic', 'turnCount',
+  'lastTopicKeywords', 'topicKeywordAge', 'neutralTurnCount', 'topicAnchor',
+  'lastPrimaryMode', 'musicFamiliarity', 'musicFamiliarityMeta',
+  'rhythmHistory', 'qStreak', 'feelingCheckins', 'lastAccessed',
+  'consecutiveProbes', 'lastAssistantIntentSignature',
+];
+
+function extractPersistableState(state) {
+  const obj = {};
+  for (const key of PERSIST_FIELDS) {
+    if (state[key] !== undefined) obj[key] = state[key];
+  }
+  return obj;
+}
+
+async function saveStateToSupabase(visitorId, state) {
+  if (!_supabaseRef || !visitorId) return;
+  try {
+    const persistable = extractPersistableState(state);
+    const { error } = await _supabaseRef
+      .from('user_settings')
+      .upsert({
+        user_id: visitorId,
+        conversation_state: persistable,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+    if (error) {
+      console.warn('[CONVO_STATE_PERSIST] Save error:', error.message);
+    }
+  } catch (e) {
+    console.warn('[CONVO_STATE_PERSIST] Save error:', e.message);
+  }
+}
+
+async function loadStateFromSupabase(visitorId) {
+  if (!_supabaseRef || !visitorId) return null;
+  try {
+    const { data, error } = await _supabaseRef
+      .from('user_settings')
+      .select('conversation_state')
+      .eq('user_id', visitorId)
+      .maybeSingle();
+    if (error || !data || !data.conversation_state) return null;
+    const saved = data.conversation_state;
+    if (saved.lastAccessed && (Date.now() - saved.lastAccessed > STATE_TTL_MS)) {
+      console.log(`[CONVO_STATE_PERSIST] Supabase state expired for ${visitorId}, ignoring`);
+      return null;
+    }
+    const state = createDefaultState();
+    for (const key of PERSIST_FIELDS) {
+      if (saved[key] !== undefined) state[key] = saved[key];
+    }
+    state.lastAccessed = Date.now();
+    console.log(`[CONVO_STATE_PERSIST] Hydrated from Supabase: stage=${state.stage}, turns=${state.turnCount}, rhythm=${(state.rhythmHistory||[]).length}`);
+    return state;
+  } catch (e) {
+    console.warn('[CONVO_STATE_PERSIST] Load error:', e.message);
+    return null;
+  }
+}
 
 // Probe patterns - these are OPEN_PROBE moves
 const OPEN_PROBE_PATTERNS = [
@@ -55,11 +122,11 @@ const NON_CONTENT_PATTERNS = [
 
 /**
  * Get or create conversation state for a visitor
+ * Synchronous version — uses in-memory only. For Supabase hydration use getStateAsync.
  */
 function getState(visitorId) {
   if (!visitorId) return createDefaultState();
   
-  // Clean expired states periodically
   cleanExpiredStates();
   
   if (!conversationStates.has(visitorId)) {
@@ -69,6 +136,32 @@ function getState(visitorId) {
   const state = conversationStates.get(visitorId);
   state.lastAccessed = Date.now();
   return state;
+}
+
+/**
+ * Async version — checks Supabase when in-memory state is missing.
+ * Use this at the start of /api/chat to ensure server restarts don't wipe state.
+ */
+async function getStateAsync(visitorId) {
+  if (!visitorId) return createDefaultState();
+  
+  cleanExpiredStates();
+  
+  if (conversationStates.has(visitorId)) {
+    const state = conversationStates.get(visitorId);
+    state.lastAccessed = Date.now();
+    return state;
+  }
+  
+  const fromDb = await loadStateFromSupabase(visitorId);
+  if (fromDb) {
+    conversationStates.set(visitorId, fromDb);
+    return fromDb;
+  }
+  
+  const fresh = createDefaultState();
+  conversationStates.set(visitorId, fresh);
+  return fresh;
 }
 
 const FOLLOWUP_DEFAULT_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -414,7 +507,9 @@ function clearPendingFollowup(state) {
 
 function saveState(visitorId, state) {
   if (visitorId) {
-    conversationStates.set(visitorId, { ...state, lastAccessed: Date.now() });
+    const updated = { ...state, lastAccessed: Date.now() };
+    conversationStates.set(visitorId, updated);
+    saveStateToSupabase(visitorId, updated).catch(() => {});
   }
 }
 
@@ -575,8 +670,13 @@ function reconstructStateFromMessages(state, messages) {
     else break;
   }
   state.qStreak = trailingQStreak;
-  
-  console.log(`[CONVO_STATE] Reconstructed from ${messages.length} messages: stage=${state.stage}, turns=${state.turnCount}, topics=[${state.lastTopicKeywords.join(', ')}], contentMsgs=${contentCount}, qStreak=${trailingQStreak}`);
+
+  const recentAssistant = assistantMessages.slice(-RHYTHM_WINDOW);
+  if (recentAssistant.length > 0) {
+    state.rhythmHistory = recentAssistant.map(m => classifyResponseLength(m.content || ''));
+  }
+
+  console.log(`[CONVO_STATE] Reconstructed from ${messages.length} messages: stage=${state.stage}, turns=${state.turnCount}, topics=[${state.lastTopicKeywords.join(', ')}], contentMsgs=${contentCount}, qStreak=${trailingQStreak}, rhythm=[${(state.rhythmHistory||[]).join(',')}]`);
   
   return state;
 }
@@ -1261,7 +1361,9 @@ module.exports = {
   MOVE_TYPES,
   LENGTH_TIERS,
   getState,
+  getStateAsync,
   saveState,
+  setSupabase,
   userHasContent,
   extractTopicKeywords,
   classifyMoveType,

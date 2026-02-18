@@ -2630,6 +2630,7 @@ let supabaseServer = null;
 if (supabaseUrl && supabaseServiceKey) {
   supabaseServer = createClient(supabaseUrl, supabaseServiceKey);
   console.log('Supabase server client initialized (with service role)');
+  conversationState.setSupabase(supabaseServer);
 } else {
   console.log('SUPABASE_SERVICE_ROLE_KEY not set - verse-time scheduler disabled');
   console.log('   Add this secret to enable per-user timezone notifications');
@@ -4974,6 +4975,8 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     );
     console.log('🧠 /api/chat mode=chat_core userId:', userId, 'deviceId:', deviceId);
     const requestStartTime = Date.now();
+
+    await conversationState.getStateAsync(effectiveUserId);
     
     // ============================================================
     // 🎵 EARLY ATMOSPHERE EVALUATION: Run BEFORE any early returns
