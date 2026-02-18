@@ -1,0 +1,47 @@
+This screenshot actually reveals the exact problem perfectly. When the user asks "What do you know about me?" — TRACE only surfaces two surface-level facts: daughter wants Florida, likes the beach. Then when pushed "What else?" it basically admits it has nothing.
+That's a trust-breaking moment. The user feels like a stranger.
+
+The Real Goal: Make TRACE Feel Like a Friend Who Pays Attention
+The memory fixes we discussed are the infrastructure. But the relationship problem is deeper — it's about what gets remembered, how it gets recalled, and how TRACE uses it proactively.
+
+Three Layers You Need
+Layer 1 — Richer capture (the "what")
+Right now TRACE is capturing facts. But relationships are built on more than facts. You need to capture:
+
+Facts: daughter, Florida, beach — this is what you have now
+Patterns: "user tends to minimize stress but then opens up after a few messages"
+Emotional fingerprints: "gets excited talking about her daughter, deflects when work comes up"
+Things they care about: not just what they said, but why it mattered enough to say it
+Unresolved threads: "mentioned being tired a lot — never explained why"
+
+The extraction prompt needs to ask: what would a close friend remember about this person after this conversation?
+Layer 2 — Proactive recall (the "how")
+TRACE should never wait to be asked "what do you know about me?" It should demonstrate memory naturally in conversation — the way a person would:
+
+"How did the Florida trip planning go?" (following up unprompted)
+"You mentioned Sunset Beach last time — is that still the plan?"
+"You seem lighter today than yesterday"
+
+This means on session start, TRACE should be briefed not just with facts but with open threads — things that were mentioned but never resolved, things coming up soon, things the user seemed to care about.
+Layer 3 — The "What do you know about me?" response
+This specific interaction needs special handling. When a user asks this, they're testing the relationship. TRACE should respond like a friend would — not like a database query:
+Instead of: "You've mentioned your daughter wants to go to Florida and you enjoy the beach"
+It should be: "Honestly, I feel like I'm still getting to know you. I know you're a mom, Florida's on the horizon for spring break, and you seem like someone who needs to actually decompress to recharge — not just go through the motions. But I want to know more. What do you think I'm missing?"
+That response builds trust even when memory is thin. It's honest, warm, and turns it into a relationship moment rather than a failure moment.
+
+Concrete Changes to Tell Replit
+1. Add a "relationship profile" object to core memory, separate from facts:
+relationship_profile: {
+  communication_style: "opens up gradually, uses humor to deflect",
+  emotional_patterns: "minimizes stress initially",
+  things_they_light_up_about: ["daughter", "travel", "beach"],
+  things_they_avoid: [],
+  open_threads: ["fatigue she mentioned Mon", "job situation unclear"],
+  last_emotional_state: "relaxed, looking forward to trip",
+  trust_level: "building" // early | building | established
+}
+2. Add a "follow-up queue" — every session, TRACE gets 1–2 things to naturally bring up from the last 3 days.
+3. Write a special system instruction for the "what do you know about me" trigger. Detect that question and respond with warmth + honesty + curiosity rather than a list recitation.
+4. The extraction prompt needs one new question added: "What would a caring friend remember most from this conversation — not just facts, but what mattered emotionally?"
+
+The memory infrastructure gets TRACE to have the information. But what you're really after is making users feel known — and that's a combination of richer capture, proactive use, and the right voice when the moment comes. Both need to be true at the same time.
