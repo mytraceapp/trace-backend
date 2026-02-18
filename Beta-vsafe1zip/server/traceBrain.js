@@ -1384,6 +1384,23 @@ function sanitizeTone(text, options = {}) {
     console.log('[TONE SANITIZER] Stripped "TRACE:" prefix from response');
   }
   
+  // Strip quotes and asterisks around music names (tracks, albums, playlists, Night Swim)
+  const MUSIC_NAMES = [
+    'Midnight Underwater', 'Slow Tides Over Glass', 'Slow Tides', 'Undertow',
+    'Euphoria', 'Ocean Breathing', 'Tidal House', 'Neon Promise',
+    'Night Swim', 'Rooted', 'Low Orbit', 'First Light'
+  ];
+  const musicNamesPattern = MUSIC_NAMES.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const musicQuoteRegex = new RegExp(`["*]+\\s*(${musicNamesPattern})\\s*["*]+`, 'gi');
+  const beforeMusic = result;
+  result = result.replace(musicQuoteRegex, '$1');
+  result = result.replace(new RegExp(`"(${musicNamesPattern})"`, 'gi'), '$1');
+  result = result.replace(new RegExp(`\\*(${musicNamesPattern})\\*`, 'gi'), '$1');
+  result = result.replace(new RegExp(`\\*\\*(${musicNamesPattern})\\*\\*`, 'gi'), '$1');
+  if (result !== beforeMusic) {
+    changed = true;
+  }
+  
   for (const { pattern, replacement } of THERAPY_PATTERNS) {
     // IMPORTANT: Reset regex lastIndex before each match (global regexes remember position)
     pattern.lastIndex = 0;
