@@ -12692,12 +12692,11 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
           playlistId: pl.name,
           source: 'trace',
         };
-        pipelineUiAction = pendingAction;
         if (effectiveUserId) {
           const mState = getMusicState(effectiveUserId);
           mState.pendingPlaylistOffer = pendingAction;
         }
-        console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId: chatRequestId, type: 'offer_playlist', source: pendingAction.source, playlistId: pl.name, path: 'ai_pipeline_postprocess_offer', ui_action_set: true }));
+        console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId: chatRequestId, type: 'offer_playlist_pending', source: pendingAction.source, playlistId: pl.name, path: 'ai_pipeline_postprocess_pending' }));
         break;
       }
     }
@@ -12716,6 +12715,15 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     }
     let effectiveUiAction = contractUiAction || pipelineUiAction;
     let effectiveAudioAction = contractAudioAction || finalResponse.audio_action || null;
+
+    if (effectiveUiAction?.type === 'OPEN_JOURNAL_MODAL' && effectiveUserId) {
+      const mState = getMusicState(effectiveUserId);
+      if (!mState.pendingPlaylistOffer) {
+        mState.pendingPlaylistOffer = effectiveUiAction;
+        console.log('[PLAYLIST_PENDING] Stored OPEN_JOURNAL_MODAL as pending — user must confirm first', JSON.stringify({ requestId: chatRequestId, title: effectiveUiAction.title, source: effectiveUiAction.source }));
+      }
+      effectiveUiAction = null;
+    }
 
     if (isCrisisMode) {
       if (effectiveAudioAction) {
