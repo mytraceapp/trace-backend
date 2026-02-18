@@ -9325,6 +9325,13 @@ CAPABILITY-AWARE ACTIONS:
         // Don't clear session state or DB flag — user may answer next turn
         postActivityReflectionContext = null;
       } else {
+        // User IS reflecting — clear the flag immediately so it doesn't linger
+        // until the 30-minute timeout if they move on next message
+        if (pool && reflectionUserId) {
+          clearReflectionFlag(pool, reflectionUserId).catch(() => {});
+          console.log('[REFLECTION] Flag cleared on confirmed reflection answer');
+        }
+        
         const { lastActivityName, minutesSinceCompletion } = postActivityReflectionContext;
         const minutesRounded = Math.round(minutesSinceCompletion || 0);
         const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content?.toLowerCase()?.trim() || '';
