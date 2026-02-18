@@ -322,7 +322,13 @@ function estimateTokens(text) {
   return Math.ceil(text.length / 3.5);
 }
 
-function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLevel = 0, compressions) {
+const META_MEMORY_RE = /\b(?:what do you (?:know|remember|recall) about me|what have you learned about me|tell me (?:what you know|about me)|do you (?:know|remember) (?:me|anything about me|who i am)|what(?:'s| is) in my (?:memory|profile)|what do you (?:remember|know) from (?:our|my|earlier|before|last)|do you even know me)\b/i;
+
+function isMetaMemoryQuestion(text) {
+  return META_MEMORY_RE.test(text || '');
+}
+
+function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLevel = 0, compressions, opts = {}) {
   const sections = [];
   let totalTokens = 0;
 
@@ -349,7 +355,10 @@ function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLe
   }
 
   if (coreMemory) {
-    const coreLines = ['USER MEMORY (reference naturally, never quote verbatim):'];
+    const memoryHeader = opts.isMetaMemoryQuestion
+      ? 'USER MEMORY — The user is asking what you know about them. Share these details directly and specifically. Be personal, not generic:'
+      : 'USER MEMORY (reference naturally, never quote verbatim):';
+    const coreLines = [memoryHeader];
 
     if (coreMemory.user_facts?.length) {
       coreLines.push(`- About them: ${coreMemory.user_facts.slice(0, caps.user_facts).join('; ')}`);
@@ -548,6 +557,7 @@ module.exports = {
   shouldExtract,
   shouldSummarize,
   compressOlderMessages,
+  isMetaMemoryQuestion,
   EXTRACTION_THRESHOLD,
   SUMMARY_THRESHOLD,
   COMPRESSION_THRESHOLD,

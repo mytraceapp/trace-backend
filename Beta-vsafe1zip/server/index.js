@@ -8071,12 +8071,18 @@ CRISIS OVERRIDE:
           }
         }
         
+        const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content || '';
+        const isMetaMemory = coreMemory.isMetaMemoryQuestion(lastUserMsg);
+        if (isMetaMemory) {
+          console.log('[CORE MEMORY] Meta-memory question detected — will share details directly');
+        }
         const memContext = coreMemory.buildMemoryContext(
           storedCoreMemory,
           sessionSummaries,
           recentStored.length > 0 ? recentStored : messages,
           0,
-          storedCompressions
+          storedCompressions,
+          { isMetaMemoryQuestion: isMetaMemory }
         );
         
         if (memContext) {
