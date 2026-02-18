@@ -1557,6 +1557,46 @@ function sanitizeTone(text, options = {}) {
     result = result.charAt(0).toUpperCase() + result.slice(1);
   }
 
+  // Fix sentences ending with dangling words left behind by pattern removal
+  // e.g., "especially thinking about still." → sentence is incomplete
+  // Only triggers when sanitizeTone actually modified the text (changed=true)
+  if (changed) {
+    const DANGLING_PREPOSITION = /\b(about|for|with|to|from|into|onto|upon|toward|towards|through|between|among|against|without|within|during|before|after|above|below|under|over|around|behind|beside|near)\s*[.!?]\s*$/i;
+    const DANGLING_ARTICLE_CONJ = /\b(the|a|an|and|or|but|nor|because|although|since|while|if|unless|until|whether)\s*[.!?]\s*$/i;
+    const DANGLING_PREP_PLUS_MODIFIER = /\b(about|for|with|to|from|through)\s+(still|really|even|just|also|especially|particularly|actually|basically|definitely|probably|maybe|certainly)\s*[.!?]?\s*$/i;
+    
+    const hasDangling = DANGLING_PREPOSITION.test(result) || DANGLING_ARTICLE_CONJ.test(result) || DANGLING_PREP_PLUS_MODIFIER.test(result);
+    if (hasDangling) {
+      const sentences = result.split(/(?<=[.!?])\s+/);
+      if (sentences.length > 1) {
+        const lastSent = sentences[sentences.length - 1];
+        if (DANGLING_PREPOSITION.test(lastSent) || DANGLING_ARTICLE_CONJ.test(lastSent) || DANGLING_PREP_PLUS_MODIFIER.test(lastSent)) {
+          const danglingMatch = lastSent.match(DANGLING_PREP_PLUS_MODIFIER) || lastSent.match(DANGLING_PREPOSITION) || lastSent.match(DANGLING_ARTICLE_CONJ);
+          console.log(`[TONE SANITIZER] Removed dangling sentence ending with "${danglingMatch?.[0]?.trim()}"`);
+          result = sentences.slice(0, -1).join(' ').trim();
+        }
+      } else {
+        let cleaned = result;
+        let passes = 0;
+        while (passes < 3) {
+          const before = cleaned;
+          cleaned = cleaned
+            .replace(DANGLING_PREP_PLUS_MODIFIER, '.')
+            .replace(DANGLING_PREPOSITION, '.')
+            .replace(DANGLING_ARTICLE_CONJ, '.')
+            .replace(/\.\s*\./g, '.')
+            .trim();
+          if (cleaned === before) break;
+          passes++;
+        }
+        if (cleaned.length > 5) {
+          console.log(`[TONE SANITIZER] Trimmed dangling ending from single sentence (${passes} passes)`);
+          result = cleaned;
+        }
+      }
+    }
+  }
+
   // Ensure result ends with punctuation if it originally did
   if (changed && result.length > 0 && /[a-zA-Z0-9]$/.test(result)) {
     result = result + '.';
