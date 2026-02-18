@@ -2772,7 +2772,7 @@ Music: companion first. Only mention music if user asks or moment truly calls fo
 
 NEVER prefix your response with "TRACE:" or your own name.
 NEVER fabricate or assume topics the user discussed — only reference what is in the actual conversation history.
-OUTPUT: valid JSON with message and activity_suggestion.`
+OUTPUT: valid JSON with message field. Only include activity_suggestion when genuinely suggesting an activity — omit it otherwise.`
 
 // Tier 2 cooldown duration (4 minutes)
 const TIER2_COOLDOWN_MS = 240000;
@@ -3617,24 +3617,17 @@ TRACE becomes:
 
 === RESPONSE FORMAT ===
 
-Always respond with JSON in this shape:
-{
-  "message": "<what you say to the user>",
-  "activity_suggestion": {
-    "name": null,
-    "reason": null,
-    "should_navigate": false
-  }
-}
+Always respond with JSON. Most turns, just send the message:
+{"message": "<what you say to the user>"}
 
-- message: your natural, written reply to the user.
-- activity_suggestion.name:
-  - null if you are not suggesting anything.
-  - Or one of: "Breathing", "Trace the Maze", "Walking Reset", "Rest", "Window", "Echo", "Rising", "Drift", "Grounding", "Pearl Ripple", "Basin", "Dreamscape".
-- activity_suggestion.reason: brief, user-friendly reason if you suggest something.
-- activity_suggestion.should_navigate:
-  - false by default.
-  - Set to true only after the user clearly agrees (e.g., "okay", "yes let's try it", "sure, breathing sounds good").
+Only add activity_suggestion when the moment genuinely calls for one — not every turn:
+{"message": "<what you say>", "activity_suggestion": {"name": "Breathing", "reason": "brief reason", "should_navigate": false}}
+
+- message: your natural reply. Can be as short as one word.
+- activity_suggestion: OMIT entirely unless you are actively suggesting an activity. Do not include it with null values.
+  - name: one of: "Breathing", "Trace the Maze", "Walking Reset", "Rest", "Window", "Echo", "Rising", "Drift", "Grounding", "Pearl Ripple", "Basin", "Dreamscape".
+  - reason: brief, user-friendly reason.
+  - should_navigate: false by default. true only after the user clearly agrees (e.g., "okay", "yes", "sure").
 `;
 
 // Simple fallback only used when AI truly fails to respond
