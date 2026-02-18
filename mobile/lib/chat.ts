@@ -37,6 +37,17 @@ export interface WeatherContext {
   isDayTime?: boolean;
 }
 
+export type UiActionType = 'OPEN_JOURNAL_MODAL' | 'OPEN_EXTERNAL_URL' | 'PLAY_IN_APP_TRACK' | 'SHOW_PLAYLIST_CHOOSER';
+
+export interface UiAction {
+  type: UiActionType;
+  title?: string;
+  url?: string;
+  playlistId?: string;
+  trackId?: string;
+  source: 'spotify' | 'trace';
+}
+
 export async function sendChatMessage({ messages, userName, chatStyle, localTime, localDay, localDate, userId, deviceId, timezone, patternContext, tonePreference, traceStudiosContext, client_state, weatherContext, isGreetingResponse, greetingText, conversation_id }: {
   messages: Array<{ role: string; content: string }>;
   userName?: string | null;
@@ -146,6 +157,8 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
 
     const echo_offer = data.echo_offer || null;
 
+    const ui_action = data.ui_action || null;
+
     return {
       message: data.message || "mm, I'm here.",
       messages: data.messages || null,
@@ -155,6 +168,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
       pattern_metadata: patternMetadata,
       traceStudios,
       audio_action,
+      ui_action,
       client_state_patch,
       doorway,
       suggestion,

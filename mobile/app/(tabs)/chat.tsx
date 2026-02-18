@@ -622,6 +622,8 @@ export default function ChatScreen() {
   
   // Track when user leaves for Spotify to show return message
   const leftForSpotifyRef = useRef<{ left: boolean; trackTitle?: string; leftAt?: number }>({ left: false });
+  const [recommendedPlaylist, setRecommendedPlaylist] = useState<{ source: string; playlist_id?: string } | null>(null);
+  const recommendationHistoryRef = useRef<string[]>([]);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   
   // Client state for context-aware backend responses (doorways, suggestions, etc.)
@@ -730,6 +732,12 @@ export default function ChatScreen() {
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription?.remove();
   }, []);
+
+  const addToRecommendationHistory = (playlistId: string) => {
+    if (!recommendationHistoryRef.current.includes(playlistId)) {
+      recommendationHistoryRef.current.push(playlistId);
+    }
+  };
 
   // Week 1 Payoff: Check 72h trigger on mount
   useEffect(() => {
@@ -2214,20 +2222,17 @@ export default function ChatScreen() {
       const uiAction = result?.ui_action;
       if (uiAction?.type === 'OPEN_JOURNAL_MODAL') {
         console.log('🎵 ui_action: OPEN_JOURNAL_MODAL', uiAction);
-        const playlistId = uiAction.playlistId || uiAction.title || '';
-        const playlistToMood: Record<string, MoodSpace> = {
-          'rooted_playlist': 'rooted',
-          'low_orbit_playlist': 'low_orbit',
-          'first_light_playlist': 'first_light',
-          'rooted': 'rooted',
-          'low_orbit': 'low_orbit',
-          'first_light': 'first_light',
-        };
-        const mood = playlistToMood[playlistId] || (playlistId as MoodSpace);
-        leftForSpotifyRef.current = { left: true, trackTitle: playlistId, leftAt: Date.now() };
-        setTimeout(async () => {
-          await openSpotifyPlaylist(mood);
-        }, 600);
+        setRecommendedPlaylist({
+          source: 'spotify',
+          playlist_id: uiAction.playlistId,
+        });
+        if (uiAction.playlistId) addToRecommendationHistory(uiAction.playlistId);
+        const musicSpace = uiAction.playlistId?.replace('_playlist', '') || 'rooted';
+        leftForSpotifyRef.current = { left: true, trackTitle: uiAction.playlistId || musicSpace, leftAt: Date.now() };
+        router.push({
+          pathname: '/(tabs)/journal',
+          params: { mode: 'music', from: 'chat', musicSpace },
+        } as any);
       }
 
     } catch (err: any) {
