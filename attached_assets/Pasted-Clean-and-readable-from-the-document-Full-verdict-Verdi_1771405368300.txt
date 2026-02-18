@@ -1,0 +1,29 @@
+Clean and readable from the document. Full verdict:
+
+Verdict: Functional, intentionally lightweight, two real gaps
+This file does what it needs to do as a pre-processing layer. It's not trying to be sophisticated — it classifies intent quickly so downstream systems have structured signal to work with. That's the right philosophy for a pre-processor.
+What works:
+The script gating logic is solid. Blocking post-activity reflection scripts when the user has shifted topics is exactly right — one of the more common failure modes in companion apps is a scripted check-in firing when the person has already moved on.
+The core_message_draft building a structured description of user intent rather than raw text is a clean pattern. Downstream systems get a semanticized summary they can reason about directly.
+The topic shift detection using word overlap as a signal is simple but effective. Four or fewer words in common out of five+ word message strongly suggests a new topic.
+
+Gap 1 — Encoding artifacts in SHORT_MESSAGE_PATTERNS
+Line 22:
+js/^(lol|lmao|haha|hehe|ðŸ˜Š|ðŸ˜¢|â¤ï¸|ðŸ™|ðŸ'|ðŸ'™|ðŸ˜"|ðŸ¥º|ðŸ'•)$/i,
+These are broken emoji encoding — the actual emoji characters got mangled to their UTF-8 byte sequences somewhere in transit. ðŸ˜Š should be 😊, â¤ï¸ should be ❤️, etc. These patterns will never match actual emoji in user messages.
+Tell Replit:
+
+In cognitiveEngine.js, replace line 22 with actual emoji characters:
+js/^(lol|lmao|haha|hehe|😊|😢|❤️|🙏|👍|💙|😔|🥺|💕)$/i,
+
+
+Gap 2 — detectEmotionalContext doesn't read conversation history
+Same issue as detectPosture in traceAttunement.js. The function signature takes recentSentiment as a scalar fallback but never looks at message history directly. Someone who has been sad for three messages but sends "okay" gets classified as neutral.
+The fix is the same pattern we identified in attunement — check the last 2-3 user messages for emotional signal when the current message is short or ambiguous:
+Tell Replit:
+
+In cognitiveEngine.js, update detectEmotionalContext to accept an optional recentMessages array. When is_short_message is true or the current message returns neutral, scan the last 3 user messages from recentMessages for emotional keywords before falling back to neutral. If a recent message contains emotional signal, carry that context forward with lower confidence rather than resetting to neutral. This prevents emotional context from evaporating when someone sends "okay" or "yeah" mid-conversation.
+
+
+One observation
+The topic_shift detection via word overlap has a blind spot worth knowing: common emotional vocabulary (feel, just, really, like, know) are filtered out by the length > 3 guard, but words like work, home, hurt, lost are short enough to pass and common enough across topics that they inflate the overlap score. Someone shifting from "my relationship is hurting me" to "work is hurting me" might not trigger a topic shift because hurt appears in both.

@@ -2843,6 +2843,79 @@ function salvageTruncatedText(text) {
   return trimmed + '.';
 }
 
+// Detect user's name from conversational introduction
+// Catches: "my name is X", "I'm X", "call me X", "it's X", "you can call me X", "everyone calls me X"
+function detectUserName(text) {
+  if (!text) return null;
+  const t = text.trim();
+  
+  // High-confidence patterns — explicit name introductions
+  const explicitPatterns = [
+    /\bmy name(?:'s| is) ([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b/i,
+    /\bcall me ([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b/i,
+    /\byou can call me ([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b/i,
+    /\beveryone calls me ([A-Z][a-z]+)\b/i,
+    /\bpeople call me ([A-Z][a-z]+)\b/i,
+    /\bi go by ([A-Z][a-z]+)\b/i,
+    /\bthe name(?:'s| is) ([A-Z][a-z]+)\b/i,
+  ];
+  
+  // Medium-confidence patterns — "I'm X" only in short messages (< 8 words)
+  const shortMsgPatterns = [
+    /\bi'?m ([A-Z][a-z]+)\b(?:\s*[.!,]|\s+by the way|\s+btw|\s*$)/i,
+    /\bit'?s ([A-Z][a-z]+)\b(?:\s*[.!]|\s*$)/i,
+  ];
+  
+  const invalidNames = [
+    'trace', 'ok', 'okay', 'good', 'fine', 'great', 'bad', 'tired',
+    'here', 'back', 'done', 'ready', 'confused', 'lost', 'sad', 'happy',
+    'stressed', 'anxious', 'worried', 'excited', 'curious', 'bored',
+    'sorry', 'sure', 'nice', 'cool', 'true', 'real', 'just', 'not',
+    'the', 'doing', 'feeling', 'going', 'trying', 'thinking', 'wondering',
+    'so', 'really', 'pretty', 'very', 'still', 'new', 'old',
+    'home', 'down', 'up', 'out', 'over', 'alive', 'dead',
+    'lonely', 'sick', 'exhausted', 'overwhelmed', 'frustrated', 'scared',
+    'angry', 'upset', 'depressed', 'nervous', 'terrified', 'broken',
+    'numb', 'empty', 'hurting', 'struggling', 'stuck', 'better', 'worse',
+    'late', 'early', 'busy', 'free', 'leaving', 'coming', 'waiting',
+    'joking', 'serious', 'lying', 'telling', 'asking', 'saying',
+  ];
+  
+  const validateName = (name) => {
+    if (!name) return null;
+    const cleaned = name.trim();
+    if (cleaned.length < 2 || cleaned.length > 30) return null;
+    if (invalidNames.includes(cleaned.toLowerCase())) return null;
+    // Must start with a letter (not a number or symbol)
+    if (!/^[A-Za-z]/.test(cleaned)) return null;
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
+  };
+  
+  // Always try explicit patterns regardless of message length
+  for (const pattern of explicitPatterns) {
+    const match = t.match(pattern);
+    if (match && match[1]) {
+      const name = validateName(match[1]);
+      if (name) return name;
+    }
+  }
+  
+  // Only try "I'm X" / "it's X" patterns in short messages (< 8 words)
+  // to avoid false positives like "I'm tired of this" or "it's late"
+  const wordCount = t.split(/\s+/).length;
+  if (wordCount <= 8) {
+    for (const pattern of shortMsgPatterns) {
+      const match = t.match(pattern);
+      if (match && match[1]) {
+        const name = validateName(match[1]);
+        if (name) return name;
+      }
+    }
+  }
+  
+  return null;
+}
+
 // Detect if user is asking for long-form content (recipes, stories, lists, etc.)
 function detectLongFormRequest(text) {
   if (!text) return false;
@@ -6238,6 +6311,25 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       }
     } catch (err) {
       console.error('[TRACE NAME] Failed to load profile name:', err.message);
+    }
+
+    // ===== NAME DETECTION FROM CONVERSATION =====
+    // Detect name introductions ("my name is X", "call me X", "I'm Sarah")
+    // and name corrections ("actually call me X", "it's X not Y")
+    if (userText && supabaseServer && effectiveUserId) {
+      const isNameCorrection = /\b(actually|no,?\s*it'?s|prefer|go by)\b/i.test(userText) && /\b(call me|name|go by|i'?m)\b/i.test(userText);
+      if (!displayName || isNameCorrection) {
+        const extractedName = detectUserName(userText);
+        if (extractedName) {
+          displayName = extractedName;
+          console.log(`[TRACE NAME] ${isNameCorrection ? 'Corrected' : 'Detected'} from conversation:`, extractedName);
+          supabaseServer
+            .from('profiles')
+            .upsert({ user_id: effectiveUserId, preferred_name: extractedName, display_name: extractedName, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+            .then(() => console.log('[TRACE NAME] Saved to profile:', extractedName))
+            .catch(err => console.error('[TRACE NAME] Failed to save name:', err.message));
+        }
+      }
     }
 
     // ===== SCRIPTED ONBOARDING STATE MACHINE =====
