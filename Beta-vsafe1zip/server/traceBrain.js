@@ -1340,6 +1340,37 @@ const THERAPY_PATTERNS = [
 const everydayEmphasisCooldowns = new Map(); // userId -> lastUsedAt timestamp
 const EMPHASIS_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes between uses
 
+const healthMentionTracker = new Map(); // userId -> { turns: number[], count: number, lastAccess: number }
+const HEALTH_COOLDOWN_TURNS = 3;
+const HEALTH_TRACKER_TTL_MS = 24 * 60 * 60 * 1000;
+setInterval(() => {
+  const now = Date.now();
+  for (const [uid, tracker] of healthMentionTracker) {
+    if (now - (tracker.lastAccess || 0) > HEALTH_TRACKER_TTL_MS) {
+      healthMentionTracker.delete(uid);
+    }
+  }
+}, 60 * 60 * 1000);
+const HEALTH_MENTION_RE = /\b(health|wellness|well-being|wellbeing)\b/i;
+const HEALTH_SENTENCE_RE = /[^.!?]*\b(health|wellness|well-being|wellbeing)\b[^.!?]*[.!?]?/gi;
+
+function trackHealthMention(userId, turnCount, text) {
+  if (!HEALTH_MENTION_RE.test(text)) return;
+  const tracker = healthMentionTracker.get(userId) || { turns: [], count: 0, lastAccess: Date.now() };
+  tracker.turns.push(turnCount);
+  tracker.count++;
+  tracker.lastAccess = Date.now();
+  if (tracker.turns.length > 10) tracker.turns = tracker.turns.slice(-10);
+  healthMentionTracker.set(userId, tracker);
+}
+
+function isHealthOnCooldown(userId, turnCount) {
+  const tracker = healthMentionTracker.get(userId);
+  if (!tracker || tracker.turns.length === 0) return false;
+  const lastMention = tracker.turns[tracker.turns.length - 1];
+  return (turnCount - lastMention) < HEALTH_COOLDOWN_TURNS;
+}
+
 function sanitizeTone(text, options = {}) {
   if (!text) return text;
   let result = text;
@@ -1380,13 +1411,26 @@ function sanitizeTone(text, options = {}) {
     const lastUsed = everydayEmphasisCooldowns.get(userId) || 0;
     const now = Date.now();
     if (now - lastUsed < EMPHASIS_COOLDOWN_MS) {
-      // Remove emphasis phrases if used too recently
       result = result.replace(/\b(Honestly,?|Real talk,?|To be honest,?|Tbh,?)\s*/gi, '');
       console.log('[TONE SANITIZER] Removed emphasis phrase (cooldown active)');
     } else {
-      // Allow it and update cooldown
       everydayEmphasisCooldowns.set(userId, now);
     }
+  }
+  
+  // Health reference cooldown: strip health mentions if TRACE mentioned health in last 3 turns
+  const turnCount = options.turnCount || 0;
+  if (HEALTH_MENTION_RE.test(result)) {
+    if (isHealthOnCooldown(userId, turnCount)) {
+      const beforeHealth = result;
+      result = result.replace(HEALTH_SENTENCE_RE, '');
+      result = result.replace(/\s{2,}/g, ' ').trim();
+      if (result !== beforeHealth) {
+        changed = true;
+        console.log('[TONE SANITIZER] Stripped health reference (cooldown active, last mention within 3 turns)');
+      }
+    }
+    trackHealthMention(userId, turnCount, result);
   }
   
   // Clean up artifacts from pattern removal

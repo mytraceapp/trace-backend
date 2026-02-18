@@ -3993,18 +3993,33 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
         
         if (recentMsgs && recentMsgs.length > 0) {
           const userMsgs = recentMsgs.filter(m => m.role === 'user' && m.content);
+          const assistantMsgs = recentMsgs.filter(m => m.role === 'assistant' && m.content);
           
-          const foundTopics = new Set();
+          const topicCounts = new Map();
           for (const msg of userMsgs.slice(0, 8)) {
             const keywords = conversationState.extractTopicKeywords(msg.content);
             keywords.forEach(k => {
-              if (!GREETING_BANNED_TOPICS.has(k.toLowerCase())) foundTopics.add(k);
+              if (!GREETING_BANNED_TOPICS.has(k.toLowerCase())) {
+                topicCounts.set(k, (topicCounts.get(k) || 0) + 1);
+              }
             });
           }
-          allAvailableTopics = [...foundTopics];
+
+          const assistantTopics = new Set();
+          for (const msg of assistantMsgs.slice(0, 5)) {
+            conversationState.extractTopicKeywords(msg.content).forEach(k => assistantTopics.add(k));
+          }
+
+          for (const [topic, count] of topicCounts) {
+            if (count >= 2 || !assistantTopics.has(topic)) {
+              allAvailableTopics.push(topic);
+            } else {
+              console.log(`[GREETING] Dropped topic "${topic}" — only ${count} user mention(s) and TRACE mentioned it first`);
+            }
+          }
           recentConversationTopics = allAvailableTopics.slice(0, 3);
           
-          const lastSubstantive = userMsgs.find(m => m.content.length > 10);
+          const lastSubstantive = userMsgs.find(m => m.content.length > 10 && !/\bhealth\b/i.test(m.content));
           if (lastSubstantive) {
             lastConversationSnippet = lastSubstantive.content.slice(0, 80);
           }
@@ -9037,7 +9052,7 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
       if (traceIntent?.topicAnchor && convoStateObj) {
         convoStateObj.topicAnchor = traceIntent.topicAnchor;
         const a = traceIntent.topicAnchor;
-        console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}"${a.entities?.length ? ` entities=[${a.entities.join(',')}]` : ''} turnAge=${a.turnAge} carried=${a.carried}${a.recoveredFromHistory ? ' recovered=history' : ''}`);
+        console.log(`[ANCHOR] ${a.carried ? '↩' : '●'} domain=${a.domain} label="${a.label}"${a.entities?.length ? ` entities=[${a.entities.join(',')}]` : ''} turnAge=${a.turnAge} carried=${a.carried} userOrig=${a.userOriginated}${a.recoveredFromHistory ? ' recovered=history' : ''}`);
       }
 
       // Log primary mode transitions
@@ -9716,7 +9731,9 @@ The user is asking a factual question. Answer with specific details — names, n
       conversationState.reconstructStateFromMessages(convoState, messages);
       conversationState.saveState(effectiveUserId, convoState);
     }
-    const userHadContent = conversationState.advanceStage(convoState, lastUserContent);
+    const recentAssistantTexts = (messages || []).filter(m => m.role === 'assistant').slice(-5).map(m => m.content || '');
+    const recentUserTexts = (messages || []).filter(m => m.role === 'user').slice(-5).map(m => m.content || '');
+    const userHadContent = conversationState.advanceStage(convoState, lastUserContent, recentAssistantTexts, recentUserTexts);
     
     console.log(`[CONVO_STATE] Before: { stage: ${convoState.stage}, lastMove: ${convoState.lastMoveType}, topics: [${convoState.lastTopicKeywords.join(', ')}], userHadContent: ${userHadContent} }`);
     
@@ -10864,7 +10881,7 @@ Continue the conversation naturally. Stay in the same emotional lane — if they
         }
         if (plainText.length > 5) {
           if (!isCrisisMode) {
-            plainText = sanitizeTone(plainText, { userId: effectiveUserId, isCrisisMode });
+            plainText = sanitizeTone(plainText, { userId: effectiveUserId, isCrisisMode, turnCount: convoState?.turnCount || 0 });
           }
           parsed = {
             message: plainText,
@@ -10914,7 +10931,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
         
         let contextText = response.choices[0]?.message?.content?.trim() || '';
         if (contextText.length > 5) {
-          contextText = sanitizeTone(contextText, { userId: effectiveUserId, isCrisisMode });
+          contextText = sanitizeTone(contextText, { userId: effectiveUserId, isCrisisMode, turnCount: convoState?.turnCount || 0 });
           parsed = {
             message: contextText,
             activity_suggestion: { name: null, reason: null, should_navigate: false }
@@ -10995,7 +11012,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
                        (!regenText.includes('?') && originalResponse.includes('?'));
         
         if (!isWorse && regenText.length > 10) {
-          parsed.message = sanitizeTone(regenText, { userId: effectiveUserId, isCrisisMode });
+          parsed.message = sanitizeTone(regenText, { userId: effectiveUserId, isCrisisMode, turnCount: convoState?.turnCount || 0 });
           console.log(`[TRACE BRAIN] Anti-repetition: { similarity: ${repetitionCheck.similarity.toFixed(2)}, actionTaken: "regen_used_sanitized", usedFallback: false }`);
         } else {
           console.log(`[TRACE BRAIN] Anti-repetition: { similarity: ${repetitionCheck.similarity.toFixed(2)}, actionTaken: "regen_discarded", usedFallback: true }`);
@@ -11020,7 +11037,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       );
       if (!hardFilterResult.pass) {
         console.log(`[HARD FILTER] FAILED: ${hardFilterResult.reasons.join(', ')} — applying sanitizeTone`);
-        parsed.message = sanitizeTone(parsed.message, { userId: effectiveUserId, isCrisisMode });
+        parsed.message = sanitizeTone(parsed.message, { userId: effectiveUserId, isCrisisMode, turnCount: convoState?.turnCount || 0 });
       }
     }
 
@@ -12176,7 +12193,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
           sanitizeToneRan = false;
         } else {
           sanitizeToneRan = true;
-          tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode: false });
+          tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode: false, turnCount: convoState?.turnCount || 0 });
         }
       }
     } else {
@@ -12202,7 +12219,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
         console.log('[TRACE BRAIN] Skipping sanitizeTone — schema enforcement active');
       } else {
         sanitizeToneRan = true;
-        tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode: false });
+        tightenedText = sanitizeTone(tightenedText, { userId: effectiveUserId, isCrisisMode: false, turnCount: convoState?.turnCount || 0 });
       }
     }
     

@@ -364,7 +364,7 @@ function buildTopicAnchor({
   historyMessages,
 }) {
   const domain = DOMAIN_MAP[primaryMode] || 'conversation';
-  const topicKeywords = conversationState?.lastTopicKeywords || [];
+  const topicKeywords = (conversationState?.lastTopicKeywords || []).filter(k => !/\bhealth\b/i.test(k));
 
   const isBareGreeting = /^(hi|hello|hey|yo|sup|heya|hiya|heyy|hii|what'?s up|wassup)[\s!.?]*$/i.test((currentMessage || '').trim());
   const previousHasContent = previousAnchor && previousAnchor.label && previousAnchor.label !== 'open conversation';
@@ -377,6 +377,7 @@ function buildTopicAnchor({
         entities: previousAnchor.entities || [],
         turnAge: (previousAnchor.turnAge || 0) + 1,
         carried: true,
+        userOriginated: previousAnchor.userOriginated !== false,
       };
     }
     const recoveredLabel = recoverTopicFromHistory(historyMessages);
@@ -388,25 +389,32 @@ function buildTopicAnchor({
         turnAge: 0,
         carried: true,
         recoveredFromHistory: true,
+        userOriginated: true,
       };
     }
   }
 
   let label = '';
   const entities = [];
+  let userOriginated = false;
 
   if (domain === 'music') {
     label = 'music exploration';
+    userOriginated = true;
     const musicEntities = extractMusicEntities(currentMessage);
     entities.push(...musicEntities);
   } else if (domain === 'dreams') {
     label = 'dream reflection';
+    userOriginated = true;
   } else if (domain === 'crisis') {
     label = 'safety support';
+    userOriginated = true;
   } else if (domain === 'onboarding') {
     label = 'getting to know you';
+    userOriginated = false;
   } else if (domain === 'activity') {
     label = 'activity';
+    userOriginated = true;
   } else {
     const neutralTurns = conversationState?.neutralTurnCount || 0;
     const isEmotionalAnchor = previousHasContent && /sadness|anxiety|stress|sleep|breakup|grief|anger|depression/i.test(previousAnchor.label);
@@ -414,23 +422,37 @@ function buildTopicAnchor({
 
     if (topicKeywords.length > 0) {
       label = topicKeywords.slice(0, 2).join(' & ');
+      userOriginated = !!(conversationState?.userSetTopic);
     } else if (cognitiveIntent?.emotional_context && cognitiveIntent.emotional_context !== 'neutral') {
       label = cognitiveIntent.emotional_context;
+      userOriginated = true;
     } else if (previousHasContent && (previousAnchor.turnAge || 0) < maxCarryAge && !isEmotionalAnchor) {
       label = previousAnchor.label;
+      userOriginated = previousAnchor.userOriginated !== false;
     } else if (isEmotionalAnchor && neutralTurns >= 2) {
       console.log(`[ANCHOR] Dropping stale emotional anchor "${previousAnchor.label}" after ${neutralTurns} neutral turns`);
       label = 'open conversation';
+      userOriginated = false;
     } else if (previousHasContent && (previousAnchor.turnAge || 0) < maxCarryAge) {
       label = previousAnchor.label;
+      userOriginated = previousAnchor.userOriginated !== false;
     } else {
       label = 'open conversation';
+      userOriginated = false;
     }
+  }
+
+  const BANNED_ANCHOR_LABELS = /\bhealth\b/i;
+  if (BANNED_ANCHOR_LABELS.test(label)) {
+    console.log(`[ANCHOR] Dropping banned label "${label}"`);
+    label = 'open conversation';
+    userOriginated = false;
   }
 
   const doorHint = pickDoorwayHint(doorwaysResult);
   if (doorHint && domain === 'conversation') {
     label = doorHint.replace(/_/g, ' ');
+    userOriginated = true;
   }
 
   const topicShift = !!(cognitiveIntent?.topic_shift);
@@ -442,6 +464,7 @@ function buildTopicAnchor({
     entities: entities.length > 0 ? entities : (carried && previousAnchor?.entities?.length ? previousAnchor.entities : []),
     turnAge: carried ? (previousAnchor.turnAge || 0) + 1 : 0,
     carried,
+    userOriginated,
   };
 }
 

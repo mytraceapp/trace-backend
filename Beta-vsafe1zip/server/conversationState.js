@@ -88,6 +88,9 @@ async function loadStateFromSupabase(visitorId) {
     for (const key of PERSIST_FIELDS) {
       if (saved[key] !== undefined) state[key] = saved[key];
     }
+    if (state.lastTopicKeywords) {
+      state.lastTopicKeywords = state.lastTopicKeywords.filter(k => !/\bhealth\b/i.test(k));
+    }
     state.lastAccessed = Date.now();
     console.log(`[CONVO_STATE_PERSIST] Hydrated from Supabase: stage=${state.stage}, turns=${state.turnCount}, rhythm=${(state.rhythmHistory||[]).length}`);
     return state;
@@ -548,35 +551,34 @@ function userHasContent(message) {
 /**
  * Extract topic keywords from user message
  */
+const TOPIC_PATTERNS = [
+  { pattern: /\b(work|job|boss|coworker|office|career|meeting|interview)\b/i, topic: 'work' },
+  { pattern: /\b(school|class|teacher|homework|exam|grade|college|university|semester|studying)\b/i, topic: 'school' },
+  { pattern: /\b(mom|dad|parent|family|brother|sister|son|daughter|wife|husband|partner|teenager|teen|kid|child|baby|mama|papa)\b/i, topic: 'family' },
+  { pattern: /\b(she'?s opening up|he'?s opening up|opening up to me|talking to me more)\b/i, topic: 'parenting' },
+  { pattern: /\b(friend|friendship|social|lonely|alone)\b/i, topic: 'relationships' },
+  { pattern: /\b(sleep|tired|exhausted|insomnia|rest)\b/i, topic: 'sleep' },
+  { pattern: /\b(anxious|anxiety|worried|nervous|panic)\b/i, topic: 'anxiety' },
+  { pattern: /\b(sad|depressed|down|low|empty)\b/i, topic: 'sadness' },
+  { pattern: /\b(stress|stressed|pressure|overwhelmed)\b/i, topic: 'stress' },
+  { pattern: /\b(dream|nightmare|dreamt|dreamed)\b/i, topic: 'dreams' },
+  { pattern: /\b(music|song|listening|album)\b/i, topic: 'music' },
+  { pattern: /\b(money|rent|bills|debt|broke|paycheck|financial)\b/i, topic: 'finances' },
+  { pattern: /\b(sick|pain|doctor|hospital|medication|meds)\b/i, topic: 'physical' },
+  { pattern: /\b(breakup|broke up|ex|divorce|separated)\b/i, topic: 'breakup' },
+  { pattern: /\b(move|moving|new place|apartment|house)\b/i, topic: 'life change' },
+  { pattern: /\b(news|headline|shooting|shot|killed|victim|arrest|immigration|election|politic|protest|war|conflict|attack|bomb|hurricane|earthquake|disaster|tornado)\b/i, topic: 'current events' },
+  { pattern: /\b(weather|rain|snow|storm|temperature|forecast|hot|cold|humid)\b/i, topic: 'weather' },
+  { pattern: /\b(dog|cat|pet|puppy|kitten|animal|breed)\b/i, topic: 'pets' },
+  { pattern: /\b(holiday|christmas|thanksgiving|easter|halloween|new year|birthday|celebration|valentine)\b/i, topic: 'holidays' },
+  { pattern: /\b(food|cook|recipe|eat|meal|dinner|lunch|breakfast|restaurant|hungry)\b/i, topic: 'food' },
+];
+
 function extractTopicKeywords(message) {
   if (!message) return [];
   const keywords = [];
   
-  // Look for specific topics
-  const topicPatterns = [
-    { pattern: /\b(work|job|boss|coworker|office|career|meeting|interview)\b/i, topic: 'work' },
-    { pattern: /\b(school|class|teacher|homework|exam|grade|college|university|semester|studying)\b/i, topic: 'school' },
-    { pattern: /\b(mom|dad|parent|family|brother|sister|son|daughter|wife|husband|partner|teenager|teen|kid|child|baby|mama|papa)\b/i, topic: 'family' },
-    { pattern: /\b(she'?s opening up|he'?s opening up|opening up to me|talking to me more)\b/i, topic: 'parenting' },
-    { pattern: /\b(friend|friendship|social|lonely|alone)\b/i, topic: 'relationships' },
-    { pattern: /\b(sleep|tired|exhausted|insomnia|rest)\b/i, topic: 'sleep' },
-    { pattern: /\b(anxious|anxiety|worried|nervous|panic)\b/i, topic: 'anxiety' },
-    { pattern: /\b(sad|depressed|down|low|empty)\b/i, topic: 'sadness' },
-    { pattern: /\b(stress|stressed|pressure|overwhelmed)\b/i, topic: 'stress' },
-    { pattern: /\b(dream|nightmare|dreamt|dreamed)\b/i, topic: 'dreams' },
-    { pattern: /\b(music|song|listening|album)\b/i, topic: 'music' },
-    { pattern: /\b(money|rent|bills|debt|broke|paycheck|financial)\b/i, topic: 'finances' },
-    { pattern: /\b(health|sick|pain|doctor|hospital|medication|meds)\b/i, topic: 'health' },
-    { pattern: /\b(breakup|broke up|ex|divorce|separated)\b/i, topic: 'breakup' },
-    { pattern: /\b(move|moving|new place|apartment|house)\b/i, topic: 'life change' },
-    { pattern: /\b(news|headline|shooting|shot|killed|victim|arrest|immigration|election|politic|protest|war|conflict|attack|bomb|hurricane|earthquake|disaster|tornado)\b/i, topic: 'current events' },
-    { pattern: /\b(weather|rain|snow|storm|temperature|forecast|hot|cold|humid)\b/i, topic: 'weather' },
-    { pattern: /\b(dog|cat|pet|puppy|kitten|animal|breed)\b/i, topic: 'pets' },
-    { pattern: /\b(holiday|christmas|thanksgiving|easter|halloween|new year|birthday|celebration|valentine)\b/i, topic: 'holidays' },
-    { pattern: /\b(food|cook|recipe|eat|meal|dinner|lunch|breakfast|restaurant|hungry)\b/i, topic: 'food' },
-  ];
-  
-  for (const { pattern, topic } of topicPatterns) {
+  for (const { pattern, topic } of TOPIC_PATTERNS) {
     if (pattern.test(message)) {
       keywords.push(topic);
     }
@@ -584,6 +586,7 @@ function extractTopicKeywords(message) {
   
   return keywords;
 }
+extractTopicKeywords.__patterns = TOPIC_PATTERNS;
 
 /**
  * Classify assistant response move type
@@ -635,11 +638,14 @@ function reconstructStateFromMessages(state, messages) {
   
   let contentCount = 0;
   const allTopics = [];
+  const assistantTexts = assistantMessages.slice(-5).map(m => m.content || '');
+  const userTexts = userMessages.slice(-5).map(m => m.content || '');
   
   for (const msg of userMessages) {
     const content = msg.content || '';
     if (userHasContent(content)) contentCount++;
-    const topics = extractTopicKeywords(content);
+    let topics = extractTopicKeywords(content);
+    topics = topics.filter(t => isUserOriginatedTopic(t, assistantTexts, userTexts));
     for (const t of topics) {
       if (!allTopics.includes(t)) allTopics.push(t);
     }
@@ -682,11 +688,39 @@ function reconstructStateFromMessages(state, messages) {
 }
 
 /**
- * Advance conversation stage based on user content
+ * Check if a topic keyword originated from the user independently,
+ * not just echoing back something TRACE said first.
+ * recentAssistantMsgs: last 5 assistant messages (strings)
+ * recentUserMsgs: last 5 user messages (strings)
  */
-function advanceStage(state, userMessage) {
+function isUserOriginatedTopic(topic, recentAssistantMsgs, recentUserMsgs) {
+  if (!recentAssistantMsgs || recentAssistantMsgs.length === 0) return true;
+  const pattern = extractTopicKeywords.__patterns?.find(p => p.topic === topic);
+  if (!pattern) return true;
+
+  const assistantMentioned = recentAssistantMsgs.some(m => pattern.pattern.test(m || ''));
+  if (!assistantMentioned) return true;
+
+  const userMentionCount = recentUserMsgs.filter(m => pattern.pattern.test(m || '')).length;
+  return userMentionCount >= 2;
+}
+
+/**
+ * Advance conversation stage based on user content
+ * recentAssistantTexts: optional array of recent assistant message strings for origination check
+ * recentUserTexts: optional array of recent user message strings for origination check
+ */
+function advanceStage(state, userMessage, recentAssistantTexts, recentUserTexts) {
   const hasContent = userHasContent(userMessage);
-  const topics = extractTopicKeywords(userMessage);
+  let topics = extractTopicKeywords(userMessage);
+
+  if (recentAssistantTexts && recentAssistantTexts.length > 0) {
+    const before = topics.length;
+    topics = topics.filter(t => isUserOriginatedTopic(t, recentAssistantTexts, recentUserTexts || []));
+    if (topics.length < before) {
+      console.log(`[CONVO_STATE] Filtered ${before - topics.length} TRACE-originated topics`);
+    }
+  }
   
   if (topics.length > 0) {
     state.lastTopicKeywords = topics;

@@ -569,10 +569,14 @@ function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastS
     }
   }
   
+  const HEALTH_BAN_RE = /\bhealth\b/i;
   if (recentConversationTopics?.length > 0) {
-    allowedRefs.push(`RECENT TOPICS: ${recentConversationTopics.join(', ')}`);
+    const safeTopics = recentConversationTopics.filter(t => !HEALTH_BAN_RE.test(t));
+    if (safeTopics.length > 0) {
+      allowedRefs.push(`RECENT TOPICS: ${safeTopics.join(', ')}`);
+    }
   }
-  if (lastConversationSnippet) {
+  if (lastConversationSnippet && !HEALTH_BAN_RE.test(lastConversationSnippet)) {
     allowedRefs.push(`LAST MESSAGE: "${lastConversationSnippet}"`);
   }
   
@@ -586,12 +590,15 @@ function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastS
     allowedRefs.push(`STRESS: ${stressLevel}`);
   }
   
-  if (recentTopic) {
+  if (recentTopic && !HEALTH_BAN_RE.test(recentTopic)) {
     allowedRefs.push(`TOPIC: ${recentTopic}`);
   }
 
   if (memoryContext?.length > 0) {
-    allowedRefs.push(`MEMORY THEMES: ${memoryContext.join(', ')}`);
+    const safeThemes = memoryContext.filter(t => !HEALTH_BAN_RE.test(t));
+    if (safeThemes.length > 0) {
+      allowedRefs.push(`MEMORY THEMES: ${safeThemes.join(', ')}`);
+    }
   }
   
   const hasVerifiedData = allowedRefs.length > 0;
@@ -836,6 +843,7 @@ NEVER DO:
 - Lead with stats or data points
 - Describe surface actions ("you checked in", "you had sessions", "you were active", "your focus has been on reflection")
 - Use: "impressive", "significant", "navigating", "processing", "holding space", "journey", "introspection", "tapped into", "softening", "tender", "thread of care", "what's been moving through you", "perhaps", "might", "seems like", "seemed to", "appeared to", "hinting at", "I wonder"
+- Reference "health", "health check", "wellness", or anything medical/clinical — TRACE is not a health app
 - Cheerlead or congratulate
 - Blame, diagnose, or assume feelings
 - Use exclamation marks
