@@ -7536,6 +7536,30 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
       const alreadyMentionedHolidays = getHolidayMentionedNames(effectiveUserId);
       const isUserAskingAboutHoliday = /\b(holiday|what\s+day|presidents|chinese\s+new\s+year|ash\s+wednesday|what'?s\s+today|is\s+it\s+a\s+holiday|day\s+off)\b/i.test(userText);
       
+      // RESTART-PROOF: scan conversation history for holiday mentions already made
+      const holidayKeywordsForScan = ['chinese new year', 'lunar new year', 'presidents', 'ash wednesday', 'valentine', 'christmas', 'thanksgiving', 'easter', 'memorial day', 'independence day', 'labor day', 'mlk', 'juneteenth', 'halloween', 'new year', 'hanukkah', 'kwanzaa', 'diwali', 'ramadan', 'eid'];
+      const recentAssistantMsgs = (rawMessages || []).filter(m => m.role === 'assistant').slice(-8);
+      const historyMentionedHolidays = [];
+      for (const msg of recentAssistantMsgs) {
+        const lower = (msg.content || '').toLowerCase();
+        for (const kw of holidayKeywordsForScan) {
+          if (lower.includes(kw) && !historyMentionedHolidays.includes(kw)) {
+            historyMentionedHolidays.push(kw);
+          }
+        }
+      }
+      const holidayAlreadyInHistory = historyMentionedHolidays.length > 0;
+      const effectiveMentionCount = Math.max(holidayMentionCount, holidayAlreadyInHistory ? 1 : 0);
+      const allMentionedNames = [...new Set([...alreadyMentionedHolidays, ...historyMentionedHolidays])];
+      
+      // Also gate by conversation depth: no proactive holidays after 3 assistant messages
+      const tooDeepForProactive = currentAssistantMsgCount > 3;
+      
+      if (holidayAlreadyInHistory && holidayMentionCount === 0) {
+        markHolidayMentioned(effectiveUserId, historyMentionedHolidays);
+        console.log(`[HOLIDAY] Backfilled tracker from history: ${historyMentionedHolidays.join(', ')}`);
+      }
+      
       try {
         const profileForHoliday = await getProfileBasicOnce();
         const proactiveResult = await getProactiveHolidayContext({
@@ -7546,18 +7570,21 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
           if (isUserAskingAboutHoliday) {
             proactiveHolidayLine = proactiveResult.controlBlockLine;
             holidayContext = proactiveResult.promptContext;
-            if (alreadyMentionedHolidays.length > 0) {
-              holidayContext += ` ALREADY MENTIONED TODAY: ${alreadyMentionedHolidays.join(', ')}. Do NOT repeat these themes. If the user asks about them specifically, answer — but do not proactively re-raise them.`;
+            if (allMentionedNames.length > 0) {
+              holidayContext += ` ALREADY MENTIONED TODAY: ${allMentionedNames.join(', ')}. Do NOT repeat these themes. If the user asks about them specifically, answer — but do not proactively re-raise them.`;
             }
-          } else if (holidayMentionCount === 0) {
+          } else if (effectiveMentionCount === 0 && !tooDeepForProactive) {
             proactiveHolidayLine = proactiveResult.proactiveLine || null;
             if (proactiveResult.proactiveLine) {
               holidayContext = proactiveResult.promptContext + ` You may mention this ONCE if it fits naturally. Do NOT bring it up again after mentioning it.`;
             }
           } else {
-            console.log(`[HOLIDAY] Suppressing proactive holiday (already mentioned ${holidayMentionCount}x: ${alreadyMentionedHolidays.join(', ')})`);
+            const suppressReason = tooDeepForProactive ? 'conversation_too_deep' : `already_mentioned_${effectiveMentionCount}x`;
+            console.log(`[HOLIDAY] Suppressing proactive holiday (${suppressReason}: ${allMentionedNames.join(', ') || 'depth_gate'})`);
             proactiveHolidayLine = null;
-            holidayContext = `HOLIDAY DEDUP: You have ALREADY mentioned ${alreadyMentionedHolidays.join(', ')} in this conversation. Do NOT bring up holidays again unless the user specifically asks. No holiday references, no holiday greetings, no "by the way it's [holiday]". Just have the conversation.`;
+            holidayContext = allMentionedNames.length > 0
+              ? `HOLIDAY DEDUP: You have ALREADY mentioned ${allMentionedNames.join(', ')} in this conversation. Do NOT bring up holidays again unless the user specifically asks. No holiday references, no holiday greetings, no "by the way it's [holiday]". Just have the conversation.`
+              : null;
           }
         }
         if (!holidayContext && isUserAskingAboutHoliday) {
