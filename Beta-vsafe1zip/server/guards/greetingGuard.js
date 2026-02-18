@@ -47,6 +47,7 @@ const SAFE_GENERIC_WORDS = new Set([
   'sleep', 'rest', 'energy', 'stress', 'mood', 'vibe',
   'busy', 'tired', 'long', 'rough', 'chill', 'easy', 'hard',
   'getting', 'holding', 'sitting', 'looking', 'working', 'thinking',
+  'helping', 'hanging', 'coming', 'staying', 'moving', 'carrying',
   'need', 'like', 'else', 'before', 'since', 'talk', 'chat',
   'pause', 'stop', 'open', 'close', 'settle', 'land', 'ground',
   'way', 'world', 'place', 'life', 'stuff', 'kind', 'sort',
@@ -320,7 +321,7 @@ RULES:
 Return ONLY the greeting text.`;
 }
 
-const MINIMAL_FALLBACK = "hey.\nwant to regulate or reflect?";
+const MINIMAL_FALLBACK = "hey.\nwhat's on your mind?";
 
 module.exports = {
   validateGreeting,
