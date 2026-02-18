@@ -1,0 +1,45 @@
+DING] User state: undefined
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [CHAT_FREEZE_RECOVERED] afterMs=2718 count=34
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ WARN  [TELEMETRY] Flush error (keeping queue): Network request failed
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [CHAT_FREEZE_DETECTED] deltaMs=3482 count=35
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  [CHAT_FREEZE_RECOVERED] afterMs=913 count=35
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  [CHAT_FREEZE_DETECTED] deltaMs=4203 count=36
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2106 bytes
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #6 (4/7 in rotation) {"alreadyPlayed": [4, 2, 7], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #6
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #6
+ LOG  [setupAutoPlay] 🔄 Track finished - applying pending state change: presence → grounding
+ LOG  [SoundStateManager] 🎵 Playing "grounding" track #1 (1/7 in rotation) {"alreadyPlayed": [], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: grounding #1
+ LOG  [SoundStateManager] 🎵 Loading "grounding" track 1...
+ LOG  [SoundStateManager] ✅ Track loaded: "grounding" #1
+ LOG  [SoundStateManager] 🎵 Playing "grounding" track #6 (2/7 in rotation) {"alreadyPlayed": [1], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: grounding #6
+ LOG  [SoundStateManager] 📁 Next track asset ready: grounding #6
+ LOG  [setupAutoPlay] ✅ State transition complete: presence → grounding
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2106 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2106 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2106 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2106 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2106 bytes
+ LOG  [AudioContext] ⏱️ Inactivity timeout triggered
+ LOG  [AudioContext] 🎵 Soundscape still active - skipping return to ambient
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2106 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2106 bytes
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #5 (5/7 in rotation) {"alreadyPlayed": [4, 2, 7, 6], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #5
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #5
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #1 (6/7 in rotation) {"alreadyPlayed": [4, 2, 7, 6, 5], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #1
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #1
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2106 bytes

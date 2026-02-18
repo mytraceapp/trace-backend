@@ -519,8 +519,9 @@ async function evaluateAtmosphere(input) {
     if (session.current_state !== client_sound_state && client_sound_state !== 'presence') {
       const isNewSession = session.last_change_timestamp === 0;
       const isServerStale = session.messages_since_state_change <= 2;
-      if (isNewSession || isServerStale) {
-        console.log(`[ATMOSPHERE] Restoring client state: ${client_sound_state} (server=${session.current_state}, new=${isNewSession}, stale=${isServerStale})`);
+      const clientIsLocked = soundscapeLocked || (clientTracksPlayed > 0 && clientTracksPlayed < 7);
+      if (isNewSession || isServerStale || clientIsLocked) {
+        console.log(`[ATMOSPHERE] Syncing server to client state: ${client_sound_state} (server=${session.current_state}, new=${isNewSession}, stale=${isServerStale}, locked=${clientIsLocked}, tracks=${clientTracksPlayed})`);
         session.current_state = client_sound_state;
         session.last_change_timestamp = now - 30000;
         session.messages_since_state_change = 3;
@@ -1004,8 +1005,16 @@ async function evaluateAtmosphere(input) {
     client_sound_state !== finalState &&
     !shouldChange
   ) {
-    console.log(`[ATMOSPHERE] ⚠️ DRIFT DETECTED: server wants "${finalState}" but client reports "${client_sound_state}" — forcing correction`);
-    driftCorrected = true;
+    if (soundscapeLocked && client_sound_state !== 'presence') {
+      console.log(`[ATMOSPHERE] 🔒 DRIFT SUPPRESSED: server wants "${finalState}" but client is LOCKED in "${client_sound_state}" (${clientTracksPlayed} tracks played). Respecting client lock — sending client state instead.`);
+      finalState = client_sound_state;
+    } else if (client_sound_state !== 'presence' && clientTracksPlayed > 0 && clientTracksPlayed < 7) {
+      console.log(`[ATMOSPHERE] 🔒 DRIFT SUPPRESSED: server wants "${finalState}" but client is mid-rotation in "${client_sound_state}" (${clientTracksPlayed}/7 tracks). Sending client state to avoid interruption.`);
+      finalState = client_sound_state;
+    } else {
+      console.log(`[ATMOSPHERE] ⚠️ DRIFT DETECTED: server wants "${finalState}" but client reports "${client_sound_state}" — forcing correction`);
+      driftCorrected = true;
+    }
   }
   
   return {
