@@ -65,11 +65,6 @@ function classifyMusicRequest(text, traceIntent) {
   if (isPlayCmd || entityType === 'track' || entityType === 'album') {
     if (detectedTrack || entityType === 'track') return 'trace_track_play';
     if (detectedAlbum || entityType === 'album') return 'trace_album_play';
-    if (detectedTrack === null && detectedAlbum === null && isPlayCmd) {
-      if (detectTrack(t) || detectAlbum(t)) {
-        return detectTrack(t) ? 'trace_track_play' : 'trace_album_play';
-      }
-    }
   }
 
   if (/\b(reel|concept|edit|visual|video)\b/i.test(t)) return 'studios_reel_concept';
