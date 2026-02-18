@@ -101,7 +101,6 @@ const {
   storeLastResponse,
   detectDreamDoor,
 } = require('./traceBrain');
-const { detectDoorway, passCadence, buildDoorwayResponse } = require('./doorways');
 const { processDoorways, bootstrapConversationState, DOORS, loadDoorwayProfile, saveDoorwayProfile } = require('./doorwaysV1');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
 const { buildNewsContextSummary, isNewsQuestion, isNewsFollowUp, isNewsConfirmation, extractPendingNewsTopic, extractNewsTopic, isInsistingOnNews, markNewsFetched, tickNewsState, hasSpecificTopic, getCachedArticles, cacheArticles, isGeneralKnowledgeQuestion, isFactualQuestion } = require('./newsClient');
