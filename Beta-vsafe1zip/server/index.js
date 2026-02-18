@@ -8084,6 +8084,9 @@ CRISIS OVERRIDE:
         const energyTrend = coreMemory.computeEnergyTrend(messages);
         if (energyTrend && storedCoreMemory?.relationship_profile) {
           storedCoreMemory.relationship_profile.energy_trend = energyTrend;
+          const existingArc = storedCoreMemory.relationship_profile.multi_session_arc || '';
+          const sessionCount = storedCoreMemory.relationship_profile.session_count || 0;
+          storedCoreMemory.relationship_profile.multi_session_arc = coreMemory.computeMultiSessionArc(energyTrend, existingArc, sessionCount);
         }
 
         const memContext = coreMemory.buildMemoryContext(

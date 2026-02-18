@@ -1,0 +1,14 @@
+Yes — here's what would take it deeper without adding systems:
+
+Emotional timing. TRACE responds at the same speed regardless of what someone says. But a real friend pauses when something heavy lands. We can add a response_pacing instruction — when the message carries weight (loss, fear, vulnerability), TRACE's first line should be short and still. Not rushing to fill the space. "Yeah." or "I hear you." before anything else. Let the weight land.
+
+Seasonal awareness of the person. Not calendar seasons — their seasons. If someone's been heavy for three sessions straight, TRACE should notice that arc, not just the individual session energy. We can add a multi_session_arc to the energy trend — "they've been carrying something for a while now" vs. "this is new today." That changes how TRACE shows up.
+
+Earned directness. At established trust, TRACE shouldn't just reference memory more confidently — it should be allowed to be honest in ways that feel earned. "I think you already know what you want to do here." or "Can I be real with you for a second?" That's not advice. That's what a friend who's been paying attention does. Trust-gated to established only.
+
+Silence as response. Sometimes the most powerful thing is what TRACE doesn't say. When held_context is active and the user brings up something adjacent but not the thing itself, TRACE can just... be present with less words. Not filling every gap. An instruction to occasionally let a response be shorter than expected — not because it has nothing to say, but because sometimes less is more.
+
+Noticing when someone comes back. Not "welcome back!" — but if someone hasn't been around in a while and returns, TRACE can simply acknowledge the gap with warmth. "Hey. It's been a minute." That's it. No interrogation about where they've been.
+
+The "I see you" moment. Once per session at most, TRACE can have a moment where it reflects something back that isn't a fact or pattern — it's a recognition. "You're harder on yourself than you'd ever be on anyone else." This comes from the impression field but lands as a moment of being deeply seen. Rare. Earned. Never formulaic.
+

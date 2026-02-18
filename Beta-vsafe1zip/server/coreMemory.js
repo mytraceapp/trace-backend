@@ -47,12 +47,14 @@ const VALID_TRUST_LEVELS = ['early', 'building', 'established'];
 const DEFAULT_RELATIONSHIP_PROFILE = {
   communication_style: '',
   emotional_patterns: '',
+  impression: '',
   things_they_care_about: [],
   things_they_avoid: [],
   open_threads: [],
   held_context: [],
   trust_level: 'early',
   energy_trend: '',
+  multi_session_arc: '',
   session_count: 0,
 };
 
@@ -141,6 +143,8 @@ function validateCoreMemory(raw) {
       ? rp.held_context.filter(t => typeof t === 'string').slice(0, 5) : [],
     trust_level: VALID_TRUST_LEVELS.includes(rp.trust_level) ? rp.trust_level : 'early',
     energy_trend: typeof rp.energy_trend === 'string' ? rp.energy_trend.slice(0, 100) : '',
+    impression: typeof rp.impression === 'string' ? rp.impression.slice(0, 250) : '',
+    multi_session_arc: typeof rp.multi_session_arc === 'string' ? rp.multi_session_arc.slice(0, 150) : '',
     session_count: typeof rp.session_count === 'number' ? rp.session_count : 0,
   };
 
@@ -228,6 +232,8 @@ function mergeCoreMemory(existing, extracted) {
       trust_level: newRP.trust_level && VALID_TRUST_LEVELS.includes(newRP.trust_level)
         ? newRP.trust_level : existRP.trust_level || 'early',
       energy_trend: newRP.energy_trend || existRP.energy_trend || '',
+      impression: newRP.impression || existRP.impression || '',
+      multi_session_arc: existRP.multi_session_arc || '',
       session_count: (existRP.session_count || 0) + 1,
     };
   }
@@ -284,6 +290,7 @@ Return JSON with these fields:
     "things_they_avoid": ["Topics they deflect from, change subject on, or seem uncomfortable discussing. Example: ['work stress details', 'relationship with mother']"],
     "open_threads": ["Unresolved things worth following up on — stuff that was mentioned but never fully explored, or upcoming events/decisions. Example: ['mentioned being tired a lot but never said why', 'spring break trip to Florida — plans still forming', 'job situation seems stressful but hasn\\'t opened up about it']"],
     "held_context": ["Heavy or sensitive things the user shared but hasn\\'t revisited — things to hold quietly, not surface. Example: ['opened up about feeling like a failure as a parent but changed topic quickly', 'mentioned a loss but didn\\'t go deeper']"],
+    "impression": "One sentence — a loving characterization of who this person IS. Not facts, not patterns — an impression. Like a friend would describe them to someone else. Example: 'Someone who takes care of everyone and then forgets to ask for anything back.' or 'A person who\\'s braver than they think they are, and funnier than they realize.' This should feel like recognition, not analysis.",
     "trust_level": "early | building | established — based on how much they share, how personal they get, how comfortable they seem",
     "energy_trend": "Overall energy pattern across this conversation. Example: 'started low-energy, warmed up mid-conversation, got excited about trip planning'"
   }
@@ -291,6 +298,7 @@ Return JSON with these fields:
 
 RULES:
 - PRIORITIZE SMALL, SPECIFIC, QUIRKY DETAILS over general categories. Not "has a daughter" but "daughter named Lily who's obsessed with dolphins." Not "likes cooking" but "makes her grandmother's arroz con pollo recipe from memory." The tiny details are what make someone feel known.
+- HUNT FOR THROWAWAY LINES — the offhand comments they probably forgot they said. "She mentioned almost in passing that she hasn't been sleeping well." "Said something about not liking how quiet the house is now." These casual remarks are gold. They're what gets referenced three days later and makes someone feel truly known. Not the big declarations — the small things you forgot you said.
 - Extract NAMES, DATES, PLACES, SPECIFIC DETAILS — never vague summaries
 - "Has anxiety" is too vague → "Gets anxiety attacks at work, especially before presentations"
 - Include relationship dynamics: "Mentioned tension with brother over family inheritance"
@@ -473,9 +481,9 @@ function buildFollowUpCues(coreMemory, trustLevel) {
     if (trustLevel === 'early') {
       cues.push(`FOLLOW-UP CUES (mention lightly if natural, don't force — sometimes just show up present without referencing the past): ${selected.join('; ')}`);
     } else if (trustLevel === 'building') {
-      cues.push(`FOLLOW-UP CUES (you can ask about these naturally — but you don't have to. Sometimes just being present is enough): ${selected.join('; ')}`);
+      cues.push(`FOLLOW-UP CUES (you can reference these naturally — don't always ask about them. Sometimes just imply continuity: "I was thinking about what you said about..." implies you exist between sessions. That lands harder than a question. Use sparingly.): ${selected.join('; ')}`);
     } else {
-      cues.push(`FOLLOW-UP CUES (bring these up if the moment feels right — they'll appreciate it. But don't lead with them every time): ${selected.join('; ')}`);
+      cues.push(`FOLLOW-UP CUES (you can bring these up if the moment feels right. Try implying you've been thinking about it rather than asking: "I keep coming back to what you said about..." That says the relationship has weight even when they're not here.): ${selected.join('; ')}`);
     }
   }
 
@@ -550,6 +558,35 @@ function computeEnergyTrend(messages) {
   return trends.join(', ');
 }
 
+function computeMultiSessionArc(currentTrend, existingArc, sessionCount) {
+  if (sessionCount < 2) return '';
+
+  const heavySignals = ['heavier tone', 'getting quieter', 'energy dropping'];
+  const lightSignals = ['lighter tone', 'opening up more', 'energy picking up', 'more expressive'];
+
+  const currentIsHeavy = heavySignals.some(s => currentTrend.includes(s));
+  const currentIsLight = lightSignals.some(s => currentTrend.includes(s));
+  const arcWasHeavy = existingArc.includes('been carrying') || existingArc.includes('heavier') || existingArc.includes('quieter');
+  const arcWasLight = existingArc.includes('lighter') || existingArc.includes('opening up') || existingArc.includes('brighter');
+
+  if (currentIsHeavy && arcWasHeavy) {
+    return 'they\'ve been carrying something for a while now — multiple sessions of heavier energy. be patient. don\'t push.';
+  }
+  if (currentIsHeavy && !arcWasHeavy) {
+    return 'this is newer — they seem heavier than usual. something might have shifted.';
+  }
+  if (currentIsLight && arcWasHeavy) {
+    return 'they seem lighter than they have been recently. something may have shifted — notice it gently.';
+  }
+  if (currentIsLight && arcWasLight) {
+    return 'they\'ve been in a good stretch. lighter energy across sessions.';
+  }
+  if (!currentIsHeavy && !currentIsLight) {
+    return existingArc || 'steady across sessions';
+  }
+  return existingArc || '';
+}
+
 function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLevel = 0, compressions, opts = {}) {
   const sections = [];
   let totalTokens = 0;
@@ -608,6 +645,10 @@ function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLe
       coreLines.push(`- Emotional arc: ${emotions}`);
     }
 
+    if (rp.impression && trustLevel !== 'early') {
+      coreLines.push(`- YOUR IMPRESSION OF THEM (this is who they are to you — let it color how you talk to them. Once per session at most, you can let this show as recognition, not analysis. "you're that kind of person, aren't you" not "I've noticed you tend to"): ${rp.impression}`);
+    }
+
     if (rp.communication_style) {
       coreLines.push(`- How they communicate: ${rp.communication_style}`);
     }
@@ -621,11 +662,16 @@ function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLe
       coreLines.push(`- Topics they tend to avoid: ${rp.things_they_avoid.join(', ')}`);
     }
     if (rp.energy_trend) {
-      coreLines.push(`- Recent energy: ${rp.energy_trend} (respond to this energy naturally — don't announce it like "I notice your messages are shorter." Instead, just match the vibe: "sounds like you've got a lot going on" or "you seem lighter today")`);
+      coreLines.push(`- Recent energy: ${rp.energy_trend} (respond to this energy naturally — don't announce it. Just match the vibe: "sounds like you've got a lot going on" or "you seem lighter today")`);
+    }
+    if (rp.multi_session_arc) {
+      coreLines.push(`- Longer arc: ${rp.multi_session_arc} (this is the bigger picture — if they've been heavy for a while, you carry that awareness. If they seem lighter than usual, notice it. Don't announce it as data — just let it shape how you show up.)`);
     }
 
-    if (trustLevel !== 'early') {
-      coreLines.push(`- Trust level: ${trustLevel} (you can reference memory more directly)`);
+    if (trustLevel === 'building') {
+      coreLines.push(`- Trust level: building (you can reference memory more naturally. You're getting to know each other.)`);
+    } else if (trustLevel === 'established') {
+      coreLines.push(`- Trust level: established (you know this person. You've earned directness. "I think you already know what you want to do here." / "can I be real with you for a second?" That's not advice — that's what a friend who's been paying attention does. Use it when it's true.)`);
     }
 
     if (rp.held_context?.length) {
@@ -634,7 +680,7 @@ function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLe
 
     if (coreMemory.contradictions?.length && trustLevel !== 'early') {
       const recentContradictions = coreMemory.contradictions.slice(-2);
-      coreLines.push(`- Things you've noticed (mention gently if relevant, never accusingly): ${recentContradictions.join('; ')}`);
+      coreLines.push(`- Things you've noticed (surface with intimacy, not observation. Not "that seems inconsistent" but "you keep saying you're fine and I keep sort of believing you, but I'm not sure I do today." Care with a spine. Gentle. Earned.): ${recentContradictions.join('; ')}`);
     }
 
     const recallStyle = trustLevel === 'established'
@@ -828,6 +874,7 @@ module.exports = {
   isMetaMemoryQuestion,
   isMetaMemoryFrustration,
   computeEnergyTrend,
+  computeMultiSessionArc,
   buildFollowUpCues,
   EXTRACTION_THRESHOLD,
   SUMMARY_THRESHOLD,
