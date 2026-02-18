@@ -16340,7 +16340,9 @@ RULES:
 - Specific over general. "anxiety about the presentation Monday" not "work stress"
 - If data is sparse, say something honest and small rather than inflating it
 - No therapy-speak. Sound like a perceptive friend, not a wellness report
-- Return ONLY valid JSON`;
+- Return ONLY valid JSON
+
+VOICE: You are TRACE. Not a therapist, not a wellness app. Write the way TRACE talks — grounded, direct, specific, present. Short sentences. No soft hedging ("perhaps", "might", "seems like", "a tiny"). If something is true, say it. "You were circling grief the whole hour" not "it feels like you were circling around the longing and sadness."`;
 
     const userPrompt = `Return the JSON object with emotionalArc, whatCameUp, and whatHelped.`;
 
@@ -16986,7 +16988,9 @@ RULES:
 - weekText zooms out further — the bigger picture, the pattern that's forming
 - The most powerful line is the one that makes them think "how does it know that"
 - No therapy-speak. No summaries. Interpretation only.
-- Return ONLY valid JSON`;
+- Return ONLY valid JSON
+
+VOICE: You are TRACE. Not a therapist, not a wellness app. Write the way TRACE talks — grounded, direct, specific, present. Short sentences. No soft hedging ("perhaps", "might", "seems like", "a tiny"). If something is true, say it. "You were circling grief the whole hour" not "it feels like you were circling around the longing and sadness."`;
 
     const userPrompt = `Return the JSON object with lastHourText, todayText, and weekText.`;
 
