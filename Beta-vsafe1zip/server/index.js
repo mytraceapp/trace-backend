@@ -1299,8 +1299,15 @@ const HOLIDAY_CACHE_TTL = 4 * 60 * 60 * 1000;
 const _holidayMentionedTracker = new Map();
 const HOLIDAY_MENTION_TTL = 12 * 60 * 60 * 1000;
 
-function markHolidayMentioned(userId) {
-  _holidayMentionedTracker.set(userId, { at: Date.now(), count: (_holidayMentionedTracker.get(userId)?.count || 0) + 1 });
+function markHolidayMentioned(userId, matchedKeywords) {
+  const entry = _holidayMentionedTracker.get(userId);
+  const now = Date.now();
+  if (entry && (now - entry.at) < HOLIDAY_MENTION_TTL) {
+    const names = new Set([...(entry.names || []), ...(matchedKeywords || [])]);
+    _holidayMentionedTracker.set(userId, { at: entry.at, count: entry.count + 1, names: [...names] });
+  } else {
+    _holidayMentionedTracker.set(userId, { at: now, count: 1, names: matchedKeywords || [] });
+  }
 }
 
 function getHolidayMentionCount(userId) {
@@ -1311,6 +1318,16 @@ function getHolidayMentionCount(userId) {
     return 0;
   }
   return entry.count;
+}
+
+function getHolidayMentionedNames(userId) {
+  const entry = _holidayMentionedTracker.get(userId);
+  if (!entry) return [];
+  if (Date.now() - entry.at > HOLIDAY_MENTION_TTL) {
+    _holidayMentionedTracker.delete(userId);
+    return [];
+  }
+  return entry.names || [];
 }
 
 function pickBestHoliday(holidays) {
@@ -7516,6 +7533,7 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
       // Proactive holiday context — always fetch nearby holidays (cached 4h)
       // BUT: suppress proactive injection if holiday was already mentioned (greeting or earlier turn)
       const holidayMentionCount = getHolidayMentionCount(effectiveUserId);
+      const alreadyMentionedHolidays = getHolidayMentionedNames(effectiveUserId);
       const isUserAskingAboutHoliday = /\b(holiday|what\s+day|presidents|chinese\s+new\s+year|ash\s+wednesday|what'?s\s+today|is\s+it\s+a\s+holiday|day\s+off)\b/i.test(userText);
       
       try {
@@ -7528,13 +7546,16 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
           if (isUserAskingAboutHoliday) {
             proactiveHolidayLine = proactiveResult.controlBlockLine;
             holidayContext = proactiveResult.promptContext;
+            if (alreadyMentionedHolidays.length > 0) {
+              holidayContext += ` ALREADY MENTIONED TODAY: ${alreadyMentionedHolidays.join(', ')}. Do NOT repeat these themes. If the user asks about them specifically, answer — but do not proactively re-raise them.`;
+            }
           } else if (holidayMentionCount === 0) {
             proactiveHolidayLine = proactiveResult.proactiveLine || null;
             if (proactiveResult.proactiveLine) {
               holidayContext = proactiveResult.promptContext + ` You may mention this ONCE if it fits naturally. Do NOT bring it up again after mentioning it.`;
             }
           } else {
-            console.log(`[HOLIDAY] Suppressing proactive holiday (already mentioned ${holidayMentionCount}x)`);
+            console.log(`[HOLIDAY] Suppressing proactive holiday (already mentioned ${holidayMentionCount}x: ${alreadyMentionedHolidays.join(', ')})`);
           }
         }
         if (!holidayContext && isUserAskingAboutHoliday) {
@@ -10733,9 +10754,10 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     if (parsed.message) {
       const responseLower = (parsed.message || '').toLowerCase();
       const holidayKeywords = ['presidents', 'chinese new year', 'ash wednesday', 'valentine', 'christmas', 'thanksgiving', 'easter', 'memorial', 'independence day', 'labor day', 'mlk', 'juneteenth', 'halloween', 'new year', 'hanukkah', 'kwanzaa', 'diwali', 'ramadan', 'eid', 'holiday'];
-      if (holidayKeywords.some(h => responseLower.includes(h))) {
-        markHolidayMentioned(effectiveUserId);
-        console.log('[HOLIDAY] AI mentioned holiday in response — tracked for dedup');
+      const matched = holidayKeywords.filter(h => responseLower.includes(h));
+      if (matched.length > 0) {
+        markHolidayMentioned(effectiveUserId, matched);
+        console.log(`[HOLIDAY] AI mentioned holiday in response — tracked: ${matched.join(', ')}`);
       }
     }
     
