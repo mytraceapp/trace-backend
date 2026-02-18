@@ -84,6 +84,9 @@ const HEALTH_BAN_PATTERNS = [
   /\b(?:inner\s+world)\b/i,
   /\b(?:how(?:'s| is)\s+your\s+heart)\b/i,
   /\b(?:feeling\s+emotionally)\b/i,
+  /how (?:are you|you) feeling about (?:your )?\w+/i,
+  /how(?:'s| is) your \w+(?:ships?|ship|ance|ances|eer|ment|tion|tions|ness|ity) (?:going|today|lately)/i,
+  /anything (?:new|going on) with your \w+(?:ships?|ance|eer|ment|tion)/i,
 ];
 
 function extractContentNouns(text) {

@@ -4002,7 +4002,13 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
       }
     }
     
-    const GREETING_BANNED_TOPICS = new Set(['health', 'health check']);
+    const GREETING_BANNED_TOPICS = new Set([
+      'health', 'health check',
+      'relationships', 'relationship', 'emotions', 'emotion',
+      'feelings', 'feeling', 'wellness', 'well-being', 'wellbeing',
+      'self-care', 'mental', 'physical', 'spiritual',
+      'personal growth', 'growth', 'boundaries', 'coping',
+    ]);
 
     // Load recent conversation topics from actual messages (what they were REALLY talking about)
     let recentConversationTopics = [];
@@ -4114,8 +4120,8 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
           
           if (memoryData.coreThemes?.length > 0 && recentConversationTopics.length === 0) {
             const shuffled = [...memoryData.coreThemes].sort(() => Math.random() - 0.5);
-            const freshThemes = shuffled.filter(t => !recentlyUsedTopics.includes(t));
-            const themePool = freshThemes.length > 0 ? freshThemes : shuffled;
+            const freshThemes = shuffled.filter(t => !recentlyUsedTopics.includes(t) && !GREETING_BANNED_TOPICS.has(t.toLowerCase()));
+            const themePool = freshThemes.length > 0 ? freshThemes : shuffled.filter(t => !GREETING_BANNED_TOPICS.has(t.toLowerCase()));
             memoryContext = themePool.slice(0, 2);
           }
         }
