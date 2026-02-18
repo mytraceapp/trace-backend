@@ -7556,6 +7556,8 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
             }
           } else {
             console.log(`[HOLIDAY] Suppressing proactive holiday (already mentioned ${holidayMentionCount}x: ${alreadyMentionedHolidays.join(', ')})`);
+            proactiveHolidayLine = null;
+            holidayContext = `HOLIDAY DEDUP: You have ALREADY mentioned ${alreadyMentionedHolidays.join(', ')} in this conversation. Do NOT bring up holidays again unless the user specifically asks. No holiday references, no holiday greetings, no "by the way it's [holiday]". Just have the conversation.`;
           }
         }
         if (!holidayContext && isUserAskingAboutHoliday) {
