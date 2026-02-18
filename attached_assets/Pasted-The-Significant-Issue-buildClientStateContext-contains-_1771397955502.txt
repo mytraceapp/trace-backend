@@ -1,0 +1,24 @@
+The Significant Issue
+buildClientStateContext contains a nearly complete duplicate of the TRACE identity/voice/music personality that already lives in traceSystemPrompt.js.
+Look at lines 723–789. This is essentially a second, slightly different version of who TRACE is — separate voice rules, music personality, artist backstory — being injected alongside the main system prompt.
+This means every response is getting TRACE's identity described twice in the prompt, potentially with subtle contradictions between versions. It bloats the context window significantly. And when you want to update TRACE's voice, you now have to update it in two places — and if they drift out of sync, TRACE behaves inconsistently.
+This is almost certainly a Replit agent artifact — it rebuilt the identity in a new context without realizing it already existed.
+The fix: Strip the identity/voice/music content from buildClientStateContext down to just the dynamic context it actually needs — current sound state, time of day tone, mode-specific behavior. The TRACE identity belongs only in traceSystemPrompt.js.
+
+Smaller Issues
+enforceBrevity at line 341 only actually does anything in crisis mode — all other modes return the text unchanged. If this is intentional that's fine, but if it was meant to enforce brevity in strict mode too there's a bug in the conditional.
+NEXT_QUESTION_TEMPLATES at lines 52–78 — these questions are mostly fine but a few conflict with the banned phrases in traceSystemPrompt.js. "What's underneath that feeling?" (line 66) is dangerously close to therapy-speak territory. Worth reviewing against the banned list.
+everydayEmphasisCooldowns at line 1405 — in-memory Map, same server restart vulnerability as the others. Not critical but worth noting.
+
+What to fix right now
+Fix 1 — Critical — Remove duplicate identity from buildClientStateContext. Keep only:
+
+Tone hint
+Sound state alignment
+Mode-specific behavior (audio player, recent activity)
+Music personality curiosity (the "Brian Eno" lines) — this is additive and doesn't duplicate
+
+Everything else — the voice rules, the Night Swim backstory, the artist interview answers — delete it from here. It all lives in traceSystemPrompt.js already.
+Fix 2 — Review NEXT_QUESTION_TEMPLATES against the banned phrases list in traceSystemPrompt.js and conversationState.js. Clean out anything that overlaps.
+
+That duplicate identity injection is the most impactful thing to fix in this file. It's adding significant prompt bloat and potential behavioral inconsistency on every single response.
