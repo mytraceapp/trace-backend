@@ -10404,10 +10404,34 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
         console.warn('[TRACE OPENAI L1] Empty/invalid on attempt', attempt);
       } catch (err) {
         if (err instanceof SyntaxError && rawContent && rawContent.trim().length > 10) {
-          const plainText = rawContent.replace(/^["'\s]+|["'\s]+$/g, '').trim();
+          const jsonBlockMatch = rawContent.match(/\{[\s\S]*"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+          if (jsonBlockMatch) {
+            try {
+              const braceStart = rawContent.indexOf('{');
+              let braceDepth = 0, braceEnd = -1;
+              for (let ci = braceStart; ci < rawContent.length; ci++) {
+                if (rawContent[ci] === '{') braceDepth++;
+                else if (rawContent[ci] === '}') { braceDepth--; if (braceDepth === 0) { braceEnd = ci + 1; break; } }
+              }
+              if (braceEnd > braceStart) {
+                const embeddedJson = JSON.parse(rawContent.substring(braceStart, braceEnd));
+                if (embeddedJson.message && embeddedJson.message.trim().length > 5) {
+                  parsed = embeddedJson;
+                  if (!parsed.activity_suggestion) parsed.activity_suggestion = { name: null, reason: null, should_navigate: false };
+                  console.log(`[TRACE OPENAI L1] Extracted embedded JSON from mixed output (${parsed.message.length} chars)`);
+                  break;
+                }
+              }
+            } catch (innerErr) {
+              console.warn('[TRACE OPENAI L1] Embedded JSON extraction failed:', innerErr.message);
+            }
+          }
+          let plainText = rawContent.replace(/^["'\s]+|["'\s]+$/g, '').trim();
+          plainText = plainText.replace(/\{[\s\S]*"message"\s*:[\s\S]*\}\s*$/g, '').trim();
+          plainText = plainText.replace(/\{"[a-z_]+"\s*:/g, '').replace(/\}\s*$/g, '').trim();
           if (plainText.length > 10 && isSentenceComplete(plainText)) {
             parsed = { message: plainText, activity_suggestion: { name: null, reason: null, should_navigate: false } };
-            console.log(`[TRACE OPENAI L1] JSON parse failed but recovered plain text (${plainText.length} chars)`);
+            console.log(`[TRACE OPENAI L1] JSON parse failed but recovered clean plain text (${plainText.length} chars)`);
             break;
           } else {
             console.warn('[TRACE OPENAI L1] JSON parse failed, plain text too short or incomplete:', (plainText || '').substring(0, 80));
@@ -12312,6 +12336,43 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       activitySuggestion = { name: null, reason: null, should_navigate: false };
     }
     
+    // ============================================================
+    // FINAL SAFETY SANITIZER: Strip any leaked JSON/metadata from message text
+    // This is the last line of defense — no internal structure should ever reach the user
+    // ============================================================
+    function sanitizeLeakedJson(text) {
+      if (!text || typeof text !== 'string') return text;
+      let result = text;
+      const jsonLeakPattern = /\s*\{[\s\S]*?"message"\s*:[\s\S]*?\}\s*$/;
+      const jsonLeakMatch = result.match(jsonLeakPattern);
+      if (jsonLeakMatch) {
+        const cleaned = result.replace(jsonLeakPattern, '').trim();
+        if (cleaned.length > 5) {
+          console.warn(`[SAFETY SANITIZER] Stripped leaked JSON from response (${jsonLeakMatch[0].length} chars removed)`);
+          result = cleaned;
+        } else {
+          try {
+            const leakedJson = JSON.parse(jsonLeakMatch[0].trim());
+            if (leakedJson.message && leakedJson.message.trim().length > 5) {
+              console.warn(`[SAFETY SANITIZER] Response was embedded JSON — extracting message field`);
+              result = leakedJson.message.trim();
+            }
+          } catch (e) {}
+        }
+      }
+      result = result
+        .replace(/\{"activity_suggestion"\s*:\s*\{[^}]*\}\s*\}/g, '')
+        .replace(/\{"should_navigate"\s*:\s*(?:true|false)\s*,\s*"name"\s*:\s*"[^"]*"\s*\}/g, '')
+        .replace(/,?\s*"activity_suggestion"\s*:\s*\{[^}]*\}/g, '')
+        .replace(/\{"message"\s*:\s*"[^"]*"[^}]*\}/g, '')
+        .trim();
+      return result;
+    }
+    tightenedText = sanitizeLeakedJson(tightenedText);
+    if (messagesArray && messagesArray.length > 0) {
+      messagesArray = messagesArray.map(m => sanitizeLeakedJson(m));
+    }
+
     // Build response - include messages array if crisis mode
     const response = {
       message: tightenedText,
