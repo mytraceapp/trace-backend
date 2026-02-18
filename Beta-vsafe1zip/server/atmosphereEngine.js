@@ -995,11 +995,24 @@ async function evaluateAtmosphere(input) {
   
   updateSessionState(userId, updates);
   
+  let driftCorrected = false;
+  const VALID_SOUNDSCAPE_STATES = ['presence', 'grounding', 'comfort', 'reflective', 'insight'];
+  if (
+    finalState &&
+    client_sound_state &&
+    VALID_SOUNDSCAPE_STATES.includes(client_sound_state) &&
+    client_sound_state !== finalState &&
+    !shouldChange
+  ) {
+    console.log(`[ATMOSPHERE] ⚠️ DRIFT DETECTED: server wants "${finalState}" but client reports "${client_sound_state}" — forcing correction`);
+    driftCorrected = true;
+  }
+  
   return {
     sound_state: {
       current: finalState,
-      changed: shouldChange,
-      reason: shouldChange ? reason : 'no_change',
+      changed: shouldChange || driftCorrected,
+      reason: driftCorrected ? 'state_enforcement' : (shouldChange ? reason : 'no_change'),
       cadence: { userMessageCount, assistantMessageCount, met: true }
     }
   };

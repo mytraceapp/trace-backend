@@ -337,7 +337,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const soundscapeDied = currentStateRef.current && !soundRef.current;
 
     if (!payload.changed && !isFirstActivation && !soundscapeDied) {
-      return;
+      if (payload.current && currentStateRef.current && payload.current !== currentStateRef.current) {
+        console.log(`[AUDIO] ⚠️ DRIFT CORRECTION: server says "${payload.current}" but playing "${currentStateRef.current}" — correcting`);
+      } else {
+        return;
+      }
     }
 
     if (payload.current === currentStateRef.current && !isFirstActivation && !soundscapeDied) {
