@@ -245,7 +245,11 @@ function looksLikeDream(t) {
 }
 
 function looksLikeMusicAsk(t) {
-  return /\b(play|night swim|music|song|album|listen|soundscape)\b/.test(t);
+  if (/\b(play|night swim|neon promise|music|song|album|listen|soundscape|track|playlist)\b/.test(t)) return true;
+  if (/\b(for fun|hobbies|hobby|what do you like to do|what do you do for fun|what are you into|what do you enjoy)\b/.test(t)) return true;
+  if (/\b(do you make music|do you write music|your music|you make music|you write music|tell me about your music|what.?s your music like|what kind of music|what type of music|what genre)\b/.test(t)) return true;
+  if (/\b(can i hear|let me hear|can you play|play it|play that|put it on)\b/.test(t)) return true;
+  return false;
 }
 
 function pickDoorwayHint(doorwaysResult) {
