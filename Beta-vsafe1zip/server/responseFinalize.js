@@ -1,4 +1,5 @@
 const { normalizeResponseEnvelope, validateResponseEnvelope, deriveResponseMode } = require('./validation/responseShapeContract');
+const { isDisconnectError } = require('./connectionGuard');
 
 function sanitizeDisplayText(text) {
   if (!text || typeof text !== 'string') return text;
@@ -113,7 +114,19 @@ function finalizeTraceResponse(res, rawPayload, requestId, options = {}) {
     crisis_active: normalized.isCrisisMode || false,
   }));
 
-  return res.status(statusCode).json(normalized);
+  if (res.writableEnded || res.destroyed) {
+    console.log('[RESPONSE] Skipped send — client already disconnected');
+    return res;
+  }
+  try {
+    return res.status(statusCode).json(normalized);
+  } catch (err) {
+    if (isDisconnectError(err)) {
+      console.log('[RESPONSE] Client disconnected during send (EPIPE suppressed)');
+      return res;
+    }
+    throw err;
+  }
 }
 
 module.exports = { finalizeTraceResponse };

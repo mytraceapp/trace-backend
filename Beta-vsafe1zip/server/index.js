@@ -150,6 +150,7 @@ const { shouldUseSchemaEnforcement, buildSchemaMetrics } = require('./validation
 const { assertNextMoveContract } = require('./validation/nextMoveAsserts');
 const { normalizeResponseEnvelope, validateResponseEnvelope, deriveResponseMode } = require('./validation/responseShapeContract');
 const { finalizeTraceResponse } = require('./responseFinalize');
+const { isDisconnectError } = require('./connectionGuard');
 const { trimT2Manifesto, shouldSkipStudiosFamiliarityInjection, buildDedupLog } = require('./promptDedup');
 const {
   detectEmotionalState,
@@ -4387,8 +4388,9 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
     
     res.json({ greeting, firstRun: false });
   } catch (err) {
+    if (isDisconnectError(err) || res.writableEnded || res.destroyed) return;
     console.error('/api/greeting error', err);
-    res.status(500).json({ error: 'Greeting failed' });
+    try { res.status(500).json({ error: 'Greeting failed' }); } catch (e) { if (!isDisconnectError(e)) throw e; }
   }
 });
 
@@ -13119,6 +13121,10 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       _provenance,
     }, chatRequestId);
   } catch (error) {
+    if (isDisconnectError(error) || res.writableEnded || res.destroyed) {
+      console.log(`[HTTP] client disconnected mid-request: POST /api/chat (${(error.code || error.message || '').slice(0, 30)})`);
+      return;
+    }
     console.error('[CHAT_FAILURE]', error.message || error);
     console.error('[CHAT_FAILURE] Stack:', error.stack?.split('\n').slice(0, 5).join('\n'));
     
@@ -21014,9 +21020,38 @@ if (supabaseServer) {
 
 // Global error handler for consistent JSON responses (must be last middleware)
 app.use((err, req, res, next) => {
+  if (isDisconnectError(err) || res.writableEnded || res.destroyed) {
+    console.log(`[HTTP] client disconnected (global handler): ${req.method} ${req.path}`);
+    return;
+  }
   console.error('Server error:', err.message || err);
-  res.status(err.status || 500).json({
-    ok: false,
-    error: err.message || 'Internal server error',
-  });
+  if (res.writableEnded || res.destroyed) return;
+  try {
+    res.status(err.status || 500).json({
+      ok: false,
+      error: err.message || 'Internal server error',
+    });
+  } catch (sendErr) {
+    if (isDisconnectError(sendErr)) return;
+    console.error('[HTTP] Failed to send error response:', sendErr.message);
+  }
+});
+
+// Prevent EPIPE / ECONNRESET from crashing the process
+process.on('uncaughtException', (err) => {
+  if (isDisconnectError(err)) {
+    console.log('[HTTP] uncaughtException suppressed (client disconnect):', err.code || err.message);
+    return;
+  }
+  console.error('[FATAL] Uncaught exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  if (isDisconnectError(err)) {
+    console.log('[HTTP] unhandledRejection suppressed (client disconnect):', err.code || err.message);
+    return;
+  }
+  console.error('[FATAL] Unhandled rejection:', reason);
 });

@@ -1,0 +1,44 @@
+TASK: Fix Sentry fatal "Error: write EPIPE" on the Node backend (Ubuntu, node v20.x). This happens when the client disconnects (req aborted / res closed) while we are still writing or ending the response. We must prevent uncaught exceptions and stop writing to closed sockets. Do NOT change app logic, only add safe guards.
+
+GOALS
+1) No more uncaught "write EPIPE" / "ERR_STREAM_WRITE_AFTER_END" from our HTTP handlers.
+2) If the client disconnects, immediately stop any streaming / writing and exit handler cleanly.
+3) Keep behavior identical for normal requests.
+
+WHERE
+- Backend only (Replit server). Likely in server/index.js and/or any chat streaming helper.
+- Search for: res.write, res.end, streaming, SSE, "text/event-stream", OpenAI stream loops, or any manual socket writes.
+
+IMPLEMENT
+A) Add a small helper:
+- createConnectionGuard(req, res) that tracks `closed` boolean.
+- attach listeners:
+  - req.on('aborted', ...)
+  - res.on('close', ...)
+  - res.on('error', ...)
+- expose:
+  - isClosed(): boolean
+  - safeWrite(chunk): boolean (no-ops if closed/writableEnded/destroyed; catches EPIPE)
+  - safeEnd(data?): void (same guards; catches EPIPE)
+
+B) Use it in EVERY place we write/end:
+- If we stream tokens or chunks, replace res.write(...) with guard.safeWrite(...)
+- Before each write iteration, if guard.isClosed() break the loop.
+- Replace res.end(...) with guard.safeEnd(...)
+- If we use `for await (...)` over a stream, wrap the loop in try/catch and ignore EPIPE/aborted.
+
+C) Prevent Sentry from treating disconnects as fatal:
+- In the catch blocks, if error.code in ['EPIPE','ECONNRESET','ERR_STREAM_WRITE_AFTER_END'] OR guard.isClosed() is true:
+  - log a short dev message and return (do not throw)
+
+D) Add ONE lightweight log line (dev only) when aborted:
+- "[HTTP] client disconnected" with route + method.
+
+TEST
+1) Start the server.
+2) Hit /api/chat (or the streaming endpoint) and then immediately cancel/close the client.
+3) Confirm: no crash, no uncaught exception, Sentry should stop alerting.
+4) Confirm: normal requests still return the same JSON/stream output.
+
+DELIVERABLE
+- Commit-level patch (show diffs) and point me to the exact files/lines changed.
