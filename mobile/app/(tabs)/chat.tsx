@@ -2225,11 +2225,8 @@ export default function ChatScreen() {
         };
         const mood = playlistToMood[playlistId] || (playlistId as MoodSpace);
         leftForSpotifyRef.current = { left: true, trackTitle: playlistId, leftAt: Date.now() };
-        setTimeout(() => {
-          router.push({
-            pathname: '/(tabs)/journal',
-            params: { openSpotifyPlaylist: 'true', playlistMood: mood, playlistName: playlistId },
-          } as any);
+        setTimeout(async () => {
+          await openSpotifyPlaylist(mood);
         }, 600);
       }
 
