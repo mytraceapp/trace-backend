@@ -11,6 +11,8 @@ import { useFonts } from 'expo-font';
 import { playAmbient, stopAmbient } from '../../lib/ambientAudio';
 import { Audio } from 'expo-av';
 import { supabase } from '../../lib/supabaseClient';
+import { openSpotifyPlaylist as launchSpotifyPlaylist } from '../../lib/spotify';
+import { MoodSpace } from '../../lib/musicConfig';
 
 interface NightSwimTrack {
   id: string;
@@ -33,6 +35,9 @@ export default function JournalScreen() {
   });
 
   const [showNightSwim, setShowNightSwim] = useState(false);
+  const [showSpotifyPlaylist, setShowSpotifyPlaylist] = useState(false);
+  const [spotifyMood, setSpotifyMood] = useState<MoodSpace>('rooted');
+  const [spotifyPlaylistName, setSpotifyPlaylistName] = useState('');
   const [tracks, setTracks] = useState<NightSwimTrack[]>([]);
   const [currentTrack, setCurrentTrack] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -41,7 +46,7 @@ export default function JournalScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!showNightSwim) {
+      if (!showNightSwim && !showSpotifyPlaylist) {
         playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
       }
       
@@ -67,6 +72,28 @@ export default function JournalScreen() {
       }
     }
   }, [params.openNightSwim, params.autoplay, params.track]);
+
+  useEffect(() => {
+    if (params.openSpotifyPlaylist === 'true') {
+      const mood = (params.playlistMood as MoodSpace) || 'rooted';
+      const name = (params.playlistName as string) || mood;
+      console.log('🎵 Spotify playlist triggered from chat:', mood, name);
+      setSpotifyMood(mood);
+      setSpotifyPlaylistName(name);
+      setShowSpotifyPlaylist(true);
+      stopAmbient();
+    }
+  }, [params.openSpotifyPlaylist, params.playlistMood, params.playlistName]);
+
+  const handleSpotifyPlay = async () => {
+    console.log('🎵 Opening Spotify for mood:', spotifyMood);
+    await launchSpotifyPlaylist(spotifyMood);
+  };
+
+  const closeSpotifyPlaylist = () => {
+    setShowSpotifyPlaylist(false);
+    playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
+  };
 
   const loadNightSwimTracks = async () => {
     try {
@@ -164,6 +191,50 @@ export default function JournalScreen() {
   const fallbackSerifFont = Platform.select({ ios: 'Georgia', android: 'serif' }) || 'Georgia';
   const canelaFont = fontsLoaded ? FontFamily.canela : fallbackSerifFont;
   const aloreFont = fontsLoaded ? FontFamily.alore : fallbackSerifFont;
+
+  const PLAYLIST_DISPLAY: Record<string, { title: string; subtitle: string; emoji: string; colors: string[] }> = {
+    rooted: { title: 'Rooted', subtitle: 'Grounded & steady', emoji: '🌿', colors: ['#2d3a2e', '#1a2e1c', '#0f1f10'] },
+    low_orbit: { title: 'Low Orbit', subtitle: 'Floating & spacious', emoji: '🌙', colors: ['#1a1a2e', '#16213e', '#0f0f23'] },
+    first_light: { title: 'First Light', subtitle: 'Warm & hopeful', emoji: '🌅', colors: ['#2e2a1a', '#3e3016', '#231f0f'] },
+  };
+
+  if (showSpotifyPlaylist) {
+    const display = PLAYLIST_DISPLAY[spotifyMood] || PLAYLIST_DISPLAY.rooted;
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={display.colors as [string, string, ...string[]]}
+          locations={[0, 0.5, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.fixedHeader, { paddingTop: insets.top + 4 }]}>
+          <Pressable onPress={closeSpotifyPlaylist}>
+            <Text style={[styles.closeButton, { fontFamily: canelaFont }]}>Close</Text>
+          </Pressable>
+        </View>
+        <View style={[styles.playerContent, { paddingTop: insets.top + 80 }]}>
+          <View style={styles.albumArt}>
+            <Text style={styles.albumEmoji}>{display.emoji}</Text>
+          </View>
+          <Text style={[styles.albumTitle, { fontFamily: canelaFont }]}>{display.title}</Text>
+          <Text style={[styles.artistName, { fontFamily: canelaFont }]}>{display.subtitle}</Text>
+          <Text style={[styles.trackName, { fontFamily: canelaFont, marginBottom: 32 }]}>
+            TRACE Playlist on Spotify
+          </Text>
+          <View style={styles.controls}>
+            <Pressable onPress={handleSpotifyPlay} style={styles.playButton}>
+              <Text style={styles.playIcon}>▶️</Text>
+            </Pressable>
+          </View>
+          <Text style={[styles.artistName, { fontFamily: canelaFont, marginTop: 16 }]}>
+            Tap play to open in Spotify
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   if (showNightSwim) {
     return (

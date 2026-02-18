@@ -2211,6 +2211,28 @@ export default function ChatScreen() {
         clientStateRef.current.currentSoundState = 'presence';
         clientStateRef.current.mode = 'chat';
       }
+      const uiAction = result?.ui_action;
+      if (uiAction?.type === 'OPEN_JOURNAL_MODAL') {
+        console.log('🎵 ui_action: OPEN_JOURNAL_MODAL', uiAction);
+        const playlistId = uiAction.playlistId || uiAction.title || '';
+        const playlistToMood: Record<string, MoodSpace> = {
+          'rooted_playlist': 'rooted',
+          'low_orbit_playlist': 'low_orbit',
+          'first_light_playlist': 'first_light',
+          'rooted': 'rooted',
+          'low_orbit': 'low_orbit',
+          'first_light': 'first_light',
+        };
+        const mood = playlistToMood[playlistId] || (playlistId as MoodSpace);
+        leftForSpotifyRef.current = { left: true, trackTitle: playlistId, leftAt: Date.now() };
+        setTimeout(() => {
+          router.push({
+            pathname: '/(tabs)/journal',
+            params: { openSpotifyPlaylist: 'true', playlistMood: mood, playlistName: playlistId },
+          } as any);
+        }, 600);
+      }
+
     } catch (err: any) {
       console.error('❌ TRACE handleSend error:', err.message || String(err));
     } finally {
