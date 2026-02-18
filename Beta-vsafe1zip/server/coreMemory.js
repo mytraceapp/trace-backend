@@ -170,8 +170,12 @@ function mergeCoreMemory(existing, extracted) {
   }
 
   if (extracted.goals?.length) {
-    merged.goals = [...(existing.goals || []), ...extracted.goals]
-      .slice(-CORE_MEMORY_CAPS.goals);
+    merged.goals = [
+      ...(existing.goals || []),
+      ...(extracted.goals || []).filter(
+        g => !existing.goals?.some(e => e.text?.toLowerCase() === g.text?.toLowerCase())
+      )
+    ].slice(-CORE_MEMORY_CAPS.goals);
   }
 
   if (extracted.constraints?.length) {
@@ -242,7 +246,11 @@ function mergeCoreMemory(existing, extracted) {
         ? newRP.trust_level : existRP.trust_level || 'early',
       energy_trend: newRP.energy_trend || existRP.energy_trend || '',
       impression: newRP.impression || existRP.impression || '',
-      multi_session_arc: existRP.multi_session_arc || '',
+      multi_session_arc: computeMultiSessionArc(
+        newRP.energy_trend || '',
+        existRP.multi_session_arc || '',
+        existRP.session_count || 0
+      ),
       longer_arc_intention: newRP.longer_arc_intention || existRP.longer_arc_intention || '',
       session_count: (existRP.session_count || 0) + 1,
     };
@@ -344,6 +352,11 @@ RULES:
     console.error('[CORE MEMORY] Extraction error:', err.message);
   } finally {
     memoryStore.releaseLock(conversationId, 'extraction');
+    try {
+      await memoryStore.setExtractionPending(supabase, conversationId, false);
+    } catch (clearErr) {
+      console.warn('[CORE MEMORY] Failed to clear extraction_pending:', clearErr.message);
+    }
   }
 }
 
