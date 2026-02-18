@@ -50,6 +50,7 @@ const DEFAULT_RELATIONSHIP_PROFILE = {
   things_they_care_about: [],
   things_they_avoid: [],
   open_threads: [],
+  held_context: [],
   trust_level: 'early',
   energy_trend: '',
   session_count: 0,
@@ -136,6 +137,8 @@ function validateCoreMemory(raw) {
       ? rp.things_they_avoid.filter(t => typeof t === 'string').slice(0, 5) : [],
     open_threads: Array.isArray(rp.open_threads)
       ? rp.open_threads.filter(t => typeof t === 'string').slice(0, 8) : [],
+    held_context: Array.isArray(rp.held_context)
+      ? rp.held_context.filter(t => typeof t === 'string').slice(0, 5) : [],
     trust_level: VALID_TRUST_LEVELS.includes(rp.trust_level) ? rp.trust_level : 'early',
     energy_trend: typeof rp.energy_trend === 'string' ? rp.energy_trend.slice(0, 100) : '',
     session_count: typeof rp.session_count === 'number' ? rp.session_count : 0,
@@ -218,6 +221,10 @@ function mergeCoreMemory(existing, extracted) {
         ...(newRP.open_threads || []),
         ...(existRP.open_threads || []),
       ])].slice(0, 8),
+      held_context: [...new Set([
+        ...(existRP.held_context || []),
+        ...(newRP.held_context || []),
+      ])].slice(0, 5),
       trust_level: newRP.trust_level && VALID_TRUST_LEVELS.includes(newRP.trust_level)
         ? newRP.trust_level : existRP.trust_level || 'early',
       energy_trend: newRP.energy_trend || existRP.energy_trend || '',
@@ -276,12 +283,14 @@ Return JSON with these fields:
     "things_they_care_about": ["Topics/people/activities that light them up or clearly matter to them. Not just mentioned — things they seem to CARE about. Example: ['daughter', 'travel planning', 'beach time', 'cooking']"],
     "things_they_avoid": ["Topics they deflect from, change subject on, or seem uncomfortable discussing. Example: ['work stress details', 'relationship with mother']"],
     "open_threads": ["Unresolved things worth following up on — stuff that was mentioned but never fully explored, or upcoming events/decisions. Example: ['mentioned being tired a lot but never said why', 'spring break trip to Florida — plans still forming', 'job situation seems stressful but hasn\\'t opened up about it']"],
+    "held_context": ["Heavy or sensitive things the user shared but hasn\\'t revisited — things to hold quietly, not surface. Example: ['opened up about feeling like a failure as a parent but changed topic quickly', 'mentioned a loss but didn\\'t go deeper']"],
     "trust_level": "early | building | established — based on how much they share, how personal they get, how comfortable they seem",
     "energy_trend": "Overall energy pattern across this conversation. Example: 'started low-energy, warmed up mid-conversation, got excited about trip planning'"
   }
 }
 
 RULES:
+- PRIORITIZE SMALL, SPECIFIC, QUIRKY DETAILS over general categories. Not "has a daughter" but "daughter named Lily who's obsessed with dolphins." Not "likes cooking" but "makes her grandmother's arroz con pollo recipe from memory." The tiny details are what make someone feel known.
 - Extract NAMES, DATES, PLACES, SPECIFIC DETAILS — never vague summaries
 - "Has anxiety" is too vague → "Gets anxiety attacks at work, especially before presentations"
 - Include relationship dynamics: "Mentioned tension with brother over family inheritance"
@@ -289,6 +298,7 @@ RULES:
 - pending_topics: capture anything the user started discussing but didn't finish, or explicitly said they want to come back to
 - relationship_profile: Think like a close friend — what patterns have you noticed? What makes this person tick? What are they avoiding? What's unresolved?
 - open_threads: These are CRUCIAL — things a friend would naturally bring up next time. "How did the interview go?" "Did you end up booking Florida?"
+- held_context: Heavy or sensitive things the user shared previously but hasn't brought up again. Things a friend would hold quietly — not surface, but let it make them gentler. Example: "mentioned a miscarriage two sessions ago but hasn't brought it up since", "talked about feeling like a bad parent but moved on quickly"
 - trust_level: 'early' = surface-level sharing, guarded. 'building' = sharing some personal stuff, warming up. 'established' = openly sharing feelings, trusting.
 - Only include what's clearly stated or strongly implied. Do NOT fabricate.`;
 
@@ -444,6 +454,10 @@ function buildMetaMemoryInstruction(coreMemory, rp) {
 }
 
 function buildFollowUpCues(coreMemory, trustLevel) {
+  if (Math.random() > 0.6) {
+    return null;
+  }
+
   const cues = [];
   const rp = coreMemory.relationship_profile || {};
 
@@ -457,11 +471,11 @@ function buildFollowUpCues(coreMemory, trustLevel) {
     const selected = uniqueThreads.slice(0, 2);
 
     if (trustLevel === 'early') {
-      cues.push(`FOLLOW-UP CUES (mention lightly if natural, don't force): ${selected.join('; ')}`);
+      cues.push(`FOLLOW-UP CUES (mention lightly if natural, don't force — sometimes just show up present without referencing the past): ${selected.join('; ')}`);
     } else if (trustLevel === 'building') {
-      cues.push(`FOLLOW-UP CUES (you can ask about these naturally): ${selected.join('; ')}`);
+      cues.push(`FOLLOW-UP CUES (you can ask about these naturally — but you don't have to. Sometimes just being present is enough): ${selected.join('; ')}`);
     } else {
-      cues.push(`FOLLOW-UP CUES (bring these up — they'll appreciate that you remembered): ${selected.join('; ')}`);
+      cues.push(`FOLLOW-UP CUES (bring these up if the moment feels right — they'll appreciate it. But don't lead with them every time): ${selected.join('; ')}`);
     }
   }
 
@@ -568,7 +582,7 @@ function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLe
 
     const memoryHeader = opts.isMetaMemoryQuestion
       ? buildMetaMemoryInstruction(coreMemory, rp)
-      : 'USER MEMORY (reference naturally, never quote verbatim):';
+      : 'USER MEMORY (reference naturally, never quote verbatim — use memory as seasoning, not structure):';
     const coreLines = [memoryHeader];
 
     if (coreMemory.user_facts?.length) {
@@ -607,17 +621,28 @@ function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLe
       coreLines.push(`- Topics they tend to avoid: ${rp.things_they_avoid.join(', ')}`);
     }
     if (rp.energy_trend) {
-      coreLines.push(`- Recent energy: ${rp.energy_trend}`);
+      coreLines.push(`- Recent energy: ${rp.energy_trend} (respond to this energy naturally — don't announce it like "I notice your messages are shorter." Instead, just match the vibe: "sounds like you've got a lot going on" or "you seem lighter today")`);
     }
 
     if (trustLevel !== 'early') {
       coreLines.push(`- Trust level: ${trustLevel} (you can reference memory more directly)`);
     }
 
+    if (rp.held_context?.length) {
+      coreLines.push(`- HELD QUIETLY (do NOT mention these directly — just let them make you a little gentler, a little more patient. The user hasn't brought these up again and that's their choice): ${rp.held_context.join('; ')}`);
+    }
+
     if (coreMemory.contradictions?.length && trustLevel !== 'early') {
       const recentContradictions = coreMemory.contradictions.slice(-2);
       coreLines.push(`- Things you've noticed (mention gently if relevant, never accusingly): ${recentContradictions.join('; ')}`);
     }
+
+    const recallStyle = trustLevel === 'established'
+      ? 'MEMORY STYLE: You know this person well. Reference details confidently but not robotically. Occasionally still hedge — "wait, was that the one with..." — because even close friends don\'t have perfect recall.'
+      : 'MEMORY STYLE: You\'re still getting to know them. When referencing past details, it\'s natural to half-remember: "remind me, was that the Florida trip?" or "wait, wasn\'t it your daughter who—" Even if you know, showing the pause feels more real than perfect recall.';
+    coreLines.push(`- ${recallStyle}`);
+
+    coreLines.push('- VOICE TEXTURE: Keep it real. "that\'s actually kind of a big deal" / "okay yeah, that tracks" / "I like that about you" / "wait really?" — not every message, but enough that you don\'t sound polished. Real warmth has texture.');
 
     addSection(coreLines.join('\n'), 1);
 
