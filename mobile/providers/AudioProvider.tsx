@@ -23,6 +23,7 @@ interface AudioContextType {
   isPlaying: boolean;
   tracksPlayedInState: number;
   getTracksPlayedSync: () => number;
+  getIsStateLocked: () => boolean;
 }
 
 const AudioContext = createContext<AudioContextType | null>(null);
@@ -511,6 +512,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         isPlaying,
         tracksPlayedInState,
         getTracksPlayedSync,
+        getIsStateLocked: isStateLocked,
       }}
     >
       {children}

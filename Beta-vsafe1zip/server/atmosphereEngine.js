@@ -16,7 +16,11 @@ const SIGNAL_TABLES = {
     "panic", "panic attack", "can't breathe", "overwhelmed", "spiraling",
     "anxious", "losing control", "freaking out", "racing thoughts", "stressed",
     "can't calm down", "heart racing", "shaking", "on edge", "nervous",
-    "too much", "can't handle", "falling apart", "breaking down", "so much going on"
+    "too much", "can't handle", "falling apart", "breaking down", "so much going on",
+    "wound up", "wired", "jittery", "restless", "tense", "uptight",
+    "can't relax", "feel like i am going crazy", "losing my mind", "can't focus",
+    "mind won't stop", "head is spinning", "feel sick", "knot in my stomach",
+    "chest is tight", "can't sit still", "everything is too loud"
   ],
   comfort: [
     "sad", "grief", "lonely", "hurt", "heartbroken", "crying", "tired",
@@ -24,21 +28,37 @@ const SIGNAL_TABLES = {
     "miss someone", "miss her", "miss him", "lost someone", "feeling down",
     "heavy", "rough day", "bad day", "tough day", "feeling low",
     "not okay", "not great", "struggling", "hard time", "been hard",
-    "worn out", "burnt out", "drained", "empty inside", "feel alone"
+    "worn out", "burnt out", "drained", "empty inside", "feel alone",
+    "feeling off", "not myself", "kinda down", "kind of down", "a bit down",
+    "not doing well", "having a hard time", "been rough", "been tough",
+    "feeling flat", "numb", "disconnected", "hopeless", "defeated",
+    "low energy", "no motivation", "can't be bothered", "meh",
+    "blah", "ugh", "sucks", "hate this", "over it", "done with everything",
+    "nobody cares", "no one gets it", "feeling invisible", "left out",
+    "not in a good place", "dark place", "in a funk", "down bad"
   ],
   reflective: [
     "thinking about", "remembering", "processing", "trying to understand",
     "why do I", "looking back", "confused about", "figuring out",
     "been thinking", "on my mind", "can't stop thinking", "wondering",
     "reflecting", "makes me think", "reminds me", "what if", "used to",
-    "idk why", "don't know why", "trying to figure", "going through something"
+    "idk why", "don't know why", "trying to figure", "going through something",
+    "not sure how i feel", "mixed feelings", "torn", "conflicted",
+    "trying to make sense", "so confusing", "hard to explain",
+    "been on my mind", "keeps coming back", "can't let go",
+    "second guessing", "overthinking", "analyzing", "replaying",
+    "i keep going back to", "part of me thinks", "the other part"
   ],
   insight: [
     "I understand now", "that makes sense", "I realize", "I see",
     "that helped", "I feel better", "relief", "I'm okay now",
     "clicked", "hit me", "finally get it", "makes more sense now",
     "oh wow", "never thought of it that way", "you're right",
-    "that's true", "needed to hear that", "thank you for that"
+    "that's true", "needed to hear that", "thank you for that",
+    "i get it now", "that actually helps", "wait that is true",
+    "huh i never saw it that way", "you have a point", "good point",
+    "that changes things", "i feel lighter", "weight off",
+    "i can see that", "starting to make sense", "things are clicking"
   ],
   presence: [
     "I'm calm now", "I am calm now", "I'm relaxed now", "I am relaxed now",
@@ -47,6 +67,33 @@ const SIGNAL_TABLES = {
     "just chilling", "just vibing", "vibing", "chillin",
     "life is good", "things are good", "all good now",
     "I'm good now", "I am good now", "feeling good now", "I'm okay now", "I am okay now"
+  ]
+};
+
+const FUZZY_PATTERNS = {
+  comfort: [
+    /\b(?:feel(?:ing)?|been|kinda?|sort\s*of|a\s*bit)\s+(?:sad|down|low|off|bad|rough|flat|empty|lonely|meh|blah|crappy|shitty|horrible|terrible|awful|miserable)\b/i,
+    /\b(?:not|haven't been|ain't)\s+(?:doing\s+)?(?:good|great|well|okay|ok|fine|myself)\b/i,
+    /\b(?:rough|bad|hard|tough|shit|shitty|crappy|horrible|terrible|awful)\s+(?:day|week|month|time|period|stretch|few days)\b/i,
+    /\bi\s+(?:just\s+)?(?:want|need)\s+(?:to\s+)?(?:cry|scream|disappear|be alone|give up|hide)\b/i,
+    /\b(?:everything|it all|life|things)\s+(?:feels?|seems?|is)\s+(?:pointless|meaningless|hopeless|empty|heavy|dark|too much)\b/i,
+  ],
+  grounding: [
+    /\b(?:feel(?:ing)?|so|really|very|extremely|super)\s+(?:anxious|stressed|panicky|nervous|overwhelmed|tense|wound up|wired|jittery|restless|on edge)\b/i,
+    /\b(?:my|the)\s+(?:heart|chest|stomach|hands?|body)\s+(?:is|are|feels?|won't stop)\s+(?:racing|pounding|tight|shaking|churning|hurting)\b/i,
+    /\b(?:can't|cannot|unable to)\s+(?:breathe|think|focus|calm|relax|sleep|stop)\b/i,
+    /\b(?:mind|brain|thoughts?|head)\s+(?:is|are|won't stop)\s+(?:racing|spinning|going|all over)\b/i,
+  ],
+  reflective: [
+    /\b(?:i'?ve?\s+been|keep|can't stop)\s+(?:thinking|wondering|reflecting|processing|going over|replaying)\b/i,
+    /\b(?:trying to|need to|want to)\s+(?:understand|figure out|make sense|process|work through|sort out)\b/i,
+    /\b(?:not sure|don't know|idk|dunno)\s+(?:how i feel|what i think|what to do|what to make of|if i should)\b/i,
+    /\b(?:something|it)\s+(?:about|in)\s+(?:that|this|what|me)\s+(?:just|really)?\s*(?:bugs|bothers|nags|sticks with)\b/i,
+  ],
+  insight: [
+    /\b(?:oh|wow|huh|wait|actually)\s*[,.]?\s*(?:that|this|you're right|that's true|i see|i get it|makes sense)\b/i,
+    /\b(?:i\s+(?:think|feel like)?\s*i?\s*(?:finally|actually|just)?)\s+(?:get it|understand|see it|realize)\b/i,
+    /\b(?:never|hadn't|didn't)\s+(?:thought|looked|seen|considered)\s+(?:of|at)?\s*(?:it|things?|that)\s+(?:that|this|like that)\s+(?:way|before)\b/i,
   ]
 };
 
@@ -215,7 +262,7 @@ function scoreSignals(currentMessage, recentMessages = []) {
     comfort: 0,
     reflective: 0,
     insight: 0,
-    presence: 0  // Actively detected calm/positive state
+    presence: 0
   };
   
   const normalizeContractions = (text) => text
@@ -240,6 +287,15 @@ function scoreSignals(currentMessage, recentMessages = []) {
     }
   }
   
+  for (const [state, patterns] of Object.entries(FUZZY_PATTERNS)) {
+    for (const pattern of patterns) {
+      if (pattern.test(textLower)) {
+        scores[state] += 1.0;
+        break;
+      }
+    }
+  }
+  
   for (const msg of recentMessages.slice(0, 2)) {
     const msgLower = normalizeContractions((msg || '').toLowerCase());
     for (const [state, signals] of Object.entries(SIGNAL_TABLES)) {
@@ -247,6 +303,14 @@ function scoreSignals(currentMessage, recentMessages = []) {
         const normalizedSignal = normalizeContractions(signal.toLowerCase());
         if (msgLower.includes(normalizedSignal)) {
           scores[state] += 0.5;
+        }
+      }
+    }
+    for (const [state, patterns] of Object.entries(FUZZY_PATTERNS)) {
+      for (const pattern of patterns) {
+        if (pattern.test(msgLower)) {
+          scores[state] += 0.5;
+          break;
         }
       }
     }
@@ -284,7 +348,8 @@ async function evaluateAtmosphere(input) {
     userMessageCount = 0,
     assistantMessageCount = 0,
     isCrisisMode = false,
-    tracksPlayedInState: clientTracksPlayed = 0
+    tracksPlayedInState: clientTracksPlayed = 0,
+    soundscapeLocked = false
   } = input;
   
   const now = Date.now();
@@ -835,7 +900,30 @@ async function evaluateAtmosphere(input) {
   
   let shouldChange = false;
   
-  console.log(`[ATMOSPHERE] Transition check: candidate=${candidate_state}, current=${current_state}`);
+  console.log(`[ATMOSPHERE] Transition check: candidate=${candidate_state}, current=${current_state}, clientLocked=${soundscapeLocked}`);
+  
+  if (soundscapeLocked && candidate_state && candidate_state !== current_state) {
+    const isCrisisOverride = isExtremSpike || (isStrongGroundingSignal && candidate_state === 'grounding');
+    if (!isCrisisOverride) {
+      console.log(`[ATMOSPHERE] 🔒 CLIENT LOCKED: Server wants ${current_state} → ${candidate_state} but client soundscape is locked. Suppressing change, signals accumulated for reassessment.`);
+      session.continuous_signals = newContinuousAccumulated;
+      updateSessionState(userId, {
+        neutral_message_streak: newNeutralStreak,
+        last_signal_timestamp: newSignalTimestamp,
+        messages_since_state_change: newMessagesSinceChange,
+        last_activity_timestamp: now
+      });
+      return {
+        sound_state: {
+          current: current_state,
+          changed: false,
+          reason: 'client_soundscape_locked',
+          cadence: { userMessageCount, assistantMessageCount, met: true }
+        }
+      };
+    }
+    console.log(`[ATMOSPHERE] 🚨 Client locked but crisis override active — allowing change`);
+  }
   
   if (candidate_state && candidate_state !== current_state) {
     const allowedNext = ALLOWED_TRANSITIONS[current_state] || [];

@@ -14,6 +14,12 @@ The application is built with React 18, TypeScript, and Vite, utilizing Framer M
 ## Audio & Sensory Design
 Custom tone generators using the Web Audio API create dynamic, procedurally generated ambient soundscapes. The mobile app integrates three independent audio layers: a global ambient track, mood-based emotional soundscapes managed by an Atmosphere Engine, and a Night Swim Player for streaming original tracks. A soundscape persistence system ensures smooth transitions and emotional inertia by queuing state changes and enforcing track completion rules.
 
+### Soundscape State Lock (Client-Server Sync)
+The mobile AudioProvider enforces a minimum playback commitment for non-presence states: 7 tracks OR 30 minutes before allowing state changes. Crisis/urgent states bypass the lock. When locked, incoming state changes are stored as "deferred" and applied when the lock expires (on track finish or resume from pause). The client reports its lock status (`soundscapeLocked`) to the server via `client_state`. The server's atmosphere engine checks this flag and suppresses state changes when the client is locked, preventing server/client state desync. Signals are still accumulated during lock for later reassessment.
+
+### Fuzzy Signal Detection
+The atmosphere engine uses two detection layers: exact phrase matching (SIGNAL_TABLES) and regex-based fuzzy patterns (FUZZY_PATTERNS). Fuzzy patterns catch natural emotional expressions like "feeling really off", "not doing well", "rough week", "my heart won't stop racing". Both layers score 1.0 for current message matches, 0.5 for recent message matches. A score >= 1.0 triggers medium confidence, enabling state transitions from presence.
+
 ## AI Integration
 An Express server acts as a proxy to the OpenAI API, defining TRACE AI's personality with relational language and a friend-like onboarding. It includes an Emotional Intelligence Module for mood analysis, an audit logging system, and configurable smart features. The AI provides warm, grounded, and factual summaries, with relational fallback messages for OpenAI failures.
 

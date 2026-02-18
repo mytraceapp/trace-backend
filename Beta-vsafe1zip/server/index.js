@@ -4984,7 +4984,8 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         userMessageCount: currentUserMsgCount,
         assistantMessageCount: newAssistantCountEarly,
         isCrisisMode: false,
-        tracksPlayedInState: safeClientState?.tracksPlayedInState || 0
+        tracksPlayedInState: safeClientState?.tracksPlayedInState || 0,
+        soundscapeLocked: safeClientState?.soundscapeLocked || false
       });
       
       if (earlyAtmosphereResult?.sound_state?.changed) {
