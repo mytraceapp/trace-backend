@@ -964,7 +964,7 @@ async function evaluateAtmosphere(input) {
   // APPLY STATE CHANGE
   // ============================================================
   
-  const finalState = shouldChange ? candidate_state : current_state;
+  let finalState = shouldChange ? candidate_state : current_state;
   
   // Update session state
   const updates = {
