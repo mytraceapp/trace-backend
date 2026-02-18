@@ -1,0 +1,50 @@
+ LOG  [CADENCE] 🎯 Updated cadence state BEFORE soundscape check: {"assistant": 26, "met": true, "user": 25}
+ LOG  [AUDIO_EVENT] type=PAGE_CONTEXT page=chat reason=chat_response_sound_state sound_state=undefined action=undefined
+ LOG  [AUDIO_CADENCE] setPageContext skip reason=chat_response_sound_state page=chat (unchanged)
+ LOG  [TRACE Chat] 🔊 Found sound_state in response: {"changed": false, "confidence": undefined, "current": "reflective", "reason": "no_change"}
+ LOG  [AUDIO_CADENCE] 🎵 Backend wants soundscape: reflective (reason: no_change)
+ LOG  [AUDIO_CADENCE] 🎯 Soundscape check conditions: {"assistantCount": 26, "cadenceAllowedForActivation": true, "cadenceMet": true, "isAppForeground": true, "isChatFocused": true, "isHardStopped": false, "isInActivity": false, "isPlayerActive": false, "isResumingSoundscape": false, "isStop": false, "shouldProcessSoundState": true, "soundStateChanged": false, "soundStateCurrent": "reflective", "userCount": 25}
+ LOG  [AUDIO_CADENCE] ✅ ALLOWED - processing sound_state
+ LOG  [AUDIO_CADENCE] 🎵 sound_state=reflective -> playing specified soundscape
+ LOG  [useSoundStateIntegration] 🔍 handleSoundState called with: {"soundStateChanged": false, "soundStateConfidence": undefined, "soundStateCurrent": "reflective", "soundStateExists": true}
+ LOG  [useSoundStateIntegration] 📊 Soundscape status: {"currentState": "reflective", "isEmotionalSoundscape": true, "newState": "reflective", "trackExists": true, "trackPlaying": true}
+ LOG  [useSoundStateIntegration] ⏭️ Emotional soundscape already playing with same state - not re-triggering: {"changed": false, "current": "reflective", "reason": "no_change"}
+ LOG  [AUDIO_CADENCE] ✅ Soundscape check complete - inactivity_timer_reset reason=sound_state_applied
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "assistantMessageCount": 26, "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-18T04:31:47.509Z"}, "lastActivityTimestamp": 1771389108695, "lastAssistantHash": "e4ae9da03bf9e14f09b5273931d0cb11e28f65a6144da70713e2a665cf8f60b4", "lastAssistantText": "Anytime. I'm glad it helps a bit.", "lastGuidedStepTurn": 20, "lastQuestionIntent": "close", "lastUserAt": 1771389107509, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1771388525370, "sessionTurnCount": 20, "soundscapeCadenceMet": true, "userMessageCount": 25}
+ LOG  [CADENCE] Updated cadence state: {"assistant": 26, "met": true, "user": 25}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-18T04:31:47.509Z"}
+ LOG  [TRACE MIRROR] Session turn count: 20
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 20
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  [TRACE CHAT] Updated last visit timestamp (assistant responded)
+ LOG  [AUDIO_CADENCE] trace_reply_count=20
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=trace_response
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [CHAT_FREEZE_RECOVERED] afterMs=1134 count=47
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2130 bytes
+ LOG  [CHAT_FREEZE_DETECTED] deltaMs=4016 count=48
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #5 (5/7 in rotation) {"alreadyPlayed": [1, 3, 7, 4], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #5
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #5
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #6 (6/7 in rotation) {"alreadyPlayed": [1, 3, 7, 4, 5], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #6
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #6
+ LOG  [CHAT_FREEZE_RECOVERED] afterMs=6158 count=48
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  [CHAT_FREEZE_DETECTED] deltaMs=3222 count=49
