@@ -5309,6 +5309,10 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
                   stoppedBy: 'user',
                   lastTrack: trackState.lastPlayedTrack || null
                 };
+                const mState = getMusicState(effectiveUserId);
+                mState.musicInviteUsed = false;
+                mState.userRequestedMusic = false;
+                console.log('[MUSIC STATE] Reset musicInviteUsed on stop — user can request music again');
               } else {
                 trackState.audioState = { status: 'playing', resumedAt: Date.now() };
               }
@@ -5977,6 +5981,15 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     if (effectiveUserId && !skipMusicInvite && detectUserRequestedMusic(userText)) {
       const musicState = getMusicState(effectiveUserId);
       musicState.userRequestedMusic = true;
+      
+      // Clear stale "stopped" audioState so the LLM doesn't think audio is off
+      // User is explicitly asking for music — they want to hear something
+      const trackStateForClear = conversationState.getState(effectiveUserId);
+      if (trackStateForClear.audioState?.status === 'stopped') {
+        trackStateForClear.audioState = null;
+        conversationState.saveState(effectiveUserId, trackStateForClear);
+        console.log('[MUSIC STATE] Cleared stale stopped audioState — user requesting music');
+      }
       
       // First: Check if user explicitly requested a specific space by name
       const explicitSpace = detectExplicitMusicSpace(userText);
@@ -8595,12 +8608,13 @@ Frame it personally. Playlists open externally — only suggest if user seems op
     // ============================================================
     const audioConvoStateForPrompt = conversationState.getState(effectiveUserId);
     const audioState = audioConvoStateForPrompt.audioState;
+    const audioCheckUserMsg = [...messages].reverse().find(m => m?.role === 'user' && m?.content)?.content || '';
+    const userWantsMusic = detectUserRequestedMusic(audioCheckUserMsg) || /play|music|song|track|night swim|listen/i.test(audioCheckUserMsg);
     if (audioState) {
       const minutesSinceMusicEvent = Math.round((Date.now() - (audioState.stoppedAt || audioState.resumedAt || 0)) / 60000);
-      if (audioState.status === 'stopped' && minutesSinceMusicEvent < 60) {
+      if (audioState.status === 'stopped' && minutesSinceMusicEvent < 60 && !userWantsMusic) {
         const lastTrackName = audioState.lastTrack?.title || audioConvoStateForPrompt.lastPlayedTrack?.title || 'a track';
-        systemPrompt += `\n\nAUDIO STATE: Music is currently OFF. User stopped it ${minutesSinceMusicEvent} minute${minutesSinceMusicEvent === 1 ? '' : 's'} ago (was playing ${lastTrackName}).
-Music stop/resume commands are handled automatically by the app — do NOT respond to them yourself. Do NOT mention app settings, toggles, preferences, or configuration. Do NOT tell the user to change any setting. If user mentions music in any way, you have this context but let the app handle playback controls.`;
+        systemPrompt += `\n\nAUDIO STATE: Music was paused ${minutesSinceMusicEvent} minute${minutesSinceMusicEvent === 1 ? '' : 's'} ago (was playing ${lastTrackName}). The app handles playback controls — if user wants music again, just play it. Do NOT mention app settings, toggles, or audio status. Do NOT tell the user their sound is off.`;
         console.log('[AUDIO STATE] Injected stopped-music context into prompt, stopped', minutesSinceMusicEvent, 'min ago');
       } else if (audioState.status === 'playing' && minutesSinceMusicEvent < 30) {
         systemPrompt += `\n\nAUDIO STATE: Music is currently playing${audioState.track ? ` (${audioState.track})` : ''}. User is listening right now.`;
@@ -11671,6 +11685,10 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     } else if (audioAction && audioAction.type === 'stop' && effectiveUserId) {
       const stopConvoState = conversationState.getState(effectiveUserId);
       stopConvoState.audioState = { status: 'stopped', stoppedAt: Date.now(), stoppedBy: 'pipeline', lastTrack: stopConvoState.lastPlayedTrack || null };
+      const stopMusicState = getMusicState(effectiveUserId);
+      stopMusicState.musicInviteUsed = false;
+      stopMusicState.userRequestedMusic = false;
+      console.log('[MUSIC STATE] Reset musicInviteUsed on pipeline stop — user can request music again');
       conversationState.saveState(effectiveUserId, stopConvoState);
     }
     
