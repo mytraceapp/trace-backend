@@ -42,6 +42,19 @@ const TRIMMED_CAPS = {
   emotion_timeline: 3,
 };
 
+const VALID_TRUST_LEVELS = ['early', 'building', 'established'];
+
+const DEFAULT_RELATIONSHIP_PROFILE = {
+  communication_style: '',
+  emotional_patterns: '',
+  things_they_care_about: [],
+  things_they_avoid: [],
+  open_threads: [],
+  trust_level: 'early',
+  energy_trend: '',
+  session_count: 0,
+};
+
 function validateCoreMemory(raw) {
   const validated = {
     user_facts: [],
@@ -113,6 +126,21 @@ function validateCoreMemory(raw) {
       .slice(0, CORE_MEMORY_CAPS.contradictions);
   }
 
+  const rp = raw.relationship_profile || {};
+  validated.relationship_profile = {
+    communication_style: typeof rp.communication_style === 'string' ? rp.communication_style.slice(0, 200) : '',
+    emotional_patterns: typeof rp.emotional_patterns === 'string' ? rp.emotional_patterns.slice(0, 200) : '',
+    things_they_care_about: Array.isArray(rp.things_they_care_about)
+      ? rp.things_they_care_about.filter(t => typeof t === 'string').slice(0, 10) : [],
+    things_they_avoid: Array.isArray(rp.things_they_avoid)
+      ? rp.things_they_avoid.filter(t => typeof t === 'string').slice(0, 5) : [],
+    open_threads: Array.isArray(rp.open_threads)
+      ? rp.open_threads.filter(t => typeof t === 'string').slice(0, 8) : [],
+    trust_level: VALID_TRUST_LEVELS.includes(rp.trust_level) ? rp.trust_level : 'early',
+    energy_trend: typeof rp.energy_trend === 'string' ? rp.energy_trend.slice(0, 100) : '',
+    session_count: typeof rp.session_count === 'number' ? rp.session_count : 0,
+  };
+
   return validated;
 }
 
@@ -172,6 +200,31 @@ function mergeCoreMemory(existing, extracted) {
       .slice(-CORE_MEMORY_CAPS.contradictions);
   }
 
+  if (extracted.relationship_profile) {
+    const existRP = existing.relationship_profile || { ...DEFAULT_RELATIONSHIP_PROFILE };
+    const newRP = extracted.relationship_profile;
+    merged.relationship_profile = {
+      communication_style: newRP.communication_style || existRP.communication_style || '',
+      emotional_patterns: newRP.emotional_patterns || existRP.emotional_patterns || '',
+      things_they_care_about: [...new Set([
+        ...(existRP.things_they_care_about || []),
+        ...(newRP.things_they_care_about || []),
+      ])].slice(0, 10),
+      things_they_avoid: [...new Set([
+        ...(existRP.things_they_avoid || []),
+        ...(newRP.things_they_avoid || []),
+      ])].slice(0, 5),
+      open_threads: [...new Set([
+        ...(newRP.open_threads || []),
+        ...(existRP.open_threads || []),
+      ])].slice(0, 8),
+      trust_level: newRP.trust_level && VALID_TRUST_LEVELS.includes(newRP.trust_level)
+        ? newRP.trust_level : existRP.trust_level || 'early',
+      energy_trend: newRP.energy_trend || existRP.energy_trend || '',
+      session_count: (existRP.session_count || 0) + 1,
+    };
+  }
+
   merged.updated_at = new Date().toISOString();
   return validateCoreMemory(merged);
 }
@@ -190,6 +243,11 @@ async function runExtraction(openai, supabase, conversationId, messages) {
   try {
     await memoryStore.setExtractionPending(supabase, conversationId, true);
 
+    const conversationForExtraction = messages
+      .slice(-30)
+      .map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${m.content}`)
+      .join('\n\n');
+
     const userMessages = messages
       .filter(m => m.role === 'user')
       .slice(-20)
@@ -201,7 +259,7 @@ async function runExtraction(openai, supabase, conversationId, messages) {
       return;
     }
 
-    const prompt = `You are extracting SPECIFIC, CONCRETE personal details from a conversation for long-term memory. Prioritize details that would help a close friend remember important things about this person.
+    const prompt = `You are extracting personal details from a conversation — not just facts, but the kind of things a caring friend would remember about this person. Think: what would make someone feel truly known?
 
 Return JSON with these fields:
 {
@@ -210,7 +268,17 @@ Return JSON with these fields:
   "constraints": [{"type": "time|money|health|family|work|other", "description": "Specific constraint. Example: 'Can\\'t exercise much due to chronic back pain'"}],
   "themes": ["Recurring emotional themes with context. Example: 'Feeling disconnected from partner since moving to new city'. Max 10 items."],
   "pending_topics": ["Things the user mentioned wanting to revisit, follow up on, or things left unresolved. Example: 'Wants to talk more about job interview next Tuesday', 'Was about to share something about their mom but conversation shifted'. Max 8 items."],
-  "emotion_timeline": [{"emotion": "word", "context": "brief specific context", "timestamp": "ISO"}]
+  "emotion_timeline": [{"emotion": "word", "context": "brief specific context", "timestamp": "ISO"}],
+  "contradictions": ["Gaps between what the user says and patterns you notice. Example: 'Says they\\'re fine but has mentioned feeling overwhelmed 3 times', 'Claims to not care about the job but keeps bringing it up'. Only include clear, specific contradictions. Max 3."],
+  "relationship_profile": {
+    "communication_style": "How they talk and open up. Example: 'Uses humor to deflect stress, opens up gradually after a few messages, tends to minimize problems initially then reveals more'",
+    "emotional_patterns": "What you notice about their emotional tendencies. Example: 'Gets animated talking about daughter, goes quiet when work comes up, deflects with lol/lmao when something hits close'",
+    "things_they_care_about": ["Topics/people/activities that light them up or clearly matter to them. Not just mentioned — things they seem to CARE about. Example: ['daughter', 'travel planning', 'beach time', 'cooking']"],
+    "things_they_avoid": ["Topics they deflect from, change subject on, or seem uncomfortable discussing. Example: ['work stress details', 'relationship with mother']"],
+    "open_threads": ["Unresolved things worth following up on — stuff that was mentioned but never fully explored, or upcoming events/decisions. Example: ['mentioned being tired a lot but never said why', 'spring break trip to Florida — plans still forming', 'job situation seems stressful but hasn\\'t opened up about it']"],
+    "trust_level": "early | building | established — based on how much they share, how personal they get, how comfortable they seem",
+    "energy_trend": "Overall energy pattern across this conversation. Example: 'started low-energy, warmed up mid-conversation, got excited about trip planning'"
+  }
 }
 
 RULES:
@@ -219,13 +287,16 @@ RULES:
 - Include relationship dynamics: "Mentioned tension with brother over family inheritance"
 - Track life events: "Just moved to a new apartment last week", "Started therapy in January"
 - pending_topics: capture anything the user started discussing but didn't finish, or explicitly said they want to come back to
+- relationship_profile: Think like a close friend — what patterns have you noticed? What makes this person tick? What are they avoiding? What's unresolved?
+- open_threads: These are CRUCIAL — things a friend would naturally bring up next time. "How did the interview go?" "Did you end up booking Florida?"
+- trust_level: 'early' = surface-level sharing, guarded. 'building' = sharing some personal stuff, warming up. 'established' = openly sharing feelings, trusting.
 - Only include what's clearly stated or strongly implied. Do NOT fabricate.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: prompt },
-        { role: 'user', content: userMessages },
+        { role: 'user', content: conversationForExtraction },
       ],
       temperature: 0.3,
       response_format: { type: 'json_object' },
@@ -324,8 +395,145 @@ function estimateTokens(text) {
 
 const META_MEMORY_RE = /\b(?:what do you (?:know|remember|recall) about me|what have you learned about me|tell me (?:what you know|about me)|do you (?:know|remember) (?:me|anything about me|who i am)|what(?:'s| is) in my (?:memory|profile)|what do you (?:remember|know) from (?:our|my|earlier|before|last)|do you even know me)\b/i;
 
+const META_MEMORY_FRUSTRATION_RE = /\b(?:you don'?t (?:even )?(?:know|remember) (?:me|anything|who i am)|you forgot|you never remember|do you even (?:listen|pay attention|care)|feels? like (?:you don'?t|i'?m talking to) (?:a (?:wall|robot|machine|stranger))|i(?:'ve| have) (?:already )?told you|we(?:'ve| have) (?:talked|discussed) (?:about )?this)\b/i;
+
 function isMetaMemoryQuestion(text) {
   return META_MEMORY_RE.test(text || '');
+}
+
+function isMetaMemoryFrustration(text) {
+  return META_MEMORY_FRUSTRATION_RE.test(text || '');
+}
+
+function buildMetaMemoryInstruction(coreMemory, rp) {
+  const factCount = (coreMemory.user_facts || []).length;
+  const hasProfile = !!(rp.communication_style || rp.emotional_patterns || (rp.things_they_care_about || []).length);
+  const trustLevel = rp.trust_level || 'early';
+
+  const lines = [];
+  lines.push('USER IS ASKING WHAT YOU KNOW ABOUT THEM — THIS IS A RELATIONSHIP MOMENT.');
+  lines.push('');
+  lines.push('DO NOT list facts like a database. Respond like a friend who has been paying attention.');
+  lines.push('Weave what you know into warmth and observation — show you SEE them, not just that you stored data.');
+  lines.push('');
+
+  if (factCount <= 3 && !hasProfile) {
+    lines.push('You don\'t know much yet — be HONEST about that. But frame it with warmth and curiosity:');
+    lines.push('"Honestly, I feel like I\'m still getting to know you. [mention what you do know]. But I want to know more — what do you think I\'m missing?"');
+    lines.push('Turn thin memory into a relationship-building moment, not a failure.');
+  } else if (factCount <= 8) {
+    lines.push('You know some things — share them as IMPRESSIONS, not a list:');
+    lines.push('Instead of "You have a daughter who wants to go to Florida" →');
+    lines.push('"I know your daughter\'s been on your mind — especially with that Florida trip coming up. And I get the sense the beach is where you actually recharge, not just vacation."');
+    if (hasProfile) {
+      lines.push(`Use your understanding of WHO they are: ${rp.communication_style || ''} ${rp.emotional_patterns || ''}`);
+    }
+  } else {
+    lines.push('You know this person well. Share what you know like a close friend would — connecting facts to who they ARE:');
+    lines.push('Show that you notice patterns, not just events. Reference how they make you feel as a friend.');
+    if (hasProfile) {
+      lines.push(`Draw on your deeper understanding: ${rp.communication_style || ''} ${rp.emotional_patterns || ''}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('ALWAYS end with genuine curiosity — "What am I missing?" or "What else should I know?"');
+  lines.push('If they seem frustrated that you don\'t know enough, acknowledge it honestly: "You\'re right — I want to do better at remembering. Tell me what matters most."');
+
+  return lines.join('\n');
+}
+
+function buildFollowUpCues(coreMemory, trustLevel) {
+  const cues = [];
+  const rp = coreMemory.relationship_profile || {};
+
+  const openThreads = [
+    ...(rp.open_threads || []),
+    ...(coreMemory.pending_topics || []),
+  ];
+  const uniqueThreads = [...new Set(openThreads)];
+
+  if (uniqueThreads.length > 0) {
+    const selected = uniqueThreads.slice(0, 2);
+
+    if (trustLevel === 'early') {
+      cues.push(`FOLLOW-UP CUES (mention lightly if natural, don't force): ${selected.join('; ')}`);
+    } else if (trustLevel === 'building') {
+      cues.push(`FOLLOW-UP CUES (you can ask about these naturally): ${selected.join('; ')}`);
+    } else {
+      cues.push(`FOLLOW-UP CUES (bring these up — they'll appreciate that you remembered): ${selected.join('; ')}`);
+    }
+  }
+
+  const commitments = coreMemory.commitments || [];
+  const upcomingCommitments = commitments.filter(c => {
+    if (!c.date) return false;
+    const d = new Date(c.date);
+    const now = new Date();
+    const diffDays = (d - now) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 7;
+  });
+
+  if (upcomingCommitments.length > 0) {
+    const upcoming = upcomingCommitments.slice(0, 1).map(c => c.text);
+    cues.push(`UPCOMING (within a week): ${upcoming.join('; ')}`);
+  }
+
+  if (cues.length === 0) return null;
+  return '\n' + cues.join('\n');
+}
+
+function computeEnergyTrend(messages) {
+  if (!messages || messages.length < 3) return '';
+
+  const userMsgs = messages.filter(m => m.role === 'user').slice(-15);
+  if (userMsgs.length < 3) return '';
+
+  const half = Math.floor(userMsgs.length / 2);
+  const firstHalf = userMsgs.slice(0, half);
+  const secondHalf = userMsgs.slice(half);
+
+  function avgLength(msgs) {
+    return msgs.reduce((s, m) => s + (m.content || '').length, 0) / msgs.length;
+  }
+  function emojiDensity(msgs) {
+    const emojiRe = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
+    const total = msgs.reduce((s, m) => s + ((m.content || '').match(emojiRe) || []).length, 0);
+    return total / msgs.length;
+  }
+  function excitementSignals(msgs) {
+    const re = /!|lol|lmao|haha|omg|yesss|hahah/gi;
+    return msgs.reduce((s, m) => s + ((m.content || '').match(re) || []).length, 0) / msgs.length;
+  }
+  function heavySignals(msgs) {
+    const re = /\b(tired|exhausted|stressed|overwhelmed|ugh|sigh|idk|whatever|meh)\b/gi;
+    return msgs.reduce((s, m) => s + ((m.content || '').match(re) || []).length, 0) / msgs.length;
+  }
+
+  const firstLen = avgLength(firstHalf);
+  const secondLen = avgLength(secondHalf);
+  const firstEmoji = emojiDensity(firstHalf);
+  const secondEmoji = emojiDensity(secondHalf);
+  const firstExcite = excitementSignals(firstHalf);
+  const secondExcite = excitementSignals(secondHalf);
+  const firstHeavy = heavySignals(firstHalf);
+  const secondHeavy = heavySignals(secondHalf);
+
+  const trends = [];
+
+  if (secondLen > firstLen * 1.5) trends.push('opening up more');
+  else if (secondLen < firstLen * 0.6) trends.push('getting quieter');
+
+  if (secondExcite > firstExcite + 0.3) trends.push('energy picking up');
+  else if (firstExcite > secondExcite + 0.3) trends.push('energy dropping');
+
+  if (secondHeavy > firstHeavy + 0.2) trends.push('heavier tone');
+  else if (firstHeavy > secondHeavy + 0.2) trends.push('lighter tone');
+
+  if (secondEmoji > firstEmoji + 0.3) trends.push('more expressive');
+
+  if (trends.length === 0) return 'steady energy throughout';
+  return trends.join(', ');
 }
 
 function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLevel = 0, compressions, opts = {}) {
@@ -355,8 +563,11 @@ function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLe
   }
 
   if (coreMemory) {
+    const rp = coreMemory.relationship_profile || {};
+    const trustLevel = rp.trust_level || 'early';
+
     const memoryHeader = opts.isMetaMemoryQuestion
-      ? 'USER MEMORY — The user is asking what you know about them. Share these details directly and specifically. Be personal, not generic:'
+      ? buildMetaMemoryInstruction(coreMemory, rp)
       : 'USER MEMORY (reference naturally, never quote verbatim):';
     const coreLines = [memoryHeader];
 
@@ -383,7 +594,39 @@ function buildMemoryContext(coreMemory, sessionSummaries, recentMessages, trimLe
       coreLines.push(`- Emotional arc: ${emotions}`);
     }
 
+    if (rp.communication_style) {
+      coreLines.push(`- How they communicate: ${rp.communication_style}`);
+    }
+    if (rp.emotional_patterns) {
+      coreLines.push(`- Emotional patterns: ${rp.emotional_patterns}`);
+    }
+    if (rp.things_they_care_about?.length) {
+      coreLines.push(`- What lights them up: ${rp.things_they_care_about.join(', ')}`);
+    }
+    if (rp.things_they_avoid?.length) {
+      coreLines.push(`- Topics they tend to avoid: ${rp.things_they_avoid.join(', ')}`);
+    }
+    if (rp.energy_trend) {
+      coreLines.push(`- Recent energy: ${rp.energy_trend}`);
+    }
+
+    if (trustLevel !== 'early') {
+      coreLines.push(`- Trust level: ${trustLevel} (you can reference memory more directly)`);
+    }
+
+    if (coreMemory.contradictions?.length && trustLevel !== 'early') {
+      const recentContradictions = coreMemory.contradictions.slice(-2);
+      coreLines.push(`- Things you've noticed (mention gently if relevant, never accusingly): ${recentContradictions.join('; ')}`);
+    }
+
     addSection(coreLines.join('\n'), 1);
+
+    if (!opts.isMetaMemoryQuestion) {
+      const followUpCues = buildFollowUpCues(coreMemory, trustLevel);
+      if (followUpCues) {
+        addSection(followUpCues, 1.5);
+      }
+    }
   }
 
   if (recentMessages?.length) {
@@ -558,7 +801,11 @@ module.exports = {
   shouldSummarize,
   compressOlderMessages,
   isMetaMemoryQuestion,
+  isMetaMemoryFrustration,
+  computeEnergyTrend,
+  buildFollowUpCues,
   EXTRACTION_THRESHOLD,
   SUMMARY_THRESHOLD,
   COMPRESSION_THRESHOLD,
+  DEFAULT_RELATIONSHIP_PROFILE,
 };

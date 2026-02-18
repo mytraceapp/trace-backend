@@ -79,6 +79,27 @@ Persistent topic tracking extracts and stores conversation topics from user mess
 ### Layer 3: Emotional Carryover
 Prevents tone whiplash by classifying and saving conversation emotional tone between sessions. On a new session, it fetches the last session's tone and adjusts the system prompt to match the energy or provide minimal greetings accordingly.
 
+## Relationship Profile System
+A friend-level understanding layer that goes beyond facts to capture *impressions* of the user. Stored as `relationship_profile` in core memory, it tracks:
+- **communication_style**: How they open up (e.g., "uses humor to deflect, opens up gradually")
+- **emotional_patterns**: What they light up about and go quiet on
+- **things_they_care_about / things_they_avoid**: Topics that matter vs. topics they deflect
+- **open_threads**: Unresolved items a friend would naturally follow up on
+- **trust_level**: early | building | established — gates how directly TRACE references memory
+- **energy_trend**: Per-session analysis of message length, emoji, excitement, heaviness patterns
+
+### Follow-Up Queue
+On each session, 1-2 open threads and pending topics are selected as gentle follow-up cues, injected into the system prompt with depth gated by trust level (light for early, direct for established). Upcoming commitments within 7 days are also surfaced.
+
+### Meta-Memory Response Handler
+When a user asks "What do you know about me?", a special instruction replaces the standard memory header. Instead of listing facts, TRACE responds like a friend reflecting on the relationship — weaving facts into impressions and ending with genuine curiosity. Response depth calibrates based on how much memory exists (thin/moderate/rich).
+
+### Memory Frustration Repair
+Detects "you don't even know me", "you never remember" etc. and triggers MEMORY REPAIR MODE — honest, non-defensive acknowledgment with a pivot to "what matters most to you that I should know?"
+
+### Contradiction Awareness
+Extracted contradictions (e.g., "says they're fine but has mentioned stress 3 times") are surfaced in the system prompt only when trust_level is 'building' or 'established', with gentle framing ("things you've noticed, never accusingly").
+
 # External Dependencies
 
 -   **OpenAI API**: AI chat completions.

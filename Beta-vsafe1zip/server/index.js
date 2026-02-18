@@ -8073,22 +8073,36 @@ CRISIS OVERRIDE:
         
         const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content || '';
         const isMetaMemory = coreMemory.isMetaMemoryQuestion(lastUserMsg);
+        const isMemoryFrustration = coreMemory.isMetaMemoryFrustration(lastUserMsg);
         if (isMetaMemory) {
           console.log('[CORE MEMORY] Meta-memory question detected — will share details directly');
         }
+        if (isMemoryFrustration) {
+          console.log('[CORE MEMORY] Memory frustration detected — will use repair response');
+        }
+
+        const energyTrend = coreMemory.computeEnergyTrend(messages);
+        if (energyTrend && storedCoreMemory?.relationship_profile) {
+          storedCoreMemory.relationship_profile.energy_trend = energyTrend;
+        }
+
         const memContext = coreMemory.buildMemoryContext(
           storedCoreMemory,
           sessionSummaries,
           recentStored.length > 0 ? recentStored : messages,
           0,
           storedCompressions,
-          { isMetaMemoryQuestion: isMetaMemory }
+          { isMetaMemoryQuestion: isMetaMemory || isMemoryFrustration }
         );
         
         if (memContext) {
           coreMemoryContext = memContext;
           contextParts.push(memContext);
           console.log('[CORE MEMORY] Injected memory context, session rotated:', sessionRotation?.rotated);
+        }
+
+        if (isMemoryFrustration) {
+          contextParts.push('\nMEMORY REPAIR MODE: The user is frustrated that you don\'t remember enough. DO NOT be defensive. Acknowledge it honestly: "You\'re right, and I hear you." Then demonstrate what you DO remember with warmth. Ask what matters most to them that you should know. This is a trust repair moment — be real, not performative.');
         }
         
         const continuity = coreMemory.computeContinuityVector(storedCoreMemory, messages.filter(m => m.role === 'user'));
