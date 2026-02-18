@@ -1018,9 +1018,13 @@ async function evaluateAtmosphere(input) {
     }
   }
   
+  const returnState = (shouldChange || driftCorrected)
+    ? finalState
+    : (client_sound_state && VALID_SOUNDSCAPE_STATES.includes(client_sound_state) ? client_sound_state : finalState);
+
   return {
     sound_state: {
-      current: finalState,
+      current: returnState,
       changed: shouldChange || driftCorrected,
       reason: driftCorrected ? 'state_enforcement' : (shouldChange ? reason : 'no_change'),
       cadence: { userMessageCount, assistantMessageCount, met: true }
