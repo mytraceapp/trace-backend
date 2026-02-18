@@ -1,0 +1,217 @@
+15,"met":true}},"client_state_patch":{"sessionStartedAt":1771448881517,"lastUserAt":1771449399770,"sessionTurnCount":9,"lastGuidedStepTurn":0,"recentTopics":[],"activeLoops":[],"recentWins":[],"recentPhrases":[],"doorwayState":{"doors":{"currentDoorId":null,"lastDoorId":null,"activatedAtTurn":null,"turnsSinceActivation":1},"crisis":{"active":false,"triggeredAt":null,"lastSeenAt":null,"cleanTurns":1},"lastMessageAt":"2026-02-18T21:16:39.769Z"},"userMessageCount":14,"assistantMessageCount":15,"soundscapeCadenceMet":true,"lastActivityTimestamp":1771449400686,"lastAssistantHash":"723b47cdb6f48231ec0ceaff1661b3d6201cb2bbdc349ef859e9d28bc0187b41","lastAssistantText":"Glad you’re feeling it. It’s definitely got that vibe."},"traceStudios":{"traceStudiosContext":"music_general","kind":"context_carry"},"isCrisisMode":false,"messages":["Glad you’re feeling it. It’s definitely got that vibe."],"_schema_meta":{"mode_expected":"normal","sentence_count":2,"question_count":0,"has_truncation_language":false,"activity_offered":false,"sections_present":[],"char_count":54},"deduped":false,"response_source":"model","ui_action":null,"_provenance":{"path":"ai_pipeline","primaryMode":"studios","requestId":"chat_1771449399884","ts":1771449400690,"latency_ms":3294,"tier":1,"model":"gpt-4o-mini","useV2":true,"topicAnchor":{"domain":"music","label":"music exploration","carried":true,"turnAge":4},"schema":{"ran":true,"passed":true,"rewrite_attempted":false,"rewrite_succeeded":false},"layers":{"driftLock":false,"tightenPair":false,"sanitizeTone":true}},"request_id":"chat_1771449399884","audio_action":null,"next_question":null,"pattern_metadata":null,"_shape_meta":{"ok":true,"mode":"studios","has_audio_action":false,"has_ui_action":false,"has_client_patch":true}}
+ LOG  [TRACE Chat] Processed messages array: ["Glad you’re feeling it. It’s definitely got that vibe."]
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, requestId, message, activity_suggestion, posture, detected_state, posture_confidence, sound_state, client_state_patch, traceStudios, isCrisisMode, messages, _schema_meta, deduped, response_source, ui_action, _provenance, request_id, audio_action, next_question, pattern_metadata, _shape_meta
+ LOG  [CHAT_AUDIO_SIGNAL] {"hasAudioAction":false,"sound_state":{"current":"grounding","changed":true,"reason":"state_enforcement","cadence":{"userMessageCount":14,"assistantMessageCount":15,"met":true}},"mediaVol":0.17746016979217527}
+ LOG  [AUDIO_CADENCE] preserved_soundscape_detected state=presence -> resuming before processing backend sound_state
+ LOG  [AUDIO_EVENT] type=USER_RESUME page=undefined reason=chat_preserved_soundscape sound_state=undefined action=undefined
+ LOG  [AUDIO_GATE] ensureCorrectPlayback_enter {"hardStop":false,"stopGateReason":null,"stopGateAt":null,"mediaVol":0.17746016979217527,"page":"chat","soundscapeActive":true,"hasActiveSound":true,"reason":"chat_preserved_soundscape"}
+ LOG  [AUDIO_CADENCE] ensureCorrectPlayback reason=chat_preserved_soundscape currentMode=soundscape page=chat
+ LOG  [CADENCE] 🎯 Updated cadence state BEFORE soundscape check: {"assistant": 15, "met": true, "user": 14}
+ LOG  [AUDIO_EVENT] type=PAGE_CONTEXT page=chat reason=chat_response_sound_state sound_state=undefined action=undefined
+ LOG  [AUDIO_CADENCE] setPageContext skip reason=chat_response_sound_state page=chat (unchanged)
+ LOG  [TRACE Chat] 🔊 Found sound_state in response: {"changed": true, "confidence": undefined, "current": "grounding", "reason": "state_enforcement"}
+ LOG  [AUDIO_CADENCE] 🎵 Backend wants soundscape: grounding (reason: state_enforcement)
+ LOG  [AUDIO_CADENCE] 🎯 Soundscape check conditions: {"assistantCount": 15, "cadenceAllowedForActivation": true, "cadenceMet": true, "isAppForeground": true, "isChatFocused": true, "isHardStopped": false, "isInActivity": false, "isPlayerActive": false, "isResumingSoundscape": true, "isStop": false, "shouldProcessSoundState": true, "soundStateChanged": true, "soundStateCurrent": "grounding", "userCount": 14}
+ LOG  [AUDIO_CADENCE] ✅ ALLOWED - processing sound_state
+ LOG  [AUDIO_CADENCE] 🎵 sound_state=grounding -> playing specified soundscape
+ LOG  [useSoundStateIntegration] 🔍 handleSoundState called with: {"soundStateChanged": true, "soundStateConfidence": undefined, "soundStateCurrent": "grounding", "soundStateExists": true}
+ LOG  [useSoundStateIntegration] 📊 Soundscape status: {"currentState": "presence", "isEmotionalSoundscape": false, "newState": "grounding", "trackExists": true, "trackPlaying": false}
+ LOG  [useSoundStateIntegration] 🎵 INITIALIZING soundscape: {"newState": "grounding", "reason": "state_enforcement"}
+ LOG  [AUDIO_GATE] updateSoundState_enter {"hardStop":false,"stopGateReason":null,"stopGateAt":null,"mediaVol":0.17746016979217527,"page":"chat","soundscapeActive":true,"hasActiveSound":true,"incoming":"grounding"}
+ LOG  [AudioContext.updateSoundState] 📍 State change: presence → grounding
+ LOG  [AudioContext.updateSoundState] 🔄 Sound active - queuing state change to grounding (waiting for current track to finish)
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=state_change_queued
+ LOG  [AUDIO_CADENCE] ensureCorrectPlayback soundscape_active ambient_ensured_off
+ LOG  [SOUNDCONTEXT] activated state=grounding hasTrack=true
+ LOG  [SoundContextManager] 🎵 Soundscape activated: grounding (track: true)
+ LOG  [useSoundStateIntegration] ✅ Soundscape activated successfully
+ LOG  [AUDIO_CADENCE] ✅ Soundscape check complete - inactivity_timer_reset reason=sound_state_applied
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "assistantMessageCount": 15, "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-18T21:16:39.769Z"}, "lastActivityTimestamp": 1771449400686, "lastAssistantHash": "723b47cdb6f48231ec0ceaff1661b3d6201cb2bbdc349ef859e9d28bc0187b41", "lastAssistantText": "Glad you’re feeling it. It’s definitely got that vibe.", "lastGuidedStepTurn": 0, "lastUserAt": 1771449399770, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1771448881517, "sessionTurnCount": 9, "soundscapeCadenceMet": true, "userMessageCount": 14}
+ LOG  [CADENCE] Updated cadence state: {"assistant": 15, "met": true, "user": 14}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-18T21:16:39.769Z"}
+ LOG  [TRACE MIRROR] Session turn count: 9
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 9
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  [TRACE CHAT] Updated last visit timestamp (assistant responded)
+ LOG  [AUDIO_CADENCE] trace_reply_count=9
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=trace_response
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [CHAT_FREEZE_RECOVERED] afterMs=500 count=27
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [CHAT_FREEZE_DETECTED] deltaMs=4700 count=28
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #7 (4/7 in rotation) {"alreadyPlayed": [4, 2, 3], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #7
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #7
+ LOG  [setupAutoPlay] 🔄 Track finished - applying pending state change: presence → grounding
+ LOG  [SoundStateManager] 🎵 Playing "grounding" track #1 (4/7 in rotation) {"alreadyPlayed": [4, 5, 2], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: grounding #1
+ LOG  [SoundStateManager] 🎵 Loading "grounding" track 1...
+ LOG  [SoundStateManager] ✅ Track loaded: "grounding" #1
+ LOG  [SoundStateManager] 🎵 Playing "grounding" track #3 (5/7 in rotation) {"alreadyPlayed": [4, 5, 2, 1], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: grounding #3
+ LOG  [SoundStateManager] 📁 Next track asset ready: grounding #3
+ LOG  [setupAutoPlay] ✅ State transition complete: presence → grounding
+ LOG  [AudioContext] ⏱️ Inactivity timeout triggered
+ LOG  [AudioContext] 🎵 Soundscape still active - skipping return to ambient
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #5 (5/7 in rotation) {"alreadyPlayed": [4, 2, 3, 7], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #5
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #5
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #1 (6/7 in rotation) {"alreadyPlayed": [4, 2, 3, 7, 5], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #1
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #1
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [CHAT_FREEZE_RECOVERED] afterMs=403301 count=28
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ WARN  [SIGNALS] No active signal state
+ LOG  [TRACE BRAIN] Detected sentiment: sad
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [TRACE CHAT] Updated last visit timestamp (user sent message)
+ LOG  [MEMORY_V3] No label extracted from message
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [TRACE Chat] Profile check: {"hasLat": true, "hasLon": true, "hasProfile": true, "lat": 40.7128, "lon": -74.006, "weatherEnabled": true}
+ LOG  [TRACE Chat] 🌤️ Fetching weather context for location: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] Calling getWeather with: {"lat": 40.7128, "lon": -74.006}
+ LOG  [TRACE Chat] 🌤️ Weather API response received: {
+  "summary": "Pretty cold — currently 39°F, overcast skies. Cloudy",
+  "current": {
+    "temperature": 39,
+    "feelsLike": 36,
+    "wind": 6,
+    "weatherText": "Cloudy",
+    "humidity": 85,
+    "uvIndex": 0,
+    "cloudCover": 99,
+    "isDayTime": true
+  }
+}
+ LOG  [TRACE Chat] 🌤️ Weather context SUCCESSFULLY prepared: {
+  "summary": "Pretty cold — currently 39°F, overcast skies. Cloudy"
+}
+ LOG  [TYPING] startThinking called - showing immediately
+ LOG  [TYPING] Adding typing placeholder to messages (immediate)
+ LOG  [TRACE Chat] Backend URL: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev
+ LOG  [TRACE Chat] Sending to: https://ca2fbbde-8b20-444e-a3cf-9a3451f8b1e2-00-n5dvsa77hetw.spock.replit.dev/api/chat
+ LOG  [TRACE Chat] Payload messages count: 12
+ LOG  [TRACE Chat] 🌤️ Weather context in payload: YES
+ LOG  [TRACE Chat] Weather details: {"summary": "Pretty cold — currently 39°F, overcast skies. Cloudy", "temperature": undefined, "windSpeed": undefined}
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [TYPING] Rendering TypingDots for item: {"content": "__TRACE_TYPING__", "role": "assistant"}
+ LOG  [CHAT_FREEZE_DETECTED] deltaMs=3287 count=29
+ LOG  [TRACE Chat] Response status: 200 
+ LOG  [TRACE Chat] Raw API response: {"ok":true,"requestId":"req-1771449815337-d1wxwt","message":"Yeah, that sadness can linger.","activity_suggestion":{"name":null,"reason":null,"should_navigate":false},"posture":"STEADY","detected_state":"neutral","posture_confidence":0.6,"echo_offer":{"text":"Can I tell you something?"},"sound_state":{"current":"grounding","changed":false,"reason":"no_change","cadence":{"userMessageCount":15,"assistantMessageCount":16,"met":true}},"next_question":{"intent":"clarify","question":"What do you mean by that?"},"client_state_patch":{"sessionStartedAt":1771448881517,"lastUserAt":1771449817917,"sessionTurnCount":10,"lastGuidedStepTurn":10,"recentTopics":[],"activeLoops":[],"recentWins":[],"recentPhrases":[],"doorwayState":{"doors":{"currentDoorId":null,"lastDoorId":null,"activatedAtTurn":null,"turnsSinceActivation":1},"crisis":{"active":false,"triggeredAt":null,"lastSeenAt":null,"cleanTurns":1},"lastMessageAt":"2026-02-18T21:23:37.916Z"},"userMessageCount":15,"assistantMessageCount":16,"soundscapeCadenceMet":true,"lastActivityTimestamp":1771449819505,"lastAssistantHash":"d5cbf59e905841cde5f4a8ab93c74c6f6735169b664bd32ebc06e05df23804fc","lastAssistantText":"Yeah, that sadness can linger.","lastQuestionIntent":"clarify"},"traceStudios":{"traceStudiosContext":"music_general","kind":"context_carry"},"isCrisisMode":false,"messages":["Yeah, that sadness can linger."],"_schema_meta":{"mode_expected":"normal","sentence_count":1,"question_count":0,"has_truncation_language":false,"activity_offered":false,"sections_present":[],"char_count":30},"deduped":false,"response_source":"model","ui_action":null,"_provenance":{"path":"ai_pipeline","primaryMode":"studios","requestId":"chat_1771449818038","ts":1771449819507,"latency_ms":4170,"tier":1,"model":"gpt-4o-mini","useV2":true,"topicAnchor":{"domain":"music","label":"music exploration","carried":true,"turnAge":5},"schema":{"ran":true,"passed":true,"rewrite_attempted":false,"rewrite_succeeded":false},"layers":{"driftLock":false,"tightenPair":true,"sanitizeTone":true}},"request_id":"chat_1771449818038","audio_action":null,"pattern_metadata":null,"_shape_meta":{"ok":true,"mode":"studios","has_audio_action":false,"has_ui_action":false,"has_client_patch":true},"_stripped_keys":["guided_step"]}
+ LOG  [TRACE Chat] Processed messages array: ["Yeah, that sadness can linger."]
+ LOG  [TRACE Chat] ✅ Response received, checking for sound_state...
+ LOG  [TRACE Chat] Response keys: ok, requestId, message, activity_suggestion, posture, detected_state, posture_confidence, echo_offer, sound_state, next_question, client_state_patch, traceStudios, isCrisisMode, messages, _schema_meta, deduped, response_source, ui_action, _provenance, request_id, audio_action, pattern_metadata, _shape_meta, _stripped_keys
+ LOG  [CHAT_AUDIO_SIGNAL] {"hasAudioAction":false,"sound_state":{"current":"grounding","changed":false,"reason":"no_change","cadence":{"userMessageCount":15,"assistantMessageCount":16,"met":true}},"mediaVol":0.17746016979217527}
+ LOG  [AUDIO_CADENCE] preserved_soundscape_detected state=grounding -> resuming before processing backend sound_state
+ LOG  [AUDIO_EVENT] type=USER_RESUME page=undefined reason=chat_preserved_soundscape sound_state=undefined action=undefined
+ LOG  [AUDIO_GATE] ensureCorrectPlayback_enter {"hardStop":false,"stopGateReason":null,"stopGateAt":null,"mediaVol":0.17746016979217527,"page":"chat","soundscapeActive":true,"hasActiveSound":true,"reason":"chat_preserved_soundscape"}
+ LOG  [AUDIO_CADENCE] ensureCorrectPlayback reason=chat_preserved_soundscape currentMode=soundscape page=chat
+ LOG  [CADENCE] 🎯 Updated cadence state BEFORE soundscape check: {"assistant": 16, "met": true, "user": 15}
+ LOG  [AUDIO_EVENT] type=PAGE_CONTEXT page=chat reason=chat_response_sound_state sound_state=undefined action=undefined
+ LOG  [AUDIO_CADENCE] setPageContext skip reason=chat_response_sound_state page=chat (unchanged)
+ LOG  [TRACE Chat] 🔊 Found sound_state in response: {"changed": false, "confidence": undefined, "current": "grounding", "reason": "no_change"}
+ LOG  [AUDIO_CADENCE] 🎵 Backend wants soundscape: grounding (reason: no_change)
+ LOG  [AUDIO_CADENCE] 🎯 Soundscape check conditions: {"assistantCount": 16, "cadenceAllowedForActivation": true, "cadenceMet": true, "isAppForeground": true, "isChatFocused": true, "isHardStopped": false, "isInActivity": false, "isPlayerActive": false, "isResumingSoundscape": true, "isStop": false, "shouldProcessSoundState": true, "soundStateChanged": false, "soundStateCurrent": "grounding", "userCount": 15}
+ LOG  [AUDIO_CADENCE] ✅ ALLOWED - processing sound_state
+ LOG  [AUDIO_CADENCE] 🎵 sound_state=grounding -> playing specified soundscape
+ LOG  [useSoundStateIntegration] 🔍 handleSoundState called with: {"soundStateChanged": false, "soundStateConfidence": undefined, "soundStateCurrent": "grounding", "soundStateExists": true}
+ LOG  [useSoundStateIntegration] ⏭️ Server says no change — keeping current state {"inSync": true, "serverDowngrading": false}
+ LOG  [AUDIO_CADENCE] ensureCorrectPlayback soundscape_active ambient_ensured_off
+ LOG  [AUDIO_CADENCE] ✅ Soundscape check complete - inactivity_timer_reset reason=sound_state_applied
+ LOG  [TRACE CHAT] Received multiple messages: 1
+ LOG  [TRACE MIRROR] Processed responses: 1
+ LOG  [TRACE MIRROR] Applying client_state_patch: {"activeLoops": [], "assistantMessageCount": 16, "doorwayState": {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-18T21:23:37.916Z"}, "lastActivityTimestamp": 1771449819505, "lastAssistantHash": "d5cbf59e905841cde5f4a8ab93c74c6f6735169b664bd32ebc06e05df23804fc", "lastAssistantText": "Yeah, that sadness can linger.", "lastGuidedStepTurn": 10, "lastQuestionIntent": "clarify", "lastUserAt": 1771449817917, "recentPhrases": [], "recentTopics": [], "recentWins": [], "sessionStartedAt": 1771448881517, "sessionTurnCount": 10, "soundscapeCadenceMet": true, "userMessageCount": 15}
+ LOG  [CADENCE] Updated cadence state: {"assistant": 16, "met": true, "user": 15}
+ LOG  [CRISIS] ⚠️ Updated clientStateRef.current with crisis state: {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}
+ LOG  [DOORWAYS] Updated doorwayState: {"crisis": {"active": false, "cleanTurns": 1, "lastSeenAt": null, "triggeredAt": null}, "doors": {"activatedAtTurn": null, "currentDoorId": null, "lastDoorId": null, "turnsSinceActivation": 1}, "lastMessageAt": "2026-02-18T21:23:37.916Z"}
+ LOG  [TRACE MIRROR] Session turn count: 10
+ LOG  [DOORWAYS] Legacy client_state_patch applied
+ LOG  [PILLAR 10] Session turn count incremented: 10
+ WARN  [SIGNALS] No active signal state
+ LOG  [MEMORY] ⏭️ Skipping callback (not established user: 6 msgs, 2 days)
+ LOG  [MEMORY_V3] No open loops yet
+ LOG  [TRACE CHAT] Updated last visit timestamp (assistant responded)
+ LOG  [AUDIO_CADENCE] trace_reply_count=10
+ LOG  [AUDIO_CADENCE] inactivity_timer_reset reason=trace_response
+ LOG  ℹ️ No audio_action in response (normal chat message)
+ LOG  [ACTIVITY] No backend suggestion
+ LOG  [RESCUE] ✅ Updated last_seen_at
+ LOG  [RESCUE] ✅ Last seen timestamp updated
+ LOG  [CHAT_FREEZE_RECOVERED] afterMs=3034 count=29
+ LOG  [CHAT_RENDER_HEARTBEAT]
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ WARN  [SIGNALS] Cannot send signal - no conversation data
+ LOG  [SIGNALS] Signal sent on screen unfocus
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [INTRO_RENDER] "Yeah, I remember. that “too much” feeling can cling even after you sleep."
+ LOG  [CHAT_FREEZE_DETECTED] deltaMs=3149 count=30
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #6 (7/7 in rotation) {"alreadyPlayed": [4, 2, 3, 7, 5, 1], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #6
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #6
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
+ LOG  [SoundStateManager] 🔄 All 7 tracks exhausted for "presence" - resetting rotation
+ LOG  [SoundStateManager] 🎵 Playing "presence" track #1 (1/7 in rotation) {"alreadyPlayed": [], "nextUp": "random from remaining"}
+ LOG  [SoundStateManager] ✅ Track source loaded locally: presence #1
+ LOG  [SoundStateManager] 📁 Next track asset ready: presence #1
+ LOG  [SUPABASE] Session key 'sb-pwlyznrrdxaxrrnlobqz-auth-token' size: ~2107 bytes
