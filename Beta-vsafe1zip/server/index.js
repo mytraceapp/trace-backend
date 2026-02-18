@@ -3976,6 +3976,8 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
       }
     }
     
+    const GREETING_BANNED_TOPICS = new Set(['health', 'health check']);
+
     // Load recent conversation topics from actual messages (what they were REALLY talking about)
     let recentConversationTopics = [];
     let allAvailableTopics = [];
@@ -3995,7 +3997,9 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
           const foundTopics = new Set();
           for (const msg of userMsgs.slice(0, 8)) {
             const keywords = conversationState.extractTopicKeywords(msg.content);
-            keywords.forEach(k => foundTopics.add(k));
+            keywords.forEach(k => {
+              if (!GREETING_BANNED_TOPICS.has(k.toLowerCase())) foundTopics.add(k);
+            });
           }
           allAvailableTopics = [...foundTopics];
           recentConversationTopics = allAvailableTopics.slice(0, 3);
