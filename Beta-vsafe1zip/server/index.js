@@ -16365,7 +16365,9 @@ RULES:
 - Specific over general. "anxiety about the presentation Monday" not "work stress"
 - If data is sparse, say something honest and small rather than inflating it
 - No therapy-speak. Sound like a perceptive friend, not a wellness report
-- Return ONLY valid JSON`;
+- Return ONLY valid JSON
+
+Before finalizing: read every sentence. If it contains "burden of", "unresolved", "nice distraction", "seemed to", "appeared to" — rewrite it in plain direct language. Say the thing, not around the thing.`;
 
     const userPrompt = `Return the JSON object with emotionalArc, whatCameUp, and whatHelped.`;
 
@@ -19837,11 +19839,8 @@ app.post('/api/patterns/insights', async (req, res) => {
         if (patternsResult) {
           try {
             const parsed = JSON.parse(patternsResult);
-            const ws = parsed.weeklySections || null;
-            if (ws && (ws.weekShape || ws.recurringThemes || ws.whatsShifting || ws.whatWorked)) {
-              weeklySections = ws;
-            }
             weeklyNarrative = parsed.weeklyNarrative || null;
+            weeklySections = null;
             aiEnergyRhythmLabel = parsed.energyRhythmLabel || null;
             aiStressEchoesLabel = parsed.stressEchoesLabel || null;
             aiReliefLabel = parsed.reliefLabel || null;
@@ -19849,8 +19848,8 @@ app.post('/api/patterns/insights', async (req, res) => {
             aiPredictiveHint = parsed.predictiveHint || null;
             aiWeeklyMoodTrend = parsed.weeklyMoodTrend || null;
             console.log('📊 [PATTERNS ENGINE] Generated insights:', {
-              hasWeeklySections: !!weeklySections,
-              sectionKeys: weeklySections ? Object.keys(weeklySections).filter(k => weeklySections[k]) : [],
+              hasWeeklyNarrative: !!weeklyNarrative,
+              narrativeLength: weeklyNarrative?.length || 0,
               hasEnergyRhythm: !!aiEnergyRhythmLabel,
               hasStressEchoes: !!aiStressEchoesLabel,
               hasRelief: !!aiReliefLabel,

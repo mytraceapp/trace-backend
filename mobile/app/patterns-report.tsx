@@ -209,14 +209,11 @@ export default function PatternsReport() {
       setInsightsLoading(true);
       setPatternsSummaryLoading(true);
 
-      const [result, dedicatedResult] = await Promise.all([
-        fetchPatternsInsights({ userId, deviceId: stableId }),
-        fetchWeeklySummary({ userId, deviceId: stableId }),
-      ]);
+      const result = await fetchPatternsInsights({ userId, deviceId: stableId });
 
       setInsights(result);
 
-      setWeeklyNarrative(dedicatedResult || null);
+      setWeeklyNarrative(result?.weeklyNarrative || null);
     } catch (err) {
       console.error('[PATTERNS] insights fetch error:', err);
       setInsights(null);
