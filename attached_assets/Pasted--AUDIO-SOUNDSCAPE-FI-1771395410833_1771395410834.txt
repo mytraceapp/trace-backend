@@ -1,0 +1,47 @@
+================================================================================
+AUDIO SOUNDSCAPE FIXES — SESSION SUMMARY
+================================================================================
+
+CHANGE 1: changed: false guard (useSoundStateIntegration.ts)
+--------------------------------------------------------------------------------
+- When the server sends sound_state with changed: false, the client returns early
+  and does nothing.
+- Avoids overriding grounding/reflective with presence when the server says "no change."
+- Stops the loop where server sends presence → client overrides grounding → grounding stops.
+
+CHANGE 2: Pre-start mute (AudioContext.tsx playState)
+--------------------------------------------------------------------------------
+- Right after acquireSoundscapeLock, before loading the new track:
+  - Mute and pause the current track (setVolumeAsync(0), pauseAsync).
+- Reduces overlap between two soundscapes playing at once.
+- Crossfade behavior is unchanged.
+
+CHANGE 3: Drift correction disabled (useSoundStateIntegration.ts)
+--------------------------------------------------------------------------------
+- isDrift is hardcoded to false.
+- Client-side drift correction was removed because it caused double soundscapes.
+- Drift handling is left to the server.
+
+CHANGE 4: Stale-call guard (AudioContext.tsx) — from earlier session
+--------------------------------------------------------------------------------
+- pageContextVersionRef: monotonically increasing version token.
+- setPageContext increments version and passes it to ensureCorrectPlayback.
+- ensureCorrectPlayback ignores calls when opts.pageContextVersion is stale.
+- Avoids late page_context_other calls muting after chat has refocused.
+
+FILES MODIFIED
+--------------------------------------------------------------------------------
+- mobile/hooks/useSoundStateIntegration.ts (changed guard, drift disabled)
+- mobile/contexts/AudioContext.tsx (pre-start mute, stale-call guard)
+
+FILES NOT MODIFIED
+--------------------------------------------------------------------------------
+- mobile/app/(tabs)/chat.tsx
+
+SERVER-SIDE FIXES NEEDED
+--------------------------------------------------------------------------------
+1. Drift correction: Do not force presence when the client reports grounding/
+   reflective/comfort/insight. Respect soundscapeLocked.
+2. When nothing is changing, return the client’s reported state, not the server’s
+   internal state, so the client does not see a mismatch.
+================================================================================
