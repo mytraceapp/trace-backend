@@ -16214,51 +16214,37 @@ app.post('/api/patterns/last-hour', async (req, res) => {
       .map(m => `Mood note (${m.mood_label || m.mood_rating}): ${m.notes.slice(0, 200)}`)
       .join('\n');
 
-    const dataAvailable = [];
-    if (messagesToAnalyze.length > 0) dataAvailable.push(`${userMessages.length} user messages in chat`);
-    if (journalEntries.length > 0) dataAvailable.push(`${journalEntries.length} journal entry/entries`);
-    if (moodCheckins.length > 0) dataAvailable.push(`${moodCheckins.length} mood check-in(s)`);
-    if (activities.length > 0) dataAvailable.push(`${activities.length} activity/activities completed`);
+    const dataBlockParts = [];
+    dataBlockParts.push(`EMOTIONAL SHIFT: Started ${startTone}, ended ${endTone}`);
+    if (moodShiftNote) dataBlockParts.push(`MOOD CHECK-INS: ${moodShiftNote}`);
+    if (convoText) dataBlockParts.push(`--- CONVERSATION ---\n${convoText}`);
+    if (journalSnippets) dataBlockParts.push(`--- JOURNAL ENTRIES ---\n${journalSnippets}`);
+    if (activityDescs) dataBlockParts.push(`--- ACTIVITIES ---\n${activityDescs}`);
+    if (moodNotes) dataBlockParts.push(`--- MOOD NOTES ---\n${moodNotes}`);
+    const dataBlock = dataBlockParts.join('\n\n');
 
-    const systemPrompt = `You are TRACE. Write a short, grounded reflection on the user's last hour. Interpret what the emotional data means — don't just describe what happened.
+    const systemPrompt = `You are TRACE's pattern engine. You've been given data from the last hour of someone's life — their messages, journal entries, mood check-ins, and activities.
 
-RETURN THIS EXACT JSON:
+Your job is NOT to summarize what happened. Your job is to read what it meant.
+
+DATA:
+${dataBlock}
+
+Return JSON with exactly these fields:
 {
-  "emotionalArc": string (1-2 sentences: where they started and where they landed emotionally, and what that movement suggests),
-  "whatCameUp": string (1-2 sentences: the real thread underneath — what were they actually working through or reaching for?),
-  "whatHelped": string (1 sentence: what seemed to ground them, and what that choice says about what they needed)
+  "emotionalArc": "The emotional movement of this hour — not just what they felt, but how it shifted and what that shift tells you. If they started heavy and ended lighter, say what seemed to move them. If they stayed stuck, name what they were circling. 2-3 sentences. Specific. No vague language.",
+  "whatCameUp": "The thing underneath the surface content. Not 'they talked about work' but what work seems to represent right now. Look for the feeling underneath the topic. If journal and chat touched the same theme, that's significant — name it. 1-2 sentences.",
+  "whatHelped": "If something shifted their state — an activity, a moment in conversation, something they wrote — name it specifically and say WHY it seemed to help. Not 'breathing helped' but 'the breathing exercise seemed to interrupt a thought loop they kept returning to.' If nothing helped, say that honestly. 1-2 sentences."
 }
 
-These three fields become one short paragraph. Total: 4-5 sentences max. Keep it tight.
+RULES:
+- Use second person ("you"), present-tense observations ("tends to", "keeps coming back to")
+- Specific over general. "anxiety about the presentation Monday" not "work stress"
+- If data is sparse, say something honest and small rather than inflating it
+- No therapy-speak. Sound like a perceptive friend, not a wellness report
+- Return ONLY valid JSON`;
 
-VOICE:
-- Second person ("you"), direct, warm, plain-spoken
-- Like a friend who pays attention — not a therapist writing case notes
-- Short sentences. No filler. Say one true thing, not five vague ones.
-- Be specific — name actual moods, topics, and activities from the data.
-
-NEVER:
-- Overwrite or pad with flowery language ("gentle shift", "subtle release", "sense of routine", "undercurrents of worry", "anchor in the form of")
-- Describe actions ("you performed", "you engaged in", "you touched on", "you acknowledged")
-- Psychoanalyze ("it suggests you needed", "perhaps with a sense of", "hinting at a desire for")
-- Use: "navigating", "processing", "holding space", "journey", "introspection", "upliftment", "grounding effect"
-- Cheerlead or congratulate
-- Invent topics not in the data
-- Ask questions or give advice
-- Use exclamation marks
-- Write more than 5 sentences total`;
-
-    const userPrompt = `DATA AVAILABLE: ${dataAvailable.join(', ')}
-
-EMOTIONAL SHIFT DETECTED: Started ${startTone}, ended ${endTone}
-${moodShiftNote ? `MOOD CHECK-INS: ${moodShiftNote}` : ''}
-
-${convoText ? `--- CONVERSATION ---\n${convoText}` : ''}
-${journalSnippets ? `\n--- JOURNAL ENTRIES ---\n${journalSnippets}` : ''}
-${activityDescs ? `\n--- ACTIVITIES ---\n${activityDescs}` : ''}
-${moodNotes ? `\n--- MOOD NOTES ---\n${moodNotes}` : ''}
-
-Return the JSON object with emotionalArc, whatCameUp, and whatHelped.`;
+    const userPrompt = `Return the JSON object with emotionalArc, whatCameUp, and whatHelped.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -16508,57 +16494,45 @@ app.post('/api/patterns/weekly-summary', async (req, res) => {
       else comparisonNotes.push(`Average mood similar to last week (~${thisAvgMood})`);
     }
 
-    const systemPrompt = `You are TRACE — a perceptive companion who reads emotional patterns the way a close friend would. You don't summarize what happened. You interpret what it means.
+    const weekDataBlockParts = [];
+    weekDataBlockParts.push(`Days active: ${[...daysActive].join(', ') || 'None recorded'}`);
+    weekDataBlockParts.push(`Activities: ${thisWeekActivities.length} (${activitySummary || 'none'})`);
+    weekDataBlockParts.push(`Journal entries: ${thisWeekJournals.length}`);
+    weekDataBlockParts.push(`Mood check-ins: ${thisWeekMoods.length}`);
+    weekDataBlockParts.push(`Chat messages: ${thisWeekChats.length}`);
+    if (moodTrajectory) weekDataBlockParts.push(`Mood trajectory: ${moodTrajectory}`);
+    if (topMoods.length) weekDataBlockParts.push(`Most frequent moods: ${topMoods.map(([l, c]) => `${l} (${c}x)`).join(', ')}`);
+    if (peakWindowLabel) weekDataBlockParts.push(`Peak window: ${peakWindowLabel}`);
+    if (energyRhythmLabel) weekDataBlockParts.push(`Energy rhythm: ${energyRhythmLabel}`);
+    if (comparisonNotes.length) weekDataBlockParts.push(`\nCOMPARED TO LAST WEEK:\n${comparisonNotes.join('\n')}`);
+    if (journalDigest) weekDataBlockParts.push(`\n--- JOURNAL ENTRIES (this week) ---\n${journalDigest}`);
+    if (chatDigest) weekDataBlockParts.push(`\n--- CHAT TOPICS (sampled) ---\n${chatDigest}`);
+    const weekDataBlock = weekDataBlockParts.join('\n');
 
-RETURN THIS EXACT JSON:
+    const systemPrompt = `You are TRACE's pattern engine. You have a week of someone's emotional and behavioral data — activities, journal entries, mood check-ins, conversation themes, and how this week compares to last week.
+
+Your job is to find the signal in the noise. Not what happened — what it reveals.
+
+DATA:
+${weekDataBlock}
+
+Return JSON with exactly these fields:
 {
-  "weekShape": string,
-  "recurringThemes": string,
-  "whatsShifting": string,
-  "whatWorked": string
+  "weekShape": "What did the arc of this week actually look like? Not a schedule — a shape. Did they start heavy and find footing? Did they hold steady then drop? Did something specific change the trajectory mid-week? Name the shape and what seems to have caused it. 2-3 sentences.",
+  "recurringThemes": "What kept coming back across journal AND conversation AND mood — the emotional undercurrent that showed up in multiple forms? Don't list topics — identify the single thread connecting them. What are they actually working through right now? 2-3 sentences.",
+  "whatsShifting": "Compare this week to last week honestly. Something moved — either they're doing better in a specific way, or a pattern is deepening, or something new entered. Name the actual shift, not just the direction. 'Less anxious' is weak. 'The Sunday dread seems quieter this week — the week started differently' is real. 1-2 sentences.",
+  "whatWorked": "Look at where mood improved or heaviness lifted and trace it back to what preceded it. Activities, conversations, journal entries — what specifically seemed to correlate with feeling better? And what does that reveal about what this person actually needs? 1-2 sentences."
 }
 
-These four fields will be combined into ONE flowing paragraph. Write each field as 2-3 sentences that flow naturally into the next.
+RULES:
+- These four sections will be read as ONE flowing paragraph. Write them to connect, not as separate observations
+- The most valuable insight is the one they wouldn't have noticed themselves
+- If week-over-week shows a real pattern (third week of Wednesday lows, etc.) — say it
+- Specific over general at all times
+- No therapy-speak, no cheerleading, no "it's great that you..."
+- Return ONLY valid JSON`;
 
-YOUR JOB IS INTERPRETATION, NOT OBSERVATION:
-- weekShape: Read the rhythm of when they showed up. What does the pattern of engagement suggest about where they are right now? A concentrated burst on one day means something different than steady daily presence. Name what it might reflect — urgency, a need to process, building a new habit, seeking grounding.
-- recurringThemes: Identify the emotional threads running underneath their conversations and journals. Don't just list topics — connect them. If someone keeps circling back to calm and reflection, what's the undercurrent? What are they working through or reaching toward? Name the deeper pull.
-- whatsShifting: What's actually changing in their emotional landscape? Compare to last week if data exists. Don't just say "mood went up" — say what that shift feels like or what might be driving it. Is there a settling happening? A new restlessness? Something loosening?
-- whatWorked: Connect specific activities to emotional shifts with genuine insight. Don't just say "breathing helped" — notice WHEN it helped and WHY that timing matters. What does their choice of activity reveal about what they're instinctively reaching for?
-
-VOICE:
-- Second person ("you"), warm, intimate, perceptive
-- Like a friend who sees you clearly and says something that makes you pause and think "...yeah, that's exactly it"
-- Emotionally intelligent. You notice the thing beneath the thing.
-- Specific. Ground every insight in actual data — name real moods, real activities, real topics from their conversations.
-
-ABSOLUTELY NEVER:
-- Restate stats (session counts, peak times, percentages — they see those elsewhere)
-- Describe what happened at surface level ("you had sessions", "you checked in", "you were active")
-- Use: "impressive", "quite the effort", "solid", "significant", "navigating", "processing", "holding space", "journey", "introspection", "tapped into"
-- Cheerlead or congratulate ("great job", "that's wonderful", "keep it up")
-- Invent topics not in the data
-- Ask questions or give advice
-- Use exclamation marks`;
-
-    const userPrompt = `WEEK OVERVIEW:
-Days active: ${[...daysActive].join(', ') || 'None recorded'}
-Total activities: ${thisWeekActivities.length} (${activitySummary || 'none'})
-Total journal entries: ${thisWeekJournals.length}
-Mood check-ins: ${thisWeekMoods.length}
-Chat messages: ${thisWeekChats.length}
-${moodTrajectory ? `Mood trajectory: ${moodTrajectory}` : ''}
-${topMoods.length ? `Most frequent moods: ${topMoods.map(([l, c]) => `${l} (${c}x)`).join(', ')}` : ''}
-${peakWindowLabel ? `Peak window: ${peakWindowLabel}` : ''}
-${energyRhythmLabel ? `Energy rhythm: ${energyRhythmLabel}` : ''}
-
-${comparisonNotes.length ? `COMPARED TO LAST WEEK:\n${comparisonNotes.join('\n')}` : 'No previous week data available for comparison.'}
-
-${journalDigest ? `--- JOURNAL ENTRIES (this week) ---\n${journalDigest}` : ''}
-
-${chatDigest ? `\n--- CHAT TOPICS (sampled) ---\n${chatDigest}` : ''}
-
-Return the JSON object with weekShape, recurringThemes, whatsShifting, and whatWorked.`;
+    const userPrompt = `Return the JSON object with weekShape, recurringThemes, whatsShifting, and whatWorked.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -16677,28 +16651,27 @@ app.post('/api/patterns-reflection', async (req, res) => {
       contextParts.push(`behavioral patterns: ${readableSignatures}`);
     }
 
-    const weekContext = contextParts.length > 0
+    const statsBlock = contextParts.length > 0
       ? contextParts.join('; ')
       : 'starting to establish patterns';
 
-    const systemPrompt = `You are TRACE, providing a brief weekly pattern recap.
+    const systemPrompt = `You are TRACE. You're looking at a week of someone's data — session count, active days, what they reached for, when their energy peaks, what stressed them.
 
-Your reflection should:
-- Sound like a thoughtful friend noticing patterns
-- Speak in 2-3 sentences max
-- Focus on what the data shows (times, frequencies, patterns)
-- Be warm but factual—no therapy-speak
-- Use phrases like: "This week you...", "Looks like...", "You've been..."
-- AVOID: "tuning into", "sweet spot", "gentle nudge", "journey", "processing", "holding space"
-- The user decides meaning—you just notice and reflect back
+Write 2-3 sentences that feel like a friend who's been quietly paying attention just reflected something back to you. Not a summary — a recognition.
 
-Think: Spotify Wrapped meets a good friend.`;
+DATA:
+${statsBlock}
 
-    const userPrompt = `This week's pattern snapshot:
+The sentences should:
+- Start with something specific they did or felt, not "This week you..."
+- Name one thing that stands out as meaningful, not just frequent
+- End with something that looks forward or opens something — not a conclusion
 
-${weekContext}
+Return JSON: { "reflection": "..." }
 
-Write a warm but grounded 2-3 sentence recap. Notice what's there without over-interpreting.`;
+No therapy-speak. No exclamation points. No "it's clear that..." Sound like TRACE at 2am — warm, direct, present.`;
+
+    const userPrompt = `Return the JSON object with the reflection field.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -16707,12 +16680,18 @@ Write a warm but grounded 2-3 sentence recap. Notice what's there without over-i
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 150,
+      max_tokens: 200,
+      response_format: { type: 'json_object' },
     });
 
-    const reflection =
-      completion?.choices?.[0]?.message?.content?.trim() ||
-      "Still getting to know your week. More check-ins will help me notice what's showing up.";
+    const raw = completion?.choices?.[0]?.message?.content?.trim() || '';
+    let reflection = "Still getting to know your week. More check-ins will help me notice what's showing up.";
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed.reflection) reflection = parsed.reflection;
+    } catch (parseErr) {
+      if (raw) reflection = raw;
+    }
 
     console.log('✅ Patterns reflection generated:', reflection);
 
@@ -16758,117 +16737,177 @@ app.post('/api/patterns/full-reflection', async (req, res) => {
     startOfToday.setHours(0, 0, 0, 0);
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const effectiveUserId = userId || null;
 
-    // Build query for this week's messages
-    let query = supabaseServer
-      .from('chat_messages')
-      .select('content, created_at, role')
-      .gte('created_at', oneWeekAgo.toISOString())
-      .order('created_at', { ascending: true });
-
-    // Try userId first, then deviceId
-    if (userId) {
-      query = query.eq('user_id', userId);
-    } else if (deviceId) {
-      query = query.eq('device_id', deviceId);
+    // ── 1. Chat messages (this week, from Supabase) ──
+    let weekMessages = [];
+    if (supabaseServer) {
+      let query = supabaseServer
+        .from('chat_messages')
+        .select('content, created_at, role')
+        .gte('created_at', oneWeekAgo.toISOString())
+        .order('created_at', { ascending: true });
+      if (userId) query = query.eq('user_id', userId);
+      else if (deviceId) query = query.eq('device_id', deviceId);
+      const { data, error } = await query;
+      if (error) console.warn('[FULL-REFLECTION] chat query error:', error.message);
+      weekMessages = data || [];
     }
 
-    const { data: weekMessages, error } = await query;
-    
-    console.log('🧠 /api/patterns/full-reflection query result:', {
-      messageCount: weekMessages?.length || 0,
+    // ── 2. Journal entries (this week, from Supabase) ──
+    let weekJournals = [];
+    if (supabaseServer && effectiveUserId) {
+      try {
+        const { data } = await supabaseServer
+          .from('journal_entries')
+          .select('content, mood, created_at')
+          .eq('user_id', effectiveUserId)
+          .gte('created_at', oneWeekAgo.toISOString())
+          .order('created_at', { ascending: true });
+        weekJournals = data || [];
+      } catch (e) { console.warn('[FULL-REFLECTION] journal query error:', e.message); }
+    }
+
+    // ── 3. Activity logs (this week, from local PG) ──
+    let weekActivities = [];
+    if (effectiveUserId) {
+      try {
+        const { rows } = await pool.query(
+          `SELECT activity_type, duration_seconds, completed_at
+           FROM activity_logs WHERE user_id = $1 AND completed_at >= $2
+           ORDER BY completed_at ASC`,
+          [effectiveUserId, oneWeekAgo.toISOString()]
+        );
+        weekActivities = rows || [];
+      } catch (e) { console.warn('[FULL-REFLECTION] activity query error:', e.message); }
+    }
+
+    // ── 4. Mood check-ins (this week, from local PG) ──
+    let weekMoods = [];
+    if (effectiveUserId) {
+      try {
+        const { rows } = await pool.query(
+          `SELECT mood_rating, mood_label, notes, created_at
+           FROM mood_checkins WHERE user_id = $1 AND created_at >= $2
+           ORDER BY created_at ASC`,
+          [effectiveUserId, oneWeekAgo.toISOString()]
+        );
+        weekMoods = rows || [];
+      } catch (e) { console.warn('[FULL-REFLECTION] mood query error:', e.message); }
+    }
+
+    const totalDataPoints = weekMessages.length + weekJournals.length + weekActivities.length + weekMoods.length;
+
+    console.log('🧠 /api/patterns/full-reflection data:', {
+      messages: weekMessages.length,
+      journals: weekJournals.length,
+      activities: weekActivities.length,
+      moods: weekMoods.length,
       userId: userId?.slice?.(0, 8) || 'none',
-      deviceId: deviceId?.slice?.(0, 8) || 'none',
-      error: error?.message || null,
     });
 
-    if (error) {
-      console.error('❌ /api/patterns/full-reflection query error:', error);
+    if (totalDataPoints === 0) {
       return res.json(defaults);
     }
 
-    if (!weekMessages || weekMessages.length === 0) {
-      console.log('⚠️ /api/patterns/full-reflection: No messages found');
-      return res.json(defaults);
-    }
-
-    // Filter messages by time period (only user messages for analysis)
+    // Filter by time windows
     const userMessages = weekMessages.filter(m => m.role === 'user');
-    const todayMessages = userMessages.filter(m => new Date(m.created_at) >= startOfToday);
-    const lastHourMessages = userMessages.filter(m => new Date(m.created_at) >= oneHourAgo);
-    
-    console.log('🧠 /api/patterns/full-reflection filtered:', {
-      totalUserMessages: userMessages.length,
-      todayCount: todayMessages.length,
-      lastHourCount: lastHourMessages.length,
-    });
+    const lastHourMsgs = userMessages.filter(m => new Date(m.created_at) >= oneHourAgo);
+    const todayMsgs = userMessages.filter(m => new Date(m.created_at) >= startOfToday);
+    const lastHourJournals = weekJournals.filter(j => new Date(j.created_at) >= oneHourAgo);
+    const todayJournals = weekJournals.filter(j => new Date(j.created_at) >= startOfToday);
+    const lastHourActivities = weekActivities.filter(a => new Date(a.completed_at) >= oneHourAgo);
+    const todayActivities = weekActivities.filter(a => new Date(a.completed_at) >= startOfToday);
+    const lastHourMoods = weekMoods.filter(m => new Date(m.created_at) >= oneHourAgo);
+    const todayMoods = weekMoods.filter(m => new Date(m.created_at) >= startOfToday);
 
-    // Build context summaries
-    const todaySummary = todayMessages.length > 0
-      ? `Today's ${todayMessages.length} message(s): ${todayMessages.map(m => m.content?.slice(0, 100)).join(' | ')}`
-      : 'No messages today yet.';
+    // Build full data block for prompt
+    const formatMsgs = (msgs) => msgs.map(m => `  ${(m.content || '').slice(0, 150)}`).join('\n');
+    const formatJournals = (js) => js.map(j => {
+      const mood = j.mood ? ` [${j.mood}]` : '';
+      return `  Journal${mood}: ${(j.content || '').slice(0, 200)}`;
+    }).join('\n');
+    const formatActivities = (acts) => acts.map(a => {
+      const mins = a.duration_seconds ? ` (${Math.round(a.duration_seconds / 60)} min)` : '';
+      return `  ${a.activity_type}${mins}`;
+    }).join('\n');
+    const formatMoods = (ms) => ms.map(m => {
+      const note = m.notes ? `: ${m.notes.slice(0, 100)}` : '';
+      return `  ${m.mood_label || m.mood_rating}${note}`;
+    }).join('\n');
 
-    const lastHourSummary = lastHourMessages.length > 0
-      ? `Last hour's ${lastHourMessages.length} message(s): ${lastHourMessages.map(m => m.content?.slice(0, 100)).join(' | ')}`
-      : 'No messages in the last hour.';
+    const fullDataParts = [];
+    fullDataParts.push('=== LAST HOUR ===');
+    if (lastHourMsgs.length) fullDataParts.push(`Messages (${lastHourMsgs.length}):\n${formatMsgs(lastHourMsgs)}`);
+    if (lastHourJournals.length) fullDataParts.push(`Journals (${lastHourJournals.length}):\n${formatJournals(lastHourJournals)}`);
+    if (lastHourActivities.length) fullDataParts.push(`Activities (${lastHourActivities.length}):\n${formatActivities(lastHourActivities)}`);
+    if (lastHourMoods.length) fullDataParts.push(`Moods (${lastHourMoods.length}):\n${formatMoods(lastHourMoods)}`);
+    if (!lastHourMsgs.length && !lastHourJournals.length && !lastHourActivities.length && !lastHourMoods.length) {
+      fullDataParts.push('No activity in the last hour.');
+    }
 
-    const weekSummary = userMessages.length > 0
-      ? `This week's ${userMessages.length} message(s): ${userMessages.slice(-10).map(m => m.content?.slice(0, 80)).join(' | ')}`
-      : 'No messages this week.';
+    fullDataParts.push('\n=== TODAY ===');
+    if (todayMsgs.length) fullDataParts.push(`Messages (${todayMsgs.length}):\n${formatMsgs(todayMsgs)}`);
+    if (todayJournals.length) fullDataParts.push(`Journals (${todayJournals.length}):\n${formatJournals(todayJournals)}`);
+    if (todayActivities.length) fullDataParts.push(`Activities (${todayActivities.length}):\n${formatActivities(todayActivities)}`);
+    if (todayMoods.length) fullDataParts.push(`Moods (${todayMoods.length}):\n${formatMoods(todayMoods)}`);
+    if (!todayMsgs.length && !todayJournals.length && !todayActivities.length && !todayMoods.length) {
+      fullDataParts.push('No activity today yet.');
+    }
 
-    const systemPrompt = `You are TRACE, providing warm but grounded recaps.
+    fullDataParts.push('\n=== THIS WEEK ===');
+    if (userMessages.length) fullDataParts.push(`Messages (${userMessages.length}, last 10):\n${formatMsgs(userMessages.slice(-10))}`);
+    if (weekJournals.length) fullDataParts.push(`Journals (${weekJournals.length}):\n${formatJournals(weekJournals.slice(-8))}`);
+    if (weekActivities.length) fullDataParts.push(`Activities (${weekActivities.length}):\n${formatActivities(weekActivities)}`);
+    if (weekMoods.length) fullDataParts.push(`Moods (${weekMoods.length}):\n${formatMoods(weekMoods)}`);
 
-Generate three brief recaps based on the user's recent chat history:
+    const fullDataBlock = fullDataParts.join('\n');
 
-1. TODAY: Note what topics or themes came up today
-2. LAST HOUR: Note what the most recent check-ins included
-3. YOUR WEEK: Identify patterns, recurring topics, or frequencies across the week
+    if (!openai) {
+      return res.json(defaults);
+    }
 
-CRITICAL: Each recap MUST cover DIFFERENT aspects. Avoid redundancy:
-- TODAY = summary of what today included
-- LAST HOUR = what came up most recently
-- WEEK = patterns over time, not a repeat of today
+    const systemPrompt = `You are TRACE's pattern engine. You have data from three time windows for one person: the last hour, today, and this week. Each window has messages, journal entries, and activities.
 
-Guidelines:
-- Keep each recap to 2-3 sentences
-- Sound like a thoughtful friend noticing what they shared
-- Focus on patterns and themes from actual conversation
-- Use phrases like: "Today you talked about...", "This week there's been...", "Looks like..."
-- AVOID: "navigating", "holding space", "journey", "arc", "processing"
-- Do NOT invent or infer "health" as a topic unless the user explicitly mentioned physical health, illness, doctors, or medical issues. This is a wellness app — emotional conversations are NOT health topics.
-- If a time period is quiet, just note that warmly
+Generate three reflections. Each one should reveal something — not report something.
 
-Return ONLY valid JSON with no markdown:
-{"todayText": "...", "lastHourText": "...", "weekText": "..."}`;
+DATA:
+${fullDataBlock}
 
-    const userPrompt = `Here is the user's recent activity:
+Return JSON:
+{
+  "lastHourText": "What moved in the last hour and what it seemed to mean. The emotional micro-arc. 2 sentences. Specific.",
+  "todayText": "The shape of today as a whole. What today was really about underneath the surface content. How the last hour fits into the larger day. 2-3 sentences.",
+  "weekText": "The one thing this week revealed about where this person is right now — not what they did, but what it says about them. The insight that connects the dots. 2-3 sentences."
+}
 
-TODAY: ${todaySummary}
+RULES:
+- Each reflection should feel distinct — different angle, different depth, not the same observation restated
+- lastHourText zooms in — specific moment, specific shift
+- todayText zooms out to the day — theme, arc, what it was really about
+- weekText zooms out further — the bigger picture, the pattern that's forming
+- The most powerful line is the one that makes them think "how does it know that"
+- No therapy-speak. No summaries. Interpretation only.
+- Return ONLY valid JSON`;
 
-LAST HOUR: ${lastHourSummary}
-
-THIS WEEK: ${weekSummary}
-
-Generate three reflections as JSON.`;
+    const userPrompt = `Return the JSON object with lastHourText, todayText, and weekText.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.7,
-      max_tokens: 400,
+      temperature: 0.75,
+      max_tokens: 600,
+      response_format: { type: 'json_object' },
     });
 
-    const responseText = completion?.choices?.[0]?.message?.content?.trim() || '';
-    
-    // Parse JSON response
+    const raw = completion?.choices?.[0]?.message?.content?.trim() || '';
+
     let parsed;
     try {
-      // Remove potential markdown code blocks
-      const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
-      parsed = JSON.parse(cleanJson);
+      parsed = JSON.parse(raw);
     } catch (parseErr) {
       console.error('❌ /api/patterns/full-reflection JSON parse error:', parseErr);
       return res.json(defaults);
@@ -16916,28 +16955,33 @@ app.post('/api/patterns/stress-echoes', async (req, res) => {
   }
   
   try {
-    const systemPrompt = `You are TRACE's pattern recognition system. Analyze journal entries to detect "Stress Echoes" - recurring patterns of emotional heaviness.
+    const journalBlock = journalEntries.map(j => {
+      const day = j.created_at ? new Date(j.created_at).toLocaleDateString('en-US', { weekday: 'short', hour: 'numeric' }) : 'unknown';
+      const mood = j.mood ? ` [${j.mood}]` : '';
+      return `${day}${mood}: ${(j.content || '').slice(0, 250)}`;
+    }).join('\n');
 
-Your task:
-1. Identify which entries reflect emotionally heavy moments (stress, anxiety, overwhelm, sadness)
-2. Look for temporal patterns - do heavy moments cluster on specific days/times?
-3. Detect recurring themes or triggers
-4. Generate a brief, compassionate insight (1-2 sentences)
+    const systemPrompt = `You are TRACE's pattern engine analyzing stress patterns from journal entries.
 
-Return a JSON object with:
-- hasPattern: true if 2+ heavy entries cluster around similar times
-- clusterLabel: description like "Tuesday evening" or "Wednesday and Friday afternoon" (null if no pattern)
-- strength: 0 (no pattern), 1 (soft pattern: 2-3 entries), 2 (strong pattern: 4+ entries)
-- insightText: gentle observation, never judgmental or prescriptive
+Your job: find the recurring structure underneath the stress — not the topics, but the triggers, the timing, and what they reveal about this person's particular pressure points.
 
-Example insights:
-- "You tend to process difficult work situations on Tuesday evenings."
-- "Heavier moments often surface midweek, especially around Wednesday."
-- "You notice relationship stress most on weekend mornings."
+DATA:
+${journalBlock}
 
-If no clear pattern exists, set hasPattern to false and provide an encouraging insightText.`;
+Return JSON:
+{
+  "hasPattern": true/false,
+  "clusterLabel": "e.g. Tuesday evening, Wednesday and Friday afternoon" or null,
+  "strength": 0 (no pattern) | 1 (soft: 2-3 entries) | 2 (strong: 4+ entries),
+  "pattern": "The recurring stress structure you see — not 'work stress' but the specific shape of how stress shows up for this person. When does it spike? What precedes it? What does it cluster around? 2-3 sentences.",
+  "trigger": "The most consistent upstream cause — the thing that starts the chain. Be specific. If there's a time pattern (Sunday nights, Wednesday afternoons), name it.",
+  "insight": "The one thing about their stress pattern that they probably haven't named themselves. The observation that connects what seems like separate incidents into one underlying dynamic. 1-2 sentences. This is the most important field.",
+  "insightText": "Same as insight — kept for backwards compatibility."
+}
 
-    const userPrompt = `Analyze these journal entries for stress patterns:\n\n${JSON.stringify(journalEntries, null, 2)}`;
+Rules: Specific over general. Interpretation over description. Return ONLY valid JSON.`;
+
+    const userPrompt = `Return the JSON analysis.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -16966,7 +17010,10 @@ If no clear pattern exists, set hasPattern to false and provide an encouraging i
       hasPattern: result.hasPattern || false,
       clusterLabel: result.clusterLabel || null,
       strength: typeof result.strength === 'number' ? result.strength : 0,
-      insightText: result.insightText || fallbackResponse.insightText
+      pattern: result.pattern || null,
+      trigger: result.trigger || null,
+      insight: result.insight || null,
+      insightText: result.insightText || result.insight || fallbackResponse.insightText,
     });
 
   } catch (error) {
