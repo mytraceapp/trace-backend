@@ -637,7 +637,7 @@ FORMAT (exactly 2 lines):
 line 1: lowercase greeting word (e.g., "hey." or "morning." or "you're back.")
 line 2: one short question or statement grounded in ALLOWED REFERENCES below
 
-${firstName ? `Their name: ${firstName} (you may use it sparingly, but NEVER capitalize the greeting line)` : ''}
+${firstName ? `Their name: ${firstName}. Use it naturally — "hey ${firstName.toLowerCase()}." or "morning, ${firstName.toLowerCase()}." on line 1 is great. Use their name about half the time. It makes it feel personal. NEVER capitalize the greeting line.` : ''}
 ${timeParts.join(' | ')}
 
 === ALLOWED REFERENCES (you may ONLY reference things from this list) ===
