@@ -6050,6 +6050,13 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       const musicState = getMusicState(effectiveUserId);
       musicState.userRequestedMusic = true;
       
+      // If user is asking for music again after a previous invite was ignored/failed,
+      // reset the invite lock so they can get music this time
+      if (musicState.musicInviteUsed) {
+        console.log('[MUSIC STATE] User requesting music again — resetting musicInviteUsed');
+        musicState.musicInviteUsed = false;
+      }
+      
       // Clear stale "stopped" audioState so the LLM doesn't think audio is off
       // User is explicitly asking for music — they want to hear something
       const trackStateForClear = conversationState.getState(effectiveUserId);
@@ -15426,7 +15433,11 @@ function detectUserRequestedMusic(messageText = '') {
     txt.includes('rooted playlist') ||
     txt.includes('low orbit playlist') ||
     (txt.includes('music') && txt.includes('please')) ||
-    (txt.includes('song') && txt.includes('play'))
+    (txt.includes('song') && txt.includes('play')) ||
+    // Generic "play a song" / "play me a song" / "play a track"
+    /\bplay\s+(a|me a|me some|some)\s+(song|track)\b/.test(txt) ||
+    // Direct commands: "play a song", "can you play a song", "play something"
+    /\b(can you|could you|will you|would you)?\s*play\s+(a song|a track|something)\b/.test(txt)
   );
   
   return isActualMusicRequest;
