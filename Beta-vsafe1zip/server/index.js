@@ -8046,6 +8046,7 @@ CRISIS OVERRIDE:
     let sessionRotation = null;
     let conversationMeta = null;
     let recentStoredCount = 0;
+    let isMetaMemoryActive = false;
     
     if (effectiveUserId && !isCrisisMode) {
       try {
@@ -8124,6 +8125,7 @@ CRISIS OVERRIDE:
         const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content || '';
         const isMetaMemory = coreMemory.isMetaMemoryQuestion(lastUserMsg);
         const isMemoryFrustration = coreMemory.isMetaMemoryFrustration(lastUserMsg);
+        isMetaMemoryActive = isMetaMemory || isMemoryFrustration;
         if (isMetaMemory) {
           console.log('[CORE MEMORY] Meta-memory question detected — will share details directly');
         }
@@ -8330,6 +8332,11 @@ CRISIS OVERRIDE:
       // Audit log: User pattern correction tracking
       // Per BACKEND_API.md lines 941-944: Track user corrections/disagreements
       const lastUserMessage = messages.filter(m => m.role === 'user').pop()?.content || '';
+      
+      if (!isMetaMemoryActive && lastUserMessage) {
+        isMetaMemoryActive = coreMemory.isMetaMemoryQuestion(lastUserMessage) || coreMemory.isMetaMemoryFrustration(lastUserMessage);
+      }
+      
       const patternCorrectionPhrases = [
         /my peak window isn't/i,
         /that's not my peak/i,
@@ -8907,6 +8914,11 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
         traceIntent.trace_mode_hint = mh;
         console.log(`[MODE_HINT] ${mh} (highArousal=${brainSignals.highArousal}, state=${detected_state})`);
         traceIntent.questionGuard = conversationState.getQuestionCooldown(effectiveUserId);
+        
+        if (isMetaMemoryActive && (traceIntent.mode === 'micro' || traceIntent.mode === 'short')) {
+          console.log(`[META-MEMORY] Overriding mode ${traceIntent.mode} → normal (meta-memory needs full depth)`);
+          traceIntent.mode = 'normal';
+        }
       }
       
       // Persist topic anchor in conversation state for next turn carry-forward
@@ -9793,13 +9805,15 @@ If the right move isn't obvious: one grounded observation about what you notice 
     const isMiniModel = selectedModel.includes('mini');
     const isShortMode = traceIntent?.mode === 'micro' || traceIntent?.mode === 'short';
     const hasExternalData = !!(newsContext || searchContext);
-    const useL3FastPath = !parsed && isMiniModel && !hasExternalData && (
+    const useL3FastPath = !parsed && isMiniModel && !hasExternalData && !isMetaMemoryActive && (
       highArousalStates.includes(detected_state) || isShortMode
     );
     
     if (useL3FastPath) {
       const reason = highArousalStates.includes(detected_state) ? detected_state : `${traceIntent?.mode}_mode`;
       console.log(`[FAST-PATH] Skipping L1 JSON → L3 plain text (reason: ${reason}, model: ${selectedModel})`);
+    } else if (!parsed && isMiniModel && isMetaMemoryActive && isShortMode) {
+      console.log(`[FAST-PATH] BLOCKED — meta-memory question detected, using full L1 path for rich context`);
     } else if (!parsed && isMiniModel && hasExternalData && isShortMode) {
       console.log(`[FAST-PATH] BLOCKED — external data present (news/search), using full L1 path to include context`);
     }
@@ -10650,7 +10664,24 @@ Your complete response:`;
           const l3QLine = (controlQBudget === 0) ? `\nQUESTION RULE: Do NOT ask any questions. Make a statement or observation instead. No "?" in your response.` : '';
           const userEnergyLow = conversationState.classifyUserEnergy(lastUserContent) === 'low';
           const l3EnergyLine = userEnergyLow ? `\nUSER ENERGY: Low. They gave a short/minimal answer. Do NOT keep probing or asking follow-ups. Just acknowledge briefly and leave space. If they seem done with a topic, move on or sit with it.` : '';
-          plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3CompressionLine}${l3DateLine}${l3HolidayLine}${l3ContextLine}${l3NewsLine}${l3SearchLine}${l3WeatherLine}${l3MusicLine}${l3DataInstruction}${l3QLine}${l3EnergyLine}
+          
+          let l3MemoryBlock = '';
+          if (isMetaMemoryActive && coreMemoryContext) {
+            l3MemoryBlock = `\n\nUSER MEMORY — THIS IS A RELATIONSHIP MOMENT:\nThe user is asking what you know about them. DO NOT list facts like a database. Respond like a friend who has been paying attention. Weave what you know into warmth and observation.\n${coreMemoryContext}\nShare these as IMPRESSIONS, not a list. Show you SEE them, not just that you stored data. End with genuine curiosity — "What am I getting wrong?" or "What else should I know?"`;
+            console.log(`[L3 META-MEMORY] Injecting ${coreMemoryContext.length} chars of memory context into L3 fallback`);
+          }
+          
+          if (isMetaMemoryActive) {
+            plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3CompressionLine}${l3DateLine}${l3MemoryBlock}
+
+Recent conversation:
+${recentContext}
+
+User just said: "${lastUserContent}"
+
+This is a relationship moment — they want to know what you remember. Respond like a friend reflecting on the relationship, weaving facts into impressions. Show you SEE them. Do NOT list facts. No JSON, just your warm response:`;
+          } else {
+            plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3CompressionLine}${l3DateLine}${l3HolidayLine}${l3ContextLine}${l3NewsLine}${l3SearchLine}${l3WeatherLine}${l3MusicLine}${l3DataInstruction}${l3QLine}${l3EnergyLine}
 
 Recent conversation:
 ${recentContext}
@@ -10658,9 +10689,10 @@ ${recentContext}
 User just said: "${lastUserContent}"
 
 Continue the conversation naturally. Stay in the same emotional lane — if they're sharing something personal, match that energy. If the user asks about dates, holidays, current events, or news, use the data and facts above — do NOT guess or deflect. 1-3 sentences max. No JSON, just your response:`;
+          }
         }
         
-        const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : (isCrisisMode ? 800 : 600);
+        const l3MaxTokens = (isLongFormRequest || traceIntent?.mode === 'longform') ? 2000 : (isMetaMemoryActive ? 1000 : (isCrisisMode ? 800 : 600));
         const remainingBudgetL3 = TOTAL_TIME_BUDGET_MS - (Date.now() - requestStartTime);
         const l3Timeout = Math.max(5000, Math.min(12000, remainingBudgetL3 - 3000));
         const l3Abort = AbortSignal.timeout(l3Timeout);
