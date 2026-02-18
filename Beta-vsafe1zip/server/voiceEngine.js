@@ -862,7 +862,39 @@ function validateResponse(response, intent, recentHistory = []) {
   if (/how does that make you feel/i.test(corrected)) {
     issues.push('Contains therapist-style question');
   }
-  
+
+  // COHERENCE CHECK: Detect garbled sentences from bad model output
+  // Catches broken preposition+verb junctions ("for is", "to are"), dangling fragments,
+  // and other incoherent grammar the model sometimes produces
+  {
+    const GARBLED_JUNCTIONS = /\b(for|about|from|with|at|by|of|into|onto|through|over|under|between|among|after|before|during|until|since|toward|towards|against|upon|within|without|along|across|behind|beyond|beneath|beside|besides|despite|except|near|past|around|above|below)\s+(is|are|was|were|am|does|did)\b/i;
+    const DOUBLE_SUBJECT = /\b(he|she|it|they|we|you|i)\s+(he|she|it|they|we|you|i)\b/i;
+
+    const sentences = splitSentences(corrected);
+    const coherentSentences = [];
+    let hadGarbled = false;
+
+    for (const s of sentences) {
+      const trimmed = s.trim();
+      if (!trimmed) continue;
+
+      if (GARBLED_JUNCTIONS.test(trimmed) || DOUBLE_SUBJECT.test(trimmed)) {
+        hadGarbled = true;
+        console.log(`[VOICE] ⚠️ GARBLED SENTENCE: "${trimmed}" — stripping`);
+        issues.push(`Garbled sentence detected: "${trimmed.slice(0, 60)}..." — STRIPPING`);
+        continue;
+      }
+
+      coherentSentences.push(trimmed);
+    }
+
+    if (hadGarbled) {
+      corrected = coherentSentences.length > 0
+        ? coherentSentences.join(' ').trim()
+        : generateContextualContinuation(response, recentHistory);
+    }
+  }
+
   return {
     valid: issues.length === 0,
     issues,
