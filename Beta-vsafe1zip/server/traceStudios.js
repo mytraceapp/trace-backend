@@ -518,9 +518,10 @@ function handleTraceStudios({ userText, clientState = {}, userId = "", lastAssis
   }
   
   // Determine if we're in a music context (used for recent-history fallbacks)
-  const inMusicContext = clientState?.mode === 'trace_studios' || clientState?.traceStudiosContext || 
-    lastMsg.includes('track') || lastMsg.includes('song') || lastMsg.includes('music') || 
-    lastMsg.includes('night swim') || lastMsg.includes('listen');
+  const inMusicContext = clientState?.mode === 'trace_studios' || 
+    !!clientState?.traceStudiosContext ||
+    lastMsg.includes('night swim') || 
+    lastMsg.includes('neon promise');
 
   // Check what TRACE just mentioned (includes recent history fallback only in music context)
   const recentMsgsText = (recentAssistantMessages || []).slice(-3).join(' ').toLowerCase();
