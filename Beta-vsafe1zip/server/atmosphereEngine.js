@@ -1005,11 +1005,12 @@ async function evaluateAtmosphere(input) {
     client_sound_state !== finalState &&
     !shouldChange
   ) {
-    if (soundscapeLocked && client_sound_state !== 'presence') {
-      console.log(`[ATMOSPHERE] 🔒 DRIFT SUPPRESSED: server wants "${finalState}" but client is LOCKED in "${client_sound_state}" (${clientTracksPlayed} tracks played). Respecting client lock — sending client state instead.`);
+    const clientInEmotionalState = ['grounding', 'comfort', 'reflective', 'insight'].includes(client_sound_state);
+    if (finalState === 'presence' && clientInEmotionalState) {
+      console.log(`[ATMOSPHERE] 🔒 DRIFT SUPPRESSED: server wants "presence" but client is in emotional state "${client_sound_state}" (locked=${soundscapeLocked}, tracks=${clientTracksPlayed}). Not overriding emotional soundscape with presence.`);
       finalState = client_sound_state;
-    } else if (client_sound_state !== 'presence' && clientTracksPlayed > 0 && clientTracksPlayed < 7) {
-      console.log(`[ATMOSPHERE] 🔒 DRIFT SUPPRESSED: server wants "${finalState}" but client is mid-rotation in "${client_sound_state}" (${clientTracksPlayed}/7 tracks). Sending client state to avoid interruption.`);
+    } else if (soundscapeLocked && client_sound_state !== 'presence') {
+      console.log(`[ATMOSPHERE] 🔒 DRIFT SUPPRESSED: server wants "${finalState}" but client is LOCKED in "${client_sound_state}" (${clientTracksPlayed} tracks). Respecting client lock.`);
       finalState = client_sound_state;
     } else {
       console.log(`[ATMOSPHERE] ⚠️ DRIFT DETECTED: server wants "${finalState}" but client reports "${client_sound_state}" — forcing correction`);

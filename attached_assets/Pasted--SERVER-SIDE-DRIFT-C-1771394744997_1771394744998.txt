@@ -1,0 +1,39 @@
+================================================================================
+SERVER-SIDE DRIFT CORRECTION FIX — atmosphereEngine.js
+================================================================================
+
+PROBLEM:
+The server's drift correction is overriding valid client soundscapes with presence.
+When the client is playing grounding (or another emotional state) and the server's
+atmosphere engine stays in presence, the drift logic sends changed: true with
+current: 'presence', which forces the client back to presence after only a few
+tracks.
+
+ROOT CAUSE:
+The drift correction (around lines 1000–1014) does not respect soundscapeLocked
+and always forces correction when client_sound_state !== finalState. When the
+server wants presence and the client reports grounding/reflective/comfort/insight,
+it incorrectly treats this as drift and overrides the client.
+
+REQUIRED FIX:
+Update the drift correction so it does NOT force presence when:
+1. clientLocked (soundscapeLocked) is true — client is intentionally playing through a soundscape
+2. The client is in a valid emotional state (grounding, comfort, reflective, insight) and the server wants presence — do not override emotional soundscapes with presence
+
+LOGIC:
+- Only correct drift when the server wants a MORE specific state than the client has (e.g. server wants reflective, client has presence — that's a real drift from setupAutoPlay fallback)
+- Do NOT correct when the server wants presence and the client has grounding/comfort/reflective/insight — the client may be legitimately playing through a soundscape the server previously requested
+
+EXAMPLE GUARD (pseudocode):
+if (finalState === 'presence' && client_sound_state && client_sound_state !== 'presence') {
+  const clientInEmotionalState = ['grounding', 'comfort', 'reflective', 'insight'].includes(client_sound_state);
+  if (clientLocked || clientInEmotionalState) {
+    // Skip drift correction — don't override client's emotional state with presence
+    return; // or skip setting driftCorrected = true
+  }
+}
+
+SCOPE:
+- File: atmosphereEngine.js
+- Location: drift correction block (around lines 1000–1014, before final return)
+- Do not change other atmosphere logic, cadence, or state transitions
