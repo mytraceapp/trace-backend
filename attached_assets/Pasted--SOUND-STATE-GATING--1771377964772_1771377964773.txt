@@ -1,0 +1,150 @@
+================================================================================
+SOUND_STATE GATING FIX - mobile/app/(tabs)/chat.tsx
+================================================================================
+
+PROBLEM:
+--------
+presence was treated as a cadence bypass (isPresenceOrNull), so it could be
+processed even when cadence wasn't met. Other soundscapes (comforting, insight,
+grounding) still required cadence. Result: presence could stick when the backend
+wanted to switch to another soundscape.
+
+REQUIREMENTS:
+-------------
+1. presence must be gated like any other soundscape (no bypass)
+2. Only null (stop) bypasses - stopping is always safe
+3. Activation (presence, comforting, etc.): requires page gates + cadence
+4. Stop (null): always process, even when page/cadence gates fail
+5. Logging: [SOUNDSCAPE] prefix, __DEV__ only where specified
+
+FULL DIFF:
+----------
+
+--- a/mobile/app/(tabs)/chat.tsx
++++ b/mobile/app/(tabs)/chat.tsx
+@@ -2741,12 +2741,13 @@
+           // 🎵 AUDIO CADENCE: Check if we're resuming a paused soundscape (bypass cadence)
+           const isResumingSoundscape = getPausedSoundscapeForChat();
+           
+-          // 🎵 CADENCE: presence/null bypass cadence gate (baseline states)
+-          const isPresenceOrNull = res.sound_state.current === 'presence' || res.sound_state.current === null;
+-          const cadenceAllowed = cadenceMet || isResumingSoundscape || isPresenceOrNull;
++          // 🎵 CADENCE: Only null (stop) bypasses. presence is a real soundscape, gated like others.
++          const isStop = res.sound_state.current === null;
++          const cadenceAllowedForActivation = cadenceMet || isResumingSoundscape;
++          const pageGatesPass = isChatFocused && isAppForeground && !isInActivity && !isPlayerActive && !isHardStopped;
++          const shouldProcessSoundState = isStop || (pageGatesPass && cadenceAllowedForActivation);
+           
+           // 🎯 CRITICAL: Only process sound_state when ALL gates pass (fixes: stop music respected when ambient OFF)
+-          // Gate was logging BLOCKED but still processing - now we actually skip when blocked
+           const shouldProcessSoundState =
+             isChatFocused &&
+             isAppForeground &&
+             !isInActivity &&
+             !isPlayerActive &&
+             !isHardStopped &&
+-            cadenceAllowed;
++            (isStop || cadenceAllowedForActivation);
+           
+           // 🎵 DEBUG: Log all gate conditions for troubleshooting
+           console.log('[AUDIO_CADENCE] 🎯 Soundscape check conditions:', {
+@@ -2754,7 +2755,8 @@
+             isPlayerActive,
+             isHardStopped,
+             cadenceMet,
+-            cadenceAllowed,
++            cadenceAllowedForActivation,
++            isStop,
+             isResumingSoundscape,
+             soundStateCurrent: res.sound_state.current,
+             soundStateChanged: res.sound_state.changed,
+@@ -2764,11 +2766,14 @@
+           if (!shouldProcessSoundState) {
+             const blockReason = !isChatFocused ? 'not_chat_focused' :
+               !isAppForeground ? 'app_background' :
+               isInActivity ? 'in_activity' :
+               isPlayerActive ? 'player_active' :
+               isHardStopped ? 'hard_stop' :
+-             !cadenceAllowed ? 'cadence_not_met' : 'unknown';
+-            console.log(`[AUDIO_CADENCE] ❌ BLOCKED reason=${blockReason} - skipping sound_state processing`);
++             (!isStop && !cadenceAllowedForActivation) ? 'cadence_not_met' : 'unknown';
++            if (__DEV__) console.log(`[SOUNDSCAPE] blocked (cadence/page gates) reason=${blockReason}`);
+           } else {
++           if (isStop && !pageGatesPass && __DEV__) {
++             console.log('[SOUNDSCAPE] processing STOP (safe)');
++           }
+             // 🎵 AUDIO CADENCE: Process sound_state (all gates passed)
+             console.log('[AUDIO_CADENCE] ✅ ALLOWED - processing sound_state');
+
+
+NOTE: The diff above has a redundancy - shouldProcessSoundState is computed twice.
+Use this CLEAN version instead:
+
+================================================================================
+CLEAN REPLACEMENT (lines ~2741-2782)
+================================================================================
+
+          // 🎵 AUDIO CADENCE: Check if we're resuming a paused soundscape (bypass cadence)
+          const isResumingSoundscape = getPausedSoundscapeForChat();
+          
+          // 🎵 CADENCE: Only null (stop) bypasses. presence is a real soundscape, gated like others.
+          const isStop = res.sound_state.current === null;
+          const cadenceAllowedForActivation = cadenceMet || isResumingSoundscape;
+          const pageGatesPass = isChatFocused && isAppForeground && !isInActivity && !isPlayerActive && !isHardStopped;
+          const shouldProcessSoundState = isStop || (pageGatesPass && cadenceAllowedForActivation);
+          
+          // 🎵 DEBUG: Log all gate conditions for troubleshooting
+          console.log('[AUDIO_CADENCE] 🎯 Soundscape check conditions:', {
+            isChatFocused,
+            isAppForeground,
+            isInActivity,
+            isPlayerActive,
+            isHardStopped,
+            cadenceMet,
+            cadenceAllowedForActivation,
+            isStop,
+            isResumingSoundscape,
+            soundStateCurrent: res.sound_state.current,
+            soundStateChanged: res.sound_state.changed,
+            shouldProcessSoundState,
+            userCount: clientStateRef.current?.userMessageCount || 0,
+            assistantCount: clientStateRef.current?.assistantMessageCount || 0,
+          });
+          
+          if (!shouldProcessSoundState) {
+            const blockReason = !isChatFocused ? 'not_chat_focused' :
+              !isAppForeground ? 'app_background' :
+              isInActivity ? 'in_activity' :
+              isPlayerActive ? 'player_active' :
+              isHardStopped ? 'hard_stop' :
+              (!isStop && !cadenceAllowedForActivation) ? 'cadence_not_met' : 'unknown';
+            if (__DEV__) console.log(`[SOUNDSCAPE] blocked (cadence/page gates) reason=${blockReason}`);
+          } else {
+            if (isStop && !pageGatesPass && __DEV__) {
+              console.log('[SOUNDSCAPE] processing STOP (safe)');
+            }
+            // 🎵 AUDIO CADENCE: Process sound_state (all gates passed)
+            console.log('[AUDIO_CADENCE] ✅ ALLOWED - processing sound_state');
+            ... rest unchanged ...
+
+
+================================================================================
+LOGIC SUMMARY
+================================================================================
+
+BEFORE:
+  cadenceAllowed = cadenceMet || isResumingSoundscape || (presence || null)
+  → presence and null both bypassed cadence
+  → presence could play when backend wanted something else
+
+AFTER:
+  isStop = (current === null)
+  cadenceAllowedForActivation = cadenceMet || isResumingSoundscape
+  pageGatesPass = chatFocused && appForeground && !inActivity && !playerActive && !hardStopped
+  
+  shouldProcessSoundState = isStop || (pageGatesPass && cadenceAllowedForActivation)
+
+  → null: always processed (stop is safe)
+  → presence, comforting, insight, etc.: need pageGatesPass AND cadenceAllowedForActivation
+
+================================================================================

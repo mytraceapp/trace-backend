@@ -2030,10 +2030,25 @@ export default function ChatScreen() {
       // ===== EMOTIONAL ATMOSPHERE ENGINE: Handle sound_state changes =====
       if (result?.sound_state) {
         console.log('[CHAT] sound_state received:', JSON.stringify(result.sound_state));
-        handleSoundState(result.sound_state);
-        
-        if (result.sound_state.current) {
-          clientStateRef.current.currentSoundState = result.sound_state.current;
+
+        const isStop = result.sound_state.current === null;
+        const isAppForeground = appStateRef.current === 'active';
+        const isPlayerActive = isNightSwimPlaying;
+        const pageGatesPass = isAppForeground && !isPlayerActive;
+        const shouldProcessSoundState = isStop || pageGatesPass;
+
+        if (!shouldProcessSoundState) {
+          const blockReason = !isAppForeground ? 'app_background' :
+            isPlayerActive ? 'player_active' : 'unknown';
+          if (__DEV__) console.log(`[SOUNDSCAPE] blocked reason=${blockReason}`);
+        } else {
+          if (isStop && !pageGatesPass && __DEV__) {
+            console.log('[SOUNDSCAPE] processing STOP (safe)');
+          }
+          handleSoundState(result.sound_state);
+          if (result.sound_state.current) {
+            clientStateRef.current.currentSoundState = result.sound_state.current;
+          }
         }
       }
 
