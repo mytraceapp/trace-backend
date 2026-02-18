@@ -75,6 +75,15 @@ const HEALTH_BAN_PATTERNS = [
   /\b(?:allergies|allergy|asthma|diabetes|infection|virus|disease)\b/i,
   /\b(?:hope you(?:'re| are) feeling better)\b/i,
   /\b(?:take care of yourself)\b/i,
+  /\b(?:emotional\s+well[- ]?being)\b/i,
+  /\b(?:mental\s+health)\b/i,
+  /\b(?:self[- ]?care)\b/i,
+  /\b(?:check\s+in\s+with\s+yourself)\b/i,
+  /\b(?:your\s+well[- ]?being)\b/i,
+  /\b(?:emotional\s+state)\b/i,
+  /\b(?:inner\s+world)\b/i,
+  /\b(?:how(?:'s| is)\s+your\s+heart)\b/i,
+  /\b(?:feeling\s+emotionally)\b/i,
 ];
 
 function extractContentNouns(text) {
