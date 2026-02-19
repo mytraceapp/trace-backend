@@ -1514,6 +1514,30 @@ function sanitizeTone(text, options = {}) {
     }
   }
 
+  // Detect and fix broken clauses within sentences left by pattern removal
+  // E.g., "healing takes time, but you're." → "healing takes time."
+  // E.g., "that's real, and I." → "that's real."
+  if (changed) {
+    const BROKEN_CLAUSE_RE = /,\s*(but|and|or|so|yet|because|although|since|while|if|when|where|though)\s+(you're|i'm|they're|we're|he's|she's|it's|that's|there's|you|i|we|they|he|she|it|your|my|our|their)\s*[.!?]\s*$/i;
+    const BROKEN_CONJ_ONLY_RE = /,\s*(but|and|or|so|yet|because|although|since|while|if|when|where|though)\s*[.!?]\s*$/i;
+    const BROKEN_MID_CLAUSE_RE = /,\s*(but|and|or|so|yet|because|although|since|while|if|when|where|though)\s+(you're|i'm|they're|we're|he's|she's|it's|that's|there's|you|i|we|they|he|she|it|your|my|our|their)\b[^.!?]{0,20}[.!?]/gi;
+    
+    const sentences = result.split(/(?<=[.!?])\s+/);
+    const fixedSentences = [];
+    for (const sent of sentences) {
+      let fixed = sent;
+      if (BROKEN_CLAUSE_RE.test(fixed)) {
+        fixed = fixed.replace(BROKEN_CLAUSE_RE, '.');
+        console.log(`[TONE SANITIZER] Fixed broken clause at end: "${sent}" → "${fixed}"`);
+      } else if (BROKEN_CONJ_ONLY_RE.test(fixed)) {
+        fixed = fixed.replace(BROKEN_CONJ_ONLY_RE, '.');
+        console.log(`[TONE SANITIZER] Fixed broken conjunction at end: "${sent}" → "${fixed}"`);
+      }
+      if (fixed.trim()) fixedSentences.push(fixed.trim());
+    }
+    result = fixedSentences.join(' ');
+  }
+
   // Remove orphaned short fragments (1-2 words ending in period that aren't meaningful sentences)
   // Only applies when patterns actually changed the text (to avoid removing valid short responses)
   if (changed) {
@@ -1558,34 +1582,37 @@ function sanitizeTone(text, options = {}) {
   }
 
   // Fix sentences ending with dangling words left behind by pattern removal
-  // e.g., "especially thinking about still." → sentence is incomplete
-  // Only triggers when sanitizeTone actually modified the text (changed=true)
+  // Catches: prepositions ("about."), articles/conjunctions ("but."), contractions ("you're."),
+  // conjunction+pronoun ("but you."), preposition+modifier ("about still.")
   if (changed) {
-    const DANGLING_PREPOSITION = /\b(about|for|with|to|from|into|onto|upon|toward|towards|through|between|among|against|without|within|during|before|after|above|below|under|over|around|behind|beside|near)\s*[.!?]\s*$/i;
-    const DANGLING_ARTICLE_CONJ = /\b(the|a|an|and|or|but|nor|because|although|since|while|if|unless|until|whether)\s*[.!?]\s*$/i;
-    const DANGLING_PREP_PLUS_MODIFIER = /\b(about|for|with|to|from|through)\s+(still|really|even|just|also|especially|particularly|actually|basically|definitely|probably|maybe|certainly)\s*[.!?]?\s*$/i;
-    
-    const hasDangling = DANGLING_PREPOSITION.test(result) || DANGLING_ARTICLE_CONJ.test(result) || DANGLING_PREP_PLUS_MODIFIER.test(result);
-    if (hasDangling) {
+    const DANGLING_PATTERNS = [
+      /\b(about|for|with|to|from|into|onto|upon|toward|towards|through|between|among|against|without|within|during|before|after|above|below|under|over|around|behind|beside|near)\s*[.!?]\s*$/i,
+      /\b(the|a|an|and|or|but|nor|because|although|since|while|if|unless|until|whether)\s*[.!?]\s*$/i,
+      /\b(you're|i'm|they're|we're|he's|she's|it's|that's|there's|who's|what's|i've|you've|we've|they've|i'll|you'll|we'll|they'll|i'd|you'd|we'd|they'd|wouldn't|couldn't|shouldn't|won't|can't|isn't|aren't|wasn't|weren't|doesn't|don't|didn't|hasn't|haven't|hadn't)\s*[.!?]\s*$/i,
+      /\b(but|and|or|so|yet|because|although|since|while|if|when|where)\s+(you|i|we|they|he|she|it|you're|i'm|they're|we're|he's|she's|it's|that's|there|your|my|our|their|his|her|its)\s*[.!?]\s*$/i,
+      /\b(about|for|with|to|from|through)\s+(still|really|even|just|also|especially|particularly|actually|basically|definitely|probably|maybe|certainly)\s*[.!?]?\s*$/i,
+    ];
+
+    const isDangling = (text) => DANGLING_PATTERNS.some(p => p.test(text));
+
+    if (isDangling(result)) {
       const sentences = result.split(/(?<=[.!?])\s+/);
       if (sentences.length > 1) {
-        const lastSent = sentences[sentences.length - 1];
-        if (DANGLING_PREPOSITION.test(lastSent) || DANGLING_ARTICLE_CONJ.test(lastSent) || DANGLING_PREP_PLUS_MODIFIER.test(lastSent)) {
-          const danglingMatch = lastSent.match(DANGLING_PREP_PLUS_MODIFIER) || lastSent.match(DANGLING_PREPOSITION) || lastSent.match(DANGLING_ARTICLE_CONJ);
-          console.log(`[TONE SANITIZER] Removed dangling sentence ending with "${danglingMatch?.[0]?.trim()}"`);
-          result = sentences.slice(0, -1).join(' ').trim();
+        let kept = [...sentences];
+        while (kept.length > 1 && isDangling(kept[kept.length - 1])) {
+          const removed = kept.pop();
+          console.log(`[TONE SANITIZER] Removed dangling sentence: "${removed}"`);
         }
+        result = kept.join(' ').trim();
       } else {
         let cleaned = result;
         let passes = 0;
-        while (passes < 3) {
+        while (passes < 4) {
           const before = cleaned;
-          cleaned = cleaned
-            .replace(DANGLING_PREP_PLUS_MODIFIER, '.')
-            .replace(DANGLING_PREPOSITION, '.')
-            .replace(DANGLING_ARTICLE_CONJ, '.')
-            .replace(/\.\s*\./g, '.')
-            .trim();
+          for (const p of DANGLING_PATTERNS) {
+            cleaned = cleaned.replace(p, '.');
+          }
+          cleaned = cleaned.replace(/\.\s*\./g, '.').trim();
           if (cleaned === before) break;
           passes++;
         }

@@ -151,6 +151,10 @@ const FORBIDDEN_PATTERNS = [
   "what's one thing",
   "what's one gentle thing",
   "what's one small thing",
+  "healing takes time",
+  "you're on your way",
+  "you're stronger than",
+  "time heals",
 ];
 
 function includesAny(text, phrases) {

@@ -2783,7 +2783,7 @@ const TIER2_COOLDOWN_MS = 240000;
  * GPT-5+ models use max_completion_tokens, older models use max_tokens
  * GPT-5-mini doesn't support custom temperature
  */
-const OPENAI_MAX_TOKENS_CAP = parseInt(process.env.MAX_TOKENS_PER_REQUEST, 10) || 800;
+const OPENAI_MAX_TOKENS_CAP = parseInt(process.env.MAX_TOKENS_PER_REQUEST, 10) || 1200;
 
 function getTokenParams(model, limit = 500) {
   const cappedLimit = Math.min(limit, OPENAI_MAX_TOKENS_CAP);
