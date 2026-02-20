@@ -5205,26 +5205,33 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     // Returns factual handle without relying on AI prompt compliance
     // ============================================================
     if (!isEarlyCrisisMode) {
-      const SOCIAL_HANDLES = {
-        instagram: '@traceriapp',
-        tiktok: '@traceriapp',
-        twitter: '@traceriapp',
-        x: '@traceriapp',
-      };
-      
-      const INSTA_RE = /\b(?:instagram|insta|ig)\b/i;
+      const SOCIAL_PLATFORM_RE = /\b(?:instagram|insta|ig|tiktok|tik\s*tok|tt|twitter|x\.com|youtube|yt|you\s*tube|socials?|social\s*media)\b/i;
+      const INSTA_RE = /\b(?:instagram|insta\b|ig\b)\b/i;
       const TIKTOK_RE = /\b(?:tiktok|tik\s*tok|tt)\b/i;
       const TWITTER_RE = /\b(?:twitter|x\.com)\b/i;
-      const X_ONLY_RE = /\b(?:on\s+x|your\s+x|have\s+x|x\s+account|x\s+handle|what(?:'s| is)\s+your\s+x)\b/i;
+      const X_ONLY_RE = /\b(?:on\s+x\b|your\s+x\b|have\s+x\b|x\s+account|x\s+handle|what(?:'s| is)\s+your\s+x\b)\b/i;
       const YOUTUBE_RE = /\b(?:youtube|yt|you\s*tube)\b/i;
       const SPOTIFY_SOCIAL_RE = /\b(?:spotify)\b.*\b(?:account|handle|profile|follow|link|url|page)\b/i;
       const ALL_SOCIALS_RE = /\b(?:socials|social\s*media|where\s+(?:can\s+)?(?:i|we)\s+(?:find|follow|connect|reach)\s+you|your\s+(?:socials|social\s*media|accounts|handles|pages))\b/i;
       const ASKING_RE = /\b(?:do\s+you\s+have|what(?:'s| is)\s+your|give\s+me\s+your|share\s+your|got\s+(?:a|an)?|where(?:'s| is)\s+your|are\s+you\s+on|can\s+i\s+(?:find|follow))\b/i;
       const SHARE_WORK_RE = /\b(?:where\s+(?:do\s+you|can\s+i)\s+(?:share|find|see)\s+your\s+(?:work|art|music|stuff|content|posts))\b/i;
       
+      const WRONG_DENIAL_RE = /\b(?:i\s+don'?t\s+have\s+(?:an?\s+)?(?:instagram|insta|ig|tiktok|twitter|social\s*media|socials)|don'?t\s+vibe\s+with\s+social\s*media|i'?m\s+not\s+(?:on|into)\s+(?:social\s*media|instagram|insta|ig|tiktok|twitter))\b/i;
+      
+      const recentHistory = (rawMessages || []).slice(-10);
+      const hasPriorSocialDenial = recentHistory.some(m => 
+        m.role === 'assistant' && WRONG_DENIAL_RE.test((m.content || '').toLowerCase())
+      );
+      const recentSocialContext = recentHistory.some(m =>
+        SOCIAL_PLATFORM_RE.test((m.content || '').toLowerCase())
+      );
+      
       let socialResponse = null;
       
-      if (ALL_SOCIALS_RE.test(userMessageLower) || SHARE_WORK_RE.test(userMessageLower)) {
+      if (hasPriorSocialDenial) {
+        socialResponse = "wait, actually — I do have socials. @traceriapp on Instagram, TikTok, and X. my bad on that earlier.";
+        console.log('[SOCIAL INTERCEPT] Correcting prior wrong denial in conversation history');
+      } else if (ALL_SOCIALS_RE.test(userMessageLower) || SHARE_WORK_RE.test(userMessageLower)) {
         socialResponse = "yeah — @traceriapp on Instagram, TikTok, and X. no YouTube yet, but it's coming.";
       } else if (INSTA_RE.test(userMessageLower) && (ASKING_RE.test(userMessageLower) || userMessageLower.length < 40)) {
         socialResponse = "yeah, @traceriapp on Instagram.";
@@ -5236,6 +5243,9 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         socialResponse = "not yet — no official YouTube channel right now. but it's on the list.";
       } else if (SPOTIFY_SOCIAL_RE.test(userMessageLower)) {
         socialResponse = "my music lives in the app for now. public Spotify links coming soon.";
+      } else if (recentSocialContext && /\b(?:how\s*come|why\s*not|really|but\s*why|seriously|for\s*real|you\s*sure|come\s*on|liar|lying|cap)\b/i.test(userMessageLower)) {
+        socialResponse = "actually yeah, I do — @traceriapp on Instagram, TikTok, and X. sorry about the mix-up.";
+        console.log('[SOCIAL INTERCEPT] Follow-up challenge in social context detected');
       }
       
       if (socialResponse) {
