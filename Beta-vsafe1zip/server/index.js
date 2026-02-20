@@ -5228,7 +5228,11 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       
       let socialResponse = null;
       
-      if (hasPriorSocialDenial) {
+      const currentMsgMentionsSocial = SOCIAL_PLATFORM_RE.test(userMessageLower) || 
+        ASKING_RE.test(userMessageLower) && recentSocialContext ||
+        /\b(?:how\s*come|why\s*not|really|but\s*why|seriously|for\s*real|you\s*sure|come\s*on|liar|lying|cap)\b/i.test(userMessageLower) && recentSocialContext;
+      
+      if (hasPriorSocialDenial && currentMsgMentionsSocial) {
         socialResponse = "wait, actually — I do have socials. @traceriapp on Instagram, TikTok, and X. my bad on that earlier.";
         console.log('[SOCIAL INTERCEPT] Correcting prior wrong denial in conversation history');
       } else if (ALL_SOCIALS_RE.test(userMessageLower) || SHARE_WORK_RE.test(userMessageLower)) {
