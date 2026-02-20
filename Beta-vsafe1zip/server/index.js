@@ -5200,6 +5200,55 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     }
     
     // ============================================================
+    // SOCIAL MEDIA INTERCEPTOR: Deterministic early return
+    // Catches all variations of "do you have instagram/ig/insta/tiktok/twitter/x/socials"
+    // Returns factual handle without relying on AI prompt compliance
+    // ============================================================
+    if (!isEarlyCrisisMode) {
+      const SOCIAL_HANDLES = {
+        instagram: '@traceriapp',
+        tiktok: '@traceriapp',
+        twitter: '@traceriapp',
+        x: '@traceriapp',
+      };
+      
+      const INSTA_RE = /\b(?:instagram|insta|ig)\b/i;
+      const TIKTOK_RE = /\b(?:tiktok|tik\s*tok|tt)\b/i;
+      const TWITTER_RE = /\b(?:twitter|x\.com)\b/i;
+      const X_ONLY_RE = /\b(?:on\s+x|your\s+x|have\s+x|x\s+account|x\s+handle|what(?:'s| is)\s+your\s+x)\b/i;
+      const YOUTUBE_RE = /\b(?:youtube|yt|you\s*tube)\b/i;
+      const SPOTIFY_SOCIAL_RE = /\b(?:spotify)\b.*\b(?:account|handle|profile|follow|link|url|page)\b/i;
+      const ALL_SOCIALS_RE = /\b(?:socials|social\s*media|where\s+(?:can\s+)?(?:i|we)\s+(?:find|follow|connect|reach)\s+you|your\s+(?:socials|social\s*media|accounts|handles|pages))\b/i;
+      const ASKING_RE = /\b(?:do\s+you\s+have|what(?:'s| is)\s+your|give\s+me\s+your|share\s+your|got\s+(?:a|an)?|where(?:'s| is)\s+your|are\s+you\s+on|can\s+i\s+(?:find|follow))\b/i;
+      const SHARE_WORK_RE = /\b(?:where\s+(?:do\s+you|can\s+i)\s+(?:share|find|see)\s+your\s+(?:work|art|music|stuff|content|posts))\b/i;
+      
+      let socialResponse = null;
+      
+      if (ALL_SOCIALS_RE.test(userMessageLower) || SHARE_WORK_RE.test(userMessageLower)) {
+        socialResponse = "yeah — @traceriapp on Instagram, TikTok, and X. no YouTube yet, but it's coming.";
+      } else if (INSTA_RE.test(userMessageLower) && (ASKING_RE.test(userMessageLower) || userMessageLower.length < 40)) {
+        socialResponse = "yeah, @traceriapp on Instagram.";
+      } else if (TIKTOK_RE.test(userMessageLower) && (ASKING_RE.test(userMessageLower) || userMessageLower.length < 40)) {
+        socialResponse = "yeah, @traceriapp on TikTok.";
+      } else if ((TWITTER_RE.test(userMessageLower) || X_ONLY_RE.test(userMessageLower)) && (ASKING_RE.test(userMessageLower) || userMessageLower.length < 40)) {
+        socialResponse = "yeah, @traceriapp on X.";
+      } else if (YOUTUBE_RE.test(userMessageLower) && (ASKING_RE.test(userMessageLower) || userMessageLower.length < 40)) {
+        socialResponse = "not yet — no official YouTube channel right now. but it's on the list.";
+      } else if (SPOTIFY_SOCIAL_RE.test(userMessageLower)) {
+        socialResponse = "my music lives in the app for now. public Spotify links coming soon.";
+      }
+      
+      if (socialResponse) {
+        console.log('[SOCIAL INTERCEPT] Matched social media question:', userMessageLower.slice(0, 60));
+        return finalizeTraceResponse(res, {
+          message: socialResponse,
+          response_source: 'social_intercept',
+          _provenance: { path: 'social_media_intercept', requestId, ts: Date.now() }
+        }, requestId);
+      }
+    }
+    
+    // ============================================================
     // 🧠 COGNITIVE ENGINE: Pre-process intent before response generation
     // Detects topic shifts, gates scripts, maintains context continuity
     // ============================================================
