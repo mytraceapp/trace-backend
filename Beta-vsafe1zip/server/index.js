@@ -7352,6 +7352,62 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     // Check if user is re-greeting mid-conversation (hi/hello/hey after substantive exchange)
     const isReGreeting = /^(hi|hello|hey|yo|sup|heya|hiya|heyy|hii)$/i.test((lastUserMsg?.content || '').trim());
     
+    // ============================================================
+    // EMOTIONAL CONTEXT CHECK-IN INTERCEPTOR
+    // When TRACE was just providing emotional support / grounding / coping advice
+    // and the user sends a brief ack ("thanks", "ok", "uhm", "hey"),
+    // TRACE should check in warmly instead of dismissing with "I'm around"
+    // ============================================================
+    const EMOTIONAL_SUPPORT_RE = /\b(?:breath(?:e|ing|s)|ground(?:ing|ed)|calm|anxious|anxiety|stressed|stress(?:ed|ful)?|overwhelm(?:ed|ing)?|panic(?:king)?|cry(?:ing)?|scared|afraid|lonely|alone|sad(?:ness)?|depress(?:ed|ion)?|hurt(?:ing|s)?|struggle|struggling|tough|hard\s+time|rough\s+(?:day|night|week|time)|not\s+(?:okay|ok|doing\s+well|feeling\s+(?:good|great|well))|feel(?:ing)?\s+(?:low|down|off|bad|terrible|awful|lost|empty|numb|heavy))\b/i;
+    const GROUNDING_EXERCISE_RE = /\b(?:hand\s+on\s+(?:your\s+)?(?:chest|stomach|heart)|close\s+your\s+eyes|deep\s+breath|inhale|exhale|notice\s+(?:the|your)|body\s+scan|count\s+to|5[\s-]*4[\s-]*3[\s-]*2[\s-]*1|safe\s+(?:space|place)|let\s+(?:it|that)\s+(?:go|out)|sit\s+with\s+(?:it|that|this)|take\s+a\s+moment|one\s+thing\s+(?:you\s+can\s+)?(?:see|hear|feel|smell|taste))\b/i;
+    const COPING_ADVICE_RE = /\b(?:try\s+(?:this|that)|here'?s\s+(?:something|what)|when\s+(?:things|it|everything)\s+(?:feel|get)s?\s+(?:like|too)|it'?s\s+okay\s+to|you\s+don'?t\s+have\s+to|one\s+step|just\s+for\s+now|right\s+now\s+in\s+this\s+moment)\b/i;
+    
+    const BRIEF_ACK_RE = /^(?:thanks?|thanksss*|thank\s*(?:you|u)|thx|ty|ok(?:ay)?|k|uhm+|umm+|hmm+|hm+|ah+|oh+|hey+|hi+|yeah+|yea+|ya+|mhm+|mm+|alright|aight|cool|bet|word|got\s*it|i\s*see|that\s*means\s*a?\s*lot|means\s*a\s*lot|appreciate\s*(?:it|that|you)|i\s*needed\s*(?:that|this))$/i;
+    
+    const WARM_CHECKINS = [
+      "you okay?",
+      "did that help at all?",
+      "how you feeling now?",
+      "you good?",
+      "that land okay?",
+      "sitting alright with you?",
+      "you doing okay?",
+      "any better?",
+      "how's it sitting now?",
+      "feeling any different?",
+    ];
+    
+    if (lastUserMsg?.content && BRIEF_ACK_RE.test(lastUserMsg.content.trim())) {
+      const recentAssistantMsgs = messages.filter(m => m.role === 'assistant').slice(-3);
+      const recentUserMsgsForCtx = messages.filter(m => m.role === 'user').slice(-4, -1);
+      
+      const traceWasSupporting = recentAssistantMsgs.some(m => {
+        const txt = (m.content || '').toLowerCase();
+        return EMOTIONAL_SUPPORT_RE.test(txt) || GROUNDING_EXERCISE_RE.test(txt) || COPING_ADVICE_RE.test(txt);
+      });
+      const userWasStrugging = recentUserMsgsForCtx.some(m => {
+        const txt = (m.content || '').toLowerCase();
+        return EMOTIONAL_SUPPORT_RE.test(txt);
+      });
+      
+      if (traceWasSupporting || userWasStrugging) {
+        const checkinMsg = WARM_CHECKINS[Math.floor(Math.random() * WARM_CHECKINS.length)];
+        console.log('[EMOTIONAL CHECKIN] Brief ack after emotional support — checking in:', checkinMsg);
+        const checkinResponse = normalizeChatResponse({
+          message: checkinMsg,
+          activity_suggestion: { name: null, reason: null, should_navigate: false },
+        }, requestId);
+        storeDedupResponse(dedupKey, checkinResponse);
+        return finalizeTraceResponse(res, {
+          ...checkinResponse,
+          deduped: false,
+          sound_state: getAtmosphereSoundState(),
+          response_source: 'model',
+          _provenance: { path: 'emotional_checkin_intercept', requestId, ts: Date.now() }
+        }, requestId);
+      }
+    }
+    
     if (lastUserMsg?.content && isLightClosureMessage(lastUserMsg.content) && !traceJustAskedQuestion && !hasSubstantiveConversation && !isReGreeting) {
       console.log('[TRACE CHAT] Light closure detected (no prior context), sending short ack');
       const closureResponse = normalizeChatResponse({
