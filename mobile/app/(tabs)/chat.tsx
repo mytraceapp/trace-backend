@@ -2003,6 +2003,36 @@ export default function ChatScreen() {
         };
 
         addMessage(assistantMessage);
+        
+        if (result?.truncated && !result?.isCrisisMode) {
+          console.log('[CONTINUE] Response was truncated, auto-requesting continuation...');
+          try {
+            await new Promise(resolve => setTimeout(resolve, 600));
+            const contResult = await apiFetch('/api/chat/continue', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                truncatedText: assistantText,
+                userMessage: trimmed,
+                userId: currentUserId,
+              }),
+            });
+            const contData = await contResult.json();
+            if (contData?.ok && contData?.continuation) {
+              console.log('[CONTINUE] Got continuation:', contData.continuation.substring(0, 60));
+              const contMessage: ChatMessage = {
+                id: `local-assistant-cont-${Date.now()}`,
+                role: 'assistant',
+                content: contData.continuation,
+              };
+              addMessage(contMessage);
+            } else {
+              console.log('[CONTINUE] No continuation needed');
+            }
+          } catch (contErr) {
+            console.warn('[CONTINUE] Auto-continuation failed:', contErr);
+          }
+        }
       }
 
       // Handle crisis resources (dial 988 or contact)

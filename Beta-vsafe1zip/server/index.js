@@ -10508,8 +10508,15 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
           try {
             const truncParse = JSON.parse(rawContent);
             if (truncParse.message && truncParse.message.trim().length > 10) {
+              const originalMsg = truncParse.message;
+              const salvaged = salvageTruncatedText(truncParse.message);
+              if (salvaged) {
+                truncParse.message = salvaged;
+              }
+              truncParse._truncated = true;
+              truncParse._truncated_original = originalMsg;
               parsed = truncParse;
-              console.log('[TRACE OPENAI L1] Accepted truncated JSON response (valid message found)');
+              console.log('[TRACE OPENAI L1] Accepted truncated JSON response (valid message found, salvaged:', !!salvaged, ')');
               break;
             }
           } catch (e) {
@@ -10523,8 +10530,8 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
                 }
               }
               if (extractedMsg.length > 10) {
-                parsed = { message: extractedMsg };
-                console.log(`[TRACE OPENAI L1] Extracted message from truncated JSON (${extractedMsg.length} chars)`);
+                parsed = { message: extractedMsg, _truncated: true };
+                console.log(`[TRACE OPENAI L1] Extracted message from truncated JSON (${extractedMsg.length} chars, flagged truncated)`);
                 break;
               }
             }
@@ -10910,17 +10917,27 @@ Continue the conversation naturally. Stay in the same emotional lane — if they
         
         let plainText = response.choices[0]?.message?.content?.trim() || '';
         const l3FinishReason = response.choices[0]?.finish_reason;
-        if (l3FinishReason === 'length' && !isSentenceComplete(plainText)) {
-          if (isCrisisMode) {
-            const salvaged = salvageTruncatedText(plainText);
-            if (salvaged) {
-              plainText = salvaged;
-              console.log('[TRACE OPENAI L3] Crisis mode — salvaged truncated text (never discard safety messaging)');
+        let l3WasTruncated = false;
+        if (l3FinishReason === 'length') {
+          l3WasTruncated = true;
+          if (!isSentenceComplete(plainText)) {
+            if (isCrisisMode) {
+              const salvaged = salvageTruncatedText(plainText);
+              if (salvaged) {
+                plainText = salvaged;
+                console.log('[TRACE OPENAI L3] Crisis mode — salvaged truncated text (never discard safety messaging)');
+              } else {
+                console.warn('[TRACE OPENAI L3] Crisis mode — truncated and unsalvageable, falling through to L4');
+              }
             } else {
-              console.warn('[TRACE OPENAI L3] Crisis mode — truncated and unsalvageable, falling through to L4');
+              const salvaged = salvageTruncatedText(plainText);
+              if (salvaged && salvaged.length > 5) {
+                plainText = salvaged;
+                console.log('[TRACE OPENAI L3] Salvaged truncated text, flagging for auto-continue');
+              } else {
+                console.warn('[TRACE OPENAI L3] Plain text truncated (finish_reason=length), falling through to L4');
+              }
             }
-          } else {
-            console.warn('[TRACE OPENAI L3] Plain text truncated (finish_reason=length), falling through to L4');
           }
         }
         if (plainText.length > 5) {
@@ -10929,9 +10946,10 @@ Continue the conversation naturally. Stay in the same emotional lane — if they
           }
           parsed = {
             message: plainText,
-            activity_suggestion: { name: null, reason: null, should_navigate: false }
+            activity_suggestion: { name: null, reason: null, should_navigate: false },
+            _truncated: l3WasTruncated,
           };
-          console.log(`[TRACE OPENAI L3] Success with plain text${isCrisisMode ? ' (crisis - no sanitize)' : ' (sanitized)'}`);
+          console.log(`[TRACE OPENAI L3] Success with plain text${isCrisisMode ? ' (crisis - no sanitize)' : ' (sanitized)'}${l3WasTruncated ? ' (truncated, flagged)' : ''}`);
         }
       } catch (err) {
         console.error('[TRACE OPENAI L3] Error:', err.message);
@@ -12737,6 +12755,12 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     // Always return crisis mode status so client can persist and respect it
     response.isCrisisMode = isCrisisMode;
     
+    // Propagate truncation flag so client can auto-continue
+    if (parsed._truncated) {
+      response.truncated = true;
+      console.log('[TRUNCATION] Response was truncated by token limit — flagging for client auto-continue');
+    }
+    
     // ===== AUTONOMY ENFORCEMENT POST-PROCESSING GUARD =====
     // Catch and rewrite any directive patterns that slipped through prompt-level enforcement
     response.message = enforceAutonomyGuard(response.message);
@@ -13249,6 +13273,69 @@ app.get('/api/debug/openai-last', (req, res) => {
     ok: true,
     lastOpenAI: lastCall,
   });
+});
+
+// ==================== CHAT CONTINUE (Auto-continuation for truncated responses) ====================
+// When a response was truncated (finish_reason=length), the client auto-sends here
+// to get the rest of the thought. Uses a lightweight prompt to finish naturally.
+app.post('/api/chat/continue', optionalAuth, async (req, res) => {
+  const requestId = `cont-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    const { truncatedText, userMessage, userId: rawUserId } = req.body || {};
+    
+    if (!truncatedText || typeof truncatedText !== 'string' || truncatedText.length < 5) {
+      return res.status(400).json({ ok: false, error: 'Missing truncatedText' });
+    }
+    
+    let effectiveUserId = rawUserId ? normalizeUserId(rawUserId) : null;
+    if (!effectiveUserId) {
+      const { user } = await getUserFromAuthHeader(req);
+      if (user?.id) effectiveUserId = user.id;
+    }
+    
+    console.log(`[CONTINUE] Generating continuation for truncated response (${truncatedText.length} chars)`);
+    
+    const continuePrompt = `You are TRACE, a grounded friend. You were mid-thought when your previous message got cut short. Here is what you already said:\n\n"${truncatedText}"\n\nThe user's message was: "${userMessage || ''}"\n\nNow finish your thought naturally. Do NOT repeat what you already said. Just continue from where you left off — a sentence or two max. Stay grounded, no therapy-speak. If the previous message already felt complete, just add one brief closing thought.`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: continuePrompt }
+      ],
+      max_tokens: 300,
+      temperature: 0.7,
+    });
+    
+    let continuationText = (response.choices[0]?.message?.content || '').trim();
+    const contFinish = response.choices[0]?.finish_reason;
+    
+    if (!continuationText || continuationText.length < 3) {
+      console.log('[CONTINUE] Empty continuation, skipping');
+      return res.json({ ok: true, continuation: null });
+    }
+    
+    if (contFinish === 'length' && !isSentenceComplete(continuationText)) {
+      const salvaged = salvageTruncatedText(continuationText);
+      if (salvaged) continuationText = salvaged;
+    }
+    
+    continuationText = sanitizeTone(continuationText, { userId: effectiveUserId, isCrisisMode: false, turnCount: 0 });
+    
+    if (!continuationText || continuationText.trim().length < 3) {
+      return res.json({ ok: true, continuation: null });
+    }
+    
+    console.log(`[CONTINUE] Generated continuation: "${continuationText.substring(0, 80)}..."`);
+    
+    return res.json({
+      ok: true,
+      continuation: continuationText,
+      request_id: requestId,
+    });
+  } catch (err) {
+    console.error('[CONTINUE] Error:', err.message);
+    return res.json({ ok: true, continuation: null });
+  }
 });
 
 // ==================== CHAT BOOTSTRAP (Instant Onboarding Intro) ====================

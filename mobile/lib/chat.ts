@@ -164,6 +164,7 @@ export async function sendChatMessage({ messages, userName, chatStyle, localTime
       messages: data.messages || null,
       isCrisisMultiMessage: data.isCrisisMultiMessage || false,
       isCrisisMode: data.isCrisisMode || false,
+      truncated: data.truncated || false,
       activity_suggestion: activitySuggestion,
       pattern_metadata: patternMetadata,
       traceStudios,
