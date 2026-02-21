@@ -8590,6 +8590,7 @@ CRISIS OVERRIDE:
       console.log('[TRACE CRISIS] Using crisis system prompt with temperature 0.4, country:', userCountry || 'unknown');
     } else {
       // Legacy mode: full personality with all context
+      console.log(`[NAME_SYNC] displayName=${displayName || '(none)'} profileLoaded=${!!userProfile} effectiveUser=${effectiveUserId?.slice(0, 8)}`);
       systemPrompt = buildTraceSystemPrompt({
         displayName: displayName || null,
         contextSnapshot: fullContext || null,
@@ -8671,6 +8672,7 @@ CRITICAL - CONVERSATION CONTINUITY:
 - Do NOT start responses with generic greetings like "Hi", "Hey there", "Hello", "How are you today?"
 - Respond as if you've already said hello and are in the middle of a conversation.
 - Focus on answering or gently reflecting on the user's latest message.
+${displayName ? `\nNAME LOCK (NON-NEGOTIABLE): This user's name is ${displayName.split(' ')[0]}. You already know this. Do NOT ask for their name. Do NOT say "what's your name?" or "what should I call you?" — ever. You know them.` : ''}
 ${isGreetingResponse && greetingText ? `
 GREETING RESPONSE CONTEXT:
 The user is responding directly to your opening greeting: "${greetingText}"
@@ -9751,6 +9753,20 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
         activeRun: activeRunForPrompt,
         convoStage: convoStageForPrompt,
       });
+
+      if (displayName) {
+        const fn = displayName.split(' ')[0];
+        systemPrompt += `\n\nUSER IDENTITY (CRITICAL — NON-NEGOTIABLE):
+You already know this person. Their name is ${fn}. You learned it earlier — this is not new information.
+- NEVER ask "what's your name?" or "what should I call you?" — you ALREADY KNOW.
+- If they ask "do you know my name?" answer YES and say their name: ${fn}.
+- Use their name naturally and sparingly (about 1 in 8 messages).`;
+        console.log(`[NAME_SYNC_V2] Injected name into V2 prompt: ${fn}`);
+      } else {
+        systemPrompt += `\n\nUSER IDENTITY:
+You don't know this person's name yet. When it feels natural (not forced), you can ask warmly — "what should I call you?" But don't lead with it. Let the conversation breathe first.`;
+        console.log('[NAME_SYNC_V2] No name available — injected ask-warmly instruction');
+      }
 
       if (fullContext) {
         systemPrompt += '\n\n' + fullContext;
