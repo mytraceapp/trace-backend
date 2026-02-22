@@ -8509,7 +8509,11 @@ CRISIS OVERRIDE:
         if (memContext) {
           coreMemoryContext = memContext;
           contextParts.push(memContext);
-          console.log('[CORE MEMORY] Injected memory context, session rotated:', sessionRotation?.rotated);
+          const factCount = (memContext.match(/- About them:/g) || []).length;
+          const goalCount = (memContext.match(/- Their goals:/g) || []).length;
+          const themeCount = (memContext.match(/- Recurring themes:/g) || []).length;
+          const impressionPresent = memContext.includes('YOUR IMPRESSION');
+          console.log(`[MEMORY_INJECT] Core memory: facts=${factCount > 0} goals=${goalCount > 0} themes=${themeCount > 0} impression=${impressionPresent} session_rotated=${sessionRotation?.rotated} chars=${memContext.length}`);
         }
 
         if (isMemoryFrustration) {
@@ -8565,7 +8569,7 @@ CRISIS OVERRIDE:
       console.log('[CHAT_DEBUG] Last 3 message roles:', last3.map(m => m.role));
     }
     
-    const fullContext = contextParts.filter(Boolean).join('\n\n');
+    let fullContext = contextParts.filter(Boolean).join('\n\n');
 
     // Check for hydration moment and optionally add hint
     let { messages: messagesWithHydration, hasHydrationHint } = maybeAddHydrationHint({ messages });
@@ -10396,8 +10400,9 @@ If the right move isn't obvious: one grounded observation about what you notice 
         injectedAnchorPeople = [...resolvedPeople];
         relationalAnchors = relationalMemory.buildRelationalAnchors(resolvedPeople);
         if (relationalAnchors) {
-          systemPrompt += '\n\n' + relationalAnchors;
-          console.log(`[RELATIONAL MEMORY] Injected ${resolvedPeople.length} anchors`);
+          contextParts.push(relationalAnchors);
+          const anchorSummary = resolvedPeople.map(p => `User's ${p.relationship}: ${p.display_name}`).join(', ');
+          console.log(`[MEMORY_INJECT] Relational anchors (${resolvedPeople.length}): ${anchorSummary}`);
         }
 
         // Phase 2: Pronoun hint injection
@@ -10447,8 +10452,9 @@ If the right move isn't obvious: one grounded observation about what you notice 
         
         topicContextPrompt = topicMemory.buildTopicContextPrompt(activeTopics, recentTopics);
         if (topicContextPrompt) {
-          systemPrompt += '\n' + topicContextPrompt;
-          console.log(`[TOPIC_MEMORY] Injected: ${activeTopics.length} active, ${recentTopics.length} cross-session`);
+          contextParts.push(topicContextPrompt);
+          const topicNames = [...activeTopics.map(t => t.topic), ...recentTopics.map(t => t.topic)].slice(0, 5);
+          console.log(`[MEMORY_INJECT] Topics (${activeTopics.length} active, ${recentTopics.length} cross-session): ${topicNames.join(', ') || '(none)'}`);
         }
       }
     } catch (topicErr) {
@@ -10469,6 +10475,31 @@ If the right move isn't obvious: one grounded observation about what you notice 
       }
     } catch (emoErr) {
       console.warn('[EMOTIONAL_CARRYOVER] Error (continuing without):', emoErr.message);
+    }
+
+    // ============================================================
+    // MEMORY_INJECT SUMMARY: What the AI sees this turn
+    // ============================================================
+    {
+      const injectParts = [];
+      if (coreMemoryContext) injectParts.push(`core_memory(${coreMemoryContext.length}ch)`);
+      if (relationalAnchors) injectParts.push(`relational_anchors(${injectedAnchorPeople.length})`);
+      if (topicContextPrompt) injectParts.push(`topics`);
+      if (returnWarmthLine) injectParts.push('return_warmth');
+      if (dreamscapeHistory) injectParts.push('dreamscape');
+      if (patternReflectionContext) injectParts.push('patterns');
+      if (postActivityReflectionContext) injectParts.push('post_activity');
+      console.log(`[MEMORY_INJECT] Turn summary for ${effectiveUserId?.slice(0, 8) || '?'}: [${injectParts.join(', ')}]`);
+    }
+
+    const earlyFullContext = fullContext;
+    fullContext = contextParts.filter(Boolean).join('\n\n');
+
+    if (fullContext.length > earlyFullContext.length) {
+      const lateContext = fullContext.slice(earlyFullContext.length).trim();
+      if (lateContext) {
+        systemPrompt += '\n\n' + lateContext;
+      }
     }
 
     // ============================================================

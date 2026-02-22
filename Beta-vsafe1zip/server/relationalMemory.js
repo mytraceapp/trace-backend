@@ -321,12 +321,12 @@ async function deletePerson(pool, personId, userId) {
 function buildRelationalAnchors(resolvedPeople) {
   if (!resolvedPeople || resolvedPeople.length === 0) return null;
   const lines = resolvedPeople.map(p => {
-    let line = `- ${p.relationship} = ${p.display_name}`;
-    if (p.notes) line += `. Notes: ${p.notes}`;
-    line += `. Use "${p.display_name}" when the user says "my ${p.relationship}" unless they specify a different person.`;
+    let line = `- User's ${p.relationship}: ${p.display_name}.`;
+    if (p.notes) line += ` ${p.notes}.`;
+    line += ` Use "${p.display_name}" when the user says "my ${p.relationship}" unless they specify a different person.`;
     return line;
   });
-  return `Relational anchors (always true unless user corrects it):\n${lines.join('\n')}`;
+  return `RELATIONAL ANCHORS (always true unless user corrects it):\n${lines.join('\n')}`;
 }
 
 function buildClarificationResponse(relationship, candidates, userMessage) {
