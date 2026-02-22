@@ -1,0 +1,106 @@
+Expand server/healthCheck.js to cover every integration point. Add these additional test categories:
+
+CATEGORY 1 — PROMPT SYNC
+For each critical fact, verify it exists in ALL prompt files:
+- traceSystemPrompt.js
+- traceCoreV2.js  
+- traceDirectiveV2.js
+- artist canon in index.js
+
+Facts to check:
+- @traceriapp (Instagram)
+- March 21 (album release)
+- Neon Promise
+- Afterglow
+- mm. is banned
+- healing takes time is banned
+- @traceriapp TikTok
+- no YouTube yet
+
+CATEGORY 2 — MEMORY PIPELINE
+- Extract name from "my name is [name]" → saved
+- Extract relationship from "my daughter Nyla" → saved with entityType person
+- Extract relationship from "my wife Sarah and my son Jake" → both saved
+- Retrieve stored relational anchors for userId → returns correct records
+- Greeting prompt includes known people → PASS
+- Active chat prompt includes known people → PASS
+- Both greeting and active chat use SAME memory source → PASS
+
+CATEGORY 3 — DOORWAYS
+- dreams_symbols fires on "i had a dream" → selectedDoorId = dreams_symbols
+- grief fires on "passed away" → selectedDoorId = grief
+- calling_destiny fires on "what am i meant to do" → selectedDoorId = calling_destiny
+- identity fires on "i hate myself" → selectedDoorId = identity
+- generational_patterns fires on "runs in my family" → selectedDoorId = generational_patterns
+- relationship_patterns fires on "toxic cycle" → selectedDoorId = relationship_patterns
+- nervous_system fires on "panic" → selectedDoorId = nervous_system
+- spiritual_warfare fires on "spiritual attack" → selectedDoorId = spiritual_warfare
+- forgiveness fires on "cant forgive" → selectedDoorId = forgiveness
+- joy_delight fires on "i did it" → selectedDoorId = joy_delight
+- crisis overrides all doors → selectedDoorId = null
+- All 10 doors enabled → DOORS object has enabled: true for all
+
+CATEGORY 4 — STUDIOS PIPELINE
+- handleTraceStudios returns non-null for "what do you do for fun"
+- handleTraceStudios returns non-null for "play Neon Promise"
+- handleTraceStudios returns non-null for "do you make music"
+- handleTraceStudios returns audio stop action for "stop"
+- handleTraceStudios returns null for unrelated message
+- brainSynthesis sets primaryMode = studios for "what do you do for fun"
+- brainSynthesis sets primaryMode = studios for "night swim"
+- looksLikeMusicAsk returns true for "what do you do for fun"
+- looksLikeMusicAsk returns true for "do you make music"
+
+CATEGORY 5 — VOICE ENGINE
+- containsBannedPhrases catches "I hear you" → FAIL (banned)
+- containsBannedPhrases catches "healing takes time" → FAIL (banned)
+- containsBannedPhrases catches "mm." → FAIL (banned)
+- applyVoiceStyle removes "mm." from response
+- applyVoiceStyle removes therapist frame openers
+- checkDriftViolations catches "your feelings are valid" → violation
+- VOICE_PALETTE.heavy does not contain "i hear you" → PASS
+
+CATEGORY 6 — ATTUNEMENT
+- detectPosture returns DIRECTIVE for "i'm spiraling"
+- detectPosture returns GENTLE for "i feel empty"
+- detectPosture returns STEADY for neutral message
+- detectPosture returns GENTLE for crisis override
+- Recent messages carry emotional context forward for short messages
+
+CATEGORY 7 — CONVERSATION STATE
+- State persists across simulated restart (Supabase hydration)
+- TTL is 4 hours not 30 minutes
+- Question throttle enforces budget = 0
+- Stage progression: ARRIVAL → OPENING works
+
+CATEGORY 8 — PATTERN ENDPOINTS
+- /api/patterns/last-hour reachable → 200
+- /api/patterns/weekly-summary reachable → 200
+- /api/patterns/full-reflection reachable → 200
+- /api/patterns-reflection reachable → 200
+- Weekly narrative response does not contain "sessions across"
+- Weekly narrative response does not contain "peak window appears"
+- Weekly narrative response does not contain "I wonder what you might"
+
+CATEGORY 9 — REFLECTION TRACKING
+- markActivityCompletedForReflection saves correctly
+- getReflectionContext returns within 30min window
+- getReflectionContext returns null outside 30min window
+- clearReflectionFlag clears after reflection answer
+- isReflectionAnswer returns true for "it helped"
+- isReflectionAnswer returns false for "play neon promise"
+
+CATEGORY 10 — INTEGRATION SMOKE TEST
+- Send "i had a dream about my daughter Nyla" → 
+  doorway = dreams_symbols AND memory saves Nyla
+- Send "what do you do for fun" → 
+  primaryMode = studios AND studios response fires
+- Send "i hate myself" → 
+  doorway = identity AND posture = GENTLE
+- Send "my mom passed away" → 
+  doorway = grief AND posture = GENTLE
+- Send "play Neon Promise" → 
+  studios returns play action with trackId = neon_promise
+
+Log final score as X/TOTAL with PASS/FAIL per category.
+If any category has failures, list exact file and line to fix.
