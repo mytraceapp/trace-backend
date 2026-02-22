@@ -122,7 +122,7 @@ Extracted contradictions (e.g., "says they're fine but has mentioned stress 3 ti
 -   **express-rate-limit**: API rate limiting.
 
 ## Integration Health Check
-Run `node server/healthCheck.js [userId]` to execute 76 integration tests across 10 categories:
+Run `node server/healthCheck.js [userId]` to execute 87 integration tests across 11 categories:
 1. Prompt Sync (V1/V2 prompt consistency, banned phrases)
 2. Memory Pipeline (extraction, relational anchors, greeting injection)
 3. Doorways (all 10 doors, trigger matching, crisis override)
@@ -133,13 +133,17 @@ Run `node server/healthCheck.js [userId]` to execute 76 integration tests across
 8. Pattern Endpoints (last-hour, weekly-summary, full-reflection)
 9. Reflection Tracking (answer detection, window timing)
 10. Integration Smoke Test (cross-system scenarios)
+11. E2E Conversation Flow (real HTTP calls: greeting, emotion, memory save/recall, dreams, studios, crisis suppression, patterns narrative, token truncation, user isolation)
 
 Requires the backend running on PORT=3000. Exit code 0 = all pass, 1 = any fail.
 
 # Recent Changes (2026-02-22)
 - Fixed EXPLICIT_REGEX in relationalMemory.js: case-sensitive `[A-Z][a-z]` name capture replaces greedy `[A-Za-z]{0,30}` pattern; multi-person extraction now works correctly
 - Expanded stop words list (~40 words) to prevent common verbs being captured as name suffixes
-- Expanded healthCheck.js from 28 to 76 tests across 10 categories (was 8)
+- Expanded healthCheck.js from 28 to 87 tests across 11 categories
+- Added Category 11: E2E Conversation Flow — real HTTP calls testing full user journey (greeting, emotion, memory save/recall, doorways, studios, crisis, patterns, truncation, state isolation)
+- E2E tests use UUID-format test user IDs for Supabase compatibility
+- E2E setup step creates profile and marks onboarding complete before testing real AI pipeline
 - Added self-hate/worthless triggers to GENTLE_TRIGGERS in traceAttunement.js
 - Added "healing takes time", "time heals", "you're on your way", "you're stronger than" to voiceEngine BANNED_PHRASES
 - Bumped "toxic cycle" trigger weight from 4→5 in doorwaysV1.js for relationship_patterns threshold

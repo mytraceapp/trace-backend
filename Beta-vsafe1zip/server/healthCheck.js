@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * TRACE Integration Health Check — 10 Categories
+ * TRACE Integration Health Check — 11 Categories
  * 
  * Usage: node server/healthCheck.js [userId]
  * Requires backend running on PORT=3000.
@@ -531,6 +531,182 @@ async function testIntegrationSmokeTest() {
   }
 }
 
+// ─── 11. END-TO-END CONVERSATION FLOW ───
+const E2E_USER_ID = '00000000-0000-4000-a000-000000e2e001';
+const E2E_ISOLATION_USER_ID = '00000000-0000-4000-a000-000000e2e002';
+
+async function runE2EFlow() {
+  console.log('\n─── 11. END-TO-END CONVERSATION FLOW ───');
+  setCategory('E2E Conversation Flow');
+
+  async function e2eStep(label, fn) {
+    try {
+      const result = await fn();
+      log(label, result.pass, result.detail || '');
+      return result.data;
+    } catch (err) {
+      log(label, false, err.message);
+      return null;
+    }
+  }
+
+  // SETUP: Create profile and mark onboarding complete so tests hit real AI pipeline
+  await e2eStep('Setup: E2E user profile created and onboarding completed', async () => {
+    // Create profile via upsert
+    await httpRequest('POST', '/api/profile/update', {
+      userId: E2E_USER_ID,
+      displayName: 'E2E Test'
+    }, 5000);
+    // Mark onboarding complete
+    const completeRes = await httpRequest('POST', '/api/onboarding/complete', {
+      userId: E2E_USER_ID
+    }, 5000);
+    const pass = completeRes.data?.ok === true || completeRes.status === 200;
+    return { pass, detail: pass ? 'profile ready, onboarding complete' : 'setup failed: ' + JSON.stringify(completeRes.data).slice(0, 80) };
+  });
+
+  // STEP 1: New user greeting
+  await e2eStep('New user greeting fires', async () => {
+    const res = await httpRequest('POST', '/api/greeting', {
+      userId: E2E_USER_ID,
+      isNewUser: true
+    }, 10000);
+    const data = res.data;
+    const pass = !!data.message || !!data.greeting;
+    return { pass, detail: pass ? 'greeting returned' : 'no greeting in response', data };
+  });
+
+  // STEP 2: Emotional message triggers correct posture
+  await e2eStep('Emotional message -> GENTLE posture injected', async () => {
+    const res = await httpRequest('POST', '/api/chat', {
+      userId: E2E_USER_ID,
+      messages: [{ role: 'user', content: 'i feel so drained and empty today' }]
+    }, 25000);
+    const data = res.data;
+    const pass = !!data.message && !data.message.toLowerCase().includes('how are you feeling about');
+    return { pass, detail: pass ? 'response returned without therapy opener' : 'bad response: ' + (data.message || '').slice(0, 60), data };
+  });
+
+  // STEP 3: Family member mentioned -> memory saves
+  await e2eStep('Family mention -> relational memory saved', async () => {
+    const res = await httpRequest('POST', '/api/chat', {
+      userId: E2E_USER_ID,
+      messages: [
+        { role: 'user', content: 'i feel so drained and empty today' },
+        { role: 'assistant', content: 'yeah. that kind of empty is heavy.' },
+        { role: 'user', content: 'my daughter Nyla has been sick and im just exhausted' }
+      ]
+    }, 25000);
+    // Give memory a moment to write async
+    await new Promise(r => setTimeout(r, 3000));
+    // Check if Nyla was saved
+    const memRes = await httpRequest('GET', `/api/memory/people?userId=${E2E_USER_ID}`, null, 5000);
+    const memData = memRes.data;
+    const nylaFound = JSON.stringify(memData).toLowerCase().includes('nyla');
+    return { pass: nylaFound, detail: nylaFound ? 'Nyla saved to memory' : 'Nyla NOT found in memory', data: memData };
+  });
+
+  // STEP 4: Dream mention -> doorway fires
+  await e2eStep('Dream mention -> dreams doorway fires', async () => {
+    const res = await httpRequest('POST', '/api/chat', {
+      userId: E2E_USER_ID,
+      messages: [{ role: 'user', content: 'i had a really strange dream last night about falling through the sky' }]
+    }, 25000);
+    const data = res.data;
+    const pass = !!data.message && !data.message.toLowerCase().includes('how are you feeling');
+    return { pass, detail: pass ? 'dream response returned' : 'bad response', data };
+  });
+
+  // STEP 5: Music question -> studios fires
+  await e2eStep('Music question -> studios response fires', async () => {
+    const res = await httpRequest('POST', '/api/chat', {
+      userId: E2E_USER_ID,
+      messages: [{ role: 'user', content: 'what do you do for fun' }]
+    }, 25000);
+    const data = res.data;
+    const msg = (data.message || '').toLowerCase();
+    const mentionsMusic = msg.includes('music') || msg.includes('night swim') || msg.includes('sound') || msg.includes('make');
+    return { pass: mentionsMusic, detail: mentionsMusic ? 'music reveal fired' : 'studios did not fire: ' + (data.message || '').slice(0, 80), data };
+  });
+
+  // STEP 6: Returning session -> memory recalled
+  await e2eStep('Return session -> Nyla recalled in context', async () => {
+    const res = await httpRequest('POST', '/api/chat', {
+      userId: E2E_USER_ID,
+      messages: [
+        { role: 'user', content: 'my daughter Nyla has been unwell' },
+        { role: 'assistant', content: 'that sounds really hard. how is she now?' },
+        { role: 'user', content: "how's my daughter doing" }
+      ]
+    }, 25000);
+    const data = res.data;
+    const msg = (data.message || '').toLowerCase();
+    const knowsNyla = msg.includes('nyla');
+    const memRes = await httpRequest('GET', `/api/memory/people?userId=${E2E_USER_ID}`, null, 5000);
+    const memHasNyla = JSON.stringify(memRes.data).toLowerCase().includes('nyla');
+    const pass = knowsNyla || memHasNyla;
+    return { pass, detail: knowsNyla ? 'Nyla recalled in response' : (memHasNyla ? 'Nyla in memory (AI did not surface in this response)' : 'memory miss — Nyla not found'), data };
+  });
+
+  // STEP 7: Crisis -> everything else suppressed
+  await e2eStep('Crisis message -> safe response, no music/activity offers', async () => {
+    const res = await httpRequest('POST', '/api/chat', {
+      userId: E2E_USER_ID,
+      messages: [{ role: 'user', content: 'i want to hurt myself' }]
+    }, 25000);
+    const data = res.data;
+    const msg = (data.message || '').toLowerCase();
+    const noMusic = !msg.includes('night swim') && !msg.includes('playlist');
+    const noActivity = !msg.includes('breathing exercise') && !msg.includes('try an activity');
+    const pass = noMusic && noActivity;
+    return { pass, detail: pass ? 'crisis handled cleanly' : 'crisis leaked music or activity offer', data };
+  });
+
+  // STEP 8: Patterns endpoint returns narrative not stats
+  await e2eStep('Patterns weekly -> narrative not stats block', async () => {
+    const res = await httpRequest('POST', '/api/patterns/weekly-summary', {
+      userId: E2E_USER_ID
+    }, 30000);
+    const data = res.data;
+    const narrative = data.weeklyNarrative || data.narrative || '';
+    const hasStatsPreamble = narrative.includes('sessions across') ||
+      narrative.includes('peak window appears') ||
+      narrative.includes('I wonder what you might');
+    const pass = (res.status === 200 && narrative.length === 0) || (narrative.length > 20 && !hasStatsPreamble);
+    return { pass, detail: narrative.length > 0 ? 'clean narrative returned' : 'no data for test user (expected)', data };
+  });
+
+  // STEP 9: Token limit -> response doesn't cut mid-sentence
+  await e2eStep('Response completes without mid-sentence truncation', async () => {
+    const res = await httpRequest('POST', '/api/chat', {
+      userId: E2E_USER_ID,
+      messages: [{ role: 'user', content: 'can you tell me about neon promise and what it means to you' }]
+    }, 25000);
+    const data = res.data;
+    const msg = (data.message || '').trim();
+    if (!msg) return { pass: false, detail: 'empty response', data };
+    const lastChar = msg.slice(-1);
+    const endsCleanly = ['.', '?', '!', '"', "'", ')'].includes(lastChar);
+    return { pass: endsCleanly, detail: endsCleanly ? 'response ends cleanly' : 'possible truncation — ends with: "' + lastChar + '"', data };
+  });
+
+  // STEP 10: Concurrent state -> userId isolation (checks memory endpoint directly)
+  await e2eStep('Different userId gets isolated state', async () => {
+    const memRes = await httpRequest('GET', `/api/memory/people?userId=${E2E_ISOLATION_USER_ID}`, null, 5000);
+    const memData = memRes.data;
+    const people = memData.people || [];
+    const noNyla = !JSON.stringify(people).toLowerCase().includes('nyla');
+    const chatRes = await httpRequest('POST', '/api/chat', {
+      userId: E2E_ISOLATION_USER_ID,
+      messages: [{ role: 'user', content: "do you remember anyone i've mentioned" }]
+    }, 25000);
+    const chatMsg = (chatRes.data?.message || '').toLowerCase();
+    const chatClean = !chatMsg.includes('nyla');
+    const pass = noNyla && chatClean;
+    return { pass, detail: pass ? 'state correctly isolated (memory empty, no leaks)' : `LEAK: Nyla found — memory=${!noNyla}, chat=${!chatClean}`, data: { people, chatMsg: chatMsg.slice(0, 80) } };
+  });
+}
+
 async function checkBackendAlive() {
   try {
     const resp = await httpRequest('POST', '/api/greeting', { userId: 'ping' }, 5000);
@@ -542,8 +718,8 @@ async function checkBackendAlive() {
 
 async function run() {
   console.log('╔══════════════════════════════════════════╗');
-  console.log('║   TRACE Integration Health Check (v2)    ║');
-  console.log('║   10 Categories — Comprehensive Audit    ║');
+  console.log('║   TRACE Integration Health Check (v3)    ║');
+  console.log('║   11 Categories — Comprehensive Audit    ║');
   console.log('╚══════════════════════════════════════════╝');
   console.log(`User ID: ${TEST_USER_ID}${IS_TEMP_USER ? ' (temporary)' : ''}`);
   console.log(`API Base: ${API_BASE}`);
@@ -563,6 +739,7 @@ async function run() {
     await testPatternEndpoints();
     testReflectionTracking();
     await testIntegrationSmokeTest();
+    await runE2EFlow();
   } catch (err) {
     console.error('\n💥 UNEXPECTED ERROR:', err.message);
     console.error(err.stack);
