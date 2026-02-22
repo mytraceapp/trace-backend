@@ -214,7 +214,7 @@ async function upsertPerson(pool, userId, relationship, displayName, extraAliase
       [userId, relationship, displayName, [...aliases]]
     );
     if (!rows || rows.length === 0) return null;
-    console.log(`[RELATIONAL MEMORY] Created: ${relationship} = ${displayName} for user ${userId.slice(0, 8)}`);
+    console.log(`[MEMORY_WRITE] Relational anchor saved: { entityType: "person", relationToUser: "${relationship}", name: "${displayName}" } for user ${userId.slice(0, 8)}`);
     return rows[0];
   } catch (err) {
     console.error('[RELATIONAL MEMORY] upsert exception:', err.message);
@@ -293,7 +293,11 @@ async function updatePerson(pool, personId, userId, updates) {
       `UPDATE people SET ${setClauses.join(', ')} WHERE id = $${paramIndex++} AND owner_user_id = $${paramIndex} RETURNING *`,
       values
     );
-    return rows && rows.length > 0 ? rows[0] : null;
+    if (rows && rows.length > 0) {
+      console.log(`[MEMORY_WRITE] Relational anchor updated: { entityType: "person", relationToUser: "${rows[0].relationship}", name: "${rows[0].display_name}" } for user ${userId.slice(0, 8)}`);
+      return rows[0];
+    }
+    return null;
   } catch (err) {
     console.error('[RELATIONAL MEMORY] update error:', err.message);
     return null;

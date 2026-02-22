@@ -10254,6 +10254,17 @@ If the right move isn't obvious: one grounded observation about what you notice 
         const mentionedRelationships = relationalMemory.extractRelationshipMentions(lastUserMsg);
         const explicitPersons = relationalMemory.extractExplicitPersonMentions(lastUserMsg);
 
+        if (explicitPersons.length === 0) {
+          const coreEntities = coreMemory.extractRelationalEntities(lastUserMsg);
+          for (const ent of coreEntities) {
+            const key = `${ent.relationToUser}:${ent.name.toLowerCase()}`;
+            if (!explicitPersons.some(ep => `${ep.relationship}:${ep.name.toLowerCase()}` === key)) {
+              explicitPersons.push({ relationship: ent.relationToUser, name: ent.name });
+              console.log(`[CORE MEMORY] Entity extracted: { entityType: "${ent.entityType}", relationToUser: "${ent.relationToUser}", name: "${ent.name}" }`);
+            }
+          }
+        }
+
         // Pronoun-based name learning: "her name is Sarah" when we know "her" = daughter
         if (explicitPersons.length === 0) {
           const pronounNameMatch = lastUserMsg.match(/\b(?:her|his|their)\s+name\s+(?:is|was)\s+([A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\- ]{0,25})/i);

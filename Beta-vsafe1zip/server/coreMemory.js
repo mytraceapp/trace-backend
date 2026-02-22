@@ -4,9 +4,120 @@
  */
 
 const memoryStore = require('./memoryStore');
+const { RELATIONSHIP_MAP, normalizeRelationship } = require('./relationalMemory');
 
 const EXTRACTION_THRESHOLD = 5;
 const SUMMARY_THRESHOLD = 25;
+
+const REL_SYNONYMS = Object.keys(RELATIONSHIP_MAP);
+const REL_SYNONYM_PATTERN = REL_SYNONYMS
+  .sort((a, b) => b.length - a.length)
+  .map(s => s.replace(/\s+/g, '\\s+'))
+  .join('|');
+
+const ENTITY_NOT_NAMES = new Set([
+  'wants', 'goes', 'loves', 'likes', 'hates', 'needs', 'does', 'makes',
+  'takes', 'says', 'said', 'told', 'came', 'went', 'got', 'gets',
+  'lives', 'works', 'plays', 'calls', 'called', 'used', 'keeps',
+  'started', 'stopped', 'always', 'never', 'just', 'really', 'still',
+  'also', 'even', 'recently', 'usually', 'sometimes', 'today', 'yesterday',
+  'tonight', 'tomorrow', 'too', 'very', 'so', 'about', 'would', 'could',
+  'should', 'will', 'can', 'might', 'may', 'has', 'had', 'have',
+  'was', 'were', 'been', 'being', 'are', 'the', 'this', 'that',
+  'who', 'whom', 'which', 'what', 'when', 'where', 'how', 'why',
+  'not', 'but', 'and', 'or', 'if', 'then', 'because', 'since',
+  'with', 'from', 'into', 'over', 'after', 'before', 'during',
+  'thinks', 'thought', 'knows', 'knew', 'feels', 'felt',
+  'passed', 'died', 'moved', 'left', 'born',
+]);
+
+function isEntityName(str) {
+  if (!str || str.length < 2 || str.length > 25) return false;
+  const first = str.split(/\s+/)[0].toLowerCase();
+  if (ENTITY_NOT_NAMES.has(first)) return false;
+  if (/^[a-z]/.test(str.split(/\s+/)[0])) return false;
+  if (/^\d/.test(str)) return false;
+  return true;
+}
+
+function cleanEntityName(raw) {
+  if (!raw) return null;
+  let name = raw.trim().replace(/[.,!?;:]+$/, '').trim();
+  const stopWords = ['is', 'was', 'has', 'had', 'just', 'always', 'never', 'said', 'told', 'and', 'but', 'who', 'that', 'the', 'to', 'for', 'in', 'on', 'at', 'with'];
+  const parts = name.split(/\s+/);
+  const filtered = [];
+  for (const part of parts) {
+    if (stopWords.includes(part.toLowerCase())) break;
+    filtered.push(part);
+  }
+  name = filtered.join(' ').trim();
+  return isEntityName(name) ? name : null;
+}
+
+function extractRelationalEntities(text) {
+  if (!text) return [];
+  const results = [];
+  const seen = new Set();
+
+  function addEntity(relation, rawName) {
+    const rel = normalizeRelationship(relation);
+    if (!rel) return;
+    const name = cleanEntityName(rawName);
+    if (!name) return;
+    const key = `${rel}:${name.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    results.push({
+      entityType: 'person',
+      relationToUser: rel,
+      name: name,
+    });
+  }
+
+  let m;
+
+  const p1 = new RegExp(
+    `\\bmy\\s+(${REL_SYNONYM_PATTERN})\\s+([A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\\- ]{0,30}[A-Za-z\u00C0-\u024F])\\b`,
+    'gi'
+  );
+  while ((m = p1.exec(text)) !== null) {
+    addEntity(m[1], m[2]);
+  }
+
+  const p2 = new RegExp(
+    `\\bmy\\s+(${REL_SYNONYM_PATTERN})(?:'s)?\\s+(?:name\\s+is|is\\s+named|is\\s+called|goes\\s+by)\\s+([A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\\- ]{0,25})`,
+    'gi'
+  );
+  while ((m = p2.exec(text)) !== null) {
+    addEntity(m[1], m[2]);
+  }
+
+  const p3 = new RegExp(
+    `\\bmy\\s+(${REL_SYNONYM_PATTERN})(?:\\s+is|,)\\s+([A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\\- ]{0,25})`,
+    'gi'
+  );
+  while ((m = p3.exec(text)) !== null) {
+    addEntity(m[1], m[2]);
+  }
+
+  const p4 = new RegExp(
+    `\\b([A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\\- ]{0,25})\\s+(?:is|,)\\s+my\\s+(${REL_SYNONYM_PATTERN})\\b`,
+    'gi'
+  );
+  while ((m = p4.exec(text)) !== null) {
+    addEntity(m[2], m[1]);
+  }
+
+  const p5 = new RegExp(
+    `(?:(?:I|we)\\s+(?:call|named|name)\\s+(?:my|our|her|his)\\s+(${REL_SYNONYM_PATTERN})\\s+)([A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\\- ]{0,25})`,
+    'gi'
+  );
+  while ((m = p5.exec(text)) !== null) {
+    addEntity(m[1], m[2]);
+  }
+
+  return results;
+}
 
 const IMPORTANCE_SIGNALS = [
   /\bmy (?:name|partner|wife|husband|girlfriend|boyfriend|kid|child|daughter|son|mom|dad|brother|sister|friend|boss|job|work)\b/i,
@@ -920,6 +1031,7 @@ module.exports = {
   computeEnergyTrend,
   computeMultiSessionArc,
   buildFollowUpCues,
+  extractRelationalEntities,
   EXTRACTION_THRESHOLD,
   SUMMARY_THRESHOLD,
   COMPRESSION_THRESHOLD,
