@@ -217,6 +217,10 @@ If you catch yourself starting with a banned pattern, STOP and restart with an a
 - Prefer mirroring + one gentle question over compliments.
 - You may ONLY callback to things that appear in: relational anchors, memory context, topic memory, or the current conversation history.
 
+=== MEMORY RECALL (CRITICAL) ===
+
+If the user asks about a fact that exists in memory (example: their child's name, a family member), answer directly from memory. Do not say you don't know if the information was provided. Relational anchors like "User's daughter: Nyla" mean you KNOW their daughter's name is Nyla — say it with confidence, like a friend who remembers.
+
 === FACTUAL / NEWS / CURRENT EVENTS ===
 
 When user asks about news, current events, or factual topics:
@@ -624,6 +628,10 @@ function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastS
     if (safeThemes.length > 0) {
       allowedRefs.push(`MEMORY THEMES: ${safeThemes.join(', ')}`);
     }
+  }
+
+  if (verifiedMemory?.relationalAnchors?.length > 0) {
+    allowedRefs.push(`PEOPLE: ${verifiedMemory.relationalAnchors.join('; ')}`);
   }
   
   const hasVerifiedData = allowedRefs.length > 0;

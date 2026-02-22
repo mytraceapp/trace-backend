@@ -4220,6 +4220,21 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
       }
     }
     
+    // Load relational anchors (people/family) for greeting — same source as active chat
+    let greetingRelationalAnchors = [];
+    if (userId && pool && isPoolHealthy()) {
+      try {
+        const people = await relationalMemory.getHighSaliencePeople(pool, userId, 5);
+        if (people && people.length > 0) {
+          greetingRelationalAnchors = people.map(p => `User's ${p.relationship}: ${p.display_name}`);
+          verifiedMemory.relationalAnchors = greetingRelationalAnchors;
+          console.log(`[MEMORY_INJECT] Greeting relational anchors (${people.length}): ${greetingRelationalAnchors.join(', ')}`);
+        }
+      } catch (e) {
+        console.warn('[GREETING] Failed to load relational anchors:', e.message);
+      }
+    }
+
     // Choose greeting approach — avoid repeating the last 2 approaches
     let greetingApproach;
     const lastTwoApproaches = recentlyUsedApproaches.slice(0, 2);
@@ -4241,6 +4256,15 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
     // Prefer mobile-provided activity name if more recent
     const effectiveRecentActivity = recentActivityName || recentActivity;
     
+    {
+      const greetingInjectParts = [];
+      if (verifiedMemory.userFacts?.length > 0) greetingInjectParts.push(`user_facts(${verifiedMemory.userFacts.length})`);
+      if (verifiedMemory.coreThemes?.length > 0) greetingInjectParts.push(`themes(${verifiedMemory.coreThemes.length})`);
+      if (verifiedMemory.goals?.length > 0) greetingInjectParts.push(`goals(${verifiedMemory.goals.length})`);
+      if (greetingRelationalAnchors.length > 0) greetingInjectParts.push(`relational_anchors(${greetingRelationalAnchors.length})`);
+      if (recentConversationTopics.length > 0) greetingInjectParts.push(`topics(${recentConversationTopics.length})`);
+      console.log(`[MEMORY_INJECT] Greeting for ${userId?.slice(0, 8) || '?'}: [${greetingInjectParts.join(', ')}]`);
+    }
     console.log('[GREETING] Context:', { 
       timeOfDay, dayOfWeek, lastSeenDaysAgo, 
       recentActivity: effectiveRecentActivity, 
