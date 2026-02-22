@@ -198,6 +198,21 @@ const memoryStore = require('./memoryStore');
 const sessionManager = require('./sessionManager');
 const coreMemory = require('./coreMemory');
 const relationalMemory = require('./relationalMemory');
+const NOT_NAMES_SET = new Set([
+  'wants', 'goes', 'loves', 'likes', 'hates', 'needs', 'does', 'makes',
+  'takes', 'says', 'said', 'told', 'came', 'went', 'got', 'gets',
+  'lives', 'works', 'plays', 'calls', 'called', 'used', 'keeps',
+  'started', 'stopped', 'always', 'never', 'just', 'really', 'still',
+  'also', 'even', 'recently', 'usually', 'sometimes', 'today', 'yesterday',
+  'tonight', 'tomorrow', 'too', 'very', 'so', 'about', 'would', 'could',
+  'should', 'will', 'can', 'might', 'may', 'has', 'had', 'have',
+  'was', 'were', 'been', 'being', 'are', 'the', 'this', 'that',
+  'who', 'whom', 'which', 'what', 'when', 'where', 'how', 'why',
+  'not', 'but', 'and', 'or', 'if', 'then', 'because', 'since',
+  'with', 'from', 'into', 'over', 'after', 'before', 'during',
+  'thinks', 'thought', 'knows', 'knew', 'feels', 'felt',
+  'passed', 'died', 'moved', 'left', 'born',
+]);
 const topicMemory = require('./topicMemory');
 const emotionalCarryover = require('./emotionalCarryover');
 
@@ -10177,6 +10192,81 @@ If the right move isn't obvious: one grounded observation about what you notice 
         const mentionedRelationships = relationalMemory.extractRelationshipMentions(lastUserMsg);
         const explicitPersons = relationalMemory.extractExplicitPersonMentions(lastUserMsg);
 
+        // Pronoun-based name learning: "her name is Sarah" when we know "her" = daughter
+        if (explicitPersons.length === 0) {
+          const pronounNameMatch = lastUserMsg.match(/\b(?:her|his|their)\s+name\s+(?:is|was)\s+([A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\- ]{0,25})/i);
+          if (pronounNameMatch) {
+            const pronounHint = relationalMemory.getPronounHint(effectiveUserId, userMsgCount);
+            if (pronounHint) {
+              const candidateName = pronounNameMatch[1].trim().replace(/[.,!?;:]+$/, '');
+              if (candidateName.length >= 2 && /^[A-Z]/.test(candidateName)) {
+                const existing = await relationalMemory.resolvePersonByRelationship(pool, effectiveUserId, pronounHint.relationship);
+                if (existing && !existing.ambiguous) {
+                  if (!existing.display_name || existing.display_name.toLowerCase() === pronounHint.relationship || existing.display_name.split(' ').length > 3) {
+                    await relationalMemory.updatePerson(pool, existing.id, effectiveUserId, { display_name: candidateName });
+                    console.log(`[RELATIONAL MEMORY] Pronoun name learned: ${pronounHint.relationship} = ${candidateName} (was "${existing.display_name}")`);
+                  }
+                } else {
+                  const created = await relationalMemory.upsertPerson(pool, effectiveUserId, pronounHint.relationship, candidateName);
+                  if (created) console.log(`[RELATIONAL MEMORY] Pronoun name created: ${pronounHint.relationship} = ${candidateName}`);
+                }
+                explicitPersons.push({ relationship: pronounHint.relationship, name: candidateName });
+              }
+            }
+          }
+        }
+
+        // Contextual name capture: bare name answer after TRACE asked "what's their name?"
+        if (explicitPersons.length === 0 && mentionedRelationships.size === 0) {
+          const trimmedMsg = lastUserMsg.trim().replace(/[.,!?;:]+$/, '').trim();
+          const isBareNameAnswer = /^[A-Z\u00C0-\u024F][a-z\u00C0-\u024F']{1,20}(?:\s+[A-Z\u00C0-\u024F][a-z\u00C0-\u024F']{1,20})?$/.test(trimmedMsg);
+          if (isBareNameAnswer) {
+            const recentAssistantMsgs = (messagesWithHydration || rawMessages || [])
+              .filter(m => m.role === 'assistant')
+              .slice(-3);
+            const nameAskPattern = /what(?:'s| is) (?:her|his|their) name|what(?:'s| is) (?:your .+(?:'s)?) name|what do you call|what should I call/i;
+            const askedForName = recentAssistantMsgs.some(m => nameAskPattern.test(m.content || ''));
+            if (askedForName) {
+              const pronounHint = relationalMemory.getPronounHint(effectiveUserId, userMsgCount);
+              if (pronounHint) {
+                const existing = await relationalMemory.resolvePersonByRelationship(pool, effectiveUserId, pronounHint.relationship);
+                if (existing && !existing.ambiguous) {
+                  await relationalMemory.updatePerson(pool, existing.id, effectiveUserId, { display_name: trimmedMsg });
+                  console.log(`[RELATIONAL MEMORY] Contextual name capture: ${pronounHint.relationship} = ${trimmedMsg} (bare name after TRACE asked)`);
+                } else if (!existing) {
+                  await relationalMemory.upsertPerson(pool, effectiveUserId, pronounHint.relationship, trimmedMsg);
+                  console.log(`[RELATIONAL MEMORY] Contextual name created: ${pronounHint.relationship} = ${trimmedMsg}`);
+                }
+                explicitPersons.push({ relationship: pronounHint.relationship, name: trimmedMsg });
+              } else {
+                // No pronoun hint, but check recent conversation for relationship context
+                const recentMsgs = (messagesWithHydration || rawMessages || []).slice(-6);
+                const relContextPattern = new RegExp(`\\b(?:my|your|our|the|her|his)\\s+(${Object.keys(relationalMemory.RELATIONSHIP_MAP).join('|')})\\b`, 'i');
+                for (const m of recentMsgs) {
+                  const relMatch = (m.content || '').match(relContextPattern);
+                  if (relMatch) {
+                    const rel = relationalMemory.normalizeRelationship(relMatch[1]);
+                    if (rel) {
+                      const existing = await relationalMemory.resolvePersonByRelationship(pool, effectiveUserId, rel);
+                      if (existing && !existing.ambiguous) {
+                        if (existing.display_name === rel || existing.display_name.split(' ').length > 3) {
+                          await relationalMemory.updatePerson(pool, existing.id, effectiveUserId, { display_name: trimmedMsg });
+                          console.log(`[RELATIONAL MEMORY] Context name capture: ${rel} = ${trimmedMsg} (from conversation context)`);
+                        }
+                      } else if (!existing) {
+                        await relationalMemory.upsertPerson(pool, effectiveUserId, rel, trimmedMsg);
+                        console.log(`[RELATIONAL MEMORY] Context name created: ${rel} = ${trimmedMsg}`);
+                      }
+                      explicitPersons.push({ relationship: rel, name: trimmedMsg });
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
         // Phase 2: Explicit mentions persist immediately but queue confirmation
         for (const ep of explicitPersons) {
           const existing = await relationalMemory.resolvePersonByRelationship(pool, effectiveUserId, ep.relationship);
@@ -10191,8 +10281,16 @@ If the right move isn't obvious: one grounded observation about what you notice 
               });
               console.log(`[RELATIONAL MEMORY] Persisted + queued confirmation: ${ep.relationship} = ${ep.name}`);
             }
-          } else {
-            await relationalMemory.upsertPerson(pool, effectiveUserId, ep.relationship, ep.name);
+          } else if (!existing.ambiguous) {
+            const existingNameBad = existing.display_name === ep.relationship || 
+              existing.display_name.split(' ').length > 3 || 
+              NOT_NAMES_SET.has(existing.display_name.toLowerCase().split(' ')[0]);
+            if (existing.display_name !== ep.name && existingNameBad) {
+              await relationalMemory.updatePerson(pool, existing.id, effectiveUserId, { display_name: ep.name });
+              console.log(`[RELATIONAL MEMORY] Updated bad name: ${existing.display_name} -> ${ep.name}`);
+            } else {
+              await relationalMemory.upsertPerson(pool, effectiveUserId, ep.relationship, ep.name);
+            }
           }
         }
 
@@ -11010,6 +11108,9 @@ Your complete response:`;
           const l3QLine = (controlQBudget === 0) ? `\nQUESTION RULE: Do NOT ask any questions. Make a statement or observation instead. No "?" in your response.` : '';
           const userEnergyLow = conversationState.classifyUserEnergy(lastUserContent) === 'low';
           const l3EnergyLine = userEnergyLow ? `\nUSER ENERGY: Low. They gave a short/minimal answer. Do NOT keep probing or asking follow-ups. Just acknowledge briefly and leave space. If they seem done with a topic, move on or sit with it.` : '';
+          const l3FirstName = displayName ? displayName.split(' ')[0].trim() : '';
+          const l3NameLine = (l3FirstName && l3FirstName.length >= 2) ? `\nUSER NAME: You already know this person. Their name is ${l3FirstName}. NEVER ask "what's your name?" — you ALREADY KNOW. If they ask "do you know my name?" say YES and use their name: ${l3FirstName}.` : '';
+          const l3RelationalLine = relationalAnchors ? `\n${relationalAnchors}` : '';
           
           let l3MemoryBlock = '';
           if (isMetaMemoryActive && coreMemoryContext) {
@@ -11018,7 +11119,7 @@ Your complete response:`;
           }
           
           if (isMetaMemoryActive) {
-            plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3CompressionLine}${l3DateLine}${l3MemoryBlock}
+            plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3NameLine}${l3RelationalLine}${l3CompressionLine}${l3DateLine}${l3MemoryBlock}
 
 Recent conversation:
 ${recentContext}
@@ -11027,7 +11128,7 @@ User just said: "${lastUserContent}"
 
 This is a relationship moment — they want to know what you remember. Respond like a friend reflecting on the relationship, weaving facts into impressions. Show you SEE them. Do NOT list facts. No JSON, just your warm response:`;
           } else {
-            plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3CompressionLine}${l3DateLine}${l3HolidayLine}${l3ContextLine}${l3NewsLine}${l3SearchLine}${l3WeatherLine}${l3MusicLine}${l3DataInstruction}${l3QLine}${l3EnergyLine}
+            plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3NameLine}${l3RelationalLine}${l3CompressionLine}${l3DateLine}${l3HolidayLine}${l3ContextLine}${l3NewsLine}${l3SearchLine}${l3WeatherLine}${l3MusicLine}${l3DataInstruction}${l3QLine}${l3EnergyLine}
 
 Recent conversation:
 ${recentContext}

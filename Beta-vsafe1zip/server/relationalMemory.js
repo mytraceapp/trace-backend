@@ -40,6 +40,31 @@ const EXPLICIT_REGEX = new RegExp(
   'gi'
 );
 
+const NOT_NAMES = new Set([
+  'wants', 'goes', 'loves', 'likes', 'hates', 'needs', 'does', 'makes',
+  'takes', 'says', 'said', 'told', 'came', 'went', 'got', 'gets',
+  'lives', 'works', 'plays', 'calls', 'called', 'used', 'keeps',
+  'started', 'stopped', 'always', 'never', 'just', 'really', 'still',
+  'also', 'even', 'recently', 'usually', 'sometimes', 'today', 'yesterday',
+  'tonight', 'tomorrow', 'too', 'very', 'so', 'about', 'would', 'could',
+  'should', 'will', 'can', 'might', 'may', 'has', 'had', 'have',
+  'was', 'were', 'been', 'being', 'are', 'the', 'this', 'that',
+  'who', 'whom', 'which', 'what', 'when', 'where', 'how', 'why',
+  'not', 'but', 'and', 'or', 'if', 'then', 'because', 'since',
+  'with', 'from', 'into', 'over', 'after', 'before', 'during',
+  'thinks', 'thought', 'knows', 'knew', 'feels', 'felt',
+  'passed', 'died', 'moved', 'left', 'came', 'born',
+]);
+
+function isLikelyName(str) {
+  if (!str || str.length < 2 || str.length > 25) return false;
+  const first = str.split(/\s+/)[0].toLowerCase();
+  if (NOT_NAMES.has(first)) return false;
+  if (/^[a-z]/.test(str.split(/\s+/)[0])) return false;
+  if (/^\d/.test(str)) return false;
+  return true;
+}
+
 function normalizeRelationship(raw) {
   if (!raw) return null;
   const key = raw.toLowerCase().trim();
@@ -61,23 +86,73 @@ function extractRelationshipMentions(text) {
 function extractExplicitPersonMentions(text) {
   if (!text) return [];
   const results = [];
-  let m;
-  const regex = new RegExp(EXPLICIT_REGEX.source, EXPLICIT_REGEX.flags);
-  while ((m = regex.exec(text)) !== null) {
-    const relationship = normalizeRelationship(m[1]);
-    let name = m[2].trim();
-    const stopWords = ['is', 'was', 'has', 'had', 'just', 'always', 'never', 'said', 'told', 'and', 'but', 'who', 'that', 'the'];
+  const seen = new Set();
+
+  function addResult(relationship, name) {
+    if (!relationship || !name) return;
+    name = name.trim().replace(/[.,!?;:]+$/, '').trim();
+    const stopWords = ['is', 'was', 'has', 'had', 'just', 'always', 'never', 'said', 'told', 'and', 'but', 'who', 'that', 'the', 'to', 'for', 'in', 'on', 'at', 'with'];
     const nameParts = name.split(/\s+/);
     const filteredParts = [];
     for (const part of nameParts) {
       if (stopWords.includes(part.toLowerCase())) break;
       filteredParts.push(part);
     }
-    name = filteredParts.join(' ');
-    if (relationship && name && name.length >= 2) {
-      results.push({ relationship, name });
-    }
+    name = filteredParts.join(' ').trim();
+    if (!isLikelyName(name)) return;
+    const key = `${relationship}:${name.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    results.push({ relationship, name });
   }
+
+  let m;
+
+  // Pattern 1: "my daughter Sarah" (direct juxtaposition)
+  const regex1 = new RegExp(EXPLICIT_REGEX.source, EXPLICIT_REGEX.flags);
+  while ((m = regex1.exec(text)) !== null) {
+    addResult(normalizeRelationship(m[1]), m[2]);
+  }
+
+  // Pattern 2: "my daughter's name is Sarah" / "my daughter is named Sarah"
+  const nameIsRegex = new RegExp(
+    `\\bmy\\s+(${SYNONYM_PATTERN})(?:'s)?\\s+(?:name\\s+is|is\\s+named|is\\s+called|goes\\s+by)\\s+([A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\\- ]{0,25})`,
+    'gi'
+  );
+  while ((m = nameIsRegex.exec(text)) !== null) {
+    addResult(normalizeRelationship(m[1]), m[2]);
+  }
+
+  // Pattern 3: "my daughter is Sarah" / "my daughter, Sarah,"
+  const isNameRegex = new RegExp(
+    `\\bmy\\s+(${SYNONYM_PATTERN})(?:\\s+is|,)\\s+([A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\\- ]{0,25})`,
+    'gi'
+  );
+  while ((m = isNameRegex.exec(text)) !== null) {
+    addResult(normalizeRelationship(m[1]), m[2]);
+  }
+
+  // Pattern 4: "Sarah is my daughter" / "Sarah, my daughter"
+  const reversedRegex = new RegExp(
+    `\\b([A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\\- ]{0,25})\\s+(?:is|,)\\s+my\\s+(${SYNONYM_PATTERN})\\b`,
+    'gi'
+  );
+  while ((m = reversedRegex.exec(text)) !== null) {
+    addResult(normalizeRelationship(m[2]), m[1]);
+  }
+
+  // Pattern 5: "I call my daughter Sarah" / "I named my daughter Sarah" / "we named our daughter Sarah"
+  const namedRegex = new RegExp(
+    `(?:(?:I|we)\\s+(?:call|named|name)\\s+(?:my|our|her|his)\\s+(${SYNONYM_PATTERN})\\s+)([A-Z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\\- ]{0,25})`,
+    'gi'
+  );
+  while ((m = namedRegex.exec(text)) !== null) {
+    addResult(normalizeRelationship(m[1]), m[2]);
+  }
+
+  // Pattern 6: "her name is Sarah" with pronoun context (daughter/sister/etc from recent mention)
+  // This is handled separately via pronoun resolution — skip here
+
   return results;
 }
 
