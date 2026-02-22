@@ -122,20 +122,25 @@ Extracted contradictions (e.g., "says they're fine but has mentioned stress 3 ti
 -   **express-rate-limit**: API rate limiting.
 
 ## Integration Health Check
-Run `node server/healthCheck.js [userId]` to execute 28 integration tests across 8 categories:
-1. Memory Extraction (in-process regex tests)
-2. Memory Retrieval (via API)
-3. Greeting Injection (system prompt assembly)
-4. Active Chat Injection (relational anchors)
-5. Doorways (trigger matching, crisis override)
-6. Studios (track playback, stop commands, generic fallback)
-7. Attunement (posture detection, crisis override)
-8. Pattern Context (weekly summary endpoint)
+Run `node server/healthCheck.js [userId]` to execute 76 integration tests across 10 categories:
+1. Prompt Sync (V1/V2 prompt consistency, banned phrases)
+2. Memory Pipeline (extraction, relational anchors, greeting injection)
+3. Doorways (all 10 doors, trigger matching, crisis override)
+4. Studios Pipeline (playback, stop commands, brainSynthesis mode)
+5. Voice Engine (banned phrases, drift violations, voice style)
+6. Attunement (posture detection, gradual descent, crisis override)
+7. Conversation State (stage advancement, question throttle, TTL)
+8. Pattern Endpoints (last-hour, weekly-summary, full-reflection)
+9. Reflection Tracking (answer detection, window timing)
+10. Integration Smoke Test (cross-system scenarios)
 
 Requires the backend running on PORT=3000. Exit code 0 = all pass, 1 = any fail.
 
 # Recent Changes (2026-02-22)
 - Fixed EXPLICIT_REGEX in relationalMemory.js: case-sensitive `[A-Z][a-z]` name capture replaces greedy `[A-Za-z]{0,30}` pattern; multi-person extraction now works correctly
 - Expanded stop words list (~40 words) to prevent common verbs being captured as name suffixes
-- Created comprehensive healthCheck.js (28 tests, 8 categories)
+- Expanded healthCheck.js from 28 to 76 tests across 10 categories (was 8)
+- Added self-hate/worthless triggers to GENTLE_TRIGGERS in traceAttunement.js
+- Added "healing takes time", "time heals", "you're on your way", "you're stronger than" to voiceEngine BANNED_PHRASES
+- Bumped "toxic cycle" trigger weight from 4→5 in doorwaysV1.js for relationship_patterns threshold
 - Reduced DB pool max from 10 to 3 for Neon free tier compatibility
