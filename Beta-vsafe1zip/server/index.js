@@ -29,6 +29,9 @@ const { DateTime } = require('luxon');
 const pool = process.env.DATABASE_URL ? new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 }) : null;
 
 if (pool) {
@@ -5005,6 +5008,15 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
   // Build dedup key BEFORE try block so it's available for caching on success
   const dedupKey = getDedupKey(req);
   
+  const CHAT_HARD_TIMEOUT_MS = 55000;
+  const chatTimeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('[CHAT TIMEOUT] Hard timeout reached after ' + CHAT_HARD_TIMEOUT_MS + 'ms');
+      res.status(504).json({ message: "I got a little lost in thought there — try sending that again?", error: 'timeout' });
+    }
+  }, CHAT_HARD_TIMEOUT_MS);
+  res.on('finish', () => clearTimeout(chatTimeout));
+  
   try {
     const {
       messages: rawMessages,
@@ -8117,6 +8129,10 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
       }
     }
     
+    if (pool) {
+      console.log(`[POOL STATUS] total=${pool.totalCount} idle=${pool.idleCount} waiting=${pool.waitingCount}`);
+    }
+
     // Get Dreamscape presence memory (relational history) — single load, reused downstream
     let dreamscapeHistory = null;
     if (pool && !isCrisisMode) {
