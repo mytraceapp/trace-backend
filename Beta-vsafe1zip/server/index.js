@@ -29,9 +29,9 @@ const { DateTime } = require('luxon');
 const pool = process.env.DATABASE_URL ? new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 10,
-  idleTimeoutMillis: 20000,
-  connectionTimeoutMillis: 30000,
+  max: 3,
+  idleTimeoutMillis: 5000,
+  connectionTimeoutMillis: 10000,
   allowExitOnIdle: true,
 }) : null;
 

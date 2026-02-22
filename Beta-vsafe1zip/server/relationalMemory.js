@@ -36,8 +36,8 @@ const MENTION_REGEX = new RegExp(
 );
 
 const EXPLICIT_REGEX = new RegExp(
-  `\\bmy\\s+(${SYNONYM_PATTERN})\\s+([A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F'\\- ]{0,30}[A-Za-z\u00C0-\u024F])\\b`,
-  'gi'
+  `\\b[Mm]y\\s+(${SYNONYM_PATTERN})\\s+([A-Z\u00C0-\u024F][a-z\u00C0-\u024F'\\-]{1,20})(?:\\s+[A-Z\u00C0-\u024F][a-z\u00C0-\u024F'\\-]{1,20})?`,
+  'g'
 );
 
 const NOT_NAMES = new Set([
@@ -91,7 +91,7 @@ function extractExplicitPersonMentions(text) {
   function addResult(relationship, name) {
     if (!relationship || !name) return;
     name = name.trim().replace(/[.,!?;:]+$/, '').trim();
-    const stopWords = ['is', 'was', 'has', 'had', 'just', 'always', 'never', 'said', 'told', 'and', 'but', 'who', 'that', 'the', 'to', 'for', 'in', 'on', 'at', 'with'];
+    const stopWords = ['is', 'was', 'has', 'had', 'just', 'always', 'never', 'said', 'told', 'and', 'but', 'who', 'that', 'the', 'to', 'for', 'in', 'on', 'at', 'with', 'about', 'picked', 'went', 'goes', 'loves', 'likes', 'got', 'from', 'came', 'called', 'asked', 'wants', 'needs', 'does', 'did', 'will', 'would', 'could', 'should', 'today', 'yesterday', 'tomorrow'];
     const nameParts = name.split(/\s+/);
     const filteredParts = [];
     for (const part of nameParts) {
