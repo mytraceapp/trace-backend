@@ -51,7 +51,13 @@ const BANNED_PHRASES = [
   'in terms of', 'at the end of the day',
   
   // Attitude words (read as snobby in text — only standalone "mm.")
-  'mm.'
+  'mm.',
+
+  // Therapy-speak caught by attunement — synced here for runtime ban
+  'healing takes time',
+  'time heals',
+  'you\'re on your way',
+  'you\'re stronger than',
 ];
 
 // UNSOLICITED ACTIVITY OFFERS - these break the therapeutic container

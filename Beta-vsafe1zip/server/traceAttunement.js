@@ -115,6 +115,14 @@ const GENTLE_TRIGGERS = [
   "feel nothing",
   "hollowed out",
   "depleted",
+  "worthless",
+  "i hate myself",
+  "hate myself",
+  "i feel worthless",
+  "i feel useless",
+  "i'm nothing",
+  "i'm a failure",
+  "i don't matter",
 ];
 
 const STRESS_KEYWORDS = [

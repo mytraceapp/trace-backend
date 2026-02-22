@@ -273,7 +273,7 @@ Example questions:
       { phrase: 'why do i pick', weight: 3 },
       { phrase: 'same type', weight: 3 },
       { phrase: 'attachment', weight: 2 },
-      { phrase: 'toxic cycle', weight: 4 },
+      { phrase: 'toxic cycle', weight: 5 },
       { phrase: 'boundaries', weight: 2 },
       { phrase: 'i always end up', weight: 3 },
       { phrase: 'same thing happens', weight: 3 },
