@@ -120,3 +120,22 @@ Extracted contradictions (e.g., "says they're fine but has mentioned stress 3 ti
 -   **localStorage**: Client-side persistence.
 -   **PostgreSQL**: Server-side relational database.
 -   **express-rate-limit**: API rate limiting.
+
+## Integration Health Check
+Run `node server/healthCheck.js [userId]` to execute 28 integration tests across 8 categories:
+1. Memory Extraction (in-process regex tests)
+2. Memory Retrieval (via API)
+3. Greeting Injection (system prompt assembly)
+4. Active Chat Injection (relational anchors)
+5. Doorways (trigger matching, crisis override)
+6. Studios (track playback, stop commands, generic fallback)
+7. Attunement (posture detection, crisis override)
+8. Pattern Context (weekly summary endpoint)
+
+Requires the backend running on PORT=3000. Exit code 0 = all pass, 1 = any fail.
+
+# Recent Changes (2026-02-22)
+- Fixed EXPLICIT_REGEX in relationalMemory.js: case-sensitive `[A-Z][a-z]` name capture replaces greedy `[A-Za-z]{0,30}` pattern; multi-person extraction now works correctly
+- Expanded stop words list (~40 words) to prevent common verbs being captured as name suffixes
+- Created comprehensive healthCheck.js (28 tests, 8 categories)
+- Reduced DB pool max from 10 to 3 for Neon free tier compatibility
