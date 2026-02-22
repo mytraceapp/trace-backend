@@ -609,18 +609,21 @@ async function loadDreamscapeHistory(pool, userId, deviceId) {
   if (!effectiveId) return null;
 
   try {
-    const result = await pool.query(`
-      SELECT 
-        metadata->>'dreamscapeTrackId' as track_id,
-        completed_at,
-        EXTRACT(DAY FROM NOW() - completed_at) as days_ago
-      FROM activity_logs
-      WHERE (user_id = $1 OR device_id = $1)
-        AND activity_type = 'dreamscape'
-        AND metadata->>'dreamscapeTrackId' IS NOT NULL
-      ORDER BY completed_at DESC
-      LIMIT 1
-    `, [effectiveId]);
+    const result = await Promise.race([
+      pool.query(`
+        SELECT 
+          metadata->>'dreamscapeTrackId' as track_id,
+          completed_at,
+          EXTRACT(DAY FROM NOW() - completed_at) as days_ago
+        FROM activity_logs
+        WHERE (user_id = $1 OR device_id = $1)
+          AND activity_type = 'dreamscape'
+          AND metadata->>'dreamscapeTrackId' IS NOT NULL
+        ORDER BY completed_at DESC
+        LIMIT 1
+      `, [effectiveId]),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Dreamscape query timeout')), 3000))
+    ]);
 
     if (!result.rows?.length) return null;
 

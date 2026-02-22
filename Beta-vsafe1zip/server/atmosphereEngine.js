@@ -164,13 +164,29 @@ function defaultSessionState() {
   };
 }
 
+let _dbHealthy = true;
+let _dbLastFailAt = 0;
+let _isPoolHealthy = null;
+let _markPoolUnhealthy = null;
+let _markPoolHealthy = null;
+
+function setPoolHealthCallbacks(isHealthy, markUnhealthy, markHealthy) {
+  _isPoolHealthy = isHealthy;
+  _markPoolUnhealthy = markUnhealthy;
+  _markPoolHealthy = markHealthy;
+}
+
 async function loadSessionFromDb(userId) {
   if (!_dbPool) return null;
+  if (_isPoolHealthy && !_isPoolHealthy()) return null;
+  if (!_dbHealthy && Date.now() - _dbLastFailAt < 60000) return null;
   try {
-    const { rows } = await _dbPool.query(
-      'SELECT * FROM atmosphere_sessions WHERE user_id = $1',
-      [userId]
-    );
+    const result = await Promise.race([
+      _dbPool.query('SELECT * FROM atmosphere_sessions WHERE user_id = $1', [userId]),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('DB query timeout (5s)')), 5000))
+    ]);
+    const { rows } = result;
+    if (!_dbHealthy) { _dbHealthy = true; console.log('[ATMOSPHERE] DB connection restored'); }
     if (rows.length === 0) return null;
     const row = rows[0];
     return {
@@ -190,6 +206,11 @@ async function loadSessionFromDb(userId) {
       last_known_tracks_played: row.last_known_tracks_played || 0
     };
   } catch (err) {
+    if (err.message.includes('timeout') || err.message.includes('terminated') || err.message.includes('Connection')) {
+      _dbHealthy = false;
+      _dbLastFailAt = Date.now();
+      if (_markPoolUnhealthy) _markPoolUnhealthy(err.message);
+    }
     console.warn('[ATMOSPHERE] DB load failed:', err.message);
     return null;
   }
@@ -197,6 +218,8 @@ async function loadSessionFromDb(userId) {
 
 function saveSessionToDb(userId, state) {
   if (!_dbPool) return;
+  if (_isPoolHealthy && !_isPoolHealthy()) return;
+  if (!_dbHealthy && Date.now() - _dbLastFailAt < 60000) return;
   _dbPool.query(
     `INSERT INTO atmosphere_sessions (user_id, current_state, last_change_timestamp, state_change_history,
       last_signal_timestamp, neutral_message_streak, grounding_clear_streak, freeze_until_timestamp,
@@ -1045,6 +1068,7 @@ module.exports = {
   getSessionStateAsync,
   updateSessionState,
   setDbPool,
+  setPoolHealthCallbacks,
   SIGNAL_TABLES,
   STATE_PRIORITY
 };

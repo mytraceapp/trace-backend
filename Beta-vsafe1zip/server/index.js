@@ -28,15 +28,60 @@ const { DateTime } = require('luxon');
 // PostgreSQL pool for activity_logs (Replit database)
 const pool = process.env.DATABASE_URL ? new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  ssl: { rejectUnauthorized: false },
+  max: 10,
+  idleTimeoutMillis: 20000,
+  connectionTimeoutMillis: 30000,
+  allowExitOnIdle: true,
 }) : null;
 
+let poolHealthy = true;
+let poolLastCheckAt = 0;
+const POOL_HEALTH_INTERVAL = 60000;
+
+function isPoolHealthy() {
+  return pool && poolHealthy;
+}
+
+function markPoolUnhealthy(reason) {
+  if (poolHealthy) {
+    poolHealthy = false;
+    poolLastCheckAt = Date.now();
+    console.warn(`[POOL] Marked unhealthy: ${reason}`);
+  }
+}
+
+function markPoolHealthy() {
+  if (!poolHealthy) {
+    poolHealthy = true;
+    console.log('[POOL] Connection restored');
+  }
+}
+
+async function poolQuerySafe(text, params, timeoutMs = 5000) {
+  if (!pool) return null;
+  if (!poolHealthy && Date.now() - poolLastCheckAt < POOL_HEALTH_INTERVAL) {
+    return null;
+  }
+  try {
+    const result = await Promise.race([
+      pool.query(text, params),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Pool query timeout')), timeoutMs))
+    ]);
+    markPoolHealthy();
+    return result;
+  } catch (err) {
+    if (err.message.includes('timeout') || err.message.includes('terminated') || err.message.includes('Connection')) {
+      markPoolUnhealthy(err.message);
+    }
+    throw err;
+  }
+}
+
 if (pool) {
-  const { setDbPool: setAtmosphereDbPoolEarly } = require('./atmosphereEngine');
+  const { setDbPool: setAtmosphereDbPoolEarly, setPoolHealthCallbacks } = require('./atmosphereEngine');
   setAtmosphereDbPoolEarly(pool);
+  setPoolHealthCallbacks(isPoolHealthy, markPoolUnhealthy, markPoolHealthy);
 }
 const {
   buildMemoryContext,
@@ -8129,13 +8174,14 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
       }
     }
     
+    const poolOk = isPoolHealthy();
     if (pool) {
-      console.log(`[POOL STATUS] total=${pool.totalCount} idle=${pool.idleCount} waiting=${pool.waitingCount}`);
+      console.log(`[POOL STATUS] total=${pool.totalCount} idle=${pool.idleCount} waiting=${pool.waitingCount} healthy=${poolHealthy}`);
     }
 
     // Get Dreamscape presence memory (relational history) — single load, reused downstream
     let dreamscapeHistory = null;
-    if (pool && !isCrisisMode) {
+    if (poolOk && !isCrisisMode) {
       try {
         dreamscapeHistory = await loadDreamscapeHistory(pool, userId, deviceId);
         if (dreamscapeHistory) {
@@ -8185,7 +8231,7 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
       }
       
       // 2. Fallback: DB-backed reflection state (30-minute window)
-      if (!postActivityReflectionContext && pool) {
+      if (!postActivityReflectionContext && poolOk) {
         try {
           postActivityReflectionContext = await getReflectionContext(pool, reflectionUserId);
           if (postActivityReflectionContext) {
@@ -8239,7 +8285,7 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
     const patternUserId = userId || deviceId;
     if (!FEATURE_FLAGS.PATTERN_REFLECTIONS_ENABLED) {
       console.log('[FEATURE FLAG] Pattern reflections disabled');
-    } else if (pool && patternUserId) {
+    } else if (poolOk && patternUserId) {
       try {
         const lastUserMessage = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
         
@@ -8324,7 +8370,7 @@ CRISIS OVERRIDE:
       console.log('[FEATURE FLAG] Emotional intelligence disabled');
     } else try {
       const emotionalContext = await buildEmotionalIntelligenceContext({
-        pool,
+        pool: poolOk ? pool : null,
         supabase: supabaseServer,
         userId: userId || null,
         deviceId: deviceId || null,
@@ -10173,7 +10219,7 @@ If the right move isn't obvious: one grounded observation about what you notice 
     let pendingConfirmationLine = null;
     let relationalConfirmHandled = false;
     try {
-      if (pool && effectiveUserId) {
+      if (poolOk && effectiveUserId) {
         const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content || '';
         const userMsgCount = messages.filter(m => m.role === 'user').length;
 
@@ -10365,7 +10411,7 @@ If the right move isn't obvious: one grounded observation about what you notice 
     let topicContextPrompt = '';
     const memConversationId = conversationMeta?.conversationId || req.body.conversationId || req.body.conversation_id || null;
     try {
-      if (effectiveUserId && pool) {
+      if (effectiveUserId && poolOk) {
         const userTopics = topicMemory.extractTopics(lastUserContent);
         if (userTopics.length > 0 && memConversationId) {
           topicMemory.storeTopics(pool, effectiveUserId, memConversationId, userTopics).catch(err => {
