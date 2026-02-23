@@ -6352,11 +6352,53 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       const allowedMusic = canInviteMusic(musicState, musicContext);
       
       if (allowedMusic) {
-        console.log('[TRACE CHAT] Music invite allowed — offering first (no immediate ui_action)');
         musicState.musicInviteUsed = true;
         musicState.lastInviteTimestamp = Date.now();
         
         const space = pickMusicSpace(musicContext);
+        
+        const isExplicitPlayCommand = /\b(play|put on|start)\s+(a song|a track|something|some music|music|it|one|a tune)\b/i.test(userText) ||
+          /\b(can you|could you|will you)\s+play\b/i.test(userText);
+        
+        const isAlbumContextPlay = /\b(from (it|the album|your album|night swim))\b/i.test(userText);
+        
+        if (isExplicitPlayCommand || isAlbumContextPlay) {
+          const playAction = {
+            type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
+            title: space,
+            source: 'trace',
+          };
+          console.log('[TRACE CHAT] Explicit play request — auto-playing (skipping offer step)');
+          console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: 'auto_play', source: 'trace', space, path: 'music_direct_play' }));
+          
+          const playResponses = [
+            "Here you go.",
+            "Playing something for you.",
+            "Let me pull something up.",
+          ];
+          const playMsg = playResponses[Math.floor(Math.random() * playResponses.length)];
+          
+          if (effectiveUserId) {
+            const stState = conversationState.getState(effectiveUserId);
+            stState.topicAnchor = { domain: 'music', label: 'music exploration', entities: [], turnAge: 0, carried: false };
+            stState.lastPrimaryMode = 'studios';
+            conversationState.setActiveRun(stState, { mode: 'studios', anchorLabel: 'music exploration' });
+            conversationState.saveState(effectiveUserId, stState);
+          }
+          
+          const playIntent = { primaryMode: 'studios', continuity: { required: true, reason: 'direct_play' }, topicAnchor: { domain: 'music', label: 'music exploration' } };
+          return finalizeTraceResponse(res, {
+            message: applyContinuityBridge({ traceIntent: playIntent, response_source: 'trace_studios', messageText: playMsg, requestId }),
+            activity_suggestion: { name: null, reason: null, should_navigate: false },
+            sound_state: getAtmosphereSoundState(),
+            response_source: 'trace_studios',
+            ui_action: playAction,
+            action_source: 'contract_v1',
+            _provenance: { path: 'music_direct_play', primaryMode: 'studios', moodSpace: space, requestId, ts: Date.now(), ui_action_type: playAction.type }
+          }, requestId);
+        }
+        
+        console.log('[TRACE CHAT] Music invite allowed — offering first (no immediate ui_action)');
         const text = MUSIC_TEMPLATES[space];
         
         musicState.pendingPlaylistOffer = {
@@ -15932,9 +15974,10 @@ function detectUserRequestedMusic(messageText = '') {
     return false;
   }
   
-  // Skip if user is asking about TRACE's music (not requesting a playlist)
-  // These should be handled by traceStudios flow instead
-  const isAskingAboutTraceMusic = (
+  // Skip if user is asking ABOUT TRACE's music (not requesting to play)
+  // But allow through if they explicitly want to play/hear it
+  const hasPlayIntent = /\b(play|put on|listen|hear|start|can you play|play me)\b/.test(txt);
+  const isAskingAboutTraceMusic = !hasPlayIntent && (
     txt.includes('what kind of music') ||
     txt.includes('what type of music') ||
     txt.includes('your music') ||
@@ -15974,7 +16017,8 @@ function detectUserRequestedMusic(messageText = '') {
   
   // Skip conversational music mentions - user is TALKING ABOUT music, not REQUESTING music
   // "He makes music that feels good" is about an artist, not a request
-  const isConversationalMusicMention = (
+  // But allow through if they have explicit play intent ("play from the album")
+  const isConversationalMusicMention = !hasPlayIntent && (
     txt.includes('makes music') ||
     txt.includes('their music') ||
     txt.includes('his music') ||
