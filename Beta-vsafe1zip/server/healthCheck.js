@@ -91,9 +91,11 @@ function testPromptSync() {
 
   const SYNC_FACTS = [
     { fact: '@traceriapp', desc: '@traceriapp (Instagram)', requiredIn: ['v1', 'index'], note: 'social handle — injected dynamically via index.js social handler' },
-    { fact: 'March 21', desc: 'March 21 (album release)', requiredIn: ['v1', 'index'], note: 'artist canon — injected dynamically' },
-    { fact: 'Neon Promise', desc: 'Neon Promise', requiredIn: ['v1', 'index'], note: 'artist canon' },
-    { fact: 'Afterglow', desc: 'Afterglow', requiredIn: ['v1', 'index'], note: 'artist canon' },
+    { fact: 'March 21', desc: 'March 21 (album release)', requiredIn: ['v1', 'v2Core', 'index'], note: 'must appear in all prompt sources' },
+    { fact: 'Neon Promise', desc: 'Neon Promise', requiredIn: ['v1', 'v2Core', 'index'], note: 'artist canon' },
+    { fact: 'Afterglow', desc: 'Afterglow', requiredIn: ['v1', 'v2Core', 'index'], note: 'artist canon' },
+    { fact: 'NEVER INVENT. NEVER GUESS', desc: 'MUSIC FACTS LOCKED block', requiredIn: ['v1', 'v2Core', 'index'], note: 'locked music facts block — prevents hallucinated release dates' },
+    { fact: 'Never say any album released in 2022', desc: 'Year 2022 ban in locked block', requiredIn: ['v1', 'v2Core', 'index'], note: 'hard rule against hallucinated years' },
     { fact: 'mm.', desc: '"mm." is banned', requiredIn: ['v1'], note: 'banned in V1 prompt; also enforced via voiceEngine BANNED_PHRASES' },
     { fact: 'no YouTube yet', desc: 'no YouTube yet', requiredIn: ['index'], note: 'social handler in index.js' },
   ];
@@ -127,6 +129,15 @@ function testPromptSync() {
 
   const v2CoreBansForbidden = v2Core && (v2Core.includes("It's okay to feel") || v2Core.includes("it's okay to feel"));
   log('V2 Core bans therapy phrases', !!v2CoreBansForbidden, v2CoreBansForbidden ? 'Present' : 'MISSING');
+
+  const has2022Trigger = indexFile && indexFile.includes('november 2022');
+  log('"november 2022" triggers music canon injection', !!has2022Trigger, has2022Trigger ? 'Present in isMusicRelatedQuestion' : 'MISSING');
+
+  const hasReleasedIn2022 = indexFile && indexFile.includes('released in 2022');
+  log('"released in 2022" triggers music canon injection', !!hasReleasedIn2022, hasReleasedIn2022 ? 'Present in isMusicRelatedQuestion' : 'MISSING');
+
+  const hasWhenDid = indexFile && indexFile.includes('when did');
+  log('"when did" triggers music canon injection', !!hasWhenDid, hasWhenDid ? 'Present in isMusicRelatedQuestion' : 'MISSING');
 }
 
 function testMemoryPipeline() {
