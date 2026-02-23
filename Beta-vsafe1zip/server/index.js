@@ -8772,10 +8772,10 @@ CRISIS OVERRIDE:
       }
     }
     
-    console.log(`[CHAT_DEBUG] Sending ${messages.length} messages to AI. convId=${conversationMeta?.conversationId || 'none'}`);
+    console.log(`[CONTEXT] client sent ${(rawMessages || []).length} msgs, after filtering: ${messages.length} msgs. convId=${conversationMeta?.conversationId || 'none'}`);
     if (messages.length > 0) {
       const last3 = messages.slice(-3);
-      console.log('[CHAT_DEBUG] Last 3 message roles:', last3.map(m => m.role));
+      console.log('[CONTEXT] Last 3 message roles:', last3.map(m => m.role));
     }
     
     let fullContext = contextParts.filter(Boolean).join('\n\n');
@@ -11029,6 +11029,12 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
           l1Messages.push(sessionCompressionContext);
         }
         l1Messages.push(...messagesWithHydration);
+        
+        const ctxUserCount = messagesWithHydration.filter(m => m.role === 'user').length;
+        const ctxAssistantCount = messagesWithHydration.filter(m => m.role === 'assistant').length;
+        const ctxSystemCount = l1Messages.filter(m => m.role === 'system').length;
+        console.log(`[CONTEXT] client sent ${(rawMessages || []).length} msgs, after hydration: ${messagesWithHydration.length} msgs → passing to model (${ctxUserCount} user, ${ctxAssistantCount} assistant, ${ctxSystemCount} system prompts, compression=${!!sessionCompressionContext})`);
+
         const openaiParams = {
           model: selectedModel,
           messages: l1Messages,
