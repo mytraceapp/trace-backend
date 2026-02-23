@@ -2923,6 +2923,32 @@ function buildSessionContextAnchor(messages) {
     'May', 'June', 'July', 'August', 'September', 'October',
     'November', 'December', 'Night', 'Morning'
   ]);
+  
+  const notNames = new Set([
+    'doing', 'having', 'being', 'getting', 'going', 'coming', 'making',
+    'taking', 'giving', 'keeping', 'looking', 'feeling', 'telling',
+    'saying', 'asking', 'calling', 'trying', 'leaving', 'starting',
+    'working', 'living', 'playing', 'running', 'sitting', 'standing',
+    'talking', 'sleeping', 'eating', 'drinking', 'crying', 'dying',
+    'sick', 'tired', 'happy', 'sad', 'angry', 'scared', 'worried',
+    'stressed', 'upset', 'hurt', 'fine', 'okay', 'good', 'bad',
+    'better', 'worse', 'alone', 'away', 'here', 'there', 'home',
+    'back', 'over', 'out', 'down', 'off', 'around', 'together',
+    'always', 'never', 'sometimes', 'again', 'still', 'already',
+    'just', 'really', 'very', 'much', 'more', 'less', 'also',
+    'too', 'not', 'been', 'about', 'with', 'from', 'into',
+    'lately', 'recently', 'constantly', 'basically', 'honestly',
+    'apparently', 'actually', 'probably', 'maybe', 'definitely',
+    'named', 'called', 'born', 'raised', 'adopted', 'moved',
+  ]);
+  
+  function isValidName(str) {
+    if (!str || str.length < 2 || str.length > 14) return false;
+    if (!/^[A-Z]/.test(str)) return false;
+    if (commonWords.has(str)) return false;
+    if (notNames.has(str.toLowerCase())) return false;
+    return true;
+  }
 
   // --- LAYER 1: People & Relationships ---
   const RELATIONSHIP_ROLES = [
@@ -2989,10 +3015,9 @@ function buildSessionContextAnchor(messages) {
     for (const re of [nameRelRE, namedRelRE3, nameRelRE4]) {
       re.lastIndex = 0;
       while ((match = re.exec(text)) !== null) {
-        const role = (match[1] || match[2] || '').toLowerCase().trim();
-        const name = (re === nameRelRE4) ? match[1] : (match[2] || match[1] || '');
-        if (name && name.length > 1 && !commonWords.has(name)) {
-          const actualRole = (re === nameRelRE4) ? match[2].toLowerCase().trim() : role;
+        const name = (re === nameRelRE4) ? match[1] : (match[2] || '');
+        if (isValidName(name)) {
+          const actualRole = (re === nameRelRE4) ? match[2].toLowerCase().trim() : (match[1] || '').toLowerCase().trim();
           peopleMap.set(name, actualRole);
         }
       }
@@ -3001,7 +3026,7 @@ function buildSessionContextAnchor(messages) {
     while ((match = nameRelRE2.exec(text)) !== null) {
       const name = match[1];
       const role = match[2].toLowerCase().trim();
-      if (name && !commonWords.has(name)) {
+      if (isValidName(name)) {
         peopleMap.set(name, role);
       }
     }
@@ -3011,10 +3036,10 @@ function buildSessionContextAnchor(messages) {
     standaloneNameRE.lastIndex = 0;
     while ((match = standaloneNameRE.exec(text)) !== null) {
       const name = match[1];
-      if (!commonWords.has(name) && !peopleMap.has(name)) {
+      if (isValidName(name) && !peopleMap.has(name)) {
         const surrounding = text.slice(Math.max(0, match.index - 30), match.index + name.length + 30);
         if (/(?:told|said|asked|called|texted|messaged|with|and|she|he|they|about|from|like|loves|hates|wants|needs|thinks|knows)/i.test(surrounding)) {
-          if (!peopleMap.has(name)) peopleMap.set(name, null);
+          peopleMap.set(name, null);
         }
       }
     }
