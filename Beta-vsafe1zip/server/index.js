@@ -6364,22 +6364,121 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         
         const isAlbumContextPlay = /\b(from (it|the album|your album|night swim|the night swim))\b/i.test(userText);
         
+        const isExplicitSpotifyRequest = /\b(play|open|put on)\b.*(rooted|low orbit|first light|playlist)/i.test(userText);
+        const userLeavingNow = /\b(bye|goodbye|goodnight|gotta go|heading out|done for (tonight|now|today)|signing off|see you|talk later|i'm out|leaving|wrapping up|gotta sleep|going to bed|logging off)\b/i.test(userText);
+        const spotifyAllowed = isExplicitSpotifyRequest || (musicState.nightSwimOffered && userLeavingNow);
+        
         if (isExplicitPlayCommand || isAlbumContextPlay) {
-          const playAction = {
-            type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
-            title: space,
+          if (!spotifyAllowed) {
+            const nightSwimTracks = [
+              { id: 'neon_promise', title: 'Neon Promise', index: 6 },
+              { id: 'midnight_underwater', title: 'Midnight Underwater', index: 0 },
+              { id: 'slow_tides', title: 'Slow Tides Over Glass', index: 1 },
+              { id: 'euphoria', title: 'Euphoria', index: 3 },
+              { id: 'ocean_breathing', title: 'Ocean Breathing', index: 4 },
+              { id: 'tidal_house', title: 'Tidal House', index: 5 },
+              { id: 'undertow', title: 'Undertow', index: 2 },
+            ];
+            const trackPick = nightSwimTracks[Math.floor(Math.random() * nightSwimTracks.length)];
+            
+            const playAction = {
+              type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK,
+              title: trackPick.title,
+              trackId: trackPick.id,
+              trackIndex: trackPick.index,
+              album: 'night_swim',
+              source: 'trace',
+            };
+            console.log('[TRACE CHAT] Explicit play request — playing Night Swim track:', trackPick.title);
+            console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: 'auto_play_night_swim', source: 'trace', track: trackPick.title, path: 'music_direct_play' }));
+            
+            musicState.nightSwimOffered = true;
+            musicState.nightSwimTracksPlayed = (musicState.nightSwimTracksPlayed || 0) + 1;
+            
+            const playResponses = [
+              `here — playing ${trackPick.title} now.`,
+              `putting on ${trackPick.title}.`,
+              `${trackPick.title}, coming up.`,
+            ];
+            const playMsg = playResponses[Math.floor(Math.random() * playResponses.length)];
+            
+            if (effectiveUserId) {
+              const stState = conversationState.getState(effectiveUserId);
+              stState.topicAnchor = { domain: 'music', label: 'music exploration', entities: [], turnAge: 0, carried: false };
+              stState.lastPrimaryMode = 'studios';
+              conversationState.setActiveRun(stState, { mode: 'studios', anchorLabel: 'music exploration' });
+              conversationState.saveState(effectiveUserId, stState);
+            }
+            
+            const playIntent = { primaryMode: 'studios', continuity: { required: true, reason: 'direct_play' }, topicAnchor: { domain: 'music', label: 'music exploration' } };
+            return finalizeTraceResponse(res, {
+              message: applyContinuityBridge({ traceIntent: playIntent, response_source: 'trace_studios', messageText: playMsg, requestId }),
+              activity_suggestion: { name: null, reason: null, should_navigate: false },
+              sound_state: getAtmosphereSoundState(),
+              response_source: 'trace_studios',
+              ui_action: playAction,
+              action_source: 'contract_v1',
+              _provenance: { path: 'music_direct_play_night_swim', primaryMode: 'studios', track: trackPick.title, requestId, ts: Date.now(), ui_action_type: playAction.type }
+            }, requestId);
+          } else {
+            const playAction = {
+              type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
+              title: space,
+              source: 'trace',
+            };
+            console.log('[TRACE CHAT] Explicit play request — Spotify playlist allowed (Night Swim exhausted or user leaving)');
+            console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: 'auto_play_spotify', source: 'trace', space, path: 'music_direct_play_spotify' }));
+            
+            const playResponses = [
+              "Here you go.",
+              "Playing something for you.",
+              "Let me pull something up.",
+            ];
+            const playMsg = playResponses[Math.floor(Math.random() * playResponses.length)];
+            
+            if (effectiveUserId) {
+              const stState = conversationState.getState(effectiveUserId);
+              stState.topicAnchor = { domain: 'music', label: 'music exploration', entities: [], turnAge: 0, carried: false };
+              stState.lastPrimaryMode = 'studios';
+              conversationState.setActiveRun(stState, { mode: 'studios', anchorLabel: 'music exploration' });
+              conversationState.saveState(effectiveUserId, stState);
+            }
+            
+            const playIntent = { primaryMode: 'studios', continuity: { required: true, reason: 'direct_play' }, topicAnchor: { domain: 'music', label: 'music exploration' } };
+            return finalizeTraceResponse(res, {
+              message: applyContinuityBridge({ traceIntent: playIntent, response_source: 'trace_studios', messageText: playMsg, requestId }),
+              activity_suggestion: { name: null, reason: null, should_navigate: false },
+              sound_state: getAtmosphereSoundState(),
+              response_source: 'trace_studios',
+              ui_action: playAction,
+              action_source: 'contract_v1',
+              _provenance: { path: 'music_direct_play_spotify', primaryMode: 'studios', moodSpace: space, requestId, ts: Date.now(), ui_action_type: playAction.type }
+            }, requestId);
+          }
+        }
+        
+        // SPOTIFY PLAYLIST GUARD: Non-explicit play requests (offer flow)
+        // Lead with Night Swim unless Spotify is explicitly allowed
+        // Spotify only allowed when: user explicitly requests a playlist, OR user is leaving after Night Swim was offered
+        // nightSwimTracksPlayed counter alone is NOT enough — user must also signal "more" or "something else"
+        const wantsMoreMusic = /\b(more|another|different|something else|else|keep going|next|other|variety)\b/i.test(userText);
+        const offerSpotifyAllowed = isExplicitSpotifyRequest || (musicState.nightSwimOffered && userLeavingNow) || (musicState.nightSwimOffered && wantsMoreMusic);
+        
+        if (!offerSpotifyAllowed) {
+          console.log('[TRACE CHAT] Music invite — offering Night Swim track first (Spotify guard active)');
+          musicState.nightSwimOffered = true;
+          
+          const offerMsg = "I've got something from Night Swim that might fit right now. Want me to play it?";
+          
+          musicState.pendingPlaylistOffer = {
+            type: UI_ACTION_TYPES.PLAY_IN_APP_TRACK,
+            title: 'Night Swim',
+            trackId: 'neon_promise',
+            trackIndex: 6,
+            album: 'night_swim',
             source: 'trace',
           };
-          console.log('[TRACE CHAT] Explicit play request — auto-playing (skipping offer step)');
-          console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: 'auto_play', source: 'trace', space, path: 'music_direct_play' }));
-          
-          const playResponses = [
-            "Here you go.",
-            "Playing something for you.",
-            "Let me pull something up.",
-          ];
-          const playMsg = playResponses[Math.floor(Math.random() * playResponses.length)];
-          
+        
           if (effectiveUserId) {
             const stState = conversationState.getState(effectiveUserId);
             stState.topicAnchor = { domain: 'music', label: 'music exploration', entities: [], turnAge: 0, carried: false };
@@ -6388,19 +6487,19 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
             conversationState.saveState(effectiveUserId, stState);
           }
           
-          const playIntent = { primaryMode: 'studios', continuity: { required: true, reason: 'direct_play' }, topicAnchor: { domain: 'music', label: 'music exploration' } };
+          const offerIntent = { primaryMode: 'studios', continuity: { required: true, reason: 'night_swim_offer' }, topicAnchor: { domain: 'music', label: 'music exploration' } };
           return finalizeTraceResponse(res, {
-            message: applyContinuityBridge({ traceIntent: playIntent, response_source: 'trace_studios', messageText: playMsg, requestId }),
+            message: applyContinuityBridge({ traceIntent: offerIntent, response_source: 'trace_studios', messageText: offerMsg, requestId }),
             activity_suggestion: { name: null, reason: null, should_navigate: false },
             sound_state: getAtmosphereSoundState(),
             response_source: 'trace_studios',
-            ui_action: playAction,
+            ui_action: null,
             action_source: 'contract_v1',
-            _provenance: { path: 'music_direct_play', primaryMode: 'studios', moodSpace: space, requestId, ts: Date.now(), ui_action_type: playAction.type }
+            _provenance: { path: 'music_night_swim_offer', primaryMode: 'studios', requestId, ts: Date.now() }
           }, requestId);
         }
         
-        console.log('[TRACE CHAT] Music invite allowed — offering first (no immediate ui_action)');
+        console.log('[TRACE CHAT] Music invite allowed — offering Spotify playlist (Night Swim exhausted or user leaving)');
         const text = MUSIC_TEMPLATES[space];
         
         musicState.pendingPlaylistOffer = {
@@ -15955,9 +16054,14 @@ function getMusicState(userId) {
       musicDeclined: false,
       lastInviteTimestamp: null,
       pendingPlaylistOffer: null,
+      nightSwimOffered: false,
+      nightSwimTracksPlayed: 0,
     });
   }
-  return sessionMusicState.get(userId);
+  const state = sessionMusicState.get(userId);
+  if (state.nightSwimOffered === undefined) state.nightSwimOffered = false;
+  if (state.nightSwimTracksPlayed === undefined) state.nightSwimTracksPlayed = 0;
+  return state;
 }
 
 function detectUserRequestedMusic(messageText = '') {

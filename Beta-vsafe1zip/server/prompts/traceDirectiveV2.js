@@ -153,7 +153,7 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
     if (primaryMode === 'studios') {
       contractRules.push(`STUDIOS MODE: No activities, soundscapes, grounding, exercises, breathing, therapy cadence. Only music/creative content.`);
     } else if (primaryMode === 'conversation') {
-      contractRules.push(`CONVERSATION MODE: Never mention Spotify playlists (Rooted, Low Orbit, First Light) unless user asks for outside-app recs or is leaving. Night Swim tracks are fine.`);
+      contractRules.push(`CONVERSATION MODE: Never mention Spotify playlists (Rooted, Low Orbit, First Light) unless Night Swim tracks have already been suggested AND user wants more music, OR user is ending the session. Always lead with Night Swim tracks first. Night Swim = in-app playback. Spotify playlists = last resort.`);
     }
 
     if (contractRules.length > 0) {
