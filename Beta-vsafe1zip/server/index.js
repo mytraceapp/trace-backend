@@ -8795,17 +8795,26 @@ It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${local
 
       // ============================================================
       // TRACE PERSONA INJECTION (always)
-      // Artist canon only injected when conversation is about music
+      // Artist canon injected when conversation is about music OR
+      // studios mode is active (traceStudiosContext / recent music msgs)
       // ============================================================
       const lastUserMsgForPersona = messages.filter(m => m.role === 'user').pop()?.content || '';
-      const isMusicContext = isMusicRelatedQuestion(lastUserMsgForPersona);
+      const isMusicContextDirect = isMusicRelatedQuestion(lastUserMsgForPersona);
+      const traceStudiosCtx = req.body.traceStudiosContext;
+      const isStudiosActive = traceStudiosCtx === 'music_general' || traceStudiosCtx === 'neon_promise';
+      const recentMsgsText = messages.slice(-6).map(m => m.content || '').join(' ').toLowerCase();
+      const recentMusicContext = /\b(album|night swim|neon promise|release|drop|track|song|music|afterglow|when did (it|you|the album)|what year)\b/i.test(recentMsgsText);
+      const shouldInjectCanon = isMusicContextDirect || isStudiosActive || recentMusicContext;
       
       let personaInjection = `${TRACE_PERSONA_V1}\n\n`;
       
-      // Only inject artist canon when music is the topic
-      if (isMusicContext) {
+      if (shouldInjectCanon) {
         personaInjection += `${TRACE_ARTIST_CANON_PROMPT}\n\nTRACE_CANON_JSON:${JSON.stringify(TRACE_ARTIST_CANON_V1)}\n\nTRACE_INTERVIEW_QA_BANK_JSON:${JSON.stringify(TRACE_INTERVIEW_QA_BANK_V1)}\n\n`;
-        console.log('[TRACE PERSONA] Music context detected, injecting artist canon');
+        console.log('[TRACE PERSONA] Music context detected, injecting artist canon', JSON.stringify({
+          direct: isMusicContextDirect,
+          studiosActive: isStudiosActive,
+          recentContext: recentMusicContext
+        }));
       }
       
       personaInjection += `---\n`;
@@ -13267,6 +13276,24 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       }
     }
     
+    // ---- MUSIC FACT SANITIZER: catch hallucinated release dates ----
+    if (response.message) {
+      const origMsg = response.message;
+      let sanitizedMsg = response.message;
+      const WRONG_YEAR_RE = /\b(released?|dropped?|came out|launched|debuted|put out)\b.{0,40}\b(in\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)?\s*(20(?:1[0-9]|2[0-5]))\b/i;
+      const WRONG_YEAR_SIMPLE = /\b(album|night swim|neon promise|first album|debut)\b.{0,60}\b(20(?:1[0-9]|2[0-5]))\b/i;
+      const NOVEMBER_2022_RE = /\b(november|nov\.?)\s*2022\b/i;
+      const wrongMatch = WRONG_YEAR_RE.test(sanitizedMsg) || WRONG_YEAR_SIMPLE.test(sanitizedMsg) || NOVEMBER_2022_RE.test(sanitizedMsg);
+      if (wrongMatch) {
+        sanitizedMsg = sanitizedMsg.replace(/\b(?:(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\.?\s*)?20(?:1[0-9]|2[0-5])\b/gi, 'March 21, 2026');
+        sanitizedMsg = sanitizedMsg.replace(/March 21, 2026,?\s*March 21, 2026/g, 'March 21, 2026');
+        if (sanitizedMsg !== origMsg) {
+          console.log('[MUSIC_FACT_SANITIZER] Corrected hallucinated release date in response');
+          response.message = sanitizedMsg;
+        }
+      }
+    }
+
     const finalResponse = normalizeChatResponse(response, requestId);
     if (schemaMeta) {
       finalResponse._schema_meta = schemaMeta;

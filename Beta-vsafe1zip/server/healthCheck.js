@@ -138,6 +138,12 @@ function testPromptSync() {
 
   const hasWhenDid = indexFile && indexFile.includes('when did');
   log('"when did" triggers music canon injection', !!hasWhenDid, hasWhenDid ? 'Present in isMusicRelatedQuestion' : 'MISSING');
+
+  const hasFactSanitizer = indexFile && indexFile.includes('MUSIC_FACT_SANITIZER');
+  log('Post-processing MUSIC_FACT_SANITIZER exists', !!hasFactSanitizer, hasFactSanitizer ? 'Present' : 'MISSING — hallucinated dates won\'t be caught');
+
+  const hasRecentMusicContext = indexFile && indexFile.includes('recentMusicContext');
+  log('Artist canon injects on recent music context (not just current msg)', !!hasRecentMusicContext, hasRecentMusicContext ? 'Present' : 'MISSING — follow-up msgs like "are you sure?" won\'t get canon');
 }
 
 function testMemoryPipeline() {
