@@ -188,6 +188,12 @@ ${doorwayHint}
 ${contextBlock}
 
 ${antiRepeat}
+RESPONSE TEXTURE CHECK:
+If your last 3 responses were each under 5 words, add more substance to this one.
+If this response would be a single flat word ("Got it." / "I see." / "Okay." / "Sure."), rewrite it — what would a friend who's been listening say here?
+Humor is allowed when the moment is light — brief, dry, never forced.
+Warmth doesn't require length — it requires specificity.
+
 Output only the user-facing message.
 `.trim();
 }

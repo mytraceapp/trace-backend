@@ -1633,6 +1633,17 @@ function sanitizeTone(text, options = {}) {
     console.log('[TONE SANITIZER] Cleaned therapy-speak from response');
   }
   
+  // FLAT RESPONSE DETECTION: Flag responses that are just banned flat words
+  // These are empty responses that don't carry any personality or presence
+  const BANNED_FLAT_RESPONSES = [
+    'got it', 'i see', 'okay', 'alright', 'sure', 'ok',
+    'got it.', 'i see.', 'okay.', 'alright.', 'sure.', 'ok.'
+  ];
+  const trimmedLower = result.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (BANNED_FLAT_RESPONSES.includes(trimmedLower)) {
+    console.log(`[TONE SANITIZER] Detected banned flat response: "${result}" — flagging for presence`);
+  }
+  
   return result;
 }
 
