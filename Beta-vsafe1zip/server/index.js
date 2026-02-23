@@ -6357,10 +6357,12 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         
         const space = pickMusicSpace(musicContext);
         
-        const isExplicitPlayCommand = /\b(play|put on|start)\s+(a song|a track|something|some music|music|it|one|a tune)\b/i.test(userText) ||
-          /\b(can you|could you|will you)\s+play\b/i.test(userText);
+        const isExplicitPlayCommand = /\b(play|put on|start)\s+(a\s+)?(song|son|track|something|some music|music|it|one|a tune)\b/i.test(userText) ||
+          /\b(can you|could you|will you|would you)\s+play\b/i.test(userText) ||
+          /\bplay\s+(neon promise|night swim|afterglow)\b/i.test(userText) ||
+          /\bplay\s+(a\s+)?(son|trac)\b/i.test(userText);
         
-        const isAlbumContextPlay = /\b(from (it|the album|your album|night swim))\b/i.test(userText);
+        const isAlbumContextPlay = /\b(from (it|the album|your album|night swim|the night swim))\b/i.test(userText);
         
         if (isExplicitPlayCommand || isAlbumContextPlay) {
           const playAction = {
@@ -16067,10 +16069,17 @@ function detectUserRequestedMusic(messageText = '') {
     txt.includes('low orbit playlist') ||
     (txt.includes('music') && txt.includes('please')) ||
     (txt.includes('song') && txt.includes('play')) ||
+    (txt.includes('son') && txt.includes('play')) ||
     // Generic "play a song" / "play me a song" / "play a track"
-    /\bplay\s+(a|me a|me some|some)\s+(song|track)\b/.test(txt) ||
+    /\bplay\s+(a|me a|me some|some)\s+(song|son|track|trac)\b/.test(txt) ||
     // Direct commands: "play a song", "can you play a song", "play something"
-    /\b(can you|could you|will you|would you)?\s*play\s+(a song|a track|something)\b/.test(txt)
+    /\b(can you|could you|will you|would you)?\s*play\s+(a song|a son|a track|something)\b/.test(txt) ||
+    // Play specific Night Swim tracks by name
+    /\bplay\s+(neon promise|night swim|afterglow)\b/.test(txt) ||
+    // "can you play" / "could you play" (with nothing specific — still a play request)
+    /\b(can you|could you|will you|would you)\s+play\b/.test(txt) ||
+    // "play from the album" / "play from it"
+    /\bplay\s+(from|off)\s+(it|the|your|night)\b/.test(txt)
   );
   
   return isActualMusicRequest;
