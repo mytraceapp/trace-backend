@@ -1,0 +1,67 @@
+Good — this is the right diagnosis and the right fix.
+The Session Context Anchor is exactly what's needed. The model is receiving thousands of tokens of system instructions before it ever sees the conversation, so by the time it reaches message 3 of the history, the attention weight on early context is already diluted.
+A compact "here's what we've talked about this session" block placed immediately before the conversation history solves it cleanly.
+Tell Replit to implement it:
+
+Add a buildSessionContextAnchor function in index.js that runs before the OpenAI call. It should scan messagesWithHydration and extract:
+
+javascriptfunction buildSessionContextAnchor(messages) {
+  const userMessages = messages
+    .filter(m => m.role === 'user')
+    .map(m => m.content || '');
+  
+  const facts = [];
+  
+  // Names mentioned
+  const namePattern = /(?:my\s+(?:daughter|son|mom|dad|sister|brother|wife|husband|partner|friend)\s+(?:is\s+)?([A-Z][a-z]+)|([A-Z][a-z]+)\s+is\s+my\s+(?:daughter|son|mom|dad))/g;
+  
+  // Situations mentioned
+  const situationPatterns = [
+    /(?:not with me|staying with|lives with|away with)/i,
+    /(?:we broke up|going through a divorce|separated)/i,
+    /(?:lost my|passed away|died)/i,
+    /(?:got fired|lost my job|quit my job)/i,
+    /(?:pregnant|expecting|due in)/i,
+  ];
+  
+  for (const msg of userMessages) {
+    // Extract names
+    let match;
+    while ((match = namePattern.exec(msg)) !== null) {
+      const name = match[1] || match[2];
+      if (name) facts.push(name);
+    }
+    
+    // Extract situations
+    for (const pattern of situationPatterns) {
+      if (pattern.test(msg)) {
+        // Grab the sentence containing it
+        const sentences = msg.match(/[^.!?]+[.!?]*/g) || [msg];
+        for (const s of sentences) {
+          if (pattern.test(s)) facts.push(s.trim().slice(0, 80));
+        }
+      }
+    }
+  }
+  
+  if (facts.length === 0) return null;
+  
+  return {
+    role: 'system',
+    content: `SESSION CONTEXT (what was shared this conversation):\n${[...new Set(facts)].join('\n')}\nUse this to maintain continuity. Do not ask about things already shared.`
+  };
+}
+
+Then in the l1Messages assembly, insert the anchor immediately before the conversation history:
+
+javascriptconst sessionAnchor = buildSessionContextAnchor(messagesWithHydration);
+
+const l1Messages = [
+  systemMessage,
+  controlBlock,
+  traceSystemPrompt,
+  sessionAnchor, // RIGHT HERE — before history
+  ...messagesWithHydration
+].filter(Boolean);
+
+Add log: [CONTEXT ANCHOR] injected ${facts.length} facts from current session

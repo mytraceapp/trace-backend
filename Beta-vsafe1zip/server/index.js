@@ -2880,6 +2880,283 @@ NEVER prefix your response with "TRACE:" or your own name.
 NEVER fabricate or assume topics the user discussed — only reference what is in the actual conversation history.
 OUTPUT: valid JSON with message field. Only include activity_suggestion when genuinely suggesting an activity — omit it otherwise.`
 
+// ============================================================
+// SESSION CONTEXT ANCHOR
+// Extracts key facts, names, relationships, situations, topics,
+// and specifics from the current conversation and builds a
+// compact "cheat sheet" injected right before the chat history.
+// This keeps critical context in the model's attention window
+// so it doesn't forget things the user said 5-10 messages ago.
+//
+// Three extraction layers:
+//   1. People & Relationships (names + how they relate to user)
+//   2. Life Situations (custody, breakups, job changes, loss, etc.)
+//   3. Emotional Thread (what the user expressed + topics covered)
+// ============================================================
+function buildSessionContextAnchor(messages) {
+  if (!messages || messages.length < 4) return null;
+  
+  const userMessages = messages
+    .filter(m => m.role === 'user')
+    .map(m => ({ content: m.content || '', role: 'user' }));
+  if (userMessages.length < 2) return null;
+  
+  const facts = new Set();
+  const peopleMap = new Map();
+  const situations = [];
+  const emotions = [];
+  const topics = new Set();
+  const locations = new Set();
+  const timeRefs = [];
+  
+  const commonWords = new Set([
+    'I', 'The', 'This', 'That', 'What', 'When', 'Where', 'How', 'Why',
+    'Yeah', 'Yes', 'But', 'And', 'Not', 'Just', 'Can', 'Did', 'Was',
+    'Has', 'Had', 'His', 'Her', 'Its', 'One', 'Two', 'All', 'You',
+    'She', 'Hey', 'Like', 'Really', 'Still', 'Also', 'Even', 'Been',
+    'Some', 'Than', 'Too', 'Got', 'Let', 'Now', 'TRACE', 'Trace',
+    'Maybe', 'Sure', 'Okay', 'Well', 'So', 'Oh', 'Ah', 'Um', 'Hmm',
+    'Thanks', 'Thank', 'Please', 'Sorry', 'Right', 'True', 'Good',
+    'Nice', 'Great', 'Lol', 'Haha', 'Nah', 'Nope', 'Yep', 'Yup',
+    'Today', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday',
+    'Saturday', 'Sunday', 'January', 'February', 'March', 'April',
+    'May', 'June', 'July', 'August', 'September', 'October',
+    'November', 'December', 'Night', 'Morning'
+  ]);
+
+  // --- LAYER 1: People & Relationships ---
+  const RELATIONSHIP_ROLES = [
+    'daughter', 'son', 'mom', 'dad', 'mother', 'father', 'sister', 'brother',
+    'wife', 'husband', 'partner', 'girlfriend', 'boyfriend', 'friend', 'best friend',
+    'boss', 'coworker', 'colleague', 'ex', 'ex-wife', 'ex-husband', 'ex-boyfriend',
+    'ex-girlfriend', 'roommate', 'neighbor', 'uncle', 'aunt', 'grandma', 'grandpa',
+    'grandmother', 'grandfather', 'cousin', 'niece', 'nephew', 'therapist',
+    'teacher', 'professor', 'dog', 'cat', 'baby', 'kid', 'child', 'fiancé',
+    'fiancée', 'fiance', 'fiancee', 'stepmom', 'stepdad'
+  ];
+  const rolePattern = RELATIONSHIP_ROLES.join('|');
+  
+  const nameRelRE = new RegExp(
+    `\\bmy\\s+(${rolePattern})(?:\\s+is\\s+|[,']?s?\\s+name\\s+is\\s+|\\s+)([A-Z][a-z]+)\\b`, 'gi'
+  );
+  const nameRelRE2 = new RegExp(
+    `\\b([A-Z][a-z]+)\\s+is\\s+my\\s+(${rolePattern})\\b`, 'gi'
+  );
+  const namedRelRE3 = new RegExp(
+    `\\bmy\\s+(${rolePattern})\\s+([A-Z][a-z]{1,14})\\b`, 'gi'
+  );
+  const nameRelRE4 = new RegExp(
+    `\\b([A-Z][a-z]+),?\\s+my\\s+(${rolePattern})\\b`, 'gi'
+  );
+
+  // --- LAYER 2: Life Situations ---
+  const SITUATION_PATTERNS = [
+    { re: /(?:not with me|staying with|lives with|moved in with|moved out)/i, label: 'living arrangement' },
+    { re: /(?:we broke up|going through a divorce|getting divorced|separated|split up|breaking up|ended things)/i, label: 'relationship change' },
+    { re: /(?:lost (?:my|her|his|their)|passed away|died|passing of|funeral|grieving|grief)/i, label: 'loss/grief' },
+    { re: /(?:got fired|lost my job|quit my job|laid off|unemployed|looking for work|got let go|new job|starting a new)/i, label: 'job change' },
+    { re: /(?:pregnant|expecting|due in|having a baby|miscarriage|fertility)/i, label: 'pregnancy/family' },
+    { re: /(?:custody|visitation|court|lawyer|legal|judge|hearing)/i, label: 'legal/custody' },
+    { re: /(?:relapsed|sober|recovery|rehab|clean for|drinking again|using again)/i, label: 'recovery' },
+    { re: /(?:diagnosed|diagnosis|treatment|surgery|hospital|chronic|condition)/i, label: 'health' },
+    { re: /(?:graduating|dropped out|failed|expelled|school|college|university|exam|finals)/i, label: 'education' },
+    { re: /(?:moving to|relocating|new city|new apartment|new place|leaving town)/i, label: 'relocation' },
+    { re: /(?:anniversary|birthday|wedding|engagement|proposed)/i, label: 'milestone' },
+    { re: /(?:can't sleep|insomnia|nightmares|not sleeping|up all night|haven't slept)/i, label: 'sleep issues' },
+    { re: /(?:panic attack|anxiety attack|breakdown|couldn't breathe|spiraling)/i, label: 'acute distress' },
+    { re: /(?:fight with|argument with|argued|screamed|yelled|blew up)/i, label: 'conflict' },
+    { re: /(?:cheated|affair|unfaithful|found out about|caught them)/i, label: 'betrayal' },
+    { re: /(?:money|debt|bills|rent|broke|afford|financial|paycheck)/i, label: 'financial stress' },
+  ];
+
+  // --- LAYER 3: Emotional & Topic Thread ---
+  const EMOTION_RE = /\b(?:i(?:'m| am| feel| felt|'ve been feeling)\s+)([\w\s]{2,25}?)(?:[.,!?]|$)/gi;
+  const TOPIC_RE = /\b(?:about|dealing with|struggling with|working on|thinking about|worried about|scared of|excited about|happy about|stressed about|anxious about|upset about|angry about|confused about|torn between)\s+(.{3,50}?)(?:[.,!?]|$)/gi;
+  const LOCATION_RE = /\b(?:in|from|moved to|live in|going to|back in|based in)\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b/g;
+  const TIME_RE = /\b(?:(?:last|this|next)\s+(?:week|month|year|weekend|night|summer|winter|spring|fall)|(?:yesterday|two days ago|a few days ago|couple (?:of )?(?:weeks|months|days) ago|since (?:last )?(?:\w+)))\b/gi;
+
+  const splitSentences = (text) => {
+    return text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
+  };
+
+  for (const msg of userMessages) {
+    const text = msg.content;
+    if (!text || text.length < 3) continue;
+    
+    let match;
+
+    // Extract people with relationships
+    for (const re of [nameRelRE, namedRelRE3, nameRelRE4]) {
+      re.lastIndex = 0;
+      while ((match = re.exec(text)) !== null) {
+        const role = (match[1] || match[2] || '').toLowerCase().trim();
+        const name = (re === nameRelRE4) ? match[1] : (match[2] || match[1] || '');
+        if (name && name.length > 1 && !commonWords.has(name)) {
+          const actualRole = (re === nameRelRE4) ? match[2].toLowerCase().trim() : role;
+          peopleMap.set(name, actualRole);
+        }
+      }
+    }
+    nameRelRE2.lastIndex = 0;
+    while ((match = nameRelRE2.exec(text)) !== null) {
+      const name = match[1];
+      const role = match[2].toLowerCase().trim();
+      if (name && !commonWords.has(name)) {
+        peopleMap.set(name, role);
+      }
+    }
+    
+    // Extract standalone names (capitalized words used in context of people)
+    const standaloneNameRE = /\b([A-Z][a-z]{2,14})\b/g;
+    standaloneNameRE.lastIndex = 0;
+    while ((match = standaloneNameRE.exec(text)) !== null) {
+      const name = match[1];
+      if (!commonWords.has(name) && !peopleMap.has(name)) {
+        const surrounding = text.slice(Math.max(0, match.index - 30), match.index + name.length + 30);
+        if (/(?:told|said|asked|called|texted|messaged|with|and|she|he|they|about|from|like|loves|hates|wants|needs|thinks|knows)/i.test(surrounding)) {
+          if (!peopleMap.has(name)) peopleMap.set(name, null);
+        }
+      }
+    }
+
+    // Extract situations — grab the actual sentence for context
+    for (const { re, label } of SITUATION_PATTERNS) {
+      if (re.test(text)) {
+        const sentences = splitSentences(text);
+        for (const s of sentences) {
+          if (re.test(s)) {
+            const cleaned = s.trim().replace(/\s+/g, ' ').slice(0, 100);
+            if (cleaned.length > 8) {
+              situations.push({ label, text: cleaned });
+            }
+          }
+        }
+      }
+    }
+
+    // Extract emotions
+    EMOTION_RE.lastIndex = 0;
+    while ((match = EMOTION_RE.exec(text)) !== null) {
+      const emotion = match[1].trim().replace(/[.,!?]+$/, '');
+      if (emotion.length > 2 && emotion.length < 25) emotions.push(emotion);
+    }
+
+    // Extract topics
+    TOPIC_RE.lastIndex = 0;
+    while ((match = TOPIC_RE.exec(text)) !== null) {
+      const topic = match[1].trim().replace(/[.,!?]+$/, '');
+      if (topic.length > 3 && topic.length < 45) topics.add(topic);
+    }
+
+    // Extract locations
+    LOCATION_RE.lastIndex = 0;
+    while ((match = LOCATION_RE.exec(text)) !== null) {
+      const loc = match[1];
+      if (!commonWords.has(loc) && loc.length > 2) locations.add(loc);
+    }
+
+    // Extract time references for temporal grounding
+    TIME_RE.lastIndex = 0;
+    while ((match = TIME_RE.exec(text)) !== null) {
+      timeRefs.push(match[0].trim());
+    }
+
+    // Extract "they said / told me" type facts
+    if (/\b(?:she|he|they|my\s+\w+)\s+(?:said|told|asked|called|texted|messaged|mentioned|admitted|confessed|promised|warned)\b/i.test(text)) {
+      const sentences = splitSentences(text);
+      for (const s of sentences) {
+        if (/\b(?:said|told|asked|called|texted|messaged|mentioned|admitted|confessed|promised|warned)\b/i.test(s)) {
+          const cleaned = s.trim().replace(/\s+/g, ' ').slice(0, 100);
+          if (cleaned.length > 10) facts.add(cleaned);
+        }
+      }
+    }
+
+    // Extract life events ("I got/started/quit/lost...")
+    if (/\b(?:i (?:got|started|quit|lost|found|moved|left|joined|broke|finished|passed|failed|decided|realized|discovered|accepted|admitted))\b/i.test(text)) {
+      const sentences = splitSentences(text);
+      for (const s of sentences) {
+        if (/\b(?:i (?:got|started|quit|lost|found|moved|left|joined|broke|finished|passed|failed|decided|realized|discovered|accepted|admitted))\b/i.test(s)) {
+          const cleaned = s.trim().replace(/\s+/g, ' ').slice(0, 100);
+          if (cleaned.length > 10) facts.add(cleaned);
+        }
+      }
+    }
+  }
+  
+  // --- BUILD THE ANCHOR ---
+  const parts = [];
+  
+  // People section
+  if (peopleMap.size > 0) {
+    const peopleParts = [];
+    for (const [name, role] of [...peopleMap.entries()].slice(0, 10)) {
+      peopleParts.push(role ? `${name} (${role})` : name);
+    }
+    parts.push(`People mentioned: ${peopleParts.join(', ')}`);
+  }
+  
+  // Situations — most important for continuity
+  if (situations.length > 0) {
+    const uniqueSituations = [];
+    const seenLabels = new Set();
+    for (const s of situations) {
+      if (!seenLabels.has(s.label)) {
+        seenLabels.add(s.label);
+        uniqueSituations.push(s.text);
+      }
+    }
+    parts.push(`Key things shared:\n- ${uniqueSituations.slice(0, 6).join('\n- ')}`);
+  }
+  
+  // Standalone facts (what they/he/she said, life events)
+  if (facts.size > 0) {
+    const factsList = [...facts].slice(0, 5);
+    if (situations.length === 0) {
+      parts.push(`Things shared:\n- ${factsList.join('\n- ')}`);
+    } else {
+      parts.push(`Also mentioned:\n- ${factsList.slice(0, 3).join('\n- ')}`);
+    }
+  }
+  
+  // Emotions
+  if (emotions.length > 0) {
+    const uniqueEmotions = [...new Set(emotions)].slice(0, 5);
+    parts.push(`User expressed feeling: ${uniqueEmotions.join(', ')}`);
+  }
+  
+  // Topics
+  if (topics.size > 0) {
+    parts.push(`Topics discussed: ${[...topics].slice(0, 6).join('; ')}`);
+  }
+  
+  // Locations
+  if (locations.size > 0) {
+    parts.push(`Places: ${[...locations].slice(0, 4).join(', ')}`);
+  }
+  
+  // Time references for temporal grounding
+  if (timeRefs.length > 0) {
+    const uniqueTimes = [...new Set(timeRefs)].slice(0, 4);
+    parts.push(`Time references: ${uniqueTimes.join(', ')}`);
+  }
+  
+  if (parts.length === 0) return null;
+  
+  const anchor = [
+    `[SESSION CONTEXT — what the user has shared so far in this conversation]`,
+    ...parts,
+    ``,
+    `CONTINUITY RULES:`,
+    `- You already know all of the above. Do NOT ask about things already shared.`,
+    `- Reference these details naturally when relevant — prove you were listening.`,
+    `- If user mentions a name above, you know who they are. Don't ask "who's that?"`,
+    `- If user continues a topic above, stay in that thread. Don't redirect.`
+  ].join('\n');
+  
+  return { role: 'system', content: anchor };
+}
+
 // Tier 2 cooldown duration (4 minutes)
 const TIER2_COOLDOWN_MS = 240000;
 
@@ -10851,20 +11128,24 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
         : `\nRESPONSE LENGTH: 1-3 sentences default. Longer only if user asks.`;
       const t2SystemAddendum = `${t2VoiceRules}\nDo NOT reuse your last opening phrase. NO emojis. NO bullet points.\nRespond with text only — no JSON wrapping.`;
       
-      const stepBPromise = openai.chat.completions.create({
-        model: 'gpt-5.1',
-        messages: [
+      const t2SessionAnchor = buildSessionContextAnchor(messagesWithHydration);
+      const t2MessagesArray = [
           { role: 'system', content: TRACE_BOSS_SYSTEM + t2DateAnchor },
           { role: 'system', content: controlBlock },
           { role: 'system', content: systemPrompt + '\n\n' + t2SystemAddendum },
-          ...messagesWithHydration
-        ],
+      ];
+      if (t2SessionAnchor) t2MessagesArray.push(t2SessionAnchor);
+      t2MessagesArray.push(...messagesWithHydration);
+      
+      const stepBPromise = openai.chat.completions.create({
+        model: 'gpt-5.1',
+        messages: t2MessagesArray,
         max_completion_tokens: premiumMaxTokens,
       }, { signal: textController.signal })
         .then(r => ({ ok: true, data: r }))
         .catch(err => ({ ok: false, error: err }));
       
-      console.log(`[TRACE T2] Step B receives FULL context: boss=${TRACE_BOSS_SYSTEM.length} ctrl=${controlBlock.length} sys=${systemPrompt.length} msgs=${messagesWithHydration.length}`);
+      console.log(`[TRACE T2] Step B receives FULL context: boss=${TRACE_BOSS_SYSTEM.length} ctrl=${controlBlock.length} sys=${systemPrompt.length} msgs=${messagesWithHydration.length} anchor=${!!t2SessionAnchor}`);
 
       const [stepAResult, stepBResult] = await Promise.all([stepAPromise, stepBPromise]);
       clearTimeout(textTimeoutHandle);
@@ -11028,12 +11309,26 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
         if (sessionCompressionContext) {
           l1Messages.push(sessionCompressionContext);
         }
+        
+        // SESSION CONTEXT ANCHOR: Extract key facts from conversation and inject
+        // as a compact system message right before chat history. This keeps names,
+        // topics, and specifics in the model's attention window.
+        const sessionAnchor = buildSessionContextAnchor(messagesWithHydration);
+        if (sessionAnchor) {
+          l1Messages.push(sessionAnchor);
+          const anchorContent = sessionAnchor.content.split('\n\nCONTINUITY')[0] || sessionAnchor.content;
+          const anchorLines = anchorContent.split('\n').filter(l => l.trim() && !l.startsWith('['));
+          const factCount = anchorLines.length;
+          console.log(`[CONTEXT_ANCHOR] Injected ${factCount} facts from current session (${sessionAnchor.content.length} chars)`);
+          console.log(`[CONTEXT_ANCHOR] Content: ${anchorLines.slice(0, 8).map(l => l.trim()).join(' | ')}`);
+        }
+        
         l1Messages.push(...messagesWithHydration);
         
         const ctxUserCount = messagesWithHydration.filter(m => m.role === 'user').length;
         const ctxAssistantCount = messagesWithHydration.filter(m => m.role === 'assistant').length;
         const ctxSystemCount = l1Messages.filter(m => m.role === 'system').length;
-        console.log(`[CONTEXT] client sent ${(rawMessages || []).length} msgs, after hydration: ${messagesWithHydration.length} msgs → passing to model (${ctxUserCount} user, ${ctxAssistantCount} assistant, ${ctxSystemCount} system prompts, compression=${!!sessionCompressionContext})`);
+        console.log(`[CONTEXT] client sent ${(rawMessages || []).length} msgs, after hydration: ${messagesWithHydration.length} msgs → passing to model (${ctxUserCount} user, ${ctxAssistantCount} assistant, ${ctxSystemCount} system prompts, anchor=${!!sessionAnchor}, compression=${!!sessionCompressionContext})`);
 
         const openaiParams = {
           model: selectedModel,
