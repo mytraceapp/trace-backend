@@ -1,0 +1,83 @@
+/**
+ * REPLIT BACKEND PROMPT — Audio State Context for TRACE Chat
+ * Copy everything between the backticks in REPLIT_PROMPT and paste into Replit.
+ */
+
+export const REPLIT_PROMPT = `
+# Backend Integration: Audio State Context for TRACE Chat
+
+## Overview
+
+The mobile app will send two new optional fields in client_state with every /api/chat request. The backend must use these to adjust TRACE's system prompt so it does not:
+
+1. Suggest "turn the music back on" when the user has already turned app ambience back on
+2. Encourage "keep listening" to Trace's music when the user has closed the audio player
+
+## Contract: New client_state Fields
+
+The mobile app will include these fields in req.body.client_state:
+
+| Field | Type | Semantics |
+|-------|------|-----------|
+| ambienceEnabled | boolean | true = user has the App Ambience toggle ON (in Profile/Settings). false = toggle is OFF. undefined = not sent (treat as unknown, do not add rules). |
+| audioPlayerActive | boolean | true = user has the in-app audio player (Night Swim, etc.) open and visible. false = player is closed or never opened. undefined = not sent (treat as unknown, do not add rules). |
+
+Important: Both fields are optional. The backend must handle undefined and null safely—do not assume a default. If a field is missing, skip adding rules for that field.
+
+## Backend Implementation Required
+
+### 1. In traceBrain.js — extend getContextRules(clientState)
+
+Add the following rules AFTER existing rules (e.g., after the mode === 'audio_player' and sentiment rules):
+
+if (clientState.ambienceEnabled === true) {
+  rules += "\\nCONTEXT: User has app ambience ON. Do NOT suggest turning music back on—it's already on.";
+}
+if (clientState.ambienceEnabled === false) {
+  rules += "\\nCONTEXT: User has app ambience OFF. Do NOT suggest turning music on unless they ask. If they mention wanting sound, remind them to flip the toggle in settings.";
+}
+if (clientState.audioPlayerActive === true) {
+  rules += "\\nCONTEXT: User is listening to music in the player. Focus on the music experience. Do NOT suggest journal features or app features.";
+}
+if (clientState.audioPlayerActive === false) {
+  rules += "\\nCONTEXT: User is NOT in the audio player (closed or never opened). Do NOT encourage them to keep listening to Trace's music or return to the player unless they express interest.";
+}
+
+Critical: Use strict equality (=== true and === false). Do not add rules when the value is undefined or null.
+
+### 2. In index.js — optional validation (recommended)
+
+if (clientState.ambienceEnabled !== undefined && typeof clientState.ambienceEnabled !== 'boolean') {
+  console.warn('[VALIDATION] Invalid ambienceEnabled, removing');
+  clientState.ambienceEnabled = undefined;
+}
+if (clientState.audioPlayerActive !== undefined && typeof clientState.audioPlayerActive !== 'boolean') {
+  console.warn('[VALIDATION] Invalid audioPlayerActive, removing');
+  clientState.audioPlayerActive = undefined;
+}
+
+Do not reject requests that omit these fields. Do not strip them if they are valid booleans.
+
+## Coordination with Mobile
+
+- Mobile sends: ambienceEnabled and audioPlayerActive in client_state on every chat request.
+- Backend consumes: These fields only in getContextRules() to append conditional rules to the system prompt.
+- No response changes: The backend does not need to return these fields or any new client_state_patch for them. The mobile app is the source of truth for these values.
+
+## Edge Cases
+
+| Scenario | ambienceEnabled | audioPlayerActive | Expected behavior |
+|----------|-----------------|-------------------|-------------------|
+| User turned ambience ON, player closed | true | false | Don't say "turn music back on"; don't push "keep listening" |
+| User turned ambience OFF | false | any | Don't suggest turning music on unless they ask |
+| User has player open, listening | any | true | Focus on music; don't suggest journal/features |
+| Old mobile client (fields not sent) | undefined | undefined | No new rules added; behavior unchanged |
+| Settings still loading | undefined | any | No ambience rule; audioPlayerActive rule if sent |
+
+## Summary
+
+- Add ambienceEnabled and audioPlayerActive to the allowed client_state contract.
+- Extend getContextRules() with the four conditional rules above.
+- Use strict === true / === false checks so undefined does not trigger rules.
+- No changes to response shape or client_state_patch.
+`;

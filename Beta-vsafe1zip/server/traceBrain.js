@@ -784,6 +784,20 @@ If they share something more ("I feel calmer", "still stressed"):
     basePrompt += `\n\nUser seems overwhelmed. Keep things simple. One thing at a time.`;
   }
 
+  // Audio state context — prevents contradictory music suggestions
+  if (clientState.ambienceEnabled === true) {
+    basePrompt += `\nCONTEXT: User has app ambience ON. Do NOT suggest turning music back on—it's already on.`;
+  }
+  if (clientState.ambienceEnabled === false) {
+    basePrompt += `\nCONTEXT: User has app ambience OFF. Do NOT suggest turning music on unless they ask. If they mention wanting sound, remind them to flip the toggle in settings.`;
+  }
+  if (clientState.audioPlayerActive === true) {
+    basePrompt += `\nCONTEXT: User is listening to music in the player. Focus on the music experience. Do NOT suggest journal features or app features.`;
+  }
+  if (clientState.audioPlayerActive === false) {
+    basePrompt += `\nCONTEXT: User is NOT in the audio player (closed or never opened). Do NOT encourage them to keep listening to Trace's music or return to the player unless they express interest.`;
+  }
+
   return basePrompt;
 }
 

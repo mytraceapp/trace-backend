@@ -5493,6 +5493,15 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     
     // Extract client_state for context-aware responses
     const safeClientState = clientState || {};
+    // Validate audio state fields — must be boolean or strip them
+    if (safeClientState.ambienceEnabled !== undefined && typeof safeClientState.ambienceEnabled !== 'boolean') {
+      console.warn('[VALIDATION] Invalid ambienceEnabled, removing');
+      safeClientState.ambienceEnabled = undefined;
+    }
+    if (safeClientState.audioPlayerActive !== undefined && typeof safeClientState.audioPlayerActive !== 'boolean') {
+      console.warn('[VALIDATION] Invalid audioPlayerActive, removing');
+      safeClientState.audioPlayerActive = undefined;
+    }
     console.log('[TRACE BRAIN] client_state:', JSON.stringify(safeClientState));
     
     if (isGreetingResponse) {
