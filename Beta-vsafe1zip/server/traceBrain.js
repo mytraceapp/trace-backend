@@ -784,18 +784,18 @@ If they share something more ("I feel calmer", "still stressed"):
     basePrompt += `\n\nUser seems overwhelmed. Keep things simple. One thing at a time.`;
   }
 
-  // Audio state context — prevents contradictory music suggestions
+  // Audio state awareness — TRACE knows current state, does not override local auto-scripts
   if (clientState.ambienceEnabled === true) {
-    basePrompt += `\nCONTEXT: User has app ambience ON. Do NOT suggest turning music back on—it's already on.`;
+    basePrompt += `\nAUDIO STATE: App ambience is currently ON. The user can already hear ambient sound.`;
   }
   if (clientState.ambienceEnabled === false) {
-    basePrompt += `\nCONTEXT: User has app ambience OFF. Do NOT suggest turning music on unless they ask. If they mention wanting sound, remind them to flip the toggle in settings.`;
+    basePrompt += `\nAUDIO STATE: App ambience is currently OFF. The user is not hearing ambient sound right now.`;
   }
   if (clientState.audioPlayerActive === true) {
-    basePrompt += `\nCONTEXT: User is listening to music in the player. Focus on the music experience. Do NOT suggest journal features or app features.`;
+    basePrompt += `\nAUDIO STATE: The in-app music player is open. The user is listening to something.`;
   }
   if (clientState.audioPlayerActive === false) {
-    basePrompt += `\nCONTEXT: User is NOT in the audio player (closed or never opened). Do NOT encourage them to keep listening to Trace's music or return to the player unless they express interest.`;
+    basePrompt += `\nAUDIO STATE: The in-app music player is closed.`;
   }
 
   return basePrompt;
