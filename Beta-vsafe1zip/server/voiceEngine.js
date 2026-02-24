@@ -53,6 +53,10 @@ const BANNED_PHRASES = [
   // Attitude words (read as snobby in text — only standalone "mm.")
   'mm.',
 
+  // Non-responses that stall instead of continuing
+  'mm, yeah',
+  'noted.',
+
   // Therapy-speak caught by attunement — synced here for runtime ban
   'healing takes time',
   'time heals',
