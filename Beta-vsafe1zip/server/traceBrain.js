@@ -1647,15 +1647,38 @@ function sanitizeTone(text, options = {}) {
     console.log('[TONE SANITIZER] Cleaned therapy-speak from response');
   }
   
-  // FLAT RESPONSE DETECTION: Flag responses that are just banned flat words
-  // These are empty responses that don't carry any personality or presence
   const BANNED_FLAT_RESPONSES = [
     'got it', 'i see', 'okay', 'alright', 'sure', 'ok',
-    'got it.', 'i see.', 'okay.', 'alright.', 'sure.', 'ok.'
+    'got it.', 'i see.', 'okay.', 'alright.', 'sure.', 'ok.',
+    'nice.', 'nice', 'cool.', 'cool', 'that\'s awesome.', 'that\'s awesome',
+    'mm, yeah.', 'mm, yeah', 'mm yeah', 'mm yeah.',
+    'noted.', 'noted', 'right.', 'right',
   ];
   const trimmedLower = result.trim().toLowerCase().replace(/\s+/g, ' ');
   if (BANNED_FLAT_RESPONSES.includes(trimmedLower)) {
-    console.log(`[TONE SANITIZER] Detected banned flat response: "${result}" — flagging for presence`);
+    const WARM_REPLACEMENTS = [
+      'I\'m here.', 'still with you.', 'yeah, I hear you.',
+      'go on.', 'I\'m listening.', 'tell me more.',
+    ];
+    const replacement = WARM_REPLACEMENTS[Math.floor(Math.random() * WARM_REPLACEMENTS.length)];
+    console.log(`[TONE SANITIZER] Replaced banned flat response: "${result}" → "${replacement}"`);
+    result = replacement;
+  }
+
+  const SHALLOW_OPENERS = [
+    /^(that's awesome|that's great|that's cool|that's nice|nice|awesome|cool)\.\s+/i,
+    /^(oh nice|oh cool)\.\s+/i,
+  ];
+  for (const pattern of SHALLOW_OPENERS) {
+    if (pattern.test(result)) {
+      const before = result;
+      result = result.replace(pattern, '').trim();
+      if (result.length > 5) {
+        console.log(`[TONE SANITIZER] Stripped shallow opener from: "${before.substring(0, 40)}..."`);
+      } else {
+        result = before;
+      }
+    }
   }
   
   return result;

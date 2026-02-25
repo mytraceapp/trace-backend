@@ -11794,7 +11794,16 @@ ${recentContext}
 
 User just said: "${lastUserContent}"
 
-Continue the conversation naturally. Stay in the same emotional lane — if they're sharing something personal, match that energy. If the user asks about dates, holidays, current events, or news, use the data and facts above — do NOT guess or deflect. 1-3 sentences max. No JSON, just your response:`;
+Continue the conversation naturally. Stay in the same emotional lane — if they're sharing something personal, match that energy. If the user asks about dates, holidays, current events, or news, use the data and facts above — do NOT guess or deflect.
+
+EMOTIONAL AWARENESS:
+- If the user shares something vulnerable, heavy, or real — even with "lol" or "haha" attached — DO NOT respond with shallow words like "nice", "awesome", "cool", "that's great". Those dismiss what they shared.
+- When someone laughs off pain ("my ex is crazy lol", "I can't sleep haha"), the laughter is a mask. Acknowledge the real thing underneath.
+- Good: "yeah, that sounds like a lot." Bad: "oh nice."
+- Good: "that's real." Bad: "that's awesome."
+- Match the weight of what they said, not the lightness of how they said it.
+
+1-3 sentences max. No JSON, just your response:`;
           }
         }
         

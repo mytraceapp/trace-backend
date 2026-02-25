@@ -133,14 +133,14 @@ const THERAPIST_FRAME_PATTERNS = [
 ];
 
 const APPROVED_MICRO_ACKS = [
-  'yeah.', 'got you.', 'oh nice.', 'okay.', 'damn.', 'bet.', 'true.', 'fair.',
-  'nice.', 'cool.', 'love that.', 'lol fair.', 'for real.', 'heard.',
-  'hey.', 'rough.', 'okayyy.', 'ha fair.', 'alright.',
+  'yeah.', 'got you.', 'okay.', 'damn.', 'bet.', 'true.', 'fair.',
+  'love that.', 'lol fair.', 'for real.', 'heard.',
+  'hey.', 'rough.', 'okayyy.', 'ha fair.', 'go on.', 'tell me.',
 ];
 
 const VOICE_PALETTE = {
-  light: ['oh nice.', 'love that.', 'okayyy.', 'lol fair.', 'nice.', 'ha, fair.'],
-  neutral: ['got you.', 'yeah.', 'okay.', 'bet.', 'true.', 'cool.', 'for real.', 'heard.'],
+  light: ['love that.', 'okayyy.', 'lol fair.', 'ha, fair.', 'go on.', 'tell me.'],
+  neutral: ['got you.', 'yeah.', 'okay.', 'bet.', 'true.', 'for real.', 'heard.'],
   heavy: ['damn.', 'yeah… okay.', 'yeah. i\'m here.', 'that\'s real.', 'rough.', 'yeah. okay.'],
 };
 
@@ -573,7 +573,7 @@ VOICE STYLE — "warm-minimal":
 - A friend says: "oh wait what movie?", "is it any good?", "tell me if it's worth watching"
 - NEVER say "mm." — it always reads as attitude. Use: "got you." / "yeah." / "okay." instead
 - One send-off max per message. Don't double up ("enjoy" + "hope you enjoy" = too much)
-- Approved micro-acks (1-2 words): yeah / got you / oh nice / okay / damn / bet / true / fair / nice / cool / love that
+- Approved micro-acks (1-2 words): yeah / got you / okay / damn / bet / true / fair / love that / go on / tell me
 - Use lowercase starts when natural
 - Short sentences, slow cadence
 - No exclamation marks
