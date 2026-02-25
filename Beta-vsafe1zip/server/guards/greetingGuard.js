@@ -43,8 +43,8 @@ const SAFE_GENERIC_WORDS = new Set([
   'regulate', 'reflect', 'check', 'mind', 'body', 'head', 'heart',
   'space', 'time', 'moment', 'bit', 'little', 'lot', 'much',
   'yeah', 'nah', 'sure', 'maybe', 'probably', 'definitely',
-  'what\'s', 'how\'s', 'where', 'pick', 'left', 'off', 'catch',
-  'sleep', 'rest', 'energy', 'stress', 'mood', 'vibe',
+  'what\'s', 'how\'s', 'where', 'pick', 'left', 'off', 'catch', 'see', 'saw',
+  'sleep', 'rest', 'energy', 'stress', 'mood', 'vibe', 'glad', 'miss', 'missed',
   'busy', 'tired', 'long', 'rough', 'chill', 'easy', 'hard',
   'getting', 'holding', 'sitting', 'looking', 'working', 'thinking',
   'helping', 'hanging', 'coming', 'staying', 'moving', 'carrying',
@@ -88,6 +88,7 @@ const HEALTH_BAN_PATTERNS = [
   /how(?:'s| is) your \w+(?:ships?|ship|ance|ances|eer|ment|tion|tions|ness|ity) (?:going|today|lately)/i,
   /anything (?:new|going on) with your \w+(?:ships?|ance|eer|ment|tion)/i,
   /how are you doing today/i,
+  /how are you managing/i,
   /i'?m here for you/i,
   /how(?:'s| is) your \w+ today\??$/i,
 ];

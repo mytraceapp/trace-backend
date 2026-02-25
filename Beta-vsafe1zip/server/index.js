@@ -4716,9 +4716,11 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
       console.log('[GREETING] sanitizeTone left empty, using minimal fallback');
     }
     
-    // Voice quality filter
+    // Voice quality filter — relaxed for greetings
+    // "what's on your mind" and "what's going on with you" are fine as greeting questions
+    const GREETING_ALLOWED_QUESTIONS = ['what\'s on your mind', 'what\'s going on with you'];
     const bannedInGreeting = containsBannedPhrases(greeting);
-    const lazyInGreeting = containsLazyQuestion(greeting);
+    const lazyInGreeting = containsLazyQuestion(greeting).filter(q => !GREETING_ALLOWED_QUESTIONS.includes(q));
     
     if (bannedInGreeting.length > 0 || lazyInGreeting.length > 0) {
       console.log('[GREETING] Voice filter caught:', { banned: bannedInGreeting, lazy: lazyInGreeting });
@@ -4767,6 +4769,24 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
     
     // === ENFORCE LOWERCASE (final pass) ===
     greeting = enforceLowercase(greeting);
+    
+    // === COHERENCE CHECK ===
+    // Catch incoherent greetings that slipped through sanitization (e.g., "how's it going stress today?")
+    const greetingWords = greeting.replace(/[^a-zA-Z\s]/g, '').trim().split(/\s+/);
+    const INCOHERENT_PATTERNS = [
+      /how's it going \w+ today/i,
+      /what's up \w+ today/i,
+      /how's your \w+ \w+ today\??\s*$/i,
+      /\bstress today\b/i,
+    ];
+    const looksIncoherent = INCOHERENT_PATTERNS.some(p => p.test(greeting)) || greetingWords.length < 2;
+    if (looksIncoherent) {
+      const safeFirstName = displayName ? displayName.split(' ')[0].toLowerCase() : null;
+      greeting = safeFirstName 
+        ? `hey ${safeFirstName}.\nhow's your ${timeOfDay || 'day'} going?`
+        : `hey.\nhow's your ${timeOfDay || 'day'} going?`;
+      console.log('[GREETING] Coherence check FAILED — replaced with safe fallback:', greeting);
+    }
     
     // Track if greeting mentions a holiday so chat turns don't repeat it
     const holidayNames = ['presidents', 'chinese new year', 'ash wednesday', 'valentine', 'christmas', 'thanksgiving', 'easter', 'memorial', 'independence', 'labor day', 'mlk', 'martin luther', 'juneteenth', 'halloween', 'new year', 'holiday', 'hanukkah', 'kwanzaa', 'diwali', 'ramadan', 'eid'];

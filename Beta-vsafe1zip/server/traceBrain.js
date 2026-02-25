@@ -1488,7 +1488,8 @@ function sanitizeTone(text, options = {}) {
     const SAFE_SENTENCE_WORDS = new Set([
       'yeah', 'nice', 'cool', 'okay', 'ok', 'sure', 'congrats', 'right', 'same',
       'true', 'exactly', 'fair', 'damn', 'wow', 'wild', 'rough', 'oof', 'yikes',
-      'gotcha', 'noted', 'heard', 'got it', 'makes sense', 'for real', 'for sure'
+      'gotcha', 'noted', 'heard', 'got it', 'makes sense', 'for real', 'for sure',
+      'hey', 'hi', 'hello', 'morning', 'afternoon', 'evening'
     ]);
 
     for (const sentence of sentences) {
