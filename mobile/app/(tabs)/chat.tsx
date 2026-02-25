@@ -642,6 +642,8 @@ export default function ChatScreen() {
     lastHookGlobalAt: number | null;
     localNow: number;
     tracksPlayedInState: number;
+    ambienceEnabled: boolean;
+    audioPlayerActive: boolean;
   }>({
     mode: 'chat',
     timeOfDay: getTimeOfDay(),
@@ -657,6 +659,8 @@ export default function ChatScreen() {
     lastHookGlobalAt: null,
     localNow: Date.now(),
     tracksPlayedInState: 0,
+    ambienceEnabled: true,
+    audioPlayerActive: false,
   });
 
   const [fontsLoaded] = useFonts({
@@ -776,6 +780,8 @@ export default function ChatScreen() {
     setNightSwimSession(prev => prev + 1);
     setShowNightSwimPlayer(true);
     setIsNightSwimLoading(true);
+    clientStateRef.current.audioPlayerActive = true;
+    clientStateRef.current.ambienceEnabled = true;
     
     try {
       const { data, error } = await supabase
@@ -870,6 +876,7 @@ export default function ChatScreen() {
     }
     setShowNightSwimPlayer(false);
     setIsNightSwimPlaying(false);
+    clientStateRef.current.audioPlayerActive = false;
     playAmbient("main", require("../../assets/audio/trace_ambient.m4a"), 0.35);
   };
 
@@ -2221,18 +2228,10 @@ export default function ChatScreen() {
         // TRACE is offering Night Swim - just log for now, player opens on user agreement
         console.log('🎵 TRACE audio_action: recommend (waiting for user agreement)');
       } else if (audioAction?.type === 'stop') {
-        // User asked TRACE to stop ALL music/audio
         console.log('🎵 TRACE audio_action: stop - stopping ALL audio sources');
         
-        // Stop soundscape via AudioProvider
-        console.log('🎵 Stopping soundscape audio via AudioProvider');
         await stopAllAudio();
-        
-        // Stop ambient audio (separate audio system)
-        console.log('🎵 Stopping ambient audio');
         await stopAmbient();
-        
-        // Close Night Swim player if open
         closeNightSwimPlayer();
         
         if (clientStateRef.current.nowPlaying) {
@@ -2241,13 +2240,18 @@ export default function ChatScreen() {
         clientStateRef.current.nowPlaying = null;
         clientStateRef.current.mode = 'chat';
         clientStateRef.current.currentSoundState = null;
+        clientStateRef.current.ambienceEnabled = false;
+        clientStateRef.current.audioPlayerActive = false;
         
-        console.log('🎵 All audio sources stopped');
+        console.log('🎵 All audio sources stopped — ambienceEnabled=false');
       } else if (audioAction?.type === 'resume') {
         console.log('🎵 TRACE audio_action: resume — bringing ambient back');
         await playAmbient('main', require('../../assets/audio/trace_ambient.m4a'), 0.35);
         clientStateRef.current.currentSoundState = 'presence';
         clientStateRef.current.mode = 'chat';
+        clientStateRef.current.ambienceEnabled = true;
+        
+        console.log('🎵 Ambient restored — ambienceEnabled=true');
       }
       const uiAction = result?.ui_action;
       if (uiAction?.type === 'OPEN_JOURNAL_MODAL') {

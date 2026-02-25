@@ -5911,6 +5911,8 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
           ui_action: studiosUiAction,
         };
         
+        const isAudioOff = safeClientState.ambienceEnabled === false;
+        
         if (studiosResponse.traceStudios?.audio_action) {
           const studioAction = studiosResponse.traceStudios.audio_action;
           
@@ -5952,6 +5954,10 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
               conversationState.saveState(effectiveUserId, trackState);
               console.log('[TRACK MEMORY] Audio state updated:', studioAction.action);
             }
+          } else if (isAudioOff) {
+            console.log('[AUDIO_OFF_GUARD] Studios wants to play track but audio is OFF — blocking audio_action, asking user to resume');
+            response.message = (response.message || '') + '\n\nyour audio is off right now — just say "resume music" and i\'ll get it going.';
+            delete studiosResponse.traceStudios.audio_action;
           } else {
             const TRACK_INDEX_MAP = {
               'midnight_underwater': 0,
@@ -12516,6 +12522,9 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     console.log('[TRACE AUDIO DEBUG] prevOfferedTrackNum:', prevOfferedTrackNum);
     console.log('[TRACE AUDIO DEBUG] responsePlayingTrackNum:', responsePlayingTrackNum);
     
+    const isAudioOffPhase8 = safeClientState.ambienceEnabled === false;
+    console.log('[TRACE AUDIO DEBUG] isAudioOff (ambienceEnabled=false):', isAudioOffPhase8);
+    
     if (isMusicStopRequest) {
       // User wants to stop/pause the music - send stop action
       audioAction = buildAudioAction('stop', {
@@ -12548,6 +12557,12 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
         action: 'resume'
       });
       console.log(`[TRACE MUSIC CONTROL] User requested music resume, playing Track ${lastTrack}`);
+    } else if (isAudioOffPhase8) {
+      console.log('[AUDIO_OFF_GUARD] Phase8c — audio is OFF, blocking all track playback actions');
+      if (specificTrackRequest || userRequestsNightSwim || isExplicitMusicCommand) {
+        responseText += '\n\nyour audio is off right now — just say "resume music" and i\'ll get it going.';
+        console.log('[AUDIO_OFF_GUARD] User requested music while audio off — appended resume prompt');
+      }
     } else if (specificTrackRequest) {
       // User requested a specific track by name (e.g., "play Neon Promise")
       const trackNum = specificTrackRequest.trackNumber;

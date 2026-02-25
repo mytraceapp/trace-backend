@@ -27,6 +27,8 @@ export interface ClientState {
   lastHookAt?: number | null;
   lastHookGlobalAt?: number | null;
   localNow?: number;
+  ambienceEnabled?: boolean;
+  audioPlayerActive?: boolean;
 }
 
 export interface WeatherContext {
