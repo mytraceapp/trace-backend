@@ -6966,6 +6966,8 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     console.log('User name:', userName);
     console.log('Chat style:', chatStyle);
     console.log('Local time:', localTime, localDay, localDate);
+
+    const currentWorldContext = `\nCurrent world context:\n- Donald Trump is the 47th President of the United States, serving his second term (inaugurated January 20, 2025).\n- Joe Biden was the 46th President and left office January 20, 2025.\n- If unsure about something recent, say so rather than guessing.`;
     
     // Ensure fallback responses always include activity_suggestion
     if (!openai) {
@@ -11143,7 +11145,7 @@ User said: "${lastUserContent}"
 Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture: ${posture}` : 'New conversation'}`;
 
       const premiumMaxTokens = isLongformT2 ? 2000 : 600;
-      const t2DateAnchor = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.` : '';
+      const t2DateAnchor = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.${currentWorldContext}` : '';
 
       const stepAPromise = openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -11236,7 +11238,7 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
       if (!textResult && usedFallback) {
         try {
           console.log('[PATH] T2_FALLBACK \u2014 gpt-5.1 unavailable, using gpt-4o-mini with context');
-          const t2FbDateLine = (localDay && localDate) ? `\nTODAY IS: ${localDay}, ${localDate}. TIME: ${localTime || 'unknown'}.` : '';
+          const t2FbDateLine = (localDay && localDate) ? `\nTODAY IS: ${localDay}, ${localDate}. TIME: ${localTime || 'unknown'}.${currentWorldContext}` : '';
           const t2FbHolidayLine = proactiveHolidayLine ? `\nHOLIDAYS: ${proactiveHolidayLine}` : '';
           const t2FbRecentContext = (messagesWithHydration || []).slice(-6)
             .map(m => `${m.role === 'user' ? 'User' : 'TRACE'}: ${m.content}`)
@@ -11334,7 +11336,7 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
         if (attempt > 1) await sleep(200); // Reduced delay
         
         const openaiStart = Date.now();
-        const dateAnchor = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.` : '';
+        const dateAnchor = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.${currentWorldContext}` : '';
         const l1Messages = [
             { role: 'system', content: TRACE_BOSS_SYSTEM + dateAnchor },
             { role: 'system', content: controlBlock },
@@ -11514,7 +11516,7 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
         try {
           
           const openaiStart = Date.now();
-          const dateAnchorL2 = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.` : '';
+          const dateAnchorL2 = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.${currentWorldContext}` : '';
           const l2Messages = [
               { role: 'system', content: TRACE_BOSS_SYSTEM + dateAnchorL2 },
               { role: 'system', content: controlBlock },
