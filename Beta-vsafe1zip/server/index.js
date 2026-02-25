@@ -11610,7 +11610,7 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
     
     // LAYER 3: Plain text mode (no JSON format requirement)
     if (!parsed) {
-      console.log('[PATH] L3_FALLBACK — L1 failed, using plain text with date/holiday context');
+      console.log(`[PATH] L3_FALLBACK — ${useL3FastPath ? 'fast-path (L1 skipped)' : 'L1 failed'}, using plain text with date/holiday context`);
       console.log('[TRACE OPENAI L3] Trying plain text mode...');
       try {
         // CRITICAL: Use crisis-aware prompt if in crisis mode
