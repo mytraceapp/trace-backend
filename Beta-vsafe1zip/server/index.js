@@ -14116,6 +14116,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
         source: 'model'
       }));
     }
+    console.log('[PLAYLIST_DEBUG] ui_action being sent:', JSON.stringify(effectiveUiAction));
     return finalizeTraceResponse(res, {
       ...finalResponse,
       deduped: false,
