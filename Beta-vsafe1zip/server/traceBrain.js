@@ -723,8 +723,11 @@ function buildClientStateContext(clientState, rules = null) {
   let basePrompt = `TONE: ${toneHint}
 Detected sound_state: ${soundStateLabel}. Subtly align pacing and emotional temperature to this state while keeping your core voice.`;
 
+  const { ambienceEnabled } = clientState || {};
   if (musicStopped === true) {
-    basePrompt += `\n\nAUDIO STATE: User used "stop music" — all audio is OFF (ambient, soundscapes, Night Swim). Do NOT offer to play tracks, suggest Night Swim, or mention putting music on. If they ask for music, let them know they can say "resume music" to bring everything back.`;
+    basePrompt += `\n\nAUDIO STATE: User used "stop music" — all audio is OFF. Do NOT offer to play tracks, suggest Night Swim, or mention putting music on. If they ask for music, let them know they can say "resume music" to bring everything back.`;
+  } else if (ambienceEnabled === false) {
+    basePrompt += `\n\nAUDIO STATE: App ambience is toggled OFF. Do NOT offer to play tracks, suggest Night Swim, or mention putting music on. If they ask for music, let them know their app ambience needs to be toggled back on first.`;
   }
 
   if (mode === 'audio_player' && nowPlaying) {

@@ -1655,6 +1655,11 @@ export default function ChatScreen() {
             userId: currentUserId,
             activityName: activityName,
             reflection: trimmed,
+            client_state: {
+              ambienceEnabled: clientStateRef.current.ambienceEnabled,
+              audioPlayerActive: clientStateRef.current.audioPlayerActive,
+              musicStopped: clientStateRef.current.musicStopped,
+            },
           }),
         });
         
