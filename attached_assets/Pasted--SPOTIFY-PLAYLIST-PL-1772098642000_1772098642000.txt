@@ -1,0 +1,185 @@
+================================================================================
+SPOTIFY PLAYLIST PLAYBACK — WORKING CADENCE
+How playlists get played, linked to journal modal, and flow end-to-end
+================================================================================
+
+--------------------------------------------------------------------------------
+1. OVERVIEW
+--------------------------------------------------------------------------------
+
+Spotify playlists are NOT played in-app. The app opens them in the Spotify app
+(or web player) via Linking.openURL. The "journal modal" is the New Moment modal
+on the Journal tab, which auto-opens when navigating from chat in music mode.
+The play button in that modal opens the suggested Spotify playlist externally.
+
+--------------------------------------------------------------------------------
+2. PLAYLIST SOURCES & MOOD SPACES
+--------------------------------------------------------------------------------
+
+Three mood spaces map to three playlists:
+  • ground  → Rooted (soothing, settle and center)
+  • drift   → Low Orbit (ambient textures, unwinding)
+  • rising  → First Light (uplifting, gentle activation)
+
+Backend IDs map to mood spaces (chat.tsx playlistIdToMoodSpace):
+  rooted, ground     → ground
+  low_orbit, drift   → drift
+  first_light, rising → rising
+
+Playlist config (mobile/constants/music.ts):
+  • Fetched from backend: GET /api/music-config
+  • Backend returns URLs for rooted, low_orbit, first_light
+  • Fallback: DEFAULT_PLAYLISTS with hardcoded Spotify IDs
+  • Each config: spotifyUri (spotify:playlist:xxx), spotifyWebUrl, name, description
+
+--------------------------------------------------------------------------------
+3. TRIGGER PATHS — HOW WE GET TO SPOTIFY + JOURNAL
+--------------------------------------------------------------------------------
+
+Path A: ui_action OPEN_JOURNAL_MODAL (chat.tsx ~2748)
+  • Backend returns res.ui_action with type: 'OPEN_JOURNAL_MODAL', playlistId
+  • Chat: setRecommendedPlaylist({ source: 'spotify', playlist_id })
+  • Chat: addToRecommendationHistory(playlistId)
+  • Chat: router.push('/(tabs)/journal', { mode: 'music', from: 'chat', musicSpace })
+  • musicSpace = playlistIdToMoodSpace(playlistId) ?? 'rising'
+
+Path B: audio_action type 'open' with playbackMode 'spotify_journal' (chat.tsx ~3522)
+  • Backend returns res.audio_action with type: 'open', source: 'spotify', playlistId
+  • playbackMode = audioAction.playbackMode || (source === 'spotify' ? 'spotify_journal' : 'audio_player')
+  • Chat: router.push('/(tabs)/journal', { mode: 'music', from: 'chat', musicSpace })
+  • musicSpace = playlistIdToMoodSpace(playlistId) ?? 'rising'
+
+Path C: audio_action type 'recommend' with playbackMode 'spotify_journal' (chat.tsx ~3576)
+  • Backend returns res.audio_action with type: 'recommend', source: 'spotify', playlistId
+  • Chat: setRecommendedPlaylist({ source, playlist_id, mood, album, track })
+  • Chat: addToRecommendationHistory(playlistId)
+  • No navigation — recommendation stored for when user opens journal later
+
+Path D: Activity disambiguation — user taps playlist name (chat.tsx ~1868)
+  • ACTIVITY_ROUTES: 'rising_playlist', 'drift_playlist', 'ground_playlist', etc. → '/journal'
+  • When route === '/journal' or name includes 'music'/'playlist':
+  • Chat: router.push(route, { mode: 'music', from: 'chat', musicSpace })
+  • musicSpace = playlistIdToMoodSpace(target) ?? target ?? 'rising'
+
+Path E: Activity suggestion — backend suggests playlist (chat.tsx ~3683)
+  • modifiedSuggestion.name is a playlist (e.g. "Rising Playlist")
+  • Chat: router.push('/(tabs)/journal', { mode: 'music', from: 'chat', space: name })
+  • Note: uses 'space' param; JournalScreen reads 'musicSpace' — potential mismatch
+
+Path F: ui_action SHOW_PLAYLIST_CHOOSER (chat.tsx ~2769)
+  • Backend returns type: 'SHOW_PLAYLIST_CHOOSER'
+  • Chat: router.push('/(tabs)/journal', { mode: 'music', from: 'chat' })
+  • No musicSpace — user picks in journal
+
+--------------------------------------------------------------------------------
+4. JOURNAL TAB + MODAL
+--------------------------------------------------------------------------------
+
+Route: mobile/app/(tabs)/journal.tsx → JournalScreen
+
+Params (useLocalSearchParams):
+  • mode: 'music' | undefined
+  • from: 'chat' | undefined
+  • musicSpace: 'ground' | 'drift' | 'rising' | undefined
+
+Auto-open modal (JournalScreen.tsx ~152):
+  useEffect: if (mode === 'music' && from === 'chat') {
+    setShowNewMomentModal(true);
+    setHasPlayedAudio(false);
+  }
+
+The "journal modal" = New Moment modal (showNewMomentModal). It is the same modal
+used for adding journal entries; in music mode it shows guidance and a play button.
+
+--------------------------------------------------------------------------------
+5. PLAY BUTTON — handleSpotifyPlay (JournalScreen.tsx ~542)
+--------------------------------------------------------------------------------
+
+SoundEntryPoint wraps the play button and gates on Music Access (SettingsContext).
+When pressed, handleSpotifyPlay runs:
+
+  if (mode === 'music' && musicSpace && !isPlaying) {
+    await openPlaylist(musicSpace, 'spotify');  // Opens Spotify externally
+    return;
+  }
+
+  // Fallback: Night Swim in-app player
+  if (isPlaying) await pauseAmbient();
+  else await playOriginals('night_swim', 0);
+
+So: when in music mode with a suggested musicSpace and nothing playing, we open
+the Spotify playlist. Otherwise we use the in-app Night Swim player.
+
+--------------------------------------------------------------------------------
+6. openPlaylist — HOW SPOTIFY ACTUALLY PLAYS (mobile/lib/music.ts)
+--------------------------------------------------------------------------------
+
+  const playlists = await getMoodPlaylists();  // fetchMusicPlaylists from backend
+  const playlist = playlists[moodSpace];
+
+  1. Try Spotify app: Linking.canOpenURL('spotify://') → Linking.openURL(playlist.spotifyUri)
+     spotifyUri = 'spotify:playlist:xxxxx'
+
+  2. If user prefers Apple Music: Linking.openURL(playlist.appleMusicUrl)
+
+  3. Fallback: Linking.openURL(playlist.spotifyWebUrl)
+     Opens Spotify in browser
+
+No in-app playback. Playback happens in Spotify app or web.
+
+--------------------------------------------------------------------------------
+7. recommendedPlaylist STATE (AudioPlayerContext)
+--------------------------------------------------------------------------------
+
+  recommendedPlaylist: { source: 'spotify'|'originals', playlist_id?, mood?, album?, track? }
+  setRecommendedPlaylist(playlist | null)
+
+Used when:
+  • Storing backend recommendation (audio_action recommend, ui_action OPEN_JOURNAL_MODAL)
+  • AmbientMiniPlayer shows "Journal playlist" when currentSource === 'journal'
+
+The journal modal does NOT read recommendedPlaylist for which playlist to open.
+It uses the musicSpace route param. recommendedPlaylist is for display/history.
+
+--------------------------------------------------------------------------------
+8. AmbientMiniPlayer DISPLAY (when Spotify path)
+--------------------------------------------------------------------------------
+
+When currentSource === 'journal':
+  displayText = 'Journal playlist'
+
+When currentSource === 'originals':
+  displayText = 'Night Swim'
+
+When user opens Spotify via openPlaylist, playback is in Spotify. The in-app
+player (AmbientMiniPlayer) is for Night Swim/originals. For Spotify, we only
+open the external app; we do not show an in-app player for Spotify.
+
+--------------------------------------------------------------------------------
+9. FLOW SUMMARY
+--------------------------------------------------------------------------------
+
+  1. User chats with TRACE
+  2. Backend returns ui_action OPEN_JOURNAL_MODAL or audio_action open/recommend
+     with playlistId (e.g. rooted, low_orbit, first_light)
+  3. Chat maps playlistId → musicSpace (ground/drift/rising)
+  4. Chat navigates: router.push('/(tabs)/journal', { mode: 'music', from: 'chat', musicSpace })
+  5. JournalScreen mounts, sees mode=music & from=chat → auto-opens New Moment modal
+  6. User sees: "Press play when you're ready..." and play button
+  7. User taps play → SoundEntryPoint (Music Access gate) → handleSpotifyPlay
+  8. handleSpotifyPlay: openPlaylist(musicSpace, 'spotify')
+  9. openPlaylist: getMoodPlaylists() → Linking.openURL(spotifyUri or spotifyWebUrl)
+  10. Spotify app or web player opens and plays the playlist
+
+--------------------------------------------------------------------------------
+10. FILES
+--------------------------------------------------------------------------------
+
+  mobile/app/(tabs)/chat.tsx       — ui_action, audio_action, navigateToActivity
+  mobile/app/(tabs)/journal.tsx    — Route wrapper
+  mobile/screens/JournalScreen.tsx — Modal, handleSpotifyPlay, params
+  mobile/lib/music.ts              — openPlaylist, isSpotifyInstalled
+  mobile/constants/music.ts       — MoodSpace, fetchMusicPlaylists, PlaylistConfig
+  mobile/context/AudioPlayerContext.tsx — recommendedPlaylist, setRecommendedPlaylist
+  mobile/components/SoundEntryPoint.tsx  — Music Access gate, wraps play button
+================================================================================
