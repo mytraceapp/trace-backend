@@ -6608,7 +6608,9 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
           'yes', 'yeah', 'sure', 'okay', 'ok', 'yep', 'yup', 'please',
           'ready', "i'm ready", 'im ready', "let's go", 'lets go',
           'sounds good', 'that sounds good', 'open it', 'show me',
-          'take me there', 'do it', 'go ahead', "let's hear it", 'lets hear it'
+          'take me there', 'do it', 'go ahead', "let's hear it", 'lets hear it',
+          'play it', 'play that', 'put it on', 'can i listen', 'i want to listen',
+          'listen', 'hear it'
         ];
         const isPlaylistConfirm = !playlistNegation && playlistAffirmatives.some(p => confirmLower.includes(p));
         
@@ -14018,10 +14020,6 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     ];
     for (const pl of playlistMentions) {
       if (pl.patterns.some(p => finalMsgText.includes(p))) {
-        if (!playlistTurnGateMet) {
-          console.log('[PHASE8b_PLAYLIST_GATE] Blocked playlist offer — too early', JSON.stringify({ requestId: chatRequestId, playlistId: pl.name, sessionMusicSuggestions, isExplicitRequest: isExplicitPlaylistRequest, userLeaving: userLeavingSignal, userAskedExternal }));
-          break;
-        }
         const pendingAction = {
           type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
           title: pl.album,
@@ -14032,7 +14030,12 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
           const mState = getMusicState(effectiveUserId);
           mState.pendingPlaylistOffer = pendingAction;
         }
-        console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId: chatRequestId, type: 'offer_playlist_pending', source: pendingAction.source, playlistId: pl.name, path: 'ai_pipeline_postprocess_pending' }));
+        if (playlistTurnGateMet) {
+          console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId: chatRequestId, type: 'offer_playlist_ready', source: pendingAction.source, playlistId: pl.name, path: 'ai_pipeline_postprocess_immediate' }));
+          pipelineUiAction = pendingAction;
+        } else {
+          console.log('[PHASE8b_PLAYLIST_GATE] Stored pending offer for confirmation — gate not met yet', JSON.stringify({ requestId: chatRequestId, playlistId: pl.name, sessionMusicSuggestions, isExplicitRequest: isExplicitPlaylistRequest, userLeaving: userLeavingSignal, userAskedExternal }));
+        }
         break;
       }
     }
