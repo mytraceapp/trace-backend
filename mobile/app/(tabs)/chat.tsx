@@ -644,6 +644,7 @@ export default function ChatScreen() {
     tracksPlayedInState: number;
     ambienceEnabled: boolean;
     audioPlayerActive: boolean;
+    musicStopped: boolean;
   }>({
     mode: 'chat',
     timeOfDay: getTimeOfDay(),
@@ -661,6 +662,7 @@ export default function ChatScreen() {
     tracksPlayedInState: 0,
     ambienceEnabled: true,
     audioPlayerActive: false,
+    musicStopped: false,
   });
 
   const [fontsLoaded] = useFonts({
@@ -781,7 +783,7 @@ export default function ChatScreen() {
     setShowNightSwimPlayer(true);
     setIsNightSwimLoading(true);
     clientStateRef.current.audioPlayerActive = true;
-    clientStateRef.current.ambienceEnabled = true;
+    clientStateRef.current.musicStopped = false;
     
     try {
       const { data, error } = await supabase
@@ -2240,18 +2242,18 @@ export default function ChatScreen() {
         clientStateRef.current.nowPlaying = null;
         clientStateRef.current.mode = 'chat';
         clientStateRef.current.currentSoundState = null;
-        clientStateRef.current.ambienceEnabled = false;
         clientStateRef.current.audioPlayerActive = false;
+        clientStateRef.current.musicStopped = true;
         
-        console.log('🎵 All audio sources stopped — ambienceEnabled=false');
+        console.log('🎵 All audio sources stopped — musicStopped=true');
       } else if (audioAction?.type === 'resume') {
-        console.log('🎵 TRACE audio_action: resume — bringing ambient back');
+        console.log('🎵 TRACE audio_action: resume — bringing all audio back');
         await playAmbient('main', require('../../assets/audio/trace_ambient.m4a'), 0.35);
         clientStateRef.current.currentSoundState = 'presence';
         clientStateRef.current.mode = 'chat';
-        clientStateRef.current.ambienceEnabled = true;
+        clientStateRef.current.musicStopped = false;
         
-        console.log('🎵 Ambient restored — ambienceEnabled=true');
+        console.log('🎵 Audio restored — musicStopped=false');
       }
       const uiAction = result?.ui_action;
       if (uiAction?.type === 'OPEN_JOURNAL_MODAL') {

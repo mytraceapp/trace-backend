@@ -707,7 +707,7 @@ function applyTimeOfDayRules(clientState, signals) {
 }
 
 function buildClientStateContext(clientState, rules = null) {
-  const { mode, timeOfDay, recentSentiment, nowPlaying, lastActivity, lastSuggestion, currentSoundState, lastSoundState, ambienceEnabled, audioPlayerActive } = clientState || {};
+  const { mode, timeOfDay, recentSentiment, nowPlaying, lastActivity, lastSuggestion, currentSoundState, lastSoundState, musicStopped, audioPlayerActive } = clientState || {};
   const toneHint = rules?.toneHint || 'clear, steady';
   // Prefer client's current sound (what user hears) > last known state > ambient
   const soundStateLabel = currentSoundState || lastSoundState || 'ambient';
@@ -723,8 +723,8 @@ function buildClientStateContext(clientState, rules = null) {
   let basePrompt = `TONE: ${toneHint}
 Detected sound_state: ${soundStateLabel}. Subtly align pacing and emotional temperature to this state while keeping your core voice.`;
 
-  if (ambienceEnabled === false) {
-    basePrompt += `\n\nAUDIO STATE: User's audio is currently OFF (they said "stop music"). Do NOT offer to play tracks, suggest Night Swim, or mention putting music on. If they ask for music, let them know their audio is off and they can say "resume music" to bring it back.`;
+  if (musicStopped === true) {
+    basePrompt += `\n\nAUDIO STATE: User used "stop music" — all audio is OFF (ambient, soundscapes, Night Swim). Do NOT offer to play tracks, suggest Night Swim, or mention putting music on. If they ask for music, let them know they can say "resume music" to bring everything back.`;
   }
 
   if (mode === 'audio_player' && nowPlaying) {

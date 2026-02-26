@@ -5522,6 +5522,10 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       console.warn('[VALIDATION] Invalid audioPlayerActive, removing');
       safeClientState.audioPlayerActive = undefined;
     }
+    if (safeClientState.musicStopped !== undefined && typeof safeClientState.musicStopped !== 'boolean') {
+      console.warn('[VALIDATION] Invalid musicStopped, removing');
+      safeClientState.musicStopped = undefined;
+    }
     console.log('[TRACE BRAIN] client_state:', JSON.stringify(safeClientState));
     
     if (isGreetingResponse) {
@@ -5931,7 +5935,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
           ui_action: studiosUiAction,
         };
         
-        const isAudioOff = safeClientState.ambienceEnabled === false;
+        const isAudioOff = safeClientState.musicStopped === true;
         
         if (studiosResponse.traceStudios?.audio_action) {
           const studioAction = studiosResponse.traceStudios.audio_action;
@@ -11793,7 +11797,7 @@ Your complete response:`;
           const l3QLine = (controlQBudget === 0) ? `\nQUESTION RULE: Do NOT ask any questions. Make a statement or observation instead. No "?" in your response.` : '';
           const userEnergyLow = conversationState.classifyUserEnergy(lastUserContent) === 'low';
           const l3EnergyLine = userEnergyLow ? `\nUSER ENERGY: Low. They gave a short/minimal answer. Do NOT keep probing or asking follow-ups. Just acknowledge briefly and leave space. If they seem done with a topic, move on or sit with it.` : '';
-          const l3AudioOffLine = (safeClientState.ambienceEnabled === false) ? `\nAUDIO STATE: User's audio is currently OFF. Do NOT say you'll play music, put something on, or suggest listening. If they ask for music, tell them to say "resume music" first.` : '';
+          const l3AudioOffLine = (safeClientState.musicStopped === true) ? `\nAUDIO STATE: User used "stop music" — all audio is OFF. Do NOT say you'll play music, put something on, or suggest listening. If they ask for music, tell them to say "resume music" first.` : '';
           const l3FirstName = displayName ? displayName.split(' ')[0].trim() : '';
           const l3NameLine = (l3FirstName && l3FirstName.length >= 2) ? `\nUSER NAME: You already know this person. Their name is ${l3FirstName}. NEVER ask "what's your name?" — you ALREADY KNOW. If they ask "do you know my name?" say YES and use their name: ${l3FirstName}.` : '';
           const l3RelationalLine = relationalAnchors ? `\n${relationalAnchors}` : '';
@@ -11814,7 +11818,7 @@ User just said: "${lastUserContent}"
 
 This is a relationship moment — they want to know what you remember. Respond like a friend reflecting on the relationship, weaving facts into impressions. Show you SEE them. Do NOT list facts. No JSON, just your warm response:`;
           } else {
-            plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3NameLine}${l3RelationalLine}${l3CompressionLine}${l3DateLine}${l3HolidayLine}${l3ContextLine}${l3NewsLine}${l3SearchLine}${l3WeatherLine}${l3MusicLine}${l3DataInstruction}${l3QLine}${l3EnergyLine}
+            plainPrompt = `${TRACE_IDENTITY_COMPACT}${l3NameLine}${l3RelationalLine}${l3CompressionLine}${l3DateLine}${l3HolidayLine}${l3ContextLine}${l3NewsLine}${l3SearchLine}${l3WeatherLine}${l3MusicLine}${l3DataInstruction}${l3QLine}${l3EnergyLine}${l3AudioOffLine}
 
 Recent conversation:
 ${recentContext}
@@ -12543,8 +12547,8 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     console.log('[TRACE AUDIO DEBUG] prevOfferedTrackNum:', prevOfferedTrackNum);
     console.log('[TRACE AUDIO DEBUG] responsePlayingTrackNum:', responsePlayingTrackNum);
     
-    const isAudioOffPhase8 = safeClientState.ambienceEnabled === false;
-    console.log('[TRACE AUDIO DEBUG] isAudioOff (ambienceEnabled=false):', isAudioOffPhase8);
+    const isAudioOffPhase8 = safeClientState.musicStopped === true;
+    console.log('[TRACE AUDIO DEBUG] isMusicStopped (stop music command):', isAudioOffPhase8);
     
     if (isMusicStopRequest) {
       // User wants to stop/pause the music - send stop action

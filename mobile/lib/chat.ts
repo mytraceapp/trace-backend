@@ -29,6 +29,7 @@ export interface ClientState {
   localNow?: number;
   ambienceEnabled?: boolean;
   audioPlayerActive?: boolean;
+  musicStopped?: boolean;
 }
 
 export interface WeatherContext {
