@@ -2725,6 +2725,7 @@ async function maybeAttachSunlightContext({ messages, profile, crisisActive }) {
 }
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Initialize Supabase client for server-side operations
 // IMPORTANT: Server operations require SERVICE_ROLE_KEY (not anon key) to bypass RLS
