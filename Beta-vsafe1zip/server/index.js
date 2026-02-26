@@ -5940,43 +5940,58 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         if (studiosResponse.traceStudios?.audio_action) {
           const studioAction = studiosResponse.traceStudios.audio_action;
           
-          if (studioAction.action === 'pause' || studioAction.action === 'resume') {
+          if (studioAction.action === 'pause') {
             response.audio_action = {
-              type: studioAction.action === 'pause' ? 'stop' : 'resume',
-              action: studioAction.action,
+              type: 'stop',
+              action: 'pause',
               source: 'all',
               reason: 'user_requested',
             };
-            console.log('[TRACE STUDIOS] Sending audio control action to frontend:', response.audio_action);
+            console.log('[TRACE STUDIOS] Sending stop audio_action to frontend');
             
             if (effectiveUserId) {
               const trackState = conversationState.getState(effectiveUserId);
-              if (studioAction.action === 'pause') {
-                const clientNowPlaying = safeClientState.nowPlaying;
-                if (clientNowPlaying && !trackState.lastPlayedTrack) {
-                  trackState.lastPlayedTrack = {
-                    trackId: clientNowPlaying.trackId,
-                    trackIndex: clientNowPlaying.trackIndex,
-                    title: clientNowPlaying.title,
-                    album: clientNowPlaying.album || 'night_swim',
-                    timestamp: Date.now(),
-                  };
-                }
-                trackState.audioState = {
-                  status: 'stopped',
-                  stoppedAt: Date.now(),
-                  stoppedBy: 'user',
-                  lastTrack: trackState.lastPlayedTrack || null
+              const clientNowPlaying = safeClientState.nowPlaying;
+              if (clientNowPlaying && !trackState.lastPlayedTrack) {
+                trackState.lastPlayedTrack = {
+                  trackId: clientNowPlaying.trackId,
+                  trackIndex: clientNowPlaying.trackIndex,
+                  title: clientNowPlaying.title,
+                  album: clientNowPlaying.album || 'night_swim',
+                  timestamp: Date.now(),
                 };
-                const mState = getMusicState(effectiveUserId);
-                mState.musicInviteUsed = false;
-                mState.userRequestedMusic = false;
-                console.log('[MUSIC STATE] Reset musicInviteUsed on stop — user can request music again');
-              } else {
-                trackState.audioState = { status: 'playing', resumedAt: Date.now() };
               }
+              trackState.audioState = {
+                status: 'stopped',
+                stoppedAt: Date.now(),
+                stoppedBy: 'user',
+                lastTrack: trackState.lastPlayedTrack || null
+              };
+              const mState = getMusicState(effectiveUserId);
+              mState.musicInviteUsed = false;
+              mState.userRequestedMusic = false;
+              console.log('[MUSIC STATE] Reset musicInviteUsed on stop — user can request music again');
               conversationState.saveState(effectiveUserId, trackState);
-              console.log('[TRACK MEMORY] Audio state updated:', studioAction.action);
+              console.log('[TRACK MEMORY] Audio state updated: pause/stop');
+            }
+          } else if (studioAction.action === 'resume') {
+            // Resume only restores ambient — do NOT send resume if ambience is OFF
+            if (safeClientState.ambienceEnabled === false) {
+              console.log('[TRACE STUDIOS] Resume requested but ambienceEnabled=false — no audio_action sent (frontend handles ambience-off message)');
+            } else {
+              response.audio_action = {
+                type: 'resume',
+                action: 'resume',
+                source: 'ambient',
+                reason: 'user_requested',
+              };
+              console.log('[TRACE STUDIOS] Sending resume audio_action (ambient only)');
+              if (effectiveUserId) {
+                const trackState = conversationState.getState(effectiveUserId);
+                trackState.audioState = { status: 'ambient_restored', resumedAt: Date.now() };
+                conversationState.saveState(effectiveUserId, trackState);
+                console.log('[TRACK MEMORY] Audio state updated: resume (ambient only)');
+              }
             }
           } else if (isAudioOff) {
             const audioOffReason = safeClientState.ambienceEnabled === false ? 'ambienceOff' : 'musicStopped';
@@ -12575,11 +12590,17 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     } else if (isMusicResumeRequest) {
       // "Resume music" / "Start music" — restores ONLY the global ambient track
       // User must separately request Night Swim, tracks, or playlists after this
-      audioAction = buildAudioAction('resume', {
-        source: 'ambient',
-        reason: 'user_requested',
-      });
-      console.log('[TRACE MUSIC CONTROL] User requested music resume — restoring ambient only (tracks require separate request)');
+      if (safeClientState.ambienceEnabled === false) {
+        // Ambience is OFF — cannot resume. Frontend shows ambience-off message locally.
+        // Backend should NOT send a resume audio_action.
+        console.log('[TRACE MUSIC CONTROL] Resume requested but ambienceEnabled=false — no audio_action sent (frontend handles ambience-off message)');
+      } else {
+        audioAction = buildAudioAction('resume', {
+          source: 'ambient',
+          reason: 'user_requested',
+        });
+        console.log('[TRACE MUSIC CONTROL] User requested music resume — restoring ambient only (tracks require separate request)');
+      }
     } else if (isAudioOffPhase8) {
       console.log('[AUDIO_OFF_GUARD] Phase8c — audio is OFF, blocking all track playback actions');
       if (specificTrackRequest || userRequestsNightSwim || isExplicitMusicCommand) {
@@ -15566,6 +15587,10 @@ app.post('/api/onboarding/reflection', async (req, res) => {
       return res.status(400).json({ success: false, error: 'reflection is required' });
     }
     
+    // Extract client_state for audio guards (must be before stop/resume guard)
+    const reflClientState = req.body.client_state || {};
+    const isReflAudioOff = reflClientState.musicStopped === true || reflClientState.ambienceEnabled === false;
+    
     const reflectionNorm = (reflectionText || '').toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
     const reflectionWords = reflectionNorm.split(' ').length;
     const STOP_PHRASES = new Set(['stop', 'pause', 'mute', 'silence', 'quiet', 'hush', 'stop music', 'stop the music', 'stop audio', 'stop the audio', 'stop the sound', 'stop playing', 'pause music', 'pause the music', 'turn off music', 'turn off the music', 'mute music', 'mute the music', 'no music', 'cut music', 'cut the music']);
@@ -15576,6 +15601,19 @@ app.post('/api/onboarding/reflection', async (req, res) => {
     if (reflStopIntent || reflResumeIntent) {
       const guardType = reflStopIntent ? 'stop' : 'resume';
       console.log(`[ACTIVITY REFLECTION] audio_intent_guard ${guardType}: "${reflectionNorm}"`);
+      
+      // Resume with ambience OFF: do NOT send resume audio_action — frontend shows ambience-off message
+      if (reflResumeIntent && reflClientState.ambienceEnabled === false) {
+        console.log('[ACTIVITY REFLECTION] Resume blocked — ambienceEnabled=false');
+        return res.json({
+          success: true,
+          ok: true,
+          response_source: 'audio_intent_guard',
+          message: '',
+          messages: [],
+        });
+      }
+      
       return res.json({
         success: true,
         ok: true,
@@ -15585,10 +15623,6 @@ app.post('/api/onboarding/reflection', async (req, res) => {
         audio_action: { type: guardType, source: 'audio_intent_guard' },
       });
     }
-
-    // Extract client_state for audio guards
-    const reflClientState = req.body.client_state || {};
-    const isReflAudioOff = reflClientState.musicStopped === true || reflClientState.ambienceEnabled === false;
     
     if (isReflAudioOff) {
       console.log(`[ACTIVITY REFLECTION] Audio off guard — musicStopped=${reflClientState.musicStopped}, ambienceEnabled=${reflClientState.ambienceEnabled}`);

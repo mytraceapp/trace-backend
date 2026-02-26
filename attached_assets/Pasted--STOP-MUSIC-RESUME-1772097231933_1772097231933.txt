@@ -1,0 +1,126 @@
+================================================================================
+STOP MUSIC & RESUME MUSIC VOICE COMMAND — WORKING CADENCE
+================================================================================
+
+Entry points: User types "stop music" / "resume music" (or equivalent phrases).
+Detection: Client (chat.tsx detectAudioIntentClient) and backend (audio_intent_guard).
+Both can trigger the flow; client intercepts first when it matches, else backend returns audio_action.
+
+--------------------------------------------------------------------------------
+1. STOP MUSIC — BEHAVIOR (ambience ON or OFF)
+--------------------------------------------------------------------------------
+
+STOP MUSIC runs the same way regardless of app ambience toggle.
+
+Paths that trigger stop:
+  • Client intercept (handleSend): isStopIntent → audioEvent(USER_STOP)
+  • Backend audio_action: res.audio_action.type === 'stop' → audioEvent(AUDIO_ACTION, STOP)
+  • Reflection intercept: audioIntent.type === 'stop' → audioEvent(AUDIO_ACTION, STOP)
+
+AudioContext.audioEvent handling:
+  • AUDIO_ACTION + STOP: audioHardStopRef = true, hardStopUserCommandTimestampRef = now,
+    forceMuteSoundscape(), soundContextManager.setSoundscapeActive(null, false),
+    stopAmbientHard('audio_action_stop')
+  • USER_STOP: same refs + forceMuteSoundscape + stopAmbientHard + stop()
+    (stop() unloads ambient/soundscape)
+
+Effect:
+  • Ambient: stopped and unloaded
+  • Soundscapes: muted and stopped
+  • Night Swim player: NOT stopped — continues playing
+  • audioHardStopRef = true (STOP MUSIC gate)
+  • hardStopUserCommandTimestampRef = Date.now()
+
+UI: "Okay. Music is stopped."
+
+Ambience OFF: Same behavior. STOP MUSIC still runs. If ambient/soundscape were off,
+  nothing audible changes, but the gate is set so future resume/activity return won’t start audio.
+
+--------------------------------------------------------------------------------
+2. RESUME MUSIC — BEHAVIOR BY AMBIENCE SETTING
+--------------------------------------------------------------------------------
+
+RESUME MUSIC behavior depends on app ambience toggle (ambienceEnabled from SettingsContext).
+
+--------------------------------------------------------------------------------
+2a. RESUME MUSIC — AMBIENCE OFF
+--------------------------------------------------------------------------------
+
+When ambienceEnabled === false:
+
+  • Client intercept (handleSend): isResumeIntent → check ambienceEnabled
+    → If OFF: show message, return (no backend call, no audioEvent)
+  • Reflection intercept: resume intent → check ambienceEnabled
+    → If OFF: show ambience-off message, return (no audioEvent)
+  • Backend audio_action: res.audio_action.type === 'resume'
+    → If OFF: show ambience-off message, do NOT call audioEvent (no resume)
+
+Message shown:
+  "Hey! Your app ambience is turned off right now. Want music? Just flip that toggle
+   back on in settings and we'll get the vibes going again."
+
+No audio changes. STOP MUSIC gate (audioHardStopRef) is NOT cleared.
+User must turn ambience ON in settings to resume.
+
+--------------------------------------------------------------------------------
+2b. RESUME MUSIC — AMBIENCE ON
+--------------------------------------------------------------------------------
+
+When ambienceEnabled === true:
+
+  • Client intercept: markUserRequestedAmbient(), audioEvent(USER_RESUME)
+  • Reflection intercept: markUserRequestedAmbient(), audioEvent(AUDIO_ACTION, RESUME)
+  • Backend audio_action: markUserRequestedAmbient() (or equivalent), audioEvent(AUDIO_ACTION, RESUME)
+
+AudioContext.audioEvent handling:
+  • USER_RESUME or AUDIO_ACTION + RESUME:
+    - audioHardStopRef = false
+    - hardStopUserCommandTimestampRef = null
+    - If reason === 'chat_preserved_soundscape' and on chat and pausedSoundscapeForChatRef:
+      resumeFromActivityRef() (resume preserved soundscape)
+    - ensureCorrectPlayback(reason)
+
+ensureCorrectPlayback:
+  • Uses "arrival cadence" (same as toggle ON / fresh app open)
+  • Starts ambient or soundscape based on page (chat vs non-chat)
+  • ensureAmbientPlaying checks ambienceEnabledRef — if OFF, skips (safety)
+
+If Night Swim player was active:
+  • Client intercept: stopAmbient() first, audioPlayerActiveRef = false, then resume
+  • Backend path: no explicit player stop; resume affects background layers only
+
+UI: "Back on." or "Here you go."
+
+--------------------------------------------------------------------------------
+3. GATE PERSISTENCE — STOP MUSIC
+--------------------------------------------------------------------------------
+
+audioHardStopRef (STOP MUSIC gate) is cleared only by:
+  1. RESUME MUSIC (when ambience ON)
+  2. User toggling ambience ON in profile settings
+
+It is NOT cleared by:
+  • Activity return (resumeFromActivity)
+  • App foreground
+  • Navigation
+  • Player close (stopPlayer checks gate; if set, does not resume)
+
+--------------------------------------------------------------------------------
+4. GATE PERSISTENCE — RESUME MUSIC
+--------------------------------------------------------------------------------
+
+When RESUME MUSIC runs (ambience ON):
+  • audioHardStopRef = false
+  • markUserRequestedAmbient() sets userRequestedAmbientAtRef, resetToArrivalCadence
+  • ensureCorrectPlayback won’t stop ambient on chat entry (arrival cadence)
+
+--------------------------------------------------------------------------------
+5. SUMMARY TABLE
+--------------------------------------------------------------------------------
+
+| Setting        | STOP MUSIC                    | RESUME MUSIC                                      |
+|----------------|-------------------------------|---------------------------------------------------|
+| Ambience ON    | Stops ambient + soundscape.   | Clears gate, starts ambient/soundscape.           |
+|                | Player keeps playing.         | Uses arrival cadence.                             |
+| Ambience OFF   | Same: stops ambient +         | No audio change. Show ambience-off message.       |
+|                | soundscape, sets gate.        | Gate stays set. User must toggle ON in settings. |
