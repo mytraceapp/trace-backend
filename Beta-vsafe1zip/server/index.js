@@ -12573,29 +12573,13 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       });
       console.log('[TRACE MUSIC CONTROL] User requested music stop/pause');
     } else if (isMusicResumeRequest) {
-      // User wants music back - resume or start a track
-      // Check session history first, then conversation state audioState/lastPlayedTrack
-      let lastTrack = sessionHistory[sessionHistory.length - 1] || null;
-      if (!lastTrack) {
-        const resumeConvoState = conversationState.getState(effectiveUserId);
-        const savedTrack = resumeConvoState.lastPlayedTrack;
-        if (savedTrack && savedTrack.trackIndex !== undefined) {
-          lastTrack = (savedTrack.trackIndex ?? 0) + 1;
-          console.log('[TRACE MUSIC CONTROL] Resume from convo state lastPlayedTrack:', savedTrack.title || lastTrack);
-        } else if (resumeConvoState.audioState?.lastTrack?.trackIndex !== undefined) {
-          lastTrack = (resumeConvoState.audioState.lastTrack.trackIndex ?? 0) + 1;
-          console.log('[TRACE MUSIC CONTROL] Resume from audioState lastTrack');
-        }
-      }
-      lastTrack = lastTrack || 1;
-      audioAction = buildAudioAction('open', {
-        source: 'originals',
-        album: 'night_swim',
-        track: lastTrack - 1,
-        autoplay: true,
-        action: 'resume'
+      // "Resume music" / "Start music" — restores ONLY the global ambient track
+      // User must separately request Night Swim, tracks, or playlists after this
+      audioAction = buildAudioAction('resume', {
+        source: 'ambient',
+        reason: 'user_requested',
       });
-      console.log(`[TRACE MUSIC CONTROL] User requested music resume, playing Track ${lastTrack}`);
+      console.log('[TRACE MUSIC CONTROL] User requested music resume — restoring ambient only (tracks require separate request)');
     } else if (isAudioOffPhase8) {
       console.log('[AUDIO_OFF_GUARD] Phase8c — audio is OFF, blocking all track playback actions');
       if (specificTrackRequest || userRequestsNightSwim || isExplicitMusicCommand) {

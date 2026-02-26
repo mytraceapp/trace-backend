@@ -2249,16 +2249,18 @@ export default function ChatScreen() {
         clientStateRef.current.currentSoundState = null;
         clientStateRef.current.audioPlayerActive = false;
         clientStateRef.current.musicStopped = true;
+        clientStateRef.current.ambienceEnabled = false;
         
-        console.log('🎵 All audio sources stopped — musicStopped=true');
+        console.log('🎵 All audio sources stopped — musicStopped=true, ambienceEnabled=false');
       } else if (audioAction?.type === 'resume') {
-        console.log('🎵 TRACE audio_action: resume — bringing all audio back');
+        console.log('🎵 TRACE audio_action: resume — restoring ambient only');
         await playAmbient('main', require('../../assets/audio/trace_ambient.m4a'), 0.35);
         clientStateRef.current.currentSoundState = 'presence';
         clientStateRef.current.mode = 'chat';
         clientStateRef.current.musicStopped = false;
+        clientStateRef.current.ambienceEnabled = true;
         
-        console.log('🎵 Audio restored — musicStopped=false');
+        console.log('🎵 Ambient restored — ambienceEnabled=true, musicStopped=false (user must request tracks separately)');
       }
       const uiAction = result?.ui_action;
       if (uiAction?.type === 'OPEN_JOURNAL_MODAL') {
