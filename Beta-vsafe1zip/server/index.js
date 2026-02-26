@@ -5979,14 +5979,15 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
               console.log('[TRACK MEMORY] Audio state updated:', studioAction.action);
             }
           } else if (isAudioOff) {
-            const audioOffReason = safeClientState.musicStopped === true ? 'musicStopped' : 'ambienceOff';
-            console.log(`[AUDIO_OFF_GUARD] Studios wants to play track but audio is OFF (${audioOffReason}) — blocking audio_action`);
-            if (audioOffReason === 'musicStopped') {
-              response.message = (response.message || '') + '\n\nyour audio\'s off right now — just say "resume music" and i\'ll get that going for you.';
-            } else {
+            const audioOffReason = safeClientState.ambienceEnabled === false ? 'ambienceOff' : 'musicStopped';
+            console.log(`[AUDIO_OFF_GUARD] Studios wants to play track but audio is OFF (${audioOffReason}) — blocking audio_action AND ui_action`);
+            if (audioOffReason === 'ambienceOff') {
               response.message = (response.message || '') + '\n\nyour app ambience is toggled off — flip it back on and i\'ll play that for you.';
+            } else {
+              response.message = (response.message || '') + '\n\nyour audio\'s off right now — just say "resume music" and i\'ll get that going for you.';
             }
             delete studiosResponse.traceStudios.audio_action;
+            response.ui_action = null;
           } else {
             const TRACK_INDEX_MAP = {
               'midnight_underwater': 0,
@@ -6029,6 +6030,12 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
               console.log('[TRACK MEMORY] Saved lastPlayedTrack:', trackState.lastPlayedTrack.trackId);
             }
           }
+        }
+        
+        // Catch-all: if audio is off and ui_action is PLAY_IN_APP_TRACK, strip it
+        if (isAudioOff && response.ui_action?.type === 'PLAY_IN_APP_TRACK') {
+          console.log('[AUDIO_OFF_GUARD] Stripped PLAY_IN_APP_TRACK ui_action — audio is OFF');
+          response.ui_action = null;
         }
         
         let overrideFired = false;
@@ -11804,7 +11811,7 @@ Your complete response:`;
           const l3QLine = (controlQBudget === 0) ? `\nQUESTION RULE: Do NOT ask any questions. Make a statement or observation instead. No "?" in your response.` : '';
           const userEnergyLow = conversationState.classifyUserEnergy(lastUserContent) === 'low';
           const l3EnergyLine = userEnergyLow ? `\nUSER ENERGY: Low. They gave a short/minimal answer. Do NOT keep probing or asking follow-ups. Just acknowledge briefly and leave space. If they seem done with a topic, move on or sit with it.` : '';
-          const l3AudioOffLine = (safeClientState.musicStopped === true || safeClientState.ambienceEnabled === false) ? `\nAUDIO STATE: Audio is OFF.${safeClientState.musicStopped ? ' User used "stop music".' : ' App ambience is toggled off.'} Do NOT say you'll play music, put something on, or suggest listening.${safeClientState.musicStopped ? ' If they ask for music, tell them to say "resume music" first.' : ' If they ask for music, let them know their app ambience needs to be toggled back on.'}` : '';
+          const l3AudioOffLine = (safeClientState.musicStopped === true || safeClientState.ambienceEnabled === false) ? `\nAUDIO STATE: Audio is OFF.${safeClientState.ambienceEnabled === false ? ' App ambience is toggled off.' : ' User used "stop music".'} Do NOT say you'll play music, put something on, or suggest listening.${safeClientState.ambienceEnabled === false ? ' If they ask for music, let them know their app ambience needs to be toggled back on.' : ' If they ask for music, tell them to say "resume music" first.'}` : '';
           const l3FirstName = displayName ? displayName.split(' ')[0].trim() : '';
           const l3NameLine = (l3FirstName && l3FirstName.length >= 2) ? `\nUSER NAME: You already know this person. Their name is ${l3FirstName}. NEVER ask "what's your name?" — you ALREADY KNOW. If they ask "do you know my name?" say YES and use their name: ${l3FirstName}.` : '';
           const l3RelationalLine = relationalAnchors ? `\n${relationalAnchors}` : '';
@@ -12366,7 +12373,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     let audioAction = null;
     
     const lastUserMsgForAudio = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
-    const responseText = messagesArray ? messagesArray[0] : assistantText;
+    let responseText = messagesArray ? messagesArray[0] : assistantText;
     
     // ── PHASE 8c: TRACK-ALREADY-PLAYING GUARD ──
     // If a track was started in the last turn, do NOT override it with a mood-based pick.
@@ -12592,7 +12599,11 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     } else if (isAudioOffPhase8) {
       console.log('[AUDIO_OFF_GUARD] Phase8c — audio is OFF, blocking all track playback actions');
       if (specificTrackRequest || userRequestsNightSwim || isExplicitMusicCommand) {
-        responseText += '\n\nyour audio is off right now — just say "resume music" and i\'ll get it going.';
+        if (safeClientState.ambienceEnabled === false) {
+          responseText += '\n\nyour app ambience is toggled off — flip it back on and i\'ll play that for you.';
+        } else {
+          responseText += '\n\nyour audio\'s off right now — just say "resume music" and i\'ll get that going for you.';
+        }
         console.log('[AUDIO_OFF_GUARD] User requested music while audio off — appended resume prompt');
       }
     } else if (specificTrackRequest) {
@@ -15614,9 +15625,9 @@ app.post('/api/onboarding/reflection', async (req, res) => {
     } else if (studiosResponse && !studiosResponse._declined) {
       // AUDIO OFF GUARD: Block play actions when audio is off
       if (isReflAudioOff && studiosResponse.traceStudios?.audio_action?.action !== 'pause') {
-        const guardMsg = reflClientState.musicStopped === true
-          ? "your audio's off right now — just say \"resume music\" and i'll get that going for you."
-          : "your app ambience is toggled off — flip it back on and i'll play that for you.";
+        const guardMsg = reflClientState.ambienceEnabled === false
+          ? "your app ambience is toggled off — flip it back on and i'll play that for you."
+          : "your audio's off right now — just say \"resume music\" and i'll get that going for you.";
         console.log('[ACTIVITY REFLECTION] BLOCKED play — audio off:', guardMsg);
         return res.json({
           success: true,
