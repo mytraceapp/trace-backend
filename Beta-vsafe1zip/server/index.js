@@ -6794,6 +6794,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
             const playAction = {
               type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
               title: space,
+              playlistId: `${space}_playlist`,
               source: 'trace',
             };
             console.log('[TRACE CHAT] Explicit play request — Spotify playlist allowed (Night Swim exhausted or user leaving)');
@@ -6875,6 +6876,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         musicState.pendingPlaylistOffer = {
           type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
           title: space,
+          playlistId: `${space}_playlist`,
           source: 'trace',
         };
         console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: 'offer_playlist', source: 'trace', space, path: 'music_invite_offer' }));
