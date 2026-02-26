@@ -44,6 +44,9 @@ An audio control handler system differentiates between early interceptors and th
 ## Tone Sanitizer
 A post-processing system strips therapy-speak from AI responses using regex patterns and includes mid-text fragment repair.
 
+## Warmth Floor & Emotional Pivot System
+The attunement engine detects GENTLE posture for sleep/exhaustion language (insomnia, can't sleep, up all night, etc.) and enforces a minimum word floor (30 words) to prevent ultra-short dismissive responses during vulnerable moments. An emotional pivot detector breaks Studios mode lock when users shift from music/operational messages to emotional content (sleep issues, loneliness, crying, exhaustion), allowing TRACE to respond in full conversation mode. The V2 core prompt and attunement STYLE_EXAMPLES include concrete warm-without-therapy-speak guidance for vulnerable moments.
+
 ## Music Playback Pipeline (Backend)
 The music suggestion to playback pipeline detects explicit user requests, AI responses mentioning track names, curation engine offers, and generic offer phrasing.
 

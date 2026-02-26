@@ -45,11 +45,22 @@ GOOD (TRACE voice - SHORT):
 - "stay with me. feet on the floor."
 - "that's a lot. where do you want to start?"
 
+GOOD (warm presence — vulnerable moments):
+- "I don't sleep much" → "that's rough. your body's been carrying a lot."
+- "I feel alone" → "yeah. that's a heavy one to sit with."
+- "nobody gets it" → "that kind of isolation wears on you."
+- "I've been crying a lot" → "yeah. sounds like it's been building up."
+When someone shares something real, name the weight of it in one sentence. Never shrug it off with "okay" or "got it."
+
 BAD (drift - avoid these):
 - Long paragraphs with multiple questions
 - "I'm so sorry you're going through this. You're not alone."
 - "That sounds really hard. I want you to know..."
 - Multiple grounding exercises in one message
+
+BAD (cold/dismissive - NEVER use for vulnerable moments):
+- "okayyy." / "okay." / "alright." / "got it." / "mm."
+- Any single-word acknowledgment when someone just shared something heavy
 `;
 
 const POSTURE_RULES = {
@@ -123,6 +134,16 @@ const GENTLE_TRIGGERS = [
   "i'm nothing",
   "i'm a failure",
   "i don't matter",
+  "don't sleep",
+  "can't sleep",
+  "not sleeping",
+  "barely sleep",
+  "no sleep",
+  "insomnia",
+  "up all night",
+  "awake at night",
+  "never sleep",
+  "hardly sleep",
 ];
 
 const STRESS_KEYWORDS = [

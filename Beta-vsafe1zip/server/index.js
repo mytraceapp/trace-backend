@@ -9775,7 +9775,7 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
     const activeRun = conversationState.getActiveRun(convoStateObj);
     
     if (activeRun && !activeRun.expired) {
-      const pivotPatterns = /\b(i\s+feel|i'?m\s+(feeling|tired|anxious|stressed|scared|sad|depressed|overwhelmed|hurt|angry|lonely|numb|empty|lost|broken|panick|suicidal|hopeless)|i\s+can'?t\s+(stop|handle|take|breathe|sleep)|i\s+had\s+a\s+dream|dreamt|weird\s+dream|in\s+my\s+dream|nightmare|i\s+need\s+help|i\s+want\s+to\s+(die|hurt|end)|help\s+me)\b/i;
+      const pivotPatterns = /\b(i\s+feel|i'?m\s+(feeling|tired|anxious|stressed|scared|sad|depressed|overwhelmed|hurt|angry|lonely|numb|empty|lost|broken|panick|suicidal|hopeless)|i\s+can'?t\s+(stop|handle|take|breathe|sleep)|i\s+had\s+a\s+dream|dreamt|weird\s+dream|in\s+my\s+dream|nightmare|i\s+need\s+help|i\s+want\s+to\s+(die|hurt|end)|help\s+me|don'?t\s+sleep|can'?t\s+sleep|not\s+sleeping|barely\s+sleep|no\s+sleep|insomnia|up\s+all\s+night|nobody\s+gets|no\s+one\s+(gets|understands|cares)|feel\s+(alone|lonely|isolated|empty|numb)|been\s+crying|i'?m\s+so\s+(tired|exhausted|drained))\b/i;
       const isOnboardingActive = !!(userProfile && 
         (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null) &&
         userProfile.onboarding_step && userProfile.onboarding_step !== 'completed');
@@ -11156,6 +11156,13 @@ If the right move isn't obvious: one grounded observation about what you notice 
     } else if (hasExternalContext) {
       controlMaxWords = Math.max(baseMaxWords, 100);
       console.log(`[CONTROL_BLOCK] Length override: ${baseMaxWords} → ${controlMaxWords} (external context present)`);
+    }
+    if (posture === 'GENTLE' || posture === 'DIRECTIVE') {
+      const warmthFloor = 30;
+      if (controlMaxWords < warmthFloor) {
+        console.log(`[CONTROL_BLOCK] Warmth floor: ${controlMaxWords} → ${warmthFloor} (posture=${posture} — vulnerable moment needs room for presence)`);
+        controlMaxWords = warmthFloor;
+      }
     }
     if (proactiveHolidayLine) {
       console.log(`[CONTROL_BLOCK] HOLIDAYS: ${proactiveHolidayLine}`);
