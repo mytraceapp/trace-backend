@@ -11793,6 +11793,7 @@ Your complete response:`;
           const l3QLine = (controlQBudget === 0) ? `\nQUESTION RULE: Do NOT ask any questions. Make a statement or observation instead. No "?" in your response.` : '';
           const userEnergyLow = conversationState.classifyUserEnergy(lastUserContent) === 'low';
           const l3EnergyLine = userEnergyLow ? `\nUSER ENERGY: Low. They gave a short/minimal answer. Do NOT keep probing or asking follow-ups. Just acknowledge briefly and leave space. If they seem done with a topic, move on or sit with it.` : '';
+          const l3AudioOffLine = (safeClientState.ambienceEnabled === false) ? `\nAUDIO STATE: User's audio is currently OFF. Do NOT say you'll play music, put something on, or suggest listening. If they ask for music, tell them to say "resume music" first.` : '';
           const l3FirstName = displayName ? displayName.split(' ')[0].trim() : '';
           const l3NameLine = (l3FirstName && l3FirstName.length >= 2) ? `\nUSER NAME: You already know this person. Their name is ${l3FirstName}. NEVER ask "what's your name?" — you ALREADY KNOW. If they ask "do you know my name?" say YES and use their name: ${l3FirstName}.` : '';
           const l3RelationalLine = relationalAnchors ? `\n${relationalAnchors}` : '';
