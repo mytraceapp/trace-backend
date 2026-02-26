@@ -14030,9 +14030,9 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     const playlistTurnGateMet = ((sessionMusicSuggestions >= 7) || isExplicitPlaylistRequest || userLeavingSignal || userAskedExternal) && (!musicOfferSuppressed || playlistGovernorOverride);
     
     const playlistMentions = [
-      { patterns: ['rooted_playlist', 'rooted playlist', 'playing rooted', 'play rooted'], name: 'rooted_playlist', album: 'Rooted' },
-      { patterns: ['low_orbit_playlist', 'low orbit playlist', 'playing low orbit', 'play low orbit'], name: 'low_orbit_playlist', album: 'Low Orbit' },
-      { patterns: ['first_light_playlist', 'first light playlist', 'playing first light', 'play first light'], name: 'first_light_playlist', album: 'First Light' },
+      { patterns: ['rooted_playlist', 'rooted playlist', 'playing rooted', 'play rooted', 'rooted for you', 'check out rooted', 'rooted —', '— rooted', 'try rooted'], name: 'rooted_playlist', album: 'Rooted' },
+      { patterns: ['low_orbit_playlist', 'low orbit playlist', 'playing low orbit', 'play low orbit', 'low orbit for you', 'check out low orbit', 'low orbit —', '— low orbit', 'try low orbit'], name: 'low_orbit_playlist', album: 'Low Orbit' },
+      { patterns: ['first_light_playlist', 'first light playlist', 'playing first light', 'play first light', 'first light for you', 'check out first light', 'first light —', '— first light', 'try first light'], name: 'first_light_playlist', album: 'First Light' },
     ];
     for (const pl of playlistMentions) {
       if (pl.patterns.some(p => finalMsgText.includes(p))) {
@@ -14049,6 +14049,10 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
         if (playlistTurnGateMet) {
           console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId: chatRequestId, type: 'offer_playlist_ready', source: pendingAction.source, playlistId: pl.name, path: 'ai_pipeline_postprocess_immediate' }));
           pipelineUiAction = pendingAction;
+          if (effectiveUserId) {
+            const mState = getMusicState(effectiveUserId);
+            mState.pendingPlaylistOffer = null;
+          }
         } else {
           console.log('[PHASE8b_PLAYLIST_GATE] Stored pending offer for confirmation — gate not met yet', JSON.stringify({ requestId: chatRequestId, playlistId: pl.name, sessionMusicSuggestions, isExplicitRequest: isExplicitPlaylistRequest, userLeaving: userLeavingSignal, userAskedExternal }));
         }
@@ -14070,15 +14074,6 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     }
     let effectiveUiAction = contractUiAction || pipelineUiAction;
     let effectiveAudioAction = contractAudioAction || finalResponse.audio_action || null;
-
-    if (effectiveUiAction?.type === 'OPEN_JOURNAL_MODAL' && effectiveUserId) {
-      const mState = getMusicState(effectiveUserId);
-      if (!mState.pendingPlaylistOffer) {
-        mState.pendingPlaylistOffer = effectiveUiAction;
-        console.log('[PLAYLIST_PENDING] Stored OPEN_JOURNAL_MODAL as pending — user must confirm first', JSON.stringify({ requestId: chatRequestId, title: effectiveUiAction.title, source: effectiveUiAction.source }));
-      }
-      effectiveUiAction = null;
-    }
 
     if (isCrisisMode) {
       if (effectiveAudioAction) {
