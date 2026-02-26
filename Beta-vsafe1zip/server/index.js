@@ -6791,6 +6791,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
               _provenance: { path: 'music_direct_play_night_swim', primaryMode: 'studios', track: trackPick.title, requestId, ts: Date.now(), ui_action_type: playAction.type }
             }, requestId);
           } else {
+            console.log('[STUDIOS_DEBUG] Building OPEN_JOURNAL_MODAL with space:', space, 'playlistId:', `${space}_playlist`);
             const playAction = {
               type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
               title: space,
@@ -6873,6 +6874,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         console.log('[TRACE CHAT] Music invite allowed — offering Spotify playlist (Night Swim exhausted or user leaving)');
         const text = MUSIC_TEMPLATES[space];
         
+        console.log('[STUDIOS_DEBUG] Building OPEN_JOURNAL_MODAL with space:', space, 'playlistId:', `${space}_playlist`);
         musicState.pendingPlaylistOffer = {
           type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
           title: space,
