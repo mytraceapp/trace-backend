@@ -3,11 +3,12 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
-import { StyleSheet, useColorScheme } from 'react-native';
+import { StyleSheet, useColorScheme, Platform } from 'react-native';
 import { Colors } from '../constants/theme';
 import { initAudioMode } from '../lib/ambientAudio';
 import { AudioProvider } from '../providers/AudioProvider';
 import { ensureAuthSession, upsertUserProfile } from '../lib/supabase';
+import { initOneSignal, setOneSignalExternalId } from '../lib/notifications';
 
 export default function RootLayout() {
   const systemColorScheme = useColorScheme();
@@ -22,10 +23,15 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    initOneSignal();
+  }, []);
+
+  useEffect(() => {
     const initAuth = async () => {
       const userId = await ensureAuthSession();
       if (userId) {
         await upsertUserProfile(userId);
+        setOneSignalExternalId(userId);
       }
     };
     initAuth();
