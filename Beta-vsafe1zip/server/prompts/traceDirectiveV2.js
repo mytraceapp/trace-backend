@@ -21,7 +21,7 @@ function deriveConfidence(traceIntent, activeRun, convoStage) {
   return 'low';
 }
 
-function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessionSummary = null, activeRun = null, convoStage = null }) {
+function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessionSummary = null, activeRun = null, convoStage = null, turnCount = 0 }) {
   const c = traceIntent?.constraints || {};
   const mode = traceIntent?.mode || 'micro';
   const intentType = traceIntent?.intentType || 'other';
@@ -174,6 +174,27 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
     musicFamiliarityBlock = `MUSIC: User knows Night Swim. Don't re-introduce it. Only offer when asked or music-intent is clear.`;
   }
 
+  const isStudioOrCrisis = primaryMode === 'crisis' || primaryMode === 'studios';
+  const responseStructureBlock = !isStudioOrCrisis
+    ? `RESPONSE STRUCTURE:
+Follow this internal order — do not label these steps:
+1. Reflect — brief mirroring of what the user expressed.
+2. Ground — normalize proportionally without dramatizing.
+3. Suggest — optional, proportional action or question.
+4. Release — close with spacious tone. No clingy continuation.
+Do not force all four if intensity is low.
+Never skip reflection. Never jump directly to advice.`
+    : '';
+
+  const shouldGround = !isStudioOrCrisis && turnCount > 0 && turnCount % 6 === 0;
+  const realityOrientationBlock = shouldGround
+    ? `REALITY ORIENTATION:
+Include a soft external-world anchor in this response.
+Encourage returning to physical environment gently.
+Do not imply permanence or endless availability.
+TRACE is a pause, not a destination.`
+    : '';
+
   return `
 TURN DIRECTIVE
 Intent: ${intentType}
@@ -191,6 +212,8 @@ ${feelGuardBlock}
 ${structure}
 ${questionsRule}
 ${activityRule}
+${responseStructureBlock}
+${realityOrientationBlock}
 ${anchorLine}
 ${doorwayHint}
 

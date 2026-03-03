@@ -21,9 +21,10 @@ function buildTracePromptV2({
   sessionSummary,
   activeRun,
   convoStage,
+  turnCount = 0,
 }) {
   const core = buildTraceCoreV2({ tonePreference });
-  const directive = buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners, sessionSummary, activeRun, convoStage });
+  const directive = buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners, sessionSummary, activeRun, convoStage, turnCount });
 
   let prompt = `${core}\n\n${directive}`;
 

@@ -191,6 +191,7 @@ const {
 } = require('./brain/contextBullets');
 const { buildTracePromptV2 } = require('./prompts/buildTracePromptV2');
 const { deriveConfidence } = require('./prompts/traceDirectiveV2');
+const { auditTraceResponse } = require('./consistencyAudit');
 const { computeMeta } = require('./validation/computeMeta');
 const { validateTraceResponseSchema } = require('./validation/validateTraceResponseSchema');
 const { rewriteToSchema } = require('./validation/rewriteToSchema');
@@ -10548,6 +10549,7 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
         sessionSummary,
         activeRun: activeRunForPrompt,
         convoStage: convoStageForPrompt,
+        turnCount: convoStateObj?.turnCount || 0,
       });
 
       if (displayName) {
@@ -12218,6 +12220,25 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       parsed.message = conversationState.enforceQuestionThrottle(parsed.message, controlQBudget);
       if (parsed.message !== beforeThrottle) {
         console.log('[QUESTION THROTTLE] Reduced excess questions to 1');
+      }
+    }
+
+    // ============================================================
+    // CONSISTENCY AUDIT (dev-only logging, never modifies response)
+    // ============================================================
+    if (parsed && parsed.message) {
+      try {
+        const auditIssues = auditTraceResponse({
+          response: parsed.message,
+          posture: posture || 'STEADY',
+          primaryMode: traceIntent?.primaryMode || 'conversation',
+          injectedMemory: memoryContext || '',
+        });
+        if (auditIssues.length > 0) {
+          console.warn(`[AUDIT] ${auditIssues.length} issue(s) detected:`, auditIssues.join(' | '));
+        }
+      } catch (auditErr) {
+        // never let audit break the response pipeline
       }
     }
 
