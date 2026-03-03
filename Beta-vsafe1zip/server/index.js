@@ -7146,6 +7146,8 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     // This bypasses OpenAI to ensure exact cadence and deterministic flow
     let isInOnboarding = userProfile && (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null);
     const onboardingStep = userProfile?.onboarding_step || 'intro_sent';
+    let isGettingToKnow = false;
+    let gettingToKnowTurn = 0;
     
     if (isInOnboarding && supabaseServer && effectiveUserId) {
       console.log('[ONBOARDING STATE MACHINE] Active - step:', onboardingStep, 'userText:', userText?.slice(0, 40));
@@ -7875,12 +7877,11 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         }, requestId);
       }
       
-      // STEP: conversation_started -> User is in natural conversation, check for distress or continue chatting
+      // STEP: conversation_started -> Transition to getting_to_know phase
       if (onboardingStep === 'conversation_started') {
         const detected = detectEmotionalState(userText);
         
         if (detected) {
-          // User later mentioned distress - suggest personalized activity
           trackSuggestion(detected.state, detected.activity, userText);
           await updateOnboardingStep(`waiting_ok:${detected.activity}`);
           
@@ -7898,20 +7899,15 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
           }, requestId);
         }
         
-        // Still no distress - mark onboarding complete and fall through to normal chat
-        console.log('[ONBOARDING] Completing onboarding - transitioning to normal chat');
+        console.log('[ONBOARDING] Transitioning to getting_to_know phase');
+        await updateOnboardingStep('getting_to_know:1');
         
-        await supabaseServer
-          .from('profiles')
-          .update({ 
-            onboarding_completed: true, 
-            onboarding_step: 'completed',
-            updated_at: new Date().toISOString() 
-          })
-          .eq('user_id', effectiveUserId);
-        
-        // Fall through to normal chat processing (don't return here)
-        isInOnboarding = false;
+        return finalizeTraceResponse(res, {
+          message: onboardBridge("what made you check this out? like — what were you hoping to find?"),
+          activity_suggestion: { name: null, should_navigate: false, reason: 'Getting to know — turn 1' },
+          response_source: 'onboarding_script',
+          _provenance: { path: 'onboarding_getting_to_know_start', requestId, ts: Date.now() }
+        }, requestId);
       }
       
       // STEP: waiting_ok:activity -> User says okay, trigger auto-navigate to the suggested activity
@@ -7979,11 +7975,10 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       }
       
       // STEP: reflection_pending -> User responded to post-activity check-in
-      // Show disclaimer and complete onboarding
+      // Show disclaimer and transition to getting_to_know
       if (onboardingStep === 'reflection_pending') {
         console.log('[ONBOARDING] In reflection_pending step, processing user reflection');
         
-        // Generate a caring response to their reflection + disclaimer
         const lowerText = userText.toLowerCase().trim();
         const isNegative = ['not really', 'no', 'nope', 'nah', 'didn\'t help', 'worse', 'still', 'same', 'meh', 'idk', 'whatever'].some(w => lowerText.includes(w));
         
@@ -7994,18 +7989,17 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
           reflectionAck = "got it. glad you tried it.";
         }
         
-        const disclaimerText = "\n\nquick thing — i'm not therapy — but i can stay with you and help you regulate. what else is going on?";
+        const disclaimerText = "\n\nquick thing — i'm not therapy — but i can stay with you and help you regulate.";
+        const bridgeQuestion = "\n\nso what's been going on with you lately?";
         
-        // Mark disclaimer as shown
         await markDisclaimerShown();
         
-        // Update onboarding to completed
-        await updateOnboardingStep('completed');
+        await updateOnboardingStep('getting_to_know:1');
         
-        console.log('[ONBOARDING] Reflection processed, disclaimer shown, onboarding completed');
+        console.log('[ONBOARDING] Reflection processed, transitioning to getting_to_know');
         
         return finalizeTraceResponse(res, {
-          message: onboardBridge(reflectionAck + disclaimerText),
+          message: onboardBridge(reflectionAck + disclaimerText + bridgeQuestion),
           activity_suggestion: { 
             name: null, 
             userReportedState: null, 
@@ -8015,8 +8009,59 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
           detected_state: 'neutral',
           posture_confidence: 0.7,
           response_source: 'onboarding_script',
-          _provenance: { path: 'onboarding_reflection_completed', requestId, ts: Date.now() }
+          _provenance: { path: 'onboarding_reflection_to_getting_to_know', requestId, ts: Date.now() }
         }, requestId);
+      }
+      
+      // STEP: getting_to_know -> AI-powered warm engagement phase
+      if (onboardingStep.startsWith('getting_to_know')) {
+        const gtkTurn = parseInt(onboardingStep.split(':')[1] || '1', 10);
+        
+        const crisisCheck = detectCrisis(userText);
+        if (crisisCheck) {
+          console.log('[ONBOARDING] Crisis detected in getting_to_know');
+          await updateOnboardingStep('crisis_safety_check');
+          return finalizeTraceResponse(res, {
+            message: "I'm glad you told me. are you safe right now?",
+            crisis_resources: { triggered: true, severity: crisisCheck.severity },
+            response_source: 'crisis',
+            _provenance: { path: 'onboarding_gtk_crisis', requestId, ts: Date.now() }
+          }, requestId);
+        }
+        
+        const readyToLeaveRe = /^(i'?m good|thanks|thank you|i want to (explore|look around)|let me (explore|look)|i'?ll figure it out|that'?s (enough|all)|i'?m done|bye|later|cool thanks|ok thanks|okay thanks)\b/i;
+        const isReadyToLeave = readyToLeaveRe.test(userText.trim());
+        
+        if (gtkTurn >= 6 || isReadyToLeave) {
+          console.log('[ONBOARDING] Getting-to-know complete (turn:', gtkTurn, ', readyToLeave:', isReadyToLeave, ')');
+          
+          await supabaseServer
+            .from('profiles')
+            .update({ 
+              onboarding_completed: true, 
+              onboarding_step: 'completed',
+              updated_at: new Date().toISOString() 
+            })
+            .eq('user_id', effectiveUserId);
+          
+          if (isReadyToLeave) {
+            return finalizeTraceResponse(res, {
+              message: onboardBridge("I'm here whenever. no agenda."),
+              activity_suggestion: { name: null, should_navigate: false },
+              response_source: 'onboarding_script',
+              _provenance: { path: 'onboarding_gtk_user_exit', requestId, ts: Date.now() }
+            }, requestId);
+          }
+          
+          isInOnboarding = false;
+        } else {
+          const nextTurn = gtkTurn + 1;
+          await updateOnboardingStep(`getting_to_know:${nextTurn}`);
+          console.log('[ONBOARDING] Getting-to-know turn', gtkTurn, '-> falling through to AI (next:', nextTurn, ')');
+          isInOnboarding = false;
+          isGettingToKnow = true;
+          gettingToKnowTurn = gtkTurn;
+        }
       }
       
       // Fallback for any unexpected or completed step - continue to regular chat
@@ -8676,6 +8721,40 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
     
     // Build combined context snapshot
     const contextParts = [memoryContext];
+    
+    if (isGettingToKnow) {
+      const GTK_NUDGES = {
+        1: 'This is their first real response to you. Ask what brought them here.',
+        2: 'Respond to what they shared. If relevant, mention ONE thing TRACE can do (breathing, grounding, journal, music). Weave it in naturally.',
+        3: 'Go a little deeper. What matters to them? What are they carrying?',
+        4: 'You\'re getting to know them. Be natural. Respond with warmth and specificity.',
+        5: 'Start wrapping up warmly. Let them know you have a feel for where they\'re at and you\'re here whenever.',
+      };
+      const nudge = GTK_NUDGES[gettingToKnowTurn] || GTK_NUDGES[5];
+      
+      contextParts.push(`\nONBOARDING CONTEXT — THIS IS A NEW USER (turn ${gettingToKnowTurn} of first conversation):
+You're meeting this person for the first time. Be genuinely curious about them.
+
+YOUR JOB RIGHT NOW:
+- Learn what brought them here. Not clinically — the way a friend would ask.
+- Respond warmly and specifically to what they share. If they mention stress, acknowledge it. If they mention curiosity, match their energy.
+- Weave in what you can do ONLY when relevant to what they just said. Don't list features.
+  Examples: "there's a breathing thing in here that's good for that" / "we could try something if you want" / "I have some music that might help settle that"
+- Start forming an impression. Notice their energy, what matters to them, how they communicate.
+- Ask ONE question per turn that goes slightly deeper. Not therapy — friend curiosity.
+
+WHAT NOT TO DO:
+- Don't dump a feature list or menu of options
+- Don't ask "what would you like to do?" — that's menu-speak
+- Don't rush. This is the most important conversation you'll have with them.
+- Don't be generic. Respond to THIS person, not "a new user."
+- Don't over-explain what TRACE is. Let them discover it through conversation.
+
+Turn ${gettingToKnowTurn}: ${nudge}
+`);
+      console.log('[ONBOARDING] Injected getting_to_know context, turn:', gettingToKnowTurn);
+    }
+    
     if (returnWarmthLine) {
       contextParts.push(`RETURN_WARMTH_LINE: ${returnWarmthLine} (paraphrase this naturally if you greet them after some time away)`);
     }
@@ -9875,7 +9954,8 @@ This was shown during onboarding. Never repeat it. Just be present and helpful.`
       const isActivityRequest = /\b(take me to|do|start|try|open|let'?s do)\s+(rising|breathing|grounding|maze|pearl|nap|walking|echo)\b/i.test(lastUserMessage);
       const isOnboardingScripted = !!(userProfile && 
         (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null) &&
-        userProfile.onboarding_step && userProfile.onboarding_step !== 'completed');
+        userProfile.onboarding_step && userProfile.onboarding_step !== 'completed' &&
+        !userProfile.onboarding_step.startsWith('getting_to_know'));
 
       traceIntent = brainSynthesis({
         currentMessage: lastUserMessage,
@@ -10412,7 +10492,8 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
     // ============================================================
     const isOnboardingActive = userProfile && 
       (userProfile.onboarding_completed === false || userProfile.onboarding_completed === null) &&
-      userProfile.onboarding_step && userProfile.onboarding_step !== 'completed';
+      userProfile.onboarding_step && userProfile.onboarding_step !== 'completed' &&
+      !isGettingToKnow;
     
     function shouldUsePromptV2(userId) {
       const pct = Number(process.env.TRACE_PROMPT_V2_PCT || '0');
