@@ -194,6 +194,8 @@ function createDefaultState() {
     rhythmHistory: [],
     qStreak: 0,
     feelingCheckins: [],
+    distressTurnCount: 0,
+    activitySuggestedThisSession: false,
   };
 }
 
@@ -1055,18 +1057,37 @@ function computeQuestionMode(visitorId, opts = {}) {
   const turnCount = state.turnCount || 0;
   const userEnergy = opts.userEnergy || 'medium';
   const lastMoveType = state.lastMoveType;
+  const posture = opts.posture || 'STEADY';
+  const detectedState = opts.detectedState || 'neutral';
+  const userWordCount = opts.userWordCount || 0;
+
+  const isEmotional = posture === 'GENTLE' || posture === 'DIRECTIVE' || (detectedState !== 'neutral' && detectedState !== 'unknown');
+  const hasSubstantiveContent = userWordCount > 5;
+
+  if (qStreak >= 3) {
+    return { mode: 'PRESENCE_ONLY', budget: 0, reason: 'asked_3_in_a_row_hard_stop' };
+  }
 
   if (qStreak >= 2) {
-    return { mode: 'PRESENCE_ONLY', budget: 0, reason: 'asked_2_in_a_row' };
+    if (isEmotional) {
+      return { mode: 'ALLOW_ONE', budget: 1, reason: 'emotional_override_after_streak' };
+    }
+    return { mode: 'OBSERVE_ONLY', budget: 0, reason: 'asked_2_in_a_row' };
   }
 
   if (qStreak >= 1 && userEnergy === 'low') {
+    if (isEmotional || hasSubstantiveContent) {
+      return { mode: 'ALLOW_ONE', budget: 1, reason: 'low_energy_but_real_content' };
+    }
     return { mode: 'PRESENCE_ONLY', budget: 0, reason: 'asked_last_turn_and_low_energy' };
   }
 
   if (qStreak >= 1) {
+    if (hasSubstantiveContent || isEmotional) {
+      return { mode: 'ALLOW_ONE', budget: 1, reason: 'substantive_response_to_question' };
+    }
     const roll = Math.random();
-    if (roll < 0.8) {
+    if (roll < 0.5) {
       return { mode: 'OBSERVE_ONLY', budget: 0, reason: 'natural_spacing_after_question' };
     }
     return { mode: 'ALLOW_ONE', budget: 1, reason: 'allow_after_streak_roll' };
@@ -1078,22 +1099,25 @@ function computeQuestionMode(visitorId, opts = {}) {
 
   if (userEnergy === 'high') {
     const roll = Math.random();
-    if (roll < 0.4) {
+    if (roll < 0.3) {
       return { mode: 'OBSERVE_ONLY', budget: 0, reason: 'high_energy_let_them_lead' };
     }
     return { mode: 'ALLOW_ONE', budget: 1, reason: 'high_energy_followup' };
   }
 
   if (userEnergy === 'low') {
+    if (isEmotional || hasSubstantiveContent) {
+      return { mode: 'ALLOW_ONE', budget: 1, reason: 'low_energy_but_sharing_something_real' };
+    }
     const roll = Math.random();
-    if (roll < 0.7) {
+    if (roll < 0.3) {
       return { mode: 'PRESENCE_ONLY', budget: 0, reason: 'low_energy_just_be_there' };
     }
     return { mode: 'ALLOW_ONE', budget: 1, reason: 'low_energy_gentle_check' };
   }
 
   const roll = Math.random();
-  if (roll < 0.35) {
+  if (roll < 0.2) {
     return { mode: 'OBSERVE_ONLY', budget: 0, reason: 'natural_variety' };
   }
   return { mode: 'ALLOW_ONE', budget: 1, reason: 'default_allow' };
@@ -1360,7 +1384,7 @@ function enforceQuestionThrottle(responseText, questionsAllowed) {
     }
     if (nonQuestionSents.length === 0) {
       console.log('[QUESTION THROTTLE] Budget=0: all sentences were questions, using safe acknowledgment');
-      const acks = ['yeah, makes sense.', 'got it.', 'mm, yeah.', 'noted.', 'fair enough.'];
+      const acks = ['yeah, makes sense.', 'yeah, I hear you.', 'that tracks.', 'fair enough.', 'yeah, that\'s a lot.'];
       return acks[Math.floor(Math.random() * acks.length)];
     }
     return responseText;
@@ -1383,11 +1407,35 @@ function enforceQuestionThrottle(responseText, questionsAllowed) {
   }
   
   if (result.length === 0) {
-    const acks = ['yeah, makes sense.', 'got it.', 'mm, yeah.', 'noted.', 'fair enough.'];
+    const acks = ['yeah, makes sense.', 'yeah, I hear you.', 'that tracks.', 'fair enough.', 'yeah, that\'s a lot.'];
     return acks[Math.floor(Math.random() * acks.length)];
   }
 
   return result.join(' ');
+}
+
+function updateDistressTurnCount(visitorId, detectedState) {
+  const state = getState(visitorId);
+  const distressStates = ['overwhelmed', 'anxious', 'stuck', 'exhausted', 'restless', 'sad', 'lonely', 'stressed', 'spiraling', 'vulnerable'];
+  if (distressStates.includes(detectedState)) {
+    state.distressTurnCount = (state.distressTurnCount || 0) + 1;
+  } else {
+    state.distressTurnCount = 0;
+  }
+  return state.distressTurnCount;
+}
+
+function markActivitySuggested(visitorId) {
+  const state = getState(visitorId);
+  state.activitySuggestedThisSession = true;
+}
+
+function getDistressInfo(visitorId) {
+  const state = getState(visitorId);
+  return {
+    distressTurnCount: state.distressTurnCount || 0,
+    alreadySuggestedThisSession: state.activitySuggestedThisSession || false,
+  };
 }
 
 module.exports = {
@@ -1436,6 +1484,9 @@ module.exports = {
   runHardFilter,
   buildWitnessRegenPrompt,
   enforceQuestionThrottle,
+  updateDistressTurnCount,
+  markActivitySuggested,
+  getDistressInfo,
   FORBIDDEN_PHRASES,
   THERAPY_PATTERNS,
 };

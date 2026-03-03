@@ -42,10 +42,16 @@ Music familiarity and Doorways v1 user profiles (affinity scores, hit history) a
 An audio control handler system differentiates between early interceptors and the Studios handler to prevent conflicts in stop/resume/pause commands.
 
 ## Tone Sanitizer
-A post-processing system strips therapy-speak from AI responses using regex patterns and includes mid-text fragment repair.
+A post-processing system strips therapy-speak from AI responses using regex patterns and includes mid-text fragment repair. Activity suggestion patterns are REWRITTEN in TRACE's voice (not deleted). The "I hear you" pattern is anchored to start-of-line to prevent re-stripping of warm alternatives. Question throttle fallback acks use warm phrases ("yeah, I hear you", "that tracks") instead of flat responses ("got it", "noted").
 
 ## Warmth Floor & Emotional Pivot System
-The attunement engine detects GENTLE posture for sleep/exhaustion language (insomnia, can't sleep, up all night, etc.) and enforces a minimum word floor (30 words) to prevent ultra-short dismissive responses during vulnerable moments. An emotional pivot detector breaks Studios mode lock when users shift from music/operational messages to emotional content (sleep issues, loneliness, crying, exhaustion), allowing TRACE to respond in full conversation mode. The V2 core prompt and attunement STYLE_EXAMPLES include concrete warm-without-therapy-speak guidance for vulnerable moments.
+The attunement engine detects GENTLE posture for sleep/exhaustion language (insomnia, can't sleep, up all night, etc.) and enforces a minimum word floor (30 words) to prevent ultra-short dismissive responses during vulnerable moments. A help-seeking floor (50 words) activates when users ask "what should I do" or similar. An emotional pivot detector breaks Studios mode lock when users shift from music/operational messages to emotional content (sleep issues, loneliness, crying, exhaustion), allowing TRACE to respond in full conversation mode. The V2 core prompt and attunement STYLE_EXAMPLES include concrete warm-without-therapy-speak guidance for vulnerable moments.
+
+## Engagement Rebalance System
+The question throttle (`computeQuestionMode`) accepts `posture`, `detectedState`, and `userWordCount` alongside `userEnergy`. When content is emotional (GENTLE/DIRECTIVE posture or non-neutral state), question budget=1 is allowed even after 2 consecutive questions. Hard stop at 3 consecutive questions regardless. Low-energy blocking reduced from 70% to 30% when user shares real content. Both V1 and V2 prompts include "WHAT NOT THERAPY ACTUALLY MEANS" and "GENUINE CURIOSITY" sections to reframe engagement philosophy.
+
+## Activity Suggestion Intelligence
+A distress turn counter (`distressTurnCount`) tracks consecutive turns of emotional distress. After 3+ distress turns, the suggestion engine can fire even without explicit help-seeking keywords. State-to-activity mapping: overwhelmed→breathing/grounding, stuck→walking/maze, exhausted→power nap/ripple, restless→rising. Max one suggestion per session unless user engages. Crisis mode blocks all suggestions.
 
 ## Music Playback Pipeline (Backend)
 The music suggestion to playback pipeline detects explicit user requests, AI responses mentioning track names, curation engine offers, and generic offer phrasing.

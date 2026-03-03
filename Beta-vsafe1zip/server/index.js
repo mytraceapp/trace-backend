@@ -8690,15 +8690,23 @@ If it feels right, you can say: "Music has a way of holding things words can't. 
     let suggestionContext = null;
     if (supabaseServer && !isCrisisMode) {
       try {
+        const distressInfo = conversationState.getDistressInfo(effectiveUserId);
+        const clientDetectedState = req.body.client_state?.detected_state || 'neutral';
         suggestionContext = await getSuggestionContext(
           supabaseServer, 
           userId, 
           deviceId, 
-          latestUserMessage
+          latestUserMessage,
+          {
+            detectedState: clientDetectedState,
+            distressTurnCount: distressInfo.distressTurnCount,
+            alreadySuggestedThisSession: distressInfo.alreadySuggestedThisSession,
+          }
         );
         if (suggestionContext) {
           contextParts.push(suggestionContext);
-          console.log('[TRACE] Added personalized activity suggestion context');
+          conversationState.markActivitySuggested(effectiveUserId);
+          console.log('[TRACE] Added activity suggestion context (distressTurns:', distressInfo.distressTurnCount, ')');
         }
       } catch (suggErr) {
         console.warn('[TRACE] Activity suggestion context failed:', suggErr.message);
@@ -9705,6 +9713,9 @@ Frame it personally. Playlists open externally — only suggest if user seems op
       }).catch(() => {});
     }
     
+    const distressTurnCount = conversationState.updateDistressTurnCount(effectiveUserId, detected_state);
+    console.log(`[DISTRESS_TRACKER] state=${detected_state} consecutiveTurns=${distressTurnCount}`);
+
     // Inject attunement prompt (Voice Lock + Posture Rules)
     const attunementBlock = buildAttunementPrompt(posture, detected_state);
     systemPrompt = `${attunementBlock}\n\n${systemPrompt}`;
@@ -11137,7 +11148,8 @@ If the right move isn't obvious: one grounded observation about what you notice 
       userEnergy: controlUserEnergy,
     });
     const controlLengthLabel = rhythmNudge?.tier === 'ultra_short' ? 'micro' : rhythmNudge?.tier === 'short' ? 'short' : rhythmNudge?.tier === 'long' ? 'long' : 'medium';
-    const controlQMode = conversationState.computeQuestionMode(effectiveUserId, { userEnergy: controlUserEnergy });
+    const userWordCount = (lastUserContent || '').split(/\s+/).filter(w => w.length > 0).length;
+    const controlQMode = conversationState.computeQuestionMode(effectiveUserId, { userEnergy: controlUserEnergy, posture, detectedState: detected_state, userWordCount });
     const controlQBudget = controlQMode.budget;
     const hasExternalContext = !!(newsContext || searchContext || weatherContext || foodContext || holidayContext);
     const baseMaxWords = controlLengthLabel === 'micro' ? 5 : controlLengthLabel === 'short' ? 20 : controlLengthLabel === 'long' ? 90 : 50;
@@ -11164,6 +11176,11 @@ If the right move isn't obvious: one grounded observation about what you notice 
         console.log(`[CONTROL_BLOCK] Warmth floor: ${controlMaxWords} → ${warmthFloor} (posture=${posture} — vulnerable moment needs room for presence)`);
         controlMaxWords = warmthFloor;
       }
+    }
+    const isHelpSeeking = /\b(what (should|can|do) i do|help me|what now|what do i do|i don'?t know what to do|how do i|what would you (suggest|recommend))\b/i.test(lastUserContent || '');
+    if (isHelpSeeking && controlMaxWords < 50) {
+      console.log(`[CONTROL_BLOCK] Help-seeking floor: ${controlMaxWords} → 50 (user asking for help needs a real answer)`);
+      controlMaxWords = 50;
     }
     if (proactiveHolidayLine) {
       console.log(`[CONTROL_BLOCK] HOLIDAYS: ${proactiveHolidayLine}`);

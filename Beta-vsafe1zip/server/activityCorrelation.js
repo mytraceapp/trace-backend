@@ -144,14 +144,28 @@ function rankCategoriesForNow(profiles, now = new Date()) {
  * Get personalized suggestion context for system prompt
  * Only triggers when user asks for help
  */
-async function getSuggestionContext(supabase, userId, deviceId, userMessage) {
+const DISTRESS_STATE_ACTIVITY_MAP = {
+  overwhelmed: ['breathing', 'grounding', 'basin'],
+  anxious: ['breathing', 'grounding', 'drift'],
+  stuck: ['walking', 'maze', 'rising'],
+  exhausted: ['rest', 'ripple', 'dreamscape'],
+  restless: ['rising', 'walking', 'maze'],
+  sad: ['ripple', 'echo', 'drift'],
+  lonely: ['echo', 'drift', 'window'],
+  stressed: ['breathing', 'grounding', 'basin'],
+};
+
+async function getSuggestionContext(supabase, userId, deviceId, userMessage, opts = {}) {
   console.log('[SUGGESTION ENGINE] Checking for patterns...', { 
     userId: userId || 'none', 
     deviceId: deviceId || 'none' 
   });
   
-  // Only suggest if user is asking for help
   const msg = (userMessage || '').toLowerCase();
+  const detectedState = opts.detectedState || 'neutral';
+  const distressTurnCount = opts.distressTurnCount || 0;
+  const alreadySuggestedThisSession = opts.alreadySuggestedThisSession || false;
+
   const isSeekingHelp =
     msg.includes('help') ||
     msg.includes('stuck') ||
@@ -161,31 +175,54 @@ async function getSuggestionContext(supabase, userId, deviceId, userMessage) {
     msg.includes('what can i do') ||
     msg.includes('not sure what to do') ||
     msg.includes('what would you recommend');
+
+  const isDistressState = ['overwhelmed', 'anxious', 'stuck', 'exhausted', 'restless', 'sad', 'lonely', 'stressed'].includes(detectedState);
+  const shouldSuggestFromDistress = isDistressState && distressTurnCount >= 3 && !alreadySuggestedThisSession;
   
-  if (!isSeekingHelp) {
-    console.log('[SUGGESTION ENGINE] User not seeking help, skipping');
+  if (!isSeekingHelp && !shouldSuggestFromDistress) {
+    console.log('[SUGGESTION ENGINE] No trigger (not seeking help, distress turns:', distressTurnCount, ')');
     return null;
   }
   
   const freq = await getActivityFrequency(supabase, userId, deviceId);
   
-  if (!freq) {
-    console.log('[SUGGESTION ENGINE] No strong patterns found (need 3+ completions)');
-    return null;
+  if (freq) {
+    console.log('[SUGGESTION ENGINE] Personalized pattern found:', {
+      activity: freq.activity,
+      count: freq.count,
+      label: freq.label
+    });
+    
+    return `
+ACTIVITY SUGGESTION (offer warmly — never clinical):
+"${freq.label}" has resonated with this user before.
+Offer it naturally: "hey — I've got something that might help. want to try it?"
+Never say exact numbers. Never sound like a recommendation engine.
+If you offer, keep it to ONE sentence. Let them choose.
+    `.trim();
   }
-  
-  console.log('[SUGGESTION ENGINE] Pattern found:', {
-    activity: freq.activity,
-    count: freq.count,
-    label: freq.label
-  });
-  
-  return `
-PERSONALIZED PATTERN (use gently, do not sound like you're tracking them):
-"${freq.label}" seems to resonate with this user — they've returned to it ${freq.count} times recently.
-You may gently suggest it as one option, using soft language like "you might try" or "it's seemed to help before."
-Never say exact numbers or sound analytical. Speak warmly, like "I've noticed [activity] seems to help you."
-  `.trim();
+
+  if (shouldSuggestFromDistress || isSeekingHelp) {
+    const mappedActivities = DISTRESS_STATE_ACTIVITY_MAP[detectedState] || ['breathing', 'grounding'];
+    const suggested = mappedActivities[0];
+    const suggestedLabel = ACTIVITY_LABELS[suggested] || suggested;
+    
+    console.log('[SUGGESTION ENGINE] State-based suggestion:', {
+      state: detectedState,
+      suggested: suggestedLabel,
+      trigger: isSeekingHelp ? 'help-seeking' : 'distress-turns'
+    });
+
+    return `
+ACTIVITY SUGGESTION (offer warmly — never clinical):
+Based on this moment, "${suggestedLabel}" might help.
+Offer naturally: "hey — I've got something that might actually help right now. want to try it?"
+Keep it to ONE sentence. Don't explain why. Let them choose.
+    `.trim();
+  }
+
+  console.log('[SUGGESTION ENGINE] No patterns and no state match');
+  return null;
 }
 
 /**
