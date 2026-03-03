@@ -1,0 +1,112 @@
+Yeah — from these screenshots it looks like TRACE isn’t receiving (or isn’t using) the right conversation state, so the model starts guessing and it comes out as “confused / robotic / no context.”
+
+What the screenshots are telling us
+	1.	It’s not answering the user’s actual question.
+User: “Can you hear me OK?” → TRACE: “how’s it now?” → User: “What?” → TRACE: “Did you just finish something surprising?”
+That “finish something surprising” line is a classic intent misfire (the model is free-associating because it doesn’t have a solid state + rules).
+	2.	Tone drift + slang shows prompt/guardrails aren’t anchoring voice.
+“hey, what’s good?” doesn’t match TRACE’s calm / minimal / presence vibe. That usually happens when:
+	•	the system prompt isn’t being applied, or
+	•	you changed models/params and now you’re seeing a more default-chat style.
+	3.	Onboarding state isn’t being enforced.
+Onboarding should be tight and guided. Right now it’s acting like open-ended chat with weak memory.
+
+⸻
+
+The most likely root cause (based on how this fails)
+
+A) Your backend update broke the messages payload
+
+This is the #1 cause of “no context” + weird jumps.
+
+Check these immediately in your server logs:
+	•	Are you still sending a proper messages[] array with roles intact?
+	•	system (TRACE voice + rules)
+	•	assistant/user turns (recent chat)
+	•	any tool messages if you use tool calling
+	•	Did you accidentally start sending only the latest user message (no history)?
+	•	Did you flip role: "assistant" vs "user" anywhere?
+	•	Did you start trimming history too aggressively (like keeping 0–1 turns)?
+	•	Did your “traceIntent” object start being injected as raw text that confuses the model?
+
+Quick tell: if the payload is missing the system prompt + last assistant message, the model will behave exactly like this.
+
+B) Your “intent / emotion / mode” layer is now overriding real meaning
+
+If you’re doing a classifier step that outputs something like:
+	•	intent: CHECKING_IN
+	•	topic: SURPRISE_EVENT
+…and you inject that as “truth”, the model will follow it even when the user clearly asked something else.
+
+⸻
+
+Fix it fast: 3 changes that will stabilize onboarding immediately
+
+1) Hard “Onboarding Mode” = constrained script
+
+For the first session (or first ~10 messages), don’t let the model freestyle.
+
+Rule: In onboarding, TRACE must only do:
+	•	1 short reflection
+	•	1 direct answer
+	•	1 guided next step (2 buttons)
+
+Example structure:
+	•	Acknowledge (“yeah, i can hear you.”)
+	•	Anchor (“we can do regulate or reflect.”)
+	•	Offer (“want to calm your body, or talk something out?”)
+
+2) Add a “No guessing” guardrail
+
+This single rule prevents the “surprising thing happened?” nonsense:
+
+If uncertain about what the user means, do not infer. Ask one simple clarifying question OR offer two interpretations.
+
+3) Add “mic/time/meta questions” as explicit handlers
+
+These should never go through your general “emotion” route.
+
+If user says:
+	•	“can you hear me?”
+	•	“what time is it?”
+	•	“what is this app?”
+	•	“how do i use this?”
+…TRACE should respond directly and then return to the guided flow.
+
+⸻
+
+Copy/paste prompt patch (drop into your system or onboarding wrapper)
+
+Use this exactly as-is (and keep it ABOVE any creative style text):
+
+ONBOARDING CONSTRAINTS (HIGH PRIORITY)
+	•	you are trace. calm, minimal, grounded. no slang.
+	•	do not guess what the user “meant.” if unclear, ask one clarifying question.
+	•	always answer the user’s literal question first.
+	•	keep responses under 2 short sentences unless explaining “regulate vs reflect.”
+	•	onboarding flow: after answering, offer exactly two next-step options (regulate / reflect) as short button-style lines.
+
+META HANDLERS
+	•	if user asks about hearing/mic/audio: answer “yes/no + quick tip” (no inference).
+	•	if user asks the time: provide the time and a gentle nudge.
+	•	if user asks “what is this app / what do you do”: give the 1–2 sentence definition, then offer regulate/reflect.
+
+EXAMPLES
+User: “can you hear me ok?”
+Trace: “yeah — i can hear you. do you want to regulate (calm your body) or reflect (talk it out)?”
+
+User: “what?”
+Trace: “i might’ve missed you — what did you mean by ‘what’?”
+(or) “did you mean my last message, or the app itself?”
+
+⸻
+
+Debug checklist (do this once and you’ll find the break)
+	1.	Log the final outbound payload your backend sends to OpenAI (redact keys).
+Confirm:
+	•	system prompt is present
+	•	last 6–12 turns are present
+	•	roles are correct
+	2.	Log the final “traceIntent” injection and verify it’s not contradicting the user text.
+	3.	Verify you’re not overwriting onboarding state after the first user message.
+	4.	Confirm model + temperature didn’t change accidentally (a temp jump can make tone drift worse).
