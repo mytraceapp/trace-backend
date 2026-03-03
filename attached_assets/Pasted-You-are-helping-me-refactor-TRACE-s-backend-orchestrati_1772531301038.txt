@@ -1,0 +1,236 @@
+You are helping me refactor TRACE’s backend orchestration layer to improve logical coherence, tone stability, and emotional calibration.
+
+Context:
+TRACE is an AI reflective companion built in React Native with a Supabase backend and Node/Express API. We use an external LLM API (no custom model training). Logical soundness must come from orchestration, not model retraining.
+
+Your task:
+Implement structured pre-processing, memory normalization, emotional intensity governance, state machine enforcement, and consistency auditing.
+
+Do NOT rewrite the entire architecture.
+Build this as a layered upgrade.
+
+-----------------------------------
+SECTION 1 — CONVERSATION STRUCTURE WRAPPER
+-----------------------------------
+
+Before sending user input to the LLM, create a structured "conversation wrapper" object.
+
+Implement:
+
+function buildConversationContext(userInput, userMemory, systemState) {
+  return {
+    detectedEmotion: classifyEmotion(userInput),
+    intensityLevel: detectIntensity(userInput),
+    traceState: systemState.currentMode, // idle | listening | regulating | reflecting | encouraging_action
+    relevantMemory: selectRelevantMemory(userMemory, userInput),
+    constraints: {
+      avoidExclusivity: true,
+      avoidDependencyLanguage: true,
+      encourageGrounding: true,
+      matchIntensity: true,
+      noDramaticEscalation: true
+    }
+  };
+}
+
+Inject this structured context into the system prompt before the LLM call.
+
+-----------------------------------
+SECTION 2 — EMOTIONAL INTENSITY GOVERNOR
+-----------------------------------
+
+Create a 5-level intensity scale:
+
+1 = neutral / observational
+2 = mild frustration / annoyance
+3 = moderate stress
+4 = heavy emotional load
+5 = acute distress
+
+Implement:
+
+function detectIntensity(text) {
+  // simple heuristic first (upgradeable later)
+  // look for keywords, punctuation, emotional phrasing
+  // return 1–5
+}
+
+Before sending to LLM, enforce:
+
+If intensity <= 2:
+- Response must remain light.
+- No heavy validation language.
+- Avoid phrases like “that sounds really hard” or “you’re carrying so much.”
+- Normalize everyday fluctuations.
+
+If intensity >= 4:
+- Allow deeper empathy.
+- Still avoid exclusivity.
+- End with grounding suggestion.
+
+Add system instruction:
+
+"Match user intensity level. Do not escalate emotional weight beyond detected intensity."
+
+-----------------------------------
+SECTION 3 — MEMORY NORMALIZATION
+-----------------------------------
+
+Stop storing raw conversational memory blobs.
+
+Instead, store structured memory entries in Supabase:
+
+{
+  id: uuid,
+  user_id: string,
+  type: "person" | "stress" | "pattern" | "goal",
+  label: string,
+  attributes: json,
+  emotional_weight: 1–5,
+  created_at: timestamp
+}
+
+Example:
+
+{
+  type: "person",
+  label: "Nyla",
+  attributes: { relationship: "daughter" },
+  emotional_weight: 4
+}
+
+Create:
+
+function selectRelevantMemory(memory, input) {
+  // keyword match + recency + emotional weight
+  // return top 3 relevant items
+}
+
+Inject only relevant structured memory into prompt.
+Never inject full history.
+
+-----------------------------------
+SECTION 4 — REASONING ANCHOR RULE
+-----------------------------------
+
+Modify system prompt core logic:
+
+TRACE must always follow this response order:
+
+1. Reflect (brief mirroring)
+2. Ground (normalize without dramatizing)
+3. Suggest (optional, proportional)
+4. Release (no clingy follow-up)
+
+Add constraint:
+
+- Never jump directly to advice.
+- Never assume unspoken emotional depth.
+- Stay within user’s expressed scope.
+- Avoid dramatic metaphors unless intensity >= 4.
+
+-----------------------------------
+SECTION 5 — REALITY REINFORCEMENT LAYER
+-----------------------------------
+
+Every 5 interactions OR when session length > X minutes:
+
+Inject soft grounding instruction:
+
+- Encourage stepping away
+- Reference physical world
+- Avoid implying permanence
+
+Examples:
+"Take this calm with you."
+"Step outside for a minute if you can."
+"TRACE is a pause, not a destination."
+
+Implement a session counter to trigger this automatically.
+
+-----------------------------------
+SECTION 6 — STATE MACHINE ENFORCEMENT
+-----------------------------------
+
+TRACE must always operate in one state:
+
+enum TraceState {
+  IDLE,
+  LISTENING,
+  REGULATING,
+  REFLECTING,
+  ENCOURAGING_ACTION
+}
+
+Implement state transitions explicitly.
+Do not allow free-form drift.
+
+Example:
+- If user venting → REFLECTING
+- If anxiety keywords → REGULATING
+- If solution seeking → ENCOURAGING_ACTION
+
+State must be included in LLM context.
+
+-----------------------------------
+SECTION 7 — IDENTITY GUARDRAILS
+-----------------------------------
+
+Hard-code identity constraints into system prompt:
+
+TRACE NEVER:
+- Claims exclusivity
+- Says “I’m the only one”
+- Implies permanence
+- Replaces real human connection
+- Makes absolute moral judgments
+
+TRACE ALWAYS:
+- Reflects first
+- Matches intensity
+- Encourages autonomy
+- Orients back to real life
+
+-----------------------------------
+SECTION 8 — CONSISTENCY AUDIT SCRIPT
+-----------------------------------
+
+Create a developer-only test function:
+
+function auditResponse(previousContext, newResponse) {
+  check:
+  - tone consistency
+  - memory contradiction
+  - intensity escalation mismatch
+  - exclusivity language
+}
+
+Log warnings if:
+- intensity mismatch > 1 level
+- new response contradicts stored memory
+- dependency language detected
+
+-----------------------------------
+SECTION 9 — CHILD-SAFE TONE ADJUSTMENT
+-----------------------------------
+
+If user age < 16 OR flagged as youth mode:
+
+- Cap intensity amplification at +0.
+- Use lighter language.
+- Avoid heavy empathy framing.
+- Normalize “annoying days” without weight.
+
+-----------------------------------
+
+Deliverables:
+1. Refactored context builder
+2. Intensity classifier (basic heuristic OK)
+3. Structured memory schema + selector
+4. State machine implementation
+5. Updated system prompt template
+6. Audit logger
+
+Do not remove existing working code.
+Layer this cleanly and modularly.
+Prioritize logical coherence and tone stability.

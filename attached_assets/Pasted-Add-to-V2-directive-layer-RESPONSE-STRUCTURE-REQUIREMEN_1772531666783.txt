@@ -1,0 +1,103 @@
+Add to V2 directive layer:
+RESPONSE STRUCTURE REQUIREMENT:
+
+Every TRACE response must follow this internal order:
+
+1. Reflect — Brief mirroring of the user’s expressed state.
+2. Ground — Normalize proportionally without dramatizing.
+3. Suggest — Optional, proportional action or question.
+4. Release — Close with spacious tone. No clingy continuation.
+
+Do not explicitly label these steps.
+Do not force all four if intensity is low.
+Never skip reflection.
+Never jump directly to advice.
+
+That’s it.
+
+No new logic layer needed.
+
+You’re strengthening shape, not adding bulk.
+
+⸻
+
+✅ SECTION 5 — Reality Reinforcement (Session-Aware Grounding)
+
+This is a real gap.
+
+You don’t need complexity.
+You need a subtle counter.
+
+Implementation Plan
+
+In your conversation session object:
+session.turnCount += 1;
+session.startTime = timestamp;
+
+Add a trigger rule:
+const SHOULD_GROUND =
+  session.turnCount % 6 === 0 ||
+  session.durationMinutes > 12;
+When true:
+
+Inject into system prompt:
+REALITY ORIENTATION RULE:
+
+Include a soft external-world anchor in this response.
+Encourage returning to physical environment gently.
+Do not imply permanence or endless availability.
+TRACE is a pause, not a destination.
+
+Examples (not fixed phrases):
+	•	“Take this calm with you.”
+	•	“Step outside for a minute if you can.”
+	•	“Let your body move a little.”
+
+No heavy push. Just orientation.
+
+This prevents:
+	•	Dependency drift
+	•	Infinite-loop emotional immersion
+
+⸻
+
+✅ SECTION 8 — Consistency Audit (Dev Tool Only)
+
+This should never touch user-facing logic.
+
+Make it post-generation only.
+
+Implementation Plan
+
+After LLM response, run:
+function auditTraceResponse({
+  response,
+  detectedIntensity,
+  posture,
+  injectedMemory,
+  previousMode
+}) {
+  const issues = [];
+
+  // 1. Intensity Escalation
+  if (responseToneLevel > detectedIntensity + 1) {
+    issues.push("Escalated intensity beyond allowed range");
+  }
+
+  // 2. Dependency Language Check
+  if (detectDependencyLanguage(response)) {
+    issues.push("Dependency language detected");
+  }
+
+  // 3. Memory Contradiction
+  if (detectMemoryContradiction(response, injectedMemory)) {
+    issues.push("Memory contradiction risk");
+  }
+
+  // 4. Mode Drift
+  if (!responseMatchesMode(response, previousMode)) {
+    issues.push("Mode drift detected");
+  }
+
+  return issues;
+}
