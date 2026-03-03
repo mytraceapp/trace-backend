@@ -175,7 +175,9 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
   }
 
   const isStudioOrCrisis = primaryMode === 'crisis' || primaryMode === 'studios';
-  const responseStructureBlock = !isStudioOrCrisis
+  const hasSubstantiveContent = !isStudioOrCrisis && !isGreeting && !isCrisisOrOnboarding &&
+    !(mode === 'micro' && confidence === 'low');
+  const responseStructureBlock = hasSubstantiveContent
     ? `RESPONSE STRUCTURE:
 Follow this internal order — do not label these steps:
 1. Reflect — brief mirroring of what the user expressed.
