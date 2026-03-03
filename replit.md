@@ -32,6 +32,8 @@ A Greeting Deduplication & Grounding Guard manages welcome greetings for variety
 ## Prompt Architecture
 A two-layer V2 prompt system uses a TRACE Control Block, prepended as a separate system message, to provide deterministic per-turn constraints. Both V1 and V2 prompts contain a 6-section depth philosophy: THE REAL JOB (what users at 3am actually need), HOW TO READ WHAT'S ACTUALLY HAPPENING (concrete reads for "I'm tired", "it's fine", circling, humor deflection, self-blame, conflicts), MAKING CONNECTIONS (cross-conversation pattern recognition), HEARD VS SEEN (respond to what they meant, not what they said), NAMING THE THING (say what's actually happening with warmth then space), THE STANDARD (quality check: safe thing vs true thing). V2 also has a compact DEPTH TOOLKIT preserving protective instinct, permission slip, contradiction-as-complexity, micro-disappointment, and speechless presence as trust-gated moves.
 
+A CONVERSATIONAL GROUNDING system prevents TRACE from fabricating context on low-information turns. Rules: greetings treated as greetings (not emotional content), TRACE has no own emotions/moods/thoughts, user questions about TRACE's statements must be answered directly, and early conversation turns (1-3) stay grounded in what's been said. The brainSynthesis `inferIntentType` classifies greeting patterns ("hu", "hi", "hey", "hm", "yo", etc.) as `intentType: "greeting"` with `mode: "micro"`, triggering a specific directive that prevents fabrication. A LOW CONTEXT guard fires for non-greeting micro messages when no topic anchor is established.
+
 ## Patterns Feature
 Identifies three pattern types: Peak Window, Energy Tides, and Stress Echoes, providing insights and a visual rhythm map.
 

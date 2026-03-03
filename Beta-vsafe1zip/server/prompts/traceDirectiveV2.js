@@ -29,8 +29,12 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
   const isCrisisOrOnboarding = primaryMode === 'crisis' || primaryMode === 'onboarding';
   const musicFamiliarity = traceIntent?.musicFamiliarity || 'new';
 
+  const isGreeting = intentType === 'greeting';
+
   const modeBlock =
-    mode === 'micro'
+    isGreeting
+      ? `LENGTH: 1-2 sentences max.\nGREETING: User said hi. Be warm, brief, and curious — "hey. what's going on?" or similar. Do NOT interpret the greeting as emotional content. Do NOT fabricate context or feelings. Do NOT assume something is wrong.`
+      : mode === 'micro'
       ? `LENGTH: ${c.maxSentences || 2} sentences max.`
       : mode === 'longform'
       ? `LENGTH: Be complete. Do NOT truncate.`
@@ -115,6 +119,10 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
   const anchorChanged = traceIntent?.continuity?.anchorChanged === true;
   const continuityRequired = traceIntent?.continuity?.required === true;
 
+  const lowContextGuard = (!isCrisisOrOnboarding && !isGreeting && confidence === 'low' && mode === 'micro')
+    ? `LOW CONTEXT: User hasn't shared anything specific yet. Respond to what they actually said — don't add interpretation or emotional reads. If unsure what they mean, ask.`
+    : '';
+
   let firstSentenceRule = '';
   if (confidence && !isCrisisOrOnboarding) {
     if (continuityRequired) {
@@ -176,6 +184,7 @@ ${nextMoveContract}
 ${outputContractBlock}
 ${musicFamiliarityBlock}
 ${modeBlock}
+${lowContextGuard}
 ${approachBlock}
 ${qGuardBlock}
 ${feelGuardBlock}
