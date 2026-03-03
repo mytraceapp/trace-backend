@@ -175,8 +175,12 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
   }
 
   const isStudioOrCrisis = primaryMode === 'crisis' || primaryMode === 'studios';
+  const posture = traceIntent?.posture || 'STEADY';
+  const detectedState = traceIntent?.detected_state || 'neutral';
+  const hasEmotionalSignal = posture === 'GENTLE' || posture === 'DIRECTIVE' || detectedState !== 'neutral';
+  const hasEngagedIntent = mode === 'longform' || ['presence', 'dream', 'clarify'].includes(intentType);
   const hasSubstantiveContent = !isStudioOrCrisis && !isGreeting && !isCrisisOrOnboarding &&
-    !(mode === 'micro' && confidence === 'low');
+    (hasEmotionalSignal || hasEngagedIntent || (confidence === 'high' && mode !== 'micro'));
   const responseStructureBlock = hasSubstantiveContent
     ? `RESPONSE STRUCTURE:
 Follow this internal order — do not label these steps:
