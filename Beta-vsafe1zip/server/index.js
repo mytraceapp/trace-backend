@@ -3110,6 +3110,27 @@ function buildSessionContextAnchor(messages) {
     }
   }
   
+  // --- LAYER 3: Questions Already Asked (assistant message scan) ---
+  const questionsAsked = [];
+  const assistantMessages = messages
+    .filter(m => m.role === 'assistant')
+    .slice(-10);
+  
+  const seenQuestionNorms = new Set();
+  for (const msg of assistantMessages) {
+    const text = msg.content || '';
+    const sentences = text.match(/[^.!?\n]+\?/g) || [];
+    for (const s of sentences) {
+      const cleaned = s.trim().replace(/\s+/g, ' ');
+      if (cleaned.length < 8 || cleaned.length > 120) continue;
+      const norm = cleaned.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+      if (!seenQuestionNorms.has(norm)) {
+        seenQuestionNorms.add(norm);
+        questionsAsked.push(cleaned);
+      }
+    }
+  }
+
   // --- BUILD THE ANCHOR ---
   const parts = [];
   
@@ -3167,6 +3188,12 @@ function buildSessionContextAnchor(messages) {
     parts.push(`Time references: ${uniqueTimes.join(', ')}`);
   }
   
+  // Questions already asked — prevent repetition
+  if (questionsAsked.length > 0) {
+    const recentQuestions = questionsAsked.slice(-8);
+    parts.push(`QUESTIONS ALREADY ASKED THIS SESSION (do not repeat or rephrase these):\n- "${recentQuestions.join('"\n- "')}"`);
+  }
+  
   if (parts.length === 0) return null;
   
   const anchor = [
@@ -3177,7 +3204,8 @@ function buildSessionContextAnchor(messages) {
     `- You already know all of the above. Do NOT ask about things already shared.`,
     `- Reference these details naturally when relevant — prove you were listening.`,
     `- If user mentions a name above, you know who they are. Don't ask "who's that?"`,
-    `- If user continues a topic above, stay in that thread. Don't redirect.`
+    `- If user continues a topic above, stay in that thread. Don't redirect.`,
+    `- If you see questions listed above, find a DIFFERENT angle. Build on their answers, don't re-enter the same door.`
   ].join('\n');
   
   return { role: 'system', content: anchor };
@@ -10720,6 +10748,8 @@ If the right move isn't obvious: one grounded observation about what you notice 
     const rhythmNudge = conversationState.getNextLengthNudge(effectiveUserId, lastUserContent, {
       isCrisis: isCrisisMode,
       isOnboarding: isOnboardingActive,
+      posture,
+      detectedState: detected_state,
     });
     const rhythmDirective = conversationState.buildRhythmPromptDirective(rhythmNudge, { nextMove: traceIntent?.nextMove || null });
     if (rhythmDirective) {
@@ -11853,7 +11883,7 @@ Your complete response:`;
           const hasDataContext = !!(newsContext || searchContext || weatherContext || musicContext);
           const l3DataInstruction = hasDataContext ? `\nIMPORTANT: You have real data above. USE IT to answer the user's question. Share the facts naturally like you already knew them. NEVER say "I'm not sure about the latest" or deflect — you HAVE the information.` : '';
           const l3QLine = (controlQBudget === 0) ? `\nQUESTION RULE: Do NOT ask any questions. Make a statement or observation instead. No "?" in your response.` : '';
-          const userEnergyLow = conversationState.classifyUserEnergy(lastUserContent) === 'low';
+          const userEnergyLow = conversationState.classifyUserEnergy(lastUserContent, { posture, detectedState: detected_state }) === 'low';
           const l3EnergyLine = userEnergyLow ? `\nUSER ENERGY: Low. They gave a short/minimal answer. Do NOT keep probing or asking follow-ups. Just acknowledge briefly and leave space. If they seem done with a topic, move on or sit with it.` : '';
           const l3AudioOffLine = (safeClientState.musicStopped === true || safeClientState.ambienceEnabled === false) ? `\nAUDIO STATE: Audio is OFF.${safeClientState.ambienceEnabled === false ? ' App ambience is toggled off.' : ' User used "stop music".'} Do NOT say you'll play music, put something on, or suggest listening.${safeClientState.ambienceEnabled === false ? ' If they ask for music, let them know their app ambience needs to be toggled back on.' : ' If they ask for music, tell them to say "resume music" first.'}` : '';
           const l3FirstName = displayName ? displayName.split(' ')[0].trim() : '';

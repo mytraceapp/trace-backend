@@ -225,11 +225,15 @@ function classifyResponseLength(text) {
   return LENGTH_TIERS.LONG;
 }
 
-function classifyUserEnergy(userMessage) {
+function classifyUserEnergy(userMessage, opts = {}) {
   if (!userMessage) return 'low';
   const trimmed = userMessage.trim();
   const words = trimmed.split(/\s+/).length;
   const sentences = trimmed.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+
+  const posture = opts.posture || 'STEADY';
+  const detectedState = opts.detectedState || 'neutral';
+  const isEmotionalContext = posture === 'GENTLE' || posture === 'DIRECTIVE' || (detectedState !== 'neutral' && detectedState !== 'unknown');
 
   const lowEnergyPatterns = [
     /^(yeah|yea|ya|yep|yup|ok|okay|k|sure|fine|idk|dunno|meh|nah|nope|whatever|ig|i guess|hmm|hm|mm)\.?$/i,
@@ -239,10 +243,16 @@ function classifyUserEnergy(userMessage) {
   ];
 
   for (const p of lowEnergyPatterns) {
-    if (p.test(trimmed)) return 'low';
+    if (p.test(trimmed)) {
+      if (isEmotionalContext) return 'medium';
+      return 'low';
+    }
   }
 
-  if (words <= 4) return 'low';
+  if (words <= 4) {
+    if (isEmotionalContext) return 'medium';
+    return 'low';
+  }
   if (words <= 12) return 'medium';
   if (words >= 30 || sentences >= 3) return 'high';
   return 'medium';
@@ -263,7 +273,7 @@ function recordResponseLength(visitorId, responseText) {
 function getNextLengthNudge(visitorId, userMessage, opts = {}) {
   const state = getState(visitorId);
   const history = state.rhythmHistory || [];
-  const userEnergy = classifyUserEnergy(userMessage);
+  const userEnergy = classifyUserEnergy(userMessage, { posture: opts.posture, detectedState: opts.detectedState });
   const isCrisis = opts.isCrisis || false;
   const isOnboarding = opts.isOnboarding || false;
 

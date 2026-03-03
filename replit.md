@@ -50,6 +50,10 @@ The attunement engine detects GENTLE posture for sleep/exhaustion language (inso
 ## Engagement Rebalance System
 The question throttle (`computeQuestionMode`) accepts `posture`, `detectedState`, and `userWordCount` alongside `userEnergy`. When content is emotional (GENTLE/DIRECTIVE posture or non-neutral state), question budget=1 is allowed even after 2 consecutive questions. Hard stop at 3 consecutive questions regardless. Low-energy blocking reduced from 70% to 30% when user shares real content. Both V1 and V2 prompts include "WHAT NOT THERAPY ACTUALLY MEANS" and "GENUINE CURIOSITY" sections to reframe engagement philosophy.
 
+`classifyUserEnergy` accepts `posture` and `detectedState` opts. Short messages (≤4 words, "yeah", "ok") during emotional context (GENTLE/DIRECTIVE posture or non-neutral state) classify as "medium" instead of "low", preventing TRACE from mirroring brevity when the user is processing something heavy. `getNextLengthNudge` passes posture/state through to energy classification.
+
+`buildSessionContextAnchor` includes a third extraction layer scanning the last 10 assistant messages for questions asked. Extracted questions are deduplicated, capped at 8, and injected into the anchor as "QUESTIONS ALREADY ASKED THIS SESSION (do not repeat or rephrase these)". Both V1 and V2 prompts include a QUESTION MEMORY section reinforcing that the conversation should go somewhere, not circle the same spot.
+
 ## Activity Suggestion Intelligence
 A distress turn counter (`distressTurnCount`) tracks consecutive turns of emotional distress. After 3+ distress turns, the suggestion engine can fire even without explicit help-seeking keywords. State-to-activity mapping: overwhelmed→breathing/grounding, stuck→walking/maze, exhausted→power nap/ripple, restless→rising. Max one suggestion per session unless user engages. Crisis mode blocks all suggestions.
 

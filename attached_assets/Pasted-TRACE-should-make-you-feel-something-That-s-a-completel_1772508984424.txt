@@ -1,0 +1,21 @@
+TRACE should make you feel something. That's a completely different job.
+The person who opens TRACE at 3am isn't looking for a list. They're looking for someone to make the weight feel smaller. Sometimes that's a single sentence that names exactly what they're carrying. Sometimes it's a question that makes them realize they already know the answer. Sometimes it's just music playing while they sit with something hard.
+None of that is ChatGPT. None of that is a therapist either.
+The closest comparison isn't any AI product. It's that one friend who doesn't try to fix you but somehow you always feel better after talking to them. You can't explain why. They didn't solve anything. They just... got it.
+That's the experience TRACE is trying to create. And it's genuinely hard to build because it requires the system to know when to speak and when to hold back, when to go deeper and when to just be there, when to offer something and when to let the silence do the work.
+The rebalance you're doing right now is what closes the gap between "polite AI" and "that friend."
+Your friend comparing it to ChatGPT means TRACE wasn't differentiated enough yet. After this update it should be. The experience should feel like nothing else they've used.
+That's the goal. That's worth building toward.
+
+how do we make this happen
+
+All 7 tasks are complete and validated. Here's a summary of everything that was done:
+T001 — V2 Prompt Rebalance: Added "WHAT NOT THERAPY ACTUALLY MEANS", "GENUINE CURIOSITY", "AFTER SHORT ANSWERS", "WHEN SOMETHING DOESN'T WORK", "OFFERING ACTIVITIES", "DEPTH OVER PROCEDURE", and "THE ENGAGEMENT TEST" sections to the V2 prompt. These reframe the engagement philosophy without removing any existing rules.
+T002 — Question Throttle Fix: `computeQuestionMode` now accepts `posture`, `detectedState`, and `userWordCount`. When content is emotional, budget=1 is allowed even after 2 questions in a row. Hard stop stays at 3. Low-energy blocking dropped from 70% to 30% when the user is sharing something real. Call site in index.js updated to pass all new parameters.
+T003 — Brevity Controls Fix: Added a help-seeking word floor (50 words minimum) when user asks "what do I do" or similar. Existing warmth floor (30 words for GENTLE/DIRECTIVE) preserved.
+T004 — Tone Sanitizer Fix: All 11 activity suggestion patterns changed from DELETE to REWRITE in TRACE's voice. "I hear you" regex anchored to start-of-line (`^I hear you`) so "yeah, I hear you" passes through safely. Question throttle fallback acks updated from "got it"/"noted" to warmer phrases.
+T005 — Activity Suggestion Ungating: Added distress turn counter that tracks consecutive emotional turns. After 3+ distress turns, the suggestion engine fires even without explicit help keywords. State-to-activity mapping added (overwhelmed→breathing, stuck→walking, exhausted→power nap, etc.). Max one suggestion per session. Crisis block preserved.
+T006 — V1 Prompt Update: Same "WHAT NOT THERAPY ACTUALLY MEANS" and "GENUINE CURIOSITY" sections added to the V1 prompt.
+T007 — All 7 integration tests passed: Tone rewrites work, "I hear you" chain is safe, GENTLE posture gets question budget=1, distress tracking counts correctly, crisis block holds, no half-sentences, brevity floors active.
+
+will this fix make trace more engaging?? he also tends to ask the same questions in the different ways ..its like he doesnt know what the topic.. it sounds unnatural.
