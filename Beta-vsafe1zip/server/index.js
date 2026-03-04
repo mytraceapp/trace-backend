@@ -950,6 +950,13 @@ function detectExplicitMusicSpace(messageText = '') {
   if (txt.includes('rooted') && (txt.includes('play') || txt.includes('playlist'))) return 'rooted';
   if (txt.includes('low orbit') && (txt.includes('play') || txt.includes('playlist'))) return 'low_orbit';
   
+  // Bare playlist name selection (short message, just the name)
+  const wordCount = messageText.trim().split(/\s+/).length;
+  if (wordCount <= 3) {
+    if (/^rooted$/i.test(txt.trim()) || /\brooted\b/i.test(txt) && wordCount <= 2) return 'rooted';
+    if (/\blow orbit\b/i.test(txt)) return 'low_orbit';
+  }
+  
   // "play X playlist" patterns only
   const playlistPatterns = [
     /play\s+(the\s+)?first\s*light\s+playlist/i,
@@ -6652,7 +6659,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     }
 
     // PLAYLIST OFFER CONFIRMATION: Check if user confirmed a pending playlist offer
-    // If TRACE offered a playlist/journal space and the user said "ready"/"yes", send the actual ui_action now
+    // If TRACE offered a playlist/journal space and the user said "ready"/"yes" or a specific playlist name, send the actual ui_action now
     if (effectiveUserId) {
       const musicState = getMusicState(effectiveUserId);
       if (musicState.pendingPlaylistOffer) {
@@ -6666,18 +6673,52 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
           'play it', 'play that', 'put it on', 'can i listen', 'i want to listen',
           'listen', 'hear it'
         ];
-        const isPlaylistConfirm = !playlistNegation && playlistAffirmatives.some(p => confirmLower.includes(p));
+        
+        const PLAYLIST_NAME_MAP = {
+          'rooted': { name: 'rooted_playlist', title: 'Rooted' },
+          'low orbit': { name: 'low_orbit_playlist', title: 'Low Orbit' },
+          'first light': { name: 'first_light_playlist', title: 'First Light' },
+        };
+        
+        let selectedPlaylist = null;
+        for (const [keyword, info] of Object.entries(PLAYLIST_NAME_MAP)) {
+          if (confirmLower.includes(keyword)) {
+            selectedPlaylist = info;
+            break;
+          }
+        }
+        
+        const isPlaylistConfirm = !playlistNegation && (
+          playlistAffirmatives.some(p => confirmLower.includes(p)) || 
+          selectedPlaylist !== null
+        );
         
         if (isPlaylistConfirm) {
-          const pendingAction = musicState.pendingPlaylistOffer;
-          musicState.pendingPlaylistOffer = null;
-          console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: pendingAction.type, source: pendingAction.source, title: pendingAction.title, path: 'playlist_offer_confirmed' }));
+          let pendingAction = musicState.pendingPlaylistOffer;
           
-          const confirmResponses = [
-            "Here you go.",
-            "Opening it up for you.",
-            "Let's go.",
-          ];
+          if (selectedPlaylist && pendingAction.type === 'OPEN_JOURNAL_MODAL') {
+            pendingAction = {
+              type: UI_ACTION_TYPES.OPEN_JOURNAL_MODAL,
+              title: selectedPlaylist.title,
+              playlistId: selectedPlaylist.name,
+              source: 'trace',
+            };
+          }
+          
+          musicState.pendingPlaylistOffer = null;
+          console.log('[STUDIOS_ACTION]', JSON.stringify({ requestId, type: pendingAction.type, source: pendingAction.source, title: pendingAction.title, path: 'playlist_offer_confirmed', selectedByName: !!selectedPlaylist }));
+          
+          const confirmResponses = selectedPlaylist 
+            ? [
+                `Opening ${selectedPlaylist.title} for you.`,
+                `${selectedPlaylist.title} — here you go.`,
+                `Let's go with ${selectedPlaylist.title}.`,
+              ]
+            : [
+                "Here you go.",
+                "Opening it up for you.",
+                "Let's go.",
+              ];
           const confirmMsg = confirmResponses[Math.floor(Math.random() * confirmResponses.length)];
           
           const confirmState = effectiveUserId ? conversationState.getState(effectiveUserId) : null;
@@ -14238,8 +14279,10 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     const finalMsgText = (finalResponse.message || '').toLowerCase();
     const sessionMusicSuggestions = safeClientState?.musicSuggestionCount || 0;
     const isExplicitPlaylistRequest = /\b(play|open|put on)\b.*(rooted|low orbit|first light|playlist)/i.test(lastUserMessage || '');
-    const playlistGovernorOverride = isExplicitPlaylistRequest; // Explicit user requests bypass governor
-    const playlistTurnGateMet = ((sessionMusicSuggestions >= 7) || isExplicitPlaylistRequest || userLeavingSignal || userAskedExternal) && (!musicOfferSuppressed || playlistGovernorOverride);
+    const isUserSelectedPlaylistByName = /^(rooted|low orbit|first light)$/i.test((lastUserMessage || '').trim()) ||
+      /\b(rooted|low orbit|first light)\b/i.test(lastUserMessage || '') && (lastUserMessage || '').trim().split(/\s+/).length <= 4;
+    const playlistGovernorOverride = isExplicitPlaylistRequest || isUserSelectedPlaylistByName;
+    const playlistTurnGateMet = ((sessionMusicSuggestions >= 7) || isExplicitPlaylistRequest || isUserSelectedPlaylistByName || userLeavingSignal || userAskedExternal) && (!musicOfferSuppressed || playlistGovernorOverride);
     
     const playlistMentions = [
       { patterns: ['rooted_playlist', 'rooted playlist', 'playing rooted', 'play rooted', 'rooted for you', 'check out rooted', 'rooted —', '— rooted', 'try rooted'], name: 'rooted_playlist', album: 'Rooted' },
