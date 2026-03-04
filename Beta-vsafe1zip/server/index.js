@@ -17093,12 +17093,18 @@ function getLocalHMForTimezone(timeZone, date) {
   }
 }
 
+const VERSE_TIMES = [
+  { hour: 9, minute: 47, slot: 'morning' },
+  { hour: 15, minute: 16, slot: 'afternoon' },
+  { hour: 20, minute: 28, slot: 'evening' },
+];
+
+function getVerseTimeSlot(hour, minute) {
+  return VERSE_TIMES.find(v => v.hour === hour && v.minute === minute) || null;
+}
+
 function isVerseTimeLocal(hour, minute) {
-  return (
-    (hour === 9 && minute === 47) ||
-    (hour === 15 && minute === 16) ||
-    (hour === 20 && minute === 28)
-  );
+  return getVerseTimeSlot(hour, minute) !== null;
 }
 
 async function getUserFirstName(supabaseAdmin, userId) {
@@ -17315,26 +17321,33 @@ async function runVerseCheckins() {
 
       const { hour, minute, ymd } = localTime;
 
-      if (!isVerseTimeLocal(hour, minute)) {
+      const verseSlot = getVerseTimeSlot(hour, minute);
+      if (!verseSlot) {
         continue;
       }
 
-      if (user.last_checkin_at === ymd) {
-        continue; // Already sent today
+      const slotKey = `${ymd}-${verseSlot.slot}`;
+
+      if (user.last_checkin_at === slotKey) {
+        continue;
+      }
+
+      const alreadySentSlots = (user.last_checkin_at || '').startsWith(ymd) ? user.last_checkin_at : '';
+      if (alreadySentSlots === slotKey) {
+        continue;
       }
 
       const firstName = await getUserFirstName(supabaseServer, user.user_id);
       const nowInUserTz = new Date(now.toLocaleString('en-US', { timeZone: tz }));
       const message = getPersonalizedCheckinMessage(nowInUserTz, firstName);
       await sendPushNotificationToUser(user.user_id, message);
-      usersToUpdate.push({ user_id: user.user_id, ymd });
+      usersToUpdate.push({ user_id: user.user_id, slotKey });
     }
 
-    // Update last_checkin_at for all users who received a notification
-    for (const { user_id, ymd } of usersToUpdate) {
+    for (const { user_id, slotKey } of usersToUpdate) {
       await supabaseServer
         .from('user_preferences')
-        .update({ last_checkin_at: ymd })
+        .update({ last_checkin_at: slotKey })
         .eq('user_id', user_id);
     }
 

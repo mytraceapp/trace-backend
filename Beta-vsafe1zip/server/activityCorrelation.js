@@ -278,4 +278,5 @@ module.exports = {
   rankCategoriesForNow,
   ACTIVITY_LABELS,
   ACTIVITY_CATEGORIES,
+  DISTRESS_STATE_ACTIVITY_MAP,
 };
