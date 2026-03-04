@@ -168,6 +168,8 @@ CAPABILITY-AWARE ACTIONS:
     traceBrainSignals,
     currentMessage,
     confidence: synthConfidence,
+    historyMessages: historyMessages || [],
+    topicAnchor: intent.topicAnchor,
   });
 
   return intent;
@@ -651,7 +653,28 @@ function buildSessionSummary(traceIntent, sessionState) {
   return summary.replace(/\.\s*$/, '') + '.';
 }
 
-function computeNextMove({ primaryMode, intentType, mode, continuity, conversationState, traceBrainSignals, currentMessage, confidence }) {
+function detectHedging(text) {
+  const hedgePatterns = /\b(i don'?t know|maybe|i guess|it'?s fine|idk|whatever|not sure|kind of|kinda|i'?m not sure)\b/;
+  return hedgePatterns.test(text);
+}
+
+function countQuestionlessStreak(historyMessages) {
+  if (!historyMessages || historyMessages.length === 0) return 0;
+  let userCount = 0;
+  for (let i = historyMessages.length - 1; i >= 0; i--) {
+    const msg = historyMessages[i];
+    if (msg.role === 'assistant') {
+      if ((msg.content || '').includes('?')) break;
+      continue;
+    }
+    if (msg.role === 'user') {
+      userCount++;
+    }
+  }
+  return userCount;
+}
+
+function computeNextMove({ primaryMode, intentType, mode, continuity, conversationState, traceBrainSignals, currentMessage, confidence, historyMessages, topicAnchor }) {
   const text = (currentMessage || '').toLowerCase();
   const isStudios = primaryMode === 'studios';
   const continuityRequired = continuity?.required === true;
@@ -673,12 +696,29 @@ function computeNextMove({ primaryMode, intentType, mode, continuity, conversati
 
   if (continuityRequired) return 'continue';
 
-  const topicEstablished = !!conversationState?.topicEstablished;
-  if (topicEstablished) return 'reflect_then_question';
-
   if (traceBrainSignals?.asksForHelp) return 'clarify';
 
-  return 'reflect_then_question';
+  const topicEstablished = !!conversationState?.topicEstablished;
+  const hedging = detectHedging(text);
+  const questionlessStreak = countQuestionlessStreak(historyMessages);
+  const turnAge = topicAnchor?.turnAge || 0;
+
+  if (questionlessStreak >= 3) {
+    console.log(`[BRAIN] nextMove=honest_mirror (${questionlessStreak} user msgs without question)`);
+    return 'honest_mirror';
+  }
+
+  if (hedging && turnAge >= 4) {
+    console.log(`[BRAIN] nextMove=honest_mirror (hedging + topic carried ${turnAge} turns)`);
+    return 'honest_mirror';
+  }
+
+  if (hedging && (topicEstablished || turnAge >= 2)) {
+    console.log(`[BRAIN] nextMove=sit_with_it (hedging + established topic)`);
+    return 'sit_with_it';
+  }
+
+  return 'reflect_then_land';
 }
 
 module.exports = { brainSynthesis, logTraceIntent, buildSessionSummary };

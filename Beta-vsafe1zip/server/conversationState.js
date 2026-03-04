@@ -364,7 +364,7 @@ function buildRhythmPromptDirective(nudge, opts = {}) {
   if (!nudge || !nudge.tier) return '';
   const nextMove = opts.nextMove || null;
 
-  const needsQuestion = nextMove && (nextMove === 'reflect_then_question' || nextMove === 'question_only');
+  const needsQuestion = nextMove && (nextMove === 'reflect_then_land' || nextMove === 'question_only');
 
   if (nudge.tier === LENGTH_TIERS.ULTRA_SHORT && needsQuestion) {
     return `RESPONSE LENGTH: Short this turn. 1-2 sentences max. One observation or one question — not both. Keep it tight. Don't fill space.`;

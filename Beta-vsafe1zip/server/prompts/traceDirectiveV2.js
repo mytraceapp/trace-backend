@@ -137,7 +137,9 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
     clarify: 'Ask ONE question. Stop after.',
     offer_music: 'Offer ONE track OR ask ONE preference question. No soundscapes or activities.',
     offer_activity_if_asked: 'Offer activity only if user asked. Otherwise respond normally.',
-    reflect_then_question: 'Brief reflection (1-2 lines) then ONE warm question.',
+    reflect_then_land: 'Brief reflection (1-2 lines). End with either a question OR a statement that opens space. Only use a question if no insight was offered in the reflection. Prefer landing statements over questions when the reflection already said something true.',
+    honest_mirror: 'Respond to what the user DIDN\'T say — the thing underneath. One precise observation. No question at the end. No suggestion. Just name the unspoken thing and stop.',
+    sit_with_it: 'One precise observation. Then stop. No question, no suggestion, no redirect. Maximum 2 sentences. Name the thing and let it land.',
     deliver_longform: 'Long output. No questions. No truncating.',
   };
 
@@ -183,13 +185,10 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
     (hasEmotionalSignal || hasEngagedIntent || (confidence === 'high' && mode !== 'micro'));
   const responseStructureBlock = hasSubstantiveContent
     ? `RESPONSE STRUCTURE:
-Follow this internal order — do not label these steps:
-1. Reflect — brief mirroring of what the user expressed.
-2. Ground — normalize proportionally without dramatizing.
-3. Suggest — optional, proportional action or question.
-4. Release — close with spacious tone. No clingy continuation.
-Do not force all four if intensity is low.
-Never skip reflection. Never jump directly to advice.`
+Lead with the most true thing first. Everything else follows only if it earns its place.
+If the most true thing is two words, send two words.
+Do not pad responses with reflection before getting to the point.
+Never skip what's real to follow a template.`
     : '';
 
   const shouldGround = !isStudioOrCrisis && turnCount > 0 && turnCount % 6 === 0;

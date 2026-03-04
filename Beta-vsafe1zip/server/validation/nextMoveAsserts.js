@@ -121,11 +121,52 @@ function assertNextMoveContract({ requestId, useV2, isCrisisMode, isOnboardingAc
       });
     }
   }
-  if (nextMove === 'clarify' || nextMove === 'reflect_then_question') {
+  if (nextMove === 'clarify') {
     if (questionCount !== 1) {
       result.violations.push({
         code: 'move_question_count',
-        detail: `${nextMove} move has ${questionCount} questions (expected exactly 1)`,
+        detail: `clarify move has ${questionCount} questions (expected exactly 1)`,
+        severity: 'medium',
+      });
+    }
+  }
+  if (nextMove === 'reflect_then_land') {
+    if (questionCount > 1) {
+      result.violations.push({
+        code: 'move_question_count',
+        detail: `reflect_then_land move has ${questionCount} questions (expected 0-1)`,
+        severity: 'medium',
+      });
+    }
+  }
+  if (nextMove === 'honest_mirror') {
+    if (questionCount > 0) {
+      result.violations.push({
+        code: 'move_question_ban',
+        detail: `honest_mirror move has ${questionCount} questions (expected 0)`,
+        severity: 'high',
+      });
+    }
+    if (sentenceCount > 3) {
+      result.violations.push({
+        code: 'move_length',
+        detail: `honest_mirror move has ${sentenceCount} sentences (max 3)`,
+        severity: 'medium',
+      });
+    }
+  }
+  if (nextMove === 'sit_with_it') {
+    if (questionCount > 0) {
+      result.violations.push({
+        code: 'move_question_ban',
+        detail: `sit_with_it move has ${questionCount} questions (expected 0)`,
+        severity: 'high',
+      });
+    }
+    if (sentenceCount > 2) {
+      result.violations.push({
+        code: 'move_length',
+        detail: `sit_with_it move has ${sentenceCount} sentences (max 2)`,
         severity: 'medium',
       });
     }
