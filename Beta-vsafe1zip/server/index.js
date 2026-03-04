@@ -13884,7 +13884,29 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     // Build client_state_patch (merge suggestion patch + hook patch + tier2 cooldown)
     let clientStatePatch = { ...tier2CooldownPatch };
     
-    // Add brain suggestion if present (separate from activity_suggestion for clarity)
+    if (brainSuggestion && brainSuggestion.type === 'activity' && (!response.activity_suggestion || !response.activity_suggestion.name)) {
+      const ACTIVITY_DISPLAY_NAMES = {
+        breathing: 'breathing',
+        grounding: 'grounding',
+        walking: 'walking',
+        maze: 'maze',
+        power_nap: 'rest',
+        rest: 'rest',
+        window: 'window',
+        basin: 'basin',
+        dreamscape: 'dreamscape',
+        echo: 'echo',
+        rising: 'rising',
+        drift: 'drift',
+        ripple: 'ripple',
+      };
+      response.activity_suggestion = {
+        name: brainSuggestion.name ?? ACTIVITY_DISPLAY_NAMES[brainSuggestion.id] ?? brainSuggestion.id,
+        reason: brainSuggestion.reason || null,
+        should_navigate: false,
+      };
+      console.log('[TRACE BRAIN] Promoted brain suggestion to activity_suggestion:', response.activity_suggestion.name);
+    }
     if (brainSuggestion) {
       response.suggestion = brainSuggestion;
       clientStatePatch.lastSuggestion = {
