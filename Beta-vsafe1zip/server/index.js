@@ -4333,7 +4333,6 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
       const introMessage = pickOnboardingIntroVariant(effectiveId, displayName);
       console.log('[TRACE GREETING] Using bootstrap intro for first-run user');
       
-      // CRITICAL: Create/update profile with onboarding_step so the state machine activates
       if (userId && supabaseServer) {
         try {
           await supabaseServer
@@ -4342,8 +4341,9 @@ app.post('/api/greeting', optionalAuth, async (req, res) => {
               user_id: userId, 
               onboarding_step: 'awaiting_regulate_or_reflect',
               onboarding_completed: false,
+              trial_started_at: new Date().toISOString(),
               updated_at: new Date().toISOString() 
-            }, { onConflict: 'user_id' });
+            }, { onConflict: 'user_id', ignoreDuplicates: false });
           console.log('[ONBOARDING] Sending new intro greeting');
           console.log('[ONBOARDING] Intro sent, awaiting regulate/reflect choice for user:', userId.slice(0, 8));
         } catch (err) {
@@ -14680,8 +14680,9 @@ app.post('/api/chat/bootstrap', async (req, res) => {
             user_id: effectiveUserId, 
             onboarding_step: 'awaiting_regulate_or_reflect',
             onboarding_completed: false,
+            trial_started_at: new Date().toISOString(),
             updated_at: new Date().toISOString() 
-          }, { onConflict: 'user_id' });
+          }, { onConflict: 'user_id', ignoreDuplicates: false });
         console.log('[ONBOARDING] Sending new intro greeting');
         console.log('[ONBOARDING] Intro sent, awaiting regulate/reflect choice');
         console.log('[ONBOARDING] intro raw:', JSON.stringify(introMessage));
@@ -15557,7 +15558,6 @@ app.get('/api/profile', async (req, res) => {
       return res.json(existing);
     }
     
-    // Profile not found - create default
     console.log('[PROFILE] Creating default profile for:', userId);
     const defaultProfile = {
       user_id: userId,
@@ -15574,8 +15574,9 @@ app.get('/api/profile', async (req, res) => {
       lon: null,
       timezone: null,
       country: null,
-      onboarding_step: null, // Explicitly null - bootstrap not yet shown
+      onboarding_step: null,
       onboarding_completed: false,
+      trial_started_at: new Date().toISOString(),
     };
     
     const { data: created, error: insertError } = await supabaseServer
@@ -16173,11 +16174,10 @@ Just the response, nothing else.
   }
 });
 
-// POST /api/subscription/mark-upgraded - Update subscription status
 app.post('/api/subscription/mark-upgraded', async (req, res) => {
-  const { userId, planStatus, planExpiresAt, hasCompletedOnboarding } = req.body;
+  const { userId, transactionId, productId } = req.body;
   
-  console.log('[SUBSCRIPTION] mark-upgraded for userId:', userId, 'plan:', planStatus);
+  console.log('[SUBSCRIPTION] mark-upgraded for userId:', userId, 'transactionId:', transactionId, 'productId:', productId);
   
   if (!userId) {
     return res.status(400).json({ error: 'userId is required' });
@@ -16188,15 +16188,17 @@ app.post('/api/subscription/mark-upgraded', async (req, res) => {
   }
   
   try {
-    const updates = { updated_at: new Date().toISOString() };
-    
-    if (planStatus !== undefined) updates.plan_status = planStatus;
-    if (planExpiresAt !== undefined) updates.plan_expires_at = planExpiresAt;
-    if (hasCompletedOnboarding !== undefined) updates.has_completed_onboarding = hasCompletedOnboarding;
+    const now = new Date().toISOString();
     
     const { data, error } = await supabaseServer
       .from('profiles')
-      .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' })
+      .upsert({
+        user_id: userId,
+        subscription_status: 'studio',
+        subscription_started_at: now,
+        plan_status: 'premium',
+        updated_at: now,
+      }, { onConflict: 'user_id' })
       .select()
       .single();
     
@@ -16205,8 +16207,8 @@ app.post('/api/subscription/mark-upgraded', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
     
-    console.log('[SUBSCRIPTION] Updated subscription for:', userId);
-    return res.json(data);
+    console.log('[SUBSCRIPTION] Upgraded to studio for:', userId, 'transaction:', transactionId);
+    return res.json({ success: true, status: 'studio' });
     
   } catch (err) {
     console.error('[SUBSCRIPTION] Error:', err.message);
