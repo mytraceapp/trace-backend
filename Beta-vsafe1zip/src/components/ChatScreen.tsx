@@ -380,17 +380,33 @@ export function ChatScreen({
   type OrbEmotion = 'idle' | 'listening' | 'thinking' | 'speaking' | 'surprised' | 'empathetic' | 'joyful' | 'calm';
   const [orbEmotion, setOrbEmotion] = React.useState<OrbEmotion>('idle');
   
-  // Map activity names from AI response to internal activity types
   const mapActivityName = (name: string): ActivityType => {
+    if (!name) return null;
+    const key = name.toLowerCase().trim();
     const mapping: Record<string, ActivityType> = {
-      'Breathing': 'breathing',
-      'Trace the Maze': 'maze',
-      'Walking Reset': 'walking',
-      'Rest': 'rest',
-      'Window': 'window',
-      'Echo': 'echo',
+      'breathing': 'breathing',
+      'trace the maze': 'maze',
+      'maze': 'maze',
+      'walking reset': 'walking',
+      'walking': 'walking',
+      'rest': 'rest',
+      'power nap': 'rest',
+      'powernap': 'powernap',
+      'window': 'window',
+      'rain window': 'window',
+      'rainwindow': 'window',
+      'echo': 'echo',
+      'grounding': 'grounding',
+      '5-4-3-2-1': 'grounding',
+      'pearl ripple': 'pearlripple',
+      'pearlripple': 'pearlripple',
+      'ripple': 'pearlripple',
+      'rising': 'breathing',
+      'drift': 'grounding',
+      'basin': 'breathing',
+      'dreamscape': 'rest',
     };
-    return mapping[name] || null;
+    return mapping[key] || null;
   };
   
   // Detect emotion from AI response
