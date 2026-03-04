@@ -1,0 +1,140 @@
+Okay. This is the core issue and it needs a proper fix not more patches.
+The problem is architectural. The question memory anchor we built scans assistant messages and extracts questions — but it's doing it as a passive reference. The model reads "questions already asked" and then ignores it anyway because the crisis handler, the onboarding script, and the general response pipeline all have their own logic that overrides it.
+We need an active block, not a passive reference.
+Tell Replit:
+
+The repetition problem is happening at every level — crisis, onboarding, and general conversation. The session anchor lists questions already asked but the model ignores it. We need an active deduplication system, not a passive one.
+Build a conversationDeduplicator function that runs as POST-PROCESSING on every TRACE response before it's sent — the same way validateResponse in voiceEngine runs. It should:
+
+javascriptfunction deduplicateResponse(proposedResponse, conversationHistory) {
+  
+  // 1. Extract the core semantic intent of the proposed response
+  // What is TRACE actually saying/asking?
+  
+  // 2. Scan last 6 TRACE responses for semantic similarity
+  // Not just exact matches — similar meaning counts
+  // "are you safe?" and "are you okay right now?" are the same
+  // "your feelings are valid" and "that's a heavy burden" are the same
+  // "you don't have to go through this alone" and 
+  // "you're not alone in it" are the same
+  
+  const recentAssistantMessages = conversationHistory
+    .filter(m => m.role === 'assistant')
+    .slice(-6)
+    .map(m => (m.content || '').toLowerCase());
+  
+  // 3. Check for repeated PHRASES (not just questions)
+  const SEMANTIC_CLUSTERS = [
+    // Safety cluster — only say once per crisis
+    ['are you safe', 'are you okay right now', 'safe right now',
+     'are you in a safe place'],
+    
+    // 988 cluster — only say once ever
+    ['988', 'crisis line', 'call or text'],
+    
+    // Not alone cluster — only say twice max
+    ['not alone', "don't have to face", "don't have to go through"],
+    
+    // Feelings valid cluster — banned entirely  
+    ['feelings are valid', 'okay to feel', 'feelings are important',
+     'your feelings'],
+    
+    // Heavy burden cluster — only say once
+    ['heavy burden', 'heavy weight', "that's a lot to carry",
+     'heavy to carry'],
+    
+    // Share more cluster — only say once
+    ['share more', 'share a bit more', 'tell me more',
+     'can you share', 'share what'],
+    
+    // Here to listen cluster — banned after first use
+    ['here to listen', 'here for you', 'here to support'],
+    
+    // Same thing acknowledgment — if user says its not helping
+    // TRACE must change approach entirely
+    ['same thing', "not helping", "isn't helping", "doesn't help"]
+  ];
+  
+  const violations = [];
+  
+  for (const cluster of SEMANTIC_CLUSTERS) {
+    // Check if proposed response contains this cluster
+    const proposedHasCluster = cluster.some(phrase => 
+      proposedResponse.toLowerCase().includes(phrase)
+    );
+    
+    if (!proposedHasCluster) continue;
+    
+    // Check if recent history already used this cluster
+    const historyHasCluster = recentAssistantMessages.some(msg =>
+      cluster.some(phrase => msg.includes(phrase))
+    );
+    
+    if (historyHasCluster) {
+      violations.push(cluster[0]); // Log what was repeated
+    }
+  }
+  
+  // 4. If violations found — don't just flag, REPLACE
+  if (violations.length > 0) {
+    console.log(`[DEDUP] Repeated clusters: ${violations.join(', ')} — forcing new approach`);
+    return {
+      isDuplicate: true,
+      violations,
+      // Signal to regenerate or use fallback
+    };
+  }
+  
+  return { isDuplicate: false, violations: [] };
+}
+
+Then in index.js, after the response is generated but before it's sent:
+
+javascriptconst dedupResult = deduplicateResponse(finalResponse, messagesWithHydration);
+
+if (dedupResult.isDuplicate) {
+  // Force a different response — don't send the duplicate
+  // Options in priority order:
+  
+  // Option A: If crisis context — use presence fallbacks
+  if (isCrisisMode) {
+    const CRISIS_PRESENCE_FALLBACKS = [
+      "still here with you.",
+      "I'm not going anywhere.",
+      "you don't have to say anything. I'm here.",
+      "yeah. still here.",
+      "what do you need right now — even if it's nothing.",
+      "I hear you. keep talking to me.",
+    ];
+    finalResponse = CRISIS_PRESENCE_FALLBACKS[
+      Math.floor(Math.random() * CRISIS_PRESENCE_FALLBACKS.length)
+    ];
+  }
+  
+  // Option B: If onboarding — skip to next onboarding beat
+  else if (isOnboarding) {
+    // advance onboarding stage rather than repeat
+    advanceOnboardingStage();
+  }
+  
+  // Option C: General conversation — regenerate with explicit instruction
+  else {
+    // Add to the next generation call:
+    // "Your previous response repeated something already said.
+    //  Say something completely different. 
+    //  Do not use any of these phrases: [violations list]"
+    forcedRegenerationNote = `FORBIDDEN THIS TURN: ${dedupResult.violations.join(', ')}`;
+  }
+  
+  console.log(`[DEDUP] Response replaced — original was duplicate`);
+}
+
+Add [DEDUP] to the health check — verify that:
+
+"are you safe right now" after "are you safe" → caught as duplicate
+"you're not alone" after "you don't have to face this alone" → caught as duplicate
+"your feelings are valid" → always caught (banned cluster)
+Crisis fallbacks are varied across 6 turns — no two the same
+
+
+This is the fix that actually stops the loop. Not a passive list the model can ignore — an active post-processing block that catches duplicates and replaces them before they reach the user. The same architecture as the voice engine validator but for semantic repetition.
