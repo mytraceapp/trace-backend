@@ -2878,9 +2878,18 @@ const TRACE_BOSS_SYSTEM = `You are TRACE — a calm companion, not a therapist. 
 ROUTING:
 Activities: breathing, maze, rising, drift, ripple, basin, dreamscape, grounding, walking, window, rest
 Playlists: rooted_playlist ("Rooted"), low_orbit_playlist ("Low Orbit"), first_light_playlist ("First Light")
-Night Swim tracks: 1-Midnight Underwater, 2-Slow Tides, 3-Undertow, 4-Euphoria, 5-Ocean Breathing, 6-Tidal House, 7-Neon Promise
+Night Swim tracks (use EXACT track_id when playing):
+  midnight_underwater (Midnight Underwater) — surrender, depth, letting go
+  slow_tides (Slow Tides Over Glass) — calm, patience, slowing down
+  undertow (Undertow) — transition, endings, acceptance
+  euphoria (Euphoria) — quiet joy, surprise lightness
+  ocean_breathing (Ocean Breathing) — rest, breath, grounding, insomnia
+  tidal_house (Tidal House) — nostalgia, warmth, reflection
+  neon_promise (Neon Promise) — hope, longing, promise (vocal track)
 In message text use display names only (Rooted, Low Orbit, First Light). Use _playlist suffix in activity_suggestion.name only.
 Two-step nav: first request → should_navigate:false, user confirms → should_navigate:true.
+
+PLAYING TRACKS: When you decide to play a track, include [play_track:track_id] at the END of your message (e.g., "putting on Ocean Breathing for you. [play_track:ocean_breathing]"). The tag triggers playback — without it, nothing plays. ONLY use track_ids from the list above.
 
 ACTIVITY MATCHING: breathing=anxiety, grounding=scattered, maze=anxious energy, rising=heavy feelings, basin=overwhelm/stillness, drift=scattered mind, walking=anger/restless, dreamscape=late night/can't sleep.
 Dreams/nightmares → ask about the dream, don't suggest activities.
@@ -12643,6 +12652,53 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     const lastUserMsgForAudio = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
     let responseText = messagesArray ? messagesArray[0] : assistantText;
     
+    // ── STRUCTURED TRACK TAG PARSER ──
+    // AI can include [play_track:track_id] in its response to explicitly trigger playback.
+    // This is the authoritative source — overrides all text-based detection.
+    const PLAY_TRACK_TAG_RE = /\s*\[play_track:([a-z_]+)\]\s*/i;
+    const playTrackTagMatch = (responseText || '').match(PLAY_TRACK_TAG_RE);
+    let structuredTrackId = null;
+    
+    const STRUCTURED_TRACK_INDEX_MAP = {
+      'midnight_underwater': 0,
+      'slow_tides': 1,
+      'undertow': 2,
+      'euphoria': 3,
+      'ocean_breathing': 4,
+      'tidal_house': 5,
+      'neon_promise': 6,
+    };
+    
+    if (playTrackTagMatch) {
+      const tagTrackId = playTrackTagMatch[1].toLowerCase();
+      const tagTrackIndex = STRUCTURED_TRACK_INDEX_MAP[tagTrackId];
+      
+      responseText = responseText.replace(PLAY_TRACK_TAG_RE, '').trim();
+      if (messagesArray) messagesArray[0] = responseText;
+      else assistantText = responseText;
+      
+      if (tagTrackIndex !== undefined) {
+        structuredTrackId = tagTrackId;
+        console.log(`[STRUCTURED_TRACK] Parsed [play_track:${tagTrackId}] → index ${tagTrackIndex}`);
+        
+        const isAudioOff = req.body.client_state?.musicStopped === true || req.body.client_state?.ambienceEnabled === false;
+        if (!isAudioOff) {
+          audioAction = buildAudioAction('open', {
+            source: 'originals',
+            album: 'night_swim',
+            track: tagTrackIndex,
+            autoplay: true
+          });
+          addToSessionHistory(effectiveUserId, tagTrackIndex + 1);
+          console.log(`[STRUCTURED_TRACK] Emitting audio_action for ${tagTrackId} (index ${tagTrackIndex})`);
+        } else {
+          console.log(`[STRUCTURED_TRACK] Audio off — skipping playback for ${tagTrackId}`);
+        }
+      } else {
+        console.warn(`[STRUCTURED_TRACK] Unknown track_id in tag: "${tagTrackId}" — ignoring`);
+      }
+    }
+    
     // ── PHASE 8c: TRACK-ALREADY-PLAYING GUARD ──
     // If a track was started in the last turn, do NOT override it with a mood-based pick.
     // Only explicit user commands (play X, stop, resume, play again) can change the track.
@@ -12832,7 +12888,9 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     const isAudioOffPhase8 = safeClientState.musicStopped === true || safeClientState.ambienceEnabled === false;
     console.log('[TRACE AUDIO DEBUG] isMusicStopped (stop music command):', isAudioOffPhase8);
     
-    if (isMusicStopRequest) {
+    if (structuredTrackId) {
+      console.log(`[STRUCTURED_TRACK] Skipping text-based track detection — structured tag already resolved: ${structuredTrackId}`);
+    } else if (isMusicStopRequest) {
       // User wants to stop/pause the music - send stop action
       audioAction = buildAudioAction('stop', {
         source: 'originals',
@@ -14099,6 +14157,10 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       }
     }
 
+    if (response.message) {
+      response.message = response.message.replace(/\s*\[play_track:[a-z_]+\]\s*/gi, '').trim();
+    }
+    
     const finalResponse = normalizeChatResponse(response, requestId);
     if (schemaMeta) {
       finalResponse._schema_meta = schemaMeta;

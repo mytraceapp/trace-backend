@@ -27,22 +27,13 @@ High-level themes from journal entries can inform chat context, and activity com
 Supports Supabase anonymous authentication with persistent user ID recovery and server-side data migration. Subscription plans (Light/Free, Premium, Studio) are managed globally for feature gating.
 
 ## Greeting & Session Management
-A Greeting Deduplication & Grounding Guard manages welcome greetings for variety and freshness, validating AI-generated greetings against verified memory. A wind-down detection system triggers warm closing messages from the AI based on user signals. The onboarding flow includes a scripted state machine (regulate/reflect choice, breathing consent, activity launch) followed by an AI-powered `getting_to_know` phase (3-6 turns) where TRACE uses the full LLM pipeline with onboarding-specific context injection to genuinely get to know the user, learn what brought them here, and weave in capabilities naturally before completing onboarding.
+A Greeting Deduplication & Grounding Guard manages welcome greetings for variety and freshness, validating AI-generated greetings against verified memory. A wind-down detection system triggers warm closing messages from the AI based on user signals. The onboarding flow includes a scripted state machine followed by an AI-powered `getting_to_know` phase (3-6 turns) where TRACE uses the full LLM pipeline with onboarding-specific context injection to genuinely get to know the user.
 
 ## Prompt Architecture
-A two-layer V2 prompt system uses a TRACE Control Block, prepended as a separate system message, to provide deterministic per-turn constraints. Both V1 and V2 prompts contain a 6-section depth philosophy: THE REAL JOB (what users at 3am actually need), HOW TO READ WHAT'S ACTUALLY HAPPENING (concrete reads for "I'm tired", "it's fine", circling, humor deflection, self-blame, conflicts), MAKING CONNECTIONS (cross-conversation pattern recognition), HEARD VS SEEN (respond to what they meant, not what they said), NAMING THE THING (say what's actually happening with warmth then space), THE STANDARD (quality check: safe thing vs true thing). V2 also has a compact DEPTH TOOLKIT preserving protective instinct, permission slip, contradiction-as-complexity, micro-disappointment, and speechless presence as trust-gated moves.
-
-A RESPONSE STRUCTURE block in the V2 directive enforces an internal ordering: Reflect → Ground → Suggest → Release. Steps are never labeled explicitly; not all four are required for low-intensity turns; reflection is never skipped; advice is never jumped to directly. Skipped during crisis and studios modes.
-
-A REALITY ORIENTATION system triggers every 6th conversation turn (using the existing `convoState.turnCount`), injecting a soft grounding nudge into the directive that encourages returning to the physical environment and frames TRACE as "a pause, not a destination." Skipped during crisis mode.
-
-## Consistency Audit
-A post-generation dev-only logging tool (`server/consistencyAudit.js`) runs after `sanitizeTone` on every response. Checks for: intensity escalation (heavy empathy language when posture is STEADY), dependency/exclusivity phrases, memory name/relationship contradictions, and mode drift (therapy language in studios, unsolicited music push in conversation). Logs `[AUDIT]` warnings to server console; never modifies or blocks user-facing output.
+A two-layer V2 prompt system uses a TRACE Control Block, prepended as a separate system message, to provide deterministic per-turn constraints. Both V1 and V2 prompts contain a 6-section depth philosophy, including "THE REAL JOB" and "HEARD VS SEEN." V2 also has a compact DEPTH TOOLKIT preserving protective instinct, permission slip, contradiction-as-complexity, micro-disappointment, and speechless presence as trust-gated moves. A RESPONSE STRUCTURE block in the V2 directive enforces an internal ordering: Reflect → Ground → Suggest → Release. A REALITY ORIENTATION system triggers every 6th conversation turn, injecting a soft grounding nudge into the directive.
 
 ## Semantic Deduplication
-A post-processing deduplicator (`server/conversationDeduplicator.js`) runs after every response. It defines semantic clusters (safety, 988, not-alone, feelings-valid, heavy-burden, acknowledge-difficulty, share-more, here-to-listen) with per-cluster max-use limits. It scans the last 6 assistant messages for cluster matches; if the proposed response repeats a cluster beyond its limit, it's flagged. In crisis mode, flagged responses are replaced with round-robin presence fallbacks ("still here with you.", "i'm not going anywhere.", etc.) using assistant message count as the index. In non-crisis mode, a regen is attempted with forbidden-phrase instructions. The feelings-valid cluster is banned entirely (max 0). The 988/safety clusters fire only once per session.
-
-A CONVERSATIONAL GROUNDING system prevents TRACE from fabricating context on low-information turns. Rules: greetings treated as greetings (not emotional content), TRACE has no own emotions/moods/thoughts, user questions about TRACE's statements must be answered directly, and early conversation turns (1-3) stay grounded in what's been said. The brainSynthesis `inferIntentType` classifies greeting patterns ("hu", "hi", "hey", "hm", "yo", etc.) as `intentType: "greeting"` with `mode: "micro"`, triggering a specific directive that prevents fabrication. A LOW CONTEXT guard fires for non-greeting micro messages when no topic anchor is established.
+A post-processing deduplicator (`server/conversationDeduplicator.js`) runs after every response. It defines semantic clusters with per-cluster max-use limits and scans the last 6 assistant messages for cluster matches. A CONVERSATIONAL GROUNDING system prevents TRACE from fabricating context on low-information turns.
 
 ## Patterns Feature
 Identifies three pattern types: Peak Window, Energy Tides, and Stress Echoes, providing insights and a visual rhythm map.
@@ -54,57 +45,39 @@ Music familiarity and Doorways v1 user profiles (affinity scores, hit history) a
 An audio control handler system differentiates between early interceptors and the Studios handler to prevent conflicts in stop/resume/pause commands.
 
 ## Tone Sanitizer
-A post-processing system strips therapy-speak from AI responses using regex patterns and includes mid-text fragment repair. Activity suggestion patterns are REWRITTEN in TRACE's voice (not deleted). The "I hear you" pattern is anchored to start-of-line to prevent re-stripping of warm alternatives. Question throttle fallback acks use warm phrases ("yeah, I hear you", "that tracks") instead of flat responses ("got it", "noted").
+A post-processing system strips therapy-speak from AI responses using regex patterns and includes mid-text fragment repair. Activity suggestion patterns are REWRITTEN in TRACE's voice.
 
 ## Warmth Floor & Emotional Pivot System
-The attunement engine detects GENTLE posture for sleep/exhaustion language (insomnia, can't sleep, up all night, etc.) and enforces a minimum word floor (30 words) to prevent ultra-short dismissive responses during vulnerable moments. A help-seeking floor (50 words) activates when users ask "what should I do" or similar. An emotional pivot detector breaks Studios mode lock when users shift from music/operational messages to emotional content (sleep issues, loneliness, crying, exhaustion), allowing TRACE to respond in full conversation mode. The V2 core prompt and attunement STYLE_EXAMPLES include concrete warm-without-therapy-speak guidance for vulnerable moments.
+The attunement engine detects GENTLE posture for sleep/exhaustion language and enforces a minimum word floor (30 words) to prevent ultra-short dismissive responses during vulnerable moments. A help-seeking floor (50 words) activates when users ask "what should I do" or similar. An emotional pivot detector breaks Studios mode lock when users shift from music/operational messages to emotional content, allowing TRACE to respond in full conversation mode.
 
 ## Engagement Rebalance System
-The question throttle (`computeQuestionMode`) accepts `posture`, `detectedState`, and `userWordCount` alongside `userEnergy`. When content is emotional (GENTLE/DIRECTIVE posture or non-neutral state), question budget=1 is allowed even after 2 consecutive questions. Hard stop at 3 consecutive questions regardless. Low-energy blocking reduced from 70% to 30% when user shares real content. Both V1 and V2 prompts include "WHAT NOT THERAPY ACTUALLY MEANS" and "GENUINE CURIOSITY" sections to reframe engagement philosophy.
-
-`classifyUserEnergy` accepts `posture` and `detectedState` opts. Short messages (≤4 words, "yeah", "ok") during emotional context (GENTLE/DIRECTIVE posture or non-neutral state) classify as "medium" instead of "low", preventing TRACE from mirroring brevity when the user is processing something heavy. `getNextLengthNudge` passes posture/state through to energy classification.
-
-`buildSessionContextAnchor` includes a third extraction layer scanning the last 10 assistant messages for questions asked. Extracted questions are deduplicated, capped at 8, and injected into the anchor as "QUESTIONS ALREADY ASKED THIS SESSION (do not repeat or rephrase these)". Both V1 and V2 prompts include a QUESTION MEMORY section reinforcing that the conversation should go somewhere, not circle the same spot.
+The question throttle (`computeQuestionMode`) accepts `posture`, `detectedState`, and `userWordCount` alongside `userEnergy`. When content is emotional, a question budget of 1 is allowed even after 2 consecutive questions, with a hard stop at 3. Low-energy blocking is reduced from 70% to 30% when the user shares real content. `classifyUserEnergy` classifies short messages during emotional context as "medium" instead of "low" to prevent mirroring brevity. `buildSessionContextAnchor` includes a third extraction layer scanning the last 10 assistant messages for questions asked.
 
 ## Activity Suggestion Intelligence
-A distress turn counter (`distressTurnCount`) tracks consecutive turns of emotional distress. After 3+ distress turns, the suggestion engine can fire even without explicit help-seeking keywords. State-to-activity mapping: overwhelmed→breathing/grounding/basin/echo, anxious→breathing/grounding/drift/echo, stuck→walking/maze/rising/journal, exhausted→rest/ripple/dreamscape, restless→rising/walking/maze, sad→ripple/echo/drift/journal, lonely→echo/drift/window, stressed→breathing/grounding/basin/echo/journal. Max one suggestion per session unless user engages. Crisis mode blocks all suggestions.
-
-The V2 core prompt includes a full ACTIVITY GUIDE describing what each of the 12 activities is and when it fits, plus a JOURNALING section for proactive journal suggestions. Both V1 and V2 prompts have corrected descriptions for Basin (waves crashing + ocean sound) and Dreamscape (TRACE's voice telling a story + slow clouds). Echo and Dreamscape are framed as live presence — never described as recordings.
+A distress turn counter (`distressTurnCount`) tracks consecutive turns of emotional distress. After 3+ distress turns, the suggestion engine can fire even without explicit help-seeking keywords. State-to-activity mapping is implemented for various emotional states. The V2 core prompt includes a full ACTIVITY GUIDE describing what each of the 12 activities is and when it fits, plus a JOURNALING section for proactive journal suggestions.
 
 ## Music Playback Pipeline (Backend)
-The music suggestion to playback pipeline detects explicit user requests, AI responses mentioning track names, curation engine offers, and generic offer phrasing.
+The music suggestion to playback pipeline uses a structured `[play_track:track_id]` tag system. The AI includes this tag at the end of its message. The post-processing parser extracts the tag, strips it from the display text, and uses the `track_id` as the authoritative source for playback.
 
 ## Atmosphere Engine Crisis Recovery
 When crisis mode activates, the atmosphere engine saves pre-crisis state markers and restores to 'presence' with reset baseline signals when the crisis clears.
 
 ## 3-Layer Memory System
 ### Layer 1: Relational Memory
-An entity-anchored relational memory system tracks and resolves people mentioned by the user, injecting relational anchors into the LLM system prompt, including pronoun resolution and correction detection.
+An entity-anchored relational memory system tracks and resolves people mentioned by the user, injecting relational anchors into the LLM system prompt.
 ### Layer 2: Topic Memory
 Persistent topic tracking extracts and stores conversation topics, injecting active and recent cross-session topics into the system prompt.
 ### Layer 3: Emotional Carryover
 Prevents tone whiplash by classifying and saving conversation emotional tone between sessions, adjusting the system prompt accordingly.
 
 ## Relationship Profile System
-A friend-level understanding layer that captures *impressions* of the user, stored as `relationship_profile`. It tracks communication style, emotional patterns, topics of care/avoidance, open threads, trust level, and energy trends. A Follow-Up Queue selects open threads and pending topics for gentle follow-up cues. A Meta-Memory Response Handler provides relationship-focused responses to "What do you know about me?". Memory Frustration Repair addresses user frustration about memory, and Contradiction Awareness surfaces inconsistencies based on trust level.
+A friend-level understanding layer that captures *impressions* of the user, stored as `relationship_profile`. It tracks communication style, emotional patterns, topics of care/avoidance, open threads, trust level, and energy trends. A Follow-Up Queue selects open threads and pending topics for gentle follow-up cues. A Meta-Memory Response Handler provides relationship-focused responses to "What do you know about me?".
 
 # External Dependencies
 
 -   **OpenAI API**: AI chat completions.
 -   **Supabase**: Backend database, user data, authentication, real-time sync.
 -   **Stripe**: Payment processing for subscription management.
--   **Radix UI**: Unstyled, accessible component primitives.
--   **Lucide React**: Icon system.
--   **class-variance-authority**: Type-safe component variant management.
--   **embla-carousel-react**: Carousel functionality.
--   **react-day-picker**: Calendar date selection.
--   **react-hook-form**: Form state management and validation.
--   **recharts**: Data visualization.
--   **Drizzle ORM**: Type-safe database queries.
--   **Express**: Node.js server for AI proxy and APIs.
--   **Passport**: Authentication middleware.
--   **express-session** + **connect-pg-simple**: Session management.
 -   **Web Audio API**: Browser-native audio synthesis.
--   **localStorage**: Client-side persistence.
 -   **PostgreSQL**: Server-side relational database.
--   **express-rate-limit**: API rate limiting.
+-   **Express**: Node.js server for AI proxy and APIs.
