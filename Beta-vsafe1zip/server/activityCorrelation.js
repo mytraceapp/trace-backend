@@ -145,14 +145,14 @@ function rankCategoriesForNow(profiles, now = new Date()) {
  * Only triggers when user asks for help
  */
 const DISTRESS_STATE_ACTIVITY_MAP = {
-  overwhelmed: ['breathing', 'grounding', 'basin'],
-  anxious: ['breathing', 'grounding', 'drift'],
+  overwhelmed: ['breathing', 'grounding', 'basin', 'echo'],
+  anxious: ['breathing', 'grounding', 'drift', 'echo'],
   stuck: ['walking', 'maze', 'rising'],
   exhausted: ['rest', 'ripple', 'dreamscape'],
   restless: ['rising', 'walking', 'maze'],
   sad: ['ripple', 'echo', 'drift'],
   lonely: ['echo', 'drift', 'window'],
-  stressed: ['breathing', 'grounding', 'basin'],
+  stressed: ['breathing', 'grounding', 'basin', 'echo'],
 };
 
 async function getSuggestionContext(supabase, userId, deviceId, userMessage, opts = {}) {
