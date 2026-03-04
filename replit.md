@@ -67,7 +67,9 @@ The question throttle (`computeQuestionMode`) accepts `posture`, `detectedState`
 `buildSessionContextAnchor` includes a third extraction layer scanning the last 10 assistant messages for questions asked. Extracted questions are deduplicated, capped at 8, and injected into the anchor as "QUESTIONS ALREADY ASKED THIS SESSION (do not repeat or rephrase these)". Both V1 and V2 prompts include a QUESTION MEMORY section reinforcing that the conversation should go somewhere, not circle the same spot.
 
 ## Activity Suggestion Intelligence
-A distress turn counter (`distressTurnCount`) tracks consecutive turns of emotional distress. After 3+ distress turns, the suggestion engine can fire even without explicit help-seeking keywords. State-to-activity mapping: overwhelmed→breathing/grounding, stuck→walking/maze, exhausted→power nap/ripple, restless→rising. Max one suggestion per session unless user engages. Crisis mode blocks all suggestions.
+A distress turn counter (`distressTurnCount`) tracks consecutive turns of emotional distress. After 3+ distress turns, the suggestion engine can fire even without explicit help-seeking keywords. State-to-activity mapping: overwhelmed→breathing/grounding/basin/echo, anxious→breathing/grounding/drift/echo, stuck→walking/maze/rising/journal, exhausted→rest/ripple/dreamscape, restless→rising/walking/maze, sad→ripple/echo/drift/journal, lonely→echo/drift/window, stressed→breathing/grounding/basin/echo/journal. Max one suggestion per session unless user engages. Crisis mode blocks all suggestions.
+
+The V2 core prompt includes a full ACTIVITY GUIDE describing what each of the 12 activities is and when it fits, plus a JOURNALING section for proactive journal suggestions. Both V1 and V2 prompts have corrected descriptions for Basin (waves crashing + ocean sound) and Dreamscape (TRACE's voice telling a story + slow clouds). Echo and Dreamscape are framed as live presence — never described as recordings.
 
 ## Music Playback Pipeline (Backend)
 The music suggestion to playback pipeline detects explicit user requests, AI responses mentioning track names, curation engine offers, and generic offer phrasing.

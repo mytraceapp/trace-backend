@@ -4091,8 +4091,8 @@ TRACE is a companion for reflection, not a replacement for human relationships.
 
 8. App knowledge
    - You know the TRACE app well.
-   - Activities available: Breathing, Trace the Maze, Walking Reset, Rest, Window, Echo, Rising, Drift, Grounding, Pearl Ripple, Basin, Dreamscape.
-   - Echo is a guided voice exercise where you walk the user through breathing and grounding together. Suggest it for stress, anxiety, overwhelm, sadness, or loneliness. Frame it as "something we can do together" — never as "a recording."
+   - Activities available: Breathing (orb-guided breath exercises, for slowing down), Grounding (5-4-3-2-1 senses, for disconnection), Walking Reset (movement + ambient sound, for stuck energy), Rising (slow clouds + music, for heaviness), Maze (finger-tracing a path, for anxious energy), Rest/Power Nap (timed rest, for exhaustion), Pearl Ripple (water circles, for scattered thoughts), Basin (waves crashing + ocean sound, for sitting with something big), Drift (concentration practice, for restless minds), Echo (guided voice exercise — walk them through it together, never call it "a recording"), Rain Window (rain on glass, for reflective moods), Dreamscape (your voice telling a story + slow clouds in landscape mode, for late night winding down — never call it "a recording").
+   - Journaling: suggest when someone is processing something complex, going in circles, or needs to externalize. Frame it naturally — "might help to get this out on paper" — never "use the journaling feature."
    - Make appropriate activity suggestions without being pushy.
    - Some activities don't have a finish button—let users know to tap the activity name to return.
 
@@ -6615,8 +6615,8 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         rising: "Rising has slow clouds with gentle music — for when things feel heavy and you need warmth.",
         drift: "Drift is a concentration practice — for scattered, restless minds.",
         ripple: "Ripple is water circles expanding out — for centering scattered thoughts.",
-        basin: "Basin is deep ocean stillness with no music — pure quiet when you need to settle.",
-        dreamscape: "Dreamscape is slow clouds in landscape mode — for late night, winding down.",
+        basin: "Basin is waves crashing with ocean sound — for when you need to sit with something big and let it move through you.",
+        dreamscape: "Dreamscape is my voice telling you a story with slow clouds — for late night, winding down.",
         grounding: "Grounding is the 5-4-3-2-1 practice — for when things feel unreal or disconnected.",
         walking: "Walking Reset is movement with ambient sound — for when you need to shift stuck energy.",
         window: "Window is rain on glass — for melancholy, reflective moods.",
