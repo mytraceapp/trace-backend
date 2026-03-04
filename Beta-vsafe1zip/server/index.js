@@ -192,6 +192,7 @@ const {
 const { buildTracePromptV2 } = require('./prompts/buildTracePromptV2');
 const { deriveConfidence } = require('./prompts/traceDirectiveV2');
 const { auditTraceResponse } = require('./consistencyAudit');
+const { deduplicateResponse } = require('./conversationDeduplicator');
 const { computeMeta } = require('./validation/computeMeta');
 const { validateTraceResponseSchema } = require('./validation/validateTraceResponseSchema');
 const { rewriteToSchema } = require('./validation/rewriteToSchema');
@@ -12239,6 +12240,55 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
         }
       } catch (auditErr) {
         // never let audit break the response pipeline
+      }
+    }
+
+    // ============================================================
+    // SEMANTIC DEDUPLICATION (active post-processing)
+    // Catches repeated semantic clusters and replaces before sending
+    // ============================================================
+    if (parsed && parsed.message) {
+      try {
+        const dedupResult = deduplicateResponse(parsed.message, messagesWithHydration, { isCrisisMode });
+        if (dedupResult.isDuplicate) {
+          console.log(`[DEDUP] ${dedupResult.violations.length} violation(s): ${dedupResult.violations.join(', ')}`);
+          if (dedupResult.replacement) {
+            console.log(`[DEDUP] Replacing with presence fallback: "${dedupResult.replacement}"`);
+            parsed.message = dedupResult.replacement;
+          } else {
+            console.log(`[DEDUP] Non-crisis duplicate — attempting regen with forbidden phrases`);
+            try {
+              const forbiddenNote = `FORBIDDEN THIS TURN (you already said these): ${dedupResult.violations.join(', ')}. Say something completely different. Do not use any variation of these phrases.`;
+              const regenMessages = [
+                ...messagesWithHydration,
+                { role: 'assistant', content: parsed.message },
+                { role: 'user', content: forbiddenNote }
+              ];
+              const regenCompletion = await openai.chat.completions.create({
+                model: selectedModel || 'gpt-4o-mini',
+                messages: regenMessages,
+                temperature: 0.7,
+                max_tokens: 300,
+              });
+              const regenText = regenCompletion.choices[0]?.message?.content?.trim() || '';
+              if (regenText.length > 10) {
+                const regenDedup = deduplicateResponse(regenText, messagesWithHydration, { isCrisisMode });
+                if (!regenDedup.isDuplicate) {
+                  parsed.message = sanitizeTone(regenText, { userId: effectiveUserId || 'anon', isCrisisMode: false, turnCount: convoState?.turnCount || 0 });
+                  console.log(`[DEDUP] Regen accepted (${regenText.length} chars)`);
+                } else {
+                  console.log(`[DEDUP] Regen still duplicate — keeping original`);
+                }
+              } else {
+                console.log(`[DEDUP] Regen too short — keeping original`);
+              }
+            } catch (regenErr) {
+              console.error(`[DEDUP] Regen failed: ${regenErr.message} — keeping original`);
+            }
+          }
+        }
+      } catch (dedupErr) {
+        // never let dedup break the response pipeline
       }
     }
 
