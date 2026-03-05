@@ -7191,7 +7191,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
           console.log(`[TRACE NAME] ${isNameCorrection ? 'Corrected' : 'Detected'} from conversation:`, extractedName);
           supabaseServer
             .from('profiles')
-            .upsert({ user_id: effectiveUserId, preferred_name: extractedName, display_name: extractedName, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+            .upsert({ user_id: effectiveUserId, preferred_name: extractedName, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
             .then(() => console.log('[TRACE NAME] Saved to profile:', extractedName))
             .catch(err => console.error('[TRACE NAME] Failed to save name:', err.message));
         }
