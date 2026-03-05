@@ -691,7 +691,13 @@ function computeNextMove({ primaryMode, intentType, mode, continuity, conversati
   if (conf === 'high' && continuityRequired) return 'continue';
 
   if (isStudios) {
-    return 'continue';
+    const hedging = detectHedging(text);
+    const emotionalPivot = /\b(i feel|i'm scared|i don't know what to do|i'm lost|it hurts|i can't|i'm tired|i'm done|i'm stuck)\b/.test(text);
+    if (hedging || emotionalPivot) {
+      // Fall through to depth logic below
+    } else {
+      return 'continue';
+    }
   }
 
   if (continuityRequired) return 'continue';
@@ -718,6 +724,10 @@ function computeNextMove({ primaryMode, intentType, mode, continuity, conversati
     return 'sit_with_it';
   }
 
+  if (topicEstablished && turnAge >= 3) {
+    console.log(`[BRAIN] nextMove=honest_mirror (established topic, turnAge=${turnAge}, no hedging)`);
+    return 'honest_mirror';
+  }
   return 'reflect_then_land';
 }
 

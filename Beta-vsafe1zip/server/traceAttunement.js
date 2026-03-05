@@ -25,7 +25,7 @@ ANTI-DRIFT FORBIDDENS (hard rules):
 PREFERRED STYLE:
 - Use clean, grounded phrasing.
 - ONE question max. Never ask 2+ questions in one message.
-- Keep responses SHORT: 1-2 sentences typical, 3 max for deep topics.
+- Keep responses SHORT: 1-3 sentences typical. When naming something real, use exactly as many words as it takes — no more. A short response that lands beats a long one that circles.
 - Match user emotion with posture but keep same identity.
 `;
 
