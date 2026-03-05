@@ -1314,8 +1314,7 @@ const THERAPY_PATTERNS = [
   { pattern: /^I hear you\b/gim, replacement: "yeah, I hear you" },
   { pattern: /\bThat sounds like\b/gi, replacement: "Sounds like" },
   { pattern: /\bIt sounds like\b/gi, replacement: "Sounds like" },
-  { pattern: /\bThat must be really hard\./gi, replacement: "That's hard." },
-  { pattern: /\bThat must be hard\./gi, replacement: "That's hard." },
+  
   { pattern: /\bThat can feel\b/gi, replacement: "That feels" },
   { pattern: /\bIt's interesting how\b/gi, replacement: "Yeah," },
   { pattern: /\bIt really does\b/gi, replacement: "Yeah, it does" },
@@ -1337,19 +1336,16 @@ const THERAPY_PATTERNS = [
   { pattern: /\bjourney\b/gi, replacement: "path" },
   { pattern: /\bself-care\b/gi, replacement: "rest" },
   { pattern: /\bwellness\b/gi, replacement: "health" },
-  { pattern: /\bThat resonates\b/gi, replacement: "That makes sense" },
-  { pattern: /\bI'm curious\b/gi, replacement: "I wonder" },
-  { pattern: /\bI wonder if\b/gi, replacement: "Maybe" },
+  
   { pattern: /\bIt sounds challenging\b/gi, replacement: "That's tough" },
-  { pattern: /\bThat's a lot to navigate\b/gi, replacement: "That's a lot" },
+  
   { pattern: /\bHow does that land for you\b/gi, replacement: "How's that feel" },
   { pattern: /(?:^|[.!?]\s+)Thank you for sharing that\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
   { pattern: /(?:^|[.!?]\s+)Thank you for sharing\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
   { pattern: /(?:^|[.!?]\s+)Thank you for trusting me\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
   { pattern: /(?:^|[.!?]\s+)I'm here to help\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
   { pattern: /(?:^|[.!?]\s+)I'm here to support\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
-  { pattern: /(?:^|[.!?]\s+)That's really brave\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
-  { pattern: /(?:^|[.!?]\s+)That takes courage\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
+  
   { pattern: /(?:^|[.!?]\s+)I want you to know\b[^.!?]*[.!?,;]?\s*/gi, replacement: "" },
   { pattern: /\bFamily dynamics can be\b[^.!?]*[.!?]?/gi, replacement: "" },
   { pattern: /\bWorkplace stress\b/gi, replacement: "work stuff" },

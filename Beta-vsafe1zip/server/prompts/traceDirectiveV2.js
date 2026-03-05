@@ -35,7 +35,7 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
     isGreeting
       ? `LENGTH: 1-2 sentences max.\nGREETING: User said hi. Be warm, brief, and curious — "hey. what's going on?" or similar. Do NOT interpret the greeting as emotional content. Do NOT fabricate context or feelings. Do NOT assume something is wrong.`
       : mode === 'micro'
-      ? `LENGTH: ${c.maxSentences || 2} sentences max.`
+      ? `LENGTH: ${c.maxSentences || 3} sentences max.`
       : mode === 'longform'
       ? `LENGTH: Be complete. Do NOT truncate.`
       : mode === 'crisis'
@@ -126,7 +126,7 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
   let firstSentenceRule = '';
   if (confidence && !isCrisisOrOnboarding) {
     if (continuityRequired) {
-      firstSentenceRule = `FIRST LINE: Direct continuation (6-14 words). No re-introductions, no "To recap", no "As an AI".`;
+      firstSentenceRule = `FIRST LINE: Direct continuation — no re-introductions, no "To recap", no "As an AI".`;
     } else if (anchorChanged) {
       firstSentenceRule = `FIRST LINE: Clean pivot acknowledging the shift. One line.`;
     }
@@ -134,12 +134,12 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
 
   const NEXT_MOVE_CONTRACTS = {
     continue: 'Continue content only. No questions unless missing-slot requires it.',
-    clarify: 'Ask ONE question. Stop after.',
+    clarify: 'Ask a question — keep it specific.',
     offer_music: 'Offer ONE track OR ask ONE preference question. No soundscapes or activities.',
     offer_activity_if_asked: 'Offer activity only if user asked. Otherwise respond normally.',
-    reflect_then_land: 'Brief reflection (1-2 lines). End with either a question OR a statement that opens space. Only use a question if no insight was offered in the reflection. Prefer landing statements over questions when the reflection already said something true.',
+    reflect_then_land: 'Reflect on what they said, then either ask something or land with a statement. Let the reflection be specific, not formulaic.',
     honest_mirror: 'Respond to what the user DIDN\'T say — the thing underneath. One precise observation. No question at the end. No suggestion. Just name the unspoken thing and stop.',
-    sit_with_it: 'One precise observation. Then stop. No question, no suggestion, no redirect. Maximum 2 sentences. Name the thing and let it land.',
+    sit_with_it: 'Name what you see. Keep it short. No question needed.',
     deliver_longform: 'Long output. No questions. No truncating.',
   };
 
@@ -153,7 +153,7 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
     const contractRules = [];
 
     if (continuityRequired) {
-      contractRules.push(`FIRST-LINE LOCK: First sentence = direct continuation, 6-14 words. Forbidden: "I'm TRACE", "TRACE Studios", "As an AI", "To recap", "Let's", "Just to clarify".`);
+      contractRules.push(`FIRST-LINE LOCK: First sentence = direct continuation. Forbidden: "I'm TRACE", "TRACE Studios", "As an AI", "To recap", "Let's", "Just to clarify".`);
     }
 
     if (primaryMode === 'studios' && !continuityRequired) {
