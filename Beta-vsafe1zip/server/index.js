@@ -17135,6 +17135,17 @@ function isVerseTimeLocal(hour, minute) {
   return getVerseTimeSlot(hour, minute) !== null;
 }
 
+function pickDailyVerseSlot(userId, ymd) {
+  const key = `${userId}-${ymd}`;
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = ((hash << 5) - hash) + key.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % VERSE_TIMES.length;
+  return VERSE_TIMES[index].slot;
+}
+
 async function getUserFirstName(supabaseAdmin, userId) {
   try {
     const { data, error } = await supabaseAdmin
@@ -17354,14 +17365,18 @@ async function runVerseCheckins() {
         continue;
       }
 
+      const assignedSlot = pickDailyVerseSlot(user.user_id, ymd);
+      if (verseSlot.slot !== assignedSlot) {
+        continue;
+      }
+
       const slotKey = `${ymd}-${verseSlot.slot}`;
 
       if (user.last_checkin_at === slotKey) {
         continue;
       }
 
-      const alreadySentSlots = (user.last_checkin_at || '').startsWith(ymd) ? user.last_checkin_at : '';
-      if (alreadySentSlots === slotKey) {
+      if ((user.last_checkin_at || '').startsWith(ymd)) {
         continue;
       }
 
@@ -17396,7 +17411,7 @@ if (supabaseServer) {
   }, 60_000);
   
   console.log('📱 TRACE verse-time scheduler started (checks every 60s)');
-  console.log('   Notifications at 9:47am, 3:16pm & 8:28pm in each user\'s local timezone');
+  console.log('   One notification per day at a random verse time (9:47am, 3:16pm, or 8:28pm) per user');
 }
 
 // Test endpoint to send a test push notification
