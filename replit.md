@@ -59,6 +59,9 @@ A distress turn counter (`distressTurnCount`) tracks consecutive turns of emotio
 ## Music Playback Pipeline (Backend)
 The music suggestion to playback pipeline uses a structured `[play_track:track_id]` tag system. The AI includes this tag at the end of its message. The post-processing parser extracts the tag, strips it from the display text, and uses the `track_id` as the authoritative source for playback.
 
+## Crisis Detection
+Two-tier crisis system: self-harm (high distress keywords, persists until 4 safe messages + 30 min) and harm-to-others (HTO). HTO uses `detectHarmToOthers` with high/medium confidence patterns, self-harm exclusion, news/politics guards, and negation checks. Fires as an early gate before the OpenAI call with a hardcoded safety response, sets `crisisMode: 'harm_to_others'` and `safetyOverride: true` in client state. A defense-in-depth second check fires later in the pipeline. Patterns cover direct intent, conditional phrasing, ideation/considering, weapon + intent, revenge language, instruction-seeking, and targeted suffering.
+
 ## Atmosphere Engine Crisis Recovery
 When crisis mode activates, the atmosphere engine saves pre-crisis state markers and restores to 'presence' with reset baseline signals when the crisis clears.
 

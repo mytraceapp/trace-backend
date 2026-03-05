@@ -2126,6 +2126,12 @@ function detectHarmToOthers(userText) {
     /\b(i'm going to|i will)\s+(make them pay|get revenge|get even)\b.*\b(hurt|kill|harm|shoot|stab)/i,
     // Explicit planning language
     /\b(planning to|plan to|decided to)\s+(kill|murder|hurt|harm|attack)\b/i,
+    // Conditional phrasing
+    /\b(i could|i might|i'd)\s+(kill|murder|shoot|stab|hurt|attack|harm)\s+(someone|somebody|him|her|them|people|my\s+\w+)\b/i,
+    // Thinking/considering
+    /\b(thinking about|thought about|considering)\s+(killing|murdering|shooting|stabbing|hurting|attacking|harming)\s+(someone|somebody|him|her|them|my\s+\w+)\b/i,
+    // Want-to-hurt with target
+    /\b(i want to|i wanna)\s+(hurt|harm|kill|attack|stab|shoot)\s+(him|her|them|someone|somebody|my\s+\w+)\b/i,
   ];
   
   for (const pattern of highPatterns) {
@@ -2150,9 +2156,13 @@ function detectHarmToOthers(userText) {
   
   // "Make them pay" type language WITH violence implication
   if (/\b(make (them|him|her) pay|get (revenge|even|back at))\b/i.test(t)) {
-    if (violenceVerbs.test(t) || /\b(hurt|pain|suffer|regret)\b/i.test(t)) {
+    if (violenceVerbs.test(t) || /\b(hurt|pain|suffer|regret|bleed)\b/i.test(t)) {
       return { triggered: true, confidence: 'medium', reason: 'revenge_violence_language' };
     }
+  }
+
+  if (/\b(i want to|wanna|gonna)\s+(make)\s+(him|her|them)\s+(suffer|pay|bleed|hurt)\b/i.test(t)) {
+    return { triggered: true, confidence: 'medium', reason: 'targeted_suffering_intent' };
   }
   
   // Instruction-seeking for violence (even without stated personal intent)
@@ -6492,21 +6502,15 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       return false;
     }
     
-    if (detectViolenceOrThreat(userText)) {
-      console.log('[SAFETY_REDIRECT] VIOLENCE_OR_THREAT');
-      
-      const violenceMessage = "I can't help with anything that involves hurting someone. if you feel like you might act on these thoughts, please reach out now.\n\nif you're in the U.S. and there's immediate danger, call **911**. try to step away from anything that could be used to hurt someone and reach out to someone you trust.\n\nif you want, tell me what's going on right before these urges spike — we can figure out a safer way through the moment.";
-      
-      return finalizeTraceResponse(res, {
-        message: violenceMessage,
-        activity_suggestion: {
-          name: null,
-          reason: null,
-          should_navigate: false,
-        },
-        response_source: 'model',
-        _provenance: { path: 'safety_redirect', category: 'VIOLENCE_OR_THREAT', requestId, ts: Date.now() }
-      }, requestId);
+    const earlyHtoCheck = detectHarmToOthers(userText);
+    if (earlyHtoCheck.triggered) {
+      console.warn('[SAFETY] harm-to-others override (early gate)', {
+        requestId,
+        confidence: earlyHtoCheck.confidence,
+        reason: earlyHtoCheck.reason
+      });
+      const htoResponse = buildHarmToOthersResponse(requestId, earlyHtoCheck.confidence);
+      return finalizeTraceResponse(res, { ...htoResponse, response_source: 'crisis', _provenance: { path: 'safety_redirect', category: 'HARM_TO_OTHERS', requestId, ts: Date.now() } }, requestId);
     }
     // ========== END VIOLENCE/THREAT GATE ==========
     
