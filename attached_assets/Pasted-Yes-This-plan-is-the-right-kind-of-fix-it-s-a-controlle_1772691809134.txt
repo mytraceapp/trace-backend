@@ -1,0 +1,54 @@
+Yes. This plan is the right kind of fix — it’s a controlled de-clamping with clear acceptance criteria. And it directly targets what Replit proved.
+
+A few notes to make it land even harder (and avoid a new round of “we fixed it but…”):
+
+What I would change in your task list (small but important)
+
+Keep T001 exactly as written ✅
+
+That triple-squeeze is the voice killer. Your proposed replacement sentence is perfect.
+
+Tiny tweak: also remove any other hard caps elsewhere that contradict “1–3 sentences usually” (even if you keep them in directive V2, they’ll fight).
+
+⸻
+
+T002 is critical ✅
+
+But make your examples match TRACE’s vibe (more “2am friend,” less “coach”).
+
+Your examples are good. I’d just make them slightly more TRACE and slightly less “therapy-y” in phrasing.
+
+For example:
+	•	“my mom’s been sick” → “damn. that’s heavy. how long has it been going on?”
+	•	“I keep overthinking everything” → “that loop is exhausting. is it one thing, or is it kind of everything right now?”
+	•	“I had a really good day” → “yeah? i love that. what made it good?”
+	•	“I talked to my sister finally” → “oh wow. how’d that feel?”
+
+(Still short. Still human. Still specific.)
+
+Also: label them clearly as DEEP SHARE EXAMPLES so the model doesn’t think it must always do 2–3 sentences.
+
+⸻
+
+T003: soften contracts ✅ — but I’d revisit the FIRST-LINE LOCK
+
+You wrote “Keep the FIRST-LINE LOCK (line 156) — it prevents ‘As an AI’ re-introductions.”
+
+I agree with the goal, but the method matters:
+	•	If the “first-line lock” is only “don’t reintroduce yourself / don’t say ‘as an AI’” ✅ keep it.
+	•	If it’s also enforcing 6–14 words or a fixed shape ❌ that should go (or be gated to onboarding).
+
+Best version: keep an anti-reintro rule, not a word-count lock.
+
+⸻
+
+T004: sanitizer changes ✅
+
+This is the second biggest personality unlock after sentence freedom.
+
+Your keep/remove list is solid. Two small nudges:
+	•	Keep removing “thank you for trusting me” etc (agree).
+	•	Let “that must be really hard” live — it’s normal human speech.
+	•	Keep “i’m curious” and “i wonder if” — those are human.
+
+One more rule: don’t let sanitizer turn responses into stubs. If a pattern removal creates awkward fragments, it will increase “robotic” perception.

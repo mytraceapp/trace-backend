@@ -1,0 +1,57 @@
+You are debugging TRACE’s LLM behavior.
+
+Observed symptom:
+- “Welcome back” messages are consistently more engaging / human / TRACE-like.
+- Regular chat replies feel robotic / superficial / low substance.
+
+Goal:
+Explain WHY this is happening using evidence from code, not guesses.
+
+Tasks (do all, report findings with file paths + line numbers + diffs):
+1) Identify the exact code paths for:
+   - the welcome message endpoint (likely /api/greeting or similar)
+   - the chat endpoint (likely /api/chat)
+   List the files and functions involved in each.
+
+2) Compare model call settings between the two endpoints:
+   - model name
+   - temperature
+   - top_p
+   - presence_penalty / frequency_penalty
+   - max_tokens
+   - any “json mode” or response_format constraints
+   Print the exact values used in each call.
+
+3) Compare the prompt payloads sent to the model:
+   - system prompt content
+   - any additional instruction blocks (frameworks like Reflect→Ground→Suggest→Release)
+   - memory injection blocks and size
+   - safety/constraint blocks
+   - any “always do X” style rules
+   Output (or summarize) the final assembled prompt/messages for both endpoints.
+   If too long, include the first ~80 lines and the sections list with token estimates.
+
+4) Check whether chat is being forced into a structured response format that greeting is not:
+   Examples:
+   - “always follow 4 steps”
+   - “always include reflection”
+   - strict style rules
+   - forced short answers
+   Report any such constraints and where they are applied.
+
+5) Add temporary logging (behind a flag) to print, for both endpoints:
+   - resolved temperature/top_p/max_tokens
+   - total prompt tokens estimate (rough is fine)
+   - which optional blocks were included (memory / structure / onboarding / greeting filter)
+   - detected mode (greeting / micro-message / deep share)
+   Then run one test request to each endpoint and show the logs.
+
+6) Conclusion:
+   Give the single most likely root cause (e.g., chat has lower temp, heavier prompt, forced structure, too much memory, etc.)
+   Propose the smallest patch that makes chat sound like greeting WITHOUT breaking safety.
+
+Output format:
+- Findings (bullet list)
+- Evidence (code references)
+- Patch proposal (diff-style)
+Do not speculate. If you can’t prove something from code/logs, say “unknown” and add instrumentation to prove it.
