@@ -1,0 +1,47 @@
+You are working in my TRACE React Native + Node/Express backend.
+
+Goal:
+TRACE replies feel meaningful, not “polite filler.” Do NOT add a rigid multi-step structure. Keep TRACE’s calm voice, but require that every assistant message contributes new information or a clear next move.
+
+Problem:
+Users report TRACE “says a lot without saying anything substantial.” The assistant often mirrors: “that makes sense” + restates the user, without adding value.
+
+Constraints:
+- Do NOT change any UI.
+- Do NOT add large prompt blocks or new multi-step frameworks.
+- Make the smallest possible code + prompt changes.
+- Keep TRACE’s voice (lowercase, warm, non-therapist).
+- Avoid generic validation lines.
+- Ensure direct questions get direct answers first.
+
+Implement:
+1) In the server prompt assembly (wherever you build the system prompt / response rules before calling the LLM), add a SMALL “Meaning Density” rule block (6–10 lines max) that enforces:
+   - Every reply must include at least ONE of:
+     a) new information
+     b) a concrete suggestion/next step
+     c) a clarifying question that narrows the decision
+     d) a concise explanation of why/how
+   - For direct questions: answer first, then reflect (optional).
+   - Ban filler openers unless followed immediately by substance.
+   - If user message is low-context (“lol”, “ok”), respond briefly but still add a specific next step or ask one focused question.
+
+2) Add a lightweight self-check before returning the assistant text:
+   - If the response contains only agreement/validation patterns and no concrete content, regenerate once with a “be more specific” nudge.
+   - Do not loop; max 1 retry.
+
+3) Keep the existing Reflect→Ground→Suggest→Release block (if present), but gate it:
+   - Only apply it when the user message has actual content (>= ~12 words OR includes a question mark OR includes emotion/issue keywords).
+   - If it’s a short low-context message, do NOT force the structured block.
+
+Deliverables:
+- Point me to the exact file(s) and function(s) you changed.
+- Provide a minimal diff.
+- Include a short list of “banned filler phrases” used by the filter (e.g., “that makes sense”, “totally”, “you’re right”) and show the retry nudge text.
+- Ensure no new logs in the UI.
+
+Acceptance test:
+Given user: “if they don’t even know this feature exists, they won’t be looking for that bug lol”
+Bad: “that makes sense… focus on main features…”
+Good: Adds 1–2 specific Apple review realities (main flows they test) + a concrete recommendation (fix now vs later), in TRACE voice.
+
+Proceed now and implement.

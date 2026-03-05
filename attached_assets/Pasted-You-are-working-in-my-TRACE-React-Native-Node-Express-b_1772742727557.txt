@@ -1,0 +1,58 @@
+You are working in my TRACE React Native + Node/Express backend.
+
+Goal:
+Make TRACE engaging — not boring, not robotic, not “supportive filler.”
+TRACE should feel like a present, intelligent companion: curious, specific, and momentum-building.
+
+What’s happening now:
+Users say TRACE “says a lot without saying anything substantial.”
+It also feels flat: generic reassurance, vague statements, and questions like “what do you think?” that don’t move anything forward.
+
+Constraints:
+- Do NOT change any UI.
+- Do NOT add bulky multi-step frameworks.
+- Minimal code + prompt changes only.
+- Keep TRACE voice: lowercase, warm, concise, not clinical, not therapist-y.
+- Avoid repeating the user’s text back to them unless you add a new angle.
+
+Implement (small, high impact):
+
+1) Add a short “engagement rules” block (max 10 lines) to the system prompt.
+It MUST enforce:
+- Every reply includes a “hook” in the first 1–2 lines:
+  (a) a specific observation, OR
+  (b) a bold guess framed as optional (“might be…”) OR
+  (c) a crisp choice (“two options: …”) OR
+  (d) a micro-plan (“do this next: …”)
+- Ban empty validation as a full sentence unless followed immediately by specifics.
+- No rhetorical questions like “what do you think?” unless it offers concrete options.
+- Prefer “two good paths” over vague encouragement.
+- If user is low-context (“lol”, “ok”), respond short but still add a next move (1 option or 1 sharp question).
+
+2) Add a lightweight “boring detector” pass before returning the assistant message:
+If the response matches common bland patterns (validation-only, generic reassurance, vague “you got this”, or no action/insight),
+then regenerate ONE time with a retry nudge:
+“Rewrite with more specificity + momentum. Add a hook, one concrete suggestion, and one crisp question or choice.”
+
+3) Gate any structured response framework (if present) so it does NOT trigger on:
+- greetings
+- “lol/ok/yeah”
+- short messages under ~10–12 words with no question mark
+Those should get a short, punchy, engaging reply.
+
+Deliverables:
+- Show exact files + minimal diff.
+- Show the 8–12 “bland patterns” you detect (regex or string contains).
+- Show the retry nudge text.
+- No UI logs.
+
+Acceptance tests (must pass):
+User: “if they don’t even know this feature exists, they won’t be looking for that bug lol”
+Response must:
+- open with a hook (specific observation or 2-option framing)
+- give a concrete recommendation (fix now vs ship + monitor)
+- ask one sharp question that narrows decision (e.g., “does it break audio for everyone or just mic sessions?”)
+Bad: “that makes sense… you’re right… good idea”
+Good: “two paths: hide it for now and ship, or fix it now so review can’t trip on it. if it’s a mic/audio-session kill switch, i’d fix before launch. quick check: does it happen only after ‘stop music’ + mic, or any mic use?”
+
+Proceed now and implement.
