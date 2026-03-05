@@ -148,6 +148,7 @@ const {
   checkRepetition,
   storeLastResponse,
   detectDreamDoor,
+  isHollowResponse,
 } = require('./traceBrain');
 const { processDoorways, bootstrapConversationState, DOORS, loadDoorwayProfile, saveDoorwayProfile } = require('./doorwaysV1');
 const { getDynamicFact, isUSPresidentQuestion } = require('./dynamicFacts');
@@ -13441,6 +13442,39 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       console.log('[DRIFT LOCK] Skipped —', noDoubleRewrite ? 'no-double-rewrite rule' : 'retirement flag');
     }
     
+    // ===== HOLLOW RESPONSE DETECTION =====
+    if (!isCrisisMode && !storyMode && openai && processedAssistantText) {
+      const hollowCheck = isHollowResponse(processedAssistantText);
+      if (hollowCheck.hollow) {
+        console.log(`[HOLLOW DETECT] reason=${hollowCheck.reason} text="${processedAssistantText.substring(0, 60)}..."`);
+        try {
+          const hollowRetryMessages = [
+            ...l1Messages || [{ role: 'system', content: systemPrompt }],
+            { role: 'assistant', content: processedAssistantText },
+            { role: 'user', content: 'Your last response was too generic — rewrite with more specificity and momentum. Add a hook (specific observation or 2-option framing), one concrete suggestion, and one crisp question or choice. Stay in TRACE voice. No JSON, just the rewritten message.' }
+          ];
+          const hollowRetry = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: hollowRetryMessages,
+            max_tokens: 600,
+            temperature: 0.7,
+          }, { timeout: 8000, signal: AbortSignal.timeout(8000) });
+          const retryText = hollowRetry.choices?.[0]?.message?.content?.trim();
+          if (retryText && retryText.length > 10) {
+            const retryHollow = isHollowResponse(retryText);
+            if (!retryHollow.hollow) {
+              processedAssistantText = sanitizeTone(retryText, { userId: effectiveUserId, isCrisisMode: false, turnCount: convoStateObj?.turnCount || 0 });
+              console.log('[HOLLOW DETECT] Retry succeeded, using rewritten response');
+            } else {
+              console.log('[HOLLOW DETECT] Retry still hollow, keeping original');
+            }
+          }
+        } catch (hollowErr) {
+          console.error('[HOLLOW DETECT] Retry failed:', hollowErr.message);
+        }
+      }
+    }
+
     // ===== TRACE BRAIN SUGGESTION LOGIC =====
     // Decide if we should include a suggestion (with cooldown, respecting musicBias)
     const brainResult = decideSuggestion(safeClientState, brainSignals, todRules);

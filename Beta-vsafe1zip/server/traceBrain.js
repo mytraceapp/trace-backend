@@ -1688,6 +1688,52 @@ function sanitizeTone(text, options = {}) {
   return result;
 }
 
+const HOLLOW_PATTERNS = [
+  /^(that makes sense|makes sense|totally|absolutely|you're right|i agree|fair enough|exactly|for sure|100%)[.,;]?\s*$/i,
+  /^(that's understandable|that's valid|that's fair|that's real|i feel you)[.,;]?\s*$/i,
+  /^(you got this|you'll figure it out|it'll work out|hang in there|keep going|you're doing great|trust the process)[.,;]?\s*$/i,
+  /^(that makes sense|makes sense|totally|i hear you|yeah for sure|right)[.,;]?\s+(and )?(that's|it's|you're)\s/i,
+  /^(that makes sense|makes sense|yeah|totally)[.,;]?\s+[^.?!]{0,30}[.]?\s*$/i,
+  /^(i hear you|yeah i hear you|i get that|i get it)[.,;]?\s*$/i,
+  /^(that's a lot|that sounds hard|that sounds tough|that sounds rough)[.,;]?\s*$/i,
+];
+
+const HOLLOW_VALIDATION_OPENERS = [
+  /^(that makes sense|makes sense|totally|absolutely|you're right|i agree|i hear you|yeah for sure|fair enough|exactly)[.,;]?\s+/i,
+];
+
+function isHollowResponse(text) {
+  if (!text || text.length > 300) return { hollow: false, reason: null };
+  const t = text.trim();
+  if (t.length < 3) return { hollow: false, reason: null };
+
+  for (const p of HOLLOW_PATTERNS) {
+    p.lastIndex = 0;
+    if (p.test(t)) {
+      return { hollow: true, reason: 'matches_hollow_pattern' };
+    }
+  }
+
+  let hasValidationOpener = false;
+  for (const p of HOLLOW_VALIDATION_OPENERS) {
+    p.lastIndex = 0;
+    if (p.test(t)) {
+      hasValidationOpener = true;
+      break;
+    }
+  }
+
+  if (hasValidationOpener) {
+    const hasQuestion = t.includes('?');
+    const hasConcreteVerb = /\b(try|do|start|check|fix|build|test|send|ask|call|write|open|look at|set up|two paths|two options|option a|option b)\b/i.test(t);
+    if (!hasQuestion && !hasConcreteVerb) {
+      return { hollow: true, reason: 'validation_opener_no_substance' };
+    }
+  }
+
+  return { hollow: false, reason: null };
+}
+
 module.exports = {
   getSignals,
   buildClientStateContext,
@@ -1721,4 +1767,5 @@ module.exports = {
   checkRepetition,
   storeLastResponse,
   detectDreamDoor,
+  isHollowResponse,
 };
