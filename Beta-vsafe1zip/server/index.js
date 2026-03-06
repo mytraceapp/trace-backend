@@ -17417,6 +17417,21 @@ async function runVerseCheckins() {
         continue;
       }
 
+      const { data: presenceData } = await supabaseServer
+        .from('profiles')
+        .select('last_seen_at')
+        .eq('user_id', user.user_id)
+        .single();
+
+      if (presenceData?.last_seen_at) {
+        const lastSeen = new Date(presenceData.last_seen_at);
+        const minutesSinceActive = (Date.now() - lastSeen.getTime()) / (1000 * 60);
+        if (minutesSinceActive < 15) {
+          console.log(`[VERSE] Skipping notification for ${user.user_id} — active ${Math.round(minutesSinceActive)}m ago`);
+          continue;
+        }
+      }
+
       const firstName = await getUserFirstName(supabaseServer, user.user_id);
       const nowInUserTz = new Date(now.toLocaleString('en-US', { timeZone: tz }));
       const message = getPersonalizedCheckinMessage(nowInUserTz, firstName);
