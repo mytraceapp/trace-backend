@@ -10723,6 +10723,7 @@ The user is asking a factual question. Answer with specific details — names, n
     // ============================================================
     // Determine premium status from user profile
     const isPremium = userProfile?.plan_status === 'premium' ||
+                      userProfile?.plan_status === 'studio' ||
                       userProfile?.plan === 'premium' ||
                       userProfile?.is_premium === true;
     
@@ -13481,7 +13482,7 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     // ===== TRACE BRAIN SUGGESTION LOGIC =====
     // Decide if we should include a suggestion (with cooldown, respecting musicBias)
     const brainResult = decideSuggestion(safeClientState, brainSignals, todRules);
-    const brainSuggestion = brainResult?.suggestion || null;
+    let brainSuggestion = brainResult?.suggestion || null;
     const brainSuppressed = brainResult?.suppressed || null;
     
     if (brainSuggestion) {
@@ -13925,6 +13926,19 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
     // Build client_state_patch (merge suggestion patch + hook patch + tier2 cooldown)
     let clientStatePatch = { ...tier2CooldownPatch };
     
+    const STUDIO_ACTIVITY_IDS = [
+      'ripple', 'window', 'echo', 'drift',
+      'rising', 'basin', 'dreamscape', 'grounding'
+    ];
+
+    if (brainSuggestion && 
+        brainSuggestion.type === 'activity' && 
+        !isPremium && 
+        STUDIO_ACTIVITY_IDS.includes(brainSuggestion.id)) {
+      console.log('[STUDIO GATE] Suppressing Studio activity suggestion for Light user:', brainSuggestion.id);
+      brainSuggestion = null;
+    }
+
     if (brainSuggestion && brainSuggestion.type === 'activity' && (!response.activity_suggestion || !response.activity_suggestion.name)) {
       const ACTIVITY_DISPLAY_NAMES = {
         breathing: 'breathing',
