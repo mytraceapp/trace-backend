@@ -141,6 +141,7 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
     honest_mirror: 'Respond to what the user DIDN\'T say — the thing underneath. One precise observation. No question at the end. No suggestion. Just name the unspoken thing and stop.',
     sit_with_it: 'Name what you see. Keep it short. No question needed.',
     deliver_longform: 'Long output. No questions. No truncating.',
+    casual_presence: 'Light, warm, specific. Acknowledge what they said in one beat, then open the next with a specific follow-up. Never dead-end. Never generic. Keep it conversational — not therapeutic. Examples: "what are you craving?" not "tell me." "how long has that been going on?" not "fair enough." "yeah. what kind of tired?" not "I hear you."',
   };
 
   const nextMove = traceIntent?.nextMove || null;
