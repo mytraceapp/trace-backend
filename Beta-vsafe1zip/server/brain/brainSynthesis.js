@@ -229,6 +229,12 @@ function inferIntentType({ currentMessage, cognitiveIntent, doorwaysResult, trac
     }
     return { intentType: "other", mode: "micro" };
   }
+
+  const casualPatterns = /\b(hungry|bored|tired|just checking|what's up|wyd|lol|haha|ok cool|nice|yeah|yep|nope|same|true|mood|whatever|fine|ugh|omg)\b/i;
+  if (words <= 8 && casualPatterns.test(text)) {
+    return { intentType: 'casual', mode: 'micro' };
+  }
+
   return { intentType: "other", mode: "normal" };
 }
 
@@ -728,6 +734,11 @@ function computeNextMove({ primaryMode, intentType, mode, continuity, conversati
     console.log(`[BRAIN] nextMove=honest_mirror (established topic, turnAge=${turnAge}, no hedging)`);
     return 'honest_mirror';
   }
+
+  if (intentType === 'casual' || (mode === 'micro' && !/^(h[iu]|hey|hello|yo)\b/i.test(text))) {
+    return 'casual_presence';
+  }
+
   return 'reflect_then_land';
 }
 
