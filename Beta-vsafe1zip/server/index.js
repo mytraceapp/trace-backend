@@ -6560,6 +6560,44 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       return /^(okay|ok|yes|yeah|yep|sure|ready|let's go|lets go|yea|k|kk|go ahead|take me|alright|sounds good)$/i.test(txt);
     };
     
+    // Request-scoped profile cache: load once, reuse everywhere
+    let _profileBasicCache = undefined;
+    let _profileBasicDbHits = 0;
+    async function getProfileBasicOnce() {
+      if (_profileBasicCache !== undefined) return _profileBasicCache;
+      _profileBasicDbHits++;
+      _profileBasicCache = await loadProfileBasic(effectiveUserId);
+      return _profileBasicCache;
+    }
+
+    // Load user's preferred name from database (source of truth, not client payload)
+    let displayName = null;
+    let userProfile = null;
+    try {
+      if (supabaseServer && effectiveUserId) {
+        userProfile = await getProfileBasicOnce();
+        if (userProfile?.preferred_name) {
+          displayName = userProfile.preferred_name.trim();
+          console.log('[TRACE NAME] Loaded from DB:', displayName);
+        }
+        
+        // Auto-persist timezone to profile if provided in request and not already set
+        if (timezone && !userProfile?.timezone) {
+          const derivedCountry = getCountryFromTimezone(timezone);
+          const updates = { timezone };
+          if (derivedCountry) updates.country = derivedCountry;
+          
+          supabaseServer
+            .from('profiles')
+            .upsert({ user_id: effectiveUserId, ...updates }, { onConflict: 'user_id' })
+            .then(() => console.log('[TRACE PROFILE] Auto-saved timezone:', timezone, derivedCountry ? `(${derivedCountry})` : ''))
+            .catch(err => console.error('[TRACE PROFILE] Failed to auto-save timezone:', err.message));
+        }
+      }
+    } catch (err) {
+      console.error('[TRACE NAME] Failed to load profile name:', err.message);
+    }
+
     // Check if previous assistant message described an activity (has "Let me know when you're ready")
     const prevAssistantContent = messages?.filter(m => m.role === 'assistant').pop()?.content || '';
     const activityPendingConfirmation = prevAssistantContent.includes("Let me know when you're ready") || 
@@ -6597,6 +6635,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
           return finalizeTraceResponse(res, {
             message: "that one lives in TRACE Studio — if you want to talk more or try something else, I'm here. breathing, maze, walking, and rest are all available for you.",
             activity_suggestion: null,
+            block_navigation: true,
           }, requestId);
         }
         console.log(`[ACTIVITY NAV] User confirmed, navigating to: ${pendingActivity}`);
@@ -6655,6 +6694,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         return finalizeTraceResponse(res, {
           message: "that one lives in TRACE Studio — if you want to talk more or try something else, I'm here. breathing, maze, walking, and rest are all available for you.",
           activity_suggestion: null,
+          block_navigation: true,
         }, requestId);
       }
       const activityDescriptions = {
@@ -7167,44 +7207,6 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       updateLastSeen(supabaseServer, effectiveUserId).catch(err =>
         console.error('[TRACE PRESENCE] updateLastSeen failed:', err.message)
       );
-    }
-
-    // Request-scoped profile cache: load once, reuse everywhere
-    let _profileBasicCache = undefined;
-    let _profileBasicDbHits = 0;
-    async function getProfileBasicOnce() {
-      if (_profileBasicCache !== undefined) return _profileBasicCache;
-      _profileBasicDbHits++;
-      _profileBasicCache = await loadProfileBasic(effectiveUserId);
-      return _profileBasicCache;
-    }
-
-    // Load user's preferred name from database (source of truth, not client payload)
-    let displayName = null;
-    let userProfile = null;
-    try {
-      if (supabaseServer && effectiveUserId) {
-        userProfile = await getProfileBasicOnce();
-        if (userProfile?.preferred_name) {
-          displayName = userProfile.preferred_name.trim();
-          console.log('[TRACE NAME] Loaded from DB:', displayName);
-        }
-        
-        // Auto-persist timezone to profile if provided in request and not already set
-        if (timezone && !userProfile?.timezone) {
-          const derivedCountry = getCountryFromTimezone(timezone);
-          const updates = { timezone };
-          if (derivedCountry) updates.country = derivedCountry;
-          
-          supabaseServer
-            .from('profiles')
-            .upsert({ user_id: effectiveUserId, ...updates }, { onConflict: 'user_id' })
-            .then(() => console.log('[TRACE PROFILE] Auto-saved timezone:', timezone, derivedCountry ? `(${derivedCountry})` : ''))
-            .catch(err => console.error('[TRACE PROFILE] Failed to auto-save timezone:', err.message));
-        }
-      }
-    } catch (err) {
-      console.error('[TRACE NAME] Failed to load profile name:', err.message);
     }
 
     // ===== NAME DETECTION FROM CONVERSATION =====
