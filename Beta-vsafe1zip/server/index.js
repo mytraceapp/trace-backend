@@ -16328,7 +16328,7 @@ app.post('/api/subscription/mark-upgraded', async (req, res) => {
         user_id: userId,
         subscription_status: 'studio',
         subscription_started_at: now,
-        plan_status: 'premium',
+        plan_status: 'studio',
         updated_at: now,
       }, { onConflict: 'user_id' })
       .select()
