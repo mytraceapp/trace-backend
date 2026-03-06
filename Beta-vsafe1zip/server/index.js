@@ -3881,7 +3881,7 @@ async function loadProfileBasic(userId) {
   
   const resultWithPending = await supabaseServer
     .from('profiles')
-    .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon, pending_activity, pending_activity_route')
+    .select('user_id, display_name, plan_status, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon, pending_activity, pending_activity_route')
     .eq('user_id', userId)
     .single();
   
@@ -3890,7 +3890,7 @@ async function loadProfileBasic(userId) {
     console.log('[loadProfileBasic] pending_activity column not found, loading without it');
     const resultWithoutPending = await supabaseServer
       .from('profiles')
-      .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon')
+      .select('user_id, display_name, plan_status, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon')
       .eq('user_id', userId)
       .single();
     data = resultWithoutPending.data;
@@ -6628,8 +6628,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
           'ripple', 'window', 'echo', 'drift',
           'rising', 'basin', 'dreamscape', 'grounding'
         ];
-        const isLightUser1 = userProfile?.plan_status !== 'studio' && 
-          userProfile?.plan_status !== 'premium';
+        const isLightUser1 = userProfile?.plan_status !== 'studio';
         if (isLightUser1 && STUDIO_ACTIVITY_IDS.includes(pendingActivity)) {
           console.log('[STUDIO GATE] Blocking Studio activity confirmation for Light user:', pendingActivity);
           return finalizeTraceResponse(res, {
@@ -6687,8 +6686,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         'ripple', 'window', 'echo', 'drift',
         'rising', 'basin', 'dreamscape', 'grounding'
       ];
-      const isLightUser2 = userProfile?.plan_status !== 'studio' && 
-        userProfile?.plan_status !== 'premium';
+      const isLightUser2 = userProfile?.plan_status !== 'studio';
       if (isLightUser2 && STUDIO_ACTIVITY_IDS_2.includes(requestedActivity)) {
         console.log('[STUDIO GATE] Blocking Studio explicit request for Light user:', requestedActivity);
         return finalizeTraceResponse(res, {
@@ -10765,10 +10763,7 @@ The user is asking a factual question. Answer with specific details — names, n
     }
 
     // Determine premium status from user profile
-    const isPremium = userProfile?.plan_status === 'premium' ||
-                      userProfile?.plan_status === 'studio' ||
-                      userProfile?.plan === 'premium' ||
-                      userProfile?.is_premium === true;
+    const isPremium = userProfile?.plan_status === 'studio';
 
     const isLightPlan = !isPremium;
     if (isLightPlan) {
