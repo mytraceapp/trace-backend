@@ -10747,11 +10747,42 @@ The user is asking a factual question. Answer with specific details — names, n
     // TIERED MODEL ROUTING
     // Select optimal model based on conversation context
     // ============================================================
+    async function getLightUserMessageCount(userId) {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { count, error } = await supabaseServer
+        .from('chat_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('role', 'user')
+        .gte('created_at', since);
+      if (error) {
+        console.warn('[MESSAGE LIMIT] Count error:', error.message);
+        return 0;
+      }
+      return count ?? 0;
+    }
+
     // Determine premium status from user profile
     const isPremium = userProfile?.plan_status === 'premium' ||
                       userProfile?.plan_status === 'studio' ||
                       userProfile?.plan === 'premium' ||
                       userProfile?.is_premium === true;
+
+    const isLightPlan = !isPremium;
+    if (isLightPlan) {
+      const isCrisis = detectCrisis(userText);
+      if (!isCrisis) {
+        const messageCount = await getLightUserMessageCount(effectiveUserId);
+        console.log('[MESSAGE LIMIT] Light user message count:', messageCount);
+        if (messageCount >= 50) {
+          console.log('[MESSAGE LIMIT] Light user hit 50 message limit');
+          return finalizeTraceResponse(res, {
+            message: "I need to step away and rest for a bit — if you ever want more time with me, Studio keeps me available whenever you need. I'll be back tomorrow. take care of yourself until then.",
+            activity_suggestion: null,
+          }, requestId);
+        }
+      }
+    }
     
     const modelRoute = selectTraceModel({
       userText: lastUserContent,
