@@ -680,6 +680,35 @@ function countQuestionlessStreak(historyMessages) {
   return userCount;
 }
 
+function detectValidationLoop(historyMessages) {
+  if (!historyMessages || historyMessages.length < 3) 
+    return false;
+  
+  const loopPhrases = [
+    "that's hard", "that can be", "it's hard",
+    "i can imagine", "that makes sense",
+    "it's tough", "that sounds", "a lot to carry",
+    "weigh heavily", "exhausting", "challenging",
+    "tough when", "that kind of"
+  ];
+  
+  const recentAssistant = historyMessages
+    .filter(m => m.role === 'assistant')
+    .slice(-3)
+    .map(m => (m.content || '').toLowerCase());
+  
+  if (recentAssistant.length < 3) return false;
+  
+  let loopCount = 0;
+  for (const msg of recentAssistant) {
+    if (loopPhrases.some(p => msg.includes(p))) {
+      loopCount++;
+    }
+  }
+  
+  return loopCount >= 3;
+}
+
 function computeNextMove({ primaryMode, intentType, mode, continuity, conversationState, traceBrainSignals, currentMessage, confidence, historyMessages, topicAnchor }) {
   const text = (currentMessage || '').toLowerCase();
   const isStudios = primaryMode === 'studios';
@@ -687,6 +716,12 @@ function computeNextMove({ primaryMode, intentType, mode, continuity, conversati
   const conf = confidence || 'low';
 
   if (mode === 'longform') return 'deliver_longform';
+
+  const inLoop = detectValidationLoop(historyMessages);
+  if (inLoop) {
+    console.log('[BRAIN] nextMove=honest_mirror (validation loop detected)');
+    return 'honest_mirror';
+  }
 
   const explicitMusicAsk = /\b(play|listen|song|track|album|playlist|night swim|spotify|queue)\b/.test(text);
   if (explicitMusicAsk) return 'offer_music';
