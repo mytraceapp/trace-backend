@@ -6586,6 +6586,19 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       }
       
       if (pendingActivity) {
+        const STUDIO_ACTIVITY_IDS = [
+          'ripple', 'window', 'echo', 'drift',
+          'rising', 'basin', 'dreamscape', 'grounding'
+        ];
+        const isLightUser1 = userProfile?.plan_status !== 'studio' && 
+          userProfile?.plan_status !== 'premium';
+        if (isLightUser1 && STUDIO_ACTIVITY_IDS.includes(pendingActivity)) {
+          console.log('[STUDIO GATE] Blocking Studio activity confirmation for Light user:', pendingActivity);
+          return finalizeTraceResponse(res, {
+            message: "that one lives in TRACE Studio — if you want to talk more or try something else, I'm here. breathing, maze, walking, and rest are all available for you.",
+            activity_suggestion: null,
+          }, requestId);
+        }
         console.log(`[ACTIVITY NAV] User confirmed, navigating to: ${pendingActivity}`);
         return finalizeTraceResponse(res, {
           message: "alright. I'll be here when you're done.",
@@ -6631,6 +6644,19 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     
     const requestedActivity = detectExplicitActivityRequest(userText);
     if (requestedActivity) {
+      const STUDIO_ACTIVITY_IDS_2 = [
+        'ripple', 'window', 'echo', 'drift',
+        'rising', 'basin', 'dreamscape', 'grounding'
+      ];
+      const isLightUser2 = userProfile?.plan_status !== 'studio' && 
+        userProfile?.plan_status !== 'premium';
+      if (isLightUser2 && STUDIO_ACTIVITY_IDS_2.includes(requestedActivity)) {
+        console.log('[STUDIO GATE] Blocking Studio explicit request for Light user:', requestedActivity);
+        return finalizeTraceResponse(res, {
+          message: "that one lives in TRACE Studio — if you want to talk more or try something else, I'm here. breathing, maze, walking, and rest are all available for you.",
+          activity_suggestion: null,
+        }, requestId);
+      }
       const activityDescriptions = {
         breathing: "Breathing is orb-guided breath exercises — good when you need to slow everything down.",
         maze: "Maze is finger-tracing through a path — helps channel anxious energy into focus.",
