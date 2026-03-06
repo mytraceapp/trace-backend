@@ -6681,6 +6681,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     };
     
     const requestedActivity = detectExplicitActivityRequest(userText);
+    console.log('[ACTIVITY NAV DEBUG] requestedActivity:', requestedActivity, 'userProfile?.plan_status:', userProfile?.plan_status);
     if (requestedActivity) {
       const STUDIO_ACTIVITY_IDS_2 = [
         'ripple', 'window', 'echo', 'drift',
