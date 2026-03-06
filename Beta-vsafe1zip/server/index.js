@@ -19743,8 +19743,8 @@ async function getUserSubscriptionTier(supabase, userId) {
     }
     
     const plan = (data.plan_status || '').toLowerCase();
-    // Check for studio tier (could be 'studio', 'premium', etc.)
-    if (plan === 'studio' || plan === 'premium') {
+    // Check for studio tier
+    if (plan === 'studio') {
       return 'studio';
     }
     return 'free';
