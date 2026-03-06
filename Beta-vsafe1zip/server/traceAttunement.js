@@ -337,6 +337,37 @@ function checkDriftViolations(replyText) {
   };
 }
 
+function checkShortResponseQuality(replyText) {
+  if (!replyText) return { hasViolation: false };
+  const trimmed = replyText.trim();
+  const wordCount = trimmed.split(/\s+/).length;
+
+  if (wordCount > 12) return { hasViolation: false };
+
+  const lower = trimmed.toLowerCase();
+
+  const deadEndPhrases = [
+    "fair enough",
+    "tell me.",
+    "tell me",
+    "i'm good",
+    "got it",
+    "absolutely",
+    "sounds good",
+    "no problem",
+    "i see.",
+    "i see",
+  ];
+
+  for (const phrase of deadEndPhrases) {
+    if (lower === phrase || lower.startsWith(phrase + '.') || lower.startsWith(phrase + ',')) {
+      return { hasViolation: true, reason: `dead_end_short_response: "${phrase}"` };
+    }
+  }
+
+  return { hasViolation: false };
+}
+
 function buildRewritePrompt(originalReply) {
   return `Rewrite this reply with TRACE VOICE LOCK V1. Keep the meaning, but remove therapy-template language. Be concise, grounded, and direct. Do not use phrases like "I'm here for you", "That sounds really hard", or "You're not alone". Keep TRACE's calm, premium voice.
 
@@ -350,6 +381,7 @@ module.exports = {
   detectPosture,
   buildAttunementPrompt,
   checkDriftViolations,
+  checkShortResponseQuality,
   buildRewritePrompt,
   VOICE_LOCK_V1,
   DRIFT_CHECKLIST,

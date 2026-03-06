@@ -116,6 +116,7 @@ const {
   detectPosture,
   buildAttunementPrompt,
   checkDriftViolations,
+  checkShortResponseQuality,
   buildRewritePrompt,
 } = require('./traceAttunement');
 
@@ -13396,10 +13397,11 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
       }
 
       const driftCheck = checkDriftViolations(processedAssistantText);
-      
-      if (driftCheck.hasViolation && openai) {
+      const shortQualityCheck = checkShortResponseQuality(processedAssistantText);
+
+      if ((driftCheck.hasViolation || shortQualityCheck.hasViolation) && openai) {
         driftLockRan = true;
-        console.log('[DRIFT LOCK] Violations detected:', driftCheck.violations);
+        console.log('[DRIFT LOCK] Violations detected:', driftCheck.violations, shortQualityCheck.hasViolation ? `| ${shortQualityCheck.reason}` : '');
         try {
           const rewritePrompt = buildRewritePrompt(processedAssistantText);
           const rewriteResponse = await openai.chat.completions.create({
@@ -13415,7 +13417,8 @@ Someone just said: "${lastUserContent}". Respond like a friend would — 1 sente
           const driftFinishReason = rewriteResponse.choices?.[0]?.finish_reason;
           if (rewritten && rewritten.length > 10 && (driftFinishReason !== 'length' || isSentenceComplete(rewritten))) {
             const rewriteDriftCheck = checkDriftViolations(rewritten);
-            if (!rewriteDriftCheck.hasViolation) {
+            const rewriteShortCheck = checkShortResponseQuality(rewritten);
+            if (!rewriteDriftCheck.hasViolation && !rewriteShortCheck.hasViolation) {
               processedAssistantText = rewritten;
               console.log('[DRIFT LOCK] Successfully rewrote response');
               
