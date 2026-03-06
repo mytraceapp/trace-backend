@@ -3823,7 +3823,7 @@ async function loadProfileBasic(userId) {
   
   const resultWithPending = await supabaseServer
     .from('profiles')
-    .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon, pending_activity, pending_activity_route')
+    .select('user_id, display_name, plan_status, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon, pending_activity, pending_activity_route')
     .eq('user_id', userId)
     .single();
   
@@ -3832,7 +3832,7 @@ async function loadProfileBasic(userId) {
     console.log('[loadProfileBasic] pending_activity column not found, loading without it');
     const resultWithoutPending = await supabaseServer
       .from('profiles')
-      .select('user_id, display_name, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon')
+      .select('user_id, display_name, plan_status, first_run_completed, first_run_completed_at, first_chat_completed, onboarding_completed, onboarding_step, lat, lon')
       .eq('user_id', userId)
       .single();
     data = resultWithoutPending.data;
