@@ -6520,26 +6520,6 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
                                         prevAssistantContent.includes("good for") ||
                                         prevAssistantContent.includes("good when you need");
     
-    // Request-scoped profile cache: load once, reuse everywhere
-    let _profileBasicCache = undefined;
-    let _profileBasicDbHits = 0;
-    async function getProfileBasicOnce() {
-      if (_profileBasicCache !== undefined) return _profileBasicCache;
-      _profileBasicDbHits++;
-      _profileBasicCache = await loadProfileBasic(effectiveUserId);
-      return _profileBasicCache;
-    }
-    // Load user's preferred name from database (source of truth, not client payload)
-    let displayName = null;
-    let userProfile = null;
-    try {
-      if (supabaseServer && effectiveUserId) {
-        userProfile = await getProfileBasicOnce();
-        if (userProfile?.preferred_name) {
-          displayName = userProfile.preferred_name.trim();
-          console.log('[TRACE NAME] Loaded from DB:', displayName);
-        }
-
     if (activityPendingConfirmation && isActivityConfirmation(userText)) {
       // Extract which activity was mentioned in the previous message
       const activities = ['breathing', 'maze', 'rising', 'drift', 'ripple', 'basin', 'dreamscape', 'grounding', 'walking', 'window', 'rest'];
