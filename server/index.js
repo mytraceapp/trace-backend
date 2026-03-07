@@ -985,8 +985,10 @@ async function getAccuWeatherLocationKey(lat, lon) {
     }
     const data = await res.json();
     const locationKey = data?.Key;
+    const cityName = data?.LocalizedName || null;
     if (locationKey) {
       locationKeyCache.set(cacheKey, locationKey);
+      locationKeyCache.set(cacheKey + '_city', cityName);
     }
     return locationKey;
   } catch (err) {
@@ -1080,8 +1082,10 @@ async function getWeatherSummary({ lat, lon }) {
     summary += `. Wind around ${wind} mph`;
   }
 
+  const cachedCity = locationKeyCache.get(`${lat},${lon}_city`) || null;
   return {
     summary,
+    city: cachedCity,
     current: {
       temperature: nowTemp,
       feelsLike,
@@ -8466,8 +8470,9 @@ CRITICAL: When user asks about weather, temperature, or outside conditions, RESP
             profile: profileForWeather,
           });
           if (weatherResult.weatherSummary) {
-            weatherContext = `REAL-TIME WEATHER DATA (YOU HAVE THIS - USE IT WHEN ASKED):
-Current conditions at user's location: ${weatherResult.weatherSummary}.
+            const cityLine = weatherResult.city ? `User's city: ${weatherResult.city}. ` : '';
+          weatherContext = `REAL-TIME WEATHER DATA (YOU HAVE THIS - USE IT WHEN ASKED):
+${cityLine}Current conditions: ${weatherResult.weatherSummary}.
 CRITICAL: When user asks about weather, temperature, or outside conditions, RESPOND WITH THIS DATA. Do not say "I can't provide weather" - you HAVE the data above. Answer naturally like a friend who looked out the window.`;
           }
         }
