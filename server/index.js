@@ -6533,6 +6533,16 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       }
       
       if (pendingActivity) {
+        const STUDIO_ACTIVITIES = ['ripple','window','echo','drift','rising','basin','dreamscape','grounding'];
+        const isLightUser1 = userProfile?.plan_status !== 'studio';
+        if (isLightUser1 && STUDIO_ACTIVITIES.includes(pendingActivity)) {
+          console.log('[STUDIO GATE] Blocking Studio activity confirmation for Light user:', pendingActivity);
+          return finalizeTraceResponse(res, {
+            message: "that one lives in TRACE Studio — if you want to talk more or try something else, I'm here. breathing, maze, walking, and rest are all available for you.",
+            activity_suggestion: null,
+            block_navigation: true,
+          }, requestId);
+        }
         console.log(`[ACTIVITY NAV] User confirmed, navigating to: ${pendingActivity}`);
         return finalizeTraceResponse(res, {
           message: "alright. I'll be here when you're done.",
@@ -6578,6 +6588,16 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     
     const requestedActivity = detectExplicitActivityRequest(userText);
     if (requestedActivity) {
+      const STUDIO_ACTIVITIES_2 = ['ripple','window','echo','drift','rising','basin','dreamscape','grounding'];
+      const isLightUser2 = userProfile?.plan_status !== 'studio';
+      if (isLightUser2 && STUDIO_ACTIVITIES_2.includes(requestedActivity)) {
+        console.log('[STUDIO GATE] Blocking Studio explicit request for Light user:', requestedActivity);
+        return finalizeTraceResponse(res, {
+          message: "that one lives in TRACE Studio — if you want to talk more or try something else, I'm here. breathing, maze, walking, and rest are all available for you.",
+          activity_suggestion: null,
+          block_navigation: true,
+        }, requestId);
+      }
       const activityDescriptions = {
         breathing: "Breathing is orb-guided breath exercises — good when you need to slow everything down.",
         maze: "Maze is finger-tracing through a path — helps channel anxious energy into focus.",
@@ -10542,10 +10562,32 @@ The user is asking a factual question. Answer with specific details — names, n
     // Select optimal model based on conversation context
     // ============================================================
     // Determine premium status from user profile
-    const isPremium = userProfile?.plan_status === 'premium' ||
-                      userProfile?.plan === 'premium' ||
-                      userProfile?.is_premium === true;
-    
+    const isPremium = userProfile?.plan_status === 'studio';
+
+    // 50 message daily limit for Light users
+    if (!isPremium) {
+      try {
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { count, error: countError } = await supabaseServer
+          .from('chat_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', effectiveUserId)
+          .eq('role', 'user')
+          .gte('created_at', since);
+        const messageCount = countError ? 0 : (count ?? 0);
+        console.log('[MESSAGE LIMIT] Light user message count:', messageCount);
+        if (messageCount >= 50) {
+          console.log('[MESSAGE LIMIT] Light user hit 50 message limit');
+          return finalizeTraceResponse(res, {
+            message: "I need to step away and rest for a bit — if you ever want more time with me, Studio keeps me available whenever you need. I'll be back tomorrow. take care of yourself until then.",
+            activity_suggestion: null,
+          }, requestId);
+        }
+      } catch (err) {
+        console.warn('[MESSAGE LIMIT] Count error:', err.message);
+      }
+    }
+
     const modelRoute = selectTraceModel({
       userText: lastUserContent,
       mode: safeClientState?.currentScreen || 'chat',
