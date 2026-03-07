@@ -6534,7 +6534,8 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       
       if (pendingActivity) {
         const STUDIO_ACTIVITIES = ['ripple','window','echo','drift','rising','basin','dreamscape','grounding'];
-        const isLightUser1 = userProfile?.plan_status !== 'studio';
+        const _gateProfile1 = await loadProfileBasic(effectiveUserId);
+        const isLightUser1 = _gateProfile1?.plan_status !== 'studio';
         if (isLightUser1 && STUDIO_ACTIVITIES.includes(pendingActivity)) {
           console.log('[STUDIO GATE] Blocking Studio activity confirmation for Light user:', pendingActivity);
           return finalizeTraceResponse(res, {
@@ -6589,7 +6590,8 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
     const requestedActivity = detectExplicitActivityRequest(userText);
     if (requestedActivity) {
       const STUDIO_ACTIVITIES_2 = ['ripple','window','echo','drift','rising','basin','dreamscape','grounding'];
-      const isLightUser2 = userProfile?.plan_status !== 'studio';
+      const _gateProfile2 = await loadProfileBasic(effectiveUserId);
+      const isLightUser2 = _gateProfile2?.plan_status !== 'studio';
       if (isLightUser2 && STUDIO_ACTIVITIES_2.includes(requestedActivity)) {
         console.log('[STUDIO GATE] Blocking Studio explicit request for Light user:', requestedActivity);
         return finalizeTraceResponse(res, {
