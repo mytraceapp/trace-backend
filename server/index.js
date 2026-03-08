@@ -6397,7 +6397,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       // Explicit sexual terms
       const sexualKeywords = [
         'sext', 'sexting', 'nudes', 'nude', 'naked', 'turn me on', 'horny',
-        'fuck me', 'have sex', 'sexual', 'erotic', 'masturbate', 'orgasm',
+        'fuck me', 'have sex', 'sexual content', 'sexual roleplay', 'erotic', 'masturbate', 'orgasm',
         'porn', 'dirty talk', 'moan', 'cum', 'dick', 'cock', 'pussy',
         'boobs', 'tits', 'blow job', 'blowjob', 'handjob', 'fingering'
       ];
