@@ -21,6 +21,7 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const OpenAI = require('openai');
+const Anthropic = require('@anthropic-ai/sdk');
 const { createClient } = require('@supabase/supabase-js');
 const { Pool } = require('pg');
 const { DateTime } = require('luxon');
@@ -2878,6 +2879,15 @@ if (hasOpenAIKey) {
   console.log('OpenAI client initialized');
 } else {
   console.log('No OpenAI API key found - chat will use fallback responses');
+}
+
+// Anthropic (Claude) client
+let anthropic = null;
+if (process.env.ANTHROPIC_API_KEY) {
+  anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  console.log('Anthropic client initialized');
+} else {
+  console.log('No Anthropic API key found');
 }
 
 // ============================================================
