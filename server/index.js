@@ -9395,6 +9395,32 @@ It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${local
       personaInjection += `---\n`;
       systemPrompt = personaInjection + systemPrompt;
       
+      // ===== LOOP DETECTION — inject correction if recent responses are all validation =====
+      const recentAssistantMsgs = messages.filter(m => m.role === 'assistant').slice(-3).map(m => m.content || '');
+      if (recentAssistantMsgs.length >= 2) {
+        const validationPhrases = [
+          /^(yeah|it'?s?|that'?s?|definitely|absolutely).{0,80}(tough|hard|weight|heavy|lot|toll|difficult|challenging)/i,
+          /^(it'?s? (a )?(lot|tough|hard|challenging|rough))/i,
+          /carrying (a lot|both|so much)/i,
+          /weigh(s|ing)? (you|someone|them) down/i,
+          /takes? a toll/i,
+          /that'?s? (so )?important/i,
+          /strong place to come from/i,
+          /can be (a )?(challenging|difficult|tough|rough)/i,
+          /transitions? can hit hard/i,
+          /wear(s|ing)? (you|them) down/i,
+        ];
+        const isValidationOnly = (txt) => validationPhrases.some(p => p.test(txt.trim())) && !/\?/.test(txt);
+        const loopCount = recentAssistantMsgs.filter(isValidationOnly).length;
+        if (loopCount >= 2) {
+          console.log('[LOOP INJECTION] Detected validation loop — injecting break directive');
+          systemPrompt += `
+
+CRITICAL — RIGHT NOW: You have validated without asking anything for ${loopCount} responses in a row. This is a loop. You MUST break it now. Do NOT validate again. Instead: ask one specific, unexpected question about what they just said — something that makes them stop and actually think. The question should be about the specific detail they mentioned, not a generic "how are you feeling?" Example: if they said "I just want to help her" — ask "what does helping her actually look like for you right now?" Go deeper. No more validation.`;
+        }
+      }
+      // ===== END LOOP DETECTION =====
+
       // Add no-greeting directive for ongoing conversations
       systemPrompt += `
 
