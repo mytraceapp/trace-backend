@@ -815,6 +815,34 @@ function enforceAutonomyGuard(text) {
 }
 
 /**
+ * Loop Detector — catches validation-only responses when conversation is looping
+ * If last response was also pure validation, flags this response for logging
+ */
+function detectValidationLoop(responseText) {
+  if (!responseText || typeof responseText !== 'string') return false;
+  
+  const validationPhrases = [
+    /^(yeah|it'?s?|that'?s?|definitely|absolutely).{0,60}(tough|hard|weight|heavy|lot|toll|difficult|challenging)/i,
+    /^(it'?s? (a )?(lot|tough|hard|challenging|rough))/i,
+    /carrying (a lot|both|so much)/i,
+    /weigh(s|ing)? (you|someone|them) down/i,
+    /takes? a toll/i,
+    /that'?s? (so )?important/i,
+    /strong place to come from/i,
+    /both of you.{0,30}(change|uncertainty|transition)/i,
+  ];
+  
+  const isValidationOnly = validationPhrases.some(p => p.test(responseText.trim()));
+  const hasQuestion = /\?/.test(responseText);
+  
+  if (isValidationOnly && !hasQuestion) {
+    console.log('[LOOP DETECTOR] Pure validation response detected — no question asked:', responseText.slice(0, 80));
+    return true;
+  }
+  return false;
+}
+
+/**
  * System Confidence Level Calculator
  * Tracks how reliable our "smart" features are for this request
  * Passed to AI so it can adapt its tone when internal context fails
