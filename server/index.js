@@ -9409,6 +9409,13 @@ It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${local
           /can be (a )?(challenging|difficult|tough|rough)/i,
           /transitions? can hit hard/i,
           /wear(s|ing)? (you|them) down/i,
+          /that'?s? a (good|strong|great) (approach|place|way)/i,
+          /step by step/i,
+          /day by day/i,
+          /taking it one (day|step)/i,
+          /make a (big )?difference/i,
+          /lol fair/i,
+          /^(fair\.|lol\.|ha\.|okay\.|yeah\.)/i,
         ];
         const isValidationOnly = (txt) => validationPhrases.some(p => p.test(txt.trim())) && !/\?/.test(txt);
         const loopCount = recentAssistantMsgs.filter(isValidationOnly).length;
