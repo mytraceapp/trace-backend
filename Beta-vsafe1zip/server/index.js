@@ -2878,7 +2878,7 @@ const TRACE_FALLBACK_MODEL_2 = 'gpt-4o'; // Strong backup fallback
 
 // Tiered Model Routing Constants
 const TRACE_TIER0_MODEL = process.env.TRACE_TIER0_MODEL || 'gpt-4o-mini';       // Fast/cheap (scripts, onboarding)
-const TRACE_TIER1_MODEL = process.env.TRACE_TIER1_MODEL || 'gpt-4o-mini';        // Normal chat (non-premium) - gpt-5-mini has JSON mode issues
+const TRACE_TIER1_MODEL = process.env.TRACE_TIER1_MODEL || 'gpt-4o';              // Normal chat (non-premium) - upgraded from 4o-mini for prompt adherence
 const TRACE_TIER2_MODEL = process.env.TRACE_TIER2_MODEL || 'gpt-5.1';           // Premium moments (best model)
 
 // ============================================================
