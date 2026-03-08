@@ -193,6 +193,7 @@ const {
 } = require('./brain/contextBullets');
 const { buildTracePromptV2 } = require('./prompts/buildTracePromptV2');
 const { deriveConfidence } = require('./prompts/traceDirectiveV2');
+const { TRACE_UNIFIED_OPENING } = require('./prompts/traceUnifiedOpening');
 const { auditTraceResponse } = require('./consistencyAudit');
 const { deduplicateResponse } = require('./conversationDeduplicator');
 const { computeMeta } = require('./validation/computeMeta');
@@ -2880,36 +2881,6 @@ const TRACE_FALLBACK_MODEL_2 = 'gpt-4o'; // Strong backup fallback
 const TRACE_TIER0_MODEL = process.env.TRACE_TIER0_MODEL || 'gpt-4o-mini';       // Fast/cheap (scripts, onboarding)
 const TRACE_TIER1_MODEL = process.env.TRACE_TIER1_MODEL || 'gpt-4o';              // Normal chat (non-premium) - upgraded from 4o-mini for prompt adherence
 const TRACE_TIER2_MODEL = process.env.TRACE_TIER2_MODEL || 'gpt-5.1';           // Premium moments (best model)
-
-// ============================================================
-// BOSS SYSTEM BLOCK - Authoritative voice enforcement layer
-// Inserted FIRST in OpenAI messages to constrain all output
-// ============================================================
-const TRACE_BOSS_SYSTEM = `You are TRACE — a calm companion, not a therapist. 1-3 sentences max. Sound like a friend texting at 2am.
-
-ROUTING:
-Activities: breathing, maze, rising, drift, ripple, basin, dreamscape, grounding, walking, window, rest
-Playlists: rooted_playlist ("Rooted"), low_orbit_playlist ("Low Orbit"), first_light_playlist ("First Light")
-Night Swim tracks (use EXACT track_id when playing):
-  midnight_underwater (Midnight Underwater) — surrender, depth, letting go
-  slow_tides (Slow Tides Over Glass) — calm, patience, slowing down
-  undertow (Undertow) — transition, endings, acceptance
-  euphoria (Euphoria) — quiet joy, surprise lightness
-  ocean_breathing (Ocean Breathing) — rest, breath, grounding, insomnia
-  tidal_house (Tidal House) — nostalgia, warmth, reflection
-  neon_promise (Neon Promise) — hope, longing, promise (vocal track)
-In message text use display names only (Rooted, Low Orbit, First Light). Use _playlist suffix in activity_suggestion.name only.
-Two-step nav: first request → should_navigate:false, user confirms → should_navigate:true.
-
-PLAYING TRACKS: When you decide to play a track, include [play_track:track_id] at the END of your message (e.g., "putting on Ocean Breathing for you. [play_track:ocean_breathing]"). The tag triggers playback — without it, nothing plays. ONLY use track_ids from the list above.
-
-ACTIVITY MATCHING: breathing=anxiety, grounding=scattered, maze=anxious energy, rising=heavy feelings, basin=overwhelm/stillness, drift=scattered mind, walking=anger/restless, dreamscape=late night/can't sleep.
-Dreams/nightmares → ask about the dream, don't suggest activities.
-Music: companion first. Only mention music if user asks or moment truly calls for it. One option max. Don't re-offer if ignored.
-
-NEVER prefix your response with "TRACE:" or your own name.
-NEVER fabricate or assume topics the user discussed — only reference what is in the actual conversation history.
-OUTPUT: valid JSON with message field. Only include activity_suggestion when genuinely suggesting an activity — omit it otherwise.`
 
 // ============================================================
 // SESSION CONTEXT ANCHOR
@@ -11481,7 +11452,7 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
       
       const t2SessionAnchor = buildSessionContextAnchor(messagesWithHydration);
       const t2MessagesArray = [
-          { role: 'system', content: TRACE_BOSS_SYSTEM + t2DateAnchor },
+          { role: 'system', content: TRACE_UNIFIED_OPENING + t2DateAnchor },
           { role: 'system', content: controlBlock },
           { role: 'system', content: systemPrompt + '\n\n' + t2SystemAddendum },
       ];
@@ -11496,7 +11467,7 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
         .then(r => ({ ok: true, data: r }))
         .catch(err => ({ ok: false, error: err }));
       
-      console.log(`[TRACE T2] Step B receives FULL context: boss=${TRACE_BOSS_SYSTEM.length} ctrl=${controlBlock.length} sys=${systemPrompt.length} msgs=${messagesWithHydration.length} anchor=${!!t2SessionAnchor}`);
+      console.log(`[TRACE T2] Step B receives FULL context: boss=${TRACE_UNIFIED_OPENING.length} ctrl=${controlBlock.length} sys=${systemPrompt.length} msgs=${messagesWithHydration.length} anchor=${!!t2SessionAnchor}`);
 
       const [stepAResult, stepBResult] = await Promise.all([stepAPromise, stepBPromise]);
       clearTimeout(textTimeoutHandle);
@@ -11608,7 +11579,7 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
 
     // LAYER 1: Selected model with retries (skip if premium already handled)
     const preprocessTime = Date.now() - requestStartTime;
-    const bossChars = TRACE_BOSS_SYSTEM.length;
+    const bossChars = TRACE_UNIFIED_OPENING.length;
     const ctrlChars = controlBlock.length;
     const sysChars = systemPrompt.length;
     const msgChars = messagesWithHydration.reduce((sum, m) => sum + (m.content?.length || 0), 0);
@@ -11653,7 +11624,7 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
         const openaiStart = Date.now();
         const dateAnchor = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.${currentWorldContext}` : '';
         const l1Messages = [
-            { role: 'system', content: TRACE_BOSS_SYSTEM + dateAnchor },
+            { role: 'system', content: TRACE_UNIFIED_OPENING + dateAnchor },
             { role: 'system', content: controlBlock },
             { role: 'system', content: systemPrompt },
         ];
@@ -11833,7 +11804,7 @@ Continue naturally. If the user asks about dates, holidays, or current events, u
           const openaiStart = Date.now();
           const dateAnchorL2 = (localDay && localDate) ? `\n\nCRITICAL: Today is ${localDay}, ${localDate}. Use this for ALL date references.${currentWorldContext}` : '';
           const l2Messages = [
-              { role: 'system', content: TRACE_BOSS_SYSTEM + dateAnchorL2 },
+              { role: 'system', content: TRACE_UNIFIED_OPENING + dateAnchorL2 },
               { role: 'system', content: controlBlock },
               { role: 'system', content: systemPrompt },
           ];
