@@ -9431,12 +9431,14 @@ It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${local
         const loopCount = recentAssistantMsgs.filter(isValidationOnly).length;
         if (loopCount >= 1) {
           console.log('[LOOP INJECTION] Detected validation loop — injecting break directive');
-          systemPrompt += `
 
-CRITICAL — RIGHT NOW: You have validated without asking anything for ${loopCount} responses in a row. This is a loop. You MUST break it now. Do NOT validate again. Instead: ask one specific, unexpected question about what they just said — something that makes them stop and actually think. The question should be about the specific detail they mentioned, not a generic "how are you feeling?" Example: if they said "I just want to help her" — ask "what does helping her actually look like for you right now?" Go deeper. No more validation.`;
+          systemPrompt = "LOOP OVERRIDE: " + loopCount + " responses, no question. Ask one specific question now. Do not validate." + "\n\n" + systemPrompt;
         }
       }
       // ===== END LOOP DETECTION =====
+
+
+
 
       // Add no-greeting directive for ongoing conversations
       systemPrompt += `
