@@ -10654,22 +10654,22 @@ The user is asking a factual question. Answer with specific details — names, n
           .gte('created_at', since);
         const messageCount = countError ? 0 : (count ?? 0);
         console.log('[MESSAGE LIMIT] Light user message count:', messageCount);
-        if (messageCount >= 50) {
-          console.log('[MESSAGE LIMIT] Light user hit 50 message limit');
+        if (messageCount >= 100) {
+          console.log('[MESSAGE LIMIT] Light user hit 100 message limit');
           return finalizeTraceResponse(res, {
             message: "I need to rest for tonight — you can always pick this back up tomorrow. if you ever want more time, Studio keeps me around whenever you need.",
             activity_suggestion: null,
           }, requestId);
         }
-        if (messageCount === 47) {
-          console.log('[MESSAGE LIMIT] Light user at 47 messages — final warning');
+        if (messageCount === 95) {
+          console.log('[MESSAGE LIMIT] Light user at 95 messages — final warning');
           return finalizeTraceResponse(res, {
             message: "last couple messages for today. what's the most important thing on your mind right now?",
             activity_suggestion: null,
           }, requestId);
         }
-        if (messageCount === 45) {
-          console.log('[MESSAGE LIMIT] Light user at 45 messages — soft warning');
+        if (messageCount === 90) {
+          console.log('[MESSAGE LIMIT] Light user at 90 messages — soft warning');
           return finalizeTraceResponse(res, {
             message: "hey — I'm going to have to step away soon. but I'm still here right now.",
             activity_suggestion: null,
