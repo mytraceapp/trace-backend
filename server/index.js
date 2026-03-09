@@ -9406,7 +9406,7 @@ It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${local
       systemPrompt = personaInjection + systemPrompt;
       
       // ===== LOOP DETECTION — inject correction if recent responses are all validation =====
-      const recentAssistantMsgs = messages.filter(m => m.role === 'assistant').slice(-3).map(m => m.content || '');
+      const recentAssistantMsgs = messages.filter(m => m.role === 'assistant').slice(-6).map(m => m.content || '');
       if (recentAssistantMsgs.length >= 2) {
         const validationPhrases = [
           /^(yeah|it'?s?|that'?s?|definitely|absolutely).{0,80}(tough|hard|weight|heavy|lot|toll|difficult|challenging)/i,
@@ -9429,7 +9429,7 @@ It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${local
         ];
         const isValidationOnly = (txt) => !/[?]/.test(txt.trim());
         const loopCount = recentAssistantMsgs.filter(isValidationOnly).length;
-        if (loopCount >= 2) {
+        if (loopCount >= 1) {
           console.log('[LOOP INJECTION] Detected validation loop — injecting break directive');
           systemPrompt += `
 
