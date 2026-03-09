@@ -10657,7 +10657,21 @@ The user is asking a factual question. Answer with specific details — names, n
         if (messageCount >= 50) {
           console.log('[MESSAGE LIMIT] Light user hit 50 message limit');
           return finalizeTraceResponse(res, {
-            message: "I need to step away and rest for a bit — if you ever want more time with me, Studio keeps me available whenever you need. I'll be back tomorrow. take care of yourself until then.",
+            message: "I need to rest for tonight — you can always pick this back up tomorrow. if you ever want more time, Studio keeps me around whenever you need.",
+            activity_suggestion: null,
+          }, requestId);
+        }
+        if (messageCount === 47) {
+          console.log('[MESSAGE LIMIT] Light user at 47 messages — final warning');
+          return finalizeTraceResponse(res, {
+            message: "last couple messages for today. what's the most important thing on your mind right now?",
+            activity_suggestion: null,
+          }, requestId);
+        }
+        if (messageCount === 45) {
+          console.log('[MESSAGE LIMIT] Light user at 45 messages — soft warning');
+          return finalizeTraceResponse(res, {
+            message: "hey — I'm going to have to step away soon. but I'm still here right now.",
             activity_suggestion: null,
           }, requestId);
         }
