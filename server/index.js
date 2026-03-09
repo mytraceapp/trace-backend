@@ -9406,37 +9406,23 @@ It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${local
       systemPrompt = personaInjection + systemPrompt;
       
       // ===== LOOP DETECTION — inject correction if recent responses are all validation =====
+      // ===== LOOP DETECTION — inject correction if recent responses are all validation =====
       const recentAssistantMsgs = messages.filter(m => m.role === 'assistant').slice(-6).map(m => m.content || '');
       if (recentAssistantMsgs.length >= 2) {
-        const validationPhrases = [
-          /^(yeah|it'?s?|that'?s?|definitely|absolutely).{0,80}(tough|hard|weight|heavy|lot|toll|difficult|challenging)/i,
-          /^(it'?s? (a )?(lot|tough|hard|challenging|rough))/i,
-          /carrying (a lot|both|so much)/i,
-          /weigh(s|ing)? (you|someone|them) down/i,
-          /takes? a toll/i,
-          /that'?s? (so )?important/i,
-          /strong place to come from/i,
-          /can be (a )?(challenging|difficult|tough|rough)/i,
-          /transitions? can hit hard/i,
-          /wear(s|ing)? (you|them) down/i,
-          /that'?s? a (good|strong|great) (approach|place|way)/i,
-          /step by step/i,
-          /day by day/i,
-          /taking it one (day|step)/i,
-          /make a (big )?difference/i,
-          /lol fair/i,
-          /^(fair\.|lol\.|ha\.|okay\.|yeah\.)/i,
-        ];
-        const isValidationOnly = (txt) => !/[?]/.test(txt.trim());
-        const loopCount = recentAssistantMsgs.filter(isValidationOnly).length;
-        if (loopCount >= 1) {
-          console.log('[LOOP INJECTION] Detected validation loop — injecting break directive');
-
-          systemPrompt = "LOOP OVERRIDE: " + loopCount + " responses, no question. Ask one specific question now. Do not validate." + "\n\n" + systemPrompt;
+        let consecutiveNoQuestion = 0;
+        for (let i = recentAssistantMsgs.length - 1; i >= 0; i--) {
+          if (!/[?]/.test(recentAssistantMsgs[i].trim())) {
+            consecutiveNoQuestion++;
+          } else {
+            break;
+          }
+        }
+        if (consecutiveNoQuestion >= 2) {
+          console.log('[LOOP INJECTION] ' + consecutiveNoQuestion + ' consecutive no-question responses — injecting break');
+          systemPrompt = "LOOP OVERRIDE: Your last " + consecutiveNoQuestion + " responses had no question. You are in a validation loop. Ask one specific question now about what they just said. Do not validate first. Just ask.\n\n" + systemPrompt;
         }
       }
       // ===== END LOOP DETECTION =====
-
 
 
 
