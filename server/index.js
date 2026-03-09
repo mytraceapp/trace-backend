@@ -9427,7 +9427,7 @@ It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${local
           /lol fair/i,
           /^(fair\.|lol\.|ha\.|okay\.|yeah\.)/i,
         ];
-        const isValidationOnly = (txt) => validationPhrases.some(p => p.test(txt.trim())) && !/\?/.test(txt);
+        const isValidationOnly = (txt) => !/[?]/.test(txt.trim());
         const loopCount = recentAssistantMsgs.filter(isValidationOnly).length;
         if (loopCount >= 2) {
           console.log('[LOOP INJECTION] Detected validation loop — injecting break directive');
