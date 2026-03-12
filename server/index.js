@@ -15383,7 +15383,7 @@ app.get('/api/profile', async (req, res) => {
       theme: 'sage',
       push_enabled: false,
       email_enabled: false,
-      plan_status: 'free',
+      plan_status: 'light',
       plan_expires_at: null,
       has_completed_onboarding: false,
       weather_context_enabled: false,
@@ -16011,6 +16011,7 @@ app.post('/api/subscription/mark-upgraded', async (req, res) => {
     if (planStatus !== undefined) updates.plan_status = planStatus;
     if (planExpiresAt !== undefined) updates.plan_expires_at = planExpiresAt;
     if (hasCompletedOnboarding !== undefined) updates.has_completed_onboarding = hasCompletedOnboarding;
+    if (hasCompletedOnboarding === true) { updates.onboarding_completed = true; updates.onboarding_step = 'complete'; }
     
     const { data, error } = await supabaseServer
       .from('profiles')
@@ -16282,7 +16283,7 @@ app.post('/api/account/delete', async (req, res) => {
       .update({
         display_name: null,
         email: null,
-        plan_status: 'deleted',
+        plan_status: 'light',
         has_completed_onboarding: false,
         updated_at: new Date().toISOString(),
       })
