@@ -15453,8 +15453,7 @@ app.patch('/api/profile', async (req, res) => {
     
     const { data, error } = await supabaseServer
       .from('profiles')
-      .update(updates)
-      .eq('user_id', userId)
+      .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' })
       .select()
       .single();
     
