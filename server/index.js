@@ -16011,7 +16011,6 @@ app.post('/api/subscription/mark-upgraded', async (req, res) => {
     if (planStatus !== undefined) updates.plan_status = planStatus;
     if (planExpiresAt !== undefined) updates.plan_expires_at = planExpiresAt;
     if (hasCompletedOnboarding !== undefined) updates.has_completed_onboarding = hasCompletedOnboarding;
-    if (hasCompletedOnboarding === true) { updates.onboarding_completed = true; updates.onboarding_step = 'complete'; }
     
     const { data, error } = await supabaseServer
       .from('profiles')
