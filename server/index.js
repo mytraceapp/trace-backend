@@ -15453,7 +15453,8 @@ app.patch('/api/profile', async (req, res) => {
     
     const { data, error } = await supabaseServer
       .from('profiles')
-      .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' })
+      .update(updates)
+      .eq('user_id', userId)
       .select()
       .single();
     
@@ -16015,7 +16016,8 @@ app.post('/api/subscription/mark-upgraded', async (req, res) => {
     
     const { data, error } = await supabaseServer
       .from('profiles')
-      .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' })
+      .update(updates)
+      .eq('user_id', userId)
       .select()
       .single();
     
