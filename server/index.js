@@ -15371,6 +15371,15 @@ app.get('/api/profile', async (req, res) => {
     
     if (existing) {
       console.log('[PROFILE] Found existing profile for:', userId);
+// TRIAL EXPIRY PATCH - insert after "Found existing profile" log
+if (existing.trial_started_at && existing.intended_plan === 'light' && existing.plan_status === 'studio') {
+  const trialEnd = new Date(existing.trial_started_at).getTime() + 14 * 24 * 60 * 60 * 1000;
+  if (Date.now() > trialEnd) {
+    await supabaseServer.from('profiles').update({ plan_status: 'light', updated_at: new Date().toISOString() }).eq('user_id', userId);
+    existing.plan_status = 'light';
+    console.log('[PROFILE] Trial expired - downgraded to light:', userId);
+  }
+}
       return res.json(existing);
     }
     
@@ -16011,6 +16020,8 @@ app.post('/api/subscription/mark-upgraded', async (req, res) => {
     if (planStatus !== undefined) updates.plan_status = planStatus;
     if (planExpiresAt !== undefined) updates.plan_expires_at = planExpiresAt;
     if (hasCompletedOnboarding !== undefined) updates.has_completed_onboarding = hasCompletedOnboarding;
+    if (planStatus !== undefined) updates.intended_plan = planStatus;
+    if (updates.trial_started_at === undefined) updates.trial_started_at = new Date().toISOString();
     
     const { data, error } = await supabaseServer
       .from('profiles')
