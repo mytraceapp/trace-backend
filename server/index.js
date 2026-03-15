@@ -11260,7 +11260,16 @@ If the right move isn't obvious: one grounded observation about what you notice 
     });
     const controlLengthLabel = rhythmNudge?.tier === 'ultra_short' ? 'micro' : rhythmNudge?.tier === 'short' ? 'short' : rhythmNudge?.tier === 'long' ? 'long' : 'medium';
     const controlQMode = conversationState.computeQuestionMode(effectiveUserId, { userEnergy: controlUserEnergy });
-    const controlQBudget = controlQMode.budget;
+    let controlQBudget = controlQMode.budget;
+    // TRACE NUDGE: loosen question throttle for deeper engagement
+    // if mode is OBSERVE_ONLY due to natural spacing, give it a 50% chance to allow anyway
+    if (controlQMode.reason === 'natural_spacing_after_question' && controlQBudget === 0) {
+      const nudgeRoll = Math.random();
+      if (nudgeRoll < 0.5) {
+        controlQBudget = 1;
+        console.log('[Q_NUDGE] Overrode OBSERVE_ONLY to ALLOW_ONE for natural engagement');
+      }
+    }
     const hasExternalContext = !!(newsContext || searchContext || weatherContext || foodContext || holidayContext);
     const baseMaxWords = controlLengthLabel === 'micro' ? 5 : controlLengthLabel === 'short' ? 20 : controlLengthLabel === 'long' ? 90 : 50;
     let controlMaxWords = baseMaxWords;
