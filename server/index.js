@@ -11272,7 +11272,11 @@ If the right move isn't obvious: one grounded observation about what you notice 
     }
     const hasExternalContext = !!(newsContext || searchContext || weatherContext || foodContext || holidayContext);
     const baseMaxWords = controlLengthLabel === 'micro' ? 5 : controlLengthLabel === 'short' ? 20 : controlLengthLabel === 'long' ? 90 : 50;
-    let controlMaxWords = baseMaxWords;
+    // Q_ROOM: if a question is budgeted, ensure enough words to actually ask it
+    if (controlQBudget >= 1 && baseMaxWords < 40) {
+      console.log(`[Q_ROOM] Bumping maxWords from ${baseMaxWords} to 40 — question budgeted but word limit too tight`);
+    }
+    let controlMaxWords = (controlQBudget >= 1 && baseMaxWords < 40) ? 40 : baseMaxWords;
     if (isCrisisMode) {
       controlMaxWords = 120;
       console.log(`[CONTROL_BLOCK] Length override: ${baseMaxWords} → ${controlMaxWords} (CRISIS MODE — safety messaging needs room)`);
