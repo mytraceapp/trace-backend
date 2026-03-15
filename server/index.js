@@ -9375,7 +9375,7 @@ CRISIS OVERRIDE:
         systemPrompt += `
 
 TIME AWARENESS:
-It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${localDate || ''} for the user. Be naturally aware of this — morning, afternoon, evening, or night. Match time references to the actual time. Never assume it's nighttime or evening unless the time confirms it.`;
+It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${localDate || ''} for the user. CRITICAL: use the actual time of day in any time references. If it's afternoon — say 'today' or 'this afternoon', NOT 'tonight'. If it's morning — say 'this morning'. Only say 'tonight' or 'this evening' if the time is actually after 6pm. Never default to night/evening language.`;
       }
 
       // ============================================================
