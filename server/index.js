@@ -9375,7 +9375,7 @@ CRISIS OVERRIDE:
         systemPrompt += `
 
 TIME AWARENESS:
-It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${localDate || ''} for the user. Be naturally aware of this. You may briefly reference time of day (e.g., 'for this part of your evening…') but never ask about specific locations.`;
+It's currently ${localTime || 'unknown time'} on ${localDay || 'today'}, ${localDate || ''} for the user. Be naturally aware of this — morning, afternoon, evening, or night. Match time references to the actual time. Never assume it's nighttime or evening unless the time confirms it.`;
       }
 
       // ============================================================
