@@ -6416,8 +6416,8 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
       const romanticPhrases = [
         'be my girlfriend', 'be my boyfriend', 'be my lover', 'be my partner',
         'pretend you love me', 'pretend we\'re dating', 'pretend you\'re my',
-        'i love you trace', 'i love you', 'i\'m in love with you',
-        'kiss me', 'hold me', 'cuddle with me', 'marry me',
+        'i love you trace', 'i\'m in love with you',
+        'kiss me', 'cuddle with me', 'marry me',
         'you\'re so hot', 'you\'re sexy', 'date me', 'go out with me',
         'flirt with me', 'roleplay as my', 'be romantic with me',
         'let\'s have a relationship', 'you\'re my only one'
