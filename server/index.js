@@ -11095,12 +11095,16 @@ If the right move isn't obvious: one grounded observation about what you notice 
             const result = await relationalMemory.resolvePersonByRelationship(pool, effectiveUserId, rel);
             if (result && result.ambiguous) {
               const clarification = relationalMemory.buildClarificationResponse(rel, result.candidates, lastUserMsg);
-              console.log(`[RELATIONAL MEMORY] Ambiguous ${rel}, asking clarification`);
-              return finalizeTraceResponse(res, {
-                message: clarification,
-                response_source: 'relational_clarification',
-                _provenance: { path: 'relational_memory', requestId, ts: Date.now() }
-              }, requestId);
+              if (clarification) {
+                console.log(`[RELATIONAL MEMORY] Ambiguous ${rel}, asking clarification`);
+                return finalizeTraceResponse(res, {
+                  message: clarification,
+                  response_source: 'relational_clarification',
+                  _provenance: { path: 'relational_memory', requestId, ts: Date.now() }
+                }, requestId);
+              } else {
+                console.log(`[RELATIONAL MEMORY] Skipping clarification for ${rel} — using context`);
+              }
             } else if (result) {
               resolvedPeople.push(result);
               await relationalMemory.bumpSalience(pool, result.id);
