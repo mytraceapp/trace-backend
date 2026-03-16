@@ -11266,14 +11266,11 @@ If the right move isn't obvious: one grounded observation about what you notice 
     const controlQMode = conversationState.computeQuestionMode(effectiveUserId, { userEnergy: controlUserEnergy });
     let controlQBudget = controlQMode.budget;
     // TRACE NUDGE: loosen question throttle for deeper engagement
-    if (controlQBudget === 0 && (
-      controlQMode.reason === 'natural_spacing_after_question' ||
-      controlQMode.reason === 'asked_2_in_a_row'
-    )) {
+    if (controlQBudget === 0 && controlQMode.reason === 'natural_spacing_after_question') {
       const nudgeRoll = Math.random();
-      if (nudgeRoll < 0.5) {
+      if (nudgeRoll < 0.4) {
         controlQBudget = 1;
-        console.log('[Q_NUDGE] Overrode ' + controlQMode.reason + ' to ALLOW_ONE for natural engagement');
+        console.log('[Q_NUDGE] Overrode natural_spacing to ALLOW_ONE for natural engagement');
       }
     }
     const hasExternalContext = !!(newsContext || searchContext || weatherContext || foodContext || holidayContext);
