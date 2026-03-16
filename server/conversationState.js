@@ -1215,7 +1215,7 @@ function buildControlBlock({
   lines.push('CONSTRAINTS:');
   lines.push(`- Max words: ${lengthMode.maxWords} | Questions: ${questionMode.budget}`);
   if (questionMode.mode === 'PRESENCE_ONLY') {
-    lines.push('- QUESTION_MODE=PRESENCE_ONLY: No questions this turn. Just be with them. Acknowledge, observe, or sit with what they said. A period is more powerful than a question mark right now.');
+    lines.push('- QUESTION_MODE=PRESENCE_ONLY: No questions this turn. But do NOT give a flat 2-word response. Use this turn to reframe, observe something specific, or make an unexpected connection. "Fair enough." is not presence — it's a dodge. Say something real in 1-2 sentences.');
   } else if (questionMode.mode === 'OBSERVE_ONLY') {
     lines.push('- QUESTION_MODE=OBSERVE_ONLY: No questions this turn. Instead: name what you notice, connect dots between things they\'ve said, or make a brief observation. "that\'s been coming up a lot." beats "why do you think that keeps coming up?"');
   } else {
