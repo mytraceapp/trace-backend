@@ -330,6 +330,7 @@ function buildRelationalAnchors(resolvedPeople) {
 }
 
 function buildClarificationResponse(relationship, candidates, userMessage) {
+  if (relationship === 'ex') return null;
   const names = candidates
     .slice(0, 3)
     .map(c => c.display_name);
