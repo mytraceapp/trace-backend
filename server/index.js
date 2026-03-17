@@ -11268,7 +11268,7 @@ If the right move isn't obvious: one grounded observation about what you notice 
     // TRACE NUDGE: loosen question throttle for deeper engagement
     if (controlQBudget === 0 && controlQMode.reason === 'natural_spacing_after_question') {
       const nudgeRoll = Math.random();
-      if (nudgeRoll < 0.4) {
+      if (nudgeRoll < 0.6) {
         controlQBudget = 1;
         console.log('[Q_NUDGE] Overrode natural_spacing to ALLOW_ONE for natural engagement');
       }
