@@ -1123,7 +1123,7 @@ function detectWindDown(userId, userText, isCrisisMode, lastAssistantText) {
   if (/^(ok|okay|cool|nice|great|alright|sure|yeah|yep|yup|k|sounds good)\.?$/i.test(text)) score += 15;
   if (text.length <= 12 && text.split(/\s+/).length <= 3) score += 10;
 
-  const isWindingDown = score >= 25;
+  const isWindingDown = score >= 40;
 
   if (!isWindingDown) return { isWindingDown: false };
 
