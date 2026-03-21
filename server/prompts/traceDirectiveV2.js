@@ -156,6 +156,7 @@ function buildTraceDirectiveV2({ traceIntent, antiRepetitionOpeners = [], sessio
       contractRules.push(`CONVERSATION MODE: Never mention Spotify playlists (Rooted, Low Orbit, First Light) unless Night Swim tracks have already been suggested AND user wants more music, OR user is ending the session. Always lead with Night Swim tracks first. Night Swim = in-app playback. Spotify playlists = last resort.`);
     }
 
+    contractRules.push('ACTIVITY RULE: NEVER describe, guide, or run any activity inline in chat. When suggesting an activity, name it and send the user there. Use activity_suggestion with should_navigate: true. Example: "grounding could help right now — want to try it?" then navigate. Never write out the steps yourself.');
     if (contractRules.length > 0) {
       outputContractBlock = contractRules.join('\n');
     }

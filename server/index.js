@@ -7961,11 +7961,27 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         // Map activity to route and label
         const activityRoutes = {
           'maze': '/activities/maze',
+          'grounding': '/activities/grounding',
+          'basin': '/activities/basin',
+          'drift': '/activities/drift',
+          'walking': '/activities/walking',
+          'window': '/activities/window',
+          'rising': '/activities/rising',
+          'dreamscape': '/activities/dreamscape',
+          'ripple': '/activities/ripple',
           'breathing': '/activities/breathing',
           'rest': '/activities/rest'
         };
         const activityLabels = {
           'maze': 'Maze',
+          'grounding': 'Grounding',
+          'basin': 'Basin',
+          'drift': 'Drift',
+          'walking': 'Walking',
+          'window': 'Window',
+          'rising': 'Rising',
+          'dreamscape': 'Dreamscape',
+          'ripple': 'Ripple',
           'breathing': 'Breathing',
           'rest': 'Rest'
         };
