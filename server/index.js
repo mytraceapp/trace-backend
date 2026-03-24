@@ -22415,7 +22415,7 @@ app.post('/api/voice/respond', async (req, res) => {
       model_id: `eleven_turbo_v2_5`,
       voice_settings: {
         stability: 0.2,
-        similarity_boost: 0.75,
+        similarity_boost: 0.55,
         style: 0.75,
         use_speaker_boost: true,
       },
@@ -22453,7 +22453,7 @@ app.post('/api/voice/tts', async (req, res) => {
       model_id: `eleven_turbo_v2_5`,
       voice_settings: {
         stability: 0.2,
-        similarity_boost: 0.75,
+        similarity_boost: 0.55,
         style: 0.75,
         use_speaker_boost: true,
       },
