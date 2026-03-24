@@ -7217,7 +7217,7 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         const okPhrases = [
           'ok', 'okay', 'k', 'yes', 'yeah', 'yep', 'yup', 'sure', 
           "let's do it", 'lets do it', 'do it', 'go ahead', 'sounds good',
-          'alright', 'got it', 'cool', 'great', 'perfect', 'fine', 'im down', "i'm down"
+          'alright', 'got it', 'cool', 'great', 'perfect', 'fine', 'im down', "i'm down", 'ok ready', 'okay ready', 'ready', 'i am ready', 'im ready'
         ];
         return okPhrases.includes(t) || okPhrases.some(p => t.startsWith(p + ' '));
       };
@@ -10462,7 +10462,8 @@ BANNED PHRASES: "Welcome back", "Good to have you back", "How was that?"
       brainSignals?.musicRequest
     );
     
-    if (isMusicContext && traceIntent) {
+    const explicitActivityInVoice = detectExplicitActivityRequest ? detectExplicitActivityRequest(userText) : null;
+    if (isMusicContext && traceIntent && !explicitActivityInVoice) {
       traceIntent.constraints = traceIntent.constraints || {};
       traceIntent.constraints.allowActivities = 'never';
       traceIntent.constraints.suppressSoundscapes = true;
