@@ -2760,6 +2760,7 @@ async function maybeAttachSunlightContext({ messages, profile, crisisActive }) {
 const app = express();
 app.set('trust proxy', 1);
 const getElevenLabsClient = () => {
+  console.log("[ELEVENLABS] API KEY present:", !!process.env.ELEVENLABS_API_KEY);
   const { ElevenLabsClient } = require(`@elevenlabs/elevenlabs-js`);
   return new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
 };
