@@ -22430,3 +22430,36 @@ app.post('/api/voice/respond', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// POST /api/voice/tts - ElevenLabs TTS for TRACE voice responses
+app.post('/api/voice/tts', async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text is required' });
+
+  try {
+    const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
+    const client = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
+    const voiceId = process.env.ELEVENLABS_VOICE_ID;
+
+    const audioStream = await client.textToSpeech.convert(voiceId, {
+      text,
+      model_id: 'eleven_turbo_v2_5',
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75,
+        style: 0.3,
+        use_speaker_boost: true,
+      },
+    });
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    for await (const chunk of audioStream) {
+      res.write(chunk);
+    }
+    res.end();
+    console.log('[TTS] Response streamed for text length:', text.length);
+  } catch (err) {
+    console.error('[TTS] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
