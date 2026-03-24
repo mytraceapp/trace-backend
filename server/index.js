@@ -22407,7 +22407,7 @@ app.post('/api/voice/respond', async (req, res) => {
     // Convert to speech via ElevenLabs
     const audioStream = await getElevenLabsClient().textToSpeech.convert(voiceId, {
       text: responseText,
-      model_id: 'eleven_turbo_v2_5',
+      model_id: `eleven_flash_v2_5`,
       voice_settings: {
         stability: 0.5,
         similarity_boost: 0.75,
@@ -22435,8 +22435,10 @@ app.post('/api/voice/respond', async (req, res) => {
 
 // POST /api/voice/tts - ElevenLabs TTS for TRACE voice responses
 app.post('/api/voice/tts', async (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'text is required' });
+  const rawText = req.body.text || "";
+  const sentences = rawText.split(/(?<=[.!?])\s+/);
+  const text = sentences.slice(0, 2).join(" ").trim();
+  if (!text) return res.status(400).json({ error: "text is required" });
 
   try {
     
@@ -22445,7 +22447,7 @@ app.post('/api/voice/tts', async (req, res) => {
 
     const audioStream = await getElevenLabsClient().textToSpeech.convert(voiceId, {
       text,
-      model_id: 'eleven_turbo_v2_5',
+      model_id: `eleven_flash_v2_5`,
       voice_settings: {
         stability: 0.5,
         similarity_boost: 0.75,
