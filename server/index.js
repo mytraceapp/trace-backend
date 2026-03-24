@@ -2758,9 +2758,11 @@ async function maybeAttachSunlightContext({ messages, profile, crisisActive }) {
 }
 
 const app = express();
-const { ElevenLabsClient } = require(`@elevenlabs/elevenlabs-js`);
-const elevenLabsClient = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
 app.set('trust proxy', 1);
+const getElevenLabsClient = () => {
+  const { ElevenLabsClient } = require(`@elevenlabs/elevenlabs-js`);
+  return new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
+};
 
 // Initialize Supabase client for server-side operations
 // IMPORTANT: Server operations require SERVICE_ROLE_KEY (not anon key) to bypass RLS
@@ -22402,7 +22404,7 @@ app.post('/api/voice/respond', async (req, res) => {
     const responseText = claudeResponse.content[0].text;
 
     // Convert to speech via ElevenLabs
-    const audioStream = await elevenLabsClient.textToSpeech.convert(voiceId, {
+    const audioStream = await getElevenLabsClient().textToSpeech.convert(voiceId, {
       text: responseText,
       model_id: 'eleven_turbo_v2_5',
       voice_settings: {
@@ -22440,7 +22442,7 @@ app.post('/api/voice/tts', async (req, res) => {
     
     const voiceId = process.env.ELEVENLABS_VOICE_ID;
 
-    const audioStream = await elevenLabsClient.textToSpeech.convert(voiceId, {
+    const audioStream = await getElevenLabsClient().textToSpeech.convert(voiceId, {
       text,
       model_id: 'eleven_turbo_v2_5',
       voice_settings: {
