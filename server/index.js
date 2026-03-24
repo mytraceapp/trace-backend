@@ -22353,3 +22353,80 @@ process.on('unhandledRejection', (reason) => {
   }
   console.error('[FATAL] Unhandled rejection:', reason);
 });
+
+// POST /api/voice/respond - ElevenLabs voice response for TRACE
+app.post('/api/voice/respond', async (req, res) => {
+  const { userId, transcript, conversationHistory } = req.body;
+
+  if (!userId || !transcript) {
+    return res.status(400).json({ error: 'userId and transcript are required' });
+  }
+
+  try {
+    const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
+    
+    const client = new ElevenLabsClient({
+      apiKey: process.env.ELEVENLABS_API_KEY,
+    });
+
+    const voiceId = process.env.ELEVENLABS_VOICE_ID;
+
+    // Get TRACE response from Claude first
+    const Anthropic = require('@anthropic-ai/sdk');
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    // Load user profile for context
+    let userContext = '';
+    if (supabaseServer) {
+      const { data: profile } = await supabaseServer
+        .from('profiles')
+        .select('display_name, preferred_name')
+        .eq('user_id', userId)
+        .single();
+      if (profile?.preferred_name || profile?.display_name) {
+        userContext = `The user's name is ${profile.preferred_name || profile.display_name}.`;
+      }
+    }
+
+    const messages = [
+      ...(conversationHistory || []),
+      { role: 'user', content: transcript }
+    ];
+
+    const claudeResponse = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      system: `You are TRACE — a calm, present AI companion for emotional wellness. Voice mode. Keep responses short, 1-3 sentences max. No lists. No markdown. Speak like you're in the room. ${userContext}`,
+      messages,
+    });
+
+    const responseText = claudeResponse.content[0].text;
+
+    // Convert to speech via ElevenLabs
+    const audioStream = await client.textToSpeech.convert(voiceId, {
+      text: responseText,
+      model_id: 'eleven_turbo_v2_5',
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75,
+        style: 0.3,
+        use_speaker_boost: true,
+      },
+    });
+
+    // Stream audio back
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('X-Trace-Response-Text', encodeURIComponent(responseText));
+    
+    for await (const chunk of audioStream) {
+      res.write(chunk);
+    }
+    res.end();
+
+    console.log('[VOICE] Response generated for userId:', userId);
+
+  } catch (err) {
+    console.error('[VOICE] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
