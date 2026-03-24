@@ -22398,7 +22398,11 @@ app.post('/api/voice/respond', async (req, res) => {
     const claudeResponse = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 300,
-      system: `You are TRACE — a calm, present AI companion for emotional wellness. Voice mode. Keep responses short, 1-3 sentences max. No lists. No markdown. Speak like you're in the room. ${userContext}`,
+      system: (() => {
+        const { buildTracePromptV2 } = require('./prompts/buildTracePromptV2');
+        const base = buildTracePromptV2({ tonePreference: 'default', antiRepetitionOpeners: [] });
+        return base + '\n\nVOICE MODE: Respond in 1-3 sentences max. No lists. No markdown. Speak like you are in the room. ' + userContext;
+      })(),
       messages,
     });
 
