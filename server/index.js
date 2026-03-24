@@ -22435,9 +22435,7 @@ app.post('/api/voice/respond', async (req, res) => {
 
 // POST /api/voice/tts - ElevenLabs TTS for TRACE voice responses
 app.post('/api/voice/tts', async (req, res) => {
-  const rawText = req.body.text || "";
-  const sentences = rawText.split(/(?<=[.!?])\s+/);
-  const text = sentences.slice(0, 2).join(" ").trim();
+  const { text } = req.body;
   if (!text) return res.status(400).json({ error: "text is required" });
 
   try {
