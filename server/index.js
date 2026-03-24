@@ -22414,9 +22414,9 @@ app.post('/api/voice/respond', async (req, res) => {
       text: responseText,
       model_id: `eleven_flash_v2_5`,
       voice_settings: {
-        stability: 0.3,
+        stability: 0.2,
         similarity_boost: 0.75,
-        style: 0.6,
+        style: 0.75,
         use_speaker_boost: true,
       },
     });
@@ -22452,9 +22452,9 @@ app.post('/api/voice/tts', async (req, res) => {
       text,
       model_id: `eleven_flash_v2_5`,
       voice_settings: {
-        stability: 0.3,
+        stability: 0.2,
         similarity_boost: 0.75,
-        style: 0.6,
+        style: 0.75,
         use_speaker_boost: true,
       },
     });
