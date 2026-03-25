@@ -73,9 +73,14 @@ module.exports = function registerVoiceChatEndpoint(app, {
         tonePreference,
       });
 
+      // Override system prompt for voice — plain text only, no JSON
+      const voiceSystemPrompt = systemPrompt + `
+
+VOICE MODE OVERRIDE: You are in a real-time voice conversation. Respond in plain conversational text only. No JSON, no markdown, no structured output. Just speak naturally as TRACE. Keep responses short — 1-3 sentences max. This is a spoken conversation.`;
+
       // Build messages for OpenAI
       const openaiMessages = [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: voiceSystemPrompt },
         ...messages.filter(m => m.role === 'user' || m.role === 'assistant')
           .map(m => ({ role: m.role, content: m.content }))
       ];
