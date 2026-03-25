@@ -22412,7 +22412,7 @@ app.post('/api/voice/respond', async (req, res) => {
     // Convert to speech via ElevenLabs
     const audioStream = await getElevenLabsClient().textToSpeech.convert(voiceId, {
       text: responseText,
-      model_id: `eleven_turbo_v2_5`,
+      model_id: `eleven_v3`,
       voice_settings: {
         stability: 0.25,
         similarity_boost: 0.55,
@@ -22450,7 +22450,7 @@ app.post('/api/voice/tts', async (req, res) => {
 
     const audioStream = await getElevenLabsClient().textToSpeech.convert(voiceId, {
       text,
-      model_id: `eleven_turbo_v2_5`,
+      model_id: `eleven_v3`,
       voice_settings: {
         stability: 0.25,
         similarity_boost: 0.55,
