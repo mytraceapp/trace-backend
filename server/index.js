@@ -5491,7 +5491,7 @@ registerVoiceChatEndpoint(app, {
   buildTraceSystemPrompt,
   coreMemory,
   memoryStore,
-  Anthropic,
+  openai,
 });
 
 app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChatRequest, async (req, res) => {

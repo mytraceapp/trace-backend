@@ -1,6 +1,5 @@
 /**
  * TRACE Voice Chat — OpenAI-compatible endpoint for ElevenLabs Conversational AI
- * Receives OpenAI-format requests, runs TRACE brain, streams back in OpenAI SSE format
  */
 
 module.exports = function registerVoiceChatEndpoint(app, {
@@ -8,7 +7,7 @@ module.exports = function registerVoiceChatEndpoint(app, {
   buildTraceSystemPrompt,
   coreMemory,
   memoryStore,
-  Anthropic,
+  openai,
 }) {
   app.post('/v1/chat/completions', async (req, res) => {
     try {
@@ -17,7 +16,7 @@ module.exports = function registerVoiceChatEndpoint(app, {
         return res.status(401).json({ error: 'Missing x-trace-user-id header' });
       }
 
-      const { messages = [], stream = true } = req.body;
+      const { messages = [] } = req.body;
       const lastUserMessage = messages.filter(m => m.role === 'user').pop()?.content || '';
 
       if (!lastUserMessage) {
@@ -47,8 +46,6 @@ module.exports = function registerVoiceChatEndpoint(app, {
 
       // Load memory
       let memContext = '';
-      let patternContext = null;
-      let dreamscapeHistory = null;
 
       if (conversationId) {
         const [storedCoreMemory, sessionSummaries, recentStored] = await Promise.all([
@@ -71,45 +68,36 @@ module.exports = function registerVoiceChatEndpoint(app, {
       const systemPrompt = buildTraceSystemPrompt({
         displayName,
         contextSnapshot: memContext || null,
-        patternContext,
-        dreamscapeHistory,
+        patternContext: null,
+        dreamscapeHistory: null,
         tonePreference,
       });
 
-      // Build messages for Claude
-      const claudeMessages = messages
-        .filter(m => m.role === 'user' || m.role === 'assistant')
-        .map(m => ({ role: m.role, content: m.content }));
+      // Build messages for OpenAI
+      const openaiMessages = [
+        { role: 'system', content: systemPrompt },
+        ...messages.filter(m => m.role === 'user' || m.role === 'assistant')
+          .map(m => ({ role: m.role, content: m.content }))
+      ];
 
       // Stream response in OpenAI SSE format
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
 
-      const anthropic = new Anthropic();
-      const stream_response = anthropic.messages.stream({
-        model: 'claude-sonnet-4-20250514',
+      const stream = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
         max_tokens: 300,
-        system: systemPrompt,
-        messages: claudeMessages,
+        messages: openaiMessages,
+        stream: true,
       });
 
-      stream_response.on('text', (text) => {
-        const chunk = {
-          choices: [{ delta: { content: text }, index: 0 }]
-        };
+      for await (const chunk of stream) {
         res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-      });
+      }
 
-      stream_response.on('finalMessage', () => {
-        res.write('data: [DONE]\n\n');
-        res.end();
-      });
-
-      stream_response.on('error', (err) => {
-        console.error('[VOICE CHAT] Stream error:', err);
-        res.end();
-      });
+      res.write('data: [DONE]\n\n');
+      res.end();
 
     } catch (err) {
       console.error('[VOICE CHAT] Error:', err);
