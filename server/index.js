@@ -5485,6 +5485,15 @@ function isErrorFallbackMessage(content) {
     (t.includes('lost the thread') && (t.includes('what were you') || t.includes('you were')));
 }
 
+const registerVoiceChatEndpoint = require('./voiceChat');
+registerVoiceChatEndpoint(app, {
+  supabaseServer,
+  buildTraceSystemPrompt,
+  coreMemory,
+  memoryStore,
+  Anthropic,
+});
+
 app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChatRequest, async (req, res) => {
   // Build dedup key BEFORE try block so it's available for caching on success
   const dedupKey = getDedupKey(req);
