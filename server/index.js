@@ -22479,3 +22479,59 @@ app.post('/api/voice/tts', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// GET /api/voice/usage - check today's voice usage
+app.get('/api/voice/usage', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseServer.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabaseServer
+      .from('user_voice_usage')
+      .select('seconds_used')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    const secondsUsed = data?.seconds_used || 0;
+    const dailyLimit = 1800;
+    const warningThreshold = 1500;
+    res.json({
+      seconds_used: secondsUsed,
+      seconds_remaining: Math.max(0, dailyLimit - secondsUsed),
+      is_warning: secondsUsed >= warningThreshold && secondsUsed < dailyLimit,
+      is_limit_reached: secondsUsed >= dailyLimit,
+    });
+  } catch (e) {
+    console.error('[VOICE USAGE] GET error:', e);
+    res.status(500).json({ error: 'Failed to fetch usage' });
+  }
+});
+
+// POST /api/voice/usage - log seconds after TTS plays
+app.post('/api/voice/usage', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseServer.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const { seconds } = req.body;
+    if (!seconds || typeof seconds !== 'number') {
+      return res.status(400).json({ error: 'seconds required' });
+    }
+    const { error } = await supabaseServer.rpc('increment_voice_usage', {
+      p_user_id: user.id,
+      p_date: new Date().toISOString().split('T')[0],
+      p_seconds: seconds,
+    });
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[VOICE USAGE] POST error:', e);
+    res.status(500).json({ error: 'Failed to log usage' });
+  }
+});
