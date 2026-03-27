@@ -22424,8 +22424,9 @@ app.post('/api/voice/respond', async (req, res) => {
       model_id: `eleven_v3_conversational`,
       voice_settings: {
         stability: 0.25,
+        speed: 0.9,
         similarity_boost: 0.55,
-        style: 0.65,
+        style: 0.75,
         use_speaker_boost: true,
       },
     });
@@ -22462,8 +22463,9 @@ app.post('/api/voice/tts', async (req, res) => {
       model_id: `eleven_v3_conversational`,
       voice_settings: {
         stability: 0.25,
+        speed: 0.9,
         similarity_boost: 0.55,
-        style: 0.65,
+        style: 0.75,
         use_speaker_boost: true,
       },
     });
