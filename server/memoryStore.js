@@ -120,6 +120,10 @@ async function saveMessage(supabase, conversationId, sessionId, role, content) {
     memConv.user_msg_count_since_extraction++;
     memConv.user_msg_count_since_summary++;
   }
+  // Also increment directly in DB to survive process restarts
+  if (supabase && role === 'user') {
+    supabase.rpc('increment_msg_counts', { p_conversation_id: conversationId }).catch(() => {});
+  }
 
   if (!supabase) return;
 
