@@ -96,6 +96,20 @@ async function saveMessage(supabase, conversationId, sessionId, role, content) {
   };
 
   const memConv = getOrCreateConversation(conversationId);
+  // Sync counter from DB if this is a fresh in-memory conversation
+  if (supabase && memConv.user_msg_count_since_extraction === 0) {
+    try {
+      const { data: dbConv } = await supabase
+        .from('trace_conversations')
+        .select('user_msg_count_since_extraction, user_msg_count_since_summary')
+        .eq('conversation_id', conversationId)
+        .single();
+      if (dbConv) {
+        memConv.user_msg_count_since_extraction = dbConv.user_msg_count_since_extraction || 0;
+        memConv.user_msg_count_since_summary = dbConv.user_msg_count_since_summary || 0;
+      }
+    } catch (e) { /* non-blocking */ }
+  }
   memConv.messages.push(msg);
   if (memConv.messages.length > MAX_MESSAGES_IN_MEMORY) {
     memConv.messages = memConv.messages.slice(-MAX_MESSAGES_IN_MEMORY);
