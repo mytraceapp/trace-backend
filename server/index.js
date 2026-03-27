@@ -2765,6 +2765,23 @@ function stripTtsTagsForDisplay(text) {
   return text.replace(/\[laugh\]|\[sigh\]|\[whisper\]|\[cough\]/gi, "").replace(/  +/g, " ").trim();
 }
 
+function naturalizeForTTS(text) {
+  if (!text || typeof text !== "string") return text;
+  // Add comma pause after common acknowledgments at start of sentence
+  text = text.replace(/^(yeah|yep|got you|got it|I hear you|okay|ok|right|honestly|look|listen|so|and|but|damn|wow|hm|hmm)(\s)/gim, "$1,$2");
+  // Add comma after acknowledgment mid-sentence after period
+  text = text.replace(/\.\s+(yeah|yep|got you|got it|I hear you|okay|ok|right|honestly|look|listen|so|damn|wow)(\s)/gi, ". $1,$2");
+  // Ensure sentences end with punctuation
+  text = text.replace(/([a-zA-Z])\s*$/g, "$1.");
+  // Break very long sentences at "and" or "but" if over ~100 chars
+  text = text.replace(/([^.!?,]{80,}?)\s+(and|but|so|because|which|that)\s+/g, "$1. $2 ");
+  // Clean up double punctuation
+  text = text.replace(/([.,])([.,])+/g, "$1");
+  // Clean up double spaces
+  text = text.replace(/  +/g, " ").trim();
+  return text;
+}
+
 const getElevenLabsClient = () => {
   console.log("[ELEVENLABS] KEY:", process.env.ELEVENLABS_API_KEY ? process.env.ELEVENLABS_API_KEY.substring(0,10) + "..." : "MISSING");
   const { ElevenLabsClient } = require(`@elevenlabs/elevenlabs-js`);
@@ -22392,6 +22409,7 @@ app.post('/api/voice/respond', async (req, res) => {
     
 
     const voiceId = process.env.ELEVENLABS_VOICE_ID;
+    const naturalText = naturalizeForTTS(text);
 
     // Get TRACE response from Claude first
     const Anthropic = require('@anthropic-ai/sdk');
@@ -22433,7 +22451,7 @@ app.post('/api/voice/respond', async (req, res) => {
       text: responseText,
       model_id: `eleven_v3_conversational`,
       voice_settings: {
-        stability: 0.30,
+        stability: 0.25,
         speed: 0.88,
         similarity_boost: 0.55,
         style: 0.75,
@@ -22467,12 +22485,13 @@ app.post('/api/voice/tts', async (req, res) => {
     
     
     const voiceId = process.env.ELEVENLABS_VOICE_ID;
+    const naturalText = naturalizeForTTS(text);
 
     const audioStream = await getElevenLabsClient().textToSpeech.convert(voiceId, {
-      text,
+      text: naturalText,
       model_id: `eleven_v3_conversational`,
       voice_settings: {
-        stability: 0.30,
+        stability: 0.25,
         speed: 0.88,
         similarity_boost: 0.55,
         style: 0.75,
