@@ -6,7 +6,7 @@ function sanitizeDisplayText(text) {
   return text
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
     .replace(/\u00A0/g, ' ')
-    .replace(/<laugh>|<sigh>|<whisper>|<cough>/gi, '')
+    .replace(/\[laugh\]|\[sigh\]|\[whisper\]|\[cough\]/gi, '')
     .replace(/  +/g, ' ')
     .trim();
 }

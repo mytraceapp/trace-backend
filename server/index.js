@@ -2762,7 +2762,7 @@ app.set('trust proxy', 1);
 // Strip TTS expression tags from text for UI display
 function stripTtsTagsForDisplay(text) {
   if (!text || typeof text !== "string") return text;
-  return text.replace(/<laugh>|<sigh>|<whisper>|<cough>/gi, "").replace(/  +/g, " ").trim();
+  return text.replace(/\[laugh\]|\[sigh\]|\[whisper\]|\[cough\]/gi, "").replace(/  +/g, " ").trim();
 }
 
 const getElevenLabsClient = () => {
@@ -11412,7 +11412,7 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
 Do NOT reuse your last opening phrase. NO emojis. NO bullet points.
 Respond with text only — no JSON wrapping.
 
-VOICE EXPRESSIONS: This app uses ElevenLabs text-to-speech. When you include <laugh>, <sigh>, <whisper>, or <cough> in your text, ElevenLabs will actually produce that sound in audio. You are NOT doing the laughing — the voice engine is. So when a moment calls for it, literally type the tag and ElevenLabs handles the rest. Example: "yeah. <sigh> that's a lot." or "<laugh> okay I did not see that coming." Max ONE tag per response. Never in crisis. Never forced.`;
+VOICE EXPRESSIONS: This app uses ElevenLabs text-to-speech. When you include [laugh], [sigh], [whisper], or [cough] in your text, ElevenLabs will actually produce that sound in audio. You are NOT doing the laughing — the voice engine is. So when a moment calls for it, literally type the tag and ElevenLabs handles the rest. Example: "yeah. [sigh] that's a lot." or "[laugh] okay I did not see that coming." Max ONE tag per response. Never in crisis. Never forced.`;
       
       const t2SessionAnchor = buildSessionContextAnchor(messagesWithHydration);
       const t2MessagesArray = [
