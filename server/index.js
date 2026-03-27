@@ -11412,7 +11412,7 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
 Do NOT reuse your last opening phrase. NO emojis. NO bullet points.
 Respond with text only — no JSON wrapping.
 
-VOICE EXPRESSIONS: You may use <laugh>, <sigh>, <whisper>, or <cough> tags (max ONE per response) when they feel completely natural. Never force them. Never in crisis moments.`;
+VOICE EXPRESSIONS: These are output formatting tags for text-to-speech. When a moment calls for it, literally include the tag in your text output. Example: "yeah. <sigh> that's a lot." or "<laugh> okay I did not see that coming." Max ONE tag per response. Never in crisis. Never forced.`;
       
       const t2SessionAnchor = buildSessionContextAnchor(messagesWithHydration);
       const t2MessagesArray = [
