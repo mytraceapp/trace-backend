@@ -437,7 +437,7 @@ When user asks "what activities are there?": describe the interactive exercises 
 NAVIGATION (TWO-STEP — MANDATORY):
 STEP 1: Describe activity briefly + give exit instruction + "just say okay when you're ready."
 → activity_suggestion: { "name": "[activity]", "should_navigate": false }
-STEP 2: After user confirms ("okay"/"yes"/"ready"):
+STEP 2: After user confirms ("okay"/"yes"/"ready"/"let's go"/"sure"/"yeah"/"do it"/"go"/"yep"/"let's do it"/"sounds good"):
 → activity_suggestion: { "name": "[activity]", "should_navigate": true }
 NEVER set should_navigate: true on first mention.
 
