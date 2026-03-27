@@ -2759,6 +2759,12 @@ async function maybeAttachSunlightContext({ messages, profile, crisisActive }) {
 
 const app = express();
 app.set('trust proxy', 1);
+// Strip TTS expression tags from text for UI display
+function stripTtsTagsForDisplay(text) {
+  if (!text || typeof text !== "string") return text;
+  return text.replace(/<laugh>|<sigh>|<whisper>|<cough>/gi, "").replace(/  +/g, " ").trim();
+}
+
 const getElevenLabsClient = () => {
   console.log("[ELEVENLABS] KEY:", process.env.ELEVENLABS_API_KEY ? process.env.ELEVENLABS_API_KEY.substring(0,10) + "..." : "MISSING");
   const { ElevenLabsClient } = require(`@elevenlabs/elevenlabs-js`);
@@ -11402,7 +11408,11 @@ Previous context: ${detected_state ? `Detected state: ${detected_state}, Posture
       const t2VoiceRules = isLongformT2
         ? `\nLONGFORM: Write the FULL content. Do NOT truncate or summarize.`
         : `\nRESPONSE LENGTH: 1-3 sentences default. Longer only if user asks.`;
-      const t2SystemAddendum = `${t2VoiceRules}\nDo NOT reuse your last opening phrase. NO emojis. NO bullet points.\nRespond with text only — no JSON wrapping.`;
+      const t2SystemAddendum = `${t2VoiceRules}
+Do NOT reuse your last opening phrase. NO emojis. NO bullet points.
+Respond with text only — no JSON wrapping.
+
+VOICE EXPRESSIONS: You may use <laugh>, <sigh>, <whisper>, or <cough> tags (max ONE per response) when they feel completely natural. Never force them. Never in crisis moments.`;
       
       const t2SessionAnchor = buildSessionContextAnchor(messagesWithHydration);
       const t2MessagesArray = [
