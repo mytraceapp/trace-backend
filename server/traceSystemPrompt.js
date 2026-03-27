@@ -440,7 +440,7 @@ STEP 1: Describe activity briefly + give exit instruction + "just say okay when 
 → activity_suggestion: { "name": "[activity]", "should_navigate": false }
 STEP 2: After user confirms ("okay"/"yes"/"ready"/"let's go"/"sure"/"yeah"/"do it"/"go"/"yep"/"let's do it"/"sounds good"):
 → activity_suggestion: { "name": "[activity]", "should_navigate": true }
-NEVER set should_navigate: true on first mention.
+NEVER set should_navigate: true on first mention. EXCEPTION: If the user explicitly says "take me to", "open", "go to", "launch", or "start" a specific activity by name — skip step 1 and set should_navigate: true immediately. They already know where they want to go.
 
 For Journal:
 STEP 1: "you can write that in the journal. want me to open it?"
