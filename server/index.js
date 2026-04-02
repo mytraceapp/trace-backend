@@ -2835,6 +2835,8 @@ async function logEventsBatch({ user_id, events }) {
     const rows = events.slice(0, 50).map(ev => ({
       user_id,
       event_name: ev.event_name,
+      device_id: ev.device_id || null,
+      platform: ev.platform || 'ios',
       props: ev.props || {},
       ts: ev.ts || new Date().toISOString()
     }));
