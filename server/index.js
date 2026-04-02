@@ -9119,6 +9119,10 @@ CRISIS OVERRIDE:
         conversationMeta = { conversation, conversationId };
         
         sessionRotation = await sessionManager.checkAndRotateSession(supabaseServer, conversation, memoryStore);
+
+        if (sessionRotation?.rotated && effectiveUserId && supabaseServer) {
+          logEventsBatch({ user_id: effectiveUserId, events: [{ event_name: 'app_open', ts: new Date().toISOString(), props: { source: 'session_rotation' } }] }).catch(() => {});
+        }
         
         if (sessionRotation?.rotated && conversation.current_session_id && supabaseServer) {
           try {
