@@ -134,12 +134,12 @@ const THERAPIST_FRAME_PATTERNS = [
 
 const APPROVED_MICRO_ACKS = [
   'yeah.', 'got you.', 'okay.', 'damn.', 'bet.', 'true.', 'fair.',
-  'love that.', 'lol fair.', 'for real.', 'heard.',
-  'hey.', 'rough.', 'okayyy.', 'ha fair.', 'go on.', 'tell me.',
+  'love that.', 'for real.', 'heard.',
+  'hey.', 'rough.', 'go on.', 'tell me.',
 ];
 
 const VOICE_PALETTE = {
-  light: ['love that.', 'okayyy.', 'lol fair.', 'ha, fair.', 'go on.', 'tell me.'],
+  light: ['love that.', 'go on.', 'tell me.'],
   neutral: ['got you.', 'yeah.', 'okay.', 'bet.', 'true.', 'for real.', 'heard.'],
   heavy: ['damn.', 'yeah… okay.', 'yeah. i\'m here.', 'that\'s real.', 'rough.', 'yeah. okay.'],
 };
@@ -159,14 +159,13 @@ const BUDDY_OPENERS_EMOTIONAL = [
 const BUDDY_OPENERS_CASUAL = [
   'oh nice.',
   'wait really?',
-  'oh word?',
   'ha, solid.',
-  'okay okay.',
+  ,
   'oh for real?',
   'nice.',
-  'lol fair.',
+  ,
   'love that.',
-  'haha okay.',
+  ,
 ];
 
 // TRACE voice characteristics
