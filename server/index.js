@@ -22457,10 +22457,10 @@ app.post('/api/voice/respond', async (req, res) => {
       text: responseText,
       model_id: `eleven_v3_conversational`,
       voice_settings: {
-        stability: 0.25,
+        stability: 0.40,
         speed: 0.88,
-        similarity_boost: 0.55,
-        style: 0.75,
+        similarity_boost: 0.80,
+        style: 0.55,
         use_speaker_boost: true,
       },
     });
@@ -22497,10 +22497,10 @@ app.post('/api/voice/tts', async (req, res) => {
       text: naturalText,
       model_id: `eleven_v3_conversational`,
       voice_settings: {
-        stability: 0.25,
+        stability: 0.40,
         speed: 0.88,
-        similarity_boost: 0.55,
-        style: 0.75,
+        similarity_boost: 0.80,
+        style: 0.55,
         use_speaker_boost: true,
       },
     });
