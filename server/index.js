@@ -5788,22 +5788,22 @@ app.post('/api/chat', optionalAuth, chatIpLimiter, chatUserLimiter, validateChat
         /\b(?:how\s*come|why\s*not|really|but\s*why|seriously|for\s*real|you\s*sure|come\s*on|liar|lying|cap)\b/i.test(userMessageLower) && recentSocialContext;
       
       if (hasPriorSocialDenial && currentMsgMentionsSocial) {
-        socialResponse = "wait, actually — I do have socials. @traceriapp on Instagram, TikTok, and X. my bad on that earlier.";
+        socialResponse = "wait, actually — I do have socials. @trace.state on Instagram and TikTok, @trace_state on X. my bad on that earlier.";
         console.log('[SOCIAL INTERCEPT] Correcting prior wrong denial in conversation history');
       } else if (ALL_SOCIALS_RE.test(userMessageLower) || SHARE_WORK_RE.test(userMessageLower)) {
-        socialResponse = "yeah — @traceriapp on Instagram, TikTok, and X. no YouTube yet, but it's coming.";
+        socialResponse = "yeah — @trace.state on Instagram and TikTok, @trace_state on X and YouTube.";
       } else if (INSTA_RE.test(userMessageLower) && (ASKING_RE.test(userMessageLower) || userMessageLower.length < 40)) {
-        socialResponse = "yeah, @traceriapp on Instagram.";
+        socialResponse = "yeah, @trace.state on Instagram.";
       } else if (TIKTOK_RE.test(userMessageLower) && (ASKING_RE.test(userMessageLower) || userMessageLower.length < 40)) {
-        socialResponse = "yeah, @traceriapp on TikTok.";
+        socialResponse = "yeah, @trace.state on TikTok.";
       } else if ((TWITTER_RE.test(userMessageLower) || X_ONLY_RE.test(userMessageLower)) && (ASKING_RE.test(userMessageLower) || userMessageLower.length < 40)) {
-        socialResponse = "yeah, @traceriapp on X.";
+        socialResponse = "yeah, @trace_state on X.";
       } else if (YOUTUBE_RE.test(userMessageLower) && (ASKING_RE.test(userMessageLower) || userMessageLower.length < 40)) {
         socialResponse = "not yet — no official YouTube channel right now. but it's on the list.";
       } else if (SPOTIFY_SOCIAL_RE.test(userMessageLower)) {
         socialResponse = "my music lives in the app for now. public Spotify links coming soon.";
       } else if (recentSocialContext && /\b(?:how\s*come|why\s*not|really|but\s*why|seriously|for\s*real|you\s*sure|come\s*on|liar|lying|cap)\b/i.test(userMessageLower)) {
-        socialResponse = "actually yeah, I do — @traceriapp on Instagram, TikTok, and X. sorry about the mix-up.";
+        socialResponse = "actually yeah, I do — @trace.state on Instagram and TikTok, @trace_state on X and YouTube. sorry about the mix-up.";
         console.log('[SOCIAL INTERCEPT] Follow-up challenge in social context detected');
       }
       
