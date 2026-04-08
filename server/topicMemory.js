@@ -93,6 +93,22 @@ async function storeTopics(pool, userId, conversationId, topics) {
   }
 }
 
+async function storeLoopSignal(pool, userId, conversationId, loopLabel) {
+  if (!pool || !userId || !conversationId || !loopLabel) return;
+  try {
+    await pool.query(`
+      INSERT INTO conversation_topics (user_id, conversation_id, topic, loop_count, last_loop_at)
+      VALUES ($1, $2, $3, 1, NOW())
+      ON CONFLICT (user_id, conversation_id, topic)
+      DO UPDATE SET
+        loop_count = conversation_topics.loop_count + 1,
+        last_loop_at = NOW()
+    `, [userId, conversationId, loopLabel]);
+  } catch (err) {
+    console.error('[TOPIC_MEMORY] storeLoopSignal error:', err.message);
+  }
+}
+
 async function resolveTopicsForUser(pool, userId, topics) {
   if (!pool || !userId || !topics || topics.length === 0) return;
 
@@ -192,4 +208,5 @@ module.exports = {
   fetchRecentCrossSessionTopics,
   cleanupOldResolvedTopics,
   buildTopicContextPrompt,
+  storeLoopSignal,
 };

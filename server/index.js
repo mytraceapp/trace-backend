@@ -9758,6 +9758,12 @@ Frame it personally. Playlists open externally — only suggest if user seems op
     const sessionUpdate = updateSessionState(cleanedClientState, messages);
     const memoryUpdate = updateMemory(cleanedClientState, lastUserMessage);
     const turnCount = sessionUpdate.sessionTurnCount;
+
+    // Persist loop signals to DB so they survive server restarts
+    const detectedLoop = memoryUpdate.activeLoops?.slice(-1)[0];
+    if (detectedLoop && pool && effectiveUserId && conversationMeta?.conversationId) {
+      topicMemory.storeLoopSignal(pool, effectiveUserId, conversationMeta.conversationId, detectedLoop.label).catch(() => {});
+    }
     
     // Build last user texts for pause detection
     const lastUserTexts = messages
