@@ -232,9 +232,22 @@ function isNewsQuestion(text) {
     'headlines',
     'happening with the',
     'happening in the',
+    'do you know about',
+    'do you know what',
+    'did you know about',
+    'did you see that',
+    'did you hear that',
+    'have you seen',
+    'is it true that',
+    'war in',
+    'conflict in',
+    'crisis in',
   ];
-  
-  return eventPatterns.some(pattern => t.includes(pattern));
+
+  const hasEventWord = /\b(shooting|attack|crash|explosion|earthquake|flood|protest|coup|war|invasion|election|outbreak|crisis|conflict|bombing)\b/i.test(t);
+  const hasConfirmPhrasing = /\b(started|happened|broke out|is true|just happened|going on)\b/i.test(t);
+
+  return eventPatterns.some(pattern => t.includes(pattern)) || (hasEventWord && hasConfirmPhrasing);
 }
 
 const _newsConvoState = new Map();
