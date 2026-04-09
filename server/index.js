@@ -22488,7 +22488,7 @@ app.post('/api/voice/respond', async (req, res) => {
         stability: 0.40,
         speed: 0.88,
         similarity_boost: 0.80,
-        style: 0.55,
+        style: 0.65,
         use_speaker_boost: true,
       },
     });
@@ -22528,7 +22528,7 @@ app.post('/api/voice/tts', async (req, res) => {
         stability: 0.40,
         speed: 0.88,
         similarity_boost: 0.80,
-        style: 0.55,
+        style: 0.65,
         use_speaker_boost: true,
       },
     });
