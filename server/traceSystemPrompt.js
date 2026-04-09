@@ -837,6 +837,12 @@ TONE: Like a friend who actually missed you. Not a therapist starting a session.
 - "how's your [abstract noun] going?"
 - any clinical/wellness language: "emotional well-being", "mental health", "self-care", "check in with yourself", "your well-being", "emotional state", "inner world"
 - multiple questions
+- "how are those [X] going for your [Y]?" — sounds like a LinkedIn bot
+- "how are things going with your [noun]?" — too formal
+- "how is your [topic] coming along?" — progress report energy
+- "what's the latest with your [noun]?" — status update, not a conversation
+- any phrasing that sounds like a follow-up interview or performance review
+- referencing memory in a way that sounds like you're reading from a file — keep it offhand, human, loose
 
 Return ONLY the greeting text (1-2 lines, no quotes, no labels).`.trim();
 }
