@@ -1,6 +1,10 @@
 const CRISIS_PATTERNS = /\b(suicid|kill myself|want to die|hurt myself|end it all|no reason to live|self.harm)\b/i;
 const HEAVY_PATTERNS = /\b(stressed|anxious|overwhelmed|can't handle|breaking down|exhausted|burnt out|depressed|struggling|difficult time|hard time|falling apart|losing it|can't cope|drowning|spiraling|panic)\b/i;
 const POSITIVE_PATTERNS = /\b(proud|excited|happy|great|amazing|went well|worked out|relieved|better|grateful|hopeful|optimistic|good day|feeling good|accomplished)\b/i;
+const GUILTY_PATTERNS = /\b(my fault|blame myself|should have|i failed|i let|i messed up|i ruined|bad person|terrible person|i'm the problem|i always do this)\b/i;
+const CAREGIVER_PATTERNS = /\b(she's struggling|he's struggling|they're struggling|i keep trying|nothing works|i don't know how to help|taking care of|worried about them|exhausted from)\b/i;
+const SEEKING_CONNECTION_PATTERNS = /\b(just wanted to talk|needed to vent|don't really have anyone|felt like reaching out|just needed someone|talking to you helps|feeling alone)\b/i;
+const AVOIDANT_PATTERNS = /\b(never mind|forget it|it's fine|i'm fine|doesn't matter|not a big deal|anyway|whatever|lol|haha|jk|just kidding)\b/i;
 
 function classifyEmotionalTone(messages) {
   if (!messages || messages.length === 0) return 'neutral';
@@ -11,6 +15,10 @@ function classifyEmotionalTone(messages) {
   if (CRISIS_PATTERNS.test(text)) return 'crisis';
   if (HEAVY_PATTERNS.test(text)) return 'heavy';
   if (POSITIVE_PATTERNS.test(text)) return 'positive';
+  if (GUILTY_PATTERNS.test(text)) return 'guilty';
+  if (CAREGIVER_PATTERNS.test(text)) return 'caregiver_exhausted';
+  if (SEEKING_CONNECTION_PATTERNS.test(text)) return 'seeking_connection';
+  if (AVOIDANT_PATTERNS.test(text)) return 'avoidant';
 
   return 'neutral';
 }
@@ -131,10 +139,19 @@ function buildEmotionalCarryoverPrompt(lastSession) {
     context += `Summary: ${lastSession.summary}\n`;
   }
 
-  if (lastSession.emotional_tone === 'crisis' || lastSession.emotional_tone === 'heavy') {
-    context += `IMPORTANT: Last session was ${lastSession.emotional_tone}. Do NOT greet cheerfully. Keep your opening minimal and grounded. Let them set the tone.`;
-  } else if (lastSession.emotional_tone === 'positive') {
+  const tone = lastSession.emotional_tone;
+  if (tone === 'crisis' || tone === 'heavy') {
+    context += `IMPORTANT: Last session was ${tone}. Do NOT greet cheerfully. Keep your opening minimal and grounded. Let them set the tone.`;
+  } else if (tone === 'positive') {
     context += `Last session ended on a good note. Warm but not performative — match their energy if they bring it.`;
+  } else if (tone === 'guilty') {
+    context += `Last session they were carrying self-blame. Don't pile on. Don't rush to fix it. Just be steady and real with them.`;
+  } else if (tone === 'caregiver_exhausted') {
+    context += `Last session they were worn down from taking care of someone else. They may need space to just exist — not problem-solve. Don't immediately ask about the person they're caring for.`;
+  } else if (tone === 'seeking_connection') {
+    context += `Last session they just needed to be heard. Keep your opening warm and unhurried. Don't be transactional.`;
+  } else if (tone === 'avoidant') {
+    context += `Last session they were deflecting. Don't push. Let them come to you. Match their pace — if they're light, be light. If they go deeper, follow.`;
   } else {
     context += `Don't re-ask about things just discussed unless user brings them up.`;
   }
