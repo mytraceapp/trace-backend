@@ -9224,6 +9224,17 @@ CRISIS OVERRIDE:
           const themeCount = (memContext.match(/- Recurring themes:/g) || []).length;
           const impressionPresent = memContext.includes('YOUR IMPRESSION');
           console.log(`[MEMORY_INJECT] Core memory: facts=${factCount > 0} goals=${goalCount > 0} themes=${themeCount > 0} impression=${impressionPresent} session_rotated=${sessionRotation?.rotated} chars=${memContext.length}`);
+
+          // P1.2: Surface longer_arc_intention and impression as first-class prompt signals
+          const rp = storedCoreMemory?.relationship_profile;
+          if (rp?.longer_arc_intention || rp?.impression) {
+            const orientationLines = ['ORIENTATION (read this first — it shapes everything about how you show up today):'];
+            if (rp.impression) orientationLines.push(`- Who they are: ${rp.impression}`);
+            if (rp.longer_arc_intention) orientationLines.push(`- Where they are right now: ${rp.longer_arc_intention}`);
+            orientationLines.push('This is not to be stated or referenced directly. It lives underneath your tone, your patience, your word choices.');
+            contextParts.unshift(orientationLines.join('\n'));
+            console.log(`[MEMORY_INJECT] Orientation block injected: impression=${!!rp.impression} arc=${!!rp.longer_arc_intention}`);
+          }
         }
 
         if (isMemoryFrustration) {
