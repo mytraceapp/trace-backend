@@ -9287,6 +9287,17 @@ CRISIS OVERRIDE:
       console.log('[TRACE] Hydration hint added to conversation');
     }
 
+    // Inject greeting as assistant message so TRACE knows what it said
+    if (isGreetingResponse && greetingText) {
+      const alreadyHasGreeting = messagesWithHydration.length > 0 &&
+        messagesWithHydration[0].role === 'assistant' &&
+        messagesWithHydration[0].content === greetingText;
+      if (!alreadyHasGreeting) {
+        messagesWithHydration = [{ role: 'assistant', content: greetingText }, ...messagesWithHydration];
+        console.log('[GREETING INJECT] Prepended greeting as assistant message:', greetingText.slice(0, 60));
+      }
+    }
+
     // Rolling session compression — instead of just dropping old messages,
     // compress them into a context summary so TRACE never forgets the beginning
     const MAX_HISTORY_MESSAGES = 40;
