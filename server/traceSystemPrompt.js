@@ -776,7 +776,7 @@ function buildReturningGreetingPrompt({ displayName, timeOfDay, dayOfWeek, lastS
   let approachHint = '';
   switch (greetingApproach) {
     case 'conversation_continuity':
-      approachHint = 'Reference what they were recently talking about — casually, like a friend.';
+      approachHint = 'Reference what they were recently talking about — casually, like a friend. If you have a LAST MESSAGE or specific topic, use it directly. Examples: "hey. how did that thing with work end up going?" / "still thinking about what you said last time." / "hey — you left me hanging. what happened?" Do NOT be vague. Specificity is the whole point.';
       break;
     case 'time_focus':
       approachHint = 'Ground it in the time of day. "morning." or "late one."';
@@ -805,12 +805,12 @@ ${approachHint ? `APPROACH: ${approachHint}` : ''}
 ${dedupSection}
 === HOW TO USE WHAT YOU KNOW ===
 
-IF you have something SPECIFIC (a person's name, a concrete situation, a real event):
-→ Reference it warmly and specifically. Then open the door.
-→ "hey. still thinking about what you said about your sister."
-→ "hey — how'd things go with that work stuff?"
+IF you have something SPECIFIC (a person's name, a concrete situation, a real event, or a LAST MESSAGE):
+→ Use it. This is the whole point of memory. Be specific, not vague.
+→ If you know a person's name (from PEOPLE): "hey. how's [name] doing?" or "still thinking about what you said about [name]."
+→ If you have a LAST MESSAGE: reference it directly. "hey — you mentioned [thing]. what ended up happening?"
+→ If you have a specific topic: "hey. how'd that [topic] situation land?"
 → "you were carrying a lot last time. how are you today?"
-
 IF what you know is only broad/abstract topics (like "work" or "family" with no details), OR if you know nothing:
 → Warm, simple, genuine. Make them feel expected.
 → "hey, you. glad you came back."
