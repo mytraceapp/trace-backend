@@ -1,0 +1,158 @@
+You are auditing an existing production system. Do NOT rebuild anything from scratch.
+
+Your role:
+Act as a senior backend engineer reviewing an AI memory system for gaps, overlap, and optimization opportunities.
+
+Context:
+This is the TRACE app (AI reflection companion). The system already has:
+- Supabase database (with RLS enforced)
+- trace_conversations, trace_sessions, trace_memory_core tables
+- Backend logic in server/traceBrain.js
+- Sound-aware prompting (currentSoundState already used)
+- Minimal-diff philosophy (no large rewrites, no UI changes unless explicitly requested)
+
+Goal:
+Audit the CURRENT memory system and identify:
+1. What memory layers already exist
+2. What is missing (based on a state-based memory model)
+3. What should be extended vs left untouched
+4. Where duplication risk exists
+5. Minimal, safe upgrades (backend-only preferred)
+
+---
+
+STEP 1 — DISCOVER CURRENT MEMORY
+
+Scan the codebase and answer:
+
+A. What memory is currently stored?
+- What tables store memory? (trace_memory_core, others?)
+- What fields are used? (user_id, content, embeddings, etc.)
+- Is memory episodic (per message), summarized, or structured?
+
+B. How is memory retrieved?
+- Where in the code is memory fetched before a response?
+- Is it using embeddings / similarity / simple queries?
+- How much memory is injected into prompts?
+
+C. How is memory written?
+- When does the system store memory?
+- Is it after every message, session, or selectively?
+
+D. Is there ANY pattern detection already?
+- Repeated behaviors?
+- Emotional states?
+- Session summaries?
+
+Return findings clearly.
+
+---
+
+STEP 2 — MAP TO TARGET MODEL
+
+We are aiming for this memory structure:
+
+1. Identity Memory (stable preferences)
+2. State Patterns (behavioral/emotional patterns over time)
+3. Session Memory (entry/exit states, session-level summary)
+4. (Optional later) Arc Memory (long-term movement)
+
+Compare CURRENT system to this model.
+
+Output a table:
+
+| Layer | Exists? | Where | Notes |
+|------|--------|------|------|
+
+---
+
+STEP 3 — GAP ANALYSIS
+
+Identify ONLY meaningful gaps:
+
+Examples:
+- No pattern tracking across sessions
+- No structured session entry/exit state
+- Memory stored but not influencing behavior
+- Over-reliance on raw conversation recall
+
+DO NOT suggest generic improvements.
+Focus only on what materially improves:
+👉 emotional attunement
+👉 response adaptation
+👉 environment shaping (sound/pacing)
+
+---
+
+STEP 4 — DUPLICATION RISK
+
+Identify if any of the following would create duplication:
+
+- Creating new tables when existing ones can be extended
+- Storing patterns already derivable from trace_memory_core
+- Recomputing things already handled in prompts
+
+Call this out explicitly:
+"DO NOT BUILD X because it already exists in Y"
+
+---
+
+STEP 5 — MINIMAL UPGRADE PLAN
+
+Propose ONLY small, safe changes:
+
+Constraints:
+- No UI changes
+- No breaking existing flows
+- No large refactors
+- Prefer extending existing tables over creating new ones
+
+Output:
+
+1. Exact additions (fields, small tables, or functions)
+2. Where to implement (file paths)
+3. Why it matters
+4. Risk level (low/medium/high)
+
+---
+
+STEP 6 — PRIORITIZATION
+
+Rank upgrades:
+
+P0 = immediate high-impact, low-risk  
+P1 = valuable but not urgent  
+P2 = later / optional  
+
+---
+
+STEP 7 — OUTPUT FORMAT
+
+Be concise, structured, and actionable.
+
+DO NOT:
+- Rewrite the system
+- Suggest new frameworks
+- Over-engineer
+
+DO:
+- Respect existing architecture
+- Optimize what’s already there
+- Focus on leverage, not volume
+
+---
+
+IMPORTANT PHILOSOPHY
+
+This system is NOT about storing more data.
+
+It is about:
+👉 detecting patterns over time
+👉 adapting how the AI responds
+👉 shaping tone, pacing, and environment
+
+Memory should influence behavior — not just be retrieved.
+
+---
+
+Begin audit.

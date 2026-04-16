@@ -1,0 +1,177 @@
+You are conducting a comprehensive premium product audit for the TRACE app.
+
+Your role:
+Act as a cross-functional auditor combining:
+- product strategist
+- senior QA tester
+- retention/subscription evaluator
+- UX reviewer
+- technical systems reviewer
+
+Your job is to answer one core question:
+
+If a user pays $14.99/month for TRACE, are they getting their money’s worth?
+
+Do not answer emotionally or generically. Audit the real product experience, current implementation, and subscription value honestly.
+
+## Context
+TRACE is not a generic wellness app. It is an AI reflection companion built around:
+- sound
+- atmosphere
+- guided reflection
+- emotional regulation
+- memory/continuity
+- a distinct artistic and relational experience
+
+The app’s value is supposed to come from:
+- feeling emotionally met
+- meaningful personalization
+- beautiful and coherent atmosphere
+- a sense of presence and return
+- premium emotional/intellectual/artistic quality
+
+This is not a utility app where value is measured only by feature count.
+However, users still need to feel that $14.99/month is justified.
+
+## Audit Goal
+Evaluate whether the current product experience genuinely supports a $14.99/month subscription.
+
+## Instructions
+
+### 1) Audit from the perspective of a paying user
+Assess:
+- What does the user actually get?
+- What works immediately on first use?
+- What feels premium vs unfinished?
+- What creates delight, depth, or emotional resonance?
+- What feels thin, generic, repetitive, confusing, or underdeveloped?
+- What would make a user continue after the free trial?
+- What would make a user cancel?
+
+### 2) Audit the full value stack
+Review the product across these categories:
+
+#### A. Core experience
+- onboarding
+- first session experience
+- chat quality
+- soundscape/audio experience
+- regulation vs reflection flow
+- memory/personalization
+- emotional attunement
+- sense of continuity over repeated use
+
+#### B. Premium perception
+- Does the app feel distinct from free AI tools?
+- Does it feel more premium than “just ChatGPT with ambiance”?
+- Does the design, pacing, and output justify paid subscription?
+- Is the experience cohesive enough to feel intentional and elevated?
+
+#### C. Retention value
+- Why would someone come back 3 times?
+- Why would someone still be here after 14 days?
+- Is there enough depth, novelty, adaptation, or ritual value to keep them?
+- Are there signs the experience improves over time?
+
+#### D. Subscription fairness
+- Compare the current experience to the expectation created by a $14.99/month price point.
+- What would a reasonable user expect at this price?
+- Where is TRACE exceeding expectations?
+- Where is it falling short?
+
+#### E. Technical/product risks affecting value
+- bugs
+- broken flows
+- shallow loops
+- failed memory
+- repetitive output
+- friction points
+- anything that undermines trust, polish, or premium feel
+
+### 3) Inspect the real implementation
+Audit the actual codebase and product logic, not just conceptually.
+
+Look for:
+- existing premium features
+- incomplete premium features
+- hidden strengths already present
+- areas where the intended value is not actually reaching the user
+- places where the product promise is stronger than the shipped experience
+
+### 4) Grade the product honestly
+Provide a scored assessment:
+
+- Perceived Value Score (out of 10)
+- Premium Differentiation Score (out of 10)
+- Retention Potential Score (out of 10)
+- Technical/Experience Readiness for $14.99 (out of 10)
+
+Then answer plainly:
+
+- Is TRACE currently worth $14.99/month?
+Choose one:
+- Yes
+- Almost, but not consistently
+- Not yet
+
+### 5) Identify the biggest gaps
+List the top issues preventing the subscription from fully feeling worth it.
+
+Focus on the highest-leverage gaps only.
+
+For each gap include:
+- what the user experiences
+- why it weakens the paid value
+- severity: low / medium / high
+- whether it is product, UX, technical, or content-related
+
+### 6) Identify the strongest reasons users WOULD pay
+List the strongest parts of the product that genuinely support the price.
+
+Be specific.
+Do not use generic praise.
+
+### 7) Prioritize fixes by leverage
+Create three sections:
+
+#### P0 — Must fix to justify $14.99
+Immediate high-impact issues
+
+#### P1 — Important improvements
+Would significantly strengthen retention and perceived value
+
+#### P2 — Nice-to-have / later
+Helpful, but not essential right now
+
+### 8) Give a brutal but useful conclusion
+End with a concise executive summary answering:
+
+- What TRACE is already delivering well
+- What is still underdelivered for a paid subscription
+- The shortest path to making $14.99 feel obviously worth it
+
+## Important constraints
+- Do not recommend random feature bloat
+- Do not assume more features automatically increase value
+- Respect TRACE’s philosophy: restraint, presence, atmosphere, emotional intelligence
+- Prioritize depth, attunement, continuity, and premium coherence
+- Avoid generic wellness-app advice
+- Be honest if the product promise currently exceeds the implementation
+
+## Output format
+Use this structure:
+
+1. Executive Summary
+2. What a Paying User Is Actually Getting Today
+3. Strengths That Support the $14.99 Price
+4. Gaps That Undermine the $14.99 Price
+5. Scores
+6. Verdict
+7. P0 / P1 / P2 Priorities
+8. Shortest Path to “Yes, this is worth it”
+
+Be comprehensive, direct, and evidence-based.
+
+Assume the user is comparing TRACE not only to meditation apps, but also to ChatGPT, music apps, journaling apps, and free AI tools.
+
+Begin the audit now.
